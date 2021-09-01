@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.favorsoft.mplatform.cdn.mapper.CodeGroupMapper">
+    <resultMap id="codeGroupSystemResult" type="com.favorsoft.mplatform.cdn.dto.result.CodeGroupSystemResult"/>
+
+    <update  id="createTable">
+        CREATE TABLE IF NOT EXISTS CG_${codeGroupId}
+                (
+                CODE VARCHAR(100),
+                NAME VARCHAR(100),
+                CREATED_DATE DATETIME,
+                CREATOR VARCHAR(255),
+                UPDATE_DATE DATETIME,
+                UPDATER VARCHAR(255),
+                REFERENCE VARCHAR(100),
+                CONSTRAINT CG_${codeGroupId}_PK PRIMARY KEY(CODE)
+                )ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
+    </update>
+
+    <update  id="dropTable">
+        DROP TABLE IF EXISTS CG_${codeGroupId}
+    </update>
+
+    <update  id="addColumn">
+        ALTER TABLE CG_${codeGroupId} ADD COLUMN ${propId} ${dbType}
+    </update>
+
+    <update  id="dropColumn">
+        ALTER TABLE CG_${codeGroupId} DROP COLUMN ${propId}
+    </update>
+
+    <select id="getCode" resultType="map">
+        SELECT * FROM CG_${codeGroupId} WHERE CODE = #{code}
+    </select>
+
+    <select id="getCodeList" resultType="map">
+        SELECT * FROM CG_${codeGroupId} ORDER BY CODE
+    </select>
+
+    <select id="getColumn" resultType="map">
+        SHOW COLUMNS FROM CG_${codeGroupId} where field = #{field}
+    </select>
+
+    <insert id="saveCode">
+        INSERT INTO CG_${codeGroupId} (code, name, reference, creator, created_date
+            <if test="data != null">
+                <foreach collection="data" item="propValue" index="key" separator=", " open=", ">
+                    ${propValue.propId}
+                </foreach>
+            </if>
+        )
+        values ( #{code}, #{name}, #{reference},  #{creator}, now()
+            <if test="data  != null">
+                <foreach collection="data" item="propValue" index="key" separator=", " open=", ">
+                    #{propValue.value}
+                </foreach>
+            </if>
+        )
+        ON DUPLICATE KEY UPDATE
+            name = #{name},
+            reference = #{reference},
+            updater = #{updater},
+            update_date = now()
+            <if test="data != null">
+                <foreach collection="data" item="propValue" index="key" separator=", " open=", ">
+                    ${propValue.propId} = #{propValue.value}
+                </foreach>
+            </if>
+    </insert>
+
+    <delete id="deleteCode">
+        DELETE FROM CG_${codeGroupId} WHERE CODE = #{code}
+    </delete>
+
+    <select id="getFormatedFormUI" resultMap="codeGroupSystemResult" >
+        SELECT c.code_group_id,
+               p.prop_id,
+               p.area_id,
+               p.type,
+               p.unit,
+               p.width,
+               p.regex,
+               p.rule_code,
+               p.mask,
+               p.db_type,
+               p.message   prop_message,
+               cp.id,
+               cp.prop_mode,
+               cp.is_disabled,
+               cp.is_read_only,
+               cp.is_show,
+               cp.disp_seq,
+               g.group_id,
+               g.disp_seq  group_disp_seq,
+               g.is_enable group_is_enable,
+               g.message   group_message,
+               s.section_id,
+               s.disp_seq  section_disp_seq,
+               s.is_enable section_is_enable,
+               s.message   section_message
+        FROM CODE_GROUP c
+                 LEFT JOIN code_group_prop cp on c.code_group_id = cp.code_group_id
+                 LEFT JOIN (select p.prop_id, p.area_id, p.type, p.group_id, p.unit, p.width, p.regex, p.rule_code, p.mask, p.db_Type, vm.message from prop p left outer join (select m.message_id AS message_id, l.lang AS lang, l.message AS message from (message m join message_lang l on (m.message_id = l.message_id)) where m.is_enable = 'Y') vm on p.message_id = vm.message_id where vm.lang = #{lang}) p on cp.prop_id = p.prop_id
+                 LEFT JOIN (select g.group_id, g.section_id, g.disp_seq, g.is_enable, vm.message from mgroup g left outer join (select m.message_id AS message_id, l.lang AS lang, l.message AS message from (message m join message_lang l on (m.message_id = l.message_id)) where m.is_enable = 'Y') vm on g.message_id = vm.message_id where vm.lang=#{lang}) g on p.group_id = g.group_id
+                 LEFT JOIN (select s.section_id, s.disp_seq, s.is_enable, vm.message from msection s left outer join (select m.message_id AS message_id, l.lang AS lang, l.message AS message from (message m join message_lang l on (m.message_id = l.message_id)) where m.is_enable = 'Y') vm on s.message_id = vm.message_id where vm.lang=#{lang}) s on g.section_id = s.section_id
+        WHERE c.code_group_id = #{codeGroupId}
+    </select>
+
+    <select id="existCode" resultType="int">
+        select count(*) from CG_${codeGroupId} WHERE CODE != #{code} AND ${propId} = #{propValue}
+    </select>
+</mapper>

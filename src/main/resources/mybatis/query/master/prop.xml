@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.favorsoft.mplatform.cdn.mapper.PropMapper">
+    <resultMap id="propValueHistory" type="com.favorsoft.mplatform.cdn.dto.PropValueHistory" />
+    <resultMap id="propValue" type="com.favorsoft.mplatform.cdn.dto.PropValue" />
+
+    <insert id="insertProp">
+        INSERT INTO PV_${propId}
+                (DOMAIN_ID,
+                MASTER_ID,
+                AREA_ID,
+                VALUE) values
+                (#{domainId}, #{masterId}, #{areaId}, #{value})
+                ON DUPLICATE KEY UPDATE
+                VALUE = #{value}
+    </insert>
+
+    <insert id="insertPropHistory">
+        INSERT INTO PV_${propId}_HISTORY
+                (DOMAIN_ID,
+                MASTER_ID,
+                AREA_ID,
+                SEQ,
+                VALUE,
+                CREATE_DATE,
+                CREATOR,
+                REFERENCE
+                ) values
+                (#{domainId}, #{masterId}, #{areaId}, #{seq}, #{value}, now(), #{creator}, #{reference})
+    </insert>
+
+    <update id="createPropTable">
+        CREATE TABLE IF NOT EXISTS PV_${propId} (
+            DOMAIN_ID VARCHAR(100),
+            MASTER_ID VARCHAR(50),
+            AREA_ID VARCHAR(10),
+            VALUE ${dbType},
+            CONSTRAINT PV_${propId}_PK PRIMARY KEY(DOMAIN_ID, MASTER_ID, AREA_ID)
+        )ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
+    </update>
+
+    <select id="selectAllProp" resultMap="propValue">
+        SELECT DOMAIN_ID, MASTER_ID, AREA_ID, VALUE
+        FROM PV_${propId}
+    </select>
+
+    <delete id="deleteProp">
+        DELETE FROM PV_${propId} WHERE master_id = #{masterId} AND domain_id = #{domainId}
+    </delete>
+
+    <update id="dropPropTable">
+        DROP TABLE IF EXISTS PV_${propId}
+    </update>
+
+    <update id="createPropHistoryTable">
+        CREATE TABLE IF NOT EXISTS PV_${propId}_HISTORY (
+            DOMAIN_ID VARCHAR(100),
+            MASTER_ID VARCHAR(50),
+            AREA_ID VARCHAR(10),
+            SEQ INT,
+            VALUE  ${dbType},
+            CREATE_DATE DATETIME,
+            CREATOR VARCHAR(20),
+            REFERENCE VARCHAR(20),
+            CONSTRAINT PV_${propId}_HISTORY_PK PRIMARY KEY(MASTER_ID, AREA_ID, SEQ)
+        )ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
+    </update>
+
+    <update id="dropPropHistoryTable">
+        DROP TABLE IF EXISTS PV_${propId}_HISTORY
+    </update>
+
+    <select id="selectAllPropHistory" resultMap="propValueHistory">
+        SELECT DOMAIN_ID, MASTER_ID, AREA_ID, SEQ, VALUE, CREATE_DATE, CREATOR
+        FROM PV_${propId}_HISTORY
+    </select>
+
+    <delete id="deletePropHistory">
+        DELETE FROM PV_${propId}_HISTORY WHERE master_id = #{masterId} AND domain_id = #{domainId}
+    </delete>
+
+</mapper>

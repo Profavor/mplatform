@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.favorsoft.mplatform.cdn.mapper.MasterMapper">
+    <resultMap id="propValue" type="com.favorsoft.mplatform.cdn.dto.PropValue" />
+
+    <select id="getClassProp" resultMap="propValue">
+        SELECT c.domain_id, c.class_id, p.prop_id, p.area_id, p.type
+        FROM (
+                 SELECT B._id, @lv2 := @lv2 + 1 AS level
+                 FROM (
+                     SELECT
+                        @r AS _id,
+                        (SELECT @r := parent_id FROM mclass WHERE class_id = _id AND domain_id = #{domainId}) AS parent,
+                        @l := @l +1 AS lv
+                     FROM
+                     (
+                        SELECT @r := #{classId}, @l := 0) vars, mclass
+                        WHERE @r is not null
+                        ORDER BY lv DESC
+                     ) B,
+                     (SELECT @lv2 := 0) vars2
+        ) func
+            LEFT JOIN (select domain_id, class_id, parent_id from mclass) c ON func._id = c.class_id
+            LEFT JOIN class_prop cp on c.class_id = cp.class_id and c.domain_id = cp.domain_id
+            LEFT JOIN (select prop_id, area_id, type, group_id from prop) p on cp.prop_id = p.prop_id
+    </select>
+
+    <select id="getMasterData" resultType="map">
+        select m.domain_id, m.class_id, m.master_id, m.status,
+        <foreach collection="props" item="prop" index="key" separator=", ">
+            ${prop}.value as ${prop}
+        </foreach>
+        from master m
+        <foreach collection="props" item="prop" index="key" separator=" ">
+            LEFT OUTER JOIN pv_${prop} as ${prop} on m.master_id = ${prop}.master_id
+        </foreach>
+        WHERE m.domain_id = #{domainId} and m.class_id in (
+        <foreach collection="classes" item="class" index="key" separator=", ">
+            #{class.class_id}
+        </foreach>
+        )
+        <if test="masterId != null">
+            AND m.master_id = #{masterId}
+        </if>
+    </select>
+
+    <select id="getChildClasses" resultType="map">
+        WITH RECURSIVE CTE AS (
+            SELECT class_id,
+                   parent_id,
+                   (select message from message_lang where message_id = mclass.message_id and lang = #{lang}) as menu_path
+            FROM mclass
+            WHERE class_id = #{classId} and domain_id = #{domainId}
+            UNION ALL
+            SELECT a.class_id,
+                   a.parent_id,
+                   concat(b.menu_path, ' > ', (select message from message_lang where message_id = a.message_id and lang = #{lang})) as menu_path
+            FROM mclass a
+                INNER JOIN CTE b ON a.parent_id = b.class_id
+        )
+        SELECT class_id, menu_path FROM CTE
+    </select>
+</mapper>
