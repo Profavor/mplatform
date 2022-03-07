@@ -1,7 +1,6 @@
 package com.favorsoft.mplatform.cdn.domain;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
-import com.favorsoft.mplatform.cdn.domain.keys.CodeGroupPropKey;
 import com.favorsoft.mplatform.cdn.enums.PropMode;
 import lombok.*;
 

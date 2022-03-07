@@ -4,8 +4,6 @@ import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import com.favorsoft.mplatform.cdn.dto.CodeGroupDTO;
 import lombok.*;
-import org.springframework.data.rest.core.annotation.RestResource;
-
 import javax.persistence.*;
 import java.util.ArrayList;
 import java.util.List;

@@ -1,11 +1,11 @@
 package com.favorsoft.mplatform.config.security;
 
 import lombok.RequiredArgsConstructor;
+
+import com.favorsoft.mplatform.support.JwtTokenUtil;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
-import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
@@ -22,6 +22,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SpringSecurityConfig extends WebSecurityConfigurerAdapter {
 
     private final JwtTokenProvider jwtTokenProvider;
+
+    private final JwtTokenUtil jwtTokenUtil;
 
 
     @Bean
@@ -50,7 +52,7 @@ public class SpringSecurityConfig extends WebSecurityConfigurerAdapter {
 //                .antMatchers(HttpMethod.GET, "/exception/**", "/helloworld/**","/actuator/health", "/v1/board/**", "/favicon.ico").permitAll() // 등록된 GET요청 리소스는 누구나 접근가능
 //                .anyRequest().hasRole("USER") // 그외 나머지 요청은 모두 인증된 회원만 접근 가능
             .and()
-                .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), BasicAuthenticationFilter.class); // jwt token 필터를 id/password 인증 필터 전에 넣어라.
+                .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, jwtTokenUtil), BasicAuthenticationFilter.class); // jwt token 필터를 id/password 인증 필터 전에 넣어라.
 
         // process CORS annotations
         http.cors();

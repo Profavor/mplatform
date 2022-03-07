@@ -1,7 +1,6 @@
 package com.favorsoft.mplatform.cdn.domain;
 
 import com.favorsoft.mplatform.cdn.dto.PropDTO2;
-import com.favorsoft.mplatform.cdn.enums.PropMode;
 import lombok.*;
 import org.springframework.data.rest.core.annotation.RestResource;
 

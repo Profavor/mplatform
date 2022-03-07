@@ -31,7 +31,7 @@ public class MessageController {
     }
 
     /**
-     * ClassProp 저장
+     * Message 저장
      * @param message
      * @return
      */
