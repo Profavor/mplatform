@@ -24,7 +24,7 @@ public class ApprovalBatchService {
         this.approvalService = approvalService;
     }
 
-    @Scheduled(cron = "0 * * * * ?")
+    //@Scheduled(cron = "0 * * * * ?")
     public void createApproval() throws Exception {
         List<Approval> approvalList = approvalService.getList(ApprovalStatus.CREATE);
 

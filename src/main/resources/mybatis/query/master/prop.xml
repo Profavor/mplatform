@@ -29,14 +29,14 @@
                 (#{domainId}, #{masterId}, #{areaId}, #{seq}, #{value}, now(), #{creator}, #{reference})
     </insert>
 
-    <update id="createPropTable">
+    <update id="createPropTable"  >
         CREATE TABLE IF NOT EXISTS PV_${propId} (
             DOMAIN_ID VARCHAR(100),
             MASTER_ID VARCHAR(50),
             AREA_ID VARCHAR(10),
             VALUE ${dbType},
             CONSTRAINT PV_${propId}_PK PRIMARY KEY(DOMAIN_ID, MASTER_ID, AREA_ID)
-        )ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
+        )
     </update>
 
     <select id="selectAllProp" resultMap="propValue">

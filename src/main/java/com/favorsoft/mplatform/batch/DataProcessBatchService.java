@@ -44,7 +44,7 @@ public class DataProcessBatchService {
         this.masterService = masterService;
     }
 
-    @Scheduled(cron = "0 * * * * ?")
+    //@Scheduled(cron = "0 * * * * ?")
     public void createDataProcess() throws Exception {
         List<DataProcessInstance> dataProcessInstanceList = dataProcessInstanceService.getInstanceList(ApprovalStatus.CREATE);
 
@@ -73,7 +73,7 @@ public class DataProcessBatchService {
         }
     }
 
-    @Scheduled(cron = "20 * * * * ?")
+    //@Scheduled(cron = "20 * * * * ?")
     public void activeDataProcess() throws Exception {
         List<DataProcessInstance> approvalInstanceList = dataProcessInstanceService.getInstanceList(ApprovalStatus.PROCESS);
 
@@ -124,7 +124,7 @@ public class DataProcessBatchService {
         }
     }
 
-    @Scheduled(cron = "40 * * * * ?")
+    //@Scheduled(cron = "40 * * * * ?")
     public void finishDataProcess() throws Exception {
         Gson gson = new Gson();
 
