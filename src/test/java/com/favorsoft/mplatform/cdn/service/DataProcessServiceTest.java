@@ -112,7 +112,7 @@ public class DataProcessServiceTest {
         instance.setCurrentUser(new User("TEST_USER1"));
         instance.setStartDate(new Date());
         instance.setStatus(ApprovalStatus.CREATE);
-        instance.setManageClass("com.favorsoft.mplatform.cdn.service.approval.manage.ApprovalBasicManagerImpl");
+        instance.setManageClass("com.favorsoft.mplatform.manager.dataprocess.BasicDataProcessManager");
         instance.setDataId("FIN_0000000004");
         instance.setDataType("MASTER");
         instance.setDataGroup("FINANCE");
@@ -125,7 +125,7 @@ public class DataProcessServiceTest {
 
         List<PropValue> propValueList = new ArrayList<>();
         PropValue propValue = new PropValue();
-        propValue.setPropId("EVENT_CODE");
+        propValue.setPropId("TEST_PROP2");
         propValue.setValue("TEST_EVENT_CODE1234");
         propValueList.add(propValue);
 
@@ -152,7 +152,8 @@ public class DataProcessServiceTest {
     @Test
     public void processApproval() throws Exception {
         logger.info("##### PROCESS APPROVAL BATCH #####");
-        DataProcessInstance instance = dataProcessInstanceService.getList().stream().filter(s->s.getStatus().equals("PROCESS")).findFirst().get();
+        List<DataProcessInstance> instanceList = dataProcessInstanceService.getList();
+        DataProcessInstance instance = instanceList.stream().filter(s->s.getStatus().getApprovalStatus().equals("PROCESS")).findFirst().get();
 
         List<DataProcessInstanceFlow> instanceFlowList = instance.getApprovalInstanceFlowList();
         DataProcessInstanceFlow currentFlow = instanceFlowList.stream().filter(s->s.getFlowStep().equals(instance.getCurrentStep())).findFirst().get();

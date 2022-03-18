@@ -38,17 +38,21 @@ public class MasterCodeServiceImpl implements MasterCodeService {
 
 		Optional<MasterCode> optional = masterCodeRepository.findById(masterCodeKey);
 		if(!optional.isPresent()) {
-			masterCodeKey.setClassId("root");
+			masterCodeKey.setClassId("ROOT");
 			optional = masterCodeRepository.findById(masterCodeKey);
 		}
-		
-		MasterCode masterCode = optional.get();
-		masterCode.setCnt(masterCode.getCnt() + 1); //TODO: 이부분 오류!! Db 시퀀스로 변경 필요
-		MasterCode newMasterCode = masterCodeRepository.save(masterCode);
-		if (newMasterCode == null) {
-			throw new MplatformRuntimeException(MplatformErrorCode.INVALID_REQUEST_PARAM, "Cannot update MasterCode cnt");
+
+		if(optional.isPresent()) {
+			MasterCode masterCode = optional.get();
+			masterCode.setCnt(masterCode.getCnt() + 1); //TODO: 이부분 오류!! Db 시퀀스로 변경 필요
+			MasterCode newMasterCode = masterCodeRepository.save(masterCode);
+			if (newMasterCode == null) {
+				throw new MplatformRuntimeException(MplatformErrorCode.INVALID_REQUEST_PARAM, "Cannot update MasterCode cnt");
+			}
+			return newMasterCode;
 		}
-		return newMasterCode;
+		
+		return null;
 	}
 	
 	private String generateMasterId(MasterCode masterCode) {

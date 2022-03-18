@@ -40,7 +40,11 @@ public class MclassController {
 
     @GetMapping
     @RequestMapping("/{domainId}")
-    public List<Mclass> getList(@PathVariable String domainId) {
+    public List<Mclass> getList(@PathVariable String domainId, @RequestParam(value="isEnable", defaultValue="") String isEnable) {
+        if("Y".equals(isEnable)){
+            return mclassService.getList(domainId, isEnable);
+        }
+
         return mclassService.getList(domainId);
     }
 

@@ -4,25 +4,15 @@
     <resultMap id="propValue" type="com.favorsoft.mplatform.cdn.dto.PropValue" />
 
     <select id="getClassProp" resultMap="propValue">
-        SELECT c.domain_id, c.class_id, p.prop_id, p.area_id, p.type
-        FROM (
-                 SELECT B._id, @lv2 := @lv2 + 1 AS level
-                 FROM (
-                     SELECT
-                        @r AS _id,
-                        (SELECT @r := parent_id FROM mclass WHERE class_id = _id AND domain_id = #{domainId}) AS parent,
-                        @l := @l +1 AS lv
-                     FROM
-                     (
-                        SELECT @r := #{classId}, @l := 0) vars, mclass
-                        WHERE @r is not null
-                        ORDER BY lv DESC
-                     ) B,
-                     (SELECT @lv2 := 0) vars2
-        ) func
-            LEFT JOIN (select domain_id, class_id, parent_id from mclass) c ON func._id = c.class_id
-            LEFT JOIN class_prop cp on c.class_id = cp.class_id and c.domain_id = cp.domain_id
-            LEFT JOIN (select prop_id, area_id, type, group_id from prop) p on cp.prop_id = p.prop_id
+        with recursive cte as (
+            select domain_id, class_id, parent_id, 1 as level from mclass where class_id = #{classId} and domain_id = #{domainId}
+            union all
+            select p.domain_id, p.class_id, p.parent_id, 1+level as level from mclass p inner join cte on p.class_id = cte.parent_id and p.domain_id = cte.domain_id
+        )
+        select cte.domain_id, cte.class_id, cte.parent_id, p.prop_id, p.area_id, p.type from cte
+             LEFT JOIN class_prop cp on cte.class_id = cp.class_id and cte.domain_id = cp.domain_id
+             LEFT JOIN (select prop_id, area_id, type, group_id from prop) p on cp.prop_id = p.prop_id
+        ORDER BY cte.level desc
     </select>
 
     <select id="getMasterData" resultType="map">

@@ -12,5 +12,7 @@ import java.util.List;
 @Repository
 @JaversSpringDataAuditable
 public interface MclassRepository extends JpaRepository<Mclass, MclassKey> {
-    List<Mclass> findByDomainId(String domainId);
+    List<Mclass> findByDomainIdOrderByDispSeqAsc(String domainId);
+
+    List<Mclass> findByDomainIdAndIsEnableOrderByDispSeqAsc(String domainId, String isEnable);
 }

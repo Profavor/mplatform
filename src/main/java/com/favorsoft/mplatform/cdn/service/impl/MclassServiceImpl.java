@@ -36,7 +36,7 @@ public class MclassServiceImpl implements MclassService {
 
     @Override
     public List<Mclass> getList(String domainId) {
-        return mclassRepository.findByDomainId(domainId);
+        return mclassRepository.findByDomainIdOrderByDispSeqAsc(domainId);
     }
 
     @Override
@@ -178,5 +178,10 @@ public class MclassServiceImpl implements MclassService {
             currentGroup.addProp(prop);
         }
         return standardSystem;
+    }
+
+    @Override
+    public List<Mclass> getList(String domainId, String isEnable) {
+        return mclassRepository.findByDomainIdAndIsEnableOrderByDispSeqAsc(domainId, isEnable);
     }
 }

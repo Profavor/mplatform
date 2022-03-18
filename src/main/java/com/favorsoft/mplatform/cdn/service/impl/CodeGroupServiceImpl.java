@@ -78,10 +78,12 @@ public class CodeGroupServiceImpl implements CodeGroupService {
         CodeGroupProp nameProp = codeGroupProps.stream().filter(s-> PropMode.NAME.equals(s.getPropMode())).findFirst().orElse(new CodeGroupProp());
 
         List<Map<String, Object>> codeMapList = codeGroupMapper.getCodeList(codeGroupId);
-        for(Map<String, Object> codeMap: codeMapList){
-            codeMap.put("NAME", codeMap.get(nameProp.getProp().getPropId()));
+        if(nameProp.getProp() != null) {
+            String propId = nameProp.getProp().getPropId();
+            for(Map<String, Object> codeMap: codeMapList){
+                codeMap.put("NAME", codeMap.get(propId));
+            }
         }
-
         return codeMapList;
     }
 

@@ -10,4 +10,5 @@ import java.util.List;
 public interface MclassService extends CommonService<Mclass> {
     StandardSystemRes getStandardSystemByClassAndDomain(StandardSystemReq standardSystemReq);
     List<Mclass> getList(String domainId);
+    List<Mclass> getList(String domainId, String isEnable);
 }

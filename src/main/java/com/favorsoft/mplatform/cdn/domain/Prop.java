@@ -1,6 +1,8 @@
 package com.favorsoft.mplatform.cdn.domain;
 
 import com.favorsoft.mplatform.cdn.dto.PropDTO2;
+import com.favorsoft.mplatform.cdn.enums.PropMode;
+
 import lombok.*;
 import org.springframework.data.rest.core.annotation.RestResource;
 
@@ -63,8 +65,12 @@ public class Prop extends BaseEntity {
     @RestResource(path = "mgroup", rel="mgroup", exported = false)
     private Mgroup mgroup;
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 10)
+    private PropMode propMode;
+
     @Builder
-    public Prop(String propId, String unit, int width, String regex, String ruleCode, String dbType, String areaId, String type, String messageId, String groupId, String reference){
+    public Prop(String propId, String unit, int width, String regex, String ruleCode, String dbType, String areaId, String type, String messageId, String groupId, String reference, PropMode propMode){
         this.propId = propId;
         this.unit = unit;
         this.width = width;
@@ -76,6 +82,7 @@ public class Prop extends BaseEntity {
         this.message = new Message(messageId);
         this.mgroup = new Mgroup(groupId);
         this.reference = reference;
+        this.propMode = propMode;
     }
 
     public static Prop.PropBuilder fromPropDTO(PropDTO2 propDTO){
@@ -90,6 +97,7 @@ public class Prop extends BaseEntity {
                 .type(propDTO.getType())
                 .messageId(propDTO.getMessageId())
                 .groupId(propDTO.getGroupId())
-                .reference(propDTO.getReference());
+                .reference(propDTO.getReference())
+                .propMode(propDTO.getPropMode());
     }
 }

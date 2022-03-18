@@ -4,54 +4,46 @@
     <resultMap id="standardSystemResult" type="com.favorsoft.mplatform.cdn.dto.result.StandardSystemResult"/>
 
     <select id="getFormatedFormUI" resultMap="standardSystemResult" >
-        SELECT c.domain_id,
-               c.class_id,
-               c.parent_id,
-               c.message   class_message,
-               p.prop_id,
-               p.area_id,
-               p.type,
-               p.unit,
-               p.width,
-               p.regex,
-               p.rule_code,
-               p.mask,
-               p.db_type,
-               p.reference,
-               p.message   prop_message,
-               cp.prop_mode,
-               cp.is_disabled,
-               cp.is_read_only,
-               cp.is_show,
-               cp.disp_seq,
-               g.group_id,
-               g.disp_seq  group_disp_seq,
-               g.is_enable group_is_enable,
-               g.message   group_message,
-               s.section_id,
-               s.disp_seq  section_disp_seq,
-               s.is_enable section_is_enable,
-               s.message   section_message,
-               func.level
-        FROM (
-                 SELECT B._id, @lv2 := @lv2 + 1 AS level
-                 FROM (
-                     SELECT
-                        @r AS _id,
-                        (SELECT @r := parent_id FROM mclass WHERE class_id = _id AND domain_id = #{domainId}) AS parent,
-                        @l := @l +1 AS lv
-                     FROM
-                     (
-                        SELECT @r := #{classId}, @l := 0) vars, mclass
-                        WHERE @r is not null
-                        ORDER BY lv DESC
-                     ) B,
-                     (SELECT @lv2 := 0) vars2
-        ) func
-            LEFT JOIN (select c.domain_id, c.class_id, c.parent_id, vm.message from mclass c left outer join (select m.message_id AS message_id, l.lang AS lang, l.message AS message from (message m join message_lang l on (m.message_id = l.message_id)) where m.is_enable = 'Y') vm on c.message_id = vm.message_id where vm.lang=#{lang}) c ON func._id = c.class_id
-            LEFT JOIN class_prop cp on c.class_id = cp.class_id and c.domain_id = cp.domain_id
-            LEFT JOIN (select p.prop_id, p.area_id, p.type, p.group_id, p.unit, p.width, p.regex, p.rule_code, p.mask, p.db_Type, p.reference, vm.message from prop p left outer join (select m.message_id AS message_id, l.lang AS lang, l.message AS message from (message m join message_lang l on (m.message_id = l.message_id)) where m.is_enable = 'Y') vm on p.message_id = vm.message_id where vm.lang = #{lang}) p on cp.prop_id = p.prop_id
-            LEFT JOIN (select g.group_id, g.section_id, g.disp_seq, g.is_enable, vm.message from mgroup g left outer join (select m.message_id AS message_id, l.lang AS lang, l.message AS message from (message m join message_lang l on (m.message_id = l.message_id)) where m.is_enable = 'Y') vm on g.message_id = vm.message_id where vm.lang=#{lang}) g on p.group_id = g.group_id
-            LEFT JOIN (select s.section_id, s.disp_seq, s.is_enable, vm.message from msection s left outer join (select m.message_id AS message_id, l.lang AS lang, l.message AS message from (message m join message_lang l on (m.message_id = l.message_id)) where m.is_enable = 'Y') vm on s.message_id = vm.message_id where vm.lang=#{lang}) s on g.section_id = s.section_id
-    </select>
+        with recursive cte as (
+            select domain_id, class_id, parent_id, message_id, 1 as level from mclass where class_id = #{classId} and domain_id = #{domainId}
+            union all
+            select p.domain_id, p.class_id, p.parent_id, p.message_id, 1+level as level from mclass p inner join cte on p.class_id = cte.parent_id and p.domain_id = cte.domain_id
+        )
+        select
+            cte.domain_id,
+            cte.class_id,
+            cte.parent_id,
+            (select message from message_lang where message_id = cte.message_id and lang = #{lang}) as class_message,
+            p.prop_id,
+            p.area_id,
+            p.type,
+            p.reference,
+            p.unit,
+            p.width,
+            p.regex,
+            p.rule_code,
+            p.mask,
+            p.db_type,
+            (select message from message_lang where message_id = p.message_id and lang = #{lang})   prop_message,
+            cp.prop_mode,
+            cp.is_disabled,
+            cp.is_read_only,
+            cp.is_show,
+            cp.disp_seq,
+            g.group_id,
+            g.disp_seq  group_disp_seq,
+            g.is_enable group_is_enable,
+            (select message from message_lang where message_id = g.message_id and lang = #{lang})   group_message,
+            s.section_id,
+            s.disp_seq  section_disp_seq,
+            s.is_enable section_is_enable,
+            (select message from message_lang where message_id = s.message_id and lang = #{lang}) section_message,
+            cte.level
+        from cte
+                 INNER JOIN class_prop cp on cte.class_id = cp.class_id and cte.domain_id = cp.domain_id
+                 INNER JOIN prop p on cp.prop_id = p.prop_id
+                 INNER JOIN mgroup g on p.group_id = g.group_id
+                 INNER JOIN msection s on g.section_id = s.section_id
+        ORDER BY s.disp_seq, g.disp_seq, cp.disp_seq
+</select>
 </mapper>

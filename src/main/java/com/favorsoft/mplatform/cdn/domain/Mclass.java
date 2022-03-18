@@ -43,13 +43,16 @@ public class Mclass extends BaseEntity {
     @RestResource(path = "classProp", rel="classProp", exported = false)
     private List<ClassProp> classProp;
 
+    private long dispSeq;
+
     @Builder
-    public Mclass(String domainId, String classId, String isEnable, String parentId, String messageId){
+    public Mclass(String domainId, String classId, String isEnable, String parentId, String messageId, long dispSeq){
         this.domainId = domainId;
         this.classId = classId;
         this.isEnable = isEnable;
         this.parentId = parentId;
         this.message = new Message(messageId);
+        this.dispSeq = dispSeq;
     }
 
     public static MclassBuilder fromMclassDTO(MclassDTO mclassDTO){
@@ -58,7 +61,8 @@ public class Mclass extends BaseEntity {
                 .domainId(mclassDTO.getDomainId())
                 .isEnable(mclassDTO.getIsEnable())
                 .parentId(mclassDTO.getParentId())
-                .messageId(mclassDTO.getMessageId());
+                .messageId(mclassDTO.getMessageId())
+                .dispSeq(mclassDTO.getDispSeq());
     }
 
 }

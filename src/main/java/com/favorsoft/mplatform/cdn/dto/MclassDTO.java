@@ -13,13 +13,15 @@ public class MclassDTO {
     private String parentId;
     private String isEnable;
     private String messageId;
+    private long dispSeq;
 
     @Builder
-    public MclassDTO(String domainId, String classId, String parentId, String isEnable, String messageId){
+    public MclassDTO(String domainId, String classId, String parentId, String isEnable, String messageId, long dispSeq){
         this.domainId = domainId;
         this.classId = classId;
         this.parentId = parentId;
         this.isEnable = isEnable == null ? "N" : isEnable;
         this.messageId = messageId;
+        this.dispSeq = dispSeq;
     }
 }
