@@ -1,7 +1,6 @@
 package com.favorsoft.mplatform.cdn.service;
 
 import com.favorsoft.mplatform.cdn.domain.*;
-import com.favorsoft.mplatform.cdn.domain.keys.CodeGroupPropKey;
 import com.favorsoft.mplatform.cdn.dto.CodeGroupDTO;
 import com.favorsoft.mplatform.cdn.dto.PropValue;
 import com.favorsoft.mplatform.cdn.dto.request.CodeGroupSystemReq;
@@ -22,7 +21,6 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
 

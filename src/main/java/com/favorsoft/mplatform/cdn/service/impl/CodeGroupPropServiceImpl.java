@@ -2,7 +2,6 @@ package com.favorsoft.mplatform.cdn.service.impl;
 
 import com.favorsoft.mplatform.cdn.domain.CodeGroupProp;
 import com.favorsoft.mplatform.cdn.domain.Prop;
-import com.favorsoft.mplatform.cdn.domain.keys.CodeGroupPropKey;
 import com.favorsoft.mplatform.cdn.mapper.CodeGroupMapper;
 import com.favorsoft.mplatform.cdn.repository.jpa.CodeGroupPropRepository;
 import com.favorsoft.mplatform.cdn.service.CodeGroupPropService;

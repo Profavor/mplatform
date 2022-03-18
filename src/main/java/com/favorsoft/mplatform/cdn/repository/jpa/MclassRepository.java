@@ -1,7 +1,7 @@
 package com.favorsoft.mplatform.cdn.repository.jpa;
 
+import com.favorsoft.mplatform.cdn.domain.Domain;
 import com.favorsoft.mplatform.cdn.domain.Mclass;
-import com.favorsoft.mplatform.cdn.domain.keys.MclassKey;
 import org.javers.spring.annotation.JaversSpringDataAuditable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -11,8 +11,8 @@ import java.util.List;
 @CrossOrigin
 @Repository
 @JaversSpringDataAuditable
-public interface MclassRepository extends JpaRepository<Mclass, MclassKey> {
-    List<Mclass> findByDomainIdOrderByDispSeqAsc(String domainId);
+public interface MclassRepository extends JpaRepository<Mclass, String> {
+    List<Mclass> findByDomainOrderByDispSeqAsc(Domain domain);
 
-    List<Mclass> findByDomainIdAndIsEnableOrderByDispSeqAsc(String domainId, String isEnable);
+    List<Mclass> findByDomainAndIsEnableOrderByDispSeqAsc(Domain domain, String isEnable);
 }

@@ -30,7 +30,7 @@ public class PropTypeController {
 
         BeanUtils.copyProperties(propType, originPropType, CommonUtil.getNullPropertyNames(propType));
 
-        return ResponseEntity.ok(propTypeService.save(propType));
+        return ResponseEntity.ok(propTypeService.save(originPropType));
     }
 
     @GetMapping(value = "/{type}")

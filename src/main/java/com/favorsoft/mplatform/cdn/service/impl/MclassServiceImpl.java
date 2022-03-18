@@ -1,7 +1,7 @@
 package com.favorsoft.mplatform.cdn.service.impl;
 
+import com.favorsoft.mplatform.cdn.domain.Domain;
 import com.favorsoft.mplatform.cdn.domain.Mclass;
-import com.favorsoft.mplatform.cdn.domain.keys.MclassKey;
 import com.favorsoft.mplatform.cdn.dto.request.StandardSystemReq;
 import com.favorsoft.mplatform.cdn.dto.response.*;
 import com.favorsoft.mplatform.cdn.dto.result.StandardSystemResult;
@@ -36,7 +36,7 @@ public class MclassServiceImpl implements MclassService {
 
     @Override
     public List<Mclass> getList(String domainId) {
-        return mclassRepository.findByDomainIdOrderByDispSeqAsc(domainId);
+        return mclassRepository.findByDomainOrderByDispSeqAsc(new Domain(domainId));
     }
 
     @Override
@@ -52,14 +52,12 @@ public class MclassServiceImpl implements MclassService {
 
     @Override
     public Mclass getObject(Object key) {
-        MclassKey mclassKey = (MclassKey) key;
-        return mclassRepository.findById(mclassKey).orElse(new Mclass());
+        return mclassRepository.findById((String)key).orElse(new Mclass());
     }
 
     @Override
-    public void delete(Object key){
-        MclassKey mclassKey = (MclassKey) key;
-        Mclass mclass = getObject(mclassKey);
+    public void delete(Object key){ 
+        Mclass mclass = getObject(key);
         mclassRepository.delete(mclass);
     }
 
@@ -182,6 +180,6 @@ public class MclassServiceImpl implements MclassService {
 
     @Override
     public List<Mclass> getList(String domainId, String isEnable) {
-        return mclassRepository.findByDomainIdAndIsEnableOrderByDispSeqAsc(domainId, isEnable);
+        return mclassRepository.findByDomainAndIsEnableOrderByDispSeqAsc(new Domain(domainId), isEnable);
     }
 }

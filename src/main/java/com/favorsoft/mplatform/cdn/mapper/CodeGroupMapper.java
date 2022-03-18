@@ -1,7 +1,6 @@
 package com.favorsoft.mplatform.cdn.mapper;
 
 import com.favorsoft.mplatform.cdn.dto.CodeGroupDTO;
-import com.favorsoft.mplatform.cdn.dto.PropValue;
 import com.favorsoft.mplatform.cdn.dto.result.CodeGroupSystemResult;
 import org.apache.ibatis.annotations.Mapper;
 import org.springframework.stereotype.Repository;

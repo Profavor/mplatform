@@ -36,11 +36,10 @@ public class CodeGroupPropController {
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<CodeGroupProp> save(@RequestBody CodeGroupProp codeGroupProp) {
-        if(codeGroupProp.getId() != null){
-            CodeGroupProp origin = codeGroupPropService.getObject(codeGroupProp.getId());
-            BeanUtils.copyProperties(codeGroupProp, origin, CommonUtil.getNullPropertyNames(codeGroupProp));
-        }
-        return ResponseEntity.ok(codeGroupPropService.save(codeGroupProp));
+        CodeGroupProp origin = codeGroupPropService.getObject(codeGroupProp.getId());
+        BeanUtils.copyProperties(codeGroupProp, origin, CommonUtil.getNullPropertyNames(codeGroupProp));
+
+        return ResponseEntity.ok(codeGroupPropService.save(origin));
     }
 
     /**

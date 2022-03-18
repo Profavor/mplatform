@@ -1,7 +1,6 @@
 package com.favorsoft.mplatform.cdn.web;
 
 import com.favorsoft.mplatform.cdn.domain.Mclass;
-import com.favorsoft.mplatform.cdn.domain.keys.MclassKey;
 import com.favorsoft.mplatform.cdn.dto.MclassDTO;
 import com.favorsoft.mplatform.cdn.dto.request.StandardSystemReq;
 import com.favorsoft.mplatform.cdn.dto.response.StandardSystemRes;
@@ -56,11 +55,11 @@ public class MclassController {
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Mclass> save(@RequestBody MclassDTO mclassDTO) {
         Mclass mclass = Mclass.fromMclassDTO(mclassDTO).build();
-        Mclass originMclass = mclassService.getObject(new MclassKey(mclassDTO.getDomainId(), mclassDTO.getClassId()));
+        Mclass originMclass = mclassService.getObject(mclassDTO.getClassId());
 
         BeanUtils.copyProperties(mclass, originMclass, CommonUtil.getNullPropertyNames(mclass));
 
-        return ResponseEntity.ok( mclassService.save(mclass));
+        return ResponseEntity.ok( mclassService.save(originMclass));
     }
 
     /**
@@ -69,9 +68,9 @@ public class MclassController {
      * @param classId
      * @return
      */
-    @GetMapping(value = "/{domainId}/{classId}")
-    public Mclass getObject(@PathVariable String domainId, @PathVariable String classId){
-        return mclassService.getObject(new MclassKey(domainId, classId));
+    @GetMapping(value = "/{classId}")
+    public Mclass getObject(@PathVariable String classId){
+        return mclassService.getObject(classId);
     }
 
     /**
@@ -80,9 +79,9 @@ public class MclassController {
      * @param classId
      * @return
      */
-    @DeleteMapping(value = "/{domainId}/{classId}")
-    public ResponseEntity<Void> delete(@PathVariable String domainId, @PathVariable String classId) {
-        mclassService.delete(new MclassKey(domainId, classId));
+    @DeleteMapping(value = "/{classId}")
+    public ResponseEntity<Void> delete(@PathVariable String classId) {
+        mclassService.delete(classId);
         return ResponseEntity.ok().build();
 
     }

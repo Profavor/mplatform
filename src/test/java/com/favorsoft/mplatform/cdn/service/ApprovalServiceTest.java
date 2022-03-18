@@ -8,7 +8,6 @@ import com.favorsoft.mplatform.cdn.domain.User;
 import com.favorsoft.mplatform.cdn.enums.ApprovalActivityCode;
 import com.favorsoft.mplatform.cdn.enums.ApprovalFlowStatus;
 import com.favorsoft.mplatform.cdn.enums.ApprovalStatus;
-import com.favorsoft.mplatform.cdn.service.approval.ApprovalFlowService;
 import com.favorsoft.mplatform.cdn.service.approval.ApprovalService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,7 +26,6 @@ import org.springframework.test.context.ActiveProfiles;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SpringBootTest
 @ActiveProfiles("local")
@@ -36,12 +34,6 @@ public class ApprovalServiceTest {
 
     @Autowired
     private ApprovalService approvalService;
-
-    @Autowired
-    private ApprovalFlowService approvalFlowService;
-
-    @Autowired
-    private DocumentService documentService;
 
     @Autowired
     private ApprovalBatchService approvalBatchService;

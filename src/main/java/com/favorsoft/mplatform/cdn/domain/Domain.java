@@ -26,6 +26,7 @@ public class Domain extends BaseEntity {
     @JoinColumn(name= "messageId", insertable = true, updatable = true, nullable = false)
     private Message message;
 
+
     public Domain(){
 
     }

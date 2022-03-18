@@ -29,7 +29,7 @@ public class AreaController {
         Area originArea = areaService.getObject(area.getAreaId());
         BeanUtils.copyProperties(area, originArea, CommonUtil.getNullPropertyNames(area));
 
-        return ResponseEntity.ok(areaService.save(area));
+        return ResponseEntity.ok(areaService.save(originArea));
     }
 
     @GetMapping(value = "/{areaId}")

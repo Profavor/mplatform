@@ -1,7 +1,7 @@
 package com.favorsoft.mplatform.cdn.domain;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
-import com.favorsoft.mplatform.cdn.domain.keys.MclassKey;
 import com.favorsoft.mplatform.cdn.dto.MclassDTO;
 import lombok.*;
 import org.springframework.data.rest.core.annotation.RestResource;
@@ -13,11 +13,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @EqualsAndHashCode(callSuper = false)
-@IdClass(MclassKey.class)
 public class Mclass extends BaseEntity {
-    @Id
-    private String domainId;
-
     @Id
     private String classId;
 
@@ -33,13 +29,14 @@ public class Mclass extends BaseEntity {
     @RestResource(path = "message", rel="message", exported = false)
     private Message message;
 
+    @ManyToOne
+    @JoinColumn(name= "domainId", insertable = true, updatable = true)
+    @RestResource(path = "domain", rel="domain", exported = false)
+    private Domain domain;
+
     @JsonManagedReference
     @OneToMany
-    @JoinColumns({
-            @JoinColumn(name = "classId"),
-            @JoinColumn(name = "domainId")
-    })
-
+    @JoinColumn(name= "classId", insertable = false, updatable = false)
     @RestResource(path = "classProp", rel="classProp", exported = false)
     private List<ClassProp> classProp;
 
@@ -47,7 +44,7 @@ public class Mclass extends BaseEntity {
 
     @Builder
     public Mclass(String domainId, String classId, String isEnable, String parentId, String messageId, long dispSeq){
-        this.domainId = domainId;
+        this.domain = new Domain(domainId);
         this.classId = classId;
         this.isEnable = isEnable;
         this.parentId = parentId;

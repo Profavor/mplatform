@@ -31,7 +31,7 @@ public class MgroupController {
 
         BeanUtils.copyProperties(mgroup, originMgroup, CommonUtil.getNullPropertyNames(mgroup));
 
-        return ResponseEntity.ok(mgroupService.save(mgroup));
+        return ResponseEntity.ok(mgroupService.save(originMgroup));
     }
 
     @GetMapping(value = "/{groupId}")

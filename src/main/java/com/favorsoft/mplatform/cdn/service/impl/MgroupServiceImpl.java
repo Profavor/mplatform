@@ -4,7 +4,6 @@ import com.favorsoft.mplatform.cdn.domain.Mgroup;
 import com.favorsoft.mplatform.cdn.repository.jpa.MgroupRepository;
 import com.favorsoft.mplatform.cdn.service.MgroupService;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;

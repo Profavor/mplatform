@@ -32,7 +32,7 @@ public class MsectionController {
 
         BeanUtils.copyProperties(Msection, originMsection, CommonUtil.getNullPropertyNames(Msection));
 
-        return ResponseEntity.ok(msectionService.save(Msection));
+        return ResponseEntity.ok(msectionService.save(originMsection));
     }
 
     @GetMapping(value = "/{sectionId}")

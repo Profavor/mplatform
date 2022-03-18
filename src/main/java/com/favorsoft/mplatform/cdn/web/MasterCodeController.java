@@ -47,7 +47,7 @@ public class MasterCodeController {
 
         BeanUtils.copyProperties(masterCode, originMasterCode, CommonUtil.getNullPropertyNames(masterCode));
 
-        return ResponseEntity.ok(masterCodeService.save(masterCode));
+        return ResponseEntity.ok(masterCodeService.save(originMasterCode));
     }
 
     /**

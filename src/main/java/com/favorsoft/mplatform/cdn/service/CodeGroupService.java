@@ -2,7 +2,6 @@ package com.favorsoft.mplatform.cdn.service;
 
 import com.favorsoft.mplatform.cdn.domain.CodeGroup;
 import com.favorsoft.mplatform.cdn.dto.CodeGroupDTO;
-import com.favorsoft.mplatform.cdn.dto.PropValue;
 import com.favorsoft.mplatform.cdn.dto.request.CodeGroupSystemReq;
 import com.favorsoft.mplatform.cdn.dto.response.CodeGroupSystemRes;
 import com.favorsoft.mplatform.cdn.service.external.CommonService;

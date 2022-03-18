@@ -12,8 +12,6 @@ import com.favorsoft.mplatform.cdn.mapper.CodeGroupMapper;
 import com.favorsoft.mplatform.cdn.repository.jpa.CodeGroupRepository;
 import com.favorsoft.mplatform.cdn.service.CodeGroupService;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
@@ -24,8 +22,6 @@ import java.util.Map;
 @Service
 @Transactional(rollbackOn = Exception.class)
 public class CodeGroupServiceImpl implements CodeGroupService {
-
-    private static Logger logger = LoggerFactory.getLogger(CodeGroupServiceImpl.class);
 
     private final CodeGroupRepository codeGroupRepository;
 

@@ -2,7 +2,6 @@ package com.favorsoft.mplatform.cdn.service;
 
 import com.favorsoft.mplatform.cdn.domain.*;
 import com.favorsoft.mplatform.cdn.domain.keys.ClassPropKey;
-import com.favorsoft.mplatform.cdn.domain.keys.MclassKey;
 import com.favorsoft.mplatform.cdn.dto.request.StandardSystemReq;
 import com.favorsoft.mplatform.cdn.dto.response.StandardSystemRes;
 import org.junit.jupiter.api.AfterEach;
@@ -55,7 +54,7 @@ public class MclassServiceTest {
         logger.info("##### ROOT CLASS 생성하기 #####");
         Mclass rootClass = new Mclass();
         rootClass.setClassId("ROOT");
-        rootClass.setDomainId("TEST_DOMAIN");
+        rootClass.setDomain(new Domain("TEST_DOMAIN"));
         rootClass.setIsEnable("Y");
         rootClass.setMessage(new Message("PROP_TYPE_FILE"));
         mclassService.save(rootClass);
@@ -63,7 +62,7 @@ public class MclassServiceTest {
         logger.info("##### LEAF CLASS 생성하기 #####");
         Mclass leafClass = new Mclass();
         leafClass.setClassId("LEAF");
-        leafClass.setDomainId("TEST_DOMAIN");
+        leafClass.setDomain(new Domain("TEST_DOMAIN"));
         leafClass.setIsEnable("Y");
         leafClass.setMessage(new Message("PROP_TYPE_EDITOR"));
         leafClass.setParentId("ROOT");
@@ -126,10 +125,10 @@ public class MclassServiceTest {
         propService.delete("TEST_PROP1");
 
         logger.info("##### LEAF CLASS 제거 #####");
-        mclassService.delete(new MclassKey("TEST_DOMAIN", "LEAF"));
+        mclassService.delete("LEAF");
 
         logger.info("##### ROOT CLASS 제거 #####");
-        mclassService.delete(new MclassKey("TEST_DOMAIN", "ROOT"));
+        mclassService.delete("ROOT");
 
         logger.info("##### TEST_DOMAIN 제거 #####");
         domainService.delete("TEST_DOMAIN");

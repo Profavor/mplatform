@@ -38,7 +38,7 @@ public class PropEnumController {
 
         BeanUtils.copyProperties(propEnum, originPropEnum, CommonUtil.getNullPropertyNames(propEnum));
 
-        return ResponseEntity.ok(propEnumService.save(propEnum));
+        return ResponseEntity.ok(propEnumService.save(originPropEnum));
     }
 
     @GetMapping(value = "/{propId}/{code}")

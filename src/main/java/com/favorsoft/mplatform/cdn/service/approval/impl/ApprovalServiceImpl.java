@@ -79,7 +79,7 @@ public class ApprovalServiceImpl implements ApprovalService {
         approval.setStatus(ApprovalStatus.CREATE);
 
         String route = approvalDTO.getRouteInfo();
-        List<ApprovalFlow> approvalFlowList = new ArrayList();
+        List<ApprovalFlow> approvalFlowList = new ArrayList<ApprovalFlow>();
 
         String routes[] = route.split("↔");
         for(String r: routes){
