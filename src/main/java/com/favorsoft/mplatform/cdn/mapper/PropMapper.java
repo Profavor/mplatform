@@ -12,9 +12,9 @@ import java.util.List;
 @Repository
 public interface PropMapper {
 
-    int insertProp(@Param("propValue") PropValue propValue);
+    int insertProp(PropValue propValue);
 
-    int insertPropHistory(@Param("propValueHistory") PropValueHistory propValueHistory);
+    int insertPropHistory(PropValueHistory propValueHistory);
 
     int createPropTable(@Param("propId") String propId, @Param("dbType") String dbType);
 

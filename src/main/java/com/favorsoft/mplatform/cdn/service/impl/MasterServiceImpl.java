@@ -56,7 +56,7 @@ public class MasterServiceImpl implements MasterService {
     public void saveMaster(MasterDTO masterDTO) {
         Master master = masterRepository.findById(new MasterKey(masterDTO.getDomainId(), masterDTO.getMasterId()))
                 .orElse(new Master(masterDTO.getDomainId(),
-                        masterDTO.getMasterId() == null ?  masterCodeService.createMasterId(masterDTO.getDomainId(), masterDTO.getClassId()) : masterDTO.getMasterId(), masterDTO.getClassId()));
+                        masterDTO.getMasterId() == null ?  UUID.randomUUID().toString(): masterDTO.getMasterId(), masterDTO.getClassId()));
 
         BeanUtils.copyProperties(masterDTO, master, CommonUtil.getNullPropertyNames(masterDTO));
 

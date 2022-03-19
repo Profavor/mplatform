@@ -4,7 +4,7 @@
     <resultMap id="propValueHistory" type="com.favorsoft.mplatform.cdn.dto.PropValueHistory" />
     <resultMap id="propValue" type="com.favorsoft.mplatform.cdn.dto.PropValue" />
 
-    <insert id="insertProp">
+    <insert id="insertProp" parameterType="com.favorsoft.mplatform.cdn.dto.PropValue">
         INSERT INTO PV_${propId}
                 (DOMAIN_ID,
                 MASTER_ID,
@@ -15,7 +15,7 @@
                 VALUE = #{value}
     </insert>
 
-    <insert id="insertPropHistory">
+    <insert id="insertPropHistory" parameterType="com.favorsoft.mplatform.cdn.dto.PropValueHistory">
         INSERT INTO PV_${propId}_HISTORY
                 (DOMAIN_ID,
                 MASTER_ID,
