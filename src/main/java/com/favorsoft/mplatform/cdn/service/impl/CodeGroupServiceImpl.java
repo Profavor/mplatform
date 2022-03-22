@@ -200,7 +200,6 @@ public class CodeGroupServiceImpl implements CodeGroupService {
                     .mask(codeGroupSystemResult.getMask())
                     .dbType(codeGroupSystemResult.getDbType())
                     .message(codeGroupSystemResult.getPropMessage())
-                    .propMode(codeGroupSystemResult.getPropMode())
                     .options(options)
                     .build();
 

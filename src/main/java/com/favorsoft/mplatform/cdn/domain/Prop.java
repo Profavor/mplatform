@@ -65,12 +65,8 @@ public class Prop extends BaseEntity {
     @RestResource(path = "mgroup", rel="mgroup", exported = false)
     private Mgroup mgroup;
 
-    @Enumerated(EnumType.STRING)
-    @Column(length = 10)
-    private PropMode propMode;
-
     @Builder
-    public Prop(String propId, String unit, int width, String regex, String ruleCode, String dbType, String areaId, String type, String messageId, String groupId, String reference, PropMode propMode){
+    public Prop(String propId, String unit, int width, String regex, String ruleCode, String dbType, String areaId, String type, String messageId, String groupId, String reference){
         this.propId = propId;
         this.unit = unit;
         this.width = width;
@@ -82,7 +78,6 @@ public class Prop extends BaseEntity {
         this.message = new Message(messageId);
         this.mgroup = new Mgroup(groupId);
         this.reference = reference;
-        this.propMode = propMode;
     }
 
     public static Prop.PropBuilder fromPropDTO(PropDTO2 propDTO){
@@ -97,7 +92,6 @@ public class Prop extends BaseEntity {
                 .type(propDTO.getType())
                 .messageId(propDTO.getMessageId())
                 .groupId(propDTO.getGroupId())
-                .reference(propDTO.getReference())
-                .propMode(propDTO.getPropMode());
+                .reference(propDTO.getReference());
     }
 }

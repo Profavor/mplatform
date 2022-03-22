@@ -3,6 +3,7 @@ package com.favorsoft.mplatform.cdn.web;
 import com.favorsoft.mplatform.cdn.domain.ClassProp;
 import com.favorsoft.mplatform.cdn.domain.keys.ClassPropKey;
 import com.favorsoft.mplatform.cdn.dto.ClassPropDTO;
+import com.favorsoft.mplatform.cdn.enums.PropMode;
 import com.favorsoft.mplatform.cdn.service.ClassPropService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -35,8 +36,15 @@ public class ClassPropController {
      * @return
      */
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<ClassProp> save(@RequestBody ClassPropDTO ClassPropDTO) {
-        return ResponseEntity.ok(classPropService.save(ClassProp.fromClassPropDTO(ClassPropDTO).build()));
+    public ResponseEntity<ClassProp> save(@RequestBody ClassPropDTO classPropDTO) {
+        if("IDENTITY".equals(classPropDTO.getPropMode()) || "NAME".equals(classPropDTO.getPropMode())){
+            ClassProp classProp = classPropService.getClassProp(classPropDTO.getDomainId(), PropMode.valueOf(classPropDTO.getPropMode()));
+            if(classProp != null && !classPropDTO.getPropId().equals(classProp.getPropId())){
+                classProp.setErrorMessage("[Identity, Name] prop is only one in domain.");
+                return ResponseEntity.status(500).body(classProp);
+            }
+        }       
+        return ResponseEntity.ok(classPropService.save(ClassProp.fromClassPropDTO(classPropDTO).build()));
     }
 
     /**

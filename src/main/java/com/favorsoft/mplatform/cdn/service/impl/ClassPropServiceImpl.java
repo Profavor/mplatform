@@ -2,6 +2,7 @@ package com.favorsoft.mplatform.cdn.service.impl;
 
 import com.favorsoft.mplatform.cdn.domain.ClassProp;
 import com.favorsoft.mplatform.cdn.domain.keys.ClassPropKey;
+import com.favorsoft.mplatform.cdn.enums.PropMode;
 import com.favorsoft.mplatform.cdn.repository.jpa.ClassPropRepository;
 import com.favorsoft.mplatform.cdn.service.ClassPropService;
 import org.springframework.stereotype.Service;
@@ -40,5 +41,10 @@ public class ClassPropServiceImpl implements ClassPropService {
         ClassPropKey classPropKey = (ClassPropKey) key;
         ClassProp classProp = getObject(classPropKey);
         classPropRepository.delete(classProp);
+    }
+
+    @Override
+    public ClassProp getClassProp(String domainId, PropMode propMode) {
+        return classPropRepository.findByDomainIdAndPropMode(domainId, propMode);
     }
 }

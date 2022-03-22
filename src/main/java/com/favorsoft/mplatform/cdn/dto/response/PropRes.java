@@ -19,7 +19,6 @@ public class PropRes {
     private String dbType;
     private String message;
     private String reference;
-    private String propMode;
 
     private OptionsRes options;
 }

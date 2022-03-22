@@ -1,14 +1,17 @@
 package com.favorsoft.mplatform.cdn.service.impl;
 
+import com.favorsoft.mplatform.cdn.domain.ClassProp;
 import com.favorsoft.mplatform.cdn.domain.Master;
 import com.favorsoft.mplatform.cdn.domain.Prop;
 import com.favorsoft.mplatform.cdn.domain.keys.MasterKey;
 import com.favorsoft.mplatform.cdn.dto.PropValue;
 import com.favorsoft.mplatform.cdn.dto.PropValueHistory;
+import com.favorsoft.mplatform.cdn.enums.PropMode;
 import com.favorsoft.mplatform.cdn.dto.MasterDTO;
 import com.favorsoft.mplatform.cdn.mapper.MasterMapper;
 import com.favorsoft.mplatform.cdn.mapper.PropMapper;
 import com.favorsoft.mplatform.cdn.repository.mongo.MasterMongoCustomRepository;
+import com.favorsoft.mplatform.cdn.repository.jpa.ClassPropRepository;
 import com.favorsoft.mplatform.cdn.repository.jpa.MasterRepository;
 import com.favorsoft.mplatform.cdn.service.MasterCodeService;
 import com.favorsoft.mplatform.cdn.service.MasterService;
@@ -31,16 +34,18 @@ public class MasterServiceImpl implements MasterService {
     private final MasterMapper masterMapper;
     private final PropMapper propMapper;
     private final MasterCodeService masterCodeService;
+    private final ClassPropRepository classPropRepository;
 
     public MasterServiceImpl(MasterRepository masterRepository, MasterMongoCustomRepository masterMongoCustomRepository,
                              MasterMapper masterMapper, PropService propService, PropMapper propMapper,
-                             MasterCodeService masterCodeService){
+                             MasterCodeService masterCodeService, ClassPropRepository classPropRepository){
         this.masterRepository = masterRepository;
         this.masterMongoCustomRepository = masterMongoCustomRepository;
         this.masterMapper = masterMapper;
         this.propMapper = propMapper;
         this.propService = propService;
         this.masterCodeService = masterCodeService;
+        this.classPropRepository = classPropRepository;
     }
 
     @Override
@@ -54,9 +59,27 @@ public class MasterServiceImpl implements MasterService {
 
     @Override
     public void saveMaster(MasterDTO masterDTO) {
-        Master master = masterRepository.findById(new MasterKey(masterDTO.getDomainId(), masterDTO.getMasterId()))
-                .orElse(new Master(masterDTO.getDomainId(),
-                        masterDTO.getMasterId() == null ?  UUID.randomUUID().toString(): masterDTO.getMasterId(), masterDTO.getClassId()));
+        ClassProp idProp = classPropRepository.findByDomainIdAndPropMode(masterDTO.getDomainId(), PropMode.IDENTITY);
+        String masterId = null;
+
+        if(masterDTO.getMasterId() == null) {
+            if(idProp != null){
+                for(int i=0 ;i< masterDTO.getData().size(); i++){
+                    PropValue propValue = PropValue.convert(masterDTO, masterDTO.getData().get(i));
+                    if(propValue.getPropId().equals(idProp.getPropId())){
+                        masterId =  propValue.getValue();
+                    }
+                }
+                if(masterId == null){
+                    masterId = UUID.randomUUID().toString();
+                }
+            }      
+        }else{
+            masterId = masterDTO.getMasterId();
+        }         
+
+        Master master = masterRepository.findById(new MasterKey(masterDTO.getDomainId(), masterId))
+                .orElse(new Master(masterDTO.getDomainId(), masterId, masterDTO.getClassId()));
 
         BeanUtils.copyProperties(masterDTO, master, CommonUtil.getNullPropertyNames(masterDTO));
 

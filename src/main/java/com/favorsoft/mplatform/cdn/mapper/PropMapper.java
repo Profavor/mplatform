@@ -28,8 +28,8 @@ public interface PropMapper {
 
     List<PropValueHistory> selectAllPropHistory(@Param("propId") String propId);
 
-    int deleteProp(@Param("propValue") PropValue propValue);
+    int deleteProp(PropValue propValue);
 
-    int deletePropHistory(@Param("propValue") PropValue propValue);
+    int deletePropHistory(PropValue propValue);
 
 }

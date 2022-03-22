@@ -38,7 +38,7 @@ public class ClassProp extends BaseEntity {
     private String isShow;
 
     @Builder
-    public ClassProp(String classId, String domainId, String propId, String isReadOnly, String isDisabled, long dispSeq, String isShow){
+    public ClassProp(String classId, String domainId, String propId, String isReadOnly, String isDisabled, long dispSeq, String isShow, String propMode){
         this.classId = classId;
         this.domainId = domainId;
         this.propId = propId;
@@ -46,6 +46,7 @@ public class ClassProp extends BaseEntity {
         this.isDisabled = isDisabled;
         this.dispSeq = dispSeq;
         this.isShow = isShow;
+        this.propMode = PropMode.valueOf(propMode);
     }
 
     public static ClassPropBuilder fromClassPropDTO(ClassPropDTO classPropDTO){
@@ -56,6 +57,7 @@ public class ClassProp extends BaseEntity {
                 .isReadOnly(classPropDTO.getIsReadOnly())
                 .isDisabled(classPropDTO.getIsDisabled())
                 .dispSeq(classPropDTO.getDispSeq())
-                .isShow(classPropDTO.getIsShow());
+                .isShow(classPropDTO.getIsShow())
+                .propMode(classPropDTO.getPropMode());
     }
 }

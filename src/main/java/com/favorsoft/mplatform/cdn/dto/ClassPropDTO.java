@@ -15,9 +15,10 @@ public class ClassPropDTO {
     private String isDisabled;
     private long dispSeq;
     private String isShow;
+    private String propMode;
 
     @Builder
-    public ClassPropDTO(String classId, String domainId, String propId, String isReadOnly, String isDisabled, long dispSeq, String isShow){
+    public ClassPropDTO(String classId, String domainId, String propId, String isReadOnly, String isDisabled, long dispSeq, String isShow, String propMode){
         this.classId = classId;
         this.domainId = domainId;
         this.propId = propId;
@@ -25,5 +26,6 @@ public class ClassPropDTO {
         this.isDisabled = isDisabled;
         this.dispSeq = dispSeq;
         this.isShow = isShow;
+        this.propMode = propMode;
     }
 }

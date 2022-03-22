@@ -156,6 +156,7 @@ public class MclassServiceImpl implements MclassService {
                     .isReadOnly(standardSystemResult.getIsReadOnly())
                     .isShow(standardSystemResult.getIsShow())
                     .dispSeq(standardSystemResult.getDispSeq())
+                    .propMode(standardSystemResult.getPropMode())
                     .build();
 
             PropRes prop = PropRes.builder()

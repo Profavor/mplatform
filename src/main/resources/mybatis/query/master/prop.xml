@@ -44,7 +44,7 @@
         FROM PV_${propId}
     </select>
 
-    <delete id="deleteProp">
+    <delete id="deleteProp" parameterType="com.favorsoft.mplatform.cdn.dto.PropValue">
         DELETE FROM PV_${propId} WHERE master_id = #{masterId} AND domain_id = #{domainId}
     </delete>
 

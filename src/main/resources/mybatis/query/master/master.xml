@@ -10,8 +10,8 @@
             select p.domain_id, p.class_id, p.parent_id, 1+level as level from mclass p inner join cte on p.class_id = cte.parent_id and p.domain_id = cte.domain_id
         )
         select cte.domain_id, cte.class_id, cte.parent_id, p.prop_id, p.area_id, p.type from cte
-             LEFT JOIN class_prop cp on cte.class_id = cp.class_id and cte.domain_id = cp.domain_id
-             LEFT JOIN (select prop_id, area_id, type, group_id from prop) p on cp.prop_id = p.prop_id
+             INNER JOIN class_prop cp on cte.class_id = cp.class_id and cte.domain_id = cp.domain_id
+             INNER JOIN prop p on cp.prop_id = p.prop_id
         ORDER BY cte.level desc
     </select>
 
