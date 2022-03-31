@@ -1,6 +1,11 @@
 package com.favorsoft.mplatform.cdn.web;
 
+import java.util.Comparator;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
 import com.favorsoft.mplatform.cdn.domain.Document;
+import com.favorsoft.mplatform.cdn.domain.FileAttach;
 import com.favorsoft.mplatform.cdn.dto.DocumentDTO;
 import com.favorsoft.mplatform.cdn.service.DocumentService;
 import org.springframework.http.HttpStatus;
@@ -21,7 +26,8 @@ public class DocumentController {
     public ResponseEntity<Document> createDocument(@ModelAttribute DocumentDTO documentDTO) {
         Document document = new Document(documentDTO.getDocumentId());
 
-        if(this.documentService.createDocument(document, documentDTO.getFile(), documentDTO.getFileId())){
+        String fileId = UUID.randomUUID().toString();
+        if(this.documentService.createDocument(document, documentDTO.getFile(), fileId)){
             return ResponseEntity.ok().build();
         }else{
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
@@ -30,6 +36,8 @@ public class DocumentController {
 
     @GetMapping("/get/{documentId}")
     public ResponseEntity<Document> getDocument(@PathVariable String documentId) {
+        Document document = this.documentService.getObject(documentId);
+        document.setFileAttachList(document.getFileAttachList().stream().sorted(Comparator.comparing(FileAttach::getCreatedDate)).collect(Collectors.toList()));
         return ResponseEntity.ok(this.documentService.getObject(documentId));
     }
 }

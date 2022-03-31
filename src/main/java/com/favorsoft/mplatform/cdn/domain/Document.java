@@ -23,8 +23,8 @@ public class Document extends BaseEntity {
     private String documentId;
 
     @JsonManagedReference
-    @OneToMany(cascade= CascadeType.ALL, orphanRemoval = true, mappedBy = "document", fetch = FetchType.EAGER)
-    private List<FileAttach> fileAttachList = new ArrayList<>();
+    @OneToMany(cascade= CascadeType.ALL, orphanRemoval = false, mappedBy = "document", fetch = FetchType.EAGER)
+    private List<FileAttach> fileAttachList = new ArrayList<FileAttach>();
 
     private String reference;
 }

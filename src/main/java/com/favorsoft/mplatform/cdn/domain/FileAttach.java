@@ -8,8 +8,7 @@ import javax.persistence.*;
 import java.util.Date;
 
 @Entity
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @EqualsAndHashCode(callSuper = false)
 public class FileAttach extends BaseEntity {
@@ -33,4 +32,6 @@ public class FileAttach extends BaseEntity {
 
     private int totalDownCnt;
     private Date lastDownDate;
+
+    private int dispSeq;
 }
