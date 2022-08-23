@@ -3,8 +3,8 @@ package com.favorsoft.mplatform.cdn.web;
 import com.favorsoft.mplatform.cdn.domain.FileAttach;
 import com.favorsoft.mplatform.cdn.service.FileAttachService;
 import com.favorsoft.mplatform.support.CommonUtil;
-
-import org.apache.commons.io.FileUtils;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -15,10 +15,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
-
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-
 import java.util.Date;
 
 @RestController
@@ -30,27 +29,22 @@ public class FileAttachController {
         this.fileAttachService = fileAttachService;
     }
 
-    @GetMapping("/download/{fileId}")
-    public ResponseEntity<byte[]> downloadFile(@PathVariable String fileId, HttpServletRequest request){
+    @GetMapping(value="/download/{fileId}")
+    public ResponseEntity<Resource> downloadFile(@PathVariable String fileId, HttpServletRequest request){
         FileAttach fileAttach = fileAttachService.getObject(fileId);
         fileAttach.setTotalDownCnt(fileAttach.getTotalDownCnt() + 1);
         fileAttach.setLastDownDate(new Date());
         fileAttachService.save(fileAttach);
 
         File file = new File(fileAttach.getFilePath());
-
         try {
-            if(file.isFile()){
-                byte[] fileByte = FileUtils.readFileToByteArray(file);
-                return ResponseEntity.ok()
+            InputStreamResource resource = new InputStreamResource(new FileInputStream(file));
+                        return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + CommonUtil.getFileNm(CommonUtil.getBrowser(request), fileAttach.getFileOrgName()) + "\"")
                     .contentLength(file.length())
-                    .contentType(MediaType.parseMediaType("application/octet-stream"))
-                    .body(fileByte);
-            }           
+                    .contentType(MediaType.parseMediaType(fileAttach.getFileType()))
+                    .body(resource);
         } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (Exception e){
             e.printStackTrace();
         }
 
