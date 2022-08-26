@@ -68,8 +68,8 @@ public class MclassController {
      * @param classId
      * @return
      */
-    @GetMapping(value = "/{classId}")
-    public Mclass getObject(@PathVariable String classId){
+    @GetMapping(value = "/{domainId}/{classId}")
+    public Mclass getObject(@PathVariable String domainId, @PathVariable String classId){
         return mclassService.getObject(classId);
     }
 
@@ -79,8 +79,8 @@ public class MclassController {
      * @param classId
      * @return
      */
-    @DeleteMapping(value = "/{classId}")
-    public ResponseEntity<Void> delete(@PathVariable String classId) {
+    @DeleteMapping(value = "/{domainId}/{classId}")
+    public ResponseEntity<Void> delete(@PathVariable String domainId, @PathVariable String classId) {
         mclassService.delete(classId);
         return ResponseEntity.ok().build();
 
