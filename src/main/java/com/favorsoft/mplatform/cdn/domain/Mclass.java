@@ -1,7 +1,5 @@
 package com.favorsoft.mplatform.cdn.domain;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.favorsoft.mplatform.cdn.dto.MclassDTO;
 import lombok.*;
 import org.springframework.data.rest.core.annotation.RestResource;
@@ -34,13 +32,16 @@ public class Mclass extends BaseEntity {
     @RestResource(path = "domain", rel="domain", exported = false)
     private Domain domain;
 
-    @JsonManagedReference
     @OneToMany
     @JoinColumn(name= "classId", insertable = false, updatable = false)
     @RestResource(path = "classProp", rel="classProp", exported = false)
     private List<ClassProp> classProp;
 
     private long dispSeq;
+
+    public Mclass(String classId){
+        this.classId = classId;
+    }
 
     @Builder
     public Mclass(String domainId, String classId, String isEnable, String parentId, String messageId, long dispSeq){

@@ -47,4 +47,9 @@ public class ClassPropServiceImpl implements ClassPropService {
     public ClassProp getClassProp(String domainId, PropMode propMode) {
         return classPropRepository.findByDomainIdAndPropMode(domainId, propMode);
     }
+
+    @Override
+    public List<ClassProp> getList(String domainId, String classId) {
+          return classPropRepository.findByDomainIdAndClassId(domainId, classId);
+    }
 }

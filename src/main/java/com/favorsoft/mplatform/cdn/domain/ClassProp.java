@@ -37,6 +37,10 @@ public class ClassProp extends BaseEntity {
     @Column(columnDefinition = "char(1) default 'N'")
     private String isShow;
 
+    @ManyToOne
+    @JoinColumn(name = "propId", updatable = false, insertable = false)
+    private Prop prop;
+
     @Builder
     public ClassProp(String classId, String domainId, String propId, String isReadOnly, String isDisabled, long dispSeq, String isShow, String propMode){
         this.classId = classId;

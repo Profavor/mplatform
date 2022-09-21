@@ -29,6 +29,10 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
+      cache:
+        use_secound_level_cache: true
+        region:
+          factory_class: org.hibernate.cache.jcache.internal.JCacheRegionFactory
       ddl-auto: update
       naming:
         physical-strategy: com.favorsoft.mplatform.config.CustomPhysicalNamingStrategy

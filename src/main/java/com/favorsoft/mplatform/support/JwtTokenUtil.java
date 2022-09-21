@@ -1,6 +1,7 @@
 package com.favorsoft.mplatform.support;
 
 import java.util.Base64;
+import java.util.Calendar;
 import java.util.Date;
 
 import javax.annotation.PostConstruct;
@@ -29,6 +30,9 @@ public class JwtTokenUtil {
 
     public String createToken(){
         long curTime = System.currentTimeMillis();
+		Calendar cal = Calendar.getInstance();
+		cal.set(2099, 11, 30);
+
         return  Jwts.builder()
 				
 				.setSubject("Test JWT")
@@ -37,13 +41,14 @@ public class JwtTokenUtil {
 				//setHeaderParam 메소드를 통해 JWT 헤더가 지닐 정보들을 담는다.
 				//alg 의 경우는 default 값이 SHA256이므로 따로 설정할 필요는 없다.
 				//typ 를 셋팅 안해주면 오류 발생한다.
-                 .setId("abcdef")
+                 .setId("profavor")
                  .setIssuer("profavor")
 				
 				 .setHeaderParam("typ", "JWT")
 				 
 				 //[3] 만료 시간
-				 .setExpiration(new Date(curTime + 360000000))
+				 //.setExpiration(new Date(curTime + 360000000))
+				 .setExpiration(new Date(cal.getTimeInMillis()))
 				 
 				 //[4] 발급 시간 
 				 .setIssuedAt(new Date(curTime))

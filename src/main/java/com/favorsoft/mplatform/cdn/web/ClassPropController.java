@@ -30,6 +30,11 @@ public class ClassPropController {
         return classPropService.getList();
     }
 
+    @GetMapping(value = "/{domainId}/{classId}")
+    public List<ClassProp> getList(@PathVariable String domainId, @PathVariable String classId){
+        return classPropService.getList(domainId, classId);
+    }
+
     /**
      * ClassProp 저장
      * @param ClassPropDTO
