@@ -16,8 +16,8 @@
     </select>
 
     <select id="getMasterData" resultType="map">
-        select m.domain_id, m.class_id, m.master_id, m.status,
-        <foreach collection="props" item="prop" index="key" separator=", ">
+        select m.domain_id, m.class_id, m.master_id, m.status
+        <foreach collection="props" item="prop" index="key" open=","  separator=", ">
             ${prop}.value as ${prop}
         </foreach>
         from master m
