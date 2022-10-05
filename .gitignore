@@ -37,3 +37,4 @@ doc/
 /bin/
 /logs/
 /lombok.config
+server.session.sql

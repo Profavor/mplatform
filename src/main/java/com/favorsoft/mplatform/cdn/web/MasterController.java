@@ -54,7 +54,7 @@ public class MasterController {
         return null;
     }
 
-    @GetMapping(value = "/delete/{domainId}/{masterId}")
+    @DeleteMapping(value = "/{domainId}/{masterId}")
     public boolean deleteMasterDataObject(MasterDTO masterDTO) throws Exception {
         masterService.deleteMaster(masterDTO);
         return true;

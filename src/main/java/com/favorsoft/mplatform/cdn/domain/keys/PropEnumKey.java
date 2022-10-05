@@ -10,7 +10,7 @@ import java.io.Serializable;
 @Data
 @NoArgsConstructor
 public class PropEnumKey implements Serializable {
-    @JoinColumn(name = "propId")
+    @JoinColumn(name = "propId", table = "prop")
     private String propId;
 
     @Column(length = 100)

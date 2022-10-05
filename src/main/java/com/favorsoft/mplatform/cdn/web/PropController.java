@@ -1,12 +1,9 @@
 package com.favorsoft.mplatform.cdn.web;
 
 import com.favorsoft.mplatform.cdn.domain.Prop;
-import com.favorsoft.mplatform.cdn.dto.PropDTO2;
-import com.favorsoft.mplatform.cdn.dto.ResponseDTO;
 import com.favorsoft.mplatform.cdn.service.PropService;
 import com.favorsoft.mplatform.support.CommonUtil;
 import org.springframework.beans.BeanUtils;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -42,7 +39,7 @@ public class PropController {
     }
 
     @DeleteMapping(value = "/{propId}")
-    public ResponseEntity delete(@PathVariable String propId) {
+    public ResponseEntity<Prop> delete(@PathVariable String propId) {
         propService.delete(propId);
         return ResponseEntity.ok().build();
     }

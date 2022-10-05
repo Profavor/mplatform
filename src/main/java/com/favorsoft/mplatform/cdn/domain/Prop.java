@@ -6,6 +6,8 @@ import com.favorsoft.mplatform.cdn.enums.PropMode;
 import lombok.*;
 import org.springframework.data.rest.core.annotation.RestResource;
 
+import java.util.List;
+
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
 
@@ -64,6 +66,10 @@ public class Prop extends BaseEntity {
     @JoinColumn(name="groupId")
     @RestResource(path = "mgroup", rel="mgroup", exported = false)
     private Mgroup mgroup;
+
+    @OneToMany
+    @JoinColumn(name="propId")
+    private List<PropEnum> propEnums;
 
     @Builder
     public Prop(String propId, String unit, int width, String regex, String ruleCode, String dbType, String areaId, String type, String messageId, String groupId, String reference){
