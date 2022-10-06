@@ -67,3 +67,8 @@ jwt:
 
 upload:
   path: ${UPLOAD_PATH}
+
+management:
+  endpoint:
+    shutdown:
+      enabled: true
