@@ -31,7 +31,6 @@ doc/
 
 ### VS Code ###
 .vscode/
-/gradle/wrapper/
 
 ### Project ###
 /bin/
