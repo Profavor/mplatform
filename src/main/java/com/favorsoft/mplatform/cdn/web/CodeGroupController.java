@@ -7,12 +7,12 @@ import com.favorsoft.mplatform.cdn.dto.request.CodeGroupSystemReq;
 import com.favorsoft.mplatform.cdn.dto.response.CodeGroupSystemRes;
 import com.favorsoft.mplatform.cdn.service.CodeGroupService;
 import com.favorsoft.mplatform.support.CommonUtil;
+import jakarta.validation.Valid;
 import org.springframework.beans.BeanUtils;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
 import java.sql.ResultSet;
 import java.util.List;
 import java.util.Map;

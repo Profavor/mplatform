@@ -6,7 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import org.springframework.data.rest.core.annotation.RestResource;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 @Entity
 @Data

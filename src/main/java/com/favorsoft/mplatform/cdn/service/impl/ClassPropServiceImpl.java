@@ -5,9 +5,9 @@ import com.favorsoft.mplatform.cdn.domain.keys.ClassPropKey;
 import com.favorsoft.mplatform.cdn.enums.PropMode;
 import com.favorsoft.mplatform.cdn.repository.jpa.ClassPropRepository;
 import com.favorsoft.mplatform.cdn.service.ClassPropService;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
-import javax.transaction.Transactional;
 import java.util.List;
 
 @Transactional(rollbackOn = Exception.class)

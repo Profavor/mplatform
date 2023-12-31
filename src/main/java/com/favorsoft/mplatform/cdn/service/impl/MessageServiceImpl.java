@@ -7,9 +7,8 @@ import com.favorsoft.mplatform.cdn.service.MessageService;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
-import javax.transaction.Transactional;
-
 import java.util.List;
+import jakarta.transaction.Transactional;
 
 @Service
 @Transactional(rollbackOn = Exception.class)

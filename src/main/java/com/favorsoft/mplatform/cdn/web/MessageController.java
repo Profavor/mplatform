@@ -1,10 +1,10 @@
 package com.favorsoft.mplatform.cdn.web;
 
 import com.favorsoft.mplatform.cdn.domain.Message;
-import com.favorsoft.mplatform.cdn.domain.MessageLang;
 import com.favorsoft.mplatform.cdn.service.MasterCodeService;
 import com.favorsoft.mplatform.cdn.service.MessageService;
 
+import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -36,13 +36,10 @@ public class MessageController {
      * @return
      */
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Message> save(@RequestBody Message message) {
-        if("AUTO".equals(message.getMessageId())){
+    public ResponseEntity<Message> save(@RequestBody @Valid Message message) {
+        if(null == message.getMessageId()){
             String key = UUID.randomUUID().toString();
             message.setMessageId(key);
-            for(MessageLang lang: message.getMessageLangs()){
-                lang.setMessageId(key);
-            }
         }
         return ResponseEntity.ok(messageService.save(message));
     }

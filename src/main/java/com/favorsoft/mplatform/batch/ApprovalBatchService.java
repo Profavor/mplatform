@@ -7,15 +7,15 @@ import com.favorsoft.mplatform.cdn.enums.ApprovalStatus;
 import com.favorsoft.mplatform.cdn.service.approval.ApprovalManager;
 import com.favorsoft.mplatform.cdn.service.approval.ApprovalService;
 import com.favorsoft.mplatform.support.ApplicationContextProvider;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
 
-import javax.transaction.Transactional;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.Date;
 import java.util.List;
 
 @Service
-@Transactional(rollbackOn = Exception.class)
+@Transactional(rollbackFor = Exception.class)
 public class ApprovalBatchService {
 
     private final ApprovalService approvalService;

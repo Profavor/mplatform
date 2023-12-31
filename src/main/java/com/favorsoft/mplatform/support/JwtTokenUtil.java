@@ -4,8 +4,7 @@ import java.util.Base64;
 import java.util.Calendar;
 import java.util.Date;
 
-import javax.annotation.PostConstruct;
-
+import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
 
 import io.jsonwebtoken.Jwts;

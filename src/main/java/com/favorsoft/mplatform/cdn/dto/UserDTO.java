@@ -1,5 +1,6 @@
 package com.favorsoft.mplatform.cdn.dto;
 
+
 import lombok.Builder;
 import lombok.Data;
 import org.springframework.security.core.GrantedAuthority;
@@ -19,7 +20,6 @@ public class UserDTO implements UserDetails {
     private String name;
     private String provider;
 
-    @Builder.Default
     private List<String> roles = new ArrayList<>();
 
     @Override

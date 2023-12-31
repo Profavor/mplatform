@@ -5,8 +5,8 @@ import com.favorsoft.mplatform.cdn.enums.ApprovalActivityCode;
 import com.favorsoft.mplatform.cdn.enums.ApprovalFlowStatus;
 import lombok.Data;
 
-import javax.persistence.*;
 import java.util.Date;
+import jakarta.persistence.*;
 
 @Entity
 @Data

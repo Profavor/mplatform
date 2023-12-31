@@ -4,9 +4,9 @@ import com.favorsoft.mplatform.cdn.domain.DataProcessInstance;
 import com.favorsoft.mplatform.cdn.enums.ApprovalStatus;
 import com.favorsoft.mplatform.cdn.repository.jpa.DataProcessInstanceRepository;
 import com.favorsoft.mplatform.cdn.service.dataprocess.DataProcessInstanceService;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
-import javax.transaction.Transactional;
 import java.util.List;
 
 @Service

@@ -3,13 +3,14 @@ package com.favorsoft.mplatform.cdn.domain;
 import com.favorsoft.mplatform.cdn.dto.PropDTO2;
 import com.favorsoft.mplatform.cdn.enums.PropMode;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import org.springframework.data.rest.core.annotation.RestResource;
 
 import java.util.List;
 
-import javax.persistence.*;
-import javax.validation.constraints.NotNull;
+import jakarta.persistence.*;
+import jakarta.validation.*;
 
 @Entity
 @Getter @Setter

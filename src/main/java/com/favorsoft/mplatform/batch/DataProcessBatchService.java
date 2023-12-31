@@ -15,12 +15,12 @@ import com.favorsoft.mplatform.cdn.service.dataprocess.DataProcessManager;
 import com.favorsoft.mplatform.support.ApplicationContextProvider;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import javax.transaction.Transactional;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Date;

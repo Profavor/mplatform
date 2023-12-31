@@ -8,10 +8,10 @@ import com.favorsoft.mplatform.cdn.dto.result.StandardSystemResult;
 import com.favorsoft.mplatform.cdn.mapper.MclassMapper;
 import com.favorsoft.mplatform.cdn.repository.jpa.MclassRepository;
 import com.favorsoft.mplatform.cdn.service.MclassService;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import javax.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;

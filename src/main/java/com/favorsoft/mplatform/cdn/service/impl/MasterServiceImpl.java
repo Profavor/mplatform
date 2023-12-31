@@ -17,10 +17,10 @@ import com.favorsoft.mplatform.cdn.service.MasterCodeService;
 import com.favorsoft.mplatform.cdn.service.MasterService;
 import com.favorsoft.mplatform.cdn.service.PropService;
 import com.favorsoft.mplatform.support.CommonUtil;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
-import javax.transaction.Transactional;
 import java.util.*;
 import java.util.stream.Collectors;
 

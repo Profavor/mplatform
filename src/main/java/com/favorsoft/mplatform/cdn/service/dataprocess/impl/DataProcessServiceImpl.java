@@ -3,9 +3,9 @@ package com.favorsoft.mplatform.cdn.service.dataprocess.impl;
 import com.favorsoft.mplatform.cdn.domain.DataProcess;
 import com.favorsoft.mplatform.cdn.repository.jpa.DataProcessRepository;
 import com.favorsoft.mplatform.cdn.service.dataprocess.DataProcessService;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
-import javax.transaction.Transactional;
 import java.util.List;
 
 @Service

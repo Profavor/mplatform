@@ -3,6 +3,7 @@ package com.favorsoft.mplatform.cdn.web;
 import com.favorsoft.mplatform.cdn.domain.FileAttach;
 import com.favorsoft.mplatform.cdn.service.FileAttachService;
 import com.favorsoft.mplatform.support.CommonUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -14,7 +15,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.servlet.http.HttpServletRequest;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;

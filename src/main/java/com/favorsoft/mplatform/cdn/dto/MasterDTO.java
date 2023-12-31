@@ -1,9 +1,9 @@
 package com.favorsoft.mplatform.cdn.dto;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import javax.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Map;
 

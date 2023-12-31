@@ -6,8 +6,8 @@ import com.favorsoft.mplatform.cdn.repository.jpa.PropEnumRepository;
 import com.favorsoft.mplatform.cdn.service.PropEnumService;
 import org.springframework.stereotype.Service;
 
-import javax.transaction.Transactional;
 import java.util.List;
+import jakarta.transaction.Transactional;
 
 @Service
 @Transactional(rollbackOn = Exception.class)

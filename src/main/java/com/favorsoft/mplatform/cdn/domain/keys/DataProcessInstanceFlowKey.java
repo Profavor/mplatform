@@ -3,10 +3,7 @@ package com.favorsoft.mplatform.cdn.domain.keys;
 import com.favorsoft.mplatform.cdn.enums.FlowStep;
 import lombok.Data;
 
-import javax.persistence.Column;
-import javax.persistence.EnumType;
-import javax.persistence.Enumerated;
-import javax.persistence.JoinColumn;
+import jakarta.persistence.*;
 import java.io.Serializable;
 
 @Data

@@ -6,7 +6,7 @@ import com.favorsoft.mplatform.cdn.repository.jpa.PropRepository;
 import com.favorsoft.mplatform.cdn.service.PropService;
 import org.springframework.stereotype.Service;
 
-import javax.transaction.Transactional;
+import jakarta.transaction.Transactional;
 import java.util.List;
 
 @Service

@@ -6,11 +6,11 @@ import com.favorsoft.mplatform.cdn.mapper.CodeGroupMapper;
 import com.favorsoft.mplatform.cdn.repository.jpa.CodeGroupPropRepository;
 import com.favorsoft.mplatform.cdn.service.CodeGroupPropService;
 import com.favorsoft.mplatform.cdn.service.PropService;
+import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import javax.transaction.Transactional;
 import java.util.List;
 import java.util.Map;
 

@@ -1,21 +1,20 @@
 package com.favorsoft.mplatform.cdn.domain;
 
-import lombok.*;
 
-import javax.persistence.*;
-
-import com.fasterxml.jackson.annotation.JsonManagedReference;
-
-import java.util.List;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 
 @Entity
-@Getter @Setter
+@Data
 @NoArgsConstructor
 @EqualsAndHashCode(callSuper = false)
 public class Message extends BaseEntity {
 
     /**
-     *
+     * Message
      */
     private static final long serialVersionUID = 1L;
 
@@ -23,13 +22,17 @@ public class Message extends BaseEntity {
     @Column(length = 100)
     private String messageId;
 
-    @NonNull
+    @NotNull
     @Column(columnDefinition = "varchar(1) default 'N'")
     private String isEnable;
 
-    @JsonManagedReference
-    @OneToMany(cascade=CascadeType.ALL, orphanRemoval = true, mappedBy = "messageObject", fetch = FetchType.EAGER)
-    private List<MessageLang> messageLangs;
+    @NotNull
+    @Column(length = 300)
+    private String messageKo;
+
+    @NotNull
+    @Column(length = 300)
+    private String messageEn;
 
     public Message(String messageId){
         this.messageId = messageId;

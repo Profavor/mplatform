@@ -2,7 +2,7 @@ package com.favorsoft.mplatform.cdn.service.impl;
 
 import org.springframework.stereotype.Service;
 
-import javax.transaction.Transactional;
+import jakarta.transaction.Transactional;
 
 import com.favorsoft.mplatform.cdn.domain.Msection;
 import com.favorsoft.mplatform.cdn.repository.jpa.MsectionRepository;

@@ -4,9 +4,10 @@ import com.favorsoft.mplatform.cdn.domain.DataProcessInstanceFlow;
 import com.favorsoft.mplatform.cdn.domain.keys.DataProcessInstanceFlowKey;
 import com.favorsoft.mplatform.cdn.repository.jpa.DataProcessInstanceFlowRepository;
 import com.favorsoft.mplatform.cdn.service.dataprocess.DataProcessInstanceFlowService;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
-import javax.transaction.Transactional;
+
 import java.util.List;
 
 @Service

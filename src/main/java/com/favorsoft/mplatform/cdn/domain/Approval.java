@@ -5,7 +5,7 @@ import com.favorsoft.mplatform.cdn.enums.ApprovalStatus;
 import lombok.Getter;
 import lombok.Setter;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.util.Date;
 import java.util.List;
 

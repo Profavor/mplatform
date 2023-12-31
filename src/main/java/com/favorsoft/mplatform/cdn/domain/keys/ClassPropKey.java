@@ -2,7 +2,7 @@ package com.favorsoft.mplatform.cdn.domain.keys;
 
 import lombok.Data;
 
-import javax.persistence.JoinColumn;
+import jakarta.persistence.*;
 import java.io.Serializable;
 
 @Data

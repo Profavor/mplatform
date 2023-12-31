@@ -2,7 +2,7 @@ package com.favorsoft.mplatform.cdn.domain;
 
 import lombok.*;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 @Entity
 @Getter @Setter

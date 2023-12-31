@@ -12,9 +12,10 @@ import com.favorsoft.mplatform.cdn.mapper.CodeGroupMapper;
 import com.favorsoft.mplatform.cdn.repository.jpa.CodeGroupRepository;
 import com.favorsoft.mplatform.cdn.service.CodeGroupService;
 
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
-import javax.transaction.Transactional;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;

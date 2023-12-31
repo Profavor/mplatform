@@ -2,8 +2,7 @@ package com.favorsoft.mplatform.cdn.domain;
 
 import lombok.*;
 import org.springframework.data.rest.core.annotation.RestResource;
-
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 @Entity
 @Getter @Setter

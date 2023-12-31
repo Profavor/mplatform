@@ -1,6 +1,6 @@
 package com.favorsoft.mplatform.cdn.domain;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 import com.favorsoft.mplatform.cdn.domain.keys.MasterCodeKey;
 

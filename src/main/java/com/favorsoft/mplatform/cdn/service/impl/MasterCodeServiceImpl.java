@@ -7,13 +7,13 @@ import com.favorsoft.mplatform.cdn.service.MasterCodeService;
 import com.favorsoft.mplatform.exception.MplatformErrorCode;
 import com.favorsoft.mplatform.exception.MplatformRuntimeException;
 
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import java.util.List;
 import java.util.Optional;
 
-import javax.transaction.Transactional;
 
 @Transactional(rollbackOn = Exception.class)
 @Service

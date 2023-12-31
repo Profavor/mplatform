@@ -3,9 +3,10 @@ package com.favorsoft.mplatform.cdn.service.impl;
 import com.favorsoft.mplatform.cdn.domain.Area;
 import com.favorsoft.mplatform.cdn.repository.jpa.AreaRepository;
 import com.favorsoft.mplatform.cdn.service.AreaService;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
-import javax.transaction.Transactional;
+
 import java.util.List;
 
 @Service

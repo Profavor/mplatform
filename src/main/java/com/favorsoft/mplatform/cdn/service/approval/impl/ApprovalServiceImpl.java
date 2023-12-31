@@ -10,11 +10,11 @@ import com.favorsoft.mplatform.cdn.enums.ApprovalFlowStatus;
 import com.favorsoft.mplatform.cdn.enums.ApprovalStatus;
 import com.favorsoft.mplatform.cdn.repository.jpa.ApprovalRepository;
 import com.favorsoft.mplatform.cdn.service.approval.ApprovalService;
+import jakarta.transaction.Transactional;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
-import javax.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;

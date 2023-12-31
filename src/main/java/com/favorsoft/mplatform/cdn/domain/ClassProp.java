@@ -5,7 +5,7 @@ import com.favorsoft.mplatform.cdn.dto.ClassPropDTO;
 import com.favorsoft.mplatform.cdn.enums.PropMode;
 import lombok.*;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 @Entity
 @NoArgsConstructor

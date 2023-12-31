@@ -5,10 +5,10 @@ import com.favorsoft.mplatform.cdn.domain.FileAttach;
 import com.favorsoft.mplatform.cdn.repository.jpa.DocumentRepository;
 import com.favorsoft.mplatform.cdn.repository.jpa.FileAttachRepository;
 import com.favorsoft.mplatform.cdn.service.FileAttachService;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import javax.transaction.Transactional;
 import java.io.File;
 import java.util.List;
 

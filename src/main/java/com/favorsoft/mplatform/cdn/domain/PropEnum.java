@@ -1,15 +1,12 @@
 package com.favorsoft.mplatform.cdn.domain;
 
 import com.favorsoft.mplatform.cdn.domain.keys.PropEnumKey;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.IdClass;
-import javax.validation.constraints.NotNull;
+import jakarta.persistence.*;
 
 @Entity
 @Data

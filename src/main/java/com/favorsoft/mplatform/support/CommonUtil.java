@@ -1,9 +1,9 @@
 package com.favorsoft.mplatform.support;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.BeanWrapperImpl;
 
-import javax.servlet.http.HttpServletRequest;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.util.HashSet;

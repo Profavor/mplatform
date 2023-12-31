@@ -2,7 +2,6 @@ package com.favorsoft.mplatform.config.security;
 
 import lombok.RequiredArgsConstructor;
 
-import javax.servlet.http.HttpServletResponse;
 
 import com.favorsoft.mplatform.support.JwtTokenUtil;
 
@@ -11,23 +10,25 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.CorsUtils;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 
 @Configuration
 @RequiredArgsConstructor
 @EnableGlobalMethodSecurity(prePostEnabled = true, securedEnabled = true)
-public class SpringSecurityConfig extends WebSecurityConfigurerAdapter {
+public class SpringSecurityConfig {
 
     private final JwtTokenProvider jwtTokenProvider;
 
     private final JwtTokenUtil jwtTokenUtil;
-
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
@@ -44,24 +45,15 @@ public class SpringSecurityConfig extends WebSecurityConfigurerAdapter {
     }
 
     @Bean
-    @Override
-    public AuthenticationManager authenticationManagerBean() throws Exception {
-        return super.authenticationManagerBean();
-    }
-
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
-        JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(authenticationManagerBean(), jwtTokenProvider, jwtTokenUtil);
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .httpBasic().disable()
-            .cors().and()
-            .csrf().disable()
-            .headers().httpStrictTransportSecurity().disable().and()
-            .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            .and().addFilter(jwtFilter).authorizeRequests()
-            .requestMatchers(CorsUtils::isPreFlightRequest).permitAll()
-            .antMatchers("/auth/**").permitAll()
-            .antMatchers("/api/fileAttach/download/**").permitAll()
-            .and().exceptionHandling().authenticationEntryPoint((req, res, e) -> res.sendError(HttpServletResponse.SC_UNAUTHORIZED));
+                .csrf((csrf)-> csrf.disable())
+                .sessionManagement((sessionManagement) ->
+                        sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+                .authorizeHttpRequests((authorizeRequests) ->
+                        authorizeRequests.anyRequest().permitAll()
+                );
+        return http.build();
     }
 }
