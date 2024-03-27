@@ -69,24 +69,6 @@ public class MclassServiceImpl implements MclassService {
                                                                     standardSystemReq.getLang().getLanguage());
 
         List<StandardSystemResult> distinctList = distinctResult(resultList);
-
-        distinctList.sort((r1, r2) -> {
-            int sectionCompare = r1.getSectionDispSeq().compareToIgnoreCase(r2.getSectionDispSeq());
-
-            if (sectionCompare == 0) {
-                int groupCompare = r1.getGroupDispSeq().compareToIgnoreCase(r2.getGroupDispSeq());
-
-                if(groupCompare == 0) {
-                    return  r1.getGroupDispSeq().compareToIgnoreCase(r2.getDispSeq());
-                }else{
-                    return groupCompare;
-                }
-
-            } else {
-                return sectionCompare;
-            }
-        });
-
         return getStandardSystemRes(distinctList, standardSystemReq.getClassId(), standardSystemReq.getDomainId());
     }
 
@@ -116,11 +98,12 @@ public class MclassServiceImpl implements MclassService {
     public StandardSystemRes getStandardSystemRes(List<StandardSystemResult> standardSystemResultList,
                                                   String classId, String domainId) {
         StandardSystemRes standardSystem = StandardSystemRes.builder()
-                .domain(DomainRes.builder().domainId(domainId).build())
+                .domain(DomainRes.builder().domainId(domainId).message(!standardSystemResultList.isEmpty()?standardSystemResultList.get(0).getDomainMessage() : null).build())
                 .mclass(
                         MclassRes.builder()
                                 .classId(classId)
-                                .message(!standardSystemResultList.isEmpty()?standardSystemResultList.get(0).getClassMessage() : null)
+                                .message(!standardSystemResultList.isEmpty()?standardSystemResultList.stream().filter(s->s.getClassId().equals(classId)).map(s->s.getClassMessage()).findFirst().get() : null)
+                                .classPath(!standardSystemResultList.isEmpty()?standardSystemResultList.stream().filter(s->s.getClassId().equals(classId)).map(s->s.getClassPath()).findFirst().get() : null)
                                 .build())
                 .msections(new ArrayList<>())
                 .build();
@@ -143,6 +126,7 @@ public class MclassServiceImpl implements MclassService {
             if (currentGroup == null || !currentGroup.getGroupId().equals(standardSystemResult.getGroupId())) {
                 currentGroup = MgroupRes.builder()
                         .groupId(standardSystemResult.getGroupId())
+                        .expand(standardSystemResult.isGroupExpand())
                         .dispSeq(standardSystemResult.getGroupDispSeq())
                         .isEnable(standardSystemResult.getGroupIsEnable())
                         .message(standardSystemResult.getGroupMessage())

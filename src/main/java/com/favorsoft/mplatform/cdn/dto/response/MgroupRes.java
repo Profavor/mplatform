@@ -11,6 +11,7 @@ import java.util.List;
 @ToString
 public class MgroupRes {
     private String groupId;
+    private boolean expand;
     private String dispSeq;
     private String isEnable;
     private String message;

@@ -24,6 +24,8 @@ public class Mgroup extends BaseEntity {
 
     private long dispSeq;
 
+    private boolean expand;
+
     @NonNull
     @Column(columnDefinition = "varchar(1) default 'N'")
     private String isEnable;

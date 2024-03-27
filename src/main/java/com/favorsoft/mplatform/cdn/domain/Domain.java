@@ -5,7 +5,7 @@ import lombok.*;
 import jakarta.persistence.*;
 
 @Entity
-@Getter @Setter
+@Data
 @EqualsAndHashCode(callSuper = false)
 @ToString
 public class Domain extends BaseEntity {
@@ -26,6 +26,8 @@ public class Domain extends BaseEntity {
     @JoinColumn(name= "messageId", insertable = true, updatable = true, nullable = false)
     private Message message;
 
+    @Column
+    private int dispSeq;
 
     public Domain(){
 

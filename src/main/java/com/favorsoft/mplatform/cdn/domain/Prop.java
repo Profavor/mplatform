@@ -26,10 +26,10 @@ public class Prop extends BaseEntity {
     @Column(length = 100)
     private String propId;
 
-    @Column(length = 200)
+    @Column(length = 10)
     private String unit;
 
-    @Column(length = 200)
+    @Column
     private int width;
 
     @Column(length = 200)

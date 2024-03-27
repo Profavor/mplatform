@@ -31,7 +31,7 @@ public class DomainController {
 
         BeanUtils.copyProperties(domain, originDomain, CommonUtil.getNullPropertyNames(domain));
 
-        return ResponseEntity.ok(domainService.save(domain));
+        return ResponseEntity.ok(domainService.save(originDomain));
     }
 
     /**

@@ -9,9 +9,11 @@ import lombok.ToString;
 @ToString
 public class StandardSystemResult {
     private String domainId;
+    private String domainMessage;
     private String classId;
     private String parentId;
     private String classMessage;
+    private String classPath;
     private String propId;
     private String areaId;
     private String type;
@@ -29,6 +31,7 @@ public class StandardSystemResult {
     private String isShow;
     private String dispSeq;
     private String groupId;
+    private boolean groupExpand;
     private String groupDispSeq;
     private String groupIsEnable;
     private String groupMessage;

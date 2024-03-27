@@ -38,13 +38,13 @@
         WITH RECURSIVE CTE AS (
             SELECT class_id,
                    parent_id,
-                   (select message from message_lang where message_id = mclass.message_id and lang = #{lang}) as menu_path
+                   (select <if test='lang == "ko"'>message_ko</if><if test='lang == "en"'>message_en</if> from message where message_id = mclass.message_id) as menu_path
             FROM mclass
             WHERE class_id = #{classId} and domain_id = #{domainId}
             UNION ALL
             SELECT a.class_id,
                    a.parent_id,
-                   concat(b.menu_path, ' > ', (select message from message_lang where message_id = a.message_id and lang = #{lang})) as menu_path
+                   concat(b.menu_path, ' > ', (select <if test='lang == "ko"'>message_ko</if><if test='lang == "en"'>message_en</if> from message where message_id = a.message_id)) as menu_path
             FROM mclass a
                 INNER JOIN CTE b ON a.parent_id = b.class_id
         )

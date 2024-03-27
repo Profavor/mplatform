@@ -7,4 +7,5 @@ import lombok.Getter;
 @Builder
 public class DomainRes {
     private String domainId;
+    private String message;
 }

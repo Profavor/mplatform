@@ -1,8 +1,12 @@
 package com.favorsoft.mplatform.cdn.domain;
 
 import com.favorsoft.mplatform.cdn.dto.MclassDTO;
-import lombok.*;
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 import org.springframework.data.rest.core.annotation.RestResource;
+import jakarta.validation.constraints.NotNull;
 
 import jakarta.persistence.*;
 import java.util.List;
@@ -15,7 +19,7 @@ public class Mclass extends BaseEntity {
     @Id
     private String classId;
 
-    @NonNull
+    @NotNull
     @Column(columnDefinition = "varchar(1) default 'N'")
     private String isEnable;
 

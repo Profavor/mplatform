@@ -100,9 +100,9 @@
                s.message   section_message
         FROM CODE_GROUP c
                  LEFT JOIN code_group_prop cp on c.code_group_id = cp.code_group_id
-                 LEFT JOIN (select p.prop_id, p.area_id, p.type, p.group_id, p.unit, p.width, p.regex, p.rule_code, p.mask, p.db_Type, vm.message from prop p left outer join (select m.message_id AS message_id, l.lang AS lang, l.message AS message from (message m join message_lang l on (m.message_id = l.message_id)) where m.is_enable = 'Y') vm on p.message_id = vm.message_id where vm.lang = #{lang}) p on cp.prop_id = p.prop_id
-                 LEFT JOIN (select g.group_id, g.section_id, g.disp_seq, g.is_enable, vm.message from mgroup g left outer join (select m.message_id AS message_id, l.lang AS lang, l.message AS message from (message m join message_lang l on (m.message_id = l.message_id)) where m.is_enable = 'Y') vm on g.message_id = vm.message_id where vm.lang=#{lang}) g on p.group_id = g.group_id
-                 LEFT JOIN (select s.section_id, s.disp_seq, s.is_enable, vm.message from msection s left outer join (select m.message_id AS message_id, l.lang AS lang, l.message AS message from (message m join message_lang l on (m.message_id = l.message_id)) where m.is_enable = 'Y') vm on s.message_id = vm.message_id where vm.lang=#{lang}) s on g.section_id = s.section_id
+                 LEFT JOIN (select p.prop_id, p.area_id, p.type, p.group_id, p.unit, p.width, p.regex, p.rule_code, p.mask, p.db_Type, vm.message from prop p left outer join (select m.message_id AS message_id, l.lang AS lang, <if test='lang == "ko"'>message_ko</if><if test='lang == "en"'>message_en</if> AS message from message m where m.is_enable = 'Y') vm on p.message_id = vm.message_id) p on cp.prop_id = p.prop_id
+                 LEFT JOIN (select g.group_id, g.section_id, g.disp_seq, g.is_enable, vm.message from mgroup g left outer join (select m.message_id AS message_id, l.lang AS lang, <if test='lang == "ko"'>message_ko</if><if test='lang == "en"'>message_en</if> AS message m from message where m.is_enable = 'Y') vm on g.message_id = vm.message_id) g on p.group_id = g.group_id
+                 LEFT JOIN (select s.section_id, s.disp_seq, s.is_enable, vm.message from msection s left outer join (select m.message_id AS message_id, l.lang AS lang, <if test='lang == "ko"'>message_ko</if><if test='lang == "en"'>message_en</if> AS message from message m where m.is_enable = 'Y') vm on s.message_id = vm.message_id) s on g.section_id = s.section_id
         WHERE c.code_group_id = #{codeGroupId}
     </select>
 

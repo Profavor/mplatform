@@ -11,9 +11,11 @@
         )
         select
             cte.domain_id,
+            (select <if test='lang == "ko"'>message_ko</if><if test='lang == "en"'>message_en</if> from message where message_id = d.message_id) as domain_message,
             cte.class_id,
             cte.parent_id,
-            (select message from message_lang where message_id = cte.message_id and lang = #{lang}) as class_message,
+            cl.class_path,
+            (select <if test='lang == "ko"'>message_ko</if><if test='lang == "en"'>message_en</if> from message where message_id = cte.message_id) as class_message,
             p.prop_id,
             p.area_id,
             p.type,
@@ -24,26 +26,38 @@
             p.rule_code,
             p.mask,
             p.db_type,
-            (select message from message_lang where message_id = p.message_id and lang = #{lang})   prop_message,
+            (select <if test='lang == "ko"'>message_ko</if><if test='lang == "en"'>message_en</if> from message where message_id = p.message_id)   prop_message,
             cp.is_disabled,
             cp.is_read_only,
             cp.is_show,
             cp.disp_seq,
             cp.prop_mode,
             g.group_id,
+            g.expand group_expaned,
             g.disp_seq  group_disp_seq,
             g.is_enable group_is_enable,
-            (select message from message_lang where message_id = g.message_id and lang = #{lang})   group_message,
+            (select <if test='lang == "ko"'>message_ko</if><if test='lang == "en"'>message_en</if> from message where message_id = g.message_id)   group_message,
             s.section_id,
             s.disp_seq  section_disp_seq,
             s.is_enable section_is_enable,
-            (select message from message_lang where message_id = s.message_id and lang = #{lang}) section_message,
+            (select <if test='lang == "ko"'>message_ko</if><if test='lang == "en"'>message_en</if> from message where message_id = s.message_id) section_message,
             cte.level
         from cte
+                 INNER JOIN domain d on cte.domain_id = d.domain_id
                  INNER JOIN class_prop cp on cte.class_id = cp.class_id and cte.domain_id = cp.domain_id
                  INNER JOIN prop p on cp.prop_id = p.prop_id
                  INNER JOIN mgroup g on p.group_id = g.group_id
                  INNER JOIN msection s on g.section_id = s.section_id
+                 INNER JOIN (with recursive cte as (
+                 select domain_id, class_id, parent_id,mc.message_id, cast(m.message_ko as char(200) character set utf8) as class_path,
+                 1 as level from mclass mc
+                 inner join message m on mc.message_id = m.message_id
+                 where (parent_id = '' or parent_id is null) and domain_id = #{domainId}
+                 union all
+                 select p.domain_id, p.class_id, p.parent_id, p.message_id,
+                 concat(class_path, '>', <if test='lang == "ko"'>m.message_ko</if><if test='lang == "en"'>m.message_en</if>) as class_path, 1+level as level from mclass p inner join cte on cte.class_id = p.parent_id and p.domain_id = cte.domain_id                                                                                           inner join message m on p.message_id = m.message_id
+                 )
+                 select * from cte) cl on cl.domain_id =  cte.domain_id and cl.class_id = cte.class_id
         ORDER BY s.disp_seq, g.disp_seq, cp.disp_seq
 </select>
 </mapper>

@@ -8,4 +8,5 @@ import lombok.Getter;
 public class MclassRes {
     private String classId;
     private String message;
+    private String classPath;
 }
