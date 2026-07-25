@@ -1,6 +1,6 @@
 # 4. 비즈니스 로직 및 생명주기
 
-### 4.1 필드 상속 알고리즘 (EffectiveFields 계산)
+### 4.1 필드 상속 알고리즘 (EffectiveFields 계산) - 구현 완료
 특정 노드 N의 유효 필드 목록을 구하는 절차:
 1. 루트(도메인)부터 N까지의 조상 경로를 구한다: [root, ..., parent, N]
 2. 경로를 따라 내려가며 각 노드에 정의된 field_definition을 순서대로 누적한다.
@@ -8,7 +8,11 @@
 4. is_removed = true인 정의가 나타나면 해당 key를 결과 집합에서 제외한다.
 5. 최종적으로 남은 필드 집합 = N의 EffectiveFields.
 
-### 4.2 노드 이동(Move) 시 데이터 처리 정책
+> **갭:** `FieldDefinitionService.getEffectiveFields()`는 매 호출마다 트리를 순회하며 계산하고, 캐싱(`@Cacheable`)이 적용되어 있지 않다. Domain 조회는 Redis로 캐싱 중이므로 동일한 방식의 확장을 검토할 만하다.
+
+### 4.2 노드 이동(Move) 시 데이터 처리 정책 - **미구현**
+> 아래는 최초 설계이며, 실제 `ClassificationNodeService`/`ClassificationNodeController`에는 노드 이동(Move) 기능 자체가 없다(생성/수정/트리 조회만 구현됨). `Record.status`의 `MISMATCHED` 값도 엔티티 정의에만 존재할 뿐, 이 값을 실제로 세팅하는 서비스 로직은 없다. 노드 재배치가 필요한 시나리오가 있다면 아래 절차를 실제로 구현해야 한다.
+
 노드를 다른 부모 아래로 이동시킬 경우, 이동 자체는 허용(유연성)하되 기존 데이터는 보호한다.
 1. 노드의 parent_id 및 path, depth를 업데이트한다.
 2. 이동된 노드의 새로운 EffectiveFields를 계산한다.
@@ -16,7 +20,9 @@
 4. 필수 필드 누락 등 스키마 불일치가 발생한 레코드들의 status를 ACTIVE에서 **MISMATCHED**로 변경한다.
 5. 기본 조회 API에서는 WHERE status = 'ACTIVE' 조건을 주어 불일치 레코드를 자연스럽게 숨김 처리한다. 관리자는 별도 관리 화면에서 MISMATCHED 레코드를 보정할 수 있다.
 
-### 4.3 노드 삭제(Delete) 정책
+### 4.3 노드 삭제(Delete) 정책 - **미구현**
+> `ClassificationNodeController`에는 `DELETE` 매핑이 없다. `ClassificationNode.isDeleted` 컬럼(및 조회 시 `is_deleted = false` 필터)은 엔티티에 존재하지만, 이를 `true`로 전환하는 삭제 API/서비스 로직은 확인되지 않는다. 아래는 구현이 필요한 최초 설계다.
+
 하위 레코드가 존재하더라도 데이터는 삭제하지 않고 연쇄 논리 삭제(Cascade Soft Delete) 를 수행한다.
 1. 삭제 대상 노드의 is_deleted = true, deleted_at = 현재시간으로 업데이트.
 2. path 컬럼을 활용하여 하위 노드를 효율적으로 탐색 후 모두 is_deleted = true로 변경.
@@ -70,9 +76,14 @@
    - **이름 속성 키워드**: '명', '이름', 'name', 'title'
 2. **강제 할당 (2nd Pass)**: 키워드 기반 매칭에도 실패할 경우, 원본 JSON 객체의 값들 중 단순 값(객체가 아닌 값) 목록을 추출하여 첫 번째 요소를 ID 속성으로, 두 번째 요소를 이름 속성으로 강제 할당한다. 이를 통해 관리자 화면에서 핵심 결재 대상 정보가 공백으로 표기되는 현상을 원천 방지한다.
 
+### 6.5 저장 시점 실시간 차단 (구현 완료, 스펙에 누락되어 있던 실제 동작)
+프론트엔드 입력 검증과는 별개로, 백엔드 `ApprovalService`는 레코드 생성/수정 기안 시점에 **동기적으로** 아래를 수행하며, 실패 시 기안 자체가 예외로 거부된다(soft-block이 아닌 hard-block).
+1. **DQ 룰 검증**: `DataQualityService.validateData()`로 해당 노드의 모든 DQ 룰을 평가하고, 위반이 하나라도 있으면 `DATA_QUALITY_CHECK_FAILED` 오류로 기안을 막는다.
+2. **중복 검사 및 자동 UPSERT**: `MatchingService.checkDuplicates()`(정확/퍼지)로 중복을 검사해, 중복 1건이면 자동으로 수정 요청으로 전환하고, 중복이 여러 건이면 `DEDUPLICATION_FAILED`로 기안을 막는다.
+
 ---
 
-# 7. 결재(Approval) 워크플로우 (Event-Driven Architecture)
+
 
 결재 상태 전이 및 워크플로우 진행 로직은 강결합을 피하기 위해 **Spring ApplicationEvent 기반의 이벤트 드리븐(Event-Driven) 아키텍처**로 구현되어 있다. 
 

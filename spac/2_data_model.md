@@ -78,20 +78,26 @@
 | **FILE** | `{ "allowed_extensions": ["jpg", "pdf"], "max_size_mb": 10, "max_count": 5 }` |
 | **REFERENCE**| `{ "target_domain_ids": ["참조가능도메인_UUID"], "is_multi": false }` |
 
-### 3.4 실제 데이터 저장 구조 (5-way Routing)
+### 3.4 실제 데이터 저장 구조
 
-필드 정의는 메타데이터일 뿐이며, 실제 값은 필드의 속성에 따라 **5개의 저장소로 라우팅**된다. (EAV 패턴 및 필드별 테이블 생성 방식 지양)
+> **구현 현황 안내:** 아래는 당초 설계한 "5-way 라우팅" 구조이며, 검색/타입 안전성 관점의 이상적인 모델이다. **실제 구현은 이보다 단순화되어 있다** — `record.data` 단일 JSONB 컬럼에 TABLE형 필드의 행 데이터, 파일 필드의 다운로드 경로, REFERENCE 필드의 대상 레코드 ID, 심지어 암호화된 값(`is_encrypted=true`)까지 모두 함께 저장된다. 별도의 `record_table_field`, `record_encrypted_value`, `record_file`, `record_relation` 테이블/엔티티는 존재하지 않는다. 이 방식은 스키마가 단순해지는 대신, TABLE 필드의 행 단위 검색이나 REFERENCE의 역참조(어떤 레코드들이 나를 참조하는지) 조회가 어렵다는 트레이드오프가 있다.
 
-#### (1) record — 기본 레코드 + 일반 필드 (JSONB)
-스칼라 값, 다중값(배열), 다국어, 선택형 등을 저장한다.
+#### (1) record — 기본 레코드 + 전체 필드 (JSONB, 실제 구현)
+스칼라 값, 다중값(배열), 다국어, 선택형뿐 아니라 TABLE 행 데이터, FILE 경로, REFERENCE 대상 ID, 암호문(encrypted)까지 전부 이 컬럼에 저장한다.
 
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
 | id | UUID/PK | 레코드 ID |
 | node_id | UUID/FK | 어떤 분류 노드에 속하는 데이터인지 |
-| status | enum | 레코드 상태 (`DRAFT`, `PENDING_APPROVAL`, `ACTIVE`, `INACTIVE`, `MISMATCHED`, `REJECTED`) |
-| data | JSONB | 일반 필드 값 모음. 예: `{"이름":"홍길동", "보유자격증":["정보처리기사"]}` |
+| status | enum | 레코드 상태 (`DRAFT`, `PENDING_APPROVAL`, `ACTIVE`, `INACTIVE`, `MISMATCHED`, `REJECTED`, `MERGED`) — 실제 구현에는 병합된 레코드를 나타내는 `MERGED` 상태가 추가됨 |
+| data | JSONB (실제로는 String 컬럼에 JSON 직렬화) | 전체 필드 값 모음. 예: `{"이름":"홍길동", "보유자격증":["정보처리기사"]}` |
+| version | int | 레코드 버전(수정마다 증가) |
+| source_system | string | 이 레코드(또는 최근 갱신)를 생성한 소스 시스템명 |
+| merged_into_record_id | UUID, nullable | 병합되어 사라진 경우 병합 대상(survivor) 레코드 ID |
+| approval_request_id | UUID, nullable | 현재 레코드를 생성/변경한 결재 요청 ID |
 | created_at / updated_at | datetime | |
+
+> **필드별 소스 계보:** `record_field_source` 테이블이 실제로 존재하며, `(record_id, field_key)` 별로 최근 값을 기록한 소스 시스템명과 갱신 시각을 저장한다. 인바운드 연계 시 `source_priority`(소스 시스템 우선순위) 규칙에 따라 필드 단위로 병합(Survivorship)할 때 사용된다.
 
 > **검색 최적화:** `is_searchable=true`인 필드는 표현식 인덱스 생성. (예: `CREATE INDEX idx_record_name ON record ((data->>'이름'));`)
 
@@ -109,16 +115,9 @@
 | changes | JSONB | 변경될 내용 (예: 레코드 수정 시 새로운 data JSON, 스키마 변경 시 필드 정의) |
 | created_at / updated_at | datetime | |
 
-#### (2) record_table_field — 테이블형 필드 (`type='TABLE'`)
-한 필드가 여러 행 x 여러 컬럼 구조를 가질 때 사용.
-
-| 컬럼 | 타입 | 설명 |
-|---|---|---|
-| id | UUID/PK | |
-| record_id | UUID/FK | 소속 레코드 |
-| field_id | UUID/FK | 어떤 필드 정의인지 |
-| row_order | int | 행 순서 |
-| row_data | JSONB | 한 행의 데이터 (예: `{"회사":"A","기간":"2020-2022"}`) |
-
-#### (3) record_encrypted_value — 암호화 필드 (`is_encrypted=true`)
-암호화 대상 값은 평문을 암호화하여 저장하며 동등 비교 검색을 위한 해시값을 포함할 수 있다.
+#### (2) ~ (5) 원 설계상의 분리 테이블 (미구현, 참고용)
+아래 4개는 최초 설계 문서에만 존재하며 실제 코드베이스에는 구현되어 있지 않다. 위 (1)의 `data` 컬럼이 이 역할을 대신한다.
+- **record_table_field**: 한 필드가 여러 행 x 여러 컬럼 구조를 가질 때(`type='TABLE'`) 사용할 예정이었던 테이블.
+- **record_encrypted_value**: 암호화 대상 값(`is_encrypted=true`)과 동등 비교용 blind index를 저장할 예정이었던 테이블.
+- **record_file**: FILE 타입 필드의 첨부파일 메타데이터를 저장할 예정이었던 테이블. 실제로는 `/api/files/upload`로 선업로드 후 반환된 다운로드 경로 문자열이 `record.data`에 그대로 저장된다.
+- **record_relation**: REFERENCE 타입 필드의 대상 레코드 ID를 저장할 예정이었던 테이블. 실제로는 대상 레코드의 UUID가 `record.data`에 그대로 저장된다(역참조 조회를 위한 별도 인덱스 테이블 없음).
