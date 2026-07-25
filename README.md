@@ -6,7 +6,7 @@
 초기에는 각 부서나 시스템별로 파편화된 **Domain Management** 기능을 제공하여 개별 데이터를 관리하는 수준에서 시작했습니다. 하지만 궁극적인 목표는 **Master Data Management(MDM) 플랫폼으로의 진화**입니다.
 기업의 핵심 데이터인 Customer, Product, Vendor, Employee 등의 마스터 데이터를 중앙 집중식으로 수집하고, 데이터 품질(Data Quality)을 검증하여, 중복을 제거한 **Golden Record**를 생성하고 이를 외부 시스템으로 전파하는 것을 목표로 합니다.
 
-> 현재 상태: 동적 스키마, 승인 워크플로우, DQ 룰 엔진, 정확 일치 기반 중복 검사, 인바운드/아웃바운드 연계까지는 구현되어 있으며, 여러 소스 레코드를 하나로 병합하는 Golden Record 생성(서바이버십)은 아직 로드맵 단계입니다. 세부 내용은 [🔑 Key Features](#-key-features) 참고.
+> 현재 상태: 동적 스키마(승인 워크플로우 포함), DQ 룰 엔진(실시간 차단 + 정기 스캔), 정확/퍼지(유사도) 중복 검사, 소스 우선순위 기반 필드 단위 병합(Survivorship)을 포함한 Golden Record 생성, Excel 대량 업로드, 인바운드/아웃바운드 연계까지 구현되어 있습니다. 세부 내용은 [🔑 Key Features](#-key-features) 참고.
 
 ## 🏛 Architecture Overview
 Frontend와 Backend가 완전히 분리된 구조로 REST API를 통해 통신하며, 런타임에 동적으로 스키마를 구성하는 메타데이터 드리븐 아키텍처를 채택했습니다.
@@ -23,7 +23,7 @@ graph TD
     subgraph MDM Core
         S1[Dynamic Schema Engine]
         S2[DQ Rule Engine]
-        S3[Matching Service - 정확 일치]
+        S3[Matching Service - 정확/퍼지 일치 + Survivorship 병합]
         S4[Approval Workflow - Record]
         S1 --> S2 --> S3 --> S4
     end
@@ -53,7 +53,7 @@ graph TD
 
 ## 📌 [Roadmap / 향후 확장 예정 인프라]
 - **Keycloak**: 외부 IAM (OAuth2 / OIDC) 로그인 연동 준비 중
-- **Redis**: 분산 세션 / API Rate Limiting 및 캐싱 레이어 도입 예정
+- **Redis**: 현재 Domain 조회 캐싱(`RedisCacheConfig`)에는 이미 사용 중이나, 분산 세션 관리 및 API Rate Limiting으로의 확장은 예정 단계
 - **MinIO**: 오브젝트 스토리지 첨부파일 관리 도입 예정
 
 ## 🚀 Quick Start
@@ -93,23 +93,51 @@ npm run dev
 **[구현 완료]**
 - **Dynamic Domain / Schema Engine**: 하드코딩된 테이블 스키마 없이 Domain → Classification Node(트리, 필드 상속) → FieldGroup/Sector → FieldDefinition을 런타임에 동적으로 구성.
 - **Record 승인 워크플로우**: 레코드 생성/수정/삭제 시 다단계 결재(Pending → Approved/Rejected), 결재자별 Before/After 비교 및 코멘트, 반려 시 원본 데이터 유지.
-- **Data Quality Rule Engine**: NotNull, Regex, Range, Length, Enum, DateRange, CrossField, Unique, SpEL(커스텀 수식) 등 룰 기반 검증기.
-- **Matching / 중복 검사**: 도메인 식별자 필드, candidate key(코드/번호성 필드), 커스텀 매칭 룰을 기반으로 한 정확 일치(EQ) 중복 탐지.
+- **스키마 변경 승인 워크플로우 및 감사 로그**: 필드/노드 변경도 `ApprovalService`(SCHEMA_CHANGE 워크플로우)를 통해 결재를 거쳐 반영되며, `SchemaHistory`에 변경 전/후(Before/After) 스냅샷이 기록됨.
+- **Data Quality Rule Engine**: NotNull, Regex, Range, Length, Enum, DateRange, CrossField, Unique, SpEL(커스텀 수식) 등 룰 기반 검증기. `ApprovalService`에서 레코드 기안/수정 시 **동기적으로 검증하여 위반 시 상신 자체를 차단**(hard-block)하며, `DqScheduledScanService`가 매일 새벽 크론(`0 0 2 * * ?`)으로 전체 재검사를 자동 수행.
+- **Matching / 중복 검사 및 Golden Record 병합**: 정확 일치(EXACT)뿐 아니라 Jaro-Winkler 유사도 기반 **퍼지(FUZZY) 매칭**을 지원(`MatchingService`). 인바운드 연계 시 중복이 감지되면 `SourcePriority`(소스 시스템별 우선순위) 기준으로 **필드 단위 서바이버십 병합**을 수행하고 `RecordFieldSource`에 필드별 출처를 기록. 수동 병합(`/api/records/merge`, `/merge/auto`)과 서바이버십 규칙 관리 API도 제공.
+- **필드 단위 소스 계보(Lineage) 노출**: `RecordFieldSource`를 프론트엔드 레코드 상세 화면(`RecordDetailDrawer.vue`)과 결재 상세 화면(`ApprovalDetailsViewer.vue`)에서 필드별 출처 시스템으로 시각화.
+- **Excel 대량 업로드**: `ExcelUploader.vue` + `/api/nodes/{id}/records/batch`를 통한 템플릿 다운로드 → 컬럼 매핑 → 배치(100건 단위) 업로드.
 - **외부 시스템 연계 (Integration)**: Inbound(채널별 시크릿 토큰 인증 Webhook)와 Outbound(Spring Integration 기반 HTTP/JDBC/Kafka/RabbitMQ 동적 라우팅).
 - **RBAC 및 조직 구조**: Role/UserRole 기반 권한, Organization/Department/Team 조직도, 도메인·노드 단위 세부 권한(`DomainPermission`).
 - **데이터 변경 감사(Audit)**: `RecordHistory`에 생성/수정/삭제 스냅샷을 버전과 함께 저장.
+- **캐싱**: `RedisCacheConfig` + `@Cacheable`로 Domain 조회 결과를 캐싱(`DomainService`).
 - **다국어(i18n)**: 한국어/영어 UI, 필드 자체 다국어 지원.
 
 **[부분 구현 / 알려진 한계]**
-- Matching은 **정확 일치(EQ)** 만 지원하며, 유사도 기반(퍼지 매칭) 판별은 아직 없음.
-- 인바운드 연계에서 중복이 감지되면 **레코드 전체를 새 데이터로 덮어쓰는 방식**으로 갱신됨 — 필드 단위 병합이나 소스 시스템별 신뢰도(서바이버십) 규칙은 없음.
-- 스키마(필드/노드) 변경은 승인 절차 없이 **즉시 반영**되며, 데이터(Record)와 달리 스키마 변경 이력(감사 로그)도 아직 없음.
-- DQ 전체 재검사는 관리자가 수동으로 트리거하는 방식이며, 주기적 자동 스캔(스케줄러)은 없음.
+- 병합 취소(**Un-merge**) 로직은 `RecordMergeService.unmergeRecord()`에 구현되어 있으나, **REST 컨트롤러에 노출되어 있지 않아** 현재 API/UI로는 호출할 수 없음.
+- Excel 대량 업로드는 배치 단위로 서버에 전송만 할 뿐, **행(row) 단위로 어떤 데이터가 DQ 룰에 위반됐는지 짚어주는 검증 리포트는 없음**(실패 시 포괄적인 에러 메시지만 표시).
+- `@Cacheable` 캐싱은 Domain 엔티티 조회에만 적용되어 있고, 트리를 순회해 계산하는 **EffectiveFields(유효 필드) 조회는 캐싱되지 않음**.
+- 매칭 후보 검토 큐(`match-candidates.vue`, `MatchCandidateController`)는 있으나, 스튜어드의 검토 결과(오탐 여부)가 매칭 룰 임계값에 자동 반영되는 피드백 루프는 없음.
+- 암호화(`FieldEncryptionService`)는 애플리케이션 전역에서 **단일 정적 마스터 키**(환경변수)를 사용하며, 필드별/도메인별 키 분리나 외부 KMS(AWS KMS, Vault 등) 연동은 없음.
 
-**[기능 Roadmap]**
-- **Golden Record 생성 (Merge & Survivorship)**: 여러 소스/중복 레코드를 필드 단위 신뢰도 규칙으로 병합해 대표 레코드를 구성.
-- **매칭 후보 검토 큐**: 애매한(높은 유사도이지만 완전 일치는 아닌) 매칭 건을 데이터 스튜어드가 검토·승인하는 화면.
-- **스키마 변경 승인 워크플로우 및 스키마 감사 로그**.
+## 💡 MDM 기능 개선 제안 (Proposed Enhancements)
+아래는 실제 백엔드/프론트엔드 소스코드를 직접 확인해 검증한, **현재 미구현이거나 부분적으로만 구현된** 개선 과제입니다. (이미 구현된 기능은 위 [🔑 Key Features](#-key-features) 참고)
+
+### 1. 매칭 & 골든 레코드(Match / Merge)
+- **Un-merge API 노출**: `RecordMergeService.unmergeRecord()`는 이미 구현되어 있으나 `RecordMergeController`에 엔드포인트가 없어 UI/API로 호출 불가. 잘못된 병합을 되돌리는 필수 기능이므로 컨트롤러 매핑 및 화면 버튼 추가가 시급함.
+- **매칭 후보 검토 피드백 루프**: `match-candidates.vue`에서 스튜어드가 "매칭 아님"으로 판정한 이력을 `MatchingRule.similarityThreshold` 튜닝에 참고 지표로 반영하는 기능은 없음.
+
+### 2. 데이터 품질(DQ)
+- **DQ 스코어 트렌드 대시보드**: `dq-dashboard.vue`는 현재 스냅샷 위주이며 시계열(추이) 차트가 없음. 도메인/노드별 품질 점수 변화를 추적할 수 있도록 개선.
+- **Excel 대량 업로드 행 단위 검증 리포트**: 현재 배치 업로드 실패 시 포괄적 에러 메시지만 표시됨. 어떤 행이 어떤 DQ 룰에 위반됐는지 행 단위로 짚어주는 리포트 UI 추가.
+
+### 3. 거버넌스 / 보안
+- **암호화 키 관리(KMS) 연동**: `FieldEncryptionService`가 단일 정적 마스터 키(환경변수)만 사용 중. 필드별/도메인별 키 분리 및 AWS KMS·HashiCorp Vault 등 외부 KMS 연동 검토.
+- **스키마 변경 시점(as-of) 조회**: `SchemaHistory`에 Before/After는 기록되지만, 과거 특정 시점의 EffectiveFields를 재구성해 보여주는 조회 API는 없음.
+
+### 4. 분류체계 / 데이터 모델
+- **다축 분류(Multi-axis) 지원**: 현재는 단일 트리(`parent_id`) 구조만 지원. "고용형태 × 부서"처럼 두 개 이상의 축이 동시에 필요한 경우를 위해 노드를 DAG로 확장하거나 별도 분류축(Axis) 개념 도입 검토.
+
+### 5. 검색 / 성능
+- **EffectiveFields 계산 캐싱**: `@Cacheable`은 현재 Domain 엔티티 조회에만 적용(`DomainService`). 트리를 매번 순회해 계산하는 `FieldDefinitionService.getEffectiveFields()`는 캐싱되지 않아, 노드/필드 수가 늘어나면 조회 비용 증가. Redis 캐시 + 스키마 변경 시 무효화(invalidate) 전략 적용 검토.
+- **Elasticsearch/OpenSearch 연동**: `is_searchable` 표현식 인덱스만으로는 다중 필드 조합·전문 검색에 한계. 검색 패턴이 늘어나면 검색 엔진 도입 검토.
+
+### 6. 연계(Integration)
+- **아웃바운드/인바운드 실패 알림**: 연계 실패 시 `NotificationService`를 통한 관리자 자동 알림 연동이 확인되지 않음. `IntegrationLog` 실패율 임계치 초과 시 알림 발송 추가.
+- **재시도 정책 고도화**: Dead-letter queue 및 채널별 재시도 백오프 정책 설정 기능 검토.
+
+> 우선순위를 정해 구체적인 구현 방안(설계/코드)까지 진행하고 싶은 항목이 있다면 별도로 요청해 주세요.
 
 ## 🧪 Testing
 백엔드는 `backend/src/test/java`에 컨트롤러/서비스/리포지토리 단위의 JUnit 테스트가 다수(43개 클래스) 구성되어 있습니다. 새 기능 추가나 버그 수정 시 관련 범위의 테스트를 먼저 확인하고, 필요한 경우 테스트를 추가/보완하는 것을 권장합니다.
