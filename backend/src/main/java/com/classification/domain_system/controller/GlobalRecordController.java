@@ -21,11 +21,13 @@ import org.springframework.security.access.prepost.PreAuthorize;
 public class GlobalRecordController {
     private final RecordRepository recordRepository;
     private final com.classification.domain_system.service.ApprovalService approvalService;
+    private final com.classification.domain_system.service.RecordService recordService;
     
     @GetMapping("/{id}")
     @PreAuthorize("hasPermission(null, 'record:read')")
     public ResponseEntity<Record> getRecord(@PathVariable UUID id) {
         return recordRepository.findById(id)
+                .map(recordService::prepareRecordForRead)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -36,6 +38,12 @@ public class GlobalRecordController {
             @PathVariable UUID id, 
             @RequestBody com.classification.domain_system.dto.RecordRequest request) {
         try {
+            if (request != null && request.getData() != null) {
+                Record record = recordRepository.findById(id).orElse(null);
+                if (record != null && record.getNode() != null) {
+                    request.setData(recordService.processDataForSave(record.getNode().getId(), request.getData()));
+                }
+            }
             return ResponseEntity.ok(approvalService.requestRecordUpdate(id, request));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -86,6 +94,7 @@ public class GlobalRecordController {
 
         Page<Record> records = recordRepository.findDynamicRecordsByDomain(
                 domainId, searchParams, PageRequest.of(page, size, sort));
+        records = recordService.prepareRecordsForRead(records);
         return ResponseEntity.ok(PageResponse.of(records));
     }
 }

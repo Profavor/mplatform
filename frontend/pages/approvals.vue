@@ -28,38 +28,53 @@
     </div>
 
     <!-- Action Modal for Pending Step -->
-    <va-modal v-model="showActionModal" size="large" hide-default-actions>
+    <va-modal v-model="showActionModal" size="large" close-button hide-default-actions>
       <template #header>
-        <h3 style="margin: 0; font-size: 1.25rem;">{{ $t('approval_review') }}</h3>
-      </template>
-      <div v-if="selectedPendingStep" style="padding: 1rem 0;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--va-background-border); padding-bottom: 1rem; margin-bottom: 1rem;">
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <va-badge :text="getRequestTypeLabel(selectedPendingStep.approvalRequest?.targetType)" :color="getRequestTypeColor(selectedPendingStep.approvalRequest?.targetType)" />
-            <span v-if="selectedPendingStep.approvalRequest?.classificationNode" style="font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; margin-left: 0.5rem; padding: 4px 14px; background: rgba(150, 150, 150, 0.1); border-radius: 20px; border: 1px solid rgba(150, 150, 150, 0.15);">
-              <span style="background: linear-gradient(90deg, #6693ff, #b763ec); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+        <div v-if="selectedPendingStep?.approvalRequest" style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%; padding-right: 2.5rem;">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.65rem;">
+              <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                <va-icon name="rate_review" color="primary" />
+                {{ $t('approval_review') || '결재 요청 검토' }}
+              </h3>
+              <va-badge :text="getRequestTypeLabel(selectedPendingStep.approvalRequest?.targetType)" :color="getRequestTypeColor(selectedPendingStep.approvalRequest?.targetType)" />
+            </div>
+
+            <div style="font-size: 0.85rem; color: var(--va-text-secondary); display: flex; align-items: center; gap: 0.75rem;">
+              <span v-if="selectedPendingStep.approvalRequest?.requesterUsername">
+                <va-icon name="person" size="small" style="margin-right: 2px;" />
+                {{ t('requester') || '기안자' }}: <strong>{{ selectedPendingStep.approvalRequest.requesterUsername }}</strong>
+              </span>
+              <span>
+                <va-icon name="schedule" size="small" style="margin-right: 2px;" />
+                {{ formatDate(selectedPendingStep.approvalRequest?.createdAt) }}
+              </span>
+            </div>
+          </div>
+
+          <div v-if="selectedPendingStep.approvalRequest?.classificationNode" style="display: flex; align-items: center; margin-top: 0.25rem;">
+            <span style="font-size: 0.88rem; font-weight: 700; display: inline-flex; align-items: center; padding: 3px 12px; background: rgba(37, 99, 235, 0.08); border-radius: 16px; border: 1px solid rgba(37, 99, 235, 0.15);">
+              <span style="color: var(--va-primary);">
                 {{ getClassificationName(selectedPendingStep.approvalRequest.classificationNode, 'domainName') }}
               </span>
-              <va-icon name="keyboard_double_arrow_right" size="small" style="margin: 0 6px; color: #b763ec; font-size: 1.1rem; opacity: 0.8;" />
-              <span style="background: linear-gradient(90deg, #b763ec, #ff7eb3); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+              <va-icon name="chevron_right" size="small" style="margin: 0 4px; color: var(--va-primary); font-size: 1rem;" />
+              <span style="color: var(--va-text-primary);">
                 {{ getClassificationName(selectedPendingStep.approvalRequest.classificationNode, 'name') }}
               </span>
             </span>
           </div>
-          <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
-            <va-icon name="schedule" size="small" style="margin-right: 4px; margin-top: -2px;" />
-            {{ t('submission_date') }}: {{ formatDate(selectedPendingStep.approvalRequest?.createdAt) }}
-          </span>
         </div>
-        
+      </template>
+
+      <div v-if="selectedPendingStep" style="padding: 1rem 0 0 0;">
         <!-- Shared Approval Details Viewer (Collapsible requestedData Accordion) -->
         <ApprovalDetailsViewer v-if="selectedPendingStep.approvalRequest" :request="selectedPendingStep.approvalRequest" />
 
-        <div style="width: 100%; margin-bottom: 1rem; display: block;">
+        <div style="width: 100%; margin-top: 1rem; margin-bottom: 1rem; display: block;">
           <textarea
             v-model="commentData[selectedPendingStep.id]" 
             :placeholder="t('addComment')" 
-            style="width: 100%; box-sizing: border-box; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 4px; padding: 0.5rem 0.75rem; color: var(--va-text-primary); resize: vertical; min-height: 80px; font-family: inherit; font-size: 0.9rem;"
+            style="width: 100%; box-sizing: border-box; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 8px; padding: 0.75rem 1rem; color: var(--va-text-primary); resize: vertical; min-height: 80px; font-family: inherit; font-size: 0.9rem;"
           ></textarea>
         </div>
 
@@ -71,8 +86,8 @@
       </div>
     </va-modal>
 
-  <!-- My Submitted Requests Section -->
-  <h2 style="font-size: 1.5rem; font-weight: bold; margin-top: 3rem; margin-bottom: 1.5rem; color: var(--va-text-primary);">{{ t('mySubmitted') }}</h2>
+    <!-- My Submitted Requests Section -->
+    <h2 style="font-size: 1.5rem; font-weight: bold; margin-top: 3rem; margin-bottom: 1.5rem; color: var(--va-text-primary);">{{ t('mySubmitted') }}</h2>
     <div style="height: 400px; width: 100%;">
       <AgGridVue
         key="my-requests-grid"
@@ -87,36 +102,52 @@
     </div>
 
     <!-- Details Modal -->
-    <va-modal v-model="showDetailsModal" size="large" hide-default-actions>
+    <va-modal v-model="showDetailsModal" size="large" close-button hide-default-actions>
       <template #header>
-        <h3 style="margin: 0; font-size: 1.25rem;">{{ t('details') }}</h3>
-      </template>
-      <div v-if="selectedRequest" style="padding: 1rem 0;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--va-background-border); padding-bottom: 1rem; margin-bottom: 1rem;">
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <va-badge :text="getRequestTypeLabel(selectedRequest.targetType)" :color="getRequestTypeColor(selectedRequest.targetType)" />
-            <va-badge :text="selectedRequest.status" :color="selectedRequest.status === 'PENDING' ? 'warning' : (selectedRequest.status === 'APPROVED' ? 'success' : 'danger')" />
-            <span v-if="selectedRequest.classificationNode" style="font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; margin-left: 0.5rem; padding: 4px 14px; background: rgba(150, 150, 150, 0.1); border-radius: 20px; border: 1px solid rgba(150, 150, 150, 0.15);">
-              <span style="background: linear-gradient(90deg, #6693ff, #b763ec); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+        <div v-if="selectedRequest" style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%; padding-right: 2.5rem;">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.65rem;">
+              <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                <va-icon name="verified_user" color="primary" />
+                {{ t('details') || '결재 상세 정보' }}
+              </h3>
+              <va-badge :text="getRequestTypeLabel(selectedRequest.targetType)" :color="getRequestTypeColor(selectedRequest.targetType)" />
+              <va-badge :text="selectedRequest.status" :color="selectedRequest.status === 'PENDING' ? 'warning' : (selectedRequest.status === 'APPROVED' ? 'success' : 'danger')" />
+            </div>
+
+            <div style="font-size: 0.85rem; color: var(--va-text-secondary); display: flex; align-items: center; gap: 0.75rem;">
+              <span v-if="selectedRequest.requesterUsername">
+                <va-icon name="person" size="small" style="margin-right: 2px;" />
+                {{ t('requester') || '기안자' }}: <strong>{{ selectedRequest.requesterUsername }}</strong>
+              </span>
+              <span>
+                <va-icon name="schedule" size="small" style="margin-right: 2px;" />
+                {{ formatDate(selectedRequest.createdAt) }}
+              </span>
+            </div>
+          </div>
+
+          <div v-if="selectedRequest.classificationNode" style="display: flex; align-items: center; margin-top: 0.25rem;">
+            <span style="font-size: 0.88rem; font-weight: 700; display: inline-flex; align-items: center; padding: 3px 12px; background: rgba(37, 99, 235, 0.08); border-radius: 16px; border: 1px solid rgba(37, 99, 235, 0.15);">
+              <span style="color: var(--va-primary);">
                 {{ getClassificationName(selectedRequest.classificationNode, 'domainName') }}
               </span>
-              <va-icon name="keyboard_double_arrow_right" size="small" style="margin: 0 6px; color: #b763ec; font-size: 1.1rem; opacity: 0.8;" />
-              <span style="background: linear-gradient(90deg, #b763ec, #ff7eb3); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+              <va-icon name="chevron_right" size="small" style="margin: 0 4px; color: var(--va-primary); font-size: 1rem;" />
+              <span style="color: var(--va-text-primary);">
                 {{ getClassificationName(selectedRequest.classificationNode, 'name') }}
               </span>
             </span>
           </div>
-          <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
-            <va-icon name="schedule" size="small" style="margin-right: 4px; margin-top: -2px;" />
-            {{ t('created') }}: {{ formatDate(selectedRequest.createdAt) }}
-          </span>
         </div>
+      </template>
 
-        <!-- Shared Approval Details Viewer (Collapsible requestedData Accordion) -->
+      <div v-if="selectedRequest" style="padding: 1rem 0 0 0;">
+        <!-- Shared Approval Details Viewer (Collapsible requestedData Accordion & Approval Steps Timeline) -->
         <ApprovalDetailsViewer v-if="selectedRequest" :request="selectedRequest" />
       </div>
+
       <template #footer>
-        <va-button @click="showDetailsModal = false">{{ t('close') }}</va-button>
+        <va-button preset="secondary" @click="showDetailsModal = false">{{ t('close') || '닫기' }}</va-button>
       </template>
     </va-modal>
   </div>
@@ -1154,23 +1185,32 @@ const loadRequests = async () => {
   }
 }
 const handleAction = async (stepId, action, isBulk = false) => {
-  
   const comment = commentData.value[stepId] || ''
+  const actionName = action === 'approve' ? '승인' : '반려'
   
-  showLoading('처리 중입니다...')
+  showLoading(`${actionName} 처리 중입니다...`)
   try {
     await $fetch(`/api/approval-requests/steps/${stepId}/${action}?approverId=${myUuid.value}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token.value}` },
       body: { comment }
     })
-    init({ message: `Successfully ${action}d!`, color: 'success' })
+    init({ message: `결재가 성공적으로 ${actionName} 되었습니다.`, color: 'success' })
     if (!isBulk) {
       await loadRequests()
+      refreshGrids()
     }
   } catch (error) {
     console.error(`Failed to ${action}:`, error)
-    init({ message: `Error: ${error.response?._data?.message || error.message}`, color: 'danger' })
+    const status = error.response?.status
+    const errMsg = error.response?._data?.message || error.message
+    if (status === 409 || status === 412 || (errMsg && (errMsg.includes('Optimistic') || errMsg.includes('concurrent')))) {
+      init({ message: '다른 사용자가 이미 결재 상태를 변경하였습니다. 최신 정보를 불러옵니다.', color: 'warning' })
+    } else {
+      init({ message: `결재 ${actionName} 실패: ${errMsg}`, color: 'danger' })
+    }
+    await loadRequests()
+    refreshGrids()
   } finally {
     hideLoading()
   }

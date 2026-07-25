@@ -23,231 +23,33 @@
 
     <!-- Main Layout -->
     <div style="display: flex; gap: 1.5rem; align-items: flex-start; flex-wrap: wrap;">
-      
-      <!-- Organization List Card -->
-      <va-card style="flex: 1; min-width: 320px;">
-        <va-card-title style="display: flex; justify-content: space-between; align-items: center;">
-          <span>{{ t('org_list') }}</span>
-          <va-badge color="info" :text="String(organizations.length)" />
-        </va-card-title>
-        <va-card-content>
-          <div v-if="loadingOrgs" style="text-align: center; padding: 2rem;">
-            <va-progress-circle indeterminate color="primary" />
-          </div>
-          <div v-else-if="organizations.length === 0" style="text-align: center; padding: 2rem; color: #777;">
-            {{ t('no_orgs_registered') }}
-          </div>
-          <div v-else style="display: flex; flex-direction: column; gap: 0.75rem;">
-            <div
-              v-for="org in organizations"
-              :key="org.id"
-              @click="selectOrganization(org)"
-              style="padding: 1rem; border-radius: 8px; border: 1px solid var(--va-background-border); cursor: pointer; transition: all 0.2s ease; background: var(--va-background-element);"
-              :style="{
-                borderColor: selectedOrg?.id === org.id ? 'var(--va-primary)' : 'var(--va-background-border)',
-                boxShadow: selectedOrg?.id === org.id ? '0 4px 12px rgba(21, 101, 192, 0.15)' : 'none'
-              }"
-            >
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                <span style="font-weight: 700; font-size: 1.05rem; color: var(--va-text-primary);">
-                  {{ getI18nText(org.displayName) || org.name }}
-                </span>
-                <div style="display: flex; align-items: center; gap: 0.35rem;">
-                  <va-badge :color="org.isActive ? 'success' : 'danger'" :text="org.isActive ? t('active_status') : t('inactive_status')" size="small" />
-                  <va-button
-                    v-if="org.id !== '00000000-0000-0000-0000-000000000001'"
-                    preset="plain"
-                    icon="delete"
-                    color="danger"
-                    size="small"
-                    title="조직 삭제"
-                    @click.stop="openDeleteOrgModal(org)"
-                  />
-                </div>
-              </div>
-              <div style="font-size: 0.8rem; color: var(--va-text-secondary); font-family: monospace;">
-                ID: {{ org.id }}
-              </div>
-              <div v-if="org.description" style="font-size: 0.85rem; color: var(--va-text-secondary); margin-top: 0.35rem;">
-                {{ getI18nText(org.description) }}
-              </div>
-            </div>
-          </div>
-        </va-card-content>
-      </va-card>
+      <!-- Modularized Organization List Sidebar -->
+      <OrgTreeSidebar
+        :organizations="organizations"
+        :selected-id="selectedOrg?.id"
+        :loading="loadingOrgs"
+        @select-org="selectOrganization"
+        @add-org="openCreateOrgModal"
+        @delete-org="openDeleteOrgModal"
+      />
 
-      <!-- Selected Organization Detail Card -->
-      <va-card v-if="selectedOrg" style="flex: 2; min-width: 480px;">
-        <va-card-title style="display: flex; align-items: center; justify-content: space-between;">
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <va-icon name="apartment" color="primary" />
-            <span>{{ getI18nText(selectedOrg.displayName) || selectedOrg.name }}</span>
-          </div>
-          <span style="font-size: 0.8rem; color: var(--va-text-secondary); font-weight: normal;">
-            {{ t('system_org_info') }}
-          </span>
-        </va-card-title>
-        
-        <va-card-content>
-          <va-tabs v-model="activeTab" style="margin-bottom: 1.25rem;">
-            <template #tabs>
-              <va-tab name="info">{{ t('basic_info') }}</va-tab>
-              <va-tab name="depts">{{ t('dept_team_management') }}</va-tab>
-              <va-tab name="roles">{{ t('rbac_role_management') }}</va-tab>
-            </template>
-          </va-tabs>
-
-          <!-- Tab 1: Basic Info -->
-          <div v-if="activeTab === 'info'" style="display: flex; flex-direction: column; gap: 1.25rem;">
-            <div class="row" style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start;">
-              <div style="flex: 2; min-width: 300px;">
-                <MultilingualInput
-                  v-model:ko="editOrgForm.displayNameKo"
-                  v-model:en="editOrgForm.displayNameEn"
-                  :label="t('org_display_name')"
-                />
-              </div>
-              <div style="flex: 1; min-width: 150px; max-width: 240px;">
-                <va-input
-                  v-model="editOrgForm.name"
-                  :label="t('org_sys_code')"
-                  readonly
-                  class="readonly-sys-code"
-                  style="width: 100%;"
-                />
-              </div>
-            </div>
-            <div style="display: flex; gap: 1rem; align-items: center;">
-              <div>
-                <label style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--va-text-primary); margin-bottom: 0.5rem;">
-                  {{ getLabel('org_icon', '조직 아이콘') }}
-                </label>
-                <div style="display: flex; align-items: center; gap: 1rem; background: var(--va-background-element); padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid var(--va-background-border);">
-                  <va-icon :name="editOrgForm.icon || 'corporate_fare'" color="primary" size="medium" />
-                  <va-button preset="primary" outline icon="palette" size="small" @click="openIconPicker('org')">
-                    {{ getLabel('select_icon', '아이콘 선택') }}
-                  </va-button>
-                </div>
-              </div>
-            </div>
-            <div>
-              <MultilingualInput
-                v-model:ko="editOrgForm.descriptionKo"
-                v-model:en="editOrgForm.descriptionEn"
-                :label="t('org_description')"
-                is-textarea
-                :min-rows="2"
-              />
-            </div>
-            <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
-              <va-button
-                v-if="selectedOrg && selectedOrg.id !== '00000000-0000-0000-0000-000000000001'"
-                color="danger"
-                preset="secondary"
-                icon="delete"
-                @click="openDeleteOrgModal(selectedOrg)"
-              >
-                {{ getLabel('delete_organization', '조직 삭제') }}
-              </va-button>
-              <va-button color="success" icon="save" @click="saveOrgInfo">
-                {{ t('save_changes') }}
-              </va-button>
-            </div>
-          </div>
-
-          <!-- Tab 2: Departments & Teams Hierarchy Tree -->
-          <div v-else-if="activeTab === 'depts'" style="display: flex; flex-direction: column; gap: 1.25rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <h4 style="margin: 0; font-weight: 700; color: var(--va-text-primary);">
-                  {{ getLabel('dept_structure', '소속 부서 및 조직 계층 구조 (Tree View)') }}
-                </h4>
-                <p style="margin: 0.25rem 0 0 0; font-size: 0.82rem; color: var(--va-text-secondary);">
-                  {{ getLabel('dept_structure_desc', '조직 - 상위 부서 - 하위 부서 N단계 계층 구조') }}
-                </p>
-              </div>
-              <div style="display: flex; gap: 0.5rem;">
-                <va-button size="small" preset="secondary" icon="add" @click="openCreateDeptModal(null)">
-                  + {{ getLabel('add_root_dept', '최상위 부서 추가') }}
-                </va-button>
-              </div>
-            </div>
-
-            <div v-if="departments.length === 0" style="padding: 2.5rem; text-align: center; color: #777; background: var(--va-background-secondary); border-radius: 8px; border: 1px solid var(--va-background-border);">
-              <va-icon name="account_tree" size="large" color="secondary" style="margin-bottom: 0.5rem;" />
-              <div>{{ t('no_depts_added') || '등록된 부서가 없습니다.' }}</div>
-            </div>
-
-            <!-- Root Tree View Container -->
-            <div v-else style="border: 1px solid var(--va-background-border); border-radius: 10px; padding: 1.25rem; background: var(--va-background-element);">
-              <!-- Organization Root Node -->
-              <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1.25rem; border-radius: 8px; background: var(--va-background-secondary); border: 1.5px solid var(--va-primary); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);">
-                <div style="display: flex; align-items: center; gap: 0.65rem;">
-                  <va-icon name="corporate_fare" color="primary" size="medium" />
-                  <span style="font-weight: 800; font-size: 1.05rem; color: var(--va-text-primary);">
-                    {{ getI18nText(selectedOrg.displayName) || selectedOrg.name }}
-                  </span>
-                  <va-chip size="small" color="primary">{{ getLabel('organization', '조직') }}</va-chip>
-                </div>
-                <va-button size="small" color="primary" preset="secondary" icon="add" @click="openCreateDeptModal(null)">
-                  + {{ getLabel('add_root_dept', '최상위 부서 추가') }}
-                </va-button>
-              </div>
-
-              <!-- N-Level Recursive Sub-Department Tree Branches -->
-              <div style="margin-top: 0.5rem;">
-                <OrgTreeItem
-                  v-for="dept in rootDepartments"
-                  :key="dept.id"
-                  :node="dept"
-                  @add-subdept="openCreateDeptModal"
-                  @edit-dept="openEditDeptModal"
-                  @delete-dept="openDeleteDeptConfirmModal"
-                  @manage-members="openManageMembersModal"
-                />
-              </div>
-            </div>
-          </div>
-
-          <!-- Tab 3: RBAC Roles -->
-          <div v-else-if="activeTab === 'roles'" style="display: flex; flex-direction: column; gap: 1.25rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <h4 style="margin: 0; font-weight: 700; color: var(--va-text-primary);">
-                {{ t('system_custom_roles') }}
-              </h4>
-              <va-button size="small" preset="secondary" icon="add" @click="openCreateRoleModal">
-                + {{ t('add_role') }}
-              </va-button>
-            </div>
-
-            <div style="display: flex; flex-direction: column; gap: 0.85rem;">
-              <div v-for="role in roles" :key="role.id" style="border: 1px solid var(--va-background-border); border-radius: 8px; padding: 1rem; background: var(--va-background-secondary);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                  <div style="display: flex; align-items: center; gap: 0.55rem;">
-                    <va-badge :color="role.isSystemRole ? 'primary' : 'warning'" :text="role.name" />
-                    <span style="font-weight: 700; font-size: 0.95rem; color: var(--va-text-primary);">{{ getI18nText(role.displayName) || role.name }}</span>
-                    <span v-if="role.isSystemRole" style="font-size: 0.72rem; color: var(--va-primary); background: rgba(37,99,235,0.1); padding: 2px 6px; border-radius: 4px; font-weight: 700;">SYSTEM</span>
-                  </div>
-                  <div style="display: flex; align-items: center; gap: 0.4rem;">
-                    <va-button size="small" preset="secondary" icon="edit" @click="openEditRoleModal(role)" />
-                    <va-button size="small" preset="plain" icon="delete" color="danger" @click="openDeleteRoleConfirmModal(role)" />
-                  </div>
-                </div>
-                <div style="font-size: 0.82rem; color: var(--va-text-secondary); margin-bottom: 0.6rem;" v-if="role.description">{{ getI18nText(role.description) }}</div>
-                <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
-                  <va-chip v-for="perm in (role.permissions || [])" :key="perm" size="small" color="success" outline>
-                    {{ perm }}
-                  </va-chip>
-                </div>
-              </div>
-            </div>
-          </div>
-
-
-
-        </va-card-content>
-      </va-card>
-
+      <!-- Modularized Organization Detail & Management Form -->
+      <OrgDetailForm
+        :organization="selectedOrg"
+        :departments="departments"
+        :root-departments="rootDepartments"
+        :roles="roles"
+        @save-org="saveOrgInfo"
+        @delete-org="openDeleteOrgModal"
+        @open-icon-picker="openIconPicker"
+        @add-dept="openCreateDeptModal"
+        @edit-dept="openEditDeptModal"
+        @delete-dept="openDeleteDeptConfirmModal"
+        @manage-members="openManageMembersModal"
+        @add-role="openCreateRoleModal"
+        @edit-role="openEditRoleModal"
+        @delete-role="openDeleteRoleConfirmModal"
+      />
     </div>
 
     <!-- Create Organization Modal -->
@@ -441,7 +243,6 @@
             </va-textarea>
           </div>
         </div>
-        <!-- Categorized Permission Matrix UI -->
         <PermissionMatrix
           v-model="newRoleForm.permissions"
           :groups="customPermissionGroups"
@@ -484,7 +285,6 @@
             </va-textarea>
           </div>
         </div>
-        <!-- Categorized Permission Matrix UI -->
         <PermissionMatrix
           v-model="editRoleForm.permissions"
           :groups="customPermissionGroups"
@@ -662,7 +462,6 @@
           </div>
         </div>
         <va-input v-model="newGroupForm.code" :label="getLabel('group_code_label', '그룹 코드명 (예: report, api)')" placeholder="영문 소문자" :disabled="isEditingGroup" required />
-        <!-- Interactive Emoji Picker Palette -->
         <div>
           <label style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--va-primary); margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.4px;">
             {{ getLabel('group_icon_picker_label', '이모지 아이콘 선택') }}
@@ -739,7 +538,6 @@
           </va-input>
         </div>
 
-        <!-- AG Grid Container -->
         <div style="width: 100%; height: 380px; border: 1px solid var(--va-background-border); border-radius: 8px; overflow: hidden;">
           <client-only>
             <ag-grid-vue
@@ -761,8 +559,6 @@
         </div>
       </div>
     </va-modal>
-
-
 
     <!-- System Notification Modal -->
     <va-modal
@@ -840,11 +636,14 @@
 </template>
 
 <script setup>
-import OrgTreeItem from '~/components/OrgTreeItem.vue'
+import OrgTreeSidebar from '~/components/org/OrgTreeSidebar.vue'
+import OrgDetailForm from '~/components/org/OrgDetailForm.vue'
 import { ref, onMounted, computed } from 'vue'
 import { useCookie } from '#app'
 import { AgGridVue } from 'ag-grid-vue3'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
+import PermissionMatrix from '~/components/PermissionMatrix.vue'
+import UserRoleSelect from '~/components/UserRoleSelect.vue'
 
 const { gridTheme } = useAgGridTheme()
 const isMounted = ref(false)
@@ -884,17 +683,17 @@ const showCustomAlert = (msg, header = '', title = '', type = 'success') => {
   errorAlertType.value = type
   showErrorAlertModal.value = true
 }
+
 const organizations = ref([])
 const loadingOrgs = ref(false)
 const selectedOrg = ref(null)
-const activeTab = ref('info')
+const selectedOrgId = computed(() => selectedOrg.value?.id)
 const showPermMasterModal = ref(false)
 
 const departments = ref([])
 const teams = ref([])
 const roles = ref([])
 
-const editOrgForm = ref({ name: '', displayNameKo: '', displayNameEn: '', descriptionKo: '', descriptionEn: '', icon: 'corporate_fare' })
 const showCreateOrgModalFlag = ref(false)
 const newOrgForm = ref({ name: '', displayNameKo: '', displayNameEn: '', descriptionKo: '', descriptionEn: '', icon: 'corporate_fare' })
 
@@ -927,7 +726,7 @@ const selectIconFromPicker = (iconName) => {
   if (iconPickerTarget.value === 'new') {
     newDeptForm.value.icon = iconName
   } else if (iconPickerTarget.value === 'org') {
-    editOrgForm.value.icon = iconName
+    if (selectedOrg.value) selectedOrg.value.icon = iconName
   } else {
     editDeptForm.value.icon = iconName
   }
@@ -952,28 +751,32 @@ const allDeptOptions = computed(() => {
   }))
 })
 
+const parseMultilingualField = (rawVal) => {
+  if (!rawVal) return { ko: '', en: '' }
+  if (typeof rawVal === 'object') {
+    return { ko: rawVal.ko || '', en: rawVal.en || '' }
+  }
+  try {
+    const parsed = JSON.parse(rawVal)
+    if (parsed && typeof parsed === 'object' && ('ko' in parsed || 'en' in parsed)) {
+      return { ko: parsed.ko || '', en: parsed.en || '' }
+    }
+  } catch (e) {}
+  return { ko: String(rawVal), en: String(rawVal) }
+}
+
 const openEditDeptModal = (dept) => {
   const rolesArr = dept.role ? (Array.isArray(dept.role) ? dept.role : String(dept.role).split(',').map(r => r.trim()).filter(Boolean)) : []
-  let nKo = dept.name
-  let nEn = dept.name
-  let descKo = dept.description || ''
-  let descEn = dept.description || ''
-  try {
-    const pN = JSON.parse(dept.name || '{}')
-    if (pN.ko || pN.en) { nKo = pN.ko || ''; nEn = pN.en || '' }
-  } catch(e) {}
-  try {
-    const pDesc = JSON.parse(dept.description || '{}')
-    if (pDesc.ko || pDesc.en) { descKo = pDesc.ko || ''; descEn = pDesc.en || '' }
-  } catch(e) {}
+  const parsedName = parseMultilingualField(dept.name)
+  const parsedDesc = parseMultilingualField(dept.description)
 
   editDeptForm.value = {
     id: dept.id,
     parentDepartmentId: dept.parentDepartmentId || null,
-    nameKo: nKo,
-    nameEn: nEn,
-    descriptionKo: descKo,
-    descriptionEn: descEn,
+    nameKo: parsedName.ko,
+    nameEn: parsedName.en,
+    descriptionKo: parsedDesc.ko,
+    descriptionEn: parsedDesc.en,
     roles: rolesArr,
     icon: dept.icon || 'folder'
   }
@@ -1276,27 +1079,6 @@ const fetchOrganizations = async () => {
 
 const selectOrganization = async (org) => {
   selectedOrg.value = org
-  let dNameKo = org.displayName || org.name
-  let dNameEn = org.displayName || org.name
-  let descKo = org.description || ''
-  let descEn = org.description || ''
-  try {
-    const parsedDn = JSON.parse(org.displayName || '{}')
-    if (parsedDn.ko || parsedDn.en) { dNameKo = parsedDn.ko || ''; dNameEn = parsedDn.en || '' }
-  } catch (e) {}
-  try {
-    const parsedDesc = JSON.parse(org.description || '{}')
-    if (parsedDesc.ko || parsedDesc.en) { descKo = parsedDesc.ko || ''; descEn = parsedDesc.en || '' }
-  } catch (e) {}
-
-  editOrgForm.value = {
-    name: org.name,
-    displayNameKo: dNameKo,
-    displayNameEn: dNameEn,
-    descriptionKo: descKo,
-    descriptionEn: descEn,
-    icon: org.icon || 'corporate_fare'
-  }
   await loadOrgDetails(org.id)
 }
 
@@ -1313,10 +1095,6 @@ const loadOrgDetails = async (orgId) => {
   } catch (e) {
     console.error('Failed to load org details:', e)
   }
-}
-
-const getTeamsForDept = (deptId) => {
-  return teams.value.filter(t => t.departmentId === deptId)
 }
 
 const showDeleteOrgModalFlag = ref(false)
@@ -1395,17 +1173,17 @@ const saveNewOrg = async () => {
   }
 }
 
-const saveOrgInfo = async () => {
+const saveOrgInfo = async (editOrgFormData) => {
   if (!selectedOrg.value) return
   try {
     const updated = await $fetch(`/api/organizations/${selectedOrg.value.id}`, {
       method: 'PUT',
       headers: { Authorization: `Bearer ${token.value}` },
       body: {
-        name: editOrgForm.value.name,
-        displayName: JSON.stringify({ ko: editOrgForm.value.displayNameKo || editOrgForm.value.name, en: editOrgForm.value.displayNameEn || editOrgForm.value.displayNameKo || editOrgForm.value.name }),
-        description: JSON.stringify({ ko: editOrgForm.value.descriptionKo, en: editOrgForm.value.descriptionEn }),
-        icon: editOrgForm.value.icon
+        name: editOrgFormData.name,
+        displayName: JSON.stringify({ ko: editOrgFormData.displayNameKo || editOrgFormData.name, en: editOrgFormData.displayNameEn || editOrgFormData.displayNameKo || editOrgFormData.name }),
+        description: JSON.stringify({ ko: editOrgFormData.descriptionKo, en: editOrgFormData.descriptionEn }),
+        icon: editOrgFormData.icon
       }
     })
     await fetchOrganizations()
@@ -1695,48 +1473,9 @@ const saveNewPermToGroup = async () => {
   }
 }
 
-const togglePermission = (target, permValue) => {
-  const form = target === 'new' ? newRoleForm.value : editRoleForm.value
-  const idx = form.permissions.indexOf(permValue)
-  if (idx > -1) {
-    form.permissions.splice(idx, 1)
-  } else {
-    form.permissions.push(permValue)
-  }
-}
-
-const getCustomPermissions = (target) => {
-  const form = target === 'new' ? newRoleForm.value : editRoleForm.value
-  return form.permissions.filter(p => !standardPermSet.has(p))
-}
-
-const customPermInput = ref('')
-const customPermInputEdit = ref('')
-
-const addCustomPermission = (target) => {
-  const inputVal = target === 'new' ? customPermInput.value : customPermInputEdit.value
-  if (!inputVal) return
-  const cleanVal = inputVal.toLowerCase().trim()
-  if (!cleanVal) return
-
-  if (target === 'new') {
-    if (!newRoleForm.value.permissions.includes(cleanVal)) {
-      newRoleForm.value.permissions.push(cleanVal)
-    }
-    customPermInput.value = ''
-  } else {
-    if (!editRoleForm.value.permissions.includes(cleanVal)) {
-      editRoleForm.value.permissions.push(cleanVal)
-    }
-    customPermInputEdit.value = ''
-  }
-}
-
 const showCreateRoleModalFlag = ref(false)
 const showEditRoleModalFlag = ref(false)
 const newRoleForm = ref({ name: '', displayNameKo: '', displayNameEn: '', descriptionKo: '', descriptionEn: '', permissions: [] })
-
-// Create/Edit Modals
 const editRoleForm = ref({ id: null, name: '', displayNameKo: '', displayNameEn: '', descriptionKo: '', descriptionEn: '', permissions: [], isSystemRole: false })
 
 const showDeleteRoleModalFlag = ref(false)
@@ -1860,69 +1599,5 @@ onMounted(() => {
   background-color: var(--va-background-element) !important;
   color: var(--va-text-primary) !important;
   opacity: 0.85;
-}
-
-/* Permission Matrix Chip Styling */
-.perm-category-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-.perm-category-title {
-  font-size: 0.76rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-.perm-chips-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-.perm-chip-item {
-  padding: 4px 10px;
-  border-radius: 16px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  cursor: pointer;
-  border: 1px solid var(--va-background-border);
-  background: var(--va-background-secondary);
-  color: var(--va-text-secondary);
-  transition: all 0.2s ease;
-  user-select: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-.perm-chip-item:hover {
-  border-color: var(--va-primary);
-  color: var(--va-primary);
-  transform: translateY(-1px);
-}
-.perm-chip-item.active {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  color: white;
-  border-color: transparent;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
-}
-.perm-chip-item.green.active {
-  background: linear-gradient(135deg, #10b981, #059669);
-  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
-}
-.perm-chip-item.purple.active {
-  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
-  box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3);
-}
-.perm-chip-item.amber.active {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
-}
-.perm-chip-item.cyan.active {
-  background: linear-gradient(135deg, #06b6d4, #0891b2);
-  box-shadow: 0 2px 6px rgba(6, 182, 212, 0.3);
-}
-.chip-check {
-  font-weight: 900;
-  font-size: 0.75rem;
 }
 </style>

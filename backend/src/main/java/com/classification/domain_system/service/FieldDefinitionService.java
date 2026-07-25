@@ -13,6 +13,14 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
+import com.classification.domain_system.entity.ApprovalRequest;
+import com.classification.domain_system.entity.WorkflowConfig;
+import com.classification.domain_system.repository.WorkflowConfigRepository;
+import com.classification.domain_system.repository.ApprovalRequestRepository;
+import com.classification.domain_system.event.ApprovalRequestCreatedEvent;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
@@ -27,6 +35,84 @@ public class FieldDefinitionService {
     private final DomainRepository domainRepository;
     private final FieldGroupRepository fieldGroupRepository;
     private final JdbcTemplate jdbcTemplate;
+    
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private SchemaHistoryService schemaHistoryService;
+    
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private WorkflowConfigRepository workflowConfigRepository;
+    
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private ApprovalRequestRepository approvalRequestRepository;
+    
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private ApplicationEventPublisher eventPublisher;
+    
+    @org.springframework.context.annotation.Lazy
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private ApprovalService approvalService;
+    
+    private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule()).disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+    private String getCurrentUser() {
+        if (SecurityContextHolder.getContext().getAuthentication() != null && SecurityContextHolder.getContext().getAuthentication().getName() != null) {
+            return SecurityContextHolder.getContext().getAuthentication().getName();
+        }
+        return "system";
+    }
+
+    private UUID getCurrentUserId() {
+        return UUID.randomUUID(); // Simplified, normally fetch from SecurityContext
+    }
+
+    private ApprovalRequest createSchemaApprovalRequest(Domain domain, ClassificationNode node, String targetType, String changes) {
+        ApprovalRequest approval = new ApprovalRequest();
+        approval.setTargetType(targetType);
+        approval.setTargetId(node != null ? node.getId() : domain.getId());
+        approval.setClassificationNode(node);
+        approval.setRequesterId(getCurrentUserId());
+        approval.setStatus("PENDING");
+        approval.setChanges(changes);
+        approval.setCurrentStepOrder(1);
+        
+        WorkflowConfig config = approvalService.resolveWorkflow(node != null ? node.getId() : null, "SCHEMA_CHANGE");
+        if (config == null) {
+            config = workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(domain.getId(), "SCHEMA_CHANGE").orElse(null);
+        }
+        
+        if (config != null) {
+            try {
+                if (config.getStepsConfig() != null && !config.getStepsConfig().isEmpty()) {
+                    com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(config.getStepsConfig());
+                    List<com.classification.domain_system.entity.ApprovalStep> steps = new java.util.ArrayList<>();
+                    if (root.has("steps") && root.get("steps").isArray()) {
+                        for (com.fasterxml.jackson.databind.JsonNode stepNode : root.get("steps")) {
+                            com.classification.domain_system.entity.ApprovalStep step = new com.classification.domain_system.entity.ApprovalStep();
+                            step.setApprovalRequest(approval);
+                            step.setStepType(stepNode.get("stepType").asText());
+                            step.setAssigneeId(UUID.fromString(stepNode.get("assigneeId").asText()));
+                            step.setStepOrder(stepNode.get("stepOrder").asInt());
+                            step.setStatus(step.getStepOrder() == 1 ? "PENDING" : "WAITING");
+                            steps.add(step);
+                        }
+                    }
+                    if (root.has("observerIds") && root.get("observerIds").isArray()) {
+                        approval.setObserverIds(objectMapper.writeValueAsString(root.get("observerIds")));
+                    } else {
+                        approval.setObserverIds("[]");
+                    }
+                    approval.setSteps(steps);
+                }
+            } catch (Exception e) {
+                approval.setObserverIds("[]");
+            }
+        }
+        
+        ApprovalRequest saved = approvalRequestRepository.saveAndFlush(approval);
+        eventPublisher.publishEvent(new ApprovalRequestCreatedEvent(saved));
+        return saved;
+    }
+
     
     private void manageIndex(String fieldKey, boolean isSearchable) {
         if (fieldKey == null || fieldKey.trim().isEmpty()) return;
@@ -87,10 +173,118 @@ public class FieldDefinitionService {
         field.setIsHidden(request.getIsHidden() != null ? request.getIsHidden() : (isUpdate ? field.getIsHidden() : false));
     }
     
+    private boolean hasSchemaApproval(UUID domainId) {
+        if (workflowConfigRepository == null || domainId == null) return false;
+        try {
+            return workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(domainId, "SCHEMA_CHANGE").isPresent();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private void recordSchemaChange(UUID domainId, String targetType, UUID targetId, String action, Object beforeData, Object afterData) {
+        if (schemaHistoryService != null && domainId != null) {
+            schemaHistoryService.recordChange(domainId, targetType, targetId, action, beforeData, afterData, getCurrentUser());
+        }
+    }
+
     @Transactional
-    public FieldDefinition addField(UUID nodeId, FieldDefinitionRequest request) {
+    public FieldDefinition addFieldDirect(UUID nodeId, FieldDefinitionRequest request) {
         ClassificationNode node = nodeRepository.findById(nodeId)
                 .orElseThrow(() -> new RuntimeException("Node not found"));
+        Domain domain = node.getDomain();
+
+        FieldDefinition field = new FieldDefinition();
+        field.setDefinedAtNode(node);
+        populateFieldProperties(field, request, false);
+        field.setIsSearchable(request.getIsSearchable() != null ? request.getIsSearchable() : false);
+        
+        FieldDefinition savedField = fieldRepository.save(field);
+        if (Boolean.TRUE.equals(request.getIsSearchable())) {
+            manageIndex(savedField.getKey(), true);
+        }
+        
+        recordSchemaChange(domain.getId(), "FIELD", savedField.getId(), "CREATE", null, savedField);
+        return savedField;
+    }
+
+    @Transactional
+    public FieldDefinition addDomainFieldDirect(UUID domainId, FieldDefinitionRequest request) {
+        Domain domain = domainRepository.findById(domainId)
+                .orElseThrow(() -> new RuntimeException("Domain not found"));
+
+        FieldDefinition field = new FieldDefinition();
+        field.setDomain(domain);
+        populateFieldProperties(field, request, false);
+        field.setIsSearchable(request.getIsSearchable() != null ? request.getIsSearchable() : false);
+        
+        FieldDefinition savedField = fieldRepository.save(field);
+        if (Boolean.TRUE.equals(request.getIsSearchable())) {
+            manageIndex(savedField.getKey(), true);
+        }
+        
+        recordSchemaChange(domain.getId(), "FIELD", savedField.getId(), "CREATE", null, savedField);
+        return savedField;
+    }
+
+    @Transactional
+    public FieldDefinition updateFieldDirect(UUID nodeId, UUID fieldId, FieldDefinitionRequest request) {
+        FieldDefinition field = fieldRepository.findById(fieldId)
+                .orElseThrow(() -> new RuntimeException("Field not found"));
+
+        java.util.Map<String, Object> beforeState = new java.util.HashMap<>();
+        beforeState.put("id", field.getId());
+        beforeState.put("name", field.getName());
+        beforeState.put("key", field.getKey());
+        beforeState.put("type", field.getType());
+
+        populateFieldProperties(field, request, true);
+        
+        Boolean wasSearchable = field.getIsSearchable();
+        Boolean willBeSearchable = request.getIsSearchable() != null ? request.getIsSearchable() : field.getIsSearchable();
+        field.setIsSearchable(willBeSearchable);
+        
+        FieldDefinition savedField = fieldRepository.save(field);
+        
+        if (Boolean.TRUE.equals(willBeSearchable) && !Boolean.TRUE.equals(wasSearchable)) {
+            manageIndex(savedField.getKey(), true);
+        } else if (!Boolean.TRUE.equals(willBeSearchable) && Boolean.TRUE.equals(wasSearchable)) {
+            manageIndex(savedField.getKey(), false);
+        }
+        
+        recordSchemaChange(field.getDomain() != null ? field.getDomain().getId() : (field.getDefinedAtNode() != null ? field.getDefinedAtNode().getDomain().getId() : null), "FIELD", fieldId, "UPDATE", beforeState, savedField);
+        return savedField;
+    }
+
+    @Transactional
+    public FieldDefinition updateDomainFieldDirect(UUID domainId, UUID fieldId, FieldDefinitionRequest request) {
+        return updateFieldDirect(null, fieldId, request);
+    }
+
+    @Transactional
+    public FieldDefinition addField(UUID nodeId, FieldDefinitionRequest request) {
+        return addField(nodeId, request, false);
+    }
+    
+    @Transactional
+    public FieldDefinition addField(UUID nodeId, FieldDefinitionRequest request, boolean bypassApproval) {
+        ClassificationNode node = nodeRepository.findById(nodeId)
+                .orElseThrow(() -> new RuntimeException("Node not found"));
+        Domain domain = node.getDomain();
+
+        if (!bypassApproval && hasSchemaApproval(domain.getId())) {
+            try {
+                java.util.Map<String, Object> changesMap = new java.util.HashMap<>();
+                changesMap.put("nodeId", nodeId);
+                changesMap.put("request", request);
+                createSchemaApprovalRequest(domain, node, "SCHEMA_FIELD_ADD", objectMapper.writeValueAsString(changesMap));
+                FieldDefinition pendingField = new FieldDefinition();
+                pendingField.setId(UUID.randomUUID());
+                return pendingField;
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to create schema approval request", e);
+            }
+        }
                 
         FieldDefinition field = new FieldDefinition();
         field.setDefinedAtNode(node);
@@ -101,14 +295,35 @@ public class FieldDefinitionService {
         if (Boolean.TRUE.equals(request.getIsSearchable())) {
             manageIndex(savedField.getKey(), true);
         }
+        
+        recordSchemaChange(domain.getId(), "FIELD", savedField.getId(), "CREATE", null, toStateMap(savedField));
         return savedField;
     }
     
     @Transactional
     public FieldDefinition addDomainField(UUID domainId, FieldDefinitionRequest request) {
+        return addDomainField(domainId, request, false);
+    }
+    
+    @Transactional
+    public FieldDefinition addDomainField(UUID domainId, FieldDefinitionRequest request, boolean bypassApproval) {
         Domain domain = domainRepository.findById(domainId)
                 .orElseThrow(() -> new RuntimeException("Domain not found"));
                 
+        if (!bypassApproval && hasSchemaApproval(domain.getId())) {
+            try {
+                java.util.Map<String, Object> changesMap = new java.util.HashMap<>();
+                changesMap.put("domainId", domainId);
+                changesMap.put("request", request);
+                createSchemaApprovalRequest(domain, null, "SCHEMA_FIELD_ADD", objectMapper.writeValueAsString(changesMap));
+                FieldDefinition pendingField = new FieldDefinition();
+                pendingField.setId(UUID.randomUUID());
+                return pendingField;
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to create schema approval request", e);
+            }
+        }
+
         FieldDefinition field = new FieldDefinition();
         field.setDomain(domain);
         populateFieldProperties(field, request, false);
@@ -118,11 +333,30 @@ public class FieldDefinitionService {
         if (Boolean.TRUE.equals(request.getIsSearchable())) {
             manageIndex(savedField.getKey(), true);
         }
+        
+        recordSchemaChange(domain.getId(), "FIELD", savedField.getId(), "CREATE", null, toStateMap(savedField));
         return savedField;
     }
     
     @Transactional
     public FieldDefinition updateField(UUID nodeId, UUID fieldId, FieldDefinitionRequest request) {
+        return updateField(nodeId, fieldId, request, false);
+    }
+    
+    private java.util.Map<String, Object> toStateMap(FieldDefinition field) {
+        if (field == null) return null;
+        java.util.Map<String, Object> map = new java.util.HashMap<>();
+        map.put("id", field.getId());
+        map.put("name", field.getName());
+        map.put("key", field.getKey());
+        map.put("type", field.getType());
+        map.put("required", field.getRequired());
+        map.put("unit", field.getUnit());
+        return map;
+    }
+
+    @Transactional
+    public FieldDefinition updateField(UUID nodeId, UUID fieldId, FieldDefinitionRequest request, boolean bypassApproval) {
         FieldDefinition field = fieldRepository.findById(fieldId)
                 .orElseThrow(() -> new RuntimeException("Field not found"));
                 
@@ -130,6 +364,24 @@ public class FieldDefinitionService {
             throw new RuntimeException("Field does not belong to the specified node");
         }
         
+        ClassificationNode node = field.getDefinedAtNode();
+        Domain domain = node.getDomain();
+
+        if (!bypassApproval && hasSchemaApproval(domain.getId())) {
+            try {
+                java.util.Map<String, Object> changesMap = new java.util.HashMap<>();
+                changesMap.put("nodeId", nodeId);
+                changesMap.put("fieldId", fieldId);
+                changesMap.put("request", request);
+                createSchemaApprovalRequest(domain, node, "SCHEMA_FIELD_UPDATE", objectMapper.writeValueAsString(changesMap));
+                return field;
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to create schema approval request", e);
+            }
+        }
+
+        java.util.Map<String, Object> beforeState = toStateMap(field);
+
         populateFieldProperties(field, request, true);
         
         Boolean wasSearchable = field.getIsSearchable();
@@ -143,11 +395,18 @@ public class FieldDefinitionService {
         } else if (!Boolean.TRUE.equals(willBeSearchable) && Boolean.TRUE.equals(wasSearchable)) {
             manageIndex(savedField.getKey(), false);
         }
+        
+        recordSchemaChange(domain.getId(), "FIELD", fieldId, "UPDATE", beforeState, toStateMap(savedField));
         return savedField;
     }
     
     @Transactional
     public FieldDefinition updateDomainField(UUID domainId, UUID fieldId, FieldDefinitionRequest request) {
+        return updateDomainField(domainId, fieldId, request, false);
+    }
+    
+    @Transactional
+    public FieldDefinition updateDomainField(UUID domainId, UUID fieldId, FieldDefinitionRequest request, boolean bypassApproval) {
         FieldDefinition field = fieldRepository.findById(fieldId)
                 .orElseThrow(() -> new RuntimeException("Field not found"));
                 
@@ -155,6 +414,25 @@ public class FieldDefinitionService {
             throw new RuntimeException("Field does not belong to the specified domain");
         }
         
+        if (!bypassApproval && hasSchemaApproval(domainId)) {
+            try {
+                java.util.Map<String, Object> changesMap = new java.util.HashMap<>();
+                changesMap.put("domainId", domainId);
+                changesMap.put("fieldId", fieldId);
+                changesMap.put("request", request);
+                createSchemaApprovalRequest(domainRepository.findById(domainId).orElse(null), null, "SCHEMA_FIELD_UPDATE", objectMapper.writeValueAsString(changesMap));
+                return field;
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to create schema approval request", e);
+            }
+        }
+
+        java.util.Map<String, Object> beforeState = new java.util.HashMap<>();
+        beforeState.put("id", field.getId());
+        beforeState.put("name", field.getName());
+        beforeState.put("key", field.getKey());
+        beforeState.put("type", field.getType());
+
         populateFieldProperties(field, request, true);
         
         Boolean wasSearchable = field.getIsSearchable();
@@ -168,6 +446,8 @@ public class FieldDefinitionService {
         } else if (!Boolean.TRUE.equals(willBeSearchable) && Boolean.TRUE.equals(wasSearchable)) {
             manageIndex(savedField.getKey(), false);
         }
+        
+        recordSchemaChange(domainId, "FIELD", fieldId, "UPDATE", beforeState, savedField);
         return savedField;
     }
     

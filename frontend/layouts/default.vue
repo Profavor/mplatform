@@ -15,6 +15,9 @@
           <template #right>
             <va-navbar-item class="text-white">
               <div class="navbar-right">
+                <!-- Notification Bell -->
+                <NotificationBell class="mr-2" />
+
                 <!-- Theme Toggle for Desktop -->
                 <va-button preset="plain" class="mr-2 hide-mobile theme-btn" @click="toggleTheme" style="color: white !important;">
                   <va-icon :name="isDark ? 'light_mode' : 'dark_mode'" size="large" />
@@ -145,14 +148,9 @@
               <span style="font-size: 0.85rem; color: var(--va-text-secondary); font-weight: 600;">
                 {{ $t('timezone') || 'Timezone Settings' }}
               </span>
-              <va-select 
+              <TimezoneSelect 
                 v-model="selectedTimezone" 
-                :options="timezoneOptions" 
-                value-by="value"
-                text-by="label"
-                class="w-full"
-                outline
-                :placeholder="$t('timezone_select') || 'Select timezone'"
+                :syncWithCookie="true"
               />
             </div>
             <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
@@ -174,6 +172,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useCookie, useState } from '#app'
 import { useColors } from 'vuestic-ui'
 import { useMenu } from '~/composables/useMenu'
+import NotificationBell from '~/components/layout/NotificationBell.vue'
 
 const { t, locale, setLocale } = useI18n()
 const { applyPreset, currentPresetName } = useColors()
@@ -370,32 +369,6 @@ const filteredMenus = computed(() => {
   
   return filtered
 })
-const timezoneOptions = ref([
-  { label: '[GMT+09:00] Asia/Seoul (Seoul)', value: 'Asia/Seoul' },
-  { label: '[GMT+09:00] Asia/Tokyo (Tokyo)', value: 'Asia/Tokyo' },
-  { label: '[GMT+08:00] Asia/Shanghai (Shanghai)', value: 'Asia/Shanghai' },
-  { label: '[GMT+08:00] Asia/Hong Kong (Hong Kong)', value: 'Asia/Hong_Kong' },
-  { label: '[GMT+08:00] Asia/Singapore (Singapore)', value: 'Asia/Singapore' },
-  { label: '[GMT+05:30] Asia/Kolkata (Kolkata)', value: 'Asia/Kolkata' },
-  { label: '[GMT+04:00] Asia/Dubai (Dubai)', value: 'Asia/Dubai' },
-  { label: '[GMT+07:00] Asia/Jakarta (Jakarta)', value: 'Asia/Jakarta' },
-  { label: '[GMT+00:00] Europe/London (London)', value: 'Europe/London' },
-  { label: '[GMT+01:00] Europe/Paris (Paris)', value: 'Europe/Paris' },
-  { label: '[GMT+01:00] Europe/Berlin (Berlin)', value: 'Europe/Berlin' },
-  { label: '[GMT+03:00] Europe/Moscow (Moscow)', value: 'Europe/Moscow' },
-  { label: '[GMT-05:00] America/New York (New York)', value: 'America/New_York' },
-  { label: '[GMT-06:00] America/Chicago (Chicago)', value: 'America/Chicago' },
-  { label: '[GMT-07:00] America/Denver (Denver)', value: 'America/Denver' },
-  { label: '[GMT-08:00] America/Los Angeles (Los Angeles)', value: 'America/Los_Angeles' },
-  { label: '[GMT-09:00] America/Anchorage (Anchorage)', value: 'America/Anchorage' },
-  { label: '[GMT-10:00] America/Honolulu (Honolulu)', value: 'America/Honolulu' },
-  { label: '[GMT-03:00] America/Sao Paulo (Sao Paulo)', value: 'America/Sao_Paulo' },
-  { label: '[GMT+10:00] Australia/Sydney (Sydney)', value: 'Australia/Sydney' },
-  { label: '[GMT+12:00] Pacific/Auckland (Auckland)', value: 'Pacific/Auckland' },
-  { label: '[GMT+02:00] Africa/Cairo (Cairo)', value: 'Africa/Cairo' },
-  { label: '[GMT+02:00] Africa/Johannesburg (Johannesburg)', value: 'Africa/Johannesburg' },
-  { label: '[GMT+00:00] UTC (Coordinated Universal Time)', value: 'UTC' }
-])
 
 watch(showSettingsModal, (isOpen) => {
   if (isOpen) {

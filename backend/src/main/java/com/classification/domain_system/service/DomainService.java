@@ -3,6 +3,8 @@ package com.classification.domain_system.service;
 import com.classification.domain_system.entity.Domain;
 import com.classification.domain_system.repository.DomainRepository;
 import com.classification.domain_system.dto.DomainRequest;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -57,11 +59,18 @@ public class DomainService {
     }
     
     @Transactional(readOnly = true)
-    public Domain getDomain(UUID id) {
+    @Cacheable(value = "domains", key = "#id")
+    public Domain getDomainById(UUID id) {
         return domainRepository.findById(id).orElseThrow(() -> new RuntimeException("Domain not found"));
+    }
+
+    @Transactional(readOnly = true)
+    public Domain getDomain(UUID id) {
+        return getDomainById(id);
     }
     
     @Transactional
+    @CacheEvict(value = "domains", key = "#id")
     public Domain updateDomain(UUID id, DomainRequest request) {
         if (request.getIdentifierFieldId() == null) {
             throw new IllegalArgumentException("Identifier Field (ID) is required.");
@@ -83,5 +92,11 @@ public class DomainService {
             domain.setAutoDqScanEnabled(request.getAutoDqScanEnabled());
         }
         return domainRepository.save(domain);
+    }
+
+    @Transactional
+    @CacheEvict(value = "domains", key = "#id")
+    public void deleteDomain(UUID id) {
+        domainRepository.deleteById(id);
     }
 }

@@ -9,7 +9,7 @@
           </div>
           <div>
             <h1 class="header-title">{{ t('dashboard') }}</h1>
-            <p class="header-subtitle">Master Data Operations & Governance Overview</p>
+            <p class="header-subtitle">{{ t('dashboard_subtitle') }}</p>
           </div>
         </div>
       </div>
@@ -29,7 +29,7 @@
           <div class="metric-value blue-text">
             {{ stats?.totalDomains?.toLocaleString() ?? 0 }}
           </div>
-          <div class="metric-subtext">Registered Master Domains</div>
+          <div class="metric-subtext">{{ t('registered_domains') }}</div>
         </div>
       </div>
 
@@ -46,7 +46,7 @@
             {{ stats?.pendingApprovals?.toLocaleString() ?? 0 }}
           </div>
           <div class="metric-subtext" :class="{ 'has-pending': (stats?.pendingApprovals || 0) > 0 }">
-            {{ (stats?.pendingApprovals || 0) > 0 ? '⚠️ Action Required' : '✅ All Tasks Cleared' }}
+            {{ (stats?.pendingApprovals || 0) > 0 ? t('action_required') : t('all_tasks_cleared') }}
           </div>
         </div>
       </div>

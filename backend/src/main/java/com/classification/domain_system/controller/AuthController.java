@@ -108,11 +108,20 @@ public class AuthController {
     @PreAuthorize("hasPermission(null, 'admin:write')")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
         try {
-            authService.register(request.getUsername(), request.getPassword(), request.getRole());
+            authService.register(request.getUsername(), request.getPassword(), request.getRole(), request.getTimezone());
             return ResponseEntity.ok("User registered successfully");
         } catch (Exception e) {
             return ResponseEntity.status(400).body(e.getMessage());
         }
+    }
+
+    @GetMapping("/check-username")
+    public ResponseEntity<?> checkUsername(@RequestParam String username) {
+        boolean exists = authService.existsByUsername(username);
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        result.put("exists", exists);
+        result.put("available", !exists);
+        return ResponseEntity.ok(result);
     }
 
     @Data
@@ -126,6 +135,7 @@ public class AuthController {
         private String username;
         private String password;
         private String role;
+        private String timezone;
     }
 
     @Data

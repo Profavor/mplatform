@@ -32,12 +32,16 @@ public class RecordController {
     private final ApprovalService approvalService;
     private final RecordRepository recordRepository;
     private final ClassificationNodeRepository classificationNodeRepository;
+    private final com.classification.domain_system.service.RecordService recordService;
     
     @PostMapping
     @PreAuthorize("hasPermission(null, 'record:write')")
     public ResponseEntity<ApprovalRequest> createRecordRequest(
             @PathVariable UUID nodeId, 
             @RequestBody RecordRequest request) {
+        if (request != null && request.getData() != null) {
+            request.setData(recordService.processDataForSave(nodeId, request.getData()));
+        }
         return ResponseEntity.ok(approvalService.requestRecordCreation(nodeId, request));
     }
 
@@ -96,6 +100,7 @@ public class RecordController {
 
         Page<Record> records = recordRepository.findDynamicRecords(
                 targetNodeIds, status, searchParams, PageRequest.of(page, size, sort));
+        records = recordService.prepareRecordsForRead(records);
         return ResponseEntity.ok(PageResponse.of(records));
     }
 }

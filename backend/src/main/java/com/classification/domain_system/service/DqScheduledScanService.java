@@ -14,6 +14,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +26,9 @@ public class DqScheduledScanService {
     private final RecordRepository recordRepository;
     private final DqRuleEngine dqRuleEngine;
 
+    private final NotificationService notificationService;
+    private final com.classification.domain_system.repository.UserRepository userRepository;
+
     @Scheduled(cron = "${dq.scan.cron:0 0 2 * * ?}")
     public void runScheduledDqScan() {
         log.info("[DQ Schedule] Starting automated periodic DQ scan...");
@@ -35,17 +39,42 @@ public class DqScheduledScanService {
         int scannedDomainCount = 0;
         for (Domain domain : activeDomains) {
             try {
-                List<ClassificationNode> nodes = nodeRepository.findByDomainId(domain.getId());
-                for (ClassificationNode node : nodes) {
-                    List<Record> records = recordRepository.findByNodeId(node.getId(), Pageable.unpaged()).getContent();
-                    for (Record r : records) {
-                        if (r.getData() != null) {
-                            dqRuleEngine.evaluate(node.getId(), r.getData(), r.getId());
+                Map<String, Object> scoreMap = dqRuleEngine.runDomainDqScan(domain.getId());
+                long totalViolations = scoreMap.get("totalViolations") != null ? (long) scoreMap.get("totalViolations") : 0L;
+
+                if (totalViolations > 0 && notificationService != null) {
+                    String domainName = domain.getName() != null && domain.getName().containsKey("ko") 
+                            ? domain.getName().get("ko") : domain.getId().toString();
+                    String title = "DQ Scan Violation Detected";
+                    String message = String.format("Domain [%s] has %d DQ violations.", domainName, totalViolations);
+
+                    var users = userRepository.findAll();
+                    if (!users.isEmpty()) {
+                        for (var user : users) {
+                            try {
+                                notificationService.createNotification(
+                                        java.util.UUID.fromString(user.getId()),
+                                        title,
+                                        message,
+                                        "DQ_VIOLATION",
+                                        "/domains/" + domain.getId() + "/dq"
+                                );
+                            } catch (Exception ex) {
+                                log.warn("Failed to notify user {} for DQ violation: {}", user.getId(), ex.getMessage());
+                            }
                         }
+                    } else {
+                        notificationService.createNotification(
+                                java.util.UUID.fromString("00000000-0000-0000-0000-000000000000"),
+                                title,
+                                message,
+                                "DQ_VIOLATION",
+                                "/domains/" + domain.getId() + "/dq"
+                        );
                     }
                 }
                 scannedDomainCount++;
-                log.info("[DQ Schedule] Completed auto scan for domain: {} ({})", domain.getName(), domain.getId());
+                log.info("[DQ Schedule] Completed auto scan for domain: {} ({}) with {} violations", domain.getName(), domain.getId(), totalViolations);
             } catch (Exception e) {
                 log.error("[DQ Schedule] Failed auto scan for domain {}: {}", domain.getId(), e.getMessage(), e);
             }

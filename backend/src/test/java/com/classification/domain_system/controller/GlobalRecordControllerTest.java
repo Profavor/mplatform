@@ -50,6 +50,9 @@ class GlobalRecordControllerTest {
     @MockitoBean
     private com.classification.domain_system.context.AuthContext authContext;
 
+    @MockitoBean
+    private com.classification.domain_system.service.RecordService recordService;
+
     private UUID domainId;
     private UUID recordId;
 
@@ -57,6 +60,8 @@ class GlobalRecordControllerTest {
     void setUp() {
         domainId = UUID.randomUUID();
         recordId = UUID.randomUUID();
+        when(recordService.prepareRecordsForRead(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(recordService.prepareRecordForRead(any())).thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test

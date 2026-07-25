@@ -81,6 +81,8 @@ public class ApprovalService {
                     .orElseThrow(() -> new ResourceNotFoundException("Record not found"));
             record.setStatus("ACTIVE");
             recordRepository.saveAndFlush(record);
+        } else if (approval.getTargetType() != null && approval.getTargetType().startsWith("SCHEMA_")) {
+            log.info("Schema change request {} was rejected, no record status to revert", approval.getId());
         }
     }
 

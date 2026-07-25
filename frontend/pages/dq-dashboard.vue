@@ -8,8 +8,8 @@
             <va-icon name="analytics" size="2rem" color="primary" />
           </div>
           <div>
-            <h1 class="header-title">Data Quality Dashboard</h1>
-            <p class="header-subtitle">Real-time Master Data Governance & Integrity Monitoring</p>
+            <h1 class="header-title">{{ $t('dq_dashboard_title') || 'Data Quality Dashboard' }}</h1>
+            <p class="header-subtitle">{{ $t('dq_dashboard_subtitle') || 'Real-time Master Data Governance & Integrity Monitoring' }}</p>
           </div>
         </div>
 
@@ -31,7 +31,7 @@
             :loading="scanning"
             @click="triggerScan"
           >
-            Run DQ Scan
+            {{ $t('run_dq_scan') || 'Run DQ Scan' }}
           </va-button>
         </div>
       </div>
@@ -40,7 +40,7 @@
     <!-- Loading State -->
     <div v-if="loading" class="loading-state">
       <va-progress-circle indeterminate size="3.5rem" color="primary" />
-      <span class="loading-text">Loading Quality Metrics...</span>
+      <span class="loading-text">{{ $t('loading_dq_metrics') || 'Loading Quality Metrics...' }}</span>
     </div>
 
     <!-- Score & Stats -->
@@ -50,7 +50,7 @@
         <!-- DQ Score Card -->
         <div class="kpi-card score-card" :class="getScoreClass(scoreData.score)">
           <div class="kpi-card-header">
-            <span class="kpi-title">Data Quality Score</span>
+            <span class="kpi-title">{{ $t('dq_score_title') || 'Data Quality Score' }}</span>
             <va-badge :text="getGradeLabel(scoreData.score)" :color="getScoreColor(scoreData.score)" />
           </div>
           <div class="score-body">

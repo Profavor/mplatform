@@ -192,5 +192,37 @@ class MatchingServiceTest {
             assertThat(result.hasDuplicates).isFalse();
             assertThat(result.duplicateRecordIds).isEmpty();
         }
+
+        @Test
+        @DisplayName("Custom Rule - FUZZY 매칭 규칙으로 유사한 레코드 탐지 시 matchType=FUZZY 및 score 반환")
+        void customRule_FuzzyMatch_ReturnsFuzzyResult() {
+            domain.setIdentifierFieldId(null);
+
+            MatchingRule rule = new MatchingRule();
+            rule.setId(UUID.randomUUID());
+            rule.setNodeId(nodeId);
+            rule.setRuleName("상호 유사도 검사");
+            rule.setTargetFieldKeys("[\"name\"]");
+            rule.setMatchType("FUZZY");
+            rule.setSimilarityThreshold(0.80);
+
+            Record cand = new Record();
+            cand.setId(UUID.randomUUID());
+            cand.setData("{\"name\":\"주식회사 삼성전자\"}");
+
+            when(nodeRepository.findById(nodeId)).thenReturn(Optional.of(node));
+            when(matchingRuleRepository.findByDomainIdAndIsActiveTrue(domainId)).thenReturn(List.of(rule));
+            when(recordRepository.findByNodeId(eq(nodeId), any(Pageable.class)))
+                    .thenReturn(new PageImpl<>(List.of(cand)));
+
+            // 유사한 명칭 ("(주)삼성전자")
+            MatchingService.DuplicateResult result = matchingService.checkDuplicates(nodeId, "{\"name\":\"(주)삼성전자\"}");
+
+            assertThat(result.hasDuplicates).isTrue();
+            assertThat(result.matchType).isEqualTo("FUZZY");
+            assertThat(result.score).isGreaterThanOrEqualTo(0.80);
+            assertThat(result.duplicateRecordIds).containsExactly(cand.getId());
+        }
     }
 }
+

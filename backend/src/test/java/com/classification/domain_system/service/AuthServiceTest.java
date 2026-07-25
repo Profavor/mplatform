@@ -67,6 +67,23 @@ class AuthServiceTest {
         }
 
         @Test
+        @DisplayName("성공 - 신규 사용자 등록 시 지정된 타임존을 설정하여 저장한다")
+        void registerWithTimezoneSuccess() {
+            // given
+            given(userRepository.findByUsername("tzuser")).willReturn(Optional.empty());
+            given(passwordEncoder.encode("password123")).willReturn("encoded_password");
+
+            // when
+            authService.register("tzuser", "password123", "ROLE_USER", "America/New_York");
+
+            // then
+            org.mockito.ArgumentCaptor<User> userCaptor = org.mockito.ArgumentCaptor.forClass(User.class);
+            verify(userRepository).save(userCaptor.capture());
+            assertThat(userCaptor.getValue().getTimezone()).isEqualTo("America/New_York");
+            assertThat(userCaptor.getValue().getRole()).isEqualTo("ROLE_USER");
+        }
+
+        @Test
         @DisplayName("실패 - 중복된 username으로 등록 시 예외 발생")
         void failDuplicateUsername() {
             // given
@@ -78,6 +95,18 @@ class AuthServiceTest {
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("already exists");
             verify(userRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("성공 - username 존재 여부를 확인한다")
+        void existsByUsernameTest() {
+            // given
+            given(userRepository.findByUsername("existing")).willReturn(Optional.of(new User()));
+            given(userRepository.findByUsername("not_existing")).willReturn(Optional.empty());
+
+            // when & then
+            assertThat(authService.existsByUsername("existing")).isTrue();
+            assertThat(authService.existsByUsername("not_existing")).isFalse();
         }
     }
 

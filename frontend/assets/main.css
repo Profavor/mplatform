@@ -1,1 +1,99 @@
 /* AG Grid v34 uses JavaScript Theming API - no CSS imports needed */
+
+/* Seamless Luxury Modal & Minimal Close Button Styles */
+.va-modal__dialog {
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
+  background: var(--va-card-background, var(--va-background-element, #ffffff)) !important;
+  position: relative !important;
+  border: none !important;
+}
+
+/* Modal Header Area: Integrated & Drag Friendly */
+.va-modal__header,
+.modal-header-banner,
+.modal-header,
+.va-modal__dialog > header,
+.va-modal__dialog > div:first-child:not(.va-modal__inner) {
+  background: transparent !important;
+  padding: 0 0 10px 0 !important;
+  border-bottom: 1px solid var(--va-background-border, #f3f4f6) !important;
+  cursor: grab !important;
+  user-select: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  box-shadow: none !important;
+}
+
+
+
+.va-modal__title,
+.modal-title-text,
+.va-modal__header h1,
+.va-modal__header h2,
+.va-modal__header h3,
+.va-modal__header h4,
+.modal-header-banner h3,
+.modal-header h3 {
+  color: var(--va-text-primary, #111827) !important;
+  font-weight: 700 !important;
+  font-size: 1.2rem !important;
+  margin: 0 !important;
+  letter-spacing: -0.02em !important;
+}
+
+/* Minimalist Upper Right Close (X) Button */
+.va-modal__close,
+.modal-close-btn {
+  position: absolute !important;
+  top: 0.35rem !important;
+  right: 1.25rem !important;
+
+  z-index: 1000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 8px !important;
+  border: none !important;
+  background: transparent !important;
+  color: var(--va-text-secondary, #9ca3af) !important;
+  font-size: 1.15rem !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease-in-out !important;
+}
+
+.va-modal__close:hover,
+.modal-close-btn:hover {
+  background: rgba(0, 0, 0, 0.06) !important;
+  color: var(--va-text-primary, #111827) !important;
+}
+
+.va-modal__header:active,
+.modal-header-banner:active,
+.modal-header:active {
+  cursor: grabbing !important;
+}
+
+/* Custom Record Modal Specific Overrides */
+.va-modal__header,
+.modal-header {
+  padding: 0 0 10px 0 !important;
+}
+
+.custom-modal-header-wrapper {
+  margin-top: -20px !important;
+  margin-left: -20px !important;
+}
+
+.custom-record-modal .va-modal__close {
+  top: 0.35rem !important;
+  right: 1.25rem !important;
+}
+
+
+
+

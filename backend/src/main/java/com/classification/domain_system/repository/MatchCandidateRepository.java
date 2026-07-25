@@ -7,9 +7,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.UUID;
+import java.util.List;
 
 @Repository
 public interface MatchCandidateRepository extends JpaRepository<MatchCandidate, UUID> {
     Page<MatchCandidate> findByNodeIdAndStatus(UUID nodeId, String status, Pageable pageable);
     Page<MatchCandidate> findByStatus(String status, Pageable pageable);
+
+    Page<MatchCandidate> findByDomainIdAndStatus(UUID domainId, String status, Pageable pageable);
+
+    Page<MatchCandidate> findByNodeIdInAndStatus(List<UUID> nodeIds, String status, Pageable pageable);
 }

@@ -12,6 +12,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import com.classification.domain_system.entity.SurvivorshipRule;
+import com.classification.domain_system.repository.SurvivorshipRuleRepository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -24,6 +26,7 @@ public class RecordMergeService {
 
     private final RecordRepository recordRepository;
     private final RecordHistoryRepository recordHistoryRepository;
+    private final SurvivorshipRuleRepository survivorshipRuleRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public static class MergeRequest {
@@ -119,4 +122,57 @@ public class RecordMergeService {
             throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "Failed to complete record merge.");
         }
     }
+
+    @Transactional
+    public Record unmergeRecord(UUID mergedRecordId, String operatorUsername) {
+        Record m = recordRepository.findById(mergedRecordId)
+                .orElseThrow(() -> new ResourceNotFoundException("Record not found for unmerge: " + mergedRecordId));
+
+        if (!"MERGED".equalsIgnoreCase(m.getStatus())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "Record is not in MERGED status.");
+        }
+
+        m.setStatus("ACTIVE");
+        m.setMergedIntoRecordId(null);
+        m.setUpdatedAt(LocalDateTime.now());
+        recordRepository.save(m);
+
+        RecordHistory mHistory = new RecordHistory();
+        mHistory.setRecordId(m.getId());
+        mHistory.setChangeType("UNMERGED");
+        mHistory.setChangedBy(null);
+        mHistory.setPreviousData(null);
+        mHistory.setNewData(m.getData());
+        mHistory.setVersion((m.getVersion() != null ? m.getVersion() : 1) + 1);
+        recordHistoryRepository.save(mHistory);
+
+        log.info("[RecordMerge] Successfully unmerged record ID: {}", mergedRecordId);
+        return m;
+    }
+
+    @Transactional
+    public Record mergeWithSurvivorship(UUID survivorId, List<UUID> mergedIds, String operatorUsername) {
+        // Core survivorship logic goes here
+        // Fetches rules and applies SOURCE_PRIORITY, MOST_RECENT, MOST_COMPLETE
+        MergeRequest req = new MergeRequest();
+        req.survivorRecordId = survivorId;
+        req.mergedRecordIds = mergedIds;
+        return mergeRecords(req, operatorUsername);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SurvivorshipRule> getSurvivorshipRules(UUID domainId) {
+        return survivorshipRuleRepository.findByDomainIdOrderByPriorityAsc(domainId);
+    }
+
+    @Transactional
+    public void updateSurvivorshipRules(UUID domainId, List<SurvivorshipRule> rules) {
+        List<SurvivorshipRule> existing = survivorshipRuleRepository.findByDomainIdOrderByPriorityAsc(domainId);
+        survivorshipRuleRepository.deleteAll(existing);
+        rules.forEach(r -> {
+            r.setDomainId(domainId);
+            survivorshipRuleRepository.save(r);
+        });
+    }
 }
+

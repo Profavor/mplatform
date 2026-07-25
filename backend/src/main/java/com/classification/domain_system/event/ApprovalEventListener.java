@@ -35,6 +35,11 @@ public class ApprovalEventListener {
     private final org.springframework.context.ApplicationEventPublisher applicationEventPublisher;
     private final CalculatedFieldEvaluator calculatedFieldEvaluator;
     private final RecordHistoryWriter recordHistoryWriter;
+    private final com.classification.domain_system.service.NotificationService notificationService;
+    
+    @org.springframework.beans.factory.annotation.Autowired
+    @org.springframework.context.annotation.Lazy
+    private com.classification.domain_system.service.ClassificationNodeService classificationNodeService;
 
     @EventListener
     @Transactional
@@ -56,6 +61,24 @@ public class ApprovalEventListener {
         }
 
         autoApproveStepsIfRequesterIsAssignee(approval);
+
+        if (notificationService != null && approval.getSteps() != null && approval.getCurrentStepOrder() != null) {
+            approval.getSteps().stream()
+                    .filter(s -> s.getStepOrder().equals(approval.getCurrentStepOrder()) && s.getAssigneeId() != null)
+                    .forEach(s -> {
+                        try {
+                            notificationService.createNotification(
+                                    s.getAssigneeId(),
+                                    "Approval Request Pending",
+                                    "New approval request received: " + approval.getId(),
+                                    "APPROVAL",
+                                    "/approvals/" + approval.getId()
+                            );
+                        } catch (Exception ex) {
+                            log.warn("Failed to create approval notification for assignee {}", s.getAssigneeId(), ex);
+                        }
+                    });
+        }
     }
 
     @EventListener
@@ -73,6 +96,20 @@ public class ApprovalEventListener {
             if (!"PENDING".equals(approval.getStatus())) {
                 log.info("ApprovalRequest {} status is already {}, skipping advancement.", approval.getId(), approval.getStatus());
                 return;
+            }
+
+            if (notificationService != null && approval.getRequesterId() != null) {
+                try {
+                    notificationService.createNotification(
+                            approval.getRequesterId(),
+                            "Approval Step Approved",
+                            "Approval step " + approvedStep.getStepOrder() + " completed for request: " + approval.getId(),
+                            "APPROVAL",
+                            "/approvals/" + approval.getId()
+                    );
+                } catch (Exception ex) {
+                    log.warn("Failed to create approval notification for requester {}", approval.getRequesterId(), ex);
+                }
             }
 
             boolean allApproved = approval.getSteps().stream()
@@ -94,10 +131,42 @@ public class ApprovalEventListener {
                     approvalRepository.saveAndFlush(approval);
                     
                     autoApproveStepsIfRequesterIsAssignee(approval);
+
+                    if (notificationService != null && approval.getSteps() != null) {
+                        approval.getSteps().stream()
+                                .filter(s -> s.getStepOrder().equals(approval.getCurrentStepOrder()) && s.getAssigneeId() != null)
+                                .forEach(s -> {
+                                    try {
+                                        notificationService.createNotification(
+                                                s.getAssigneeId(),
+                                                "Approval Request Pending",
+                                                "New approval request step received: " + approval.getId(),
+                                                "APPROVAL",
+                                                "/approvals/" + approval.getId()
+                                        );
+                                    } catch (Exception ex) {
+                                        log.warn("Failed to create approval step notification for assignee {}", s.getAssigneeId(), ex);
+                                    }
+                                });
+                    }
                 } else {
                     approval.setStatus("APPROVED");
                     approvalRepository.saveAndFlush(approval);
                     applyFinalApproval(approval);
+
+                    if (notificationService != null && approval.getRequesterId() != null) {
+                        try {
+                            notificationService.createNotification(
+                                    approval.getRequesterId(),
+                                    "Approval Request Finalized",
+                                    "Your request " + approval.getId() + " has been fully approved.",
+                                    "APPROVAL",
+                                    "/approvals/" + approval.getId()
+                            );
+                        } catch (Exception ex) {
+                            log.warn("Failed to create final approval notification for requester {}", approval.getRequesterId(), ex);
+                        }
+                    }
                 }
             }
         } catch (org.springframework.orm.ObjectOptimisticLockingFailureException | jakarta.persistence.OptimisticLockException e) {
@@ -211,6 +280,35 @@ public class ApprovalEventListener {
             logHistory(record, "DELETE", approval.getRequesterId(), deletedData, null, approval.getId());
             recordRepository.delete(record);
             applicationEventPublisher.publishEvent(new MasterDataChangedEvent(this, record.getId(), record.getNode().getId(), "DELETE", deletedData));
+        } else if (approval.getTargetType() != null && approval.getTargetType().startsWith("SCHEMA_")) {
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode changes = mapper.readTree(approval.getChanges());
+                if ("SCHEMA_FIELD_ADD".equals(approval.getTargetType())) {
+                    com.classification.domain_system.dto.FieldDefinitionRequest request = mapper.treeToValue(changes.get("request"), com.classification.domain_system.dto.FieldDefinitionRequest.class);
+                    if (changes.has("nodeId")) {
+                        fieldDefinitionService.addFieldDirect(UUID.fromString(changes.get("nodeId").asText()), request);
+                    } else if (changes.has("domainId")) {
+                        fieldDefinitionService.addDomainFieldDirect(UUID.fromString(changes.get("domainId").asText()), request);
+                    }
+                } else if ("SCHEMA_FIELD_UPDATE".equals(approval.getTargetType())) {
+                    com.classification.domain_system.dto.FieldDefinitionRequest request = mapper.treeToValue(changes.get("request"), com.classification.domain_system.dto.FieldDefinitionRequest.class);
+                    UUID fieldId = UUID.fromString(changes.get("fieldId").asText());
+                    if (changes.has("nodeId")) {
+                        fieldDefinitionService.updateFieldDirect(UUID.fromString(changes.get("nodeId").asText()), fieldId, request);
+                    } else if (changes.has("domainId")) {
+                        fieldDefinitionService.updateDomainFieldDirect(UUID.fromString(changes.get("domainId").asText()), fieldId, request);
+                    }
+                } else if ("SCHEMA_NODE_CREATE".equals(approval.getTargetType())) {
+                    com.classification.domain_system.dto.ClassificationNodeRequest request = mapper.treeToValue(changes.get("request"), com.classification.domain_system.dto.ClassificationNodeRequest.class);
+                    classificationNodeService.createNodeDirect(UUID.fromString(changes.get("domainId").asText()), request);
+                } else if ("SCHEMA_NODE_MOVE".equals(approval.getTargetType()) || "SCHEMA_NODE_UPDATE".equals(approval.getTargetType())) {
+                    com.classification.domain_system.dto.ClassificationNodeRequest request = mapper.treeToValue(changes.get("request"), com.classification.domain_system.dto.ClassificationNodeRequest.class);
+                    classificationNodeService.updateNodeDirect(UUID.fromString(changes.get("domainId").asText()), UUID.fromString(changes.get("nodeId").asText()), request);
+                }
+            } catch (Exception e) {
+                log.error("Error applying final approval for schema change", e);
+            }
         }
     }
 

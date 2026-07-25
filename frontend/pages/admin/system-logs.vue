@@ -188,6 +188,12 @@
             striped
             hoverable
           >
+            <template #cell(direction)="{ rowData }">
+              <va-badge
+                :text="rowData.direction === 'INBOUND' ? ($t('integration.channels.inbound') || 'Inbound') : ($t('integration.channels.outbound') || 'Outbound')"
+                :color="rowData.direction === 'INBOUND' ? 'warning' : 'info'"
+              />
+            </template>
             <template #cell(status)="{ rowData }">
               <va-badge
                 :text="rowData.status"
@@ -211,47 +217,141 @@
         </va-card-content>
       </va-card>
 
-      <!-- Integration Details Modal -->
-      <va-modal v-model="showIntegrationDetailsModal" title="Integration Log Detail" size="large" hide-default-actions>
-        <div class="p-4" style="min-width: 600px; max-height: 80vh; overflow-y: auto;" v-if="selectedIntegrationLog">
-          <div class="mb-4 flex gap-4">
-            <div><strong>Status:</strong> <va-badge :text="selectedIntegrationLog.status" :color="selectedIntegrationLog.status === 'SUCCESS' ? 'success' : 'danger'" /></div>
-            <div><strong>Event:</strong> {{ selectedIntegrationLog.eventType }}</div>
-            <div><strong>Retry Count:</strong> {{ selectedIntegrationLog.retryCount }}</div>
-            <div><strong>Logged At:</strong> {{ selectedIntegrationLog.createdAt }}</div>
-          </div>
-
-          <div class="mb-4" v-if="selectedIntegrationLog.errorMessage">
-            <label class="font-bold text-red-600 block mb-2">Error Message</label>
-            <div class="bg-red-50 p-3 rounded border border-red-200 text-red-800" style="white-space: pre-wrap; font-family: monospace; font-size: 0.85em;">
-              {{ selectedIntegrationLog.errorMessage }}
+      <!-- Integration Details Modal (Premium Modern Redesign) -->
+      <va-modal v-model="showIntegrationDetailsModal" size="large" hide-default-actions style="--va-modal-padding: 0;">
+        <div v-if="selectedIntegrationLog" class="integration-modal-container">
+          <!-- Modal Header Bar -->
+          <div class="modal-header-banner">
+            <div class="flex items-center gap-2">
+              <va-icon name="hub" size="medium" color="primary" />
+              <h3 class="modal-title-text">{{ $t('integration_log_detail') || 'Integration Monitoring Log Detail' }}</h3>
             </div>
           </div>
 
-          <div class="mb-4" v-if="selectedIntegrationLog.stackTrace">
-            <label class="font-bold text-red-600 block mb-2">Stack Trace</label>
-            <div class="bg-red-50 p-3 rounded border border-red-200 text-red-800 stack-trace-view" style="white-space: pre-wrap; font-family: monospace; font-size: 0.8em; max-height: 200px; overflow-y: auto;">
-              {{ selectedIntegrationLog.stackTrace }}
+          <div class="modal-body-content">
+            <!-- Metric Status Summary Cards -->
+            <div class="metrics-grid">
+              <div class="metric-card" :class="selectedIntegrationLog.status === 'SUCCESS' ? 'status-success' : 'status-fail'">
+                <span class="metric-label">Status</span>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="status-indicator-dot"></span>
+                  <span class="metric-value font-bold">{{ selectedIntegrationLog.status }}</span>
+                </div>
+              </div>
+
+              <div class="metric-card">
+                <span class="metric-label">Direction</span>
+                <div class="metric-value mt-1">
+                  <va-badge
+                    :text="selectedIntegrationLog.direction === 'INBOUND' ? ($t('integration.channels.inbound') || 'Inbound') : ($t('integration.channels.outbound') || 'Outbound')"
+                    :color="selectedIntegrationLog.direction === 'INBOUND' ? 'warning' : 'info'"
+                  />
+                </div>
+              </div>
+
+              <div class="metric-card">
+                <span class="metric-label">Event Type</span>
+                <div class="metric-value mt-1 text-primary flex items-center gap-1">
+                  <va-icon name="event" size="small" />
+                  <span>{{ selectedIntegrationLog.eventType }}</span>
+                </div>
+              </div>
+
+              <div class="metric-card">
+                <span class="metric-label">Retry Count</span>
+                <div class="metric-value mt-1">
+                  <span class="retry-badge">{{ selectedIntegrationLog.retryCount }} Retry</span>
+                </div>
+              </div>
+
+              <div class="metric-card">
+                <span class="metric-label">Logged At</span>
+                <div class="metric-value mt-1 date-text flex items-center gap-1">
+                  <va-icon name="schedule" size="small" />
+                  <span>{{ selectedIntegrationLog.createdAt }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Error Message & Stack Trace Section (Shown only on error) -->
+            <div v-if="selectedIntegrationLog.errorMessage" class="error-panel">
+              <div class="error-panel-header">
+                <va-icon name="error" color="danger" size="small" />
+                <span>Error Message</span>
+              </div>
+              <div class="error-message-body">
+                {{ selectedIntegrationLog.errorMessage }}
+              </div>
+            </div>
+
+            <div v-if="selectedIntegrationLog.stackTrace" class="error-panel mt-3">
+              <div class="error-panel-header">
+                <va-icon name="bug_report" color="danger" size="small" />
+                <span>Stack Trace Exception</span>
+              </div>
+              <div class="stack-trace-terminal">
+                <code>{{ selectedIntegrationLog.stackTrace }}</code>
+              </div>
+            </div>
+
+            <!-- Payload Viewers (Mac Terminal Shell Style - Direction aware) -->
+            <div class="payload-section mt-4">
+              <!-- First Terminal (Incoming or Outgoing Payload) -->
+              <div class="terminal-card">
+                <div class="terminal-header">
+                  <div class="terminal-dots">
+                    <span class="dot dot-red"></span>
+                    <span class="dot dot-yellow"></span>
+                    <span class="dot dot-green"></span>
+                  </div>
+                  <span class="terminal-title">
+                    {{ selectedIntegrationLog.direction === 'INBOUND' ? ($t('incoming_payload_title') || 'incoming_payload.json') : ($t('outgoing_payload_title') || 'outgoing_payload.json') }}
+                  </span>
+                  <button class="copy-btn" @click="copyPayload(selectedIntegrationLog.originalPayload, 'original')">
+                    <va-icon name="content_copy" size="small" /> {{ copySuccess === 'original' ? 'Copied!' : 'Copy' }}
+                  </button>
+                </div>
+                <div class="terminal-body">
+                  <pre><code>{{ formatJson(selectedIntegrationLog.originalPayload) }}</code></pre>
+                </div>
+              </div>
+
+              <!-- Second Terminal (Mapped Record or Response Result) -->
+              <div class="terminal-card mt-4">
+                <div class="terminal-header">
+                  <div class="terminal-dots">
+                    <span class="dot dot-red"></span>
+                    <span class="dot dot-yellow"></span>
+                    <span class="dot dot-green"></span>
+                  </div>
+                  <span class="terminal-title">
+                    {{ selectedIntegrationLog.direction === 'INBOUND' ? ($t('mapped_payload_title') || 'mapped_payload.json') : ($t('response_result_title') || 'response_result.txt') }}
+                  </span>
+                  <button class="copy-btn" @click="copyPayload(selectedIntegrationLog.mappedPayload, 'mapped')">
+                    <va-icon name="content_copy" size="small" /> {{ copySuccess === 'mapped' ? 'Copied!' : 'Copy' }}
+                  </button>
+                </div>
+                <div class="terminal-body">
+                  <pre><code>{{ formatJson(selectedIntegrationLog.mappedPayload) }}</code></pre>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div class="mb-4">
-            <label class="font-bold block mb-2">Original Payload</label>
-            <div class="bg-gray-100 p-3 rounded" style="white-space: pre-wrap; font-family: monospace; font-size: 0.85em;">
-              {{ formatJson(selectedIntegrationLog.originalPayload) }}
-            </div>
-          </div>
-
-          <div class="mb-4">
-            <label class="font-bold block mb-2">Mapped Payload</label>
-            <div class="bg-gray-100 p-3 rounded" style="white-space: pre-wrap; font-family: monospace; font-size: 0.85em;">
-              {{ formatJson(selectedIntegrationLog.mappedPayload) }}
-            </div>
-          </div>
-          
-          <div class="flex justify-end mt-4" style="gap: 1rem;">
-            <va-button v-if="selectedIntegrationLog.status === 'FAIL' && (hasPermission('integration:write') || hasPermission('integration:*'))" color="warning" @click="retryIntegrationLog(selectedIntegrationLog.id)">재전송 (Retry)</va-button>
-            <va-button color="secondary" @click="showIntegrationDetailsModal = false">Close</va-button>
+          <!-- Modal Footer Actions -->
+          <div class="modal-footer-bar">
+            <va-button
+              v-if="selectedIntegrationLog.status === 'FAIL' && (hasPermission('integration:write') || hasPermission('integration:*'))"
+              color="warning"
+              gradient
+              icon="replay"
+              @click="retryIntegrationLog(selectedIntegrationLog.id)"
+            >
+              {{ $t('retry_integration') || '재전송 (Retry)' }}
+            </va-button>
+            <va-button preset="secondary" border-color="secondary" @click="showIntegrationDetailsModal = false">
+              {{ $t('close') || '닫기 (Close)' }}
+            </va-button>
           </div>
         </div>
       </va-modal>
@@ -295,6 +395,7 @@ import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vuestic-ui'
 import { usePermission } from '~/composables/usePermission'
+import { getMultilingualText } from '~/utils/multilingual'
 
 const { hasPermission } = usePermission()
 
@@ -718,6 +819,7 @@ const selectedIntegrationLog = ref(null)
 
 const integrationColumns = [
   { key: 'channelName', label: 'Channel', sortable: false },
+  { key: 'direction', label: 'Direction', sortable: false },
   { key: 'eventType', label: 'Event', sortable: false },
   { key: 'status', label: 'Status', sortable: false },
   { key: 'retryCount', label: 'Retry Count', sortable: false },
@@ -725,12 +827,18 @@ const integrationColumns = [
   { key: 'actions', label: 'Details', width: '100px' }
 ]
 
+const rawChannels = ref([])
+
 const fetchChannels = async () => {
   try {
     const data = await $fetch('/api/admin/integration/channels', {
       headers: { Authorization: `Bearer ${token.value}` }
     })
-    channelOptions.value = data
+    rawChannels.value = data
+    channelOptions.value = data.map(c => ({
+      id: c.id,
+      name: getMultilingualText(c.name, locale.value)
+    }))
   } catch (e) {
     console.error('Failed to load channels:', e)
   }
@@ -752,10 +860,13 @@ const fetchIntegrationLogs = async (pageIndex) => {
     })
     
     integrationLogs.value = data.content.map(log => {
-      const channel = channelOptions.value.find(c => c.id === log.channelId)
+      const channel = rawChannels.value.find(c => c.id === log.channelId)
+      const rawName = channel ? channel.name : null
+      const direction = channel ? (channel.direction || 'OUTBOUND') : 'OUTBOUND'
       return {
         ...log,
-        channelName: channel ? channel.name : 'Unknown',
+        direction,
+        channelName: rawName ? getMultilingualText(rawName, locale.value) : 'Unknown',
         createdAt: new Date(log.createdAt).toLocaleString(locale.value === 'ko' ? 'ko-KR' : 'en-US')
       }
     })
@@ -801,11 +912,35 @@ const retryIntegrationLog = async (logId) => {
   }
 }
 
+const copySuccess = ref('')
+
+const copyPayload = async (payloadStr, type = 'original') => {
+  if (!payloadStr) return
+  try {
+    const textToCopy = formatJson(payloadStr)
+    await navigator.clipboard.writeText(textToCopy)
+    copySuccess.value = type
+    setTimeout(() => { copySuccess.value = '' }, 2000)
+    init({ message: '클립보드에 복사되었습니다.', color: 'success' })
+  } catch (err) {
+    console.error('Failed to copy payload:', err)
+  }
+}
+
 // Watch language change to dynamically translate chart labels
 watch(locale, () => {
   updateChart()
   if (gridApi.value) {
     gridApi.value.refreshCells({ force: true })
+  }
+  if (rawChannels.value && rawChannels.value.length > 0) {
+    channelOptions.value = rawChannels.value.map(c => ({
+      id: c.id,
+      name: getMultilingualText(c.name, locale.value)
+    }))
+  }
+  if (integrationLogs.value && integrationLogs.value.length > 0) {
+    fetchIntegrationLogs(integrationCurrentPage.value)
   }
 })
 
@@ -833,5 +968,248 @@ onMounted(async () => {
   font-family: 'Courier New', Courier, monospace;
   font-size: 0.85rem;
   white-space: pre-wrap;
+}
+
+/* Premium Integration Detail Modal Styles */
+.integration-modal-container {
+  display: flex;
+  flex-direction: column;
+  background: var(--va-background-element, #ffffff);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.modal-header-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.75rem;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(147, 51, 234, 0.08) 100%);
+  border-bottom: 1px solid var(--va-background-border, #e5e7eb);
+}
+
+.modal-title-text {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--va-text-primary, #111827);
+  letter-spacing: -0.01em;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--va-text-secondary, #6b7280);
+  transition: all 0.2s ease;
+}
+
+.modal-close-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--va-text-primary, #111827);
+}
+
+.modal-body-content {
+  padding: 1.5rem 1.75rem;
+  max-height: 75vh;
+  overflow-y: auto;
+}
+
+/* Metrics Grid Cards */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.metric-card {
+  padding: 1rem;
+  border-radius: 10px;
+  background: var(--va-card-background, rgba(249, 250, 251, 0.7));
+  border: 1px solid var(--va-background-border, #e5e7eb);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.metric-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--va-text-secondary, #6b7280);
+}
+
+.metric-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.status-indicator-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.metric-card.status-success .status-indicator-dot {
+  background-color: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+}
+
+.metric-card.status-fail .status-indicator-dot {
+  background-color: #ef4444;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+}
+
+.retry-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  background: rgba(245, 158, 11, 0.15);
+  color: #b45309;
+  font-weight: 600;
+}
+
+.date-text {
+  font-size: 0.85rem;
+  color: var(--va-text-primary);
+}
+
+/* Error Panel */
+.error-panel {
+  border-radius: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(254, 242, 242, 0.6);
+  overflow: hidden;
+}
+
+.error-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  background: rgba(254, 226, 226, 0.8);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #991b1b;
+}
+
+.error-message-body {
+  padding: 0.85rem 1rem;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 0.85rem;
+  color: #7f1d1d;
+  white-space: pre-wrap;
+}
+
+.stack-trace-terminal {
+  padding: 1rem;
+  background: #0f172a;
+  color: #f87171;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 0.8rem;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+/* Mac IDE Terminal Viewers */
+.terminal-card {
+  border-radius: 10px;
+  overflow: hidden;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.terminal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+}
+
+.terminal-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+
+.dot-red { background-color: #ff5f56; }
+.dot-yellow { background-color: #ffbd2e; }
+.dot-green { background-color: #27c93f; }
+
+.terminal-title {
+  font-size: 0.8rem;
+  font-family: 'Fira Code', 'JetBrains Mono', monospace;
+  color: #8b949e;
+  font-weight: 600;
+}
+
+.copy-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #c9d1d9;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.copy-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+.terminal-body {
+  padding: 1.25rem;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.terminal-body pre {
+  margin: 0;
+}
+
+.terminal-body code {
+  font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  color: #58a6ff;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Modal Footer */
+.modal-footer-bar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.75rem;
+  background: var(--va-background-element, rgba(249, 250, 251, 0.5));
+  border-top: 1px solid var(--va-background-border, #e5e7eb);
 }
 </style>

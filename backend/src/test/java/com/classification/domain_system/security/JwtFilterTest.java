@@ -77,4 +77,20 @@ class JwtFilterTest {
         assertNull(SecurityContextHolder.getContext().getAuthentication());
         verify(filterChain, times(1)).doFilter(request, response);
     }
+
+    @Test
+    @DisplayName("SSE 요청 등 URL query string token (?token=...) 으로 인증 성공")
+    void doFilterInternal_QueryTokenSuccess() throws Exception {
+        String token = jwtUtil.generateToken("user1", "ADMIN", "uuid-1");
+
+        when(request.getHeader("Authorization")).thenReturn(null);
+        when(request.getParameter("token")).thenReturn(token);
+        when(request.getServletPath()).thenReturn("/api/notifications/subscribe");
+
+        jwtFilter.doFilterInternal(request, response, filterChain);
+
+        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+        assertEquals("user1", SecurityContextHolder.getContext().getAuthentication().getName());
+        verify(filterChain, times(1)).doFilter(request, response);
+    }
 }

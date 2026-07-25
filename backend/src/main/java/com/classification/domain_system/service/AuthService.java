@@ -21,6 +21,10 @@ public class AuthService {
     private final com.classification.domain_system.repository.LoginLogRepository loginLogRepository;
 
     public void register(String username, String password, String role) {
+        register(username, password, role, "Asia/Seoul");
+    }
+
+    public void register(String username, String password, String role, String timezone) {
         if (userRepository.findByUsername(username).isPresent()) {
             throw new RuntimeException("Username already exists");
         }
@@ -28,9 +32,17 @@ public class AuthService {
         User user = new User();
         user.setUsername(username);
         user.setPassword(passwordEncoder.encode(password));
-        user.setRole(role);
+        user.setRole(role != null && !role.trim().isEmpty() ? role : "ROLE_USER");
+        user.setTimezone(timezone != null && !timezone.trim().isEmpty() ? timezone : "Asia/Seoul");
         
         userRepository.save(user);
+    }
+
+    public boolean existsByUsername(String username) {
+        if (username == null || username.trim().isEmpty()) {
+            return false;
+        }
+        return userRepository.findByUsername(username.trim()).isPresent();
     }
 
     public String login(String username, String password, String ipAddress) {

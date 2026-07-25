@@ -31,6 +31,12 @@ public class MatchCandidate {
     @Column(name = "score", nullable = false)
     private Double score;
 
+    @Column(name = "matched_field_details", columnDefinition = "TEXT")
+    private String matchedFieldDetails;
+
+    @Column(name = "domain_id")
+    private UUID domainId;
+
     @Column(name = "matched_rule_id")
     private UUID matchedRuleId;
 

@@ -63,7 +63,12 @@
           <va-button v-if="hasPermission('record:write')" color="success" outline @click="showExcelUploader = true" class="ml-2">
             <va-icon name="upload" class="mr-2"/> Bulk Upload
           </va-button>
+          <va-button color="warning" outline :disabled="(selectedRecordRows?.length || 0) < 2" @click="showCompareModal = true" class="ml-2">
+            <va-icon name="scale" class="mr-2"/> {{ $t('compare_records') || '레코드 비교' }} ({{ selectedRecordRows?.length || 0 }})
+          </va-button>
+
         </template>
+
         <va-button v-else-if="selectedNode && selectedNode.isDomain" color="secondary" outline disabled>
           <va-icon name="info" class="mr-2"/> 하위 분류 노드를 선택해야 데이터를 생성할 수 있습니다
         </va-button>
@@ -185,16 +190,18 @@
                 :defaultColDef="defaultColDef"
                 rowModelType="infinite"
                 :cacheBlockSize="20"
-                :rowSelection="{ mode: 'singleRow' }"
+                :rowSelection="{ mode: 'multiRow', enableClickSelection: false }"
                 :pagination="true"
                 :paginationPageSize="20"
                 :paginationPageSizeSelector="[10, 20, 50]"
                 @grid-ready="onGridReady"
+                @selection-changed="onSelectionChanged"
                 @row-double-clicked="onRowDoubleClicked"
                 @cell-double-clicked="onCellDoubleClicked"
                 @rowDoubleClicked="onRowDoubleClicked"
                 @cellDoubleClicked="onCellDoubleClicked"
               />
+
             </div>
           </va-card-content>
         </va-card>
@@ -216,151 +223,80 @@
       @uploaded="handleExcelUploaded"
     />
 
-    <!-- Create Record Modal -->
-    <va-modal v-model="showCreateModal" :title="`Create Record in ${selectedNode?.label}`" hide-default-actions :prevent-click-outside="true" :no-outside-dismiss="true">
-      <div style="max-height: 60vh; overflow-y: auto; overflow-x: hidden; padding: 1rem; box-sizing: border-box; width: 100%;">
-        <div v-if="!hasCreateWorkflow" style="margin-bottom: 1rem; padding: 0.5rem; background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 4px; text-align: center; font-weight: bold;">
-          This classification node does not have a CREATE workflow configured. You cannot save records.
-        </div>
-        
-        <!-- Sector Tabs -->
-        <va-tabs v-model="activeSectorTab" style="margin-bottom: 1rem;">
-          <template #tabs>
-            <va-tab v-for="(sector, idx) in groupedFieldsArray" :key="sector.key" :name="idx">
-              {{ sector.label }}
-            </va-tab>
-          </template>
-        </va-tabs>
-        
-        <!-- Sector Content -->
-        <div v-for="(sector, idx) in groupedFieldsArray" :key="sector.key" v-show="activeSectorTab === idx">
-          <va-accordion multiple style="width: 100%;" class="mb-4">
-            <va-collapse 
-              v-for="(group, gIdx) in sector.groups" 
-              :key="group.key"
-              :header="group.label"
-              v-model="group.isOpen"
-              solid
-              color="background-element"
-              style="margin-bottom: 0.5rem;"
-            >
-              <div style="padding: 0.5rem 1rem; overflow: visible; box-sizing: border-box;">
-                <div class="row" style="row-gap: 1.25rem; margin: 0 -0.5rem; display: flex; flex-wrap: wrap;">
-                  <template v-for="field in group.fields" :key="field.id">
-                    <div v-if="evalConditionRule(field, recordFormData).show" :class="['flex', 'xs' + (field.gridWidth || 12)]" :data-field-key="field.key" style="padding: 0 0.5rem; min-width: 0; margin-bottom: 0.5rem;">
-                      <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%; box-sizing: border-box; min-width: 0; --va-input-font-size: 0.9rem;">
-                        <!-- Unified External Label -->
-                        <span :style="{ fontSize: '0.75rem', color: evalConditionRule(field, recordFormData).highlight ? 'var(--va-primary)' : 'var(--va-text-secondary)', fontWeight: evalConditionRule(field, recordFormData).highlight ? '800' : '600', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px', minHeight: '18px', lineHeight: '18px' }">
-                          <va-icon v-if="evalConditionRule(field, recordFormData).highlight" name="star" size="small" color="primary" />
-                          {{ getTranslatedName(field.name) }}{{ evalConditionRule(field, recordFormData).required ? ' *' : '' }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}
-                        </span>
+    <!-- Modularized Create Record Modal -->
+    <RecordFormModal
+      :show="showCreateModal"
+      :is-edit="false"
+      :record="recordFormData"
+      :fields="nodeFields"
+      :node-label="selectedNode?.label"
+      :has-workflow="hasCreateWorkflow"
+      :selected-domain-info="selectedDomainInfo"
+      :domain-references="domainReferences"
+      @close="showCreateModal = false"
+      @save="promptDraftComment('CREATE')"
+      @openDomainRef="openDomainRefModal($event.fieldKey, $event.isCreate)"
+    />
 
-                      <!-- Text / Number / Date -->
-                      <va-input 
-                        v-if="['TEXT', 'NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER', 'DATE'].includes(field.type)" 
-                        v-model="recordFormData[field.key]" 
-                        :type="field.type === 'DATE' ? (focusedDateFields['create_' + field.key] || recordFormData[field.key] ? 'date' : 'text') : (['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type) ? 'number' : 'text')"
-                        :readonly="evalConditionRule(field, recordFormData).readOnly"
-                        :disabled="isAutoNumberingField(field) || evalConditionRule(field, recordFormData).disabled"
-                        :lang="currentLocale === 'en' ? 'en-US' : 'ko-KR'"
-                        :placeholder="isAutoNumberingField(field) ? (currentLocale === 'en' ? 'Auto-generated on final approval' : '자동 채번됩니다 (최종 승인 시)') : (field.type === 'DATE' ? (currentLocale === 'en' ? 'YYYY-MM-DD' : '연도-월-일') : '')"
-                        class="w-full"
-                        @focus="focusedDateFields['create_' + field.key] = true"
-                        @blur="focusedDateFields['create_' + field.key] = false"
-                      />
-                    
-                    <!-- Multilingual -->
-                    <div v-else-if="field.type === 'MULTILINGUAL'" class="w-full" style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
-                      <va-input v-model="recordFormData[field.key].ko" style="flex: 1; min-width: 0;" class="slim-multilingual-input">
-                        <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">{{ currentLocale === 'en' ? 'Korean' : '한국어' }}</span></template>
-                      </va-input>
-                      <va-input v-model="recordFormData[field.key].en" style="flex: 1; min-width: 0;" class="slim-multilingual-input">
-                        <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">{{ currentLocale === 'en' ? 'English' : '영어' }}</span></template>
-                      </va-input>
-                    </div>
-                    <!-- Calculated -->
-                    <va-input 
-                      v-else-if="field.type === 'CALCULATED'" 
-                      v-model="recordFormData[field.key]" 
-                      readonly
-                      class="w-full"
-                      style="background-color: #f4f6f8;"
-                    />
-                  
-                    <!-- Select -->
-                    <va-select 
-                      v-else-if="['SELECT', 'MULTI_SELECT'].includes(field.type)" 
-                      v-model="recordFormData[field.key]" 
-                      :options="parseOptions(field.options)" 
-                      :multiple="field.type === 'MULTI_SELECT' || field.isMultiValue"
-                      value-by="value"
-                      class="w-full"
-                    />
-                    
-                    <!-- Domain Reference -->
-                    <div v-else-if="field.type === 'DOMAIN_REFERENCE'" class="w-full" style="display: flex; gap: 0.5rem; align-items: center;">
-                      <va-input 
-                        :model-value="getDomainRefDisplayName(field.key, recordFormData[field.key])" 
-                        readonly
-                        style="flex: 1;"
-                      />
-                      <va-button icon="search" @click="openDomainRefModal(field.key, true)" />
-                    </div>
-  
-                    <!-- Checkbox / Boolean -->
-                    <va-checkbox
-                      v-else-if="field.type === 'BOOLEAN'"
-                      v-model="recordFormData[field.key]"
-                      class="w-full"
-                    />
+    <!-- Modularized Record Detail & History Drawer -->
+    <RecordDetailDrawer
+      :show="showDetailModal"
+      :record="selectedRecordData"
+      :fields="nodeFields"
+      :history="historyLogs"
+      :node-label="selectedNode?.label"
+      :is-snapshot-mode="isSnapshotMode"
+      :has-pending-update="hasPendingUpdate"
+      :is-editing-record="isEditingRecord"
+      :has-update-workflow="hasUpdateWorkflow"
+      :can-delete="hasPermission('record:delete')"
+      :can-write="hasPermission('record:write')"
+      :can-read-history="hasPermission('record:read') || hasPermission('record:*')"
+      :selected-domain-info="selectedDomainInfo"
+      :domain-references="domainReferences"
+      :user-list="userList"
+      @close="showDetailModal = false"
+      @delete="requestDeleteRecord"
+      @openHistory="openHistory"
+      @save="promptDraftComment('UPDATE')"
+      @openDomainRef="openDomainRefModal($event.fieldKey, $event.isCreate)"
+      @viewDiffDetails="viewDiffDetails"
+      @viewSnapshot="viewSnapshot"
+      @viewApprovalHistory="viewApprovalHistory"
+      @viewIntegrationHistory="viewIntegrationHistory"
+    />
 
-                    <!-- File Upload -->
-                    <div v-else-if="field.type === 'FILE'" class="w-full">
-                      <va-file-upload v-model="recordFormData[field.key]" :type="field.isMultiValue ? 'list' : 'single'" dropzone class="w-full file-upload-wrapper">
-                        <div style="display: flex; flex-direction: row; align-items: center; gap: 1rem; padding: 0.5rem; justify-content: center; width: 100%;">
-                          <span style="font-size: 0.9rem; color: #666;">여기로 파일을 드래그 하거나</span>
-                          <va-button size="small">내 PC에서 선택</va-button>
-                        </div>
-                      </va-file-upload>
-                      <transition-group name="flip-list" tag="div" v-if="recordFormData[field.key] && recordFormData[field.key].length > 0" class="custom-file-list" @dragover.prevent>
-                        <div 
-                          v-for="(fileObj, i) in recordFormData[field.key]" 
-                          :key="fileObj.url || fileObj.name" 
-                          class="custom-file-item"
-                          :draggable="field.isMultiValue"
-                          @dragstart="onDragStart($event, i, recordFormData[field.key])"
-                          @dragenter.prevent="onDragEnter($event, i, recordFormData[field.key])"
-                          @dragover.prevent
-                          @drop.prevent="onDrop($event, i, recordFormData[field.key])"
-                          @dragend="onDragEnd($event)"
-                          :style="field.isMultiValue ? 'cursor: grab;' : ''"
-                        >
-                          <div class="custom-file-info" style="display: flex; align-items: center;">
-                            <va-icon v-if="field.isMultiValue" name="drag_indicator" style="color: #666; margin-right: 8px; cursor: grab;" />
-                            {{ fileObj.name || extractFilename(fileObj.url || fileObj) }}
-                          </div>
-                          <div class="custom-file-actions">
-                            <va-icon name="delete" style="cursor: pointer; color: #E53935;" @click="removeFile(recordFormData[field.key], i)" />
-                          </div>
-                        </div>
-                      </transition-group>
-                    </div>
-                    </div>
-                    </div>
-                  </template>
-                </div>
-              </div>
-              </va-collapse>
-          </va-accordion>
-        </div>
-      </div>
-      <div style="display: flex; justify-content: flex-end; margin-top: 1rem; gap: 0.5rem;">
-        <va-button color="success" :disabled="!hasCreateWorkflow" @click="promptDraftComment('CREATE')">Create & Submit for Approval</va-button>
-        <va-button preset="secondary" @click="showCreateModal = false">Cancel</va-button>
-      </div>
-    </va-modal>
+    <!-- Dedicated Snapshot Modal -->
+    <RecordDetailDrawer
+      :show="showSnapshotModal"
+      :record="snapshotRecordData"
+      :fields="nodeFields"
+      :history="[]"
+      :node-label="selectedNode?.label"
+      :is-snapshot-mode="true"
+      :has-pending-update="false"
+      :is-editing-record="false"
+      :has-update-workflow="false"
+      :can-delete="false"
+      :can-write="false"
+      :can-read-history="false"
+      :selected-domain-info="selectedDomainInfo"
+      :domain-references="domainReferences"
+      :user-list="userList"
+      @close="showSnapshotModal = false"
+    />
 
-    <!-- DQ Validation Modal (상신 전 DQ 검증 단계) -->
+    <!-- Dedicated Record Compare Modal -->
+    <RecordCompareModal
+      :show="showCompareModal"
+      :records="selectedRecordRows"
+      :fields="nodeFields"
+      @close="showCompareModal = false"
+    />
+
+
+
+    <!-- DQ Validation Modal -->
     <va-modal
       v-model="showDqValidationModal"
       :title="currentLocale === 'en' ? 'Data Quality Check' : 'DQ 품질 검증 결과'"
@@ -483,7 +419,7 @@
       </div>
     </va-modal>
 
-    <!-- Required Fields Warning Modal (Modern Modal replacing browser alert) -->
+    <!-- Required Fields Warning Modal -->
     <va-modal
       v-model="showRequiredWarningModal"
       :title="currentLocale === 'en' ? 'Required Fields Missing' : '필수 항목 입력 안내'"
@@ -518,7 +454,7 @@
       </div>
     </va-modal>
 
-    <!-- System Notification Modal (supporting success, warning, error) -->
+    <!-- System Notification Modal -->
     <va-modal
       v-model="showErrorAlertModal"
       :title="errorAlertTitle || (currentLocale === 'en' ? 'System Notification' : '시스템 알림')"
@@ -528,7 +464,6 @@
       :no-outside-dismiss="true"
     >
       <div style="padding: 1.25rem 0; text-align: center;">
-        <!-- Success Icon -->
         <div
           v-if="errorAlertType === 'success'"
           style="width: 60px; height: 60px; border-radius: 50%; background: rgba(30, 203, 114, 0.12); color: #15803d; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto;"
@@ -536,7 +471,6 @@
           <va-icon name="check_circle" size="2.5rem" color="success" />
         </div>
 
-        <!-- Warning Icon -->
         <div
           v-else-if="errorAlertType === 'warning'"
           style="width: 60px; height: 60px; border-radius: 50%; background: rgba(232, 139, 36, 0.12); color: #c2410c; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto;"
@@ -544,7 +478,6 @@
           <va-icon name="warning" size="2.5rem" color="warning" />
         </div>
 
-        <!-- Error Icon -->
         <div
           v-else
           style="width: 60px; height: 60px; border-radius: 50%; background: rgba(229, 57, 53, 0.12); color: #b91c1c; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto;"
@@ -597,359 +530,6 @@
           :placeholder="currentLocale === 'en' ? 'Enter your comment...' : '의견을 입력하세요...'" 
           style="width: 100%;"
         />
-      </div>
-    </va-modal>
-
-    <!-- Record Detail Modal -->
-    <va-modal v-model="showDetailModal" :title="isSnapshotMode ? `Record Snapshot - ${selectedNode?.label}` : `Record Details - ${selectedNode?.label}`" hide-default-actions :prevent-click-outside="true" :no-outside-dismiss="true">
-      <div style="max-height: 60vh; overflow-y: auto; overflow-x: hidden; padding: 1rem; box-sizing: border-box; width: 100%;">
-        <div v-if="isSnapshotMode" style="margin-bottom: 1rem; padding: 0.5rem; background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 4px; text-align: center; font-weight: bold;">
-          이전 데이터 스냅샷을 조회 중입니다. (읽기 전용)
-        </div>
-        <div v-if="hasPendingUpdate" style="margin-bottom: 1rem; padding: 0.5rem; background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 4px; text-align: center; font-weight: bold;">
-          ⚠️ 이 레코드는 현재 변경 결재가 진행 중이므로 수정할 수 없습니다.
-        </div>
-        <div v-if="isEditingRecord && !hasUpdateWorkflow" style="margin-bottom: 1rem; padding: 0.5rem; background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 4px; text-align: center; font-weight: bold;">
-          This classification node does not have an UPDATE workflow configured. You cannot save records.
-        </div>
-        <!-- Sector Tabs -->
-        <va-tabs v-model="activeSectorTab" style="margin-bottom: 1rem;">
-          <template #tabs>
-            <va-tab v-for="(sector, idx) in groupedFieldsArray" :key="sector.key" :name="idx">
-              {{ sector.label }}
-            </va-tab>
-          </template>
-        </va-tabs>
-        
-        <!-- Sector Content -->
-        <div v-for="(sector, idx) in groupedFieldsArray" :key="sector.key" v-show="activeSectorTab === idx">
-          <va-accordion multiple style="width: 100%;" class="mb-4">
-            <va-collapse 
-              v-for="(group, gIdx) in sector.groups" 
-              :key="group.key"
-              :header="group.label"
-              v-model="group.isOpen"
-              solid
-              color="background-element"
-              style="margin-bottom: 0.5rem;"
-            >
-              <div style="padding: 0.5rem 1rem; overflow: visible; box-sizing: border-box;">
-                <div class="row" style="row-gap: 1.25rem; margin: 0 -0.5rem; display: flex; flex-wrap: wrap;">
-                  <template v-for="field in group.fields" :key="field.id">
-                    <div v-if="evalConditionRule(field, selectedRecordData).show" :class="['flex', 'xs' + (field.gridWidth || 12)]" :data-field-key="field.key" style="padding: 0 0.5rem; min-width: 0; margin-bottom: 0.5rem;">
-                      <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%; box-sizing: border-box; min-width: 0; --va-input-font-size: 0.9rem;">
-                        <span :style="{ fontSize: '0.75rem', color: evalConditionRule(field, selectedRecordData).highlight ? 'var(--va-primary)' : 'var(--va-text-secondary)', fontWeight: evalConditionRule(field, selectedRecordData).highlight ? '800' : '600', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px', minHeight: '18px', lineHeight: '18px' }">
-                          <va-icon v-if="evalConditionRule(field, selectedRecordData).highlight" name="star" size="small" color="primary" />
-                          {{ getTranslatedName(field.name) }}{{ evalConditionRule(field, selectedRecordData).required ? ' *' : '' }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}
-                        </span>
-                        <va-input 
-                          v-if="['TEXT', 'NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER', 'DATE'].includes(field.type)" 
-                          v-model="selectedRecordData[field.key]" 
-                          :type="field.type === 'DATE' ? (focusedDateFields['edit_' + field.key] || selectedRecordData[field.key] ? 'date' : 'text') : (['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type) ? 'number' : 'text')"
-                          class="w-full"
-                          :readonly="!isEditingRecord || evalConditionRule(field, selectedRecordData).readOnly"
-                          :disabled="isEditingRecord && (isAutoNumberingField(field) || evalConditionRule(field, selectedRecordData).disabled)"
-                          :lang="currentLocale === 'en' ? 'en-US' : 'ko-KR'"
-                          :placeholder="isEditingRecord && isAutoNumberingField(field) ? (currentLocale === 'en' ? 'Auto-generated on final approval' : '자동 채번됩니다 (최종 승인 시)') : (field.type === 'DATE' ? (currentLocale === 'en' ? 'YYYY-MM-DD' : '연도-월-일') : '')"
-                          @focus="focusedDateFields['edit_' + field.key] = true"
-                          @blur="focusedDateFields['edit_' + field.key] = false"
-                        />
-                      <div v-else-if="field.type === 'DOMAIN_REFERENCE'" class="w-full" style="display: flex; gap: 0.5rem; align-items: center;">
-                        <va-input 
-                          :model-value="getDomainRefDisplayName(field.key, selectedRecordData[field.key])" 
-                          readonly
-                          style="flex: 1;"
-                        />
-                        <va-button v-if="isEditingRecord" icon="search" @click="openDomainRefModal(field.key, false)" />
-                      </div>
-                      <!-- Multilingual Edit -->
-                      <div v-else-if="field.type === 'MULTILINGUAL'" class="w-full" style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
-                        <va-input v-model="selectedRecordData[field.key].ko" style="flex: 1; min-width: 0;" :readonly="!isEditingRecord" class="slim-multilingual-input">
-                          <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">{{ currentLocale === 'en' ? 'Korean' : '한국어' }}</span></template>
-                        </va-input>
-                        <va-input v-model="selectedRecordData[field.key].en" style="flex: 1; min-width: 0;" :readonly="!isEditingRecord" class="slim-multilingual-input">
-                          <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">{{ currentLocale === 'en' ? 'English' : '영어' }}</span></template>
-                        </va-input>
-                      </div>
-                      <va-input 
-                        v-else-if="field.type === 'CALCULATED'"
-                        v-model="selectedRecordData[field.key]"
-                        readonly
-                        class="w-full"
-                        style="background-color: #f4f6f8;"
-                      />
-                      <va-select 
-                        v-else-if="['SELECT', 'MULTI_SELECT'].includes(field.type)" 
-                        v-model="selectedRecordData[field.key]" 
-                        :options="parseOptions(field.options)" 
-                        :multiple="field.type === 'MULTI_SELECT' || field.isMultiValue"
-                        value-by="value"
-                        class="w-full"
-                        :readonly="!isEditingRecord"
-                      />
-                      <va-checkbox
-                        v-else-if="field.type === 'BOOLEAN'"
-                        v-model="selectedRecordData[field.key]"
-                        class="w-full"
-                        :readonly="!isEditingRecord"
-                      />
-                      <div v-else-if="field.type === 'FILE'" class="w-full">
-                        <div v-if="!isEditingRecord" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                          <template v-if="selectedRecordData[field.key] && selectedRecordData[field.key].length > 0">
-                            <va-chip 
-                              v-for="(fileObj, i) in selectedRecordData[field.key]" 
-                              :key="i" 
-                              :href="fileObj.url || fileObj" 
-                              target="_blank" 
-                              outline 
-                              icon="download"
-                              color="primary"
-                              style="cursor: pointer;"
-                            >
-                              {{ fileObj.name || extractFilename(fileObj.url || fileObj) }}
-                            </va-chip>
-                          </template>
-                          <span v-else>-</span>
-                        </div>
-                        <va-file-upload v-else v-model="selectedRecordData[field.key]" :type="field.isMultiValue ? 'list' : 'single'" dropzone class="w-full file-upload-wrapper">
-                          <div style="display: flex; flex-direction: row; align-items: center; gap: 1rem; padding: 0.5rem; justify-content: center; width: 100%;">
-                            <span style="font-size: 0.9rem; color: #666;">여기로 파일을 드래그 하거나</span>
-                            <va-button size="small">내 PC에서 선택</va-button>
-                          </div>
-                        </va-file-upload>
-                        <transition-group name="flip-list" tag="div" v-if="isEditingRecord && selectedRecordData[field.key] && selectedRecordData[field.key].length > 0" class="custom-file-list" @dragover.prevent>
-                          <div 
-                            v-for="(fileObj, i) in selectedRecordData[field.key]" 
-                            :key="fileObj.url || fileObj.name" 
-                            class="custom-file-item"
-                            :draggable="field.isMultiValue"
-                            @dragstart="onDragStart($event, i, selectedRecordData[field.key])"
-                            @dragenter.prevent="onDragEnter($event, i, selectedRecordData[field.key])"
-                            @dragover.prevent
-                            @drop.prevent="onDrop($event, i, selectedRecordData[field.key])"
-                            @dragend="onDragEnd($event)"
-                            :style="field.isMultiValue ? 'cursor: grab;' : ''"
-                          >
-                            <div class="custom-file-info" style="display: flex; align-items: center;">
-                              <va-icon v-if="field.isMultiValue" name="drag_indicator" style="color: #666; margin-right: 8px; cursor: grab;" />
-                              {{ fileObj.name || extractFilename(fileObj.url || fileObj) }}
-                            </div>
-                            <div class="custom-file-actions">
-                              <va-icon name="delete" style="cursor: pointer; color: #E53935;" @click="removeFile(selectedRecordData[field.key], i)" />
-                            </div>
-                          </div>
-                        </transition-group>
-                      </div>
-                      <va-input 
-                        v-else
-                        v-model="selectedRecordData[field.key]" 
-                        type="text"
-                        class="w-full"
-                        :readonly="!isEditingRecord"
-                      />
-                    </div>
-                    </div>
-                  </template>
-                </div>
-              </div>
-              </va-collapse>
-          </va-accordion>
-        </div>
-      </div>
-      <div style="display: flex; justify-content: flex-end; margin-top: 1rem; gap: 0.5rem;">
-        <va-button v-if="!isEditingRecord && !isSnapshotMode && hasPermission('record:delete')" color="danger" @click="requestDeleteRecord">Delete</va-button>
-        <va-button v-if="!isEditingRecord && !isSnapshotMode && hasPermission('record:write')" color="warning" @click="isEditingRecord = true">Edit</va-button>
-        <va-button v-if="!isEditingRecord && (hasPermission('record:read') || hasPermission('record:*'))" color="info" @click="openHistory">History</va-button>
-        <va-button v-if="isEditingRecord && !isSnapshotMode && hasPermission('record:write')" color="success" :disabled="!hasUpdateWorkflow" @click="promptDraftComment('UPDATE')">Save</va-button>
-        <va-button @click="showDetailModal = false">Close</va-button>
-      </div>
-    </va-modal>
-
-    <!-- Record History Modal -->
-    <va-modal v-model="showHistoryModal" title="Record History" hide-default-actions size="large" :prevent-click-outside="true" :no-outside-dismiss="true">
-      <div style="max-height: 60vh; overflow-y: auto; padding: 1rem; box-sizing: border-box; width: 100%;">
-        <div v-if="!historyLogs || historyLogs.length === 0" style="text-align: center; color: #777;">
-          {{ $t('no_history_data') || '이력 데이터가 없습니다.' }}
-        </div>
-        <div v-else>
-          <va-data-table
-            :items="historyLogs"
-            :columns="historyColumns"
-            striped
-            hoverable
-          >
-            <template #cell(changedAt)="{ value }">
-              <span style="white-space: nowrap;">{{ formatDate(value) }}</span>
-            </template>
-            <template #cell(changedBy)="{ value }">
-              <span style="white-space: nowrap;">{{ getUserName(value) }}</span>
-            </template>
-            <template #cell(changeType)="{ value }">
-              <va-badge
-                v-if="value === 'PENDING_APPROVAL'"
-                color="warning"
-                :text="$t('pending_approval') || '결재 진행중'"
-              />
-              <va-badge
-                v-else
-                :color="value === 'CREATE' ? 'success' : (value === 'DELETE' ? 'danger' : 'info')"
-                :text="value"
-              />
-            </template>
-            <template #cell(diff)="{ row }">
-              <div v-if="row.rowData.changeType === 'PENDING_APPROVAL' && row.rowData.rawRequest" style="padding: 0.25rem 0;">
-                <va-button size="small" outline @click="viewDiffDetails(row.rowData.rawRequest.changes, row.rowData.rawRequest.targetType, true)">{{ $t('view_changes') || '변경 내역 보기' }}</va-button>
-                <div style="margin-top: 0.25rem; font-size: 0.85rem; font-weight: bold; color: var(--va-primary); display: flex; align-items: center; gap: 0.25rem;">
-                  <va-icon name="hourglass_empty" size="small" />
-                  <span>{{ $t('waiting_for') || '대기중' }}: {{ getUserName(row.rowData.rawRequest.steps.find(s => s.status === 'PENDING')?.assigneeId) }}</span>
-                </div>
-              </div>
-              <div v-else-if="row.rowData.changeType === 'UPDATE'" style="padding: 0.25rem 0;">
-                <va-button size="small" outline @click="viewDiffDetails(row.rowData.previousData, row.rowData.newData, false)">{{ $t('view_changes') || '변경 내역 보기' }}</va-button>
-              </div>
-              <div v-else-if="row.rowData.changeType === 'CREATE'" style="color: var(--va-success); font-size: 0.85rem; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;">
-                <va-badge color="success" text="CREATE" size="small" /> {{ $t('initial_created') || '초기 생성됨' }}
-              </div>
-              <div v-else-if="row.rowData.changeType === 'DELETE'" style="color: #c62828; font-size: 0.85rem; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;">
-                <va-badge color="danger" text="DELETE" size="small" /> {{ $t('deleted_status') || '삭제됨' }}
-              </div>
-            </template>
-            <template #cell(actions)="{ row }">
-              <div v-if="row.rowData.changeType === 'CREATE'" style="display: flex; gap: 0.5rem;">
-                <va-button size="small" color="info" outline @click="viewSnapshot(row.rowData.newData)">{{ $t('view_snapshot') || '스냅샷 보기' }}</va-button>
-                <va-button v-if="row.rowData.approvalRequestId" size="small" color="secondary" outline @click="viewApprovalHistory(row.rowData)">{{ $t('approval_history_btn') || '결재 내역' }}</va-button>
-                <va-button v-else-if="row.rowData.sourceSystem" size="small" color="info" outline @click="viewIntegrationHistory(row.rowData)">{{ $t('integration_history_btn') || '연계 내역' }}</va-button>
-              </div>
-              <div v-else-if="row.rowData.changeType === 'DELETE'" style="display: flex; gap: 0.5rem;">
-                <va-button size="small" color="warning" outline @click="viewSnapshot(row.rowData.previousData)">{{ $t('last_snapshot') || '마지막 스냅샷' }}</va-button>
-                <va-button v-if="row.rowData.approvalRequestId" size="small" color="secondary" outline @click="viewApprovalHistory(row.rowData)">{{ $t('approval_history_btn') || '결재 내역' }}</va-button>
-                <va-button v-else-if="row.rowData.sourceSystem" size="small" color="info" outline @click="viewIntegrationHistory(row.rowData)">{{ $t('integration_history_btn') || '연계 내역' }}</va-button>
-              </div>
-              <div v-else-if="row.rowData.changeType === 'UPDATE'" style="display: flex; gap: 0.5rem; flex-wrap: nowrap;">
-                <va-button size="small" color="warning" outline @click="viewSnapshot(row.rowData.previousData)">{{ $t('prev_snapshot') || '이전 스냅샷' }}</va-button>
-                <va-button size="small" color="info" outline @click="viewSnapshot(row.rowData.newData)">{{ $t('next_snapshot') || '이후 스냅샷' }}</va-button>
-                <va-button v-if="row.rowData.approvalRequestId" size="small" color="secondary" outline @click="viewApprovalHistory(row.rowData)">{{ $t('approval_history_btn') || '결재 내역' }}</va-button>
-                <va-button v-else-if="row.rowData.sourceSystem" size="small" color="info" outline @click="viewIntegrationHistory(row.rowData)">{{ $t('integration_history_btn') || '연계 내역' }}</va-button>
-              </div>
-              <div v-else-if="row.rowData.changeType === 'PENDING_APPROVAL'" style="display: flex; gap: 0.5rem;">
-                <va-button size="small" color="warning" @click="viewApprovalHistory(row.rowData)">{{ $t('approval_monitoring') || '결재 모니터링' }}</va-button>
-              </div>
-            </template>
-          </va-data-table>
-        </div>
-      </div>
-      <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
-        <va-button @click="showHistoryModal = false">Close</va-button>
-      </div>
-    </va-modal>
-
-    <!-- Record Snapshot Modal (New Modal) -->
-    <va-modal v-model="showSnapshotModal" :title="`Record Snapshot - ${selectedNode?.label}`" hide-default-actions :prevent-click-outside="true" :no-outside-dismiss="true">
-      <div style="max-height: 60vh; overflow-y: auto; overflow-x: hidden; padding: 1rem; box-sizing: border-box; width: 100%;">
-        <div style="margin-bottom: 1rem; padding: 0.5rem; background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 4px; text-align: center; font-weight: bold;">
-          이전 데이터 스냅샷을 조회 중입니다. (읽기 전용)
-        </div>
-        
-        <!-- Sector Tabs -->
-        <va-tabs v-model="activeSnapshotSectorTab" style="margin-bottom: 1rem;">
-          <template #tabs>
-            <va-tab v-for="(sector, idx) in groupedFieldsArray" :key="sector.key" :name="idx">
-              {{ sector.label }}
-            </va-tab>
-          </template>
-        </va-tabs>
-        
-        <!-- Sector Content -->
-        <div v-for="(sector, idx) in groupedFieldsArray" :key="sector.key" v-show="activeSnapshotSectorTab === idx">
-          <va-accordion multiple style="width: 100%;" class="mb-4">
-            <va-collapse 
-              v-for="(group, groupIdx) in sector.groups" 
-              :key="group.key"
-              :header="group.label"
-              v-model="group.isOpen"
-              solid
-              color="background-element"
-              style="margin-bottom: 0.5rem;"
-            >
-              <div style="padding: 0.5rem 1rem; display: flex; flex-direction: column; gap: 0.5rem; --va-input-wrapper-min-height: 28px; --va-input-font-size: 0.9rem;">
-                  <div v-for="field in group.fields" :key="field.id" style="width: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 0.25rem;">
-                    <span :style="{ fontSize: '0.75rem', color: field.isHighlighted ? 'var(--va-primary)' : 'var(--va-text-secondary)', fontWeight: field.isHighlighted ? '800' : '600', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }"><va-icon v-if="field.isHighlighted" name="star" size="small" color="primary" />{{ getTranslatedName(field.name) }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}</span>
-                      <va-input 
-                        v-if="['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type)" 
-                        :model-value="snapshotRecordData[field.key]" 
-                        type="number"
-                        readonly
-                      />
-                      <div v-else-if="field.type === 'DOMAIN_REFERENCE'" style="display: flex; gap: 0.5rem; align-items: center;">
-                        <va-input 
-                          :model-value="getDomainRefDisplayName(field.key, snapshotRecordData[field.key])" 
-                          readonly
-                          style="flex: 1;"
-                        />
-                      </div>
-                      <!-- Multilingual -->
-                      <div v-else-if="field.type === 'MULTILINGUAL'" class="w-full" style="display: flex; gap: 0.5rem; flex-direction: row;">
-                        <va-input :model-value="snapshotRecordData[field.key]?.ko" style="flex: 1;" readonly class="slim-multilingual-input">
-                          <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">한국어</span></template>
-                        </va-input>
-                        <va-input :model-value="snapshotRecordData[field.key]?.en" style="flex: 1;" readonly class="slim-multilingual-input">
-                          <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">English</span></template>
-                        </va-input>
-                      </div>
-                      <va-input 
-                        v-else-if="field.type === 'CALCULATED'"
-                        :model-value="snapshotRecordData[field.key]"
-                        readonly
-                        style="background-color: #f4f6f8;"
-                      />
-                      <va-select 
-                        v-else-if="['SELECT', 'MULTI_SELECT'].includes(field.type)" 
-                        :model-value="snapshotRecordData[field.key]" 
-                        :options="parseOptions(field.options)" 
-                        :multiple="field.type === 'MULTI_SELECT' || field.isMultiValue"
-                        value-by="value"
-                        class="w-full"
-                        readonly
-                      />
-                      <va-checkbox
-                        v-else-if="field.type === 'BOOLEAN'"
-                        :model-value="snapshotRecordData[field.key]"
-                        class="w-full"
-                        readonly
-                      />
-                      <div v-else-if="field.type === 'FILE'" class="w-full">
-                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                          <template v-if="snapshotRecordData[field.key] && snapshotRecordData[field.key].length > 0">
-                            <va-chip 
-                              v-for="(fileObj, fileIdx) in snapshotRecordData[field.key]" 
-                              :key="fileIdx" 
-                              :href="fileObj.url || fileObj" 
-                              target="_blank" 
-                              outline 
-                              icon="download"
-                              color="primary"
-                              style="cursor: pointer;"
-                            >
-                              {{ fileObj.name || extractFilename(fileObj.url || fileObj) }}
-                            </va-chip>
-                          </template>
-                          <span v-else>-</span>
-                        </div>
-                      </div>
-                      <va-input 
-                        v-else
-                        :model-value="snapshotRecordData[field.key]" 
-                        type="text"
-                        readonly
-                      />
-                  </div>
-                </div>
-            </va-collapse>
-          </va-accordion>
-        </div>
-      </div>
-      <div style="display: flex; justify-content: flex-end; margin-top: 1rem; gap: 0.5rem;">
-        <va-button @click="showSnapshotModal = false">Close</va-button>
       </div>
     </va-modal>
 
@@ -1028,13 +608,16 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { useCookie, useState } from '#app'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { useCookie } from '#app'
 import { AgGridVue } from 'ag-grid-vue3'
 import ExcelUploader from '~/components/ExcelUploader.vue'
+import RecordFormModal from '~/components/records/RecordFormModal.vue'
+import RecordDetailDrawer from '~/components/records/RecordDetailDrawer.vue'
+import RecordCompareModal from '~/components/records/RecordCompareModal.vue'
+
 import { useColors } from 'vuestic-ui'
 import { useI18n } from 'vue-i18n'
-
 import { usePermission } from '~/composables/usePermission'
 
 const { t } = useI18n()
@@ -1044,9 +627,18 @@ const { hasPermission } = usePermission()
 const { currentPresetName } = useColors()
 const isDark = computed(() => currentPresetName.value === 'dark')
 
-// Global i18n sync
 const currentLocale = useCookie('locale', { default: () => 'ko' })
 const token = useCookie('auth_token', { default: () => '' })
+
+const showCompareModal = ref(false)
+const selectedRecordRows = ref([])
+
+const onSelectionChanged = (event) => {
+  if (!event || !event.api) return
+  const rows = event.api.getSelectedRows() || []
+  selectedRecordRows.value = rows
+}
+
 
 const userCookie = useCookie('user_data')
 const currentUser = computed(() => {
@@ -1083,12 +675,6 @@ const hasCreateWorkflow = ref(true)
 const hasUpdateWorkflow = ref(true)
 
 const selectedDomainInfo = ref(null)
-const isAutoNumberingField = (field) => {
-  if (!selectedDomainInfo.value || !field) return false
-  return field.id === selectedDomainInfo.value.identifierFieldId &&
-         selectedDomainInfo.value.numberingPattern &&
-         selectedDomainInfo.value.numberingPattern.trim() !== ''
-}
 
 const nodeFields = ref([])
 const rowData = ref([])
@@ -1194,7 +780,6 @@ const onDomainRefRowDoubleClicked = (params) => {
   showDomainRefModal.value = false
 }
 
-
 const domainRefDisplayMap = ref({})
 
 const extractMultilingualField = (dataObj, fieldKey) => {
@@ -1293,7 +878,7 @@ const getDomainRefDisplayName = (fieldKey, recordId) => {
   const refInfo = domainReferences.value[fieldKey]
   if (!refInfo) return recordId
   
-  const record = refInfo.records.find(r => r.id === recordId)
+  const record = refInfo.records?.find(r => r.id === recordId)
   if (record) {
     const data = typeof record.data === 'string' ? JSON.parse(record.data) : record.data;
     const displayStr = buildDomainRefDisplayString(data, refInfo.domainInfo, refInfo.fields);
@@ -1310,18 +895,12 @@ const getDomainRefDisplayName = (fieldKey, recordId) => {
 const gridApi = ref(null)
 
 const showCreateModal = ref(false)
-const activeSectorTab = ref(0)
 const recordFormData = ref({})
-const focusedDateFields = ref({})
 
 const parseName = (nameObj) => {
   if (!nameObj) return null;
   if (typeof nameObj === 'string') {
-    try {
-      return JSON.parse(nameObj);
-    } catch (e) {
-      return null;
-    }
+    try { return JSON.parse(nameObj); } catch (e) { return null; }
   }
   return nameObj;
 }
@@ -1330,48 +909,6 @@ const getTranslatedName = (nameObj) => {
   const pName = parseName(nameObj)
   return pName?.[currentLocale.value] || pName?.ko || pName?.en || ''
 }
-
-const groupedFieldsArray = computed(() => {
-  const map = new Map()
-  
-  const sortedFields = [...nodeFields.value].sort((a, b) => (a.order || 0) - (b.order || 0))
-
-  sortedFields.forEach(f => {
-    const sObj = f.fieldGroup?.sector
-    const gObj = f.fieldGroup
-
-    const sName = getTranslatedName(sObj?.name) || (currentLocale.value === 'ko' ? '일반' : 'General')
-    const sKey = sObj?.id || 'default'
-    const sOrder = sObj?.sortOrder || 0
-    
-    const gName = getTranslatedName(gObj?.name) || (currentLocale.value === 'ko' ? '기본 필드' : 'Fields')
-    const gKey = gObj?.id || 'default'
-    const gOrder = gObj?.sortOrder || 0
-    
-    if (!map.has(sKey)) {
-      map.set(sKey, { key: sKey, label: sName, order: sOrder, groups: new Map() })
-    }
-    const sectorObj = map.get(sKey)
-    
-    if (!sectorObj.groups.has(gKey)) {
-      sectorObj.groups.set(gKey, { key: gKey, label: gName, order: gOrder, fields: [], isOpen: gObj?.isDefaultOpen ?? true })
-    }
-    sectorObj.groups.get(gKey).fields.push(f)
-  })
-  
-  const sectors = Array.from(map.values())
-  sectors.sort((a, b) => a.order - b.order)
-  
-  return sectors.map(s => {
-    const groups = Array.from(s.groups.values())
-    groups.sort((a, b) => a.order - b.order)
-    return {
-      key: s.key,
-      label: s.label,
-      groups: groups
-    }
-  })
-})
 
 const parseOptions = (opts) => {
   if (!opts) return []
@@ -1398,16 +935,6 @@ const parseOptions = (opts) => {
   return opts
 }
 
-const isMultiple = (field) => {
-  if (!field.options) return false;
-  try {
-    const opts = JSON.parse(field.options);
-    return opts.multiple === true;
-  } catch (e) {
-    return false;
-  }
-}
-
 const route = useRoute()
 const initialRouteHandled = ref(false)
 
@@ -1423,12 +950,19 @@ function findNodeInTree(nodeId, nodesList = treeNodes.value) {
   return null
 }
 
+const extractFilename = (url) => {
+  if (!url) return 'Download';
+  try {
+    if (url.includes('?name=')) return decodeURIComponent(url.split('?name=')[1].split('&')[0]);
+    return decodeURIComponent(url.split('/').pop().split('?')[0]) || 'Download';
+  } catch(e) { return 'Download'; }
+};
+
 const processRecordDataWithFields = (rawDataObj, fields) => {
   const rawData = typeof rawDataObj === 'string' ? (rawDataObj ? JSON.parse(rawDataObj) : {}) : (rawDataObj || {})
   const data = { ...rawData }
   const fieldsToProcess = fields || []
   
-  // 모든 키를 대문자(UPPERCASE)로 변환한 Map 생성
   const rawDataUpperMap = new Map()
   Object.keys(rawData).forEach(k => {
     if (k) rawDataUpperMap.set(k.trim().toUpperCase(), rawData[k])
@@ -1438,17 +972,33 @@ const processRecordDataWithFields = (rawDataObj, fields) => {
     if (!f || !f.key) return
     const fKeyUpper = f.key.trim().toUpperCase()
     
-    // 1. 대문자 키 대조 (UPPERCASE Exact Match)
     let rawVal = data[f.key] !== undefined 
       ? data[f.key] 
       : (rawDataUpperMap.has(fKeyUpper) ? rawDataUpperMap.get(fKeyUpper) : undefined)
 
-    // 2. 대문자 키 포함 대조 Fallback (예: STOCK_CODE <-> CODE, STOCK_NAME <-> NAME, MARKET_TYPE <-> MARKET)
     if (rawVal === undefined) {
       for (const [uKey, val] of rawDataUpperMap.entries()) {
         if (uKey === fKeyUpper || uKey.endsWith('_' + fKeyUpper) || fKeyUpper.endsWith('_' + uKey) || uKey.includes(fKeyUpper) || fKeyUpper.includes(uKey)) {
           rawVal = val
           break
+        }
+      }
+    }
+    
+    if (rawVal === undefined) {
+      const keyLower = f.key.toLowerCase();
+      if (keyLower.includes('en') || keyLower.includes('eng')) {
+        const baseKey = f.key.replace(/_?en(g(lish)?)?$/i, '').replace(/^en(g(lish)?)?_?/i, '');
+        if (baseKey && data[baseKey]) {
+          const parentVal = data[baseKey];
+          if (parentVal && typeof parentVal === 'object' && parentVal.en) {
+            rawVal = parentVal.en;
+          } else if (typeof parentVal === 'string') {
+            try {
+              const parsed = JSON.parse(parentVal);
+              if (parsed && parsed.en) rawVal = parsed.en;
+            } catch(e){}
+          }
         }
       }
     }
@@ -1492,12 +1042,13 @@ const processRecordDataWithFields = (rawDataObj, fields) => {
     } else {
       if (rawVal !== null && rawVal !== undefined) {
         if (typeof rawVal === 'object') {
-          data[f.key] = rawVal.ko || rawVal.en || JSON.stringify(rawVal)
+          data[f.key] = rawVal.en || rawVal.ko || JSON.stringify(rawVal)
         } else {
           data[f.key] = rawVal
         }
       }
     }
+
   })
 
   return data
@@ -1527,12 +1078,14 @@ const openRecordDetailModal = async (record) => {
 
   selectedRecordData.value = data
   originalRecordData.value = JSON.parse(JSON.stringify(data))
-  activeSectorTab.value = 0
   isEditingRecord.value = false
   isSnapshotMode.value = false
   hasPendingUpdate.value = record.status === 'PENDING_APPROVAL' || false
+  
+  openHistory()
   showDetailModal.value = true
 }
+
 
 const handleInitialRouteParams = async () => {
   if (initialRouteHandled.value) return
@@ -1585,7 +1138,6 @@ const handleInitialRouteParams = async () => {
     }
   }
 
-  // Fallback: If no node is selected, select the first tree node automatically
   if (!selectedNode.value && treeNodes.value && treeNodes.value.length > 0) {
     initialRouteHandled.value = true
     await selectNode(treeNodes.value[0])
@@ -1691,9 +1243,37 @@ const selectNode = async (node) => {
   }
 }
 
+const parseDate = (dateString) => {
+  if (!dateString) return null
+  let str = String(dateString).trim()
+  if (/^\d+$/.test(str)) {
+    return new Date(parseInt(str, 10))
+  }
+  if (!str.endsWith('Z') && !str.includes('+') && !/[-+]\d{2}:\d{2}$/.test(str)) {
+    if (str.includes(' ') && !str.includes('T')) {
+      str = str.replace(' ', 'T')
+    }
+    const serverOffset = useCookie('server_offset', { default: () => '+09:00' }).value
+    str += serverOffset
+  }
+  const d = new Date(str)
+  return isNaN(d.getTime()) ? new Date(dateString) : d
+}
+
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  const date = parseDate(dateString)
+  if (!date) return ''
+  const tz = useCookie('timezone', { default: () => 'Asia/Seoul' }).value
+  const formatted = date.toLocaleString(undefined, { timeZone: tz })
+  return formatted.replace(/\s*(GMT|UTC|KST|PST|EST|CET)[-+0-9:]*/gi, '').trim()
+}
+
 const buildColumnDefs = (fields, showNodeColumn = false) => {
   const defs = [
     { field: 'id', headerName: 'ID', sortable: true, width: 100 },
+
+
     { 
       field: 'nodeName', 
       headerName: 'Classification Node', 
@@ -1734,11 +1314,28 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
       colId: f.key,
       valueGetter: (params) => {
         if (!params.data || !params.data.data) return null;
-        if (params.data.data[f.key] !== undefined) return params.data.data[f.key];
+        const d = params.data.data;
+        if (d[f.key] !== undefined && d[f.key] !== null && d[f.key] !== '') return d[f.key];
         const lowerKey = String(f.key).toLowerCase();
-        if (params.data.data[lowerKey] !== undefined) return params.data.data[lowerKey];
+        if (d[lowerKey] !== undefined && d[lowerKey] !== null && d[lowerKey] !== '') return d[lowerKey];
         const upperKey = String(f.key).toUpperCase();
-        if (params.data.data[upperKey] !== undefined) return params.data.data[upperKey];
+        if (d[upperKey] !== undefined && d[upperKey] !== null && d[upperKey] !== '') return d[upperKey];
+        
+        // English field fallback (e.g. f.key is name_en, englishName, etc.)
+        if (lowerKey.includes('en') || lowerKey.includes('eng')) {
+          const baseKey = f.key.replace(/_?en(g(lish)?)?$/i, '').replace(/^en(g(lish)?)?_?/i, '');
+          if (baseKey && d[baseKey]) {
+            const parentVal = d[baseKey];
+            if (parentVal && typeof parentVal === 'object' && parentVal.en) {
+              return parentVal.en;
+            } else if (typeof parentVal === 'string') {
+              try {
+                const parsed = JSON.parse(parentVal);
+                if (parsed && parsed.en) return parsed.en;
+              } catch(e){}
+            }
+          }
+        }
         return null;
       },
       sortable: true
@@ -1789,12 +1386,18 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
         if (!params.value) return ''
         try {
           const obj = typeof params.value === 'string' ? JSON.parse(params.value) : params.value;
+          const keyLower = String(f.key).toLowerCase();
+          const nameLower = String(getTranslatedName(f.name)).toLowerCase();
+          if (keyLower.includes('en') || nameLower.includes('영문') || nameLower.includes('english')) {
+            return obj.en || obj.ko || '';
+          }
           return obj[currentLocale.value] || obj.ko || obj.en || JSON.stringify(params.value);
         } catch(e) {
           return String(params.value);
         }
       }
-    } else if (f.type === 'DOMAIN_REFERENCE') {
+    }
+ else if (f.type === 'DOMAIN_REFERENCE') {
       colDef.cellRenderer = (params) => {
         if (!params.value) return ''
         const displayVal = getDomainRefDisplayName(f.key, params.value)
@@ -1853,7 +1456,6 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
         }
       }
       
-      // 그룹을 접었을 때 그룹 자체가 사라지지 않도록, 첫 번째 컬럼은 항상 보이게 하고 나머지는 열렸을 때만 보이게 설정
       if (groupMap[gName].children.length > 0) {
         colDef.columnGroupShow = 'open';
       }
@@ -1864,7 +1466,6 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
     }
   })
   
-  // Append sorted groups
   Object.values(groupMap)
     .sort((a, b) => a._sortOrder - b._sortOrder)
     .forEach(g => {
@@ -1885,169 +1486,165 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
 
 const columnDefs = ref([])
   
-  const activeFilters = ref({})
-  const activeFiltersOp = ref({})
-  const activeFiltersMax = ref({})
-  
-  const draftFilters = ref({})
-  const draftFiltersOp = ref({})
-  const draftFiltersMax = ref({})
-  
-  const showAdvancedSearch = ref(false)
-  const searchableFields = computed(() => nodeFields.value.filter(f => f.isSearchable && !f.isRemoved))
-  
-  const onFilterKeydown = (e) => {
-    if (e && e.key === 'Enter') {
-      applyFilters()
-    }
+const activeFilters = ref({})
+const activeFiltersOp = ref({})
+const activeFiltersMax = ref({})
+
+const draftFilters = ref({})
+const draftFiltersOp = ref({})
+const draftFiltersMax = ref({})
+
+const showAdvancedSearch = ref(false)
+const searchableFields = computed(() => nodeFields.value.filter(f => f.isSearchable && !f.isRemoved))
+
+const onFilterKeydown = (e) => {
+  if (e && e.key === 'Enter') {
+    applyFilters()
   }
+}
 
-  const applyFilters = () => {
-    activeFilters.value = { ...draftFilters.value }
-    activeFiltersOp.value = { ...draftFiltersOp.value }
-    activeFiltersMax.value = { ...draftFiltersMax.value }
-    fetchRecords()
-  }
-  
-  const clearFilters = () => {
-    draftFilters.value = {}
-    draftFiltersOp.value = {}
-    draftFiltersMax.value = {}
-    activeFilters.value = {}
-    activeFiltersOp.value = {}
-    activeFiltersMax.value = {}
-    fetchRecords()
-  }
-  
-  const removeFilter = (key) => {
-    const nextDraft = { ...draftFilters.value }
-    delete nextDraft[key]
-    draftFilters.value = nextDraft
+const applyFilters = () => {
+  activeFilters.value = { ...draftFilters.value }
+  activeFiltersOp.value = { ...draftFiltersOp.value }
+  activeFiltersMax.value = { ...draftFiltersMax.value }
+  fetchRecords()
+}
 
-    const nextDraftOp = { ...draftFiltersOp.value }
-    delete nextDraftOp[key]
-    draftFiltersOp.value = nextDraftOp
+const clearFilters = () => {
+  draftFilters.value = {}
+  draftFiltersOp.value = {}
+  draftFiltersMax.value = {}
+  activeFilters.value = {}
+  activeFiltersOp.value = {}
+  activeFiltersMax.value = {}
+  fetchRecords()
+}
 
-    const nextDraftMax = { ...draftFiltersMax.value }
-    delete nextDraftMax[key]
-    draftFiltersMax.value = nextDraftMax
+const removeFilter = (key) => {
+  const nextDraft = { ...draftFilters.value }
+  delete nextDraft[key]
+  draftFilters.value = nextDraft
 
-    const nextActive = { ...activeFilters.value }
-    delete nextActive[key]
-    activeFilters.value = nextActive
+  const nextDraftOp = { ...draftFiltersOp.value }
+  delete nextDraftOp[key]
+  draftFiltersOp.value = nextDraftOp
 
-    const nextActiveOp = { ...activeFiltersOp.value }
-    delete nextActiveOp[key]
-    activeFiltersOp.value = nextActiveOp
+  const nextDraftMax = { ...draftFiltersMax.value }
+  delete nextDraftMax[key]
+  draftFiltersMax.value = nextDraftMax
 
-    const nextActiveMax = { ...activeFiltersMax.value }
-    delete nextActiveMax[key]
-    activeFiltersMax.value = nextActiveMax
+  const nextActive = { ...activeFilters.value }
+  delete nextActive[key]
+  activeFilters.value = nextActive
 
-    fetchRecords()
-  }
+  const nextActiveOp = { ...activeFiltersOp.value }
+  delete nextActiveOp[key]
+  activeFiltersOp.value = nextActiveOp
 
-  const getFilterFieldLabel = (key) => {
-    const f = searchableFields.value.find(f => f.key === key)
-    return f ? getTranslatedName(f.name) : key
-  }
-  
-  const formatFilterValue = (key, val) => {
-    const op = activeFiltersOp.value[key] || 'EQ'
-    const maxVal = activeFiltersMax.value[key]
-    if (op === 'BETWEEN') return `${val} ~ ${maxVal || ''}`
-    if (op === 'GT') return `> ${val}`
-    if (op === 'LT') return `< ${val}`
-    if (op === 'GTE') return `>= ${val}`
-    if (op === 'LTE') return `<= ${val}`
-    if (op === 'CONTAINS') return `[${t('op.contains')}] ${val}`
-    if (op === 'STARTS_WITH') return `[${t('op.starts_with')}] ${val}`
-    if (op === 'ENDS_WITH') return `[${t('op.ends_with')}] ${val}`
-    if (op === 'EQ') return `= ${val}`
-    return val
-  }
-  
-  const createDatasource = () => {
-    return {
-      getRows: async (params) => {
-        if (!selectedNode.value) {
-          params.successCallback([], 0);
-          return;
-        }
-        
-        const size = params.endRow - params.startRow;
-        const page = Math.floor(params.startRow / size);
-        
-        try {
-          const endpoint = selectedNode.value.isDomain 
-            ? `/api/records/domain/${selectedNode.value.id}` 
-            : `/api/nodes/${selectedNode.value.id}/records?includeChildren=true`
-          
-          const searchParams = new URLSearchParams()
-          if (endpoint.includes('?')) {
-            const parts = endpoint.split('?')
-            const qs = new URLSearchParams(parts[1])
-            qs.forEach((v, k) => searchParams.append(k, v))
-          }
-          Object.entries(activeFilters.value).forEach(([k, v]) => {
-            if (v !== null && v !== '') {
-              searchParams.append('search_' + k, v)
-              const op = activeFiltersOp.value[k] || 'EQ'
-              searchParams.append('search_op_' + k, op)
-              if (op === 'BETWEEN' && activeFiltersMax.value[k]) {
-                searchParams.append('search_' + k + '_max', activeFiltersMax.value[k])
-              }
-            }
-          })
-          
-          if (params.sortModel && params.sortModel.length > 0) {
-            const sort = params.sortModel[0]
-            let colId = sort.colId || ''
-            if (colId.startsWith('data.')) {
-              colId = colId.substring(5)
-            }
-            searchParams.append('sortField', colId)
-            searchParams.append('sortOrder', sort.sort.toUpperCase())
-          }
-          
-          searchParams.append('page', page);
-          searchParams.append('size', size);
-          
-          const finalEndpoint = endpoint.split('?')[0] + '?' + searchParams.toString();
-            
-          const pageData = await $fetch(finalEndpoint, {
-            headers: { Authorization: `Bearer ${token.value}` }
-          });
-          
-          const rows = pageData.content.map(r => {
-            let parsedData = {}
-            if (r.data) {
-              try {
-                parsedData = JSON.parse(r.data)
-              } catch(e) {}
-            }
-            
-            const nodeNameMap = r.node?.name || {}
-            const nodeName = parseName(nodeNameMap)?.[currentLocale.value] || parseName(nodeNameMap)?.ko || parseName(nodeNameMap)?.en || r.node?.id || 'Unknown'
-            
-            return { ...r, data: parsedData, nodeName }
-          });
-          
-          params.successCallback(rows, pageData.totalElements);
-          
-        } catch (e) {
-          console.error('Failed to load records:', e);
-          params.failCallback();
-        }
+  const nextActiveMax = { ...activeFiltersMax.value }
+  delete nextActiveMax[key]
+  activeFiltersMax.value = nextActiveMax
+
+  fetchRecords()
+}
+
+const getFilterFieldLabel = (key) => {
+  const f = searchableFields.value.find(f => f.key === key)
+  return f ? getTranslatedName(f.name) : key
+}
+
+const formatFilterValue = (key, val) => {
+  const op = activeFiltersOp.value[key] || 'EQ'
+  const maxVal = activeFiltersMax.value[key]
+  if (op === 'BETWEEN') return `${val} ~ ${maxVal || ''}`
+  if (op === 'GT') return `> ${val}`
+  if (op === 'LT') return `< ${val}`
+  if (op === 'GTE') return `>= ${val}`
+  if (op === 'LTE') return `<= ${val}`
+  if (op === 'CONTAINS') return `[${t('op.contains')}] ${val}`
+  if (op === 'STARTS_WITH') return `[${t('op.starts_with')}] ${val}`
+  if (op === 'ENDS_WITH') return `[${t('op.ends_with')}] ${val}`
+  if (op === 'EQ') return `= ${val}`
+  return val
+}
+
+const createDatasource = () => {
+  return {
+    getRows: async (params) => {
+      if (!selectedNode.value) {
+        params.successCallback([], 0);
+        return;
       }
-    };
-  };
+      
+      const size = params.endRow - params.startRow;
+      const page = Math.floor(params.startRow / size);
+      
+      try {
+        const endpoint = selectedNode.value.isDomain 
+          ? `/api/records/domain/${selectedNode.value.id}` 
+          : `/api/nodes/${selectedNode.value.id}/records?includeChildren=true`
+        
+        const searchParams = new URLSearchParams()
+        if (endpoint.includes('?')) {
+          const parts = endpoint.split('?')
+          const qs = new URLSearchParams(parts[1])
+          qs.forEach((v, k) => searchParams.append(k, v))
+        }
+        Object.entries(activeFilters.value).forEach(([k, v]) => {
+          if (v !== null && v !== '') {
+            searchParams.append('search_' + k, v)
+            const op = activeFiltersOp.value[k] || 'EQ'
+            searchParams.append('search_op_' + k, op)
+            if (op === 'BETWEEN' && activeFiltersMax.value[k]) {
+              searchParams.append('search_' + k + '_max', activeFiltersMax.value[k])
+            }
+          }
+        })
+        
+        if (params.sortModel && params.sortModel.length > 0) {
+          const sort = params.sortModel[0]
+          let colId = sort.colId || ''
+          if (colId.startsWith('data.')) {
+            colId = colId.substring(5)
+          }
+          searchParams.append('sortField', colId)
+          searchParams.append('sortOrder', sort.sort.toUpperCase())
+        }
+        
+        searchParams.append('page', page);
+        searchParams.append('size', size);
+        
+        const finalEndpoint = endpoint.split('?')[0] + '?' + searchParams.toString();
+          
+        const pageData = await $fetch(finalEndpoint, {
+          headers: { Authorization: `Bearer ${token.value}` }
+        });
+        
+        const rows = pageData.content.map(r => {
+          const parsedData = processRecordDataWithFields(r.data, nodeFields.value)
+          
+          const nodeNameMap = r.node?.name || {}
+          const nodeName = parseName(nodeNameMap)?.[currentLocale.value] || parseName(nodeNameMap)?.ko || parseName(nodeNameMap)?.en || r.node?.id || 'Unknown'
+          
+          return { ...r, data: parsedData, nodeName }
+        });
 
-  const fetchRecords = async () => {
-    if (gridApi.value) {
-      gridApi.value.setGridOption('datasource', createDatasource());
+        
+        params.successCallback(rows, pageData.totalElements);
+        
+      } catch (e) {
+        console.error('Failed to load records:', e);
+        params.failCallback();
+      }
     }
+  };
+};
+
+const fetchRecords = async () => {
+  if (gridApi.value) {
+    gridApi.value.setGridOption('datasource', createDatasource());
   }
+}
 
 const onGridReady = (params) => {
   gridApi.value = params.api
@@ -2056,76 +1653,7 @@ const onGridReady = (params) => {
   fetchRecords()
 }
 
-
-
-const formatNumber = (val) => {
-  if (val === null || val === undefined || val === '') return val;
-  const num = Number(val);
-  if (isNaN(num)) return val;
-  return num.toLocaleString('ko-KR');
-}
-
-const formatViewingValue = (field, val) => {
-  if (val === null || val === undefined || val === '') return '-';
-  if (field.type === 'DOMAIN_REFERENCE') {
-    return getDomainRefDisplayName(field.key, val) || '-';
-  }
-  if (field.type === 'MULTILINGUAL') {
-    try {
-      const obj = typeof val === 'string' ? JSON.parse(val) : val;
-      return obj[currentLocale.value] || obj.ko || obj.en || JSON.stringify(val);
-    } catch(e) {
-      return String(val);
-    }
-  }
-  if (field.type === 'FILE') {
-    const getFilename = (url) => {
-      try {
-        if (url.includes('?name=')) return decodeURIComponent(url.split('?name=')[1].split('&')[0]);
-        return decodeURIComponent(url.split('/').pop().split('?')[0]) || 'Download';
-      } catch(e) { return 'Download'; }
-    };
-    try {
-      const arr = JSON.parse(val);
-      if (Array.isArray(arr)) {
-        return arr.map(url => `<a href="${url}" target="_blank" style="color: blue; text-decoration: underline;">${getFilename(url)}</a>`).join('<br>');
-      }
-    } catch(e) {}
-    return `<a href="${val}" target="_blank" style="color: blue; text-decoration: underline;">${getFilename(val)}</a>`;
-  }
-  if (['SELECT', 'MULTI_SELECT'].includes(field.type)) {
-    try {
-      const opts = JSON.parse(field.options || '[]');
-      const mapVal = (v) => {
-        const found = opts.find(o => o.key === v);
-        if (found && found.label) {
-          return found.label[currentLocale.value] || found.label.ko || found.label.en || v;
-        }
-        return v;
-      };
-      if (Array.isArray(val)) return val.map(mapVal).join(', ');
-      return mapVal(val);
-    } catch(e) {}
-  }
-  if (typeof val === 'object') {
-    return val[currentLocale.value] || val.ko || val.en || JSON.stringify(val);
-  }
-  if (['NUMBER', 'INTEGER', 'DECIMAL', 'CALCULATED'].includes(field.type)) {
-    let formatted = formatNumber(val);
-    if (field.unit) {
-      formatted += ` ${field.unit}`;
-    }
-    return formatted;
-  }
-  if (typeof val === 'number') {
-    return formatNumber(val);
-  }
-  return val;
-}
-
 const showDetailModal = ref(false)
-const showHistoryModal = ref(false)
-const showSnapshotModal = ref(false)
 const showRequiredWarningModal = ref(false)
 const missingRequiredFields = ref([])
 const firstMissingFieldKey = ref(null)
@@ -2143,69 +1671,25 @@ const showCustomAlert = (msg, header = '', title = '', type = 'error') => {
   errorAlertType.value = type
   showErrorAlertModal.value = true
 }
-const snapshotRecordData = ref({})
-const activeSnapshotSectorTab = ref(0)
+
 const { showLoading, hideLoading } = useLoading()
 const historyLogs = ref([])
 const showDiffModal = ref(false)
 const selectedDiffs = ref([])
 
-const historyColumns = computed(() => [
-  { key: 'changedAt', label: t('date_time') || '일시', sortable: true },
-  { key: 'changedBy', label: t('processed_by') || '처리자' },
-  { key: 'changeType', label: t('change_type') || '유형' },
-  { key: 'diff', label: t('change_details') || '변경 내역' },
-  { key: 'actions', label: t('actions') || '동작' }
-])
-
 const showApprovalHistoryModal = ref(false)
 const selectedApprovalRequest = ref(null)
 const selectedReflectionTime = ref(null)
 
-const extractFilename = (url) => {
-  if (!url) return 'Download';
+const isMultiple = (field) => {
+  if (!field.options) return false;
   try {
-    if (url.includes('?name=')) return decodeURIComponent(url.split('?name=')[1].split('&')[0]);
-    return decodeURIComponent(url.split('/').pop().split('?')[0]) || 'Download';
-  } catch(e) { return 'Download'; }
-};
-
-let draggedItemIndex = null;
-let currentArrayRef = null;
-
-const onDragStart = (event, index, arr) => {
-  draggedItemIndex = index;
-  currentArrayRef = arr;
-  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
-  setTimeout(() => {
-    if (event.target && event.target.style) event.target.style.opacity = '0.5';
-  }, 0);
-};
-
-const onDragEnter = (event, index, arr) => {
-  if (draggedItemIndex === null || currentArrayRef !== arr) return;
-  if (draggedItemIndex === index) return;
-  
-  const temp = arr[draggedItemIndex];
-  arr.splice(draggedItemIndex, 1);
-  arr.splice(index, 0, temp);
-  draggedItemIndex = index;
-};
-
-const onDrop = (event, index, arr) => {
-  // onDragEnter already swapped elements, nothing to do here
-};
-
-const onDragEnd = (event) => {
-  if (event.target && event.target.style) event.target.style.opacity = '1';
-  draggedItemIndex = null;
-  currentArrayRef = null;
-};
-
-const removeFile = (arr, index) => {
-  if (!arr || !Array.isArray(arr)) return;
-  arr.splice(index, 1);
-};
+    const opts = JSON.parse(field.options);
+    return opts.multiple === true;
+  } catch (e) {
+    return false;
+  }
+}
 
 const viewApprovalHistory = async (row) => {
   if (!row.approvalRequestId) return
@@ -2265,17 +1749,20 @@ const isEditingRecord = ref(false)
 const hasPendingUpdate = ref(false)
 const isSnapshotMode = ref(false)
 
+const showSnapshotModal = ref(false)
+const snapshotRecordData = ref({})
+
 const viewSnapshot = (dataString) => {
   if (!dataString) return
   try {
     const data = processRecordDataWithFields(dataString, nodeFields.value)
     snapshotRecordData.value = data
-    activeSnapshotSectorTab.value = activeSectorTab.value
     showSnapshotModal.value = true
   } catch(e) {
     console.error('Failed to view snapshot:', e)
   }
 }
+
 
 const getParsedDiffs = (prev, next) => {
     let p = {};
@@ -2284,18 +1771,15 @@ const getParsedDiffs = (prev, next) => {
       try {
         const parsed = JSON.parse(prev);
         if (next === 'RECORD_UPDATE') {
-          // This is from Inbox (rawRequest.changes)
           p = parsed.before || {};
           n = parsed.after || {};
         } else if (next === 'RECORD_CREATE' || next === 'RECORD_DELETE') {
            n = parsed || {};
         } else {
-          // This is from History (previousData and newData)
           p = parsed || {};
           n = typeof next === 'string' && next ? JSON.parse(next) : (next || {});
         }
       } catch (e) {
-        // Fallback if parsing fails
         p = {};
         n = typeof next === 'string' && next ? JSON.parse(next) : (next || {});
       }
@@ -2353,38 +1837,8 @@ const getParsedDiffs = (prev, next) => {
 }
 
 const viewDiffDetails = (prev, next, isPendingCreation = false) => {
-  if (isPendingCreation) {
-    selectedDiffs.value = getParsedDiffs(prev, next);
-  } else {
-    selectedDiffs.value = getParsedDiffs(prev, next);
-  }
+  selectedDiffs.value = getParsedDiffs(prev, next);
   showDiffModal.value = true;
-}
-
-const parseDate = (dateString) => {
-  if (!dateString) return null
-  let str = String(dateString).trim()
-  if (/^\d+$/.test(str)) {
-    return new Date(parseInt(str, 10))
-  }
-  if (!str.endsWith('Z') && !str.includes('+') && !/[-+]\d{2}:\d{2}$/.test(str)) {
-    if (str.includes(' ') && !str.includes('T')) {
-      str = str.replace(' ', 'T')
-    }
-    const serverOffset = useCookie('server_offset', { default: () => '+09:00' }).value
-    str += serverOffset
-  }
-  const d = new Date(str)
-  return isNaN(d.getTime()) ? new Date(dateString) : d
-}
-
-const formatDate = (dateString) => {
-  if (!dateString) return ''
-  const date = parseDate(dateString)
-  if (!date) return ''
-  const tz = useCookie('timezone', { default: () => 'Asia/Seoul' }).value
-  const formatted = date.toLocaleString(undefined, { timeZone: tz })
-  return formatted.replace(/\s*(GMT|UTC|KST|PST|EST|CET)[-+0-9:]*/gi, '').trim()
 }
 
 const openHistory = async () => {
@@ -2418,8 +1872,6 @@ const openHistory = async () => {
         }
       }
     } catch (e) {}
-    
-    showHistoryModal.value = true
   } catch (e) {
     console.error('Failed to load history', e)
     showCustomAlert(t('failed_load_history') || 'Failed to load history', t('error') || 'Error', t('notification') || 'Notification', 'error')
@@ -2518,31 +1970,16 @@ const evalConditionRule = (field, formData) => {
       return defaultRes
     }
 
-    // Evaluate multi-select actions simultaneously
     let show = true
-    if (actions.includes('SHOW')) {
-      show = isMatch
-    }
-
+    if (actions.includes('SHOW')) show = isMatch
     let highlight = field?.isHighlighted || false
-    if (actions.includes('HIGHLIGHT')) {
-      highlight = isMatch ? true : highlight
-    }
-
+    if (actions.includes('HIGHLIGHT')) highlight = isMatch ? true : highlight
     let required = field?.required || false
-    if (actions.includes('REQUIRE')) {
-      required = isMatch ? true : required
-    }
-
+    if (actions.includes('REQUIRE')) required = isMatch ? true : required
     let readOnly = field?.isReadOnly || false
-    if (actions.includes('READ_ONLY')) {
-      readOnly = isMatch ? true : readOnly
-    }
-
+    if (actions.includes('READ_ONLY')) readOnly = isMatch ? true : readOnly
     let disabled = false
-    if (actions.includes('DISABLE') || actions.includes('EDIT_FORBIDDEN')) {
-      disabled = isMatch ? true : disabled
-    }
+    if (actions.includes('DISABLE') || actions.includes('EDIT_FORBIDDEN')) disabled = isMatch ? true : disabled
 
     return { show, highlight, required, readOnly, disabled }
   } catch (e) {}
@@ -2711,7 +2148,6 @@ const openCreateModal = () => {
     if (f.type === 'MULTILINGUAL') initialData[f.key] = { ko: '', en: '' }
   })
   recordFormData.value = initialData
-  activeSectorTab.value = 0
   showCreateModal.value = true
 }
 
@@ -2755,7 +2191,17 @@ const validateRequiredFields = (targetData) => {
     const rule = evalConditionRule(field, targetData)
     if (!rule.show) return
 
+    // 자동 채번 필드는 최종 승인 시 서버에서 생성되므로 기안 시 필수 입력 검사 스킵
+    const isAutoNumbering = (
+      selectedDomainInfo.value &&
+      field.id === selectedDomainInfo.value.identifierFieldId &&
+      selectedDomainInfo.value.numberingPattern &&
+      selectedDomainInfo.value.numberingPattern.trim() !== ''
+    )
+    if (isAutoNumbering) return
+
     const isReq = Boolean(rule.required || field.required)
+
     if (isReq) {
       const val = targetData[field.key]
       let isEmpty = false
@@ -2795,23 +2241,8 @@ const validateRequiredFields = (targetData) => {
 const focusFirstMissingField = () => {
   showRequiredWarningModal.value = false
   if (!firstMissingFieldKey.value) return
-
   const targetKey = firstMissingFieldKey.value
   
-  // Find sector index and group for targetKey
-  const fieldObj = nodeFields.value?.find(f => f.key === targetKey)
-  if (fieldObj) {
-    const sId = fieldObj.fieldGroup?.sector?.id || 'default'
-    const sIdx = groupedFieldsArray.value.findIndex(s => s.key === sId)
-    if (sIdx !== -1) {
-      activeSectorTab.value = sIdx
-      const groupObj = groupedFieldsArray.value[sIdx]?.groups?.find(g => g.key === (fieldObj.fieldGroup?.id || 'default'))
-      if (groupObj) {
-        groupObj.isOpen = true
-      }
-    }
-  }
-
   nextTick(() => {
     setTimeout(() => {
       const wrapper = document.querySelector(`[data-field-key="${targetKey}"]`)
@@ -3015,9 +2446,7 @@ const saveRecord = async () => {
     height: 400px;
   }
 }
-</style>
 
-<style scoped>
 .mb-4 { margin-bottom: 1rem; }
 .mt-2 { margin-top: 0.5rem; }
 .w-full { width: 100%; }
@@ -3025,65 +2454,4 @@ const saveRecord = async () => {
 :deep(.va-tree) {
   overflow-x: hidden;
 }
-
-.file-upload-wrapper :deep(.va-file-upload) {
-  width: 100% !important;
-  max-width: 100% !important;
-}
-.file-upload-wrapper :deep(.va-file-upload-dropzone) {
-  box-sizing: border-box !important;
-  padding: 0.5rem 1rem !important;
-  min-height: 60px !important;
-}
-.file-upload-wrapper :deep(.va-file-upload-dropzone__content) {
-  width: 100% !important;
-  box-sizing: border-box !important;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  gap: 1rem;
-}
-.file-upload-wrapper :deep(.va-file-upload-list) {
-  display: none !important;
-}
-.custom-file-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-.custom-file-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 1rem;
-  background-color: var(--va-background-element);
-  border-radius: 0.5rem;
-  font-size: 0.9rem;
-}
-.custom-file-info {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.custom-file-actions {
-  display: flex;
-  gap: 0.25rem;
-  align-items: center;
-}
-.flip-list-move {
-  transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.5, 1);
-}
-
-.slim-multilingual-input :deep(.va-input-wrapper__container) {
-  align-items: center;
-  margin: 0;
-}
-.slim-multilingual-input :deep(.va-input-wrapper__field) {
-  align-items: center;
-}
-
 </style>

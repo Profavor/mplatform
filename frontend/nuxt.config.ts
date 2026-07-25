@@ -8,6 +8,11 @@ export default defineNuxtConfig({
   vuestic: {
     css: ['typography', 'grid', 'reset'],
     config: {
+      components: {
+        VaModal: {
+          closeButton: true
+        }
+      },
       i18n: {
         dropzone: '여기로 파일을 드래그 하거나 ',
         uploadFile: '내 PC에서 선택',

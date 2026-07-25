@@ -96,6 +96,7 @@ public class DqRuleEngine {
                 .collect(Collectors.groupingBy(r -> r.getFieldDefinition().getId()));
 
         EvaluationContext context = new EvaluationContext(domainId, nodeId, dataNode, recordId);
+        Domain currentDomain = node != null ? node.getDomain() : null;
 
         for (FieldDefinition field : effectiveFields) {
             if (field.getId() == null) continue;
@@ -106,12 +107,20 @@ public class DqRuleEngine {
                 continue;
             }
 
+            // Skip NOT_NULL / LENGTH / REGEX DQ rules for Auto-Numbering fields during creation
+            boolean isAutoNumbering = isAutoNumberingField(currentDomain, field, effectiveFields);
+
             List<DqRule> fieldRules = rulesByField.getOrDefault(field.getId(), Collections.emptyList());
             if (fieldRules.isEmpty()) continue;
 
             JsonNode valueNode = dataNode.get(field.getKey());
 
             for (DqRule rule : fieldRules) {
+                if (isAutoNumbering && (rule.getRuleType() == DqRuleType.NOT_NULL || rule.getRuleType() == DqRuleType.LENGTH || rule.getRuleType() == DqRuleType.REGEX)) {
+                    log.debug("Skipping DQ rule {} for auto-numbering field {}", rule.getRuleType(), field.getKey());
+                    continue;
+                }
+
                 RuleEvaluator evaluator = evaluatorMap.get(rule.getRuleType());
                 if (evaluator == null) {
                     log.warn("No evaluator found for rule type: {}", rule.getRuleType());
@@ -137,6 +146,7 @@ public class DqRuleEngine {
                 }
             }
         }
+
 
         return result;
     }
@@ -447,4 +457,25 @@ public class DqRuleEngine {
         }
         return record.getId().toString().substring(0, 8);
     }
+
+    private boolean isAutoNumberingField(Domain domain, FieldDefinition field, List<FieldDefinition> effectiveFields) {
+        if (domain == null || domain.getIdentifierFieldId() == null || field == null) {
+            return false;
+        }
+        if (domain.getNumberingPattern() == null || domain.getNumberingPattern().isBlank()) {
+            return false;
+        }
+        String domIdStr = domain.getIdentifierFieldId().toString();
+        String fieldIdStr = field.getId() != null ? field.getId().toString() : "";
+        if (domIdStr.equalsIgnoreCase(fieldIdStr)) {
+            return true;
+        }
+        String targetKey = effectiveFields.stream()
+                .filter(f -> f.getId() != null && domIdStr.equalsIgnoreCase(f.getId().toString()))
+                .map(FieldDefinition::getKey)
+                .findFirst()
+                .orElse(null);
+        return field.getKey() != null && field.getKey().equalsIgnoreCase(targetKey);
+    }
 }
+

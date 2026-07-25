@@ -37,7 +37,7 @@ public class MatchCandidateService {
         List<ClassificationNode> nodes = nodeRepository.findByDomainId(domainId);
         List<UUID> nodeIds = nodes.stream().map(ClassificationNode::getId).toList();
 
-        Page<MatchCandidate> candidatePage = candidateRepository.findByStatus("PENDING_REVIEW", PageRequest.of(page, size, Sort.by("createdAt").descending()));
+        Page<MatchCandidate> candidatePage = candidateRepository.findByNodeIdInAndStatus(nodeIds, "PENDING_REVIEW", PageRequest.of(page, size, Sort.by("createdAt").descending()));
         return PageResponse.of(candidatePage);
     }
 
@@ -86,4 +86,20 @@ public class MatchCandidateService {
         record.setData(candidate.getIncomingDataJson());
         return recordRepository.save(record);
     }
+
+    @Transactional
+    public MatchCandidate ignoreCandidate(UUID candidateId, String username) {
+        MatchCandidate candidate = candidateRepository.findById(candidateId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_CANDIDATE_NOT_FOUND, "Match candidate not found"));
+
+        if (!"PENDING_REVIEW".equalsIgnoreCase(candidate.getStatus())) {
+            throw new BusinessException(ErrorCode.MATCH_CANDIDATE_ALREADY_RESOLVED, "Candidate already resolved.");
+        }
+
+        candidate.setStatus("IGNORED");
+        candidate.setReviewedBy(username != null ? username : "STEWARD");
+        candidate.setReviewedAt(LocalDateTime.now());
+        return candidateRepository.save(candidate);
+    }
 }
+

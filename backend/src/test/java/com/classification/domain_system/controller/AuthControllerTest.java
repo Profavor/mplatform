@@ -150,7 +150,7 @@ class AuthControllerTest {
         @Test
         @DisplayName("정상 회원가입 시 200 OK 반환")
         void success_Returns200() throws Exception {
-            doNothing().when(authService).register("newuser", "password", "USER");
+            doNothing().when(authService).register(any(), any(), any(), any());
 
             mockMvc.perform(post("/api/auth/register")
                     .contentType(MediaType.APPLICATION_JSON)
@@ -163,13 +163,35 @@ class AuthControllerTest {
         @DisplayName("이미 존재하는 사용자면 400 Bad Request 반환")
         void duplicateUser_Returns400() throws Exception {
             doThrow(new RuntimeException("Username already exists"))
-                    .when(authService).register(any(), any(), any());
+                    .when(authService).register(any(), any(), any(), any());
 
             mockMvc.perform(post("/api/auth/register")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"username\":\"exists\",\"password\":\"pass\",\"role\":\"USER\"}"))
                     .andExpect(status().isBadRequest())
                     .andExpect(content().string("Username already exists"));
+        }
+
+        @Test
+        @DisplayName("아이디 중복 검사 - 사용 가능한 아이디면 available: true 반환")
+        void checkUsername_Available_Returns200() throws Exception {
+            org.mockito.BDDMockito.given(authService.existsByUsername("newbie")).willReturn(false);
+
+            mockMvc.perform(get("/api/auth/check-username").param("username", "newbie"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.exists").value(false))
+                    .andExpect(jsonPath("$.available").value(true));
+        }
+
+        @Test
+        @DisplayName("아이디 중복 검사 - 이미 존재하는 아이디면 available: false 반환")
+        void checkUsername_Exists_Returns200() throws Exception {
+            org.mockito.BDDMockito.given(authService.existsByUsername("existing")).willReturn(true);
+
+            mockMvc.perform(get("/api/auth/check-username").param("username", "existing"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.exists").value(true))
+                    .andExpect(jsonPath("$.available").value(false));
         }
     }
 

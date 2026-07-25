@@ -24,28 +24,62 @@ export default defineNuxtPlugin(() => {
     return { x: 0, y: 0 }
   }
 
+  // Find draggable modal dialog container
+  const findDialogElement = (target: HTMLElement): HTMLElement | null => {
+    return target.closest('.va-modal__dialog, [role="dialog"], .integration-modal-container') as HTMLElement
+  }
+
+  // Check if click target is on header / top area
+  const findHeaderHandle = (dialog: HTMLElement, target: HTMLElement): HTMLElement | null => {
+    const explicitHeader = target.closest('.va-modal__header, .va-modal__title, .modal-header-banner, .modal-header, .va-card__title') as HTMLElement
+    if (explicitHeader && dialog.contains(explicitHeader)) {
+      return explicitHeader
+    }
+
+    // Fallback: Check if clicked on top 60px area of dialog
+    const dialogRect = dialog.getBoundingClientRect()
+    const relativeY = target.getBoundingClientRect().top - dialogRect.top
+    if (relativeY <= 70) {
+      return (dialog.firstElementChild as HTMLElement) || dialog
+    }
+    return null
+  }
+
   window.addEventListener('mousedown', (e: MouseEvent) => {
+    // Only handle primary left click
+    if (e.button !== 0) return
+
     const targetNode = e.target as HTMLElement
     if (!targetNode) return
 
-    const dialog = targetNode.closest('.va-modal__dialog, .va-modal__container') as HTMLElement
-    if (!dialog) return
-
-    const handle = targetNode.closest('.va-modal__header, .va-modal__title') as HTMLElement ||
-                   (dialog.firstElementChild as HTMLElement)
-
-    if (!handle || !handle.contains(targetNode)) return
-
-    if (targetNode.tagName === 'BUTTON' || targetNode.tagName === 'INPUT' || targetNode.closest('button') || targetNode.closest('.va-button')) {
+    // Prevent dragging when clicking interactive controls
+    if (
+      targetNode.tagName === 'BUTTON' ||
+      targetNode.tagName === 'INPUT' ||
+      targetNode.tagName === 'TEXTAREA' ||
+      targetNode.tagName === 'SELECT' ||
+      targetNode.closest('button') ||
+      targetNode.closest('.va-button') ||
+      targetNode.closest('.modal-close-btn') ||
+      targetNode.closest('.va-input') ||
+      targetNode.closest('.va-checkbox') ||
+      targetNode.closest('.va-select')
+    ) {
       return
     }
+
+    const dialog = findDialogElement(targetNode)
+    if (!dialog) return
+
+    const handle = findHeaderHandle(dialog, targetNode)
+    if (!handle) return
 
     isDragging = true
     currentDialog = dialog
     currentHandle = handle
 
     handle.style.cursor = 'grabbing'
-    handle.style.userSelect = 'none'
+    document.body.style.userSelect = 'none'
 
     startX = e.clientX
     startY = e.clientY
@@ -67,12 +101,16 @@ export default defineNuxtPlugin(() => {
     currentDialog.style.transform = `translate3d(${newX}px, ${newY}px, 0px)`
   })
 
-  window.addEventListener('mouseup', () => {
+  const stopDragging = () => {
     if (isDragging && currentHandle) {
       currentHandle.style.cursor = 'grab'
     }
+    document.body.style.userSelect = ''
     isDragging = false
     currentDialog = null
     currentHandle = null
-  })
+  }
+
+  window.addEventListener('mouseup', stopDragging)
+  window.addEventListener('mouseleave', stopDragging)
 })
