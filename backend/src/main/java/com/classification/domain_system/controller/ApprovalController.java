@@ -26,6 +26,7 @@ public class ApprovalController {
     
     private final ApprovalService approvalService;
     private final AuthContext authContext;
+    private final com.classification.domain_system.repository.UserRepository userRepository;
     
     private UUID getAuthenticatedUserId() {
         String userIdStr = authContext.getUserId();
@@ -40,6 +41,53 @@ public class ApprovalController {
         com.classification.domain_system.entity.WorkflowConfig config = approvalService.resolveWorkflow(nodeId, actionType);
         boolean hasWorkflow = config != null && config.getStepsConfig() != null && !config.getStepsConfig().isEmpty() && !config.getStepsConfig().equals("{\"steps\":[],\"observerIds\":[]}");
         return ResponseEntity.ok(hasWorkflow);
+    }
+
+    @GetMapping("/available-workflows/{nodeId}")
+    public ResponseEntity<List<com.classification.domain_system.entity.WorkflowConfig>> getAvailableWorkflows(
+            @PathVariable UUID nodeId, 
+            @RequestParam String actionType) {
+        List<com.classification.domain_system.entity.WorkflowConfig> list = approvalService.resolveWorkflows(nodeId, actionType);
+        return ResponseEntity.ok(list);
+    }
+
+    @GetMapping("/effective-permission/{nodeId}")
+    public ResponseEntity<Map<String, Object>> getEffectivePermission(
+            @PathVariable UUID nodeId, 
+            @RequestParam String actionType,
+            @RequestParam(required = false) UUID workflowId) {
+        UUID authenticatedUserId = null;
+        String userRole = null;
+        try {
+            authenticatedUserId = getAuthenticatedUserId();
+            com.classification.domain_system.entity.User u = userRepository.findById(authenticatedUserId.toString()).orElse(null);
+            if (u != null) {
+                userRole = u.getRole();
+            }
+        } catch (Exception e) {
+            // Unauthenticated or guest context
+        }
+
+        com.classification.domain_system.entity.WorkflowConfig config = workflowId != null 
+                ? approvalService.resolveWorkflowById(workflowId) 
+                : approvalService.resolveWorkflow(nodeId, actionType);
+        boolean hasWorkflow = config != null && config.getStepsConfig() != null && !config.getStepsConfig().isEmpty();
+
+        List<String> editableFields = approvalService.extractEditableFields(config, authenticatedUserId, userRole);
+        List<String> readOnlyFields = approvalService.extractReadOnlyFields(config, authenticatedUserId, userRole);
+        List<String> hiddenFields = approvalService.extractHiddenFields(config, authenticatedUserId, userRole);
+        com.fasterxml.jackson.databind.JsonNode ruleName = approvalService.extractRuleName(config, authenticatedUserId, userRole);
+
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("actionType", actionType);
+        result.put("hasWorkflow", hasWorkflow);
+        result.put("workflowId", config != null ? config.getId() : null);
+        result.put("workflowName", config != null ? config.getName() : null);
+        result.put("ruleName", ruleName != null ? ruleName : java.util.Collections.emptyMap());
+        result.put("editableFields", editableFields != null ? editableFields : java.util.Collections.emptyList());
+        result.put("readOnlyFields", readOnlyFields != null ? readOnlyFields : java.util.Collections.emptyList());
+        result.put("hiddenFields", hiddenFields != null ? hiddenFields : java.util.Collections.emptyList());
+        return ResponseEntity.ok(result);
     }
     
     @GetMapping

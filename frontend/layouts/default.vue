@@ -28,9 +28,9 @@
                   <template #anchor>
                     <va-button preset="plain" class="profile-btn" style="color: white !important; padding: 0.35rem 0.85rem; border-radius: 20px; background: rgba(255,255,255,0.15); backdrop-filter: blur(8px); transition: all 0.2s ease;">
                       <va-avatar size="24px" color="warning" class="mr-2" style="font-weight: 800; font-size: 0.8rem;">
-                        {{ (currentUser?.username || 'A').charAt(0).toUpperCase() }}
+                        {{ (currentUser?.username || '').charAt(0).toUpperCase() }}
                       </va-avatar>
-                      <span class="username-text font-bold" style="font-size: 0.92rem;">{{ currentUser?.username || 'Admin' }}</span>
+                      <span class="username-text font-bold" style="font-size: 0.92rem;">{{ currentUser?.username || '' }}</span>
                       <va-icon name="expand_more" class="ml-1" size="small" />
                     </va-button>
                   </template>
@@ -39,11 +39,11 @@
                     <div :style="{ background: isDark ? 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 55%, #312e81 100%)' : 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', color: 'white', padding: '1.25rem 1.25rem 1.1rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '0.85rem', borderBottom: isDark ? '1px solid rgba(139,92,246,0.3)' : 'none' }">
                       <div style="display: flex; align-items: center; gap: 0.85rem;">
                         <va-avatar size="large" :color="isDark ? 'warning' : 'warning'" :style="{ fontWeight: '800', fontSize: '1.2rem', border: isDark ? '2px solid #a78bfa' : '2px solid white', boxShadow: isDark ? '0 0 15px rgba(167,139,250,0.5)' : '0 4px 10px rgba(0,0,0,0.25)' }">
-                          {{ (currentUser?.username || 'A').charAt(0).toUpperCase() }}
+                          {{ (currentUser?.username || '').charAt(0).toUpperCase() }}
                         </va-avatar>
                         <div style="flex: 1; overflow: hidden;">
                           <div style="font-weight: 800; font-size: 1.15rem; letter-spacing: -0.01em; display: flex; align-items: center; gap: 0.35rem;">
-                            <span :style="{ color: isDark ? '#f3f4f6' : 'white' }">{{ currentUser?.username || 'Admin' }}</span>
+                            <span :style="{ color: isDark ? '#f3f4f6' : 'white' }">{{ currentUser?.username || '' }}</span>
                             <va-icon v-if="effectiveRoles.includes('ROLE_ADMIN')" name="verified" size="small" color="warning" title="Admin User" />
                           </div>
                           <div style="font-size: 0.8rem; opacity: 0.9; margin-top: 0.15rem; display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
@@ -365,9 +365,7 @@ const filteredMenus = computed(() => {
   
   if (!menus.value) return []
   const menusCopy = JSON.parse(JSON.stringify(menus.value))
-  const filtered = filterTree(menusCopy)
-  
-  return filtered
+  return filterTree(menusCopy)
 })
 
 watch(showSettingsModal, (isOpen) => {
@@ -461,7 +459,7 @@ onMounted(async () => {
   }
   
   await syncPermissions()
-  await fetchMenus()
+  await fetchMenus(true)
   await fetchUserOrganizationName()
   await syncCurrentUserInfo()
   await fetchDepartmentRoles()
@@ -514,27 +512,28 @@ const fetchUserOrganizationName = async () => {
 }
 
 const syncCurrentUserInfo = async () => {
-  if (!tokenCookie.value || !currentUser.value) return
+  if (!tokenCookie.value) return
   try {
-    const res = await $fetch('/api/permissions/users', {
-      headers: { Authorization: `Bearer ${tokenCookie.value}` },
-      query: { page: 0, size: 100 }
+    const me = await $fetch('/api/auth/me', {
+      headers: { Authorization: `Bearer ${tokenCookie.value}` }
     })
-    const list = res.content || res || []
-    const myUsername = currentUser.value.username
-    const myDbUser = list.find(u => u.username === myUsername)
-    if (myDbUser) {
+    if (me && me.username) {
       const updated = {
-        ...currentUser.value,
-        id: myDbUser.id,
-        uuid: myDbUser.id,
-        organizationId: myDbUser.organizationId,
-        departmentId: myDbUser.departmentId
+        ...(currentUser.value || {}),
+        id: me.id || me.uuid,
+        uuid: me.uuid || me.id,
+        username: me.username,
+        role: me.role,
+        organizationId: me.organizationId,
+        departmentId: me.departmentId,
+        timezone: me.timezone,
+        serverOffset: me.serverOffset,
+        permissions: me.permissions || []
       }
       userCookie.value = JSON.stringify(updated)
     }
   } catch (e) {
-    console.error('Failed to sync current user info:', e)
+    console.error('Failed to sync current user info from /api/auth/me:', e)
   }
 }
 

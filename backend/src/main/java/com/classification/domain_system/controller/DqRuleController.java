@@ -144,12 +144,24 @@ public class DqRuleController {
     // ─── Validation Preview ──────────────────────────────────────────
 
     @PostMapping("/dq-rules/validate")
-    @PreAuthorize("hasPermission(null, 'dq:read')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<DqEvaluationResponse> validatePreview(
             @RequestParam UUID nodeId,
             @RequestParam(required = false) UUID recordId,
             @RequestBody Map<String, Object> body) {
-        String data = body.containsKey("data") ? body.get("data").toString() : "{}";
+        String data;
+        Object rawData = body != null ? body.get("data") : null;
+        if (rawData instanceof String strData) {
+            data = strData;
+        } else if (rawData != null) {
+            try {
+                data = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(rawData);
+            } catch (Exception e) {
+                data = "{}";
+            }
+        } else {
+            data = "{}";
+        }
         DqEvaluationResult engineResult = dqRuleEngine.evaluate(nodeId, data, recordId);
         return ResponseEntity.ok(toEvaluationResponse(engineResult));
     }

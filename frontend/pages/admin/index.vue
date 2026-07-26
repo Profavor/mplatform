@@ -20,7 +20,7 @@
             :defaultColDef="defaultColDef"
             rowModelType="infinite"
             :cacheBlockSize="20"
-            :rowSelection="{ mode: 'singleRow' }"
+            :rowSelection="{ mode: 'singleRow', headerCheckbox: false }"
             :pagination="true"
             :paginationPageSize="20"
             :paginationPageSizeSelector="[10, 20, 50]"

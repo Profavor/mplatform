@@ -26,8 +26,11 @@ public class ApprovalStep {
     @Column(name = "step_type", nullable = false, length = 20)
     private String stepType; // CONSENSUS, APPROVAL
 
-    @Column(name = "assignee_id", nullable = false)
+    @Column(name = "assignee_id")
     private UUID assigneeId;
+
+    @Column(name = "assignee_role", length = 50)
+    private String assigneeRole;
 
     @Column(nullable = false, length = 20)
     private String status; // PENDING, APPROVED, REJECTED, WAITING

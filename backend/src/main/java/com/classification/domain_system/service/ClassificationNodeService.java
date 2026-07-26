@@ -52,7 +52,7 @@ public class ClassificationNodeService {
     private boolean hasSchemaApproval(UUID domainId) {
         if (workflowConfigRepository == null || domainId == null) return false;
         try {
-            return workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(domainId, "SCHEMA_CHANGE").isPresent();
+            return !workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(domainId, "SCHEMA_CHANGE").isEmpty();
         } catch (Exception e) {
             return false;
         }

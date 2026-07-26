@@ -76,8 +76,9 @@ public class FieldDefinitionService {
         approval.setCurrentStepOrder(1);
         
         WorkflowConfig config = approvalService.resolveWorkflow(node != null ? node.getId() : null, "SCHEMA_CHANGE");
-        if (config == null) {
-            config = workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(domain.getId(), "SCHEMA_CHANGE").orElse(null);
+        if (config == null && domain != null) {
+            List<WorkflowConfig> list = workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(domain.getId(), "SCHEMA_CHANGE");
+            if (!list.isEmpty()) config = list.get(0);
         }
         
         if (config != null) {
@@ -176,7 +177,7 @@ public class FieldDefinitionService {
     private boolean hasSchemaApproval(UUID domainId) {
         if (workflowConfigRepository == null || domainId == null) return false;
         try {
-            return workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(domainId, "SCHEMA_CHANGE").isPresent();
+            return !workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(domainId, "SCHEMA_CHANGE").isEmpty();
         } catch (Exception e) {
             return false;
         }
@@ -204,7 +205,7 @@ public class FieldDefinitionService {
             manageIndex(savedField.getKey(), true);
         }
         
-        recordSchemaChange(domain.getId(), "FIELD", savedField.getId(), "CREATE", null, savedField);
+        recordSchemaChange(domain.getId(), "FIELD", savedField.getId(), "CREATE", null, toStateMap(savedField));
         return savedField;
     }
 
@@ -223,7 +224,7 @@ public class FieldDefinitionService {
             manageIndex(savedField.getKey(), true);
         }
         
-        recordSchemaChange(domain.getId(), "FIELD", savedField.getId(), "CREATE", null, savedField);
+        recordSchemaChange(domain.getId(), "FIELD", savedField.getId(), "CREATE", null, toStateMap(savedField));
         return savedField;
     }
 
@@ -232,11 +233,7 @@ public class FieldDefinitionService {
         FieldDefinition field = fieldRepository.findById(fieldId)
                 .orElseThrow(() -> new RuntimeException("Field not found"));
 
-        java.util.Map<String, Object> beforeState = new java.util.HashMap<>();
-        beforeState.put("id", field.getId());
-        beforeState.put("name", field.getName());
-        beforeState.put("key", field.getKey());
-        beforeState.put("type", field.getType());
+        java.util.Map<String, Object> beforeState = toStateMap(field);
 
         populateFieldProperties(field, request, true);
         
@@ -252,7 +249,7 @@ public class FieldDefinitionService {
             manageIndex(savedField.getKey(), false);
         }
         
-        recordSchemaChange(field.getDomain() != null ? field.getDomain().getId() : (field.getDefinedAtNode() != null ? field.getDefinedAtNode().getDomain().getId() : null), "FIELD", fieldId, "UPDATE", beforeState, savedField);
+        recordSchemaChange(field.getDomain() != null ? field.getDomain().getId() : (field.getDefinedAtNode() != null ? field.getDefinedAtNode().getDomain().getId() : null), "FIELD", fieldId, "UPDATE", beforeState, toStateMap(savedField));
         return savedField;
     }
 
@@ -352,6 +349,16 @@ public class FieldDefinitionService {
         map.put("type", field.getType());
         map.put("required", field.getRequired());
         map.put("unit", field.getUnit());
+        map.put("isSearchable", field.getIsSearchable());
+        map.put("isMultiValue", field.getIsMultiValue());
+        map.put("isEncrypted", field.getIsEncrypted());
+        map.put("isReadOnly", field.getIsReadOnly());
+        map.put("isHidden", field.getIsHidden());
+        map.put("isImmutable", field.getIsImmutable());
+        map.put("order", field.getOrder());
+        if (field.getFieldGroup() != null) {
+            map.put("group", field.getFieldGroup().getName());
+        }
         return map;
     }
 
@@ -447,7 +454,7 @@ public class FieldDefinitionService {
             manageIndex(savedField.getKey(), false);
         }
         
-        recordSchemaChange(domainId, "FIELD", fieldId, "UPDATE", beforeState, savedField);
+        recordSchemaChange(domainId, "FIELD", fieldId, "UPDATE", beforeState, toStateMap(savedField));
         return savedField;
     }
     

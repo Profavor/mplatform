@@ -44,21 +44,40 @@ public class DataQualityService {
     }
 
     public DQResult validateData(UUID nodeId, String jsonString) {
-        return validateData(nodeId, jsonString, null);
+        return validateData(nodeId, jsonString, null, null);
     }
 
     public DQResult validateData(UUID nodeId, String jsonString, UUID recordId) {
+        return validateData(nodeId, jsonString, recordId, null);
+    }
+
+    public DQResult validateData(UUID nodeId, String jsonString, UUID recordId, List<String> targetFieldKeys) {
         DQResult result = new DQResult();
 
         // 1. Run new DQ Rule Engine
         DqEvaluationResult engineResult = dqRuleEngine.evaluate(nodeId, jsonString, recordId);
 
-        // Add engine errors
-        result.errors.addAll(engineResult.getErrorMessages());
-        result.warnings.addAll(engineResult.getWarningMessages());
+        // Add engine errors (filtered by targetFieldKeys if provided)
+        if (targetFieldKeys != null && !targetFieldKeys.isEmpty()) {
+            engineResult.getViolations().stream()
+                    .filter(v -> targetFieldKeys.contains(v.getFieldKey()))
+                    .forEach(v -> {
+                        String msg = v.getMessage() != null && !v.getMessage().isEmpty()
+                                ? v.getMessage().getOrDefault("en", v.getMessage().values().iterator().next())
+                                : "Validation failed";
+                        if ("ERROR".equalsIgnoreCase(v.getSeverity())) {
+                            result.errors.add(msg);
+                        } else if ("WARNING".equalsIgnoreCase(v.getSeverity())) {
+                            result.warnings.add(msg);
+                        }
+                    });
+        } else {
+            result.errors.addAll(engineResult.getErrorMessages());
+            result.warnings.addAll(engineResult.getWarningMessages());
+        }
 
         // 2. Legacy checks for fields that don't yet have DQ rules
-        runLegacyChecks(nodeId, jsonString, engineResult, result);
+        runLegacyChecks(nodeId, jsonString, engineResult, result, targetFieldKeys);
 
         result.isValid = result.errors.isEmpty();
         return result;
@@ -70,8 +89,15 @@ public class DataQualityService {
      * ensuring backward compatibility during the migration period.
      */
     private void runLegacyChecks(UUID nodeId, String jsonString,
-                                 DqEvaluationResult engineResult, DQResult result) {
+                                 DqEvaluationResult engineResult, DQResult result,
+                                 List<String> targetFieldKeys) {
         List<FieldDefinition> effectiveFields = fieldDefinitionService.getEffectiveFields(nodeId);
+
+        if (targetFieldKeys != null && !targetFieldKeys.isEmpty()) {
+            effectiveFields = effectiveFields.stream()
+                    .filter(f -> targetFieldKeys.contains(f.getKey()))
+                    .toList();
+        }
 
         ClassificationNode node = nodeRepository.findById(nodeId).orElse(null);
         Domain dom = node != null ? node.getDomain() : null;

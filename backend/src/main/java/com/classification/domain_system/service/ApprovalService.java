@@ -92,28 +92,55 @@ public class ApprovalService {
             && !config.getStepsConfig().equals("{\"steps\":[],\"observerIds\":[]}");
     }
 
-    public WorkflowConfig resolveWorkflow(UUID nodeId, String actionType) {
+    public List<WorkflowConfig> resolveWorkflows(UUID nodeId, String actionType) {
+        if (nodeId == null) return java.util.Collections.emptyList();
+
         ClassificationNode current = nodeRepository.findById(nodeId).orElse(null);
-        while (current != null) {
-            java.util.Optional<WorkflowConfig> conf = workflowConfigRepository.findByNodeIdAndActionType(
-                current.getId(), actionType
-            );
-            if (conf.isPresent() && isEffectiveConfig(conf.get())) {
-                return conf.get();
-            }
-            current = current.getParent();
-        }
-        // Fallback to domain level
-        if (nodeId != null) {
-            ClassificationNode node = nodeRepository.findById(nodeId).orElse(null);
-            if (node != null) {
-                java.util.Optional<WorkflowConfig> domainConf = workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(
-                    node.getDomain().getId(), actionType
+        Domain targetDomain = null;
+
+        if (current != null) {
+            targetDomain = current.getDomain();
+            while (current != null) {
+                List<WorkflowConfig> confs = workflowConfigRepository.findByNodeIdAndActionType(
+                    current.getId(), actionType
                 );
-                if (domainConf.isPresent() && isEffectiveConfig(domainConf.get())) return domainConf.get();
+                List<WorkflowConfig> effective = confs.stream()
+                        .filter(c -> !Boolean.FALSE.equals(c.getIsActive()))
+                        .filter(this::isEffectiveConfig)
+                        .toList();
+                if (!effective.isEmpty()) {
+                    return effective;
+                }
+                current = current.getParent();
             }
+        } else if (domainRepository != null) {
+            targetDomain = domainRepository.findById(nodeId).orElse(null);
         }
-        return null;
+
+        // Fallback to domain level
+        if (targetDomain != null) {
+            List<WorkflowConfig> domainConfs = workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(
+                targetDomain.getId(), actionType
+            );
+            return domainConfs.stream()
+                    .filter(c -> !Boolean.FALSE.equals(c.getIsActive()))
+                    .filter(this::isEffectiveConfig)
+                    .toList();
+        }
+
+        return java.util.Collections.emptyList();
+    }
+
+    public WorkflowConfig resolveWorkflow(UUID nodeId, String actionType) {
+        List<WorkflowConfig> list = resolveWorkflows(nodeId, actionType);
+        if (list.isEmpty()) return null;
+        // Prefer default workflow if set, otherwise first
+        return list.stream().filter(c -> Boolean.TRUE.equals(c.getIsDefault())).findFirst().orElse(list.get(0));
+    }
+
+    public WorkflowConfig resolveWorkflowById(UUID workflowId) {
+        if (workflowId == null) return null;
+        return workflowConfigRepository.findById(workflowId).orElse(null);
     }
 
     private void buildDynamicSteps(ApprovalRequest approval, WorkflowConfig config) {
@@ -123,12 +150,30 @@ public class ApprovalService {
                 com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
                 com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(config.getStepsConfig());
                 
-                if (root.has("steps") && root.get("steps").isArray()) {
+                if (root.has("approvalLine") && root.get("approvalLine").isArray()) {
+                    for (com.fasterxml.jackson.databind.JsonNode stepNode : root.get("approvalLine")) {
+                        ApprovalStep step = new ApprovalStep();
+                        step.setApprovalRequest(approval);
+                        step.setStepType(stepNode.has("stepType") ? stepNode.get("stepType").asText() : "APPROVAL");
+                        step.setStepOrder(stepNode.get("stepOrder").asInt());
+                        step.setStatus(step.getStepOrder() == 1 ? "PENDING" : "WAITING");
+                        
+                        if (stepNode.has("assigneeId") && !stepNode.get("assigneeId").asText().isBlank()) {
+                            step.setAssigneeId(UUID.fromString(stepNode.get("assigneeId").asText()));
+                        }
+                        if (stepNode.has("assigneeRole") && !stepNode.get("assigneeRole").asText().isBlank()) {
+                            step.setAssigneeRole(stepNode.get("assigneeRole").asText());
+                        }
+                        steps.add(step);
+                    }
+                } else if (root.has("steps") && root.get("steps").isArray()) {
                     for (com.fasterxml.jackson.databind.JsonNode stepNode : root.get("steps")) {
                         ApprovalStep step = new ApprovalStep();
                         step.setApprovalRequest(approval);
-                        step.setStepType(stepNode.get("stepType").asText());
-                        step.setAssigneeId(UUID.fromString(stepNode.get("assigneeId").asText()));
+                        step.setStepType(stepNode.has("stepType") ? stepNode.get("stepType").asText() : "APPROVAL");
+                        if (stepNode.has("assigneeId") && !stepNode.get("assigneeId").asText().isBlank()) {
+                            step.setAssigneeId(UUID.fromString(stepNode.get("assigneeId").asText()));
+                        }
                         step.setStepOrder(stepNode.get("stepOrder").asInt());
                         step.setStatus(step.getStepOrder() == 1 ? "PENDING" : "WAITING");
                         steps.add(step);
@@ -155,6 +200,199 @@ public class ApprovalService {
         approval.getSteps().addAll(steps);
     }
 
+    /**
+     * Workflow 관리 화면에서 저장한 targetId(username)와 요청자의 UUID를 매칭합니다.
+     * targetId가 UUID 형식이면 직접 비교, username 형식이면 UserRepository를 통해 변환 후 비교합니다.
+     */
+    private boolean matchesUserIdentity(String targetId, UUID requesterId) {
+        if (targetId == null || targetId.isBlank() || requesterId == null) return false;
+        // 1. UUID 직접 비교
+        if (targetId.equalsIgnoreCase(requesterId.toString())) return true;
+        // 2. targetId가 username인 경우 → DB에서 User 조회하여 UUID 비교
+        try {
+            java.util.Optional<User> user = userRepository.findByUsername(targetId);
+            if (user.isPresent() && user.get().getId() != null) {
+                return requesterId.toString().equalsIgnoreCase(user.get().getId());
+            }
+        } catch (Exception e) {
+            log.debug("Failed to resolve username '{}' to UUID", targetId, e);
+        }
+        return false;
+    }
+
+    public List<String> extractEditableFields(WorkflowConfig config, UUID requesterId, String userRole) {
+        if (config == null || config.getStepsConfig() == null || config.getStepsConfig().isBlank()) {
+            return null;
+        }
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(config.getStepsConfig());
+            if (root.has("permissions") && root.get("permissions").isArray()) {
+                for (com.fasterxml.jackson.databind.JsonNode perm : root.get("permissions")) {
+                    String targetType = perm.has("targetType") ? perm.get("targetType").asText() : "";
+                    String targetId = perm.has("targetId") ? perm.get("targetId").asText() : "";
+                    String targetRole = perm.has("targetRole") ? perm.get("targetRole").asText() : "";
+
+                    boolean matchesUser = "USER".equalsIgnoreCase(targetType) && matchesUserIdentity(targetId, requesterId);
+                    boolean matchesRole = "ROLE".equalsIgnoreCase(targetType) && userRole != null && targetRole.equalsIgnoreCase(userRole);
+
+                    if (matchesUser || matchesRole) {
+                        if (perm.has("fieldPermissions") && perm.get("fieldPermissions").has("editableFields")) {
+                            List<String> list = new java.util.ArrayList<>();
+                            for (com.fasterxml.jackson.databind.JsonNode f : perm.get("fieldPermissions").get("editableFields")) {
+                                list.add(f.asText());
+                            }
+                            return list;
+                        }
+                        if (perm.has("editableFields") && perm.get("editableFields").isArray()) {
+                            List<String> list = new java.util.ArrayList<>();
+                            for (com.fasterxml.jackson.databind.JsonNode f : perm.get("editableFields")) {
+                                list.add(f.asText());
+                            }
+                            return list;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to parse field permissions", e);
+        }
+        return null;
+    }
+
+    public List<String> extractReadOnlyFields(WorkflowConfig config, UUID requesterId, String userRole) {
+        if (config == null || config.getStepsConfig() == null || config.getStepsConfig().isBlank()) {
+            return null;
+        }
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(config.getStepsConfig());
+            if (root.has("permissions") && root.get("permissions").isArray()) {
+                for (com.fasterxml.jackson.databind.JsonNode perm : root.get("permissions")) {
+                    String targetType = perm.has("targetType") ? perm.get("targetType").asText() : "";
+                    String targetId = perm.has("targetId") ? perm.get("targetId").asText() : "";
+                    String targetRole = perm.has("targetRole") ? perm.get("targetRole").asText() : "";
+
+                    boolean matchesUser = "USER".equalsIgnoreCase(targetType) && matchesUserIdentity(targetId, requesterId);
+                    boolean matchesRole = "ROLE".equalsIgnoreCase(targetType) && userRole != null && targetRole.equalsIgnoreCase(userRole);
+
+                    if (matchesUser || matchesRole) {
+                        if (perm.has("readOnlyFields") && perm.get("readOnlyFields").isArray()) {
+                            List<String> list = new java.util.ArrayList<>();
+                            for (com.fasterxml.jackson.databind.JsonNode f : perm.get("readOnlyFields")) {
+                                list.add(f.asText());
+                            }
+                            return list;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to parse read-only field permissions", e);
+        }
+        return null;
+    }
+
+    public List<String> extractHiddenFields(WorkflowConfig config, UUID requesterId, String userRole) {
+        if (config == null || config.getStepsConfig() == null || config.getStepsConfig().isBlank()) {
+            return null;
+        }
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(config.getStepsConfig());
+            if (root.has("permissions") && root.get("permissions").isArray()) {
+                for (com.fasterxml.jackson.databind.JsonNode perm : root.get("permissions")) {
+                    String targetType = perm.has("targetType") ? perm.get("targetType").asText() : "";
+                    String targetId = perm.has("targetId") ? perm.get("targetId").asText() : "";
+                    String targetRole = perm.has("targetRole") ? perm.get("targetRole").asText() : "";
+
+                    boolean matchesUser = "USER".equalsIgnoreCase(targetType) && matchesUserIdentity(targetId, requesterId);
+                    boolean matchesRole = "ROLE".equalsIgnoreCase(targetType) && userRole != null && targetRole.equalsIgnoreCase(userRole);
+
+                    if (matchesUser || matchesRole) {
+                        if (perm.has("hiddenFields") && perm.get("hiddenFields").isArray()) {
+                            List<String> list = new java.util.ArrayList<>();
+                            for (com.fasterxml.jackson.databind.JsonNode f : perm.get("hiddenFields")) {
+                                list.add(f.asText());
+                            }
+                            return list;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to parse hidden field permissions", e);
+        }
+        return null;
+    }
+
+    public com.fasterxml.jackson.databind.JsonNode extractRuleName(WorkflowConfig config, UUID requesterId, String userRole) {
+        if (config == null || config.getStepsConfig() == null || config.getStepsConfig().isBlank()) {
+            return null;
+        }
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(config.getStepsConfig());
+            if (root.has("permissions") && root.get("permissions").isArray()) {
+                for (com.fasterxml.jackson.databind.JsonNode perm : root.get("permissions")) {
+                    String targetType = perm.has("targetType") ? perm.get("targetType").asText() : "";
+                    String targetId = perm.has("targetId") ? perm.get("targetId").asText() : "";
+                    String targetRole = perm.has("targetRole") ? perm.get("targetRole").asText() : "";
+
+                    boolean matchesUser = "USER".equalsIgnoreCase(targetType) && matchesUserIdentity(targetId, requesterId);
+                    boolean matchesRole = "ROLE".equalsIgnoreCase(targetType) && userRole != null && targetRole.equalsIgnoreCase(userRole);
+
+                    if ((matchesUser || matchesRole) && perm.has("ruleName")) {
+                        return perm.get("ruleName");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to parse ruleName from permissions", e);
+        }
+        return null;
+    }
+
+    public void validateUserActionPermission(WorkflowConfig config, UUID requesterId, String userRole, String requestedAction) {
+        if (config == null || config.getStepsConfig() == null || config.getStepsConfig().isBlank()) {
+            return;
+        }
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(config.getStepsConfig());
+            if (root.has("permissions") && root.get("permissions").isArray()) {
+                for (com.fasterxml.jackson.databind.JsonNode perm : root.get("permissions")) {
+                    String targetType = perm.has("targetType") ? perm.get("targetType").asText() : "";
+                    String targetId = perm.has("targetId") ? perm.get("targetId").asText() : "";
+                    String targetRole = perm.has("targetRole") ? perm.get("targetRole").asText() : "";
+
+                    boolean matchesUser = "USER".equalsIgnoreCase(targetType) && matchesUserIdentity(targetId, requesterId);
+                    boolean matchesRole = "ROLE".equalsIgnoreCase(targetType) && userRole != null && targetRole.equalsIgnoreCase(userRole);
+
+                    if (matchesUser || matchesRole) {
+                        if (perm.has("allowedActions") && perm.get("allowedActions").isArray()) {
+                            boolean allowed = false;
+                            for (com.fasterxml.jackson.databind.JsonNode act : perm.get("allowedActions")) {
+                                if (act.asText().equalsIgnoreCase(requestedAction)) {
+                                    allowed = true;
+                                    break;
+                                }
+                            }
+                            if (!allowed) {
+                                throw new BusinessException(ErrorCode.ACCESS_DENIED, 
+                                    "사용자에게 " + requestedAction + " 행위 권한이 허용되지 않았습니다.");
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (BusinessException be) {
+            throw be;
+        } catch (Exception e) {
+            log.error("Failed to validate action permission", e);
+        }
+    }
+
     @Transactional
     public ApprovalRequest requestRecordCreation(UUID nodeId, RecordRequest request) {
         ClassificationNode node = nodeRepository.findById(nodeId)
@@ -166,8 +404,14 @@ public class ApprovalService {
             throw new BusinessException(ErrorCode.DOMAIN_MISSING_FIELD_MAPPING, "Domain is missing required field mappings (ID or Name). Please configure the domain settings first.");
         }
         
+        WorkflowConfig workflowConfig = (request != null && request.getWorkflowConfigId() != null)
+                ? resolveWorkflowById(request.getWorkflowConfigId())
+                : resolveWorkflow(nodeId, "CREATE");
+        validateUserActionPermission(workflowConfig, request.getRequesterId(), null, "CREATE");
+        List<String> editableFields = extractEditableFields(workflowConfig, request.getRequesterId(), null);
+
         // 1. Data Quality Check
-        DataQualityService.DQResult dq = dqService.validateData(nodeId, request.getData());
+        DataQualityService.DQResult dq = dqService.validateData(nodeId, request.getData(), null, editableFields);
         if (!dq.isValid) {
             throw new BusinessException(ErrorCode.DATA_QUALITY_CHECK_FAILED, "Data Quality Check Failed: " + String.join(", ", dq.errors));
         }
@@ -237,8 +481,12 @@ public class ApprovalService {
         
         UUID nodeId = record.getNode().getId();
         
+        WorkflowConfig workflowConfig = resolveWorkflow(nodeId, "UPDATE");
+        validateUserActionPermission(workflowConfig, request.getRequesterId(), null, "UPDATE");
+        List<String> editableFields = extractEditableFields(workflowConfig, request.getRequesterId(), null);
+
         // 1. Data Quality Check
-        DataQualityService.DQResult dq = dqService.validateData(nodeId, request.getData(), recordId);
+        DataQualityService.DQResult dq = dqService.validateData(nodeId, request.getData(), recordId, editableFields);
         if (!dq.isValid) {
             throw new BusinessException(ErrorCode.DATA_QUALITY_CHECK_FAILED, "Data Quality Check Failed: " + String.join(", ", dq.errors));
         }

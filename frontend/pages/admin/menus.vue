@@ -15,7 +15,8 @@
               <template #content="node">
                 <div class="d-flex justify-space-between align-center w-100" style="padding: 0.25rem 0; cursor: pointer;" @click="onNodeSelected(node)">
                   <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <span style="font-weight: 600;">{{ node.label }}</span>
+                    <span style="font-weight: 600;" :style="{ opacity: node.raw?.isActive === false ? 0.5 : 1 }">{{ node.label }}</span>
+                    <va-badge v-if="node.raw?.isActive === false" :text="$t('inactive_badge') || '비활성'" color="warning" size="small" />
                   </div>
                   <div>
                     <va-button preset="plain" icon="add" size="small" @click.stop="openAddModal(node.id)" />
@@ -47,6 +48,11 @@
                   <va-icon :name="selectedMenu.icon || 'help_outline'" size="large" color="primary" />
                   <va-button preset="secondary" border-color="primary" @click="openIconPicker('edit')">{{ $t('select_icon') || 'Select Icon' }}</va-button>
                 </div>
+              </div>
+
+              <!-- Active Status Switch -->
+              <div class="mb-4">
+                <va-switch v-model="selectedMenu.isActive" :label="$t('is_active_label') || $t('is_active') || '사용 여부 (Active)'" color="success" />
               </div>
               
               <div class="mb-4 w-100">
@@ -99,6 +105,12 @@
       </div>
       
       <va-input v-model="newMenu.sortOrder" :label="$t('sort_order') || 'Sort Order (정렬 순서)'" type="number" class="mb-4 w-100" />
+      
+      <!-- Active Status Switch in Modal -->
+      <div class="mb-4">
+        <va-switch v-model="newMenu.isActive" :label="$t('is_active_label') || $t('is_active') || '사용 여부 (Active)'" color="success" />
+      </div>
+
       <UserRoleSelect v-model="newMenuRoles" :label="$t('required_roles') || 'Required Roles (Multiple)'" class="mb-4 w-100" multiple clearable include-role-prefix />
     </va-modal>
 
@@ -131,7 +143,12 @@ const currentUser = computed(() => {
   return null
 })
 
+const adminMenus = ref([])
 
+const loadAdminMenus = async () => {
+  const result = await fetchMenus(true, true)
+  adminMenus.value = result || []
+}
 
 const selectedMenu = ref(null)
 const showAddModal = ref(false)
@@ -145,7 +162,7 @@ const selectedMenuNameEn = ref('')
 const newMenuNameKo = ref('')
 const newMenuNameEn = ref('')
 
-const newMenu = ref({ name: '', path: '', icon: '', sortOrder: 0, requiredRole: '', parentId: null })
+const newMenu = ref({ name: '', path: '', icon: '', sortOrder: 0, requiredRole: '', parentId: null, isActive: true })
 
 const extractNameParts = (rawName) => {
   if (!rawName) return { ko: '', en: '' }
@@ -163,7 +180,6 @@ const parseMenuName = (name) => {
   if (!name) return ''
   const currentLang = (locale?.value || 'ko').toLowerCase().startsWith('en') ? 'en' : 'ko'
 
-  // 무조건 DB에 저장된 값 기반 (JSON 형태면 ko/en 추출, 평문이면 그대로)
   try {
     const parsed = typeof name === 'object' ? name : (String(name).trim().startsWith('{') ? JSON.parse(name) : null)
     if (parsed && typeof parsed === 'object') {
@@ -233,13 +249,16 @@ const formatToTreeNodes = (items) => {
 }
 
 const treeNodes = computed(() => {
-  if (!menus.value) return []
-  return formatToTreeNodes(menus.value)
+  if (!adminMenus.value) return []
+  return formatToTreeNodes(adminMenus.value)
 })
 
 const onNodeSelected = (node) => {
   if (node && node.raw) {
     selectedMenu.value = JSON.parse(JSON.stringify(node.raw))
+    if (selectedMenu.value.isActive === undefined || selectedMenu.value.isActive === null) {
+      selectedMenu.value.isActive = true
+    }
     const parts = extractNameParts(selectedMenu.value.name)
     selectedMenuNameKo.value = parts.ko
     selectedMenuNameEn.value = parts.en
@@ -247,7 +266,7 @@ const onNodeSelected = (node) => {
 }
 
 const openAddModal = (parentId) => {
-  newMenu.value = { name: '', path: '', icon: '', sortOrder: 0, requiredRole: '', parentId }
+  newMenu.value = { name: '', path: '', icon: '', sortOrder: 0, requiredRole: '', parentId, isActive: true }
   newMenuNameKo.value = ''
   newMenuNameEn.value = ''
   showAddModal.value = true
@@ -268,7 +287,8 @@ const addMenu = async () => {
       body: payload
     })
     init({ message: t('creation_success') || 'Menu added successfully', color: 'success' })
-    await fetchMenus()
+    await loadAdminMenus()
+    await fetchMenus(true)
   } catch (error) {
     init({ message: 'Failed to add menu', color: 'danger' })
   }
@@ -290,9 +310,9 @@ const saveMenu = async () => {
       body: payload
     })
     init({ message: t('update_success') || 'Menu updated successfully', color: 'success' })
-    await fetchMenus()
+    await loadAdminMenus()
+    await fetchMenus(true)
     
-    // Update selectedMenu.value.name for UI consistency
     selectedMenu.value.name = payload.name
   } catch (error) {
     init({ message: 'Failed to update menu', color: 'danger' })
@@ -309,7 +329,8 @@ const deleteMenu = async (id) => {
     if (selectedMenu.value && selectedMenu.value.id === id) {
       selectedMenu.value = null
     }
-    await fetchMenus()
+    await loadAdminMenus()
+    await fetchMenus(true)
   } catch (error) {
     init({ message: 'Failed to delete menu', color: 'danger' })
   }
@@ -319,7 +340,7 @@ const { initGlobalRoles } = useRoles()
 
 onMounted(async () => {
   await initGlobalRoles()
-  await fetchMenus()
+  await loadAdminMenus()
 })
 </script>
 

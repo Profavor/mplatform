@@ -111,4 +111,70 @@ public class WorkflowConfigController {
         });
         return ResponseEntity.ok(repository.saveAll(configs));
     }
+
+    @GetMapping("/page")
+    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'workflow:read')")
+    public ResponseEntity<org.springframework.data.domain.Page<WorkflowConfig>> getPage(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String actionType,
+            @RequestParam(required = false) UUID domainId,
+            @RequestParam(required = false) UUID nodeId,
+            @RequestParam(required = false) String query) {
+        
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(
+                page, size, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt")
+        );
+        
+        List<WorkflowConfig> all = repository.findAll();
+        List<WorkflowConfig> filtered = all.stream()
+                .filter(c -> actionType == null || actionType.isBlank() || actionType.equalsIgnoreCase("ALL") || actionType.equalsIgnoreCase(c.getActionType()))
+                .filter(c -> domainId == null || domainId.equals(c.getDomainId()))
+                .filter(c -> nodeId == null || (c.getNodeId() != null && nodeId.equals(c.getNodeId())))
+                .filter(c -> {
+                    if (query == null || query.isBlank()) return true;
+                    String q = query.toLowerCase();
+                    boolean matchName = c.getName() != null && c.getName().toLowerCase().contains(q);
+                    boolean matchDesc = c.getDescription() != null && c.getDescription().toLowerCase().contains(q);
+                    boolean matchAction = c.getActionType() != null && c.getActionType().toLowerCase().contains(q);
+                    return matchName || matchDesc || matchAction;
+                })
+                .toList();
+
+        int start = Math.min((int) pageable.getOffset(), filtered.size());
+        int end = Math.min((start + pageable.getPageSize()), filtered.size());
+        List<WorkflowConfig> pagedList = filtered.subList(start, end);
+
+        return ResponseEntity.ok(new org.springframework.data.domain.PageImpl<>(pagedList, pageable, filtered.size()));
+    }
+
+    @PostMapping
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'workflow:write')")
+    public ResponseEntity<WorkflowConfig> saveSingle(@RequestBody WorkflowConfig config) {
+        validateWorkflowConfig(config);
+        if (config.getId() != null) {
+            WorkflowConfig existing = repository.findById(config.getId()).orElse(null);
+            if (existing != null) {
+                existing.setName(config.getName());
+                existing.setDescription(config.getDescription());
+                existing.setActionType(config.getActionType());
+                existing.setDomainId(config.getDomainId());
+                existing.setNodeId(config.getNodeId());
+                existing.setIsDefault(config.getIsDefault());
+                existing.setIsActive(config.getIsActive());
+                existing.setStepsConfig(config.getStepsConfig());
+                return ResponseEntity.ok(repository.save(existing));
+            }
+        }
+        return ResponseEntity.ok(repository.save(config));
+    }
+
+    @DeleteMapping("/{id}")
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'workflow:write')")
+    public ResponseEntity<Void> deleteWorkflowConfig(@PathVariable UUID id) {
+        repository.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
 }

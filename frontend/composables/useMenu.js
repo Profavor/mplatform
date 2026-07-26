@@ -5,26 +5,34 @@ const menus = ref([])
 let fetchPromise = null
 
 export const useMenu = () => {
-  const fetchMenus = async (forceRefresh = false) => {
-    if (fetchPromise && !forceRefresh) {
+  const fetchMenus = async (forceRefresh = false, includeInactive = false) => {
+    if (fetchPromise && !forceRefresh && !includeInactive) {
       await fetchPromise
       return menus.value
     }
-    fetchPromise = (async () => {
+    const query = includeInactive ? '?includeInactive=true' : ''
+    const promise = (async () => {
       try {
         const token = useCookie('auth_token')
-        const response = await $fetch('/api/menus/tree', {
+        const response = await $fetch(`/api/menus/tree${query}`, {
           headers: token.value ? { Authorization: `Bearer ${token.value}` } : {}
         })
-        menus.value = response || []
+        if (!includeInactive) {
+          menus.value = response || []
+        }
+        return response || []
       } catch (error) {
         console.error('Failed to fetch menus:', error)
-        menus.value = []
-        fetchPromise = null
+        if (!includeInactive) {
+          menus.value = []
+        }
+        return []
       }
     })()
-    await fetchPromise
-    return menus.value
+    if (!includeInactive) {
+      fetchPromise = promise
+    }
+    return await promise
   }
 
   const fetchMenuTree = fetchMenus

@@ -32,6 +32,36 @@
         }}
       </div>
 
+      <!-- Workflow Action & Permission Rule Banner with Combo Box Selector -->
+      <div v-if="hasWorkflow" style="margin-bottom: 1rem; padding: 0.75rem 1rem; background: var(--va-background-element); border: 1px solid var(--va-primary); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <va-icon name="assignment_turned_in" color="primary" size="medium" />
+          <div>
+            <div style="font-size: 0.88rem; font-weight: 700; color: var(--va-text-primary);">
+              {{ isEdit ? '✏️ 정보 변경 (UPDATE) 워크플로우 서식' : '🆕 신규 등록 (CREATE) 워크플로우 서식' }}
+            </div>
+            <div style="font-size: 0.78rem; color: var(--va-text-secondary);">
+              선택한 워크플로우 서식의 필드 권한(작성 허용 / 읽기 전용 / 숨김)에 따라 UI가 동적으로 구성됩니다.
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1; max-width: 580px;">
+          <span style="font-size: 0.78rem; font-weight: 700; color: var(--va-text-secondary); white-space: nowrap;">
+            적용 워크플로우:
+          </span>
+          <va-select
+            v-model="selectedWorkflowId"
+            :options="availableWorkflowOptions"
+            value-by="value"
+            text-by="text"
+            style="flex: 1; min-width: 340px; max-width: 500px;"
+            dense
+            @update:model-value="onWorkflowSelected"
+          />
+        </div>
+      </div>
+
       <!-- Sector Tabs -->
       <va-tabs v-model="activeSectorTab" style="margin-bottom: 1rem;">
         <template #tabs>
@@ -196,10 +226,12 @@ const props = defineProps({
   nodeLabel: { type: String, default: '' },
   hasWorkflow: { type: Boolean, default: true },
   selectedDomainInfo: { type: Object, default: null },
-  domainReferences: { type: Object, default: () => ({}) }
+  domainReferences: { type: Object, default: () => ({}) },
+  workflowPermission: { type: Object, default: () => ({}) },
+  availableWorkflows: { type: Array, default: () => [] }
 })
 
-const emit = defineEmits(['close', 'save', 'openDomainRef', 'update:show'])
+const emit = defineEmits(['close', 'save', 'openDomainRef', 'update:show', 'selectWorkflow'])
 
 const localeCookie = useCookie('locale', { default: () => 'ko' })
 const locale = computed(() => localeCookie.value || 'ko')
@@ -211,6 +243,66 @@ const modalVisible = computed({
     if (!val) emit('close')
   }
 })
+
+const selectedWorkflowId = ref('')
+
+const availableWorkflowOptions = computed(() => {
+  if (!props.availableWorkflows || props.availableWorkflows.length === 0) {
+    const perm = props.workflowPermission || {}
+    let rName = ''
+    if (perm.ruleName) {
+      if (typeof perm.ruleName === 'object') {
+        rName = perm.ruleName[locale.value] || perm.ruleName.ko || perm.ruleName.en || ''
+      } else if (typeof perm.ruleName === 'string') {
+        rName = perm.ruleName
+      }
+    }
+    const labelText = props.isEdit 
+      ? (rName ? `✏️ ${rName} (UPDATE)` : '✏️ 기본 승인 서식 (등록된 서식 없음)')
+      : (rName ? `🆕 ${rName} (CREATE)` : '🆕 기본 승인 서식 (등록된 서식 없음)')
+    return [{ value: 'DEFAULT', text: labelText }]
+  }
+
+  return props.availableWorkflows.map(wf => {
+    let nameText = ''
+    if (wf.name) {
+      try {
+        const parsed = typeof wf.name === 'string' ? JSON.parse(wf.name) : wf.name
+        nameText = parsed[locale.value] || parsed.ko || parsed.en || String(wf.name)
+      } catch(e) {
+        nameText = String(wf.name)
+      }
+    }
+    if (!nameText) nameText = props.isEdit ? '정보 변경 서식' : '신규 등록 서식'
+    const icon = props.isEdit ? '✏️' : '🆕'
+    const defaultSuffix = wf.isDefault ? ' (기본)' : ''
+    return {
+      value: wf.id,
+      text: `${icon} ${nameText}${defaultSuffix}`
+    }
+  })
+})
+
+watch(
+  () => props.availableWorkflows,
+  (newVal) => {
+    if (newVal && newVal.length > 0) {
+      const def = newVal.find(w => w.isDefault) || newVal[0]
+      if (def && def.id) {
+        selectedWorkflowId.value = def.id
+      }
+    } else {
+      selectedWorkflowId.value = 'DEFAULT'
+    }
+  },
+  { immediate: true, deep: true }
+)
+
+const onWorkflowSelected = (wfId) => {
+  if (wfId && wfId !== 'DEFAULT') {
+    emit('selectWorkflow', wfId)
+  }
+}
 
 const modalTitle = computed(() => {
   if (props.isEdit) {
@@ -236,7 +328,11 @@ const handleClose = () => {
 }
 
 const handleSave = () => {
-  emit('save', { isEdit: props.isEdit, record: localRecord.value })
+  emit('save', {
+    isEdit: props.isEdit,
+    record: localRecord.value,
+    workflowConfigId: selectedWorkflowId.value && selectedWorkflowId.value !== 'DEFAULT' ? selectedWorkflowId.value : null
+  })
 }
 
 const isAutoNumberingField = (field) => {
@@ -291,11 +387,22 @@ const groupedFieldsArray = computed(() => {
   const sectors = Array.from(map.values())
   sectors.sort((a, b) => a.order - b.order)
 
-  return sectors.map((s) => {
+  const filteredSectors = []
+  sectors.forEach((s) => {
     const groups = Array.from(s.groups.values())
     groups.sort((a, b) => a.order - b.order)
-    return { key: s.key, label: s.label, groups: groups }
+
+    const visibleGroups = groups.map(g => {
+      const visibleFields = g.fields.filter(f => evalConditionRule(f, localRecord.value).show)
+      return { ...g, fields: visibleFields }
+    }).filter(g => g.fields.length > 0)
+
+    if (visibleGroups.length > 0) {
+      filteredSectors.push({ key: s.key, label: s.label, groups: visibleGroups })
+    }
   })
+
+  return filteredSectors
 })
 
 const parseOptions = (opts) => {
@@ -378,6 +485,30 @@ const evalConditionRule = (field, formData) => {
     readOnly: field?.isReadOnly || false,
     disabled: false
   }
+
+  // Apply workflow permission rules if available
+  const perm = props.workflowPermission || {}
+  const hiddenFields = perm.hiddenFields || []
+  const readOnlyFields = perm.readOnlyFields || []
+  const editableFields = perm.editableFields || []
+
+  if (field?.key && hiddenFields.includes(field.key)) {
+    return { show: false, highlight: false, required: false, readOnly: true, disabled: true }
+  }
+
+  if (field?.key && readOnlyFields.includes(field.key)) {
+    defaultRes.readOnly = true
+  }
+
+  if (field?.key && editableFields.length > 0 && !editableFields.includes(field.key)) {
+    if (!props.isEdit) {
+      // In CREATE mode, fields not in editableFields are hidden completely (users only see designated creation fields)
+      return { show: false, highlight: false, required: false, readOnly: true, disabled: true }
+    } else {
+      defaultRes.readOnly = true
+    }
+  }
+
   if (!field || !field.options || !formData) return defaultRes
 
   try {

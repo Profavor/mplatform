@@ -57,7 +57,7 @@
                   :autoSizeStrategy="autoSizeStrategy"
                   :columnDefs="columnDefs"
                   :rowHeight="42"
-                  :rowSelection="{ mode: 'singleRow' }"
+                  :rowSelection="{ mode: 'singleRow', headerCheckbox: false }"
                   rowModelType="infinite"
                   :pagination="true"
                   :paginationPageSize="20"
@@ -74,19 +74,19 @@
               </div>
             </div>
 
-            <WorkflowConfigTab
-              v-show="activeTab === 1"
-              :workflowConfigs="workflowConfigs"
-              :userOptions="userOptions"
-              :isSavingWorkflows="isSavingWorkflows"
-              @addStep="addStep"
-              @removeStep="removeStep"
-              @moveStepUp="moveStepUp"
-              @moveStepDown="moveStepDown"
-              @addUserToStep="addUserToStep"
-              @removeUserFromStep="removeUserFromStep"
-              @save="saveWorkflowConfigs"
-            />
+            <!-- Workflows Tab -->
+            <div v-show="activeTab === 1" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem; text-align: center;">
+              <va-icon name="account_tree" size="large" color="primary" class="mb-3" />
+              <h3 style="font-size: 1.2rem; font-weight: 700; color: var(--va-text-primary); margin-bottom: 0.5rem;">
+                중앙 워크플로우 & 거버넌스 관리
+              </h3>
+              <p style="font-size: 0.9rem; color: var(--va-text-secondary); max-width: 520px; margin-bottom: 1.5rem;">
+                모든 결재선(신규 등록, 정보 변경, 삭제/폐기, 스키마 구조 변경), 신청 자격 및 필드 권한 제어 규칙은 [관리자 > 워크플로우 관리] 메뉴에서 중앙 집중식으로 설정 및 관리됩니다.
+              </p>
+              <va-button color="primary" icon="open_in_new" @click="$router.push('/admin/workflow')" style="font-weight: 700;">
+                워크플로우 관리 센터로 이동
+              </va-button>
+            </div>
 
             <!-- Schema History Tab -->
             <div v-show="activeTab === 2" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 1rem; overflow-y: auto;">
@@ -568,6 +568,7 @@ import { useCookie, useState } from '#app'
 
 import { AgGridVue } from 'ag-grid-vue3'
 import SchemaHistoryTab from '~/components/schema/SchemaHistoryTab.vue'
+import WorkflowConfigTab from '~/components/schema/WorkflowConfigTab.vue'
 
 const { gridTheme, autoSizeStrategy } = useAgGridTheme()
 
@@ -597,6 +598,7 @@ const workflowConfigs = ref({
   UPDATE: { steps: [], observerIds: [] },
   DELETE: { steps: [], observerIds: [] }
 })
+const isSavingWorkflows = ref(false)
 const userOptions = ref([])
 const unitOptions = ref([])
 const treeNodes = ref([])
@@ -1086,6 +1088,7 @@ const removeUserFromStep = (action, sIdx, uIdx) => {
 
 const saveWorkflowConfigs = async () => {
   if (!selectedNode.value) return
+  isSavingWorkflows.value = true
   try {
     const payloads = Object.keys(workflowConfigs.value).map(action => {
       const conf = workflowConfigs.value[action]
@@ -1126,6 +1129,8 @@ const saveWorkflowConfigs = async () => {
   } catch (e) {
     console.error('Failed to save workflows', e)
     showCustomAlert('Failed to save workflows.', 'Save Failed', 'Error', 'error')
+  } finally {
+    isSavingWorkflows.value = false
   }
 }
 

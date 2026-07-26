@@ -276,6 +276,46 @@ class DataQualityServiceTest {
     }
 
     // ─────────────────────────────────────────────────────────────────
+    // 지정 필드 스코프 DQ 검증 테스트
+    // ─────────────────────────────────────────────────────────────────
+    @Nested
+    @DisplayName("지정 필드 스코프 DQ 검증")
+    class FieldScopedValidation {
+
+        @Test
+        @DisplayName("지정된 필드(targetFieldKeys)에 포함되지 않은 미지정 필수 필드는 DQ 검증에서 제외됨")
+        void unassignedRequiredField_IsIgnoredInScopedValidation() {
+            FieldDefinition nameField = makeField("name", "TEXT", true);
+            FieldDefinition salaryField = makeField("salary", "NUMBER", true); // required in schema
+            when(fieldDefinitionService.getEffectiveFields(nodeId)).thenReturn(List.of(nameField, salaryField));
+
+            // Only validate "name" field
+            DataQualityService.DQResult result = dataQualityService.validateData(
+                    nodeId, "{\"name\":\"Hong Gil Dong\"}", null, List.of("name")
+            );
+
+            assertThat(result.isValid).isTrue();
+            assertThat(result.errors).isEmpty();
+        }
+
+        @Test
+        @DisplayName("지정된 필드(targetFieldKeys)의 유효성 검사 실패 시 에러 감지")
+        void assignedField_Invalid_DetectedInScopedValidation() {
+            FieldDefinition nameField = makeField("name", "TEXT", true);
+            FieldDefinition salaryField = makeField("salary", "NUMBER", true);
+            when(fieldDefinitionService.getEffectiveFields(nodeId)).thenReturn(List.of(nameField, salaryField));
+
+            // Validate "name" field when "name" is missing
+            DataQualityService.DQResult result = dataQualityService.validateData(
+                    nodeId, "{\"salary\": 5000}", null, List.of("name")
+            );
+
+            assertThat(result.isValid).isFalse();
+            assertThat(result.errors).anyMatch(e -> e.contains("name") || e.contains("required"));
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────
     // 헬퍼 메서드
     // ─────────────────────────────────────────────────────────────────
     private FieldDefinition makeField(String key, String type, boolean required) {

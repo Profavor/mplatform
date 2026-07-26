@@ -33,7 +33,7 @@ public class GlobalRecordController {
     }
 
     @PostMapping("/{id}/update-request")
-    @PreAuthorize("hasPermission(null, 'record:write')")
+    @PreAuthorize("hasPermission(null, 'record:write') or hasPermission(null, 'workflow:request')")
     public ResponseEntity<?> updateRecordRequest(
             @PathVariable UUID id, 
             @RequestBody com.classification.domain_system.dto.RecordRequest request) {
@@ -51,7 +51,7 @@ public class GlobalRecordController {
     }
 
     @PostMapping("/{id}/delete-request")
-    @PreAuthorize("hasPermission(null, 'record:delete')")
+    @PreAuthorize("hasPermission(null, 'record:delete') or hasPermission(null, 'workflow:request')")
     public ResponseEntity<?> deleteRecordRequest(
             @PathVariable UUID id,
             @RequestBody com.classification.domain_system.dto.RecordRequest request) {

@@ -25,7 +25,14 @@ public class MenuService {
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getMenuTree() {
-        List<Menu> allMenus = menuRepository.findAllByIsActiveTrueOrderBySortOrderAsc();
+        return getMenuTree(false);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getMenuTree(boolean includeInactive) {
+        List<Menu> allMenus = includeInactive
+                ? menuRepository.findAllByOrderBySortOrderAsc()
+                : menuRepository.findAllByIsActiveTrueOrderBySortOrderAsc();
         return buildTree(allMenus, null);
     }
 
@@ -102,6 +109,9 @@ public class MenuService {
 
     @Transactional
     public Menu createMenu(Menu menu) {
+        if (menu.getIsActive() == null) {
+            menu.setIsActive(true);
+        }
         if (menu.getRequiredRoles() != null) {
             Set<String> clean = menu.getRequiredRoles().stream()
                     .filter(r -> r != null && !r.trim().isEmpty())
@@ -128,7 +138,11 @@ public class MenuService {
         if (menuDetails.getIcon() != null) menu.setIcon(menuDetails.getIcon());
         menu.setParentId(menuDetails.getParentId());
         if (menuDetails.getSortOrder() != null) menu.setSortOrder(menuDetails.getSortOrder());
-        if (menuDetails.getIsActive() != null) menu.setIsActive(menuDetails.getIsActive());
+        if (menuDetails.getIsActive() != null) {
+            menu.setIsActive(menuDetails.getIsActive());
+        } else if (menu.getIsActive() == null) {
+            menu.setIsActive(true);
+        }
 
         // Update 1NF normalized menu_roles table rows
         if (menuDetails.getRequiredRoles() != null) {

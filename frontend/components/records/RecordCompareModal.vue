@@ -9,12 +9,29 @@
     <div style="display: flex; flex-direction: column; gap: 1rem; max-height: 75vh;">
 
       <!-- Controls Header Toolbar -->
-      <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; background: var(--va-background-element); border-radius: 8px; border: 1px solid var(--va-background-border);">
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-          <va-icon name="scale" color="primary" />
-          <span style="font-weight: 700; font-size: 0.9rem;">
-            {{ t('comparing_count') || (isEn ? `Comparing ${records.length} records` : `${records.length}개 레코드 비교 중`) }}
-          </span>
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; background: var(--va-background-element); border-radius: 8px; border: 1px solid var(--va-background-border); flex-wrap: wrap; gap: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <div style="display: flex; align-items: center; gap: 0.4rem;">
+            <va-icon name="scale" color="primary" />
+            <span style="font-weight: 700; font-size: 0.9rem;">
+              {{ t('comparing_count') || (isEn ? `Comparing ${records.length} records` : `${records.length}개 레코드 비교 중`) }}
+            </span>
+          </div>
+
+          <!-- Baseline Record Selector -->
+          <div style="display: flex; align-items: center; gap: 0.35rem; margin-left: 0.5rem;">
+            <span style="font-size: 0.78rem; font-weight: 700; color: var(--va-text-secondary); white-space: nowrap;">
+              {{ t('baseline_record') || (isEn ? 'Baseline Record:' : '기준 레코드:') }}
+            </span>
+            <va-select
+              v-model="baselineRecordIndex"
+              :options="baselineRecordOptions"
+              value-by="value"
+              text-by="text"
+              dense
+              style="width: 320px; min-width: 220px;"
+            />
+          </div>
         </div>
 
         <div style="display: flex; align-items: center; gap: 1rem;">
@@ -48,10 +65,16 @@
               <th
                 v-for="(rec, index) in records"
                 :key="getRecordId(rec, index)"
-                style="padding: 0.75rem; text-align: left; min-width: 220px; border-right: 1px solid var(--va-background-border); background: var(--va-background-element);"
+                :style="{
+                  padding: '0.75rem',
+                  textAlign: 'left',
+                  minWidth: '220px',
+                  borderRight: '1px solid var(--va-background-border)',
+                  background: index === baselineRecordIndex ? 'rgba(var(--va-primary-rgb, 59, 130, 246), 0.08)' : 'var(--va-background-element)'
+                }"
               >
                 <div style="display: flex; flex-direction: column; gap: 0.35rem;">
-                  <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
                     <span style="font-weight: 800; font-size: 0.95rem; color: var(--va-primary);">
                       {{ getRecordName(rec) }}
                     </span>
@@ -59,8 +82,29 @@
                       {{ getRecordId(rec, index) }}
                     </va-chip>
                   </div>
-                  <div style="font-size: 0.75rem; color: var(--va-text-secondary);">
-                    Record #{{ index + 1 }}
+                  
+                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.15rem;">
+                    <span style="font-size: 0.75rem; color: var(--va-text-secondary);">
+                      Record #{{ index + 1 }}
+                    </span>
+                    <va-chip
+                      v-if="index === baselineRecordIndex"
+                      size="small"
+                      color="primary"
+                      style="font-size: 11px; font-weight: 700;"
+                    >
+                      ⭐ {{ t('baseline_badge') || (isEn ? 'Baseline' : '기준 레코드') }}
+                    </va-chip>
+                    <va-button
+                      v-else
+                      size="small"
+                      preset="plain"
+                      color="primary"
+                      style="font-size: 11px; padding: 0;"
+                      @click="baselineRecordIndex = index"
+                    >
+                      {{ t('set_as_baseline') || (isEn ? 'Set as Baseline' : '기준으로 설정') }}
+                    </va-button>
                   </div>
                 </div>
               </th>
@@ -95,8 +139,16 @@
               <td
                 v-for="(rec, index) in records"
                 :key="getRecordId(rec, index)"
-                :class="{ 'diff-cell': isFieldDifferent(field) }"
-                style="padding: 0.65rem 0.75rem; border-right: 1px solid var(--va-background-border); vertical-align: top;"
+                :class="{
+                  'baseline-cell': index === baselineRecordIndex,
+                  'diff-cell': isCellDifferentFromBaseline(field, index)
+                }"
+                :style="{
+                  padding: '0.65rem 0.75rem',
+                  borderRight: '1px solid var(--va-background-border)',
+                  verticalAlign: 'top',
+                  background: index === baselineRecordIndex ? 'rgba(var(--va-primary-rgb, 59, 130, 246), 0.03)' : undefined
+                }"
               >
                 <div style="word-break: break-all; line-height: 1.4;">
                   {{ formatFieldValue(rec, field) }}
@@ -116,7 +168,15 @@
 
     <!-- Footer Actions -->
     <template #footer>
-      <div style="display: flex; justify-content: flex-end; width: 100%;">
+      <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+        <va-button
+          color="success"
+          icon="file_download"
+          preset="secondary"
+          @click="exportToExcel"
+        >
+          {{ t('export_excel') || (isEn ? 'Export to Excel' : '엑셀 내보내기') }}
+        </va-button>
         <va-button color="secondary" @click="handleClose">
           {{ t('close') || (isEn ? 'Close' : '닫기') }}
         </va-button>
@@ -126,7 +186,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 let t = (key) => key
 let i18nLocale = ref('ko')
@@ -139,7 +199,6 @@ try {
 } catch (e) {}
 
 const props = defineProps({
-
   show: { type: Boolean, default: false },
   records: { type: Array, default: () => [] },
   fields: { type: Array, default: () => [] }
@@ -149,6 +208,21 @@ const emit = defineEmits(['close', 'update:show'])
 
 const isEn = computed(() => (i18nLocale?.value || 'ko') === 'en')
 const onlyDifferences = ref(false)
+const baselineRecordIndex = ref(0)
+
+watch(() => props.records, (newRecs) => {
+  if (!newRecs || baselineRecordIndex.value >= newRecs.length) {
+    baselineRecordIndex.value = 0
+  }
+}, { immediate: true })
+
+const baselineRecordOptions = computed(() => {
+  if (!props.records) return []
+  return props.records.map((rec, idx) => ({
+    value: idx,
+    text: `Record #${idx + 1}: ${getRecordName(rec)}`
+  }))
+})
 
 const modalVisible = computed({
   get: () => props.show,
@@ -185,26 +259,94 @@ const getRawFieldValue = (record, field) => {
   return val
 }
 
-const formatFieldValue = (record, field) => {
-  const raw = getRawFieldValue(record, field)
-  if (raw === undefined || raw === null || raw === '') return '-'
-  
-  if (typeof raw === 'object') {
-    if (raw.ko || raw.en) {
-      return raw[i18nLocale?.value || 'ko'] || raw.ko || raw.en || ''
+const NUMERIC_TYPES = ['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER']
+
+const isNumericField = (field) => {
+  if (!field) return false
+  if (field.type && NUMERIC_TYPES.includes(String(field.type).toUpperCase())) return true
+  return false
+}
+
+const formatFieldValue = (record, field, { raw = false } = {}) => {
+  const rawVal = getRawFieldValue(record, field)
+  if (rawVal === undefined || rawVal === null || rawVal === '') return '-'
+
+  if (typeof rawVal === 'object') {
+    if (rawVal.ko || rawVal.en) {
+      return rawVal[i18nLocale?.value || 'ko'] || rawVal.ko || rawVal.en || ''
     }
-    return JSON.stringify(raw)
+    return JSON.stringify(rawVal)
   }
-  return String(raw)
+
+  // Numeric formatting (UI only — raw=false)
+  if (!raw && isNumericField(field)) {
+    const num = Number(rawVal)
+    if (!isNaN(num)) {
+      // Preserve decimals if present
+      const hasDecimal = String(rawVal).includes('.')
+      return hasDecimal
+        ? num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 10 })
+        : num.toLocaleString()
+    }
+  }
+
+  return String(rawVal)
+}
+
+const isUuid = (val) => {
+  if (!val || typeof val !== 'string') return false
+  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(val)
 }
 
 const getRecordId = (rec, idx) => {
-  if (!rec) return `REC-${idx}`
-  let idVal = rec.empNo || rec.employeeNo || rec.code || rec.id || ''
-  if (!idVal && rec.data) {
-    idVal = rec.data.empNo || rec.data.code || rec.data.id || ''
+  if (!rec) return `REC-${idx + 1}`
+
+  if (props.fields && props.fields.length) {
+    const idField = props.fields.find(f => f.isIdentifier || f.isIdAttribute || f.isPrimary || f.isUnique)
+    if (idField) {
+      const val = getRawFieldValue(rec, idField)
+      if (val !== undefined && val !== null && val !== '' && !isUuid(String(val))) {
+        return String(val)
+      }
+    }
+
+    for (const f of props.fields) {
+      const fName = getTranslatedName(f.name).toLowerCase()
+      const k = String(f.key || '').toLowerCase()
+      if (
+        fName.includes('사번') || fName.includes('코드') || fName.includes('번호') || fName.includes('id') ||
+        k.includes('empno') || k.includes('sabun') || k.includes('code') || k.includes('number') || k.includes('id')
+      ) {
+        const val = getRawFieldValue(rec, f)
+        if (val !== undefined && val !== null && val !== '' && !isUuid(String(val))) {
+          return String(val)
+        }
+      }
+    }
   }
-  return idVal ? String(idVal) : `REC-${idx + 1}`
+
+  const dataObj = rec.data && typeof rec.data === 'object' ? rec.data : rec
+  const candidateKeys = ['empNo', 'employeeNo', 'sabun', 'code', 'idAttribute', 'id_attribute', 'idNo', 'number']
+  for (const k of candidateKeys) {
+    const val = dataObj[k] || rec[k]
+    if (val !== undefined && val !== null && val !== '' && !isUuid(String(val))) {
+      return String(val)
+    }
+  }
+
+  if (dataObj && typeof dataObj === 'object') {
+    for (const [k, val] of Object.entries(dataObj)) {
+      const lowerK = k.toLowerCase()
+      if (
+        (lowerK.includes('code') || lowerK.includes('id') || lowerK.includes('no') || lowerK.includes('num')) &&
+        val !== undefined && val !== null && val !== '' && !isUuid(String(val))
+      ) {
+        return String(val)
+      }
+    }
+  }
+
+  return `REC-${idx + 1}`
 }
 
 const getRecordName = (rec) => {
@@ -220,12 +362,23 @@ const getRecordName = (rec) => {
 
 const isFieldDifferent = (field) => {
   if (!props.records || props.records.length < 2) return false
-  const firstVal = String(formatFieldValue(props.records[0], field)).trim()
-  for (let i = 1; i < props.records.length; i++) {
-    const currVal = String(formatFieldValue(props.records[i], field)).trim()
-    if (firstVal !== currVal) return true
+  const baselineRec = props.records[baselineRecordIndex.value] || props.records[0]
+  const baseVal = String(formatFieldValue(baselineRec, field, { raw: true })).trim()
+  for (let i = 0; i < props.records.length; i++) {
+    if (i === baselineRecordIndex.value) continue
+    const currVal = String(formatFieldValue(props.records[i], field, { raw: true })).trim()
+    if (baseVal !== currVal) return true
   }
   return false
+}
+
+const isCellDifferentFromBaseline = (field, recordIndex) => {
+  if (recordIndex === baselineRecordIndex.value) return false
+  if (!props.records || props.records.length < 2) return false
+  const baselineRec = props.records[baselineRecordIndex.value] || props.records[0]
+  const baseVal = String(formatFieldValue(baselineRec, field, { raw: true })).trim()
+  const currVal = String(formatFieldValue(props.records[recordIndex], field, { raw: true })).trim()
+  return baseVal !== currVal
 }
 
 const diffFieldsCount = computed(() => {
@@ -240,6 +393,140 @@ const displayedFields = computed(() => {
   }
   return props.fields
 })
+
+const buildExcelRows = () => {
+  const locale = i18nLocale?.value || 'ko'
+  const isKo = locale !== 'en'
+
+  // Header row
+  const header = [isKo ? '필드' : 'Field']
+  props.records.forEach((rec, idx) => {
+    const baseline = idx === baselineRecordIndex.value ? (isKo ? ' [기준]' : ' [Baseline]') : ''
+    header.push(`Record #${idx + 1}: ${getRecordId(rec, idx)}${baseline}`)
+  })
+
+  // Data rows - all fields (not just displayed), use raw values for correct comparison
+  const dataRows = (props.fields || []).map(field => {
+    const fieldName = getTranslatedName(field.name) || field.key
+    const hasDiff = isFieldDifferent(field)
+    const row = [hasDiff ? `★ ${fieldName}` : fieldName]
+    props.records.forEach(rec => {
+      row.push(formatFieldValue(rec, field, { raw: true }))
+    })
+    return row
+  })
+
+  return [header, ...dataRows]
+}
+
+const exportToExcel = async () => {
+  const locale = i18nLocale?.value || 'ko'
+  const isKo = locale !== 'en'
+
+  // Dynamic import to avoid SSR issues
+  const ExcelJS = (await import('exceljs')).default
+
+  const wb = new ExcelJS.Workbook()
+  wb.creator = 'Record Compare'
+  wb.created = new Date()
+
+  const sheetName = isKo ? '레코드 비교' : 'Record Compare'
+  const ws = wb.addWorksheet(sheetName)
+
+  // ── Column definitions ──────────────────────────────────────
+  const colCount = (props.fields?.length ? props.records.length + 1 : 1)
+  ws.columns = Array.from({ length: colCount }, (_, i) => ({
+    width: i === 0 ? 26 : 22
+  }))
+
+  // ── Header row ──────────────────────────────────────────────
+  const headerValues = [isKo ? '필드' : 'Field']
+  props.records.forEach((rec, idx) => {
+    const baseline = idx === baselineRecordIndex.value
+      ? (isKo ? ' [기준]' : ' [Baseline]')
+      : ''
+    headerValues.push(`Record #${idx + 1}: ${getRecordId(rec, idx)}${baseline}`)
+  })
+  const headerRow = ws.addRow(headerValues)
+  headerRow.height = 22
+  headerRow.eachCell(cell => {
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 }
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A5F' } }
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: false }
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FF9CB4CC' } },
+      left: { style: 'thin', color: { argb: 'FF9CB4CC' } },
+      bottom: { style: 'thin', color: { argb: 'FF9CB4CC' } },
+      right: { style: 'thin', color: { argb: 'FF9CB4CC' } }
+    }
+  })
+
+  // ── Data rows ───────────────────────────────────────────────
+  ;(props.fields || []).forEach(field => {
+    const hasDiff = isFieldDifferent(field)
+    const fieldName = getTranslatedName(field.name) || field.key
+    const isNum = isNumericField(field)
+    const rowValues = [hasDiff ? `★ ${fieldName}` : fieldName]
+    props.records.forEach(rec => {
+      const rawStr = formatFieldValue(rec, field, { raw: true })
+      if (isNum && rawStr !== '-') {
+        const n = Number(rawStr)
+        rowValues.push(isNaN(n) ? rawStr : n)
+      } else {
+        rowValues.push(rawStr)
+      }
+    })
+
+    const dataRow = ws.addRow(rowValues)
+    dataRow.height = 18
+
+    dataRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      // Numeric format for data columns
+      if (isNum && colNumber > 1 && typeof cell.value === 'number') {
+        const isDecimal = NUMERIC_TYPES.some(t =>
+          (field.type || '').toUpperCase() === t && (t === 'DECIMAL' || t === 'FLOAT')
+        )
+        cell.numFmt = isDecimal ? '#,##0.##' : '#,##0'
+        cell.alignment = { vertical: 'middle', horizontal: 'right', wrapText: false }
+      } else {
+        cell.alignment = { vertical: 'middle', wrapText: false }
+      }
+
+      if (hasDiff) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3CD' } }
+        cell.font = colNumber === 1
+          ? { bold: true, color: { argb: 'FF92400E' }, size: 10 }
+          : { color: { argb: 'FF92400E' }, size: 10 }
+      } else {
+        cell.font = { size: 10 }
+      }
+      cell.border = {
+        top: { style: 'hair', color: { argb: 'FFD1D5DB' } },
+        left: { style: 'hair', color: { argb: 'FFD1D5DB' } },
+        bottom: { style: 'hair', color: { argb: 'FFD1D5DB' } },
+        right: { style: 'hair', color: { argb: 'FFD1D5DB' } }
+      }
+    })
+  })
+
+  // ── Freeze header row ────────────────────────────────────────
+  ws.views = [{ state: 'frozen', xSplit: 0, ySplit: 1 }]
+
+  // ── Download ─────────────────────────────────────────────────
+  const buffer = await wb.xlsx.writeBuffer()
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  const now = new Date().toISOString().slice(0, 10)
+  link.href = url
+  link.download = `${isKo ? '레코드비교' : 'RecordCompare'}_${now}.xlsx`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
 </script>
 
 <style scoped>

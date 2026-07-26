@@ -35,7 +35,7 @@ public class RecordController {
     private final com.classification.domain_system.service.RecordService recordService;
     
     @PostMapping
-    @PreAuthorize("hasPermission(null, 'record:write')")
+    @PreAuthorize("hasPermission(null, 'record:write') or hasPermission(null, 'workflow:request')")
     public ResponseEntity<ApprovalRequest> createRecordRequest(
             @PathVariable UUID nodeId, 
             @RequestBody RecordRequest request) {
@@ -46,7 +46,7 @@ public class RecordController {
     }
 
     @PostMapping("/batch")
-    @PreAuthorize("hasPermission(null, 'record:write')")
+    @PreAuthorize("hasPermission(null, 'record:write') or hasPermission(null, 'workflow:request')")
     public ResponseEntity<List<ApprovalRequest>> createBatchRecords(
             @PathVariable UUID nodeId, 
             @RequestBody List<RecordRequest> requests) {

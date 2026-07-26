@@ -28,8 +28,9 @@ public class MenuController {
 
     @GetMapping("/tree")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<Map<String, Object>>> getMenuTree() {
-        return ResponseEntity.ok(menuService.getMenuTree());
+    public ResponseEntity<List<Map<String, Object>>> getMenuTree(
+            @RequestParam(required = false, defaultValue = "false") boolean includeInactive) {
+        return ResponseEntity.ok(menuService.getMenuTree(includeInactive));
     }
 
     @PostMapping

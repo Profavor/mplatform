@@ -57,20 +57,16 @@
           </va-button>
         </div>
         <template v-if="selectedNode && !selectedNode.isDomain">
-          <va-button v-if="hasPermission('record:write')" color="primary" @click="openCreateModal">
-            <va-icon name="add" class="mr-2"/> Create Record
+          <va-button v-if="hasPermission('record:write') || hasPermission('workflow:request')" color="primary" @click="openCreateModal">
+            <va-icon name="add" class="mr-2"/> {{ hasCreateWorkflow ? '신규 등록 요청' : 'Create Record' }}
           </va-button>
-          <va-button v-if="hasPermission('record:write')" color="success" outline @click="showExcelUploader = true" class="ml-2">
+          <va-button v-if="hasPermission('record:write') || hasPermission('workflow:request')" color="success" outline @click="showExcelUploader = true" class="ml-2">
             <va-icon name="upload" class="mr-2"/> Bulk Upload
           </va-button>
-          <va-button color="warning" outline :disabled="(selectedRecordRows?.length || 0) < 2" @click="showCompareModal = true" class="ml-2">
-            <va-icon name="scale" class="mr-2"/> {{ $t('compare_records') || '레코드 비교' }} ({{ selectedRecordRows?.length || 0 }})
-          </va-button>
-
         </template>
 
-        <va-button v-else-if="selectedNode && selectedNode.isDomain" color="secondary" outline disabled>
-          <va-icon name="info" class="mr-2"/> 하위 분류 노드를 선택해야 데이터를 생성할 수 있습니다
+        <va-button color="warning" outline :disabled="(selectedRecordRows?.length || 0) < 2" @click="showCompareModal = true" class="ml-2">
+          <va-icon name="scale" class="mr-2"/> {{ $t('compare_records') || '레코드 비교' }} ({{ selectedRecordRows?.length || 0 }})
         </va-button>
       </div>
 
@@ -190,7 +186,7 @@
                 :defaultColDef="defaultColDef"
                 rowModelType="infinite"
                 :cacheBlockSize="20"
-                :rowSelection="{ mode: 'multiRow', enableClickSelection: false }"
+                :rowSelection="{ mode: 'multiRow', enableClickSelection: false, headerCheckbox: false }"
                 :pagination="true"
                 :paginationPageSize="20"
                 :paginationPageSizeSelector="[10, 20, 50]"
@@ -231,11 +227,14 @@
       :fields="nodeFields"
       :node-label="selectedNode?.label"
       :has-workflow="hasCreateWorkflow"
+      :workflow-permission="createWorkflowPermission"
+      :available-workflows="availableWorkflows"
       :selected-domain-info="selectedDomainInfo"
       :domain-references="domainReferences"
       @close="showCreateModal = false"
-      @save="promptDraftComment('CREATE')"
+      @save="promptDraftComment('CREATE', $event)"
       @openDomainRef="openDomainRefModal($event.fieldKey, $event.isCreate)"
+      @selectWorkflow="handleWorkflowSelectionChanged"
     />
 
     <!-- Modularized Record Detail & History Drawer -->
@@ -249,8 +248,8 @@
       :has-pending-update="hasPendingUpdate"
       :is-editing-record="isEditingRecord"
       :has-update-workflow="hasUpdateWorkflow"
-      :can-delete="hasPermission('record:delete')"
-      :can-write="hasPermission('record:write')"
+      :can-delete="hasPermission('record:delete') || hasPermission('workflow:request')"
+      :can-write="hasPermission('record:write') || hasPermission('workflow:request')"
       :can-read-history="hasPermission('record:read') || hasPermission('record:*')"
       :selected-domain-info="selectedDomainInfo"
       :domain-references="domainReferences"
@@ -2142,13 +2141,65 @@ const handleCalculatedFields = (newData) => {
 watch(recordFormData, handleCalculatedFields, { deep: true })
 watch(selectedRecordData, handleCalculatedFields, { deep: true })
 
-const openCreateModal = () => {
+const availableWorkflows = ref([])
+const createWorkflowPermission = ref({})
+const selectedWorkflowConfigId = ref(null)
+
+const fetchEffectivePermissionForWorkflow = async (nodeId, actionType, workflowId = null) => {
+  if (!nodeId) return {}
+  try {
+    let url = `/api/approval-requests/effective-permission/${nodeId}?actionType=${actionType}`
+    if (workflowId) {
+      url += `&workflowId=${workflowId}`
+    }
+    const res = await $fetch(url, { headers: { Authorization: `Bearer ${token.value}` } })
+    return res || {}
+  } catch (e) {
+    return {}
+  }
+}
+
+const openCreateModal = async () => {
   const initialData = {}
   nodeFields.value.forEach(f => {
     if (f.type === 'MULTILINGUAL') initialData[f.key] = { ko: '', en: '' }
   })
   recordFormData.value = initialData
+  selectedWorkflowConfigId.value = null
+
+  if (selectedNode.value && selectedNode.value.id) {
+    try {
+      const wfList = await $fetch(`/api/approval-requests/available-workflows/${selectedNode.value.id}?actionType=CREATE`, {
+        headers: { Authorization: `Bearer ${token.value}` }
+      })
+      availableWorkflows.value = wfList || []
+      const defaultWf = availableWorkflows.value.find(w => w.isDefault) || availableWorkflows.value[0]
+      if (defaultWf) {
+        selectedWorkflowConfigId.value = defaultWf.id
+      }
+      createWorkflowPermission.value = await fetchEffectivePermissionForWorkflow(
+        selectedNode.value.id,
+        'CREATE',
+        defaultWf ? defaultWf.id : null
+      )
+    } catch (e) {
+      availableWorkflows.value = []
+      createWorkflowPermission.value = {}
+    }
+  }
+
   showCreateModal.value = true
+}
+
+const handleWorkflowSelectionChanged = async (workflowId) => {
+  if (selectedNode.value && selectedNode.value.id && workflowId) {
+    selectedWorkflowConfigId.value = workflowId
+    createWorkflowPermission.value = await fetchEffectivePermissionForWorkflow(
+      selectedNode.value.id,
+      'CREATE',
+      workflowId
+    )
+  }
 }
 
 const showDraftCommentModal = ref(false)
@@ -2291,12 +2342,16 @@ const promptDraftComment = async (action) => {
     const res = await $fetch(`/api/dq-rules/validate?nodeId=${selectedNode.value.id}${recIdQuery}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token.value}` },
-      body: { data: JSON.stringify(formattedData) }
+      body: { data: formattedData }
     })
     dqValidationResult.value = res || { valid: true, errors: [], warnings: [] }
   } catch (e) {
     console.error('DQ Validation error:', e)
-    dqValidationResult.value = { valid: true, errors: [], warnings: [] }
+    dqValidationResult.value = {
+      valid: false,
+      errors: [{ fieldKey: '_server', severity: 'ERROR', message: { ko: 'DQ 품질 검증 서버 처리 중 오류가 발생했습니다.', en: 'DQ Validation error occurred.' } }],
+      warnings: []
+    }
   } finally {
     dqValidating.value = false
   }
@@ -2368,7 +2423,8 @@ const saveRecord = async () => {
     const payload = {
       data: JSON.stringify(formattedData),
       requesterId: reqId,
-      comment: draftCommentText.value
+      comment: draftCommentText.value,
+      workflowConfigId: selectedWorkflowConfigId.value
     }
     
     await $fetch(`/api/nodes/${selectedNode.value.id}/records`, {

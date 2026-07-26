@@ -1,63 +1,118 @@
 <template>
   <div class="schema-history-tab flex flex-col h-full min-h-[400px]">
-    <div class="flex justify-between items-center mb-4">
-      <h3 class="text-lg font-semibold">{{ $t('schema_history.title') }}</h3>
+    <!-- Header Toolbar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+      <h3 style="font-size: 1.125rem; font-weight: 700; color: var(--va-text-primary);">
+        {{ $t('schema_history.title') }}
+      </h3>
       <va-button preset="secondary" icon="refresh" @click="fetchHistory">
         {{ $t('match_review.refresh') }}
       </va-button>
     </div>
 
-    <va-data-table
-      :items="historyList"
-      :columns="columns"
-      :loading="isLoading"
-      striped
-      hoverable
-      class="flex-1"
-    >
-      <template #cell(targetType)="{ rowData }">
-        <va-badge :text="$t('schema_history.' + rowData.targetType.toLowerCase())" :color="getTypeColor(rowData.targetType)" />
-      </template>
+    <!-- History Data Table Container -->
+    <div style="flex: 1; overflow-y: auto; border: 1px solid var(--va-background-border); border-radius: 8px;">
+      <div v-if="isLoading" style="display: flex; justify-content: center; align-items: center; padding: 3rem;">
+        <va-progress-circle indeterminate color="primary" />
+      </div>
 
-      <template #cell(action)="{ rowData }">
-        <va-badge :text="$t('schema_history.' + rowData.action.toLowerCase())" :color="getActionColor(rowData.action)" />
-      </template>
-      
-      <template #cell(changedAt)="{ rowData }">
-        {{ formatWithTimezone(rowData.changedAt) }}
-      </template>
+      <table v-else class="va-table va-table--hoverable" style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+        <thead>
+          <tr style="background: var(--va-background-element); border-bottom: 2px solid var(--va-background-border); text-align: left;">
+            <th style="padding: 0.75rem 1rem; font-weight: 700;">{{ $t('schema_history.target_type') }}</th>
+            <th style="padding: 0.75rem 1rem; font-weight: 700;">{{ $t('schema_history.action') }}</th>
+            <th style="padding: 0.75rem 1rem; font-weight: 700;">{{ $t('schema_history.changed_by') }}</th>
+            <th style="padding: 0.75rem 1rem; font-weight: 700;">{{ $t('schema_history.changed_at') }}</th>
+            <th style="padding: 0.75rem 1rem; text-align: right; width: 160px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <template v-for="(row, index) in historyList" :key="row.id || index">
+            <!-- Data Row -->
+            <tr style="border-bottom: 1px solid var(--va-background-border); transition: background 0.15s ease;">
+              <td style="padding: 0.75rem 1rem;">
+                <va-badge :text="$t('schema_history.' + (row.targetType || '').toLowerCase())" :color="getTypeColor(row.targetType)" />
+              </td>
+              <td style="padding: 0.75rem 1rem;">
+                <va-badge :text="$t('schema_history.' + (row.action || '').toLowerCase())" :color="getActionColor(row.action)" />
+              </td>
+              <td style="padding: 0.75rem 1rem; font-weight: 600;">
+                {{ row.changedBy || '-' }}
+              </td>
+              <td style="padding: 0.75rem 1rem; color: var(--va-text-secondary);">
+                {{ formatWithTimezone(row.changedAt) }}
+              </td>
+              <td style="padding: 0.75rem 1rem; text-align: right;">
+                <va-button
+                  preset="plain"
+                  size="small"
+                  :icon="expandedRowId === (row.id || index) ? 'expand_less' : 'expand_more'"
+                  @click="toggleRow(row.id || index)"
+                >
+                  {{ expandedRowId === (row.id || index) ? ($t('vuestic.close') || '닫기') : ($t('schema_history.view_changes') || '변경 사항 보기') }}
+                </va-button>
+              </td>
+            </tr>
 
-      <template #cell(actions)="{ rowData, isExpanded, toggleRow }">
-        <va-button
-          preset="plain"
-          size="small"
-          :icon="isExpanded ? 'expand_less' : 'expand_more'"
-          @click="toggleRow"
-        >
-          {{ isExpanded ? $t('vuestic.close') : $t('schema_history.view_changes') || 'View Changes' }}
-        </va-button>
-      </template>
+            <!-- Expanded Details Row -->
+            <tr v-if="expandedRowId === (row.id || index)" style="background: var(--va-background-element); border-bottom: 1px solid var(--va-background-border);">
+              <td colspan="5" style="padding: 1rem 1.25rem;">
+                <div v-if="getDiffItems(row).length > 0" style="overflow-x: auto;">
+                  <table style="width: 100%; border-collapse: collapse; font-size: 0.825rem; background: var(--va-background-secondary); border-radius: 6px; border: 1px solid var(--va-background-border);">
+                    <thead>
+                      <tr style="background: rgba(0, 0, 0, 0.04); border-bottom: 1px solid var(--va-background-border); text-align: left;">
+                        <th style="padding: 0.5rem 0.85rem; font-weight: 700; width: 160px; color: var(--va-text-secondary);">속성 / 항목</th>
+                        <th v-if="row.action === 'UPDATE' || row.action === 'DELETE'" style="padding: 0.5rem 0.85rem; font-weight: 700; color: #dc2626; width: 40%;">{{ $t('schema_history.before') || '변경 전' }}</th>
+                        <th v-if="row.action === 'UPDATE' || row.action === 'CREATE'" style="padding: 0.5rem 0.85rem; font-weight: 700; color: #16a34a; width: 40%;">{{ $t('schema_history.after') || '변경 후' }}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        v-for="item in getDiffItems(row)"
+                        :key="item.key"
+                        :style="{ background: (item.isChanged && row.action === 'UPDATE') ? 'rgba(234, 179, 8, 0.15)' : 'transparent' }"
+                        style="border-bottom: 1px solid var(--va-background-border);"
+                      >
+                        <td style="padding: 0.5rem 0.85rem; font-weight: 600;">
+                          <div style="display: flex; align-items: center; gap: 0.35rem;">
+                            <span>{{ item.label }}</span>
+                            <va-chip v-if="item.isChanged && row.action === 'UPDATE'" size="small" color="warning" square style="font-size: 9px; padding: 0 4px; height: 16px;">
+                              DIFF
+                            </va-chip>
+                          </div>
+                        </td>
 
-      <template #expandableRow="{ rowData }">
-        <div class="p-4 bg-gray-50 border-t flex gap-4">
-          <div class="flex-1" v-if="rowData.beforeSnapshot">
-            <h5 class="font-bold mb-2 text-red-600">{{ $t('schema_history.before') }}</h5>
-            <pre class="bg-gray-100 p-2 rounded text-xs overflow-x-auto">{{ formatJson(rowData.beforeSnapshot) }}</pre>
-          </div>
-          <div class="flex-1" v-if="rowData.afterSnapshot">
-            <h5 class="font-bold mb-2 text-green-600">{{ $t('schema_history.after') }}</h5>
-            <pre class="bg-gray-100 p-2 rounded text-xs overflow-x-auto">{{ formatJson(rowData.afterSnapshot) }}</pre>
-          </div>
-          <div v-if="!rowData.beforeSnapshot && !rowData.afterSnapshot" class="text-gray-500 italic">
-            {{ $t('schema_history.no_history') }}
-          </div>
-        </div>
-      </template>
-    </va-data-table>
+                        <td v-if="row.action === 'UPDATE' || row.action === 'DELETE'" style="padding: 0.5rem 0.85rem; color: var(--va-text-primary); font-family: monospace;">
+                          {{ item.beforeVal }}
+                        </td>
 
-    <div class="flex justify-center mt-4">
+                        <td v-if="row.action === 'UPDATE' || row.action === 'CREATE'" style="padding: 0.5rem 0.85rem; color: var(--va-text-primary); font-family: monospace;">
+                          {{ item.afterVal }}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div v-else style="color: var(--va-text-secondary); font-style: italic; padding: 0.5rem;">
+                  {{ $t('schema_history.no_history') }}
+                </div>
+              </td>
+            </tr>
+          </template>
+
+          <tr v-if="historyList.length === 0">
+            <td colspan="5" style="text-align: center; padding: 3rem; color: var(--va-text-secondary);">
+              {{ $t('schema_history.no_history') }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div style="display: flex; justify-content: center; margin-top: 1rem;" v-if="totalPages > 1">
       <va-pagination
-        v-if="totalPages > 1"
         v-model="currentPage"
         :pages="totalPages"
         @update:modelValue="fetchHistory"
@@ -67,8 +122,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { ref, watch } from 'vue'
 import { useToast } from 'vuestic-ui'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useTimezoneDate } from '~/composables/useTimezoneDate'
@@ -77,7 +131,6 @@ const props = defineProps<{
   domainId: string | null
 }>()
 
-const { t } = useI18n()
 const { init } = useToast()
 const { customFetch } = useCustomFetch()
 const { formatWithTimezone } = useTimezoneDate()
@@ -87,14 +140,15 @@ const historyList = ref<any[]>([])
 const currentPage = ref(1)
 const totalPages = ref(1)
 const size = 20
+const expandedRowId = ref<any>(null)
 
-const columns = computed(() => [
-  { key: 'targetType', label: t('schema_history.target_type') },
-  { key: 'action', label: t('schema_history.action') },
-  { key: 'changedBy', label: t('schema_history.changed_by') },
-  { key: 'changedAt', label: t('schema_history.changed_at') },
-  { key: 'actions', label: ' ' } // Expander
-])
+const toggleRow = (id: any) => {
+  if (expandedRowId.value === id) {
+    expandedRowId.value = null
+  } else {
+    expandedRowId.value = id
+  }
+}
 
 const getTypeColor = (type: string) => {
   if (type === 'FIELD') return 'info'
@@ -111,21 +165,88 @@ const getActionColor = (action: string) => {
   return 'gray'
 }
 
-const formatJson = (str: string) => {
-  if (!str) return ''
+const propertyLabels: Record<string, string> = {
+  name: '필드명',
+  key: '필드 키',
+  type: '데이터 타입',
+  required: '필수 여부',
+  isSearchable: '검색 가능 여부',
+  isMultiValue: '다중값 허용',
+  isEncrypted: '암호화 여부',
+  isReadOnly: '읽기 전용',
+  isHidden: '숨김 여부',
+  isImmutable: '수정 불가',
+  order: '정렬 순서',
+  group: '필드 그룹',
+  unit: '단위',
+  id: '식별 ID'
+}
+
+const parseSnapshot = (raw: any): Record<string, any> => {
+  if (!raw) return {}
+  if (typeof raw === 'object') return raw
   try {
-    const obj = typeof str === 'string' ? JSON.parse(str) : str
-    return JSON.stringify(obj, null, 2)
+    return JSON.parse(raw)
   } catch {
-    return str
+    return {}
   }
+}
+
+const formatDisplayValue = (val: any): string => {
+  if (val === null || val === undefined || val === '') return '-'
+  if (typeof val === 'boolean') return val ? '예 (True)' : '아니오 (False)'
+  if (typeof val === 'object') {
+    if (val.ko || val.en) return val.ko ? (val.en ? `${val.ko} (${val.en})` : val.ko) : val.en
+    return JSON.stringify(val)
+  }
+  const str = String(val).trim()
+  if (str.startsWith('{') && (str.includes('"ko"') || str.includes('"en"'))) {
+    try {
+      const parsed = JSON.parse(str)
+      if (parsed.ko || parsed.en) return parsed.ko ? (parsed.en ? `${parsed.ko} (${parsed.en})` : parsed.ko) : parsed.en
+    } catch {}
+  }
+  return str
+}
+
+const getDiffItems = (row: any) => {
+  const beforeObj = parseSnapshot(row.beforeData || row.beforeSnapshot)
+  const afterObj = parseSnapshot(row.afterData || row.afterSnapshot)
+  
+  const hasBefore = Object.keys(beforeObj).length > 0
+  const hasAfter = Object.keys(afterObj).length > 0
+  
+  const allKeys = Array.from(new Set([...Object.keys(beforeObj), ...Object.keys(afterObj)]))
+  const filterKeys = ['id', 'definedAtNode', 'domain']
+  
+  const displayKeys = allKeys.filter(k => !filterKeys.includes(k))
+  
+  return displayKeys.map(k => {
+    const bVal = hasBefore ? formatDisplayValue(beforeObj[k]) : '-'
+    let aVal = hasAfter ? formatDisplayValue(afterObj[k]) : '-'
+    
+    // 이전 백엔드 직렬화 오류로 인해 afterData가 NULL로 저장되었던 과거 수정이력 처리
+    if (row.action === 'UPDATE' && !hasAfter && hasBefore) {
+      aVal = '(이전 버전 데이터 유실)'
+    }
+    
+    const label = propertyLabels[k] || k
+    const isChanged = bVal !== aVal
+    return {
+      key: k,
+      label,
+      beforeVal: bVal,
+      afterVal: aVal,
+      isChanged
+    }
+  })
 }
 
 const fetchHistory = async () => {
   if (!props.domainId) return
   isLoading.value = true
   try {
-    const res = await customFetch(`/api/domains/${props.domainId}/schema-history?page=${currentPage.value - 1}&size=${size}`)
+    const res: any = await customFetch(`/api/domains/${props.domainId}/schema-history?page=${currentPage.value - 1}&size=${size}`)
     historyList.value = res.content || []
     totalPages.value = res.totalPages || 1
   } catch (e) {
@@ -138,6 +259,7 @@ const fetchHistory = async () => {
 
 watch(() => props.domainId, () => {
   currentPage.value = 1
+  expandedRowId.value = null
   fetchHistory()
 }, { immediate: true })
 
