@@ -67,6 +67,24 @@ public class NotificationController {
         return ResponseEntity.ok(Map.of("unreadCount", count));
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteNotification(@PathVariable UUID id) {
+        notificationService.deleteNotification(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/clear-all")
+    public ResponseEntity<Map<String, Integer>> deleteAllNotifications(@RequestParam(required = false) UUID userId) {
+        UUID currentUserId = getCurrentUserId(userId);
+        int count = notificationService.deleteAllUserNotifications(currentUserId);
+        return ResponseEntity.ok(Map.of("deletedCount", count));
+    }
+
+    @DeleteMapping
+    public ResponseEntity<Map<String, Integer>> deleteAllNotificationsShortcut(@RequestParam(required = false) UUID userId) {
+        return deleteAllNotifications(userId);
+    }
+
     @GetMapping("/subscribe")
     public SseEmitter subscribe(@RequestParam(required = false) UUID userId) {
         UUID currentUserId = getCurrentUserId(userId);

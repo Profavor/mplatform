@@ -304,11 +304,13 @@ const messages = {
 const { t, locale } = useI18n({ messages, useScope: 'local', inheritLocale: true })
 
 const { currentPresetName } = useColors()
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useCookie } from '#app'
 import { useToast } from 'vuestic-ui'
 import { AgGridVue } from 'ag-grid-vue3'
 
+const route = useRoute()
 const { loadMetadata, enrichRequest } = useApprovalEnricher()
 const { formatMultilingual } = useMultilingual()
 
@@ -378,6 +380,54 @@ const pendingGridApi = ref(null)
 const myRequestsGridApi = ref(null)
 
 
+
+const checkQueryForModal = async () => {
+  const reqId = route.query.requestId || route.query.id
+  if (!reqId || typeof reqId !== 'string') return
+  try {
+    const fullReq = await $fetch(`/api/approval-requests/${reqId}`, {
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    if (!fullReq) return
+    
+    const enriched = await enrichRequest(fullReq)
+    const currentPendingStep = (enriched.steps || []).find(s => 
+      s.status === 'PENDING' && String(s.assigneeId) === String(myUuid.value)
+    )
+
+    if (currentPendingStep) {
+      currentPendingStep.approvalRequest = enriched
+      selectedPendingStep.value = currentPendingStep
+      showActionModal.value = true
+    } else {
+      selectedRequest.value = enriched
+      showDetailsModal.value = true
+    }
+  } catch (e) {
+    console.error('Failed to open requested modal from URL query:', e)
+  }
+}
+
+const handleApprovalUpdated = () => {
+  loadRequests()
+}
+
+onMounted(() => {
+  checkQueryForModal()
+  if (process.client) {
+    window.addEventListener('approval-updated', handleApprovalUpdated)
+  }
+})
+
+onUnmounted(() => {
+  if (process.client) {
+    window.removeEventListener('approval-updated', handleApprovalUpdated)
+  }
+})
+
+watch(() => route.query.requestId, () => {
+  checkQueryForModal()
+})
 
 const onPendingGridReady = (params) => {
   pendingGridApi.value = params.api
@@ -600,10 +650,24 @@ const fetchDomainRefName = async (uuid, targetDomainId) => {
   }
 }
 
+const parseJwtUserId = (tStr) => {
+  if (!tStr) return null
+  try {
+    const base64Url = tStr.split('.')[1]
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''))
+    const parsed = JSON.parse(jsonPayload)
+    return parsed.userId || parsed.uuid || parsed.username || parsed.sub || null
+  } catch {
+    return null
+  }
+}
+
 const myUuid = computed(() => {
-  let uid = currentUser.value?.uuid
-  if (!uid || uid === 'test-admin-uuid') {
-     uid = '935102dc-bccf-47e0-8d65-0d883186472f' // Using the mock UUID we also use in dashboard
+  const u = currentUser.value
+  let uid = u?.id || u?.userId || u?.uuid || u?.username
+  if (!uid || uid === 'test-admin-uuid' || uid === '935102dc-bccf-47e0-8d65-0d883186472f') {
+     uid = parseJwtUserId(token.value) || ''
   }
   return uid
 })
@@ -1110,7 +1174,8 @@ const createPendingDatasource = () => {
       const page = Math.floor(params.startRow / size);
       
       try {
-        const pageData = await $fetch(`/api/approval-requests/todos?assigneeId=${myUuid.value}&page=${page}&size=${size}`, {
+        const assigneeParam = myUuid.value ? `&assigneeId=${encodeURIComponent(myUuid.value)}` : '';
+        const pageData = await $fetch(`/api/approval-requests/todos?page=${page}&size=${size}${assigneeParam}`, {
           headers: { Authorization: `Bearer ${token.value}` }
         });
         
@@ -1140,7 +1205,7 @@ const createPendingDatasource = () => {
         
         params.successCallback(pageData?.content || [], pageData?.totalElements || 0);
       } catch (e) {
-        console.error('Failed to load pending approvals:', e);
+        console.error('Error fetching pending steps:', e);
         params.failCallback();
       }
     }
@@ -1154,19 +1219,18 @@ const createMyRequestsDatasource = () => {
       const page = Math.floor(params.startRow / size);
       
       try {
-        const pageData = await $fetch(`/api/approval-requests/my-requests?requesterId=${myUuid.value}&page=${page}&size=${size}`, {
+        const requesterParam = myUuid.value ? `&requesterId=${encodeURIComponent(myUuid.value)}` : '';
+        const pageData = await $fetch(`/api/approval-requests/my-requests?page=${page}&size=${size}${requesterParam}`, {
           headers: { Authorization: `Bearer ${token.value}` }
         });
         
         if (pageData && pageData.content) {
-          pageData.content = await Promise.all(pageData.content.map(req => enrichRequest(req)))
-          
+          pageData.content = await Promise.all(pageData.content.map(req => enrichRequest(req)));
           for (const req of pageData.content) {
-             if (['RECORD', 'RECORD_UPDATE', 'RECORD_DELETE'].includes(req.targetType) && req.targetId) {
-                 const tId = req.targetId;
-                 const nId = req.classificationNode?.id || req.classificationNodeId;
-                 await loadFieldNamesForRecord(tId, nId);
-             }
+            if (['RECORD', 'RECORD_UPDATE', 'RECORD_DELETE'].includes(req.targetType) && req.targetId) {
+              const nId = req.classificationNode?.id || req.classificationNodeId;
+              await loadFieldNamesForRecord(req.targetId, nId);
+            }
           }
         }
         

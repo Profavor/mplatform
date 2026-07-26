@@ -40,7 +40,9 @@ describe('NotificationBell Component', () => {
           'va-badge': { template: '<div><slot /></div>' },
           'va-button': { template: '<button><slot /></button>' },
           'va-icon': { template: '<i><slot /></i>' },
-          'va-divider': { template: '<hr />' }
+          'va-divider': { template: '<hr />' },
+          'va-modal': { template: '<div><slot name="header" /><slot /><slot name="footer" /></div>' },
+          'ApprovalDetailsViewer': { template: '<div></div>' }
         }
       }
     })

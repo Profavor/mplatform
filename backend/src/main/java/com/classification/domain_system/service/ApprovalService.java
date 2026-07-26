@@ -53,6 +53,7 @@ public class ApprovalService {
     private final MatchingService matchingService;
     private final ApplicationEventPublisher eventPublisher;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
     private final com.classification.domain_system.repository.DomainRepository domainRepository;
     private final com.classification.domain_system.repository.FieldDefinitionRepository fieldDefinitionRepository;
     private final CalculatedFieldEvaluator calculatedFieldEvaluator;
@@ -712,6 +713,11 @@ public class ApprovalService {
         stepRepository.saveAndFlush(step);
         
         ApprovalRequest approval = step.getApprovalRequest();
+        if (dqService != null) { // mark notification read
+            try {
+                notificationService.markApprovalNotificationsAsRead(approval.getId());
+            } catch (Exception ignored) {}
+        }
         eventPublisher.publishEvent(new ApprovalStepApprovedEvent(approval, step));
         
         return approval;
@@ -736,6 +742,10 @@ public class ApprovalService {
         ApprovalRequest approval = step.getApprovalRequest();
         approval.setStatus("REJECTED");
         approvalRepository.saveAndFlush(approval);
+        
+        try {
+            notificationService.markApprovalNotificationsAsRead(approval.getId());
+        } catch (Exception ignored) {}
         
         revertRecordStatusOnRejection(approval);
         

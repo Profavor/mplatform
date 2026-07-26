@@ -33,7 +33,26 @@ public class ApprovalController {
         if (userIdStr == null || userIdStr.isBlank()) {
             throw new CustomAccessDeniedException("Unauthenticated user context");
         }
-        return UUID.fromString(userIdStr);
+        try {
+            return UUID.fromString(userIdStr);
+        } catch (Exception e) {
+            return userRepository.findByUsername(userIdStr)
+                    .map(u -> UUID.fromString(u.getId()))
+                    .orElseThrow(() -> new CustomAccessDeniedException("User not found: " + userIdStr));
+        }
+    }
+
+    private UUID resolveUserUuid(String input) {
+        if (input == null || input.isBlank() || "null".equalsIgnoreCase(input) || "undefined".equalsIgnoreCase(input)) {
+            return getAuthenticatedUserId();
+        }
+        try {
+            return UUID.fromString(input);
+        } catch (Exception e) {
+            return userRepository.findByUsername(input)
+                    .map(u -> UUID.fromString(u.getId()))
+                    .orElseGet(this::getAuthenticatedUserId);
+        }
     }
     
     @GetMapping("/effective-workflow/{nodeId}")
@@ -144,10 +163,11 @@ public class ApprovalController {
     
     @GetMapping("/todos")
     public ResponseEntity<PageResponse<ApprovalStep>> getMyTodos(
-            @RequestParam UUID assigneeId,
+            @RequestParam(required = false) String assigneeId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
-        var todoPage = approvalService.getMyTodos(assigneeId, PageRequest.of(page, size));
+        UUID targetAssigneeId = resolveUserUuid(assigneeId);
+        var todoPage = approvalService.getMyTodos(targetAssigneeId, PageRequest.of(page, size));
         if (todoPage.getContent() != null) {
             todoPage.getContent().forEach(s -> {
                 if (s.getApprovalRequest() != null) {
@@ -160,10 +180,11 @@ public class ApprovalController {
 
     @GetMapping("/my-requests")
     public ResponseEntity<PageResponse<ApprovalRequest>> getMyRequests(
-            @RequestParam UUID requesterId,
+            @RequestParam(required = false) String requesterId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
-        var myReqPage = approvalService.getMyRequests(requesterId, PageRequest.of(page, size));
+        UUID targetRequesterId = resolveUserUuid(requesterId);
+        var myReqPage = approvalService.getMyRequests(targetRequesterId, PageRequest.of(page, size));
         approvalService.enrichUserNames(myReqPage.getContent());
         return ResponseEntity.ok(PageResponse.of(myReqPage));
     }

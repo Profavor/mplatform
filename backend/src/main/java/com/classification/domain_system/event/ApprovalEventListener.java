@@ -18,6 +18,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.UUID;
 
@@ -79,7 +80,7 @@ public class ApprovalEventListener {
                                     "@i18n:notifications.approval_pending",
                                     buildNotificationMessage(actionLabel, requesterName, domainName, classificationName, summary),
                                     "APPROVAL",
-                                    "/approvals"
+                                    "/approvals?requestId=" + approval.getId()
                             );
                         } catch (Exception ex) {
                             log.warn("Failed to create approval notification for assignee {}", s.getAssigneeId(), ex);
@@ -115,7 +116,7 @@ public class ApprovalEventListener {
                             "@i18n:notifications.approval_step_approved",
                             buildStepApprovedMessage(actionLabel, approvedStep.getStepOrder(), domainName, classificationName),
                             "APPROVAL",
-                            "/approvals"
+                            "/approvals?requestId=" + approval.getId()
                     );
                 } catch (Exception ex) {
                     log.warn("Failed to create approval notification for requester {}", approval.getRequesterId(), ex);
@@ -158,7 +159,7 @@ public class ApprovalEventListener {
                                                 "@i18n:notifications.approval_pending",
                                                 buildNotificationMessage(nextActionLabel, nextRequesterName, nextDomainName, nextClassificationName, nextSummary),
                                                 "APPROVAL",
-                                                "/approvals"
+                                                "/approvals?requestId=" + approval.getId()
                                         );
                                     } catch (Exception ex) {
                                         log.warn("Failed to create approval step notification for assignee {}", s.getAssigneeId(), ex);
@@ -180,7 +181,7 @@ public class ApprovalEventListener {
                                     "@i18n:notifications.approval_finalized",
                                     buildFinalizedMessage(finalActionLabel, finalDomainName, finalClassificationName),
                                     "APPROVAL",
-                                    "/approvals"
+                                    "/approvals?requestId=" + approval.getId()
                             );
                         } catch (Exception ex) {
                             log.warn("Failed to create final approval notification for requester {}", approval.getRequesterId(), ex);
@@ -350,5 +351,111 @@ public class ApprovalEventListener {
             log.error("Failed to inject identifier value into data JSON", e);
             return dataJson;
         }
+    }
+
+    private String resolveActionLabel(String targetType) {
+        if (targetType == null) return "결재";
+        switch (targetType) {
+            case "RECORD": return "신규 등록";
+            case "RECORD_UPDATE": return "정보 변경";
+            case "RECORD_DELETE": return "삭제/폐기";
+            default:
+                if (targetType.startsWith("SCHEMA_")) return "스키마 변경";
+                return "결재";
+        }
+    }
+
+    private String resolveUserName(UUID userId) {
+        if (userId == null) return "사용자";
+        return userRepository.findById(userId.toString())
+                .map(com.classification.domain_system.entity.User::getUsername)
+                .orElse("사용자");
+    }
+
+    private String resolveDomainName(ApprovalRequest approval) {
+        if (approval.getClassificationNode() != null && approval.getClassificationNode().getDomain() != null) {
+            Map<String, String> nameMap = approval.getClassificationNode().getDomain().getName();
+            if (nameMap != null && nameMap.containsKey("ko")) return nameMap.get("ko");
+            if (nameMap != null && !nameMap.isEmpty()) return nameMap.values().iterator().next();
+        }
+        return "도메인";
+    }
+
+    private String resolveClassificationName(ApprovalRequest approval) {
+        if (approval.getClassificationNode() != null) {
+            Map<String, String> nameMap = approval.getClassificationNode().getName();
+            if (nameMap != null && nameMap.containsKey("ko")) return nameMap.get("ko");
+            if (nameMap != null && !nameMap.isEmpty()) return nameMap.values().iterator().next();
+        }
+        return "분류";
+    }
+
+    private String extractChangeSummary(ApprovalRequest approval) {
+        if (approval.getChanges() == null || approval.getChanges().isBlank()) return "";
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(approval.getChanges());
+            List<String> summaryParts = new ArrayList<>();
+
+            // 1. 레코드 수정 (before & after 비교)
+            if (root.has("before") && root.has("after")) {
+                JsonNode beforeNode = root.get("before");
+                JsonNode afterNode = root.get("after");
+                afterNode.fieldNames().forEachRemaining(key -> {
+                    if (summaryParts.size() < 3 && !key.startsWith("_") && !key.equals("id") && !key.equals("version")) {
+                        String bVal = beforeNode.has(key) && beforeNode.get(key).isValueNode() ? beforeNode.get(key).asText() : "";
+                        String aVal = afterNode.has(key) && afterNode.get(key).isValueNode() ? afterNode.get(key).asText() : "";
+                        if (!bVal.equals(aVal)) {
+                            summaryParts.add(key + ": " + (bVal.isBlank() ? "없음" : bVal) + " ➔ " + (aVal.isBlank() ? "없음" : aVal));
+                        }
+                    }
+                });
+            } else {
+                // 2. 레코드 생성 또는 일반 요청 데이터
+                JsonNode dataNode = root;
+                if (dataNode.has("after")) dataNode = dataNode.get("after");
+                if (dataNode.has("request")) dataNode = dataNode.get("request");
+                
+                final JsonNode targetNode = dataNode;
+                // 'name', 'code', 'title', 'empNo' 등 대표 식별 속성 우선 탐색
+                List<String> priorityKeys = List.of("name", "code", "title", "empNo", "userName", "idAttr");
+                for (String pKey : priorityKeys) {
+                    if (targetNode.has(pKey) && targetNode.get(pKey).isValueNode()) {
+                        summaryParts.add(pKey + ": " + targetNode.get(pKey).asText());
+                    }
+                }
+
+                // 나머지 일반 필드 채우기 (최대 3개까지)
+                targetNode.fieldNames().forEachRemaining(key -> {
+                    if (summaryParts.size() < 3 && !priorityKeys.contains(key) && !key.startsWith("_") && !key.equals("id") && !key.equals("version")) {
+                        JsonNode val = targetNode.get(key);
+                        if (val.isValueNode()) {
+                            summaryParts.add(key + ": " + val.asText());
+                        }
+                    }
+                });
+            }
+            return String.join(", ", summaryParts);
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private String buildNotificationMessage(String actionLabel, String requesterName, String domainName, String classificationName, String summary) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("[").append(domainName).append(" > ").append(classificationName).append("] ");
+        sb.append(requesterName).append("님의 ").append(actionLabel).append(" 요청");
+        if (!summary.isBlank()) {
+            sb.append(" (").append(summary).append(")");
+        }
+        return sb.toString();
+    }
+
+    private String buildStepApprovedMessage(String actionLabel, Integer stepOrder, String domainName, String classificationName) {
+        return "[" + domainName + " > " + classificationName + "] " + actionLabel + " 요청의 " + stepOrder + "단계 결재가 승인되었습니다.";
+    }
+
+    private String buildFinalizedMessage(String actionLabel, String domainName, String classificationName) {
+        return "[" + domainName + " > " + classificationName + "] " + actionLabel + " 요청이 최종 승인되었습니다.";
     }
 }

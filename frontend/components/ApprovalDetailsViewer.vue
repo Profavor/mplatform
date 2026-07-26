@@ -121,7 +121,7 @@
          style="margin-bottom: 1.5rem; padding: 1rem; background-color: var(--va-background-secondary); border-radius: 6px; border-left: 4px solid var(--va-info);">
       <div style="font-weight: bold; font-size: 0.95rem; color: var(--va-text-primary); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
         <va-icon name="sync" color="info" size="small" />
-        <span>{{ $t('integration_log_info') || $t('integration.channels.integration_log_info') || '연계 상세 정보 (Integration Log)' }}</span>
+        <span>{{ $t('integration_log_info') || '연계 상세 정보 (Integration Log)' }}</span>
       </div>
 
       <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-bottom: 1rem; font-size: 0.85rem;">

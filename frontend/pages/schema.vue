@@ -281,7 +281,7 @@
           <div class="option-pill" :class="{ active: newField.isSearchable }" @click="newField.isSearchable = !newField.isSearchable">
             <va-checkbox v-model="newField.isSearchable" @click.stop />
             <va-icon name="search" size="small" :color="newField.isSearchable ? 'primary' : 'secondary'" />
-            <span style="flex: 1;">{{ t('searchable_1') }}</span>
+            <span style="flex: 1;">{{ t('searchable') }}</span>
           </div>
 
           <div class="option-pill" :class="{ active: newField.isEncrypted }" @click="newField.isEncrypted = !newField.isEncrypted">
