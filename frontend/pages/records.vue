@@ -248,7 +248,7 @@
       :has-pending-update="hasPendingUpdate"
       :is-editing-record="isEditingRecord"
       :has-update-workflow="hasUpdateWorkflow"
-      :can-delete="hasPermission('record:delete') || hasPermission('workflow:request')"
+      :can-delete="hasPermission('record:write') || hasPermission('workflow:request')"
       :can-write="hasPermission('record:write') || hasPermission('workflow:request')"
       :can-read-history="hasPermission('record:read') || hasPermission('record:*')"
       :selected-domain-info="selectedDomainInfo"
@@ -544,17 +544,41 @@
             <div style="flex: 1; display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
               <template v-if="(diff.before === undefined || diff.before === null || diff.before === '' || diff.before === 'undefined')">
                 <va-badge color="info" text="NEW" size="small" />
-                <span style="color: #2c3e50; font-weight: bold; font-family: monospace; font-size: 0.8rem;">{{ diff.after }}</span>
+                <template v-if="formatDiffDisplay(diff.after, diff.rawAfter, diff.fieldType).isFile">
+                  <a href="#" @click.prevent="downloadFileWithAuth(formatDiffDisplay(diff.after, diff.rawAfter, diff.fieldType).url, formatDiffDisplay(diff.after, diff.rawAfter, diff.fieldType).fname)" style="color: #2563eb; text-decoration: underline; font-weight: bold; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 2px;">
+                    📎 {{ formatDiffDisplay(diff.after, diff.rawAfter, diff.fieldType).fname }}
+                  </a>
+                </template>
+                <template v-else>
+                  <span style="color: #2c3e50; font-weight: bold; font-size: 0.85rem;">{{ diff.after }}</span>
+                </template>
               </template>
               <template v-else-if="(diff.after === undefined || diff.after === null || diff.after === '' || diff.after === 'undefined')">
                 <va-badge color="danger" text="DEL" size="small" />
-                <span style="color: #666; text-decoration: line-through; font-family: monospace; font-size: 0.8rem;">{{ diff.before }}</span>
+                <template v-if="formatDiffDisplay(diff.before, diff.rawBefore, diff.fieldType).isFile">
+                  <span style="color: #666; text-decoration: line-through; font-size: 0.85rem;">📎 {{ formatDiffDisplay(diff.before, diff.rawBefore, diff.fieldType).fname }}</span>
+                </template>
+                <template v-else>
+                  <span style="color: #666; text-decoration: line-through; font-size: 0.85rem;">{{ diff.before }}</span>
+                </template>
               </template>
               <template v-else>
                 <va-badge color="warning" text="MOD" size="small" />
-                <span style="color: #666; text-decoration: line-through; font-family: monospace; font-size: 0.8rem;">{{ diff.before }}</span>
+                <template v-if="formatDiffDisplay(diff.before, diff.rawBefore, diff.fieldType).isFile">
+                  <span style="color: #666; text-decoration: line-through; font-size: 0.85rem;">📎 {{ formatDiffDisplay(diff.before, diff.rawBefore, diff.fieldType).fname }}</span>
+                </template>
+                <template v-else>
+                  <span style="color: #666; text-decoration: line-through; font-size: 0.85rem;">{{ diff.before }}</span>
+                </template>
                 <span style="color: #999; font-weight: bold;">&rarr;</span>
-                <span style="color: #2c3e50; font-weight: bold; font-family: monospace; font-size: 0.8rem;">{{ diff.after }}</span>
+                <template v-if="formatDiffDisplay(diff.after, diff.rawAfter, diff.fieldType).isFile">
+                  <a href="#" @click.prevent="downloadFileWithAuth(formatDiffDisplay(diff.after, diff.rawAfter, diff.fieldType).url, formatDiffDisplay(diff.after, diff.rawAfter, diff.fieldType).fname)" style="color: #2563eb; text-decoration: underline; font-weight: bold; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 2px;">
+                    📎 {{ formatDiffDisplay(diff.after, diff.rawAfter, diff.fieldType).fname }}
+                  </a>
+                </template>
+                <template v-else>
+                  <span style="color: #2c3e50; font-weight: bold; font-size: 0.85rem;">{{ diff.after }}</span>
+                </template>
               </template>
             </div>
           </div>
@@ -622,6 +646,7 @@ import { usePermission } from '~/composables/usePermission'
 const { t } = useI18n()
 const { gridTheme, autoSizeStrategy } = useAgGridTheme()
 const { hasPermission } = usePermission()
+const { downloadFileWithAuth } = useFileDownloader()
 
 const { currentPresetName } = useColors()
 const isDark = computed(() => currentPresetName.value === 'dark')
@@ -649,23 +674,8 @@ const currentUser = computed(() => {
 
 const userList = ref([])
 
-const loadUsers = async () => {
-  try {
-    const res = await fetch('/api/auth/users', {
-      headers: { 'Authorization': `Bearer ${token.value}` }
-    })
-    if (res.ok) {
-      userList.value = await res.json()
-    }
-  } catch (e) {
-    console.error("Failed to fetch users", e)
-  }
-}
-
-const getUserName = (uuid) => {
-  if (!uuid) return ''
-  const u = userList.value.find(user => user.uuid === uuid)
-  return u ? u.username : uuid
+const getUserName = (uuid, nameFallback) => {
+  return nameFallback || uuid || ''
 }
 
 const treeNodes = ref([])
@@ -949,12 +959,33 @@ function findNodeInTree(nodeId, nodesList = treeNodes.value) {
   return null
 }
 
-const extractFilename = (url) => {
-  if (!url) return 'Download';
+const extractFilename = (input) => {
+  if (!input) return '';
+  if (typeof input === 'object') {
+    if (input.name && input.name !== 'Download') return input.name;
+    if (input.originalName) return input.originalName;
+    if (input.url) input = input.url;
+    else return '';
+  }
+  let str = String(input).trim();
+  if (!str || str === '-' || str === '[]' || str === '{}' || str === 'null' || str === 'undefined') return '';
+  
   try {
-    if (url.includes('?name=')) return decodeURIComponent(url.split('?name=')[1].split('&')[0]);
-    return decodeURIComponent(url.split('/').pop().split('?')[0]) || 'Download';
-  } catch(e) { return 'Download'; }
+    if (str.startsWith('{') || str.startsWith('[')) {
+      const parsed = JSON.parse(str);
+      if (Array.isArray(parsed) && parsed.length > 0) return extractFilename(parsed[0]);
+      if (typeof parsed === 'object' && (parsed.name || parsed.originalName)) return parsed.name || parsed.originalName;
+    }
+  } catch (e) {}
+
+  try {
+    if (str.includes('?name=')) return decodeURIComponent(str.split('?name=')[1].split('&')[0]);
+    if (str.includes('?filename=')) return decodeURIComponent(str.split('?filename=')[1].split('&')[0]);
+    const fname = decodeURIComponent(str.split('/').pop().split('?')[0]);
+    if (fname && fname !== '-' && fname !== 'null') return fname;
+  } catch (e) {}
+  
+  return str;
 };
 
 const processRecordDataWithFields = (rawDataObj, fields) => {
@@ -1163,7 +1194,6 @@ watch(currentLocale, () => {
 })
 
 onMounted(async () => {
-  loadUsers()
   await loadTree()
   await handleInitialRouteParams()
 })
@@ -1346,39 +1376,63 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
     }
     if (f.type === 'FILE') {
       colDef.cellRenderer = (params) => {
-        if (!params || !params.value) return ''
-        const getFilename = (url) => {
+        if (!params || !params.value) return '-';
+        let val = params.value;
+        if (typeof val === 'string') {
+          val = val.trim();
+          if (val === '' || val === '-' || val === '[]' || val === '{}' || val === 'null' || val === 'undefined') return '-';
+        }
+        
+        let fileList = [];
+        if (Array.isArray(val)) {
+          fileList = val;
+        } else if (typeof val === 'string') {
           try {
-            if (url.includes('?name=')) return decodeURIComponent(url.split('?name=')[1].split('&')[0]);
-            return decodeURIComponent(url.split('/').pop().split('?')[0]) || 'Download';
-          } catch(e) { return 'Download'; }
-        };
+            const parsed = JSON.parse(val);
+            if (Array.isArray(parsed)) fileList = parsed;
+            else if (typeof parsed === 'object') fileList = [parsed];
+            else fileList = [val];
+          } catch (e) {
+            fileList = [val];
+          }
+        } else if (typeof val === 'object') {
+          fileList = [val];
+        }
 
-        const createLink = (url) => {
-          const a = document.createElement('a');
-          a.href = url;
-          a.target = '_blank';
-          a.style.color = 'blue';
-          a.style.textDecoration = 'underline';
-          a.innerText = getFilename(url);
-          return a;
-        };
+        const validFiles = fileList.filter(item => {
+          if (!item) return false;
+          const fn = extractFilename(item);
+          const url = typeof item === 'object' ? item.url : String(item);
+          return fn !== '' && url !== '' && url !== '-';
+        });
+
+        if (validFiles.length === 0) return '-';
 
         const container = document.createElement('div');
-        try {
-          const arr = JSON.parse(params.value)
-          if (Array.isArray(arr)) {
-            arr.forEach((url, index) => {
-              if (index > 0) {
-                container.appendChild(document.createElement('br'));
-              }
-              container.appendChild(createLink(url));
-            });
-            return container;
-          }
-        } catch(e) {}
+        container.style.cssText = 'display: flex; flex-direction: column; justify-content: center; gap: 2px; height: 100%;';
 
-        return createLink(params.value);
+        validFiles.forEach((fileItem) => {
+          const fname = extractFilename(fileItem);
+          const url = typeof fileItem === 'object' ? (fileItem.url || '#') : String(fileItem);
+          const a = document.createElement('a');
+          a.href = '#';
+          a.style.color = '#2563eb';
+          a.style.fontWeight = '500';
+          a.style.textDecoration = 'underline';
+          a.style.overflow = 'hidden';
+          a.style.textOverflow = 'ellipsis';
+          a.style.whiteSpace = 'nowrap';
+          a.innerText = `📎 ${fname}`;
+          a.onclick = (e) => {
+            e.preventDefault();
+            if (typeof window !== 'undefined' && window.downloadFileWithAuth) {
+              window.downloadFileWithAuth(url, fname);
+            }
+          };
+          container.appendChild(a);
+        });
+
+        return container;
       }
     } else if (f.type === 'MULTILINGUAL') {
       colDef.cellRenderer = (params) => {
@@ -1764,76 +1818,135 @@ const viewSnapshot = (dataString) => {
 
 
 const getParsedDiffs = (prev, next) => {
-    let p = {};
-    let n = {};
-    if (typeof prev === 'string') {
-      try {
-        const parsed = JSON.parse(prev);
-        if (next === 'RECORD_UPDATE') {
-          p = parsed.before || {};
-          n = parsed.after || {};
-        } else if (next === 'RECORD_CREATE' || next === 'RECORD_DELETE') {
-           n = parsed || {};
-        } else {
-          p = parsed || {};
-          n = typeof next === 'string' && next ? JSON.parse(next) : (next || {});
-        }
-      } catch (e) {
-        p = {};
-        n = typeof next === 'string' && next ? JSON.parse(next) : (next || {});
+  let p = {};
+  let n = {};
+  
+  if (typeof prev === 'string') {
+    try {
+      const parsed = JSON.parse(prev);
+      if (parsed && typeof parsed === 'object' && ('before' in parsed || 'after' in parsed)) {
+        p = parsed.before || {};
+        n = parsed.after || {};
+      } else if (next === 'RECORD_UPDATE') {
+        p = parsed.before || {};
+        n = parsed.after || {};
+      } else {
+        n = parsed || {};
+        // p는 현재 레코드 데이터에서 복사
+        p = { ...(selectedRecordData.value || {}) };
       }
-    } else {
-      p = prev ? prev : {};
-      n = next ? next : {};
+    } catch (e) {
+      p = { ...(selectedRecordData.value || {}) };
+      n = {};
     }
-    const diffs = []
-    const keys = [...new Set([...Object.keys(p), ...Object.keys(n)])]
-    keys.forEach(k => {
-      if (JSON.stringify(p[k]) !== JSON.stringify(n[k])) {
-        const field = nodeFields.value?.find(f => f.key === k)
-        const fName = field ? getTranslatedName(field.name) : k
-        
-        let valBefore = p[k];
-        let valAfter = n[k];
-        
-        if (field && field.type === 'DOMAIN_REFERENCE') {
-          let tDomainId = null;
-          try { tDomainId = JSON.parse(field.options || '{}').targetDomainId; } catch(e){}
-          if (valBefore) {
-            if (typeof valBefore === 'string' && valBefore.length === 36) {
-              if (!domainRefDisplayMap.value[valBefore]) fetchDomainRefName(valBefore, tDomainId);
-              valBefore = domainRefDisplayMap.value[valBefore] || valBefore;
-            }
-          }
-          if (valAfter) {
-            if (typeof valAfter === 'string' && valAfter.length === 36) {
-              if (!domainRefDisplayMap.value[valAfter]) fetchDomainRefName(valAfter, tDomainId);
-              valAfter = domainRefDisplayMap.value[valAfter] || valAfter;
-            }
-          }
-        }
-        
-        const formatValue = (val) => {
-          if (val === undefined || val === null) return val;
-          if (typeof val === 'object') {
-            return Object.entries(val).map(([k, v]) => `${k.toUpperCase()}: ${v}`).join(', ');
-          }
-          if (typeof val === 'number') return val.toLocaleString('ko-KR');
-          return val;
-        };
-        
-        valBefore = formatValue(valBefore);
-        valAfter = formatValue(valAfter);
-        
-        diffs.push({
-          fieldName: fName,
-          before: valBefore,
-          after: valAfter
-        })
+  } else if (prev && typeof prev === 'object') {
+    if ('before' in prev || 'after' in prev) {
+      p = prev.before || {};
+      n = prev.after || {};
+    } else {
+      n = prev;
+      p = { ...(selectedRecordData.value || {}) };
+    }
+  } else {
+    p = selectedRecordData.value || {};
+    n = typeof next === 'object' ? (next || {}) : {};
+  }
+
+  const diffs = [];
+  const keys = [...new Set([...Object.keys(p), ...Object.keys(n)])];
+
+  keys.forEach(k => {
+    let valBeforeRaw = p[k];
+    let valAfterRaw = n[k];
+
+    // p(before)에 이전 값이 누락된 경우, 레코드 원본 데이터(selectedRecordData)에서 기존 값을 가져옴
+    if ((valBeforeRaw === undefined || valBeforeRaw === null) && selectedRecordData.value && selectedRecordData.value[k] !== undefined) {
+      valBeforeRaw = selectedRecordData.value[k];
+    }
+
+    const field = nodeFields.value?.find(f => f.key === k || getTranslatedName(f.name) === k);
+    const fName = field ? getTranslatedName(field.name) : k;
+    const fType = field ? field.type : '';
+
+    let valBefore = valBeforeRaw;
+    let valAfter = valAfterRaw;
+
+    if (field && field.type === 'DOMAIN_REFERENCE') {
+      let tDomainId = null;
+      try { tDomainId = JSON.parse(field.options || '{}').targetDomainId; } catch(e){}
+      if (valBefore && typeof valBefore === 'string' && valBefore.length === 36) {
+        if (!domainRefDisplayMap.value[valBefore]) fetchDomainRefName(valBefore, tDomainId);
+        valBefore = domainRefDisplayMap.value[valBefore] || valBefore;
       }
-    })
-    return diffs
+      if (valAfter && typeof valAfter === 'string' && valAfter.length === 36) {
+        if (!domainRefDisplayMap.value[valAfter]) fetchDomainRefName(valAfter, tDomainId);
+        valAfter = domainRefDisplayMap.value[valAfter] || valAfter;
+      }
+    }
+
+    const formatValue = (val, type) => {
+      if (val === undefined || val === null) return '';
+      if (type === 'MULTILINGUAL' || (typeof val === 'object' && (val.ko || val.en))) {
+        return formatMultilingual(val);
+      }
+      if (typeof val === 'object') {
+        return Object.entries(val).map(([key, v]) => `${key.toUpperCase()}: ${v}`).join(', ');
+      }
+      if (typeof val === 'number') return val.toLocaleString('ko-KR');
+      return String(val);
+    };
+
+    const strBefore = formatValue(valBefore, fType).trim();
+    const strAfter = formatValue(valAfter, fType).trim();
+
+    // 값 동등성 검사
+    let isSame = false;
+    if (strBefore === strAfter) {
+      isSame = true;
+    } else if (JSON.stringify(valBeforeRaw) === JSON.stringify(valAfterRaw)) {
+      isSame = true;
+    }
+
+    if (!isSame) {
+      diffs.push({
+        fieldKey: k,
+        fieldName: fName,
+        fieldType: fType,
+        before: strBefore,
+        after: strAfter,
+        rawBefore: valBeforeRaw,
+        rawAfter: valAfterRaw
+      });
+    }
+  });
+
+  return diffs;
 }
+
+const formatDiffDisplay = (val, rawVal, fieldType) => {
+  if (val === undefined || val === null || val === '') return { isFile: false, text: '' };
+  const str = typeof rawVal === 'string' ? rawVal : (typeof val === 'string' ? val : JSON.stringify(rawVal || val));
+  if (fieldType === 'FILE' || str.includes('/api/files/download/') || str.includes('name=')) {
+    const fn = extractFilename(rawVal || val);
+    let url = '#';
+    if (typeof rawVal === 'object' && rawVal !== null) {
+      url = rawVal.url || '#';
+    } else if (typeof rawVal === 'string') {
+      url = rawVal;
+    } else if (typeof val === 'string') {
+      url = val;
+    }
+    // JSON 배열 형태인 경우 예외처리
+    if (url.startsWith('["') && url.endsWith('"]')) {
+      try {
+        const arr = JSON.parse(url);
+        if (arr.length > 0) url = arr[0];
+      } catch (e) {}
+    }
+    return { isFile: true, fname: fn || '파일 다운로드', url };
+  }
+  return { isFile: false, text: String(val) };
+};
 
 const viewDiffDetails = (prev, next, isPendingCreation = false) => {
   selectedDiffs.value = getParsedDiffs(prev, next);
@@ -1850,8 +1963,9 @@ const openHistory = async () => {
     historyLogs.value = res || []
     
     try {
-      const approvals = await $fetch('/api/approval-requests', { headers: { Authorization: `Bearer ${token.value}` } })
-      const pending = approvals.find(a => a.targetId === selectedRecordId.value && a.status === 'PENDING')
+      const approvalsRes = await $fetch('/api/approval-requests?status=PENDING&size=100', { headers: { Authorization: `Bearer ${token.value}` } })
+      const list = approvalsRes?.content || (Array.isArray(approvalsRes) ? approvalsRes : [])
+      const pending = list.find(a => String(a.targetId) === String(selectedRecordId.value) && a.status === 'PENDING')
       if (pending) {
         const fullPending = await $fetch(`/api/approval-requests/${pending.id}`, { headers: { Authorization: `Bearer ${token.value}` } })
         if (!historyLogs.value.some(log => log.id === 'pending-approval-log')) {
@@ -1859,7 +1973,7 @@ const openHistory = async () => {
             {
               id: 'pending-approval-log',
               changedAt: fullPending.createdAt,
-              changedBy: fullPending.requesterId,
+              changedBy: fullPending.requesterName || fullPending.requesterId,
               changeType: 'PENDING_APPROVAL',
               previousData: null,
               newData: null,
@@ -1870,7 +1984,9 @@ const openHistory = async () => {
           ]
         }
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('Failed to fetch pending approval for history', e)
+    }
   } catch (e) {
     console.error('Failed to load history', e)
     showCustomAlert(t('failed_load_history') || 'Failed to load history', t('error') || 'Error', t('notification') || 'Notification', 'error')
@@ -2173,6 +2289,13 @@ const openCreateModal = async () => {
         headers: { Authorization: `Bearer ${token.value}` }
       })
       availableWorkflows.value = wfList || []
+      if (!availableWorkflows.value || availableWorkflows.value.length === 0) {
+        initToast({
+          message: t('no_active_workflow') || '적용된 결재 워크플로우가 없어 레코드를 작성할 수 없습니다.',
+          color: 'warning'
+        })
+        return
+      }
       const defaultWf = availableWorkflows.value.find(w => w.isDefault) || availableWorkflows.value[0]
       if (defaultWf) {
         selectedWorkflowConfigId.value = defaultWf.id
@@ -2185,7 +2308,18 @@ const openCreateModal = async () => {
     } catch (e) {
       availableWorkflows.value = []
       createWorkflowPermission.value = {}
+      initToast({
+        message: t('no_active_workflow') || '적용된 결재 워크플로우가 없어 레코드를 작성할 수 없습니다.',
+        color: 'warning'
+      })
+      return
     }
+  } else {
+    initToast({
+      message: t('no_active_workflow') || '적용된 결재 워크플로우가 없어 레코드를 작성할 수 없습니다.',
+      color: 'warning'
+    })
+    return
   }
 
   showCreateModal.value = true

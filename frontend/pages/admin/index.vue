@@ -44,7 +44,7 @@
         </div>
 
         <div style="font-size: 0.9rem; color: #555; margin-bottom: 1.5rem;">
-          <strong>{{ t('requester') }}:</strong> {{ getUserName(selectedFlow.requesterId) }} <br/>
+          <strong>{{ t('requester') }}:</strong> {{ selectedFlow.requesterName || getUserName(selectedFlow.requesterId) }} <br/>
           <strong>{{ t('createdAt') }}:</strong> {{ formatDate(selectedFlow.createdAt) }}
         </div>
 
@@ -65,7 +65,7 @@
                 {{ getStatusText(step.status) }}
               </div>
               <div style="font-size: 0.75rem; color: var(--va-text-primary); margin-top: 0.2rem; min-height: 1.1rem; font-weight: bold; white-space: nowrap;" :title="step.assigneeId">
-                {{ getUserName(step.assigneeId) }}
+                {{ step.assigneeName || getUserName(step.assigneeId) }}
               </div>
               <div style="font-size: 0.7rem; color: var(--va-text-secondary); margin-top: 0.1rem; min-height: 1rem; white-space: nowrap;">
                 <span v-if="step.updatedAt && step.status !== 'PENDING'">{{ formatShortDate(step.updatedAt) }}</span>
@@ -238,20 +238,8 @@ const gridApi = ref(null)
 const showDetailsModal = ref(false)
 const selectedFlow = ref(null)
 
-const loadUsers = async () => {
-  try {
-    const res = await $fetch('/api/auth/users')
-    const map = {}
-    res.forEach(u => map[u.uuid || u.id] = u.username)
-    usersMap.value = map
-    if (gridApi.value) {
-      gridApi.value.refreshInfiniteCache()
-    }
-  } catch (e) {}
-}
-
-const getUserName = (id) => {
-  return usersMap.value[id] || id
+const getUserName = (id, fallbackName) => {
+  return fallbackName || id || ''
 }
 
 const formatTargetType = (type) => {
@@ -290,16 +278,7 @@ const formatDate = (dateString) => {
 }
 
 const parseLocalizedValue = (val) => {
-  if (!val) return ''
-  try {
-    const obj = JSON.parse(val)
-    if (typeof obj === 'object' && obj !== null) {
-      return obj[locale.value] || obj.ko || obj.en || val
-    }
-  } catch (e) {
-    // not JSON
-  }
-  return val
+  return formatMultilingual(val)
 }
 
 const formatShortDate = (dateString) => {

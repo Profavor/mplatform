@@ -61,7 +61,7 @@ public class RoleController {
 
     @DeleteMapping("/{id}")
     @Transactional
-    @PreAuthorize("hasPermission(null, 'admin:delete') or hasPermission(null, 'role:write')")
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'role:write')")
     public ResponseEntity<Void> deleteRole(@PathVariable UUID id) {
         return roleRepository.findById(id)
                 .map(role -> {

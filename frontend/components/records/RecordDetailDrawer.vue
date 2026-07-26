@@ -93,6 +93,7 @@
           <span>{{ t('details_info') || (i18nLocale === 'en' ? 'Details' : '상세 정보') }}</span>
         </button>
         <button
+          v-if="!isSnapshotMode"
           type="button"
           :class="['segmented-tab-btn', { active: activeMainTab === 'history' }]"
           @click="activeMainTab = 'history'"
@@ -366,7 +367,7 @@ const historyGridColumnDefs = computed(() => {
       field: 'changedBy',
       headerName: t('processed_by') || (i18nLocale.value === 'en' ? 'Processed By' : '처리자'),
       width: 110,
-      valueFormatter: (params) => getUserName(params.value)
+      valueFormatter: (params) => getUserName(params.value, params.data?.changedBy)
     },
     {
       field: 'changeType',
@@ -407,12 +408,6 @@ const historyGridColumnDefs = computed(() => {
         if (row.changeType === 'PENDING_APPROVAL' && row.rawRequest) {
           const btn = createUnifiedBtn(t('view_changes') || '변경 내역 보기', '#2c82e0', () => emit('viewDiffDetails', row.rawRequest.changes, row.rawRequest.targetType, true));
           div.appendChild(btn);
-
-          const waitingSpan = document.createElement('span');
-          waitingSpan.style.cssText = 'font-size: 11px; font-weight: bold; color: #0284c7; margin-left: 4px; display: inline-flex; align-items: center;';
-          const assigneeId = row.rawRequest.steps?.find(s => s.status === 'PENDING')?.assigneeId;
-          waitingSpan.innerText = `⏳ ${t('waiting_for') || '대기중'}: ${getUserName(assigneeId)}`;
-          div.appendChild(waitingSpan);
         } else if (row.changeType === 'UPDATE') {
           const btn = createUnifiedBtn(t('view_changes') || '변경 내역 보기', '#2c82e0', () => emit('viewDiffDetails', row.previousData, row.newData, false));
           div.appendChild(btn);
@@ -613,10 +608,14 @@ const recordStatus = computed(() => {
 })
 
 watch(
-  () => props.show,
-  (val) => {
+  () => [props.show, props.isSnapshotMode],
+  ([val, snapshot]) => {
     if (val) {
-      emit('openHistory')
+      if (snapshot) {
+        activeMainTab.value = 'details'
+      } else {
+        emit('openHistory')
+      }
     }
   },
   { immediate: true }
@@ -636,9 +635,10 @@ const historyColumns = computed(() => [
   { key: 'actions', label: t('actions') || '동작' }
 ])
 
-const getUserName = (uuid) => {
+const getUserName = (uuid, nameFallback) => {
+  if (nameFallback) return nameFallback
   if (!uuid) return ''
-  const u = props.userList?.find((user) => user.uuid === uuid)
+  const u = props.userList?.find((user) => user.uuid === uuid || user.id === uuid)
   return u ? u.username : uuid
 }
 
@@ -872,14 +872,33 @@ const evalConditionRule = (field, formData) => {
   return defaultRes
 }
 
-const extractFilename = (url) => {
-  if (!url) return 'Download'
-  try {
-    if (url.includes('?name=')) return decodeURIComponent(url.split('?name=')[1].split('&')[0])
-    return decodeURIComponent(url.split('/').pop().split('?')[0]) || 'Download'
-  } catch (e) {
-    return 'Download'
+const extractFilename = (input) => {
+  if (!input) return ''
+  if (typeof input === 'object') {
+    if (input.name && input.name !== 'Download') return input.name
+    if (input.originalName) return input.originalName
+    if (input.url) input = input.url
+    else return ''
   }
+  let str = String(input).trim()
+  if (!str || str === '-' || str === '[]' || str === '{}' || str === 'null' || str === 'undefined') return ''
+  
+  try {
+    if (str.startsWith('{') || str.startsWith('[')) {
+      const parsed = JSON.parse(str)
+      if (Array.isArray(parsed) && parsed.length > 0) return extractFilename(parsed[0])
+      if (typeof parsed === 'object' && (parsed.name || parsed.originalName)) return parsed.name || parsed.originalName
+    }
+  } catch (e) {}
+
+  try {
+    if (str.includes('?name=')) return decodeURIComponent(str.split('?name=')[1].split('&')[0])
+    if (str.includes('?filename=')) return decodeURIComponent(str.split('?filename=')[1].split('&')[0])
+    const fname = decodeURIComponent(str.split('/').pop().split('?')[0])
+    if (fname && fname !== '-' && fname !== 'null') return fname
+  } catch (e) {}
+  
+  return str
 }
 
 let draggedItemIndex = null

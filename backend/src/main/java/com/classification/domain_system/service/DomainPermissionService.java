@@ -96,4 +96,13 @@ public class DomainPermissionService {
         req.setStatus("REJECTED");
         requestRepository.save(req);
     }
+
+    @Transactional
+    public void cancelRequest(UUID requestId, String userId) {
+        DomainAccessRequest req = requestRepository.findById(requestId).orElseThrow(() -> new RuntimeException("Request not found"));
+        if (userId != null && !userId.equals(req.getUser().getId()) && !userId.equals(req.getUser().getUsername())) {
+            throw new RuntimeException("Unauthorized to cancel this request");
+        }
+        requestRepository.delete(req);
+    }
 }

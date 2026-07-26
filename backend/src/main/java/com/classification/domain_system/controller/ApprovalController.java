@@ -47,7 +47,18 @@ public class ApprovalController {
     public ResponseEntity<List<com.classification.domain_system.entity.WorkflowConfig>> getAvailableWorkflows(
             @PathVariable UUID nodeId, 
             @RequestParam String actionType) {
-        List<com.classification.domain_system.entity.WorkflowConfig> list = approvalService.resolveWorkflows(nodeId, actionType);
+        UUID authenticatedUserId = null;
+        String userRole = null;
+        try {
+            authenticatedUserId = getAuthenticatedUserId();
+            com.classification.domain_system.entity.User u = userRepository.findById(authenticatedUserId.toString()).orElse(null);
+            if (u != null) {
+                userRole = u.getRole();
+            }
+        } catch (Exception e) {
+            // Unauthenticated or guest context
+        }
+        List<com.classification.domain_system.entity.WorkflowConfig> list = approvalService.resolveWorkflowsForUser(nodeId, actionType, authenticatedUserId, userRole);
         return ResponseEntity.ok(list);
     }
 
@@ -126,7 +137,9 @@ public class ApprovalController {
             }
         }
         
-        return ResponseEntity.ok(PageResponse.of(approvalService.getAllRequests(search, status, filterModel, PageRequest.of(page, size, sortObj))));
+        var resultPage = approvalService.getAllRequests(search, status, filterModel, PageRequest.of(page, size, sortObj));
+        approvalService.enrichUserNames(resultPage.getContent());
+        return ResponseEntity.ok(PageResponse.of(resultPage));
     }
     
     @GetMapping("/todos")
@@ -134,7 +147,15 @@ public class ApprovalController {
             @RequestParam UUID assigneeId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
-        return ResponseEntity.ok(PageResponse.of(approvalService.getMyTodos(assigneeId, PageRequest.of(page, size))));
+        var todoPage = approvalService.getMyTodos(assigneeId, PageRequest.of(page, size));
+        if (todoPage.getContent() != null) {
+            todoPage.getContent().forEach(s -> {
+                if (s.getApprovalRequest() != null) {
+                    approvalService.enrichUserNames(s.getApprovalRequest());
+                }
+            });
+        }
+        return ResponseEntity.ok(PageResponse.of(todoPage));
     }
 
     @GetMapping("/my-requests")
@@ -142,12 +163,16 @@ public class ApprovalController {
             @RequestParam UUID requesterId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
-        return ResponseEntity.ok(PageResponse.of(approvalService.getMyRequests(requesterId, PageRequest.of(page, size))));
+        var myReqPage = approvalService.getMyRequests(requesterId, PageRequest.of(page, size));
+        approvalService.enrichUserNames(myReqPage.getContent());
+        return ResponseEntity.ok(PageResponse.of(myReqPage));
     }
     
     @GetMapping("/{id}")
     public ResponseEntity<ApprovalRequest> getRequestById(@PathVariable UUID id) {
-        return ResponseEntity.ok(approvalService.getRequestById(id));
+        var req = approvalService.getRequestById(id);
+        approvalService.enrichUserNames(req);
+        return ResponseEntity.ok(req);
     }
     
     @PostMapping("/steps/{stepId}/approve")

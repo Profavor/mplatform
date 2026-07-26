@@ -35,19 +35,7 @@ public class AuthController {
         return ResponseEntity.ok(new LoginResponse(null, null, user.getUsername(), user.getRole(), user.getId(), user.getId(), user.getOrganizationId(), user.getDepartmentId(), user.getTimezone(), serverOffset, perms));
     }
 
-    @GetMapping("/users")
-    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'user:read')")
-    public ResponseEntity<?> getAllUsers() {
-        String serverOffset = OffsetDateTime.now().getOffset().getId();
-        return ResponseEntity.ok(userRepository.findAll().stream()
-            .map(user -> {
-                var perms = permissionService.getAuthoritiesForUser(user.getUsername(), user.getRole()).stream()
-                    .map(a -> a.getAuthority())
-                    .toList();
-                return new LoginResponse(null, null, user.getUsername(), user.getRole(), user.getId(), user.getId(), user.getOrganizationId(), user.getDepartmentId(), user.getTimezone(), serverOffset, perms);
-            })
-            .toList());
-    }
+
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletRequest httpRequest) {
@@ -105,7 +93,6 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    @PreAuthorize("hasPermission(null, 'admin:write')")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
         try {
             authService.register(request.getUsername(), request.getPassword(), request.getRole(), request.getTimezone());

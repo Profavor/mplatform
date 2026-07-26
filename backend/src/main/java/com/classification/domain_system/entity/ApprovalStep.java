@@ -29,6 +29,9 @@ public class ApprovalStep {
     @Column(name = "assignee_id")
     private UUID assigneeId;
 
+    @Transient
+    private String assigneeName;
+
     @Column(name = "assignee_role", length = 50)
     private String assigneeRole;
 

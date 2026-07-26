@@ -74,7 +74,8 @@ public class UserService {
         if (search == null || search.trim().isEmpty()) {
             return userRepository.findAll(pageable);
         }
-        return userRepository.findByUsernameContainingIgnoreCase(search, pageable);
+        String keyword = search.trim();
+        return userRepository.findByUsernameContainingIgnoreCaseOrRoleContainingIgnoreCase(keyword, keyword, pageable);
     }
 
     @Transactional

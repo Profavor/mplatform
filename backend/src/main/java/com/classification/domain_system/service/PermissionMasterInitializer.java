@@ -35,8 +35,7 @@ public class PermissionMasterInitializer implements CommandLineRunner {
 
             addPermissionItem(domain, "도메인 전체 (*)", "Domain All (*)", "domain:*", 1);
             addPermissionItem(domain, "조회 (read)", "Read (read)", "domain:read", 2);
-            addPermissionItem(domain, "생성/수정 (write)", "Create/Modify (write)", "domain:write", 3);
-            addPermissionItem(domain, "삭제 (delete)", "Delete (delete)", "domain:delete", 4);
+            addPermissionItem(domain, "작성 (write)", "Write (write)", "domain:write", 3);
             groupRepository.save(domain);
         }
 
@@ -54,8 +53,7 @@ public class PermissionMasterInitializer implements CommandLineRunner {
 
             addPermissionItem(node, "노드 전체 (*)", "Node All (*)", "node:*", 1);
             addPermissionItem(node, "조회 (read)", "Read (read)", "node:read", 2);
-            addPermissionItem(node, "생성/수정 (write)", "Create/Modify (write)", "node:write", 3);
-            addPermissionItem(node, "삭제 (delete)", "Delete (delete)", "node:delete", 4);
+            addPermissionItem(node, "작성 (write)", "Write (write)", "node:write", 3);
             groupRepository.save(node);
         }
 
@@ -73,8 +71,7 @@ public class PermissionMasterInitializer implements CommandLineRunner {
 
             addPermissionItem(field, "필드 전체 (*)", "Field All (*)", "field:*", 1);
             addPermissionItem(field, "조회 (read)", "Read (read)", "field:read", 2);
-            addPermissionItem(field, "생성/수정 (write)", "Create/Modify (write)", "field:write", 3);
-            addPermissionItem(field, "삭제 (delete)", "Delete (delete)", "field:delete", 4);
+            addPermissionItem(field, "작성 (write)", "Write (write)", "field:write", 3);
             groupRepository.save(field);
         }
 
@@ -92,8 +89,7 @@ public class PermissionMasterInitializer implements CommandLineRunner {
 
             addPermissionItem(dq, "품질 전체 (*)", "DQ All (*)", "dq:*", 1);
             addPermissionItem(dq, "조회 (read)", "Read (read)", "dq:read", 2);
-            addPermissionItem(dq, "생성/수정 (write)", "Create/Modify (write)", "dq:write", 3);
-            addPermissionItem(dq, "삭제 (delete)", "Delete (delete)", "dq:delete", 4);
+            addPermissionItem(dq, "작성 (write)", "Write (write)", "dq:write", 3);
             groupRepository.save(dq);
         }
 
@@ -111,8 +107,7 @@ public class PermissionMasterInitializer implements CommandLineRunner {
 
             addPermissionItem(org, "조직 권한 전체 (*)", "Org All (*)", "org:*", 1);
             addPermissionItem(org, "조회 (read)", "Read (read)", "org:read", 2);
-            addPermissionItem(org, "생성/수정 (write)", "Create/Modify (write)", "org:write", 3);
-            addPermissionItem(org, "삭제 (delete)", "Delete (delete)", "org:delete", 4);
+            addPermissionItem(org, "작성 (write)", "Write (write)", "org:write", 3);
             groupRepository.save(org);
         }
 

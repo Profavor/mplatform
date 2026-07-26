@@ -56,7 +56,7 @@ public class DomainPermissionController {
     }
 
     @DeleteMapping("/users/{userId}/domains/{domainId}")
-    @PreAuthorize("hasPermission(null, 'admin:delete') or hasPermission(null, 'user:write')")
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'user:write')")
     public ResponseEntity<Void> revokePermission(@PathVariable String userId, @PathVariable UUID domainId) {
         permissionService.revokePermission(userId, domainId);
         return ResponseEntity.ok().build();
@@ -88,6 +88,15 @@ public class DomainPermissionController {
     @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'domain:write')")
     public ResponseEntity<Void> rejectRequest(@PathVariable UUID requestId) {
         permissionService.rejectRequest(requestId);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/requests/{requestId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> cancelRequest(@PathVariable UUID requestId) {
+        String userId = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userService.findByUsername(userId);
+        permissionService.cancelRequest(requestId, user != null ? user.getId() : userId);
         return ResponseEntity.ok().build();
     }
 

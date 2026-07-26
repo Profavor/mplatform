@@ -43,7 +43,7 @@ public class MatchingRuleController {
     }
 
     @DeleteMapping("/{ruleId}")
-    @PreAuthorize("hasPermission(null, 'admin:delete') or hasPermission(null, 'domain:write')")
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'domain:write')")
     public ResponseEntity<Void> deleteRule(@PathVariable UUID domainId, @PathVariable UUID ruleId) {
         matchingRuleRepository.deleteById(ruleId);
         return ResponseEntity.ok().build();

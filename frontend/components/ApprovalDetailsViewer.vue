@@ -17,7 +17,7 @@
           {{ t('requestedData') }}
         </h4>
         <va-chip size="small" color="primary" preset="outline" style="font-weight: 600; transition: transform 0.2s ease;">
-          {{ isRequestedDataExpanded ? ($t('collapse') || '접기') : ($t('expand') || '펼치기') }}
+          {{ isRequestedDataExpanded ? (t('collapse') || '접기') : (t('expand') || '펼치기') }}
         </va-chip>
       </div>
 
@@ -54,7 +54,7 @@
                                 <div style="color: var(--va-danger); word-break: break-all; width: 100%;">
                                   <template v-if="f.type === 'FILE' && getFilesList(f.val.before).length > 0">
                                     <div v-for="(fileUrl, idx) in getFilesList(f.val.before)" :key="idx" style="margin-bottom: 4px;">
-                                      <a :href="fileUrl" target="_blank" style="color: var(--va-danger); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
+                                      <a href="#" @click.prevent="downloadFileWithAuth(fileUrl, getFileName(fileUrl))" style="color: var(--va-danger); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
                                         <va-icon name="attach_file" size="small" />{{ getFileName(fileUrl) }}
                                       </a>
                                     </div>
@@ -67,7 +67,7 @@
                                 <div style="color: var(--va-success); font-weight: 500; word-break: break-all; width: 100%;">
                                   <template v-if="f.type === 'FILE' && getFilesList(f.val.after).length > 0">
                                     <div v-for="(fileUrl, idx) in getFilesList(f.val.after)" :key="idx" style="margin-bottom: 4px;">
-                                      <a :href="fileUrl" target="_blank" style="color: var(--va-success); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
+                                      <a href="#" @click.prevent="downloadFileWithAuth(fileUrl, getFileName(fileUrl))" style="color: var(--va-success); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
                                         <va-icon name="attach_file" size="small" />{{ getFileName(fileUrl) }}
                                       </a>
                                     </div>
@@ -79,7 +79,7 @@
                             <div v-else style="padding: 0.75rem 1rem; font-size: 0.85rem; color: var(--va-text-secondary); background: var(--va-background-primary);">
                               <template v-if="f.type === 'FILE' && getFilesList(f.val.before).length > 0">
                                 <div v-for="(fileUrl, idx) in getFilesList(f.val.before)" :key="idx" style="margin-bottom: 4px;">
-                                  <a :href="fileUrl" target="_blank" style="color: var(--va-primary); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
+                                  <a href="#" @click.prevent="downloadFileWithAuth(fileUrl, getFileName(fileUrl))" style="color: var(--va-primary); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
                                     <va-icon name="attach_file" size="small" />{{ getFileName(fileUrl) }}
                                   </a>
                                 </div>
@@ -91,7 +91,7 @@
                             <div style="padding: 0.75rem 1rem; font-size: 0.85rem; color: var(--va-text-primary);">
                               <template v-if="f.type === 'FILE' && getFilesList(f.val).length > 0">
                                 <div v-for="(fileUrl, idx) in getFilesList(f.val)" :key="idx" style="margin-bottom: 4px;">
-                                  <a :href="fileUrl" target="_blank" style="color: var(--va-primary); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
+                                  <a href="#" @click.prevent="downloadFileWithAuth(fileUrl, getFileName(fileUrl))" style="color: var(--va-primary); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
                                     <va-icon name="attach_file" size="small" />{{ getFileName(fileUrl) }}
                                   </a>
                                 </div>
@@ -206,7 +206,7 @@
               <div style="display: flex; justify-content: space-between; margin-bottom: 4px; align-items: center;">
                 <span style="font-weight: bold; color: var(--va-primary); display: flex; align-items: center;">
                   <span style="display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; background-color:var(--va-primary); color:white; border-radius:50%; font-size:0.75rem; margin-right:6px; font-weight:bold;">{{ s.stepOrder }}</span>
-                  {{ getStepTypeLabel(s) }} - {{ getUserName(s.assigneeId) }}
+                  {{ getStepTypeLabel(s) }} - {{ s.assigneeName || getUserName(s.assigneeId) }}
                 </span>
                 <va-badge :color="s.stepType === 'DRAFT' ? 'info' : (s.status === 'APPROVED' ? 'success' : (s.status === 'REJECTED' ? 'danger' : 'warning'))" size="small">{{ getStepStatusLabel(s) }}</va-badge>
               </div>
@@ -223,10 +223,15 @@
           </div>
         </div>
         
-        <div v-if="getObserversList(request?.observerIds).length > 0" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed var(--va-background-border);">
+        <div v-if="(request?.observerNames && request.observerNames.length > 0) || getObserversList(request?.observerIds).length > 0" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed var(--va-background-border);">
           <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--va-text-secondary);">{{ t('observers') }}</div>
           <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-            <va-badge v-for="obsId in getObserversList(request?.observerIds)" :key="obsId" color="info" preset="secondary">{{ getUserName(obsId) }}</va-badge>
+            <template v-if="request?.observerNames && request.observerNames.length > 0">
+              <va-badge v-for="(obsName, idx) in request.observerNames" :key="idx" color="info" preset="secondary">{{ obsName }}</va-badge>
+            </template>
+            <template v-else>
+              <va-badge v-for="obsId in getObserversList(request?.observerIds)" :key="obsId" color="info" preset="secondary">{{ getUserName(obsId) }}</va-badge>
+            </template>
           </div>
         </div>
       </div>
@@ -251,21 +256,12 @@ const props = defineProps({
 
 const currentLocale = useCookie('locale', { default: () => 'ko' })
 const token = useCookie('auth_token')
-const userList = ref([])
+const { downloadFileWithAuth } = useFileDownloader()
 const fieldNameMap = ref({})
 const domainRefDisplayMap = ref({})
 
-const loadUsers = async () => {
-  try {
-    const res = await fetch('/api/auth/users', {
-      headers: { 'Authorization': `Bearer ${token.value}` }
-    })
-    if (res.ok) {
-      userList.value = await res.json()
-    }
-  } catch (e) {
-    console.error("Failed to fetch users", e)
-  }
+const getUserName = (uuid, nameFallback) => {
+  return nameFallback || uuid || ''
 }
 
 const loadFieldNamesForRequest = async (req) => {
@@ -309,15 +305,6 @@ watch(() => [props.request, props.nodeId], async ([newReq]) => {
   }
 }, { immediate: true })
 
-onMounted(async () => {
-  await loadUsers()
-})
-
-const getUserName = (uuid) => {
-  if (!uuid) return ''
-  const u = userList.value.find(u => u.uuid === uuid)
-  return u ? u.username : uuid
-}
 
 const getStepTypeLabel = (s) => {
   if (!s) return ''
@@ -485,12 +472,10 @@ const getGroupedChangesList = (changesString, targetType) => {
     });
     Object.values(fieldNameMap.value || {}).forEach(f => {
       const uKey = String(f.key).toUpperCase();
-      if (f.type === 'MULTILINGUAL') {
+      if (f.type === 'MULTILINGUAL' && normalized[uKey] !== undefined && normalized[uKey] !== null) {
         if (typeof normalized[uKey] === 'string') {
           try { normalized[uKey] = JSON.parse(normalized[uKey]); }
           catch (e) { normalized[uKey] = { ko: normalized[uKey], en: '' }; }
-        } else if (!normalized[uKey]) {
-          normalized[uKey] = { ko: '', en: '' };
         }
       }
     });
@@ -527,7 +512,14 @@ const getGroupedChangesList = (changesString, targetType) => {
       valAfter = parsed[key]
     }
     
-    const f = Object.values(fieldNameMap.value || {}).find(field => field && field.key && (String(field.key).toUpperCase() === key || String(field.key).toLowerCase() === key.toLowerCase())) || { name: key, fieldGroup: null }
+    const foundField = Object.values(fieldNameMap.value || {}).find(field => field && field.key && (String(field.key).toUpperCase() === key || String(field.key).toLowerCase() === key.toLowerCase()))
+    let inferredType = foundField ? foundField.type : undefined;
+    const strValCheck = String(valAfter || valBefore || '');
+    if (!inferredType && (strValCheck.includes('/api/files/download/') || strValCheck.includes('name='))) {
+      inferredType = 'FILE';
+    }
+    const fieldLabelName = foundField ? foundField.name : (inferredType === 'FILE' ? '파일' : key);
+    const f = foundField ? { ...foundField, type: foundField.type || inferredType } : { name: fieldLabelName, type: inferredType, fieldGroup: null };
     
     const parseName = (nameObj) => {
       if (!nameObj) return null;
@@ -608,6 +600,9 @@ const getGroupedChangesList = (changesString, targetType) => {
         if (valAfter && !domainRefDisplayMap.value[valAfter]) fetchDomainRefName(valAfter, tDomainId);
         displayValAfter = domainRefDisplayMap.value[valAfter] || valAfter;
       }
+    } else if (f.type === 'FILE') {
+      displayValBefore = valBefore;
+      displayValAfter = valAfter;
     } else if (f.type === 'MULTILINGUAL' || typeof valAfter === 'object' || typeof valBefore === 'object' || (typeof valAfter === 'string' && valAfter.trim().startsWith('{')) || (typeof valBefore === 'string' && valBefore.trim().startsWith('{'))) {
       try {
         if (targetType === 'RECORD_UPDATE') {
@@ -672,10 +667,47 @@ const getGroupedChangesList = (changesString, targetType) => {
     if (targetType === 'RECORD_UPDATE') {
       const vBefore = displayValBefore || '-';
       const vAfter = displayValAfter || '-';
+
+      let isActuallyChanged = false;
+      const strBefore = (vBefore === '-' || vBefore === null || vBefore === undefined) ? '' : String(vBefore).trim();
+      const strAfter = (vAfter === '-' || vAfter === null || vAfter === undefined) ? '' : String(vAfter).trim();
+
+      if (strBefore !== strAfter) {
+        if (f.type === 'FILE') {
+          // 파일 타입 필드는 after에 유효한 파일 정보가 있으면 변경으로 판단
+          if (strAfter !== '' && strAfter !== '-') {
+            isActuallyChanged = true;
+          }
+        } else {
+          // 일반 텍스트/다국어 필드는 before 객체에 키가 실제로 존재하고 strBefore가 유효할 때만 변경으로 판단
+          const uKey = String(key).toUpperCase();
+          const fKey = f && f.key ? String(f.key).toUpperCase() : uKey;
+          const bObj = parsed.before || {};
+          const bKeys = Object.keys(bObj);
+          const hasKeyInBefore = bKeys.some(bk => {
+            const uppercaseBk = String(bk).toUpperCase();
+            return uppercaseBk === uKey || uppercaseBk === fKey;
+          });
+
+          if (hasKeyInBefore && strBefore !== '') {
+            const multiBefore = parseMultilingual(valBefore);
+            const multiAfter = parseMultilingual(valAfter);
+            if (multiBefore && multiAfter && String(multiBefore).trim() === String(multiAfter).trim()) {
+              isActuallyChanged = false;
+            } else {
+              isActuallyChanged = true;
+            }
+          } else {
+            // before 객체에 없었던 텍스트 필드는 수정한 대상이 아님!
+            isActuallyChanged = false;
+          }
+        }
+      }
+
       finalVal = {
         before: vBefore,
         after: vAfter,
-        isChanged: String(vBefore) !== String(vAfter)
+        isChanged: isActuallyChanged
       }
     } else {
       finalVal = displayValAfter || '-'
@@ -823,7 +855,7 @@ const getStepperSteps = (req) => {
   if (!req || !req.steps || req.steps.length === 0) return [];
   const sortedSteps = [...req.steps].sort((a, b) => a.stepOrder - b.stepOrder);
   const result = sortedSteps.map(s => {
-    const name = getUserName(s.assigneeId);
+    const name = s.assigneeName || getUserName(s.assigneeId);
     let statusText = '';
     if (s.stepType === 'DRAFT') statusText = t('stepDraft');
     else if (s.status === 'APPROVED') statusText = t('stepApproved');
@@ -922,54 +954,7 @@ const getObserversList = (obsString) => {
 }
 </style>
 
-<i18n lang="json">
-{
-  "ko": {
-    "requestedData": "요청 데이터",
-    "noParsable": "파싱 가능한 데이터가 없습니다.",
-    "approvalLineSummary": "결재라인 (요약):",
-    "noApprovalLine": "결재라인이 없습니다.",
-    "approvalLineStatus": "결재선 현황",
-    "stepDraft": "상신완료",
-    "stepApproved": "승인됨",
-    "stepRejected": "반려됨",
-    "stepPending": "대기중",
-    "stepScheduled": "예정",
-    "systemApplied": "시스템 반영",
-    "systemComplete": "완료",
-    "systemCancelled": "취소됨",
-    "typeConsensus": "합의",
-    "typeDraft": "기안",
-    "typeApproval": "결재",
-    "modified": "수정됨",
-    "processed": "처리됨",
-    "noComment": "의견 없음",
-    "observers": "참조자(CC)"
-  },
-  "en": {
-    "requestedData": "Requested Data:",
-    "noParsable": "No parsable data provided.",
-    "approvalLineSummary": "Approval Line (Summary):",
-    "noApprovalLine": "No approval line.",
-    "approvalLineStatus": "Approval Line Status",
-    "stepDraft": "Submitted",
-    "stepApproved": "Approved",
-    "stepRejected": "Rejected",
-    "stepPending": "Pending",
-    "stepScheduled": "Scheduled",
-    "systemApplied": "System Reflect",
-    "systemComplete": "Complete",
-    "systemCancelled": "Cancelled",
-    "typeConsensus": "Consensus",
-    "typeDraft": "Draft",
-    "typeApproval": "Approval",
-    "modified": "Modified",
-    "processed": "Processed",
-    "noComment": "No comment",
-    "observers": "Observers (CC)"
-  }
-}
-</i18n>
+
 
 <style scoped>
 .accordion-header:hover {

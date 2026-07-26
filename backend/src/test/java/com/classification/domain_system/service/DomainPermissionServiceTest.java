@@ -59,4 +59,27 @@ class DomainPermissionServiceTest {
         // then
         verify(permissionRepository).save(any(DomainPermission.class));
     }
+
+    @Test
+    @DisplayName("성공 - 신청 중인 권한 요청을 취소(개별 삭제)한다")
+    void cancelRequest_success() {
+        // given
+        UUID requestId = UUID.randomUUID();
+        String userId = "user1";
+        com.classification.domain_system.entity.DomainAccessRequest request = new com.classification.domain_system.entity.DomainAccessRequest();
+        request.setId(requestId);
+        User user = new User();
+        user.setId(userId);
+        user.setUsername(userId);
+        request.setUser(user);
+        request.setStatus("PENDING");
+
+        given(requestRepository.findById(requestId)).willReturn(Optional.of(request));
+
+        // when
+        domainPermissionService.cancelRequest(requestId, userId);
+
+        // then
+        verify(requestRepository).delete(request);
+    }
 }

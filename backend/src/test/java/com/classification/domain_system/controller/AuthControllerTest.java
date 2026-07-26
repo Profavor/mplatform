@@ -198,34 +198,4 @@ class AuthControllerTest {
     // ─────────────────────────────────────────────────────────────────
     // getAllUsers 테스트
     // ─────────────────────────────────────────────────────────────────
-    @Nested
-    @DisplayName("getAllUsers")
-    class GetAllUsers {
-
-        @Test
-        @DisplayName("사용자 목록 반환")
-        void success_ReturnsUserList() throws Exception {
-            User user = new User();
-            user.setId(UUID.randomUUID().toString());
-            user.setUsername("testuser");
-            user.setRole("USER");
-
-            when(userRepository.findAll()).thenReturn(List.of(user));
-
-            mockMvc.perform(get("/api/auth/users"))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$[0].username").value("testuser"))
-                    .andExpect(jsonPath("$[0].role").value("USER"));
-        }
-
-        @Test
-        @DisplayName("사용자 없으면 빈 배열 반환")
-        void noUsers_ReturnsEmptyList() throws Exception {
-            when(userRepository.findAll()).thenReturn(List.of());
-
-            mockMvc.perform(get("/api/auth/users"))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.length()").value(0));
-        }
-    }
 }

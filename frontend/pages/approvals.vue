@@ -310,6 +310,7 @@ import { useToast } from 'vuestic-ui'
 import { AgGridVue } from 'ag-grid-vue3'
 
 const { loadMetadata, enrichRequest } = useApprovalEnricher()
+const { formatMultilingual } = useMultilingual()
 
 const { gridTheme, autoSizeStrategy } = useAgGridTheme()
 
@@ -323,10 +324,10 @@ const pendingSelectedRows = ref([])
 const getPendingColumnDefs = () => [
   { colId: 'p_checkbox', headerName: '', field: 'checkbox', width: 50, suppressSizeToFit: true },
   { colId: 'p_targetType', field: 'approvalRequest.targetType', headerName: t('target_type'), width: 130, minWidth: 120 },
-  { colId: 'p_domainName', field: 'approvalRequest.domainName', headerName: t('colDomain'), width: 140 },
-  { colId: 'p_classificationName', field: 'approvalRequest.classificationName', headerName: t('colClassification'), width: 150 },
-  { colId: 'p_idAttribute', field: 'approvalRequest.idAttribute', headerName: t('colIdAttr'), width: 150 },
-  { colId: 'p_nameAttribute', field: 'approvalRequest.nameAttribute', headerName: t('colNameAttr'), width: 180 },
+  { colId: 'p_domainName', field: 'approvalRequest.domainName', headerName: t('colDomain'), width: 140, valueFormatter: params => formatMultilingual(params.value) },
+  { colId: 'p_classificationName', field: 'approvalRequest.classificationName', headerName: t('colClassification'), width: 150, valueFormatter: params => formatMultilingual(params.value) },
+  { colId: 'p_idAttribute', field: 'approvalRequest.idAttribute', headerName: t('colIdAttr'), width: 150, valueFormatter: params => formatMultilingual(params.value) },
+  { colId: 'p_nameAttribute', field: 'approvalRequest.nameAttribute', headerName: t('colNameAttr'), width: 180, valueFormatter: params => formatMultilingual(params.value) },
   { colId: 'p_summary', field: 'approvalRequest.summary', headerName: t('colSummary'), flex: 1, minWidth: 200, tooltipField: 'approvalRequest.summary' },
   { 
     colId: 'p_steps',
@@ -452,10 +453,10 @@ const selectedRequest = ref(null)
 const getMyRequestsColumnDefs = () => [
   { colId: 'm_id', field: 'id', headerName: t('id'), width: 110, minWidth: 90, valueFormatter: params => params.value ? params.value.substring(0, 8) + '...' : '' },
   { colId: 'm_targetType', field: 'targetType', headerName: t('target_type'), width: 130, minWidth: 120 },
-  { colId: 'm_domainName', field: 'domainName', headerName: t('colDomain'), width: 140 },
-  { colId: 'm_classificationName', field: 'classificationName', headerName: t('colClassification'), width: 150 },
-  { colId: 'm_idAttribute', field: 'idAttribute', headerName: t('colIdAttr'), width: 150 },
-  { colId: 'm_nameAttribute', field: 'nameAttribute', headerName: t('colNameAttr'), width: 180 },
+  { colId: 'm_domainName', field: 'domainName', headerName: t('colDomain'), width: 140, valueFormatter: params => formatMultilingual(params.value) },
+  { colId: 'm_classificationName', field: 'classificationName', headerName: t('colClassification'), width: 150, valueFormatter: params => formatMultilingual(params.value) },
+  { colId: 'm_idAttribute', field: 'idAttribute', headerName: t('colIdAttr'), width: 150, valueFormatter: params => formatMultilingual(params.value) },
+  { colId: 'm_nameAttribute', field: 'nameAttribute', headerName: t('colNameAttr'), width: 180, valueFormatter: params => formatMultilingual(params.value) },
   { colId: 'm_summary', field: 'summary', headerName: t('colSummary'), flex: 1, minWidth: 200, tooltipField: 'summary' },
   { 
     colId: 'm_steps',
@@ -948,7 +949,7 @@ const getApprovalLineString = (steps) => {
   if (!steps || steps.length === 0) return t('no_approval_line');
   const sortedSteps = [...steps].sort((a, b) => a.stepOrder - b.stepOrder);
   const stepStrings = sortedSteps.map(s => {
-    const name = getUserName(s.assigneeId);
+    const name = s.assigneeName || getUserName(s.assigneeId);
     let statusText = '';
     if (s.stepType === 'DRAFT') statusText = t('draft');
     else if (s.status === 'APPROVED') statusText = t('status_approved');
@@ -1019,7 +1020,7 @@ const getStepperSteps = (req) => {
   if (!req || !req.steps || req.steps.length === 0) return [];
   const sortedSteps = [...req.steps].sort((a, b) => a.stepOrder - b.stepOrder);
   const result = sortedSteps.map(s => {
-    const name = getUserName(s.assigneeId);
+    const name = s.assigneeName || getUserName(s.assigneeId);
     let statusText = '';
     if (s.stepType === 'DRAFT') statusText = t('status_draft');
     else if (s.status === 'APPROVED') statusText = t('status_approved');
@@ -1058,9 +1059,11 @@ const getStepperSteps = (req) => {
 }
 
 const getRequesterName = (req) => {
-  if (!req || !req.steps) return '알 수 없음';
+  if (!req) return '알 수 없음';
+  if (req.requesterName) return req.requesterName;
+  if (!req.steps) return '알 수 없음';
   const draftStep = req.steps.find(s => s.stepType === 'DRAFT');
-  return draftStep ? getUserName(draftStep.assigneeId) : '알 수 없음';
+  return draftStep ? (draftStep.assigneeName || getUserName(draftStep.assigneeId)) : '알 수 없음';
 }
 
 const getClassificationName = (node, field) => {
@@ -1238,28 +1241,12 @@ const loadFieldNamesForRecord = async (targetId, nodeId = null) => {
   }
 }
 
-const loadUsers = async () => {
-  try {
-    const res = await fetch('/api/auth/users', {
-      headers: { 'Authorization': `Bearer ${token.value}` }
-    })
-    if (res.ok) {
-      userList.value = await res.json()
-    }
-  } catch (e) {
-    console.error("Failed to fetch users", e)
-  }
-}
-
-const getUserName = (uuid) => {
-  if (!uuid) return ''
-  const u = userList.value.find(u => u.uuid === uuid)
-  return u ? u.username : uuid
+const getUserName = (uuid, nameFallback) => {
+  return nameFallback || uuid || ''
 }
 
 onMounted(async () => {
   await loadMetadata()
-  await loadUsers()
   await loadRequests()
   const route = useRoute()
   if (route.query.openModalId) {

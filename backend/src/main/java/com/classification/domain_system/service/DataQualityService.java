@@ -55,7 +55,7 @@ public class DataQualityService {
         DQResult result = new DQResult();
 
         // 1. Run new DQ Rule Engine
-        DqEvaluationResult engineResult = dqRuleEngine.evaluate(nodeId, jsonString, recordId);
+        DqEvaluationResult engineResult = dqRuleEngine.evaluate(nodeId, jsonString, recordId, null, targetFieldKeys);
 
         // Add engine errors (filtered by targetFieldKeys if provided)
         if (targetFieldKeys != null && !targetFieldKeys.isEmpty()) {

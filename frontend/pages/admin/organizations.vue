@@ -1242,7 +1242,7 @@ const customPermissionGroups = ref([
     permissions: [
       { label: '도메인 전체 (*)', labelEn: 'Domain All (*)', labelKey: 'perm_all', value: 'domain:*' },
       { label: '조회 (read)', labelEn: 'Read (read)', labelKey: 'perm_read', value: 'domain:read' },
-      { label: '생성/수정 (write)', labelEn: 'Create/Modify (write)', labelKey: 'perm_write', value: 'domain:write' }
+      { label: '작성 (write)', labelEn: 'Write (write)', labelKey: 'perm_write', value: 'domain:write' }
     ]
   },
   {
@@ -1257,7 +1257,7 @@ const customPermissionGroups = ref([
     permissions: [
       { label: '노드 전체 (*)', labelEn: 'Category Node All (*)', labelKey: 'perm_all', value: 'node:*' },
       { label: '조회 (read)', labelEn: 'Read (read)', labelKey: 'perm_read', value: 'node:read' },
-      { label: '생성/수정 (write)', labelEn: 'Create/Modify (write)', labelKey: 'perm_write', value: 'node:write' }
+      { label: '작성 (write)', labelEn: 'Write (write)', labelKey: 'perm_write', value: 'node:write' }
     ]
   },
   {
@@ -1272,7 +1272,7 @@ const customPermissionGroups = ref([
     permissions: [
       { label: '필드 전체 (*)', labelEn: 'Attribute Field All (*)', labelKey: 'perm_all', value: 'field:*' },
       { label: '조회 (read)', labelEn: 'Read (read)', labelKey: 'perm_read', value: 'field:read' },
-      { label: '생성/수정 (write)', labelEn: 'Create/Modify (write)', labelKey: 'perm_write', value: 'field:write' }
+      { label: '작성 (write)', labelEn: 'Write (write)', labelKey: 'perm_write', value: 'field:write' }
     ]
   },
   {
@@ -1287,7 +1287,7 @@ const customPermissionGroups = ref([
     permissions: [
       { label: 'DQ 전체 (*)', labelEn: 'Data Quality All (*)', labelKey: 'perm_all', value: 'dq:*' },
       { label: '조회 (read)', labelEn: 'Read (read)', labelKey: 'perm_read', value: 'dq:read' },
-      { label: '실행/수정 (write)', labelEn: 'Execute/Modify (write)', labelKey: 'perm_write', value: 'dq:write' }
+      { label: '작성 (write)', labelEn: 'Write (write)', labelKey: 'perm_write', value: 'dq:write' }
     ]
   }
 ])

@@ -61,8 +61,8 @@ public class IntegrationChannelController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasPermission(null, 'admin:delete')")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    @PreAuthorize("hasPermission(null, 'admin:write')")
+    public ResponseEntity<Void> deleteChannel(@PathVariable UUID id) {
         if (repository.existsById(id)) {
             repository.deleteById(id);
             return ResponseEntity.ok().build();

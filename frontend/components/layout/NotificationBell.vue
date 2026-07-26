@@ -1,22 +1,22 @@
 <template>
   <va-dropdown placement="bottom-end" stick-to-edges class="notification-dropdown">
     <template #anchor>
-      <va-badge
-        :text="unreadCount > 99 ? '99+' : unreadCount"
-        :visible="unreadCount > 0"
-        color="danger"
-        overlap
-        class="notification-badge"
-      >
+      <div style="position: relative; display: inline-flex; align-items: center; justify-content: center;">
         <va-button
           preset="plain"
           class="notification-bell-btn"
-          style="color: white !important; padding: 0.4rem; border-radius: 50%; min-width: 40px; height: 40px;"
+          style="color: white !important; padding: 0.4rem; border-radius: 50%; min-width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center;"
           :aria-label="$t('notifications.title')"
         >
           <va-icon name="notifications" size="24px" />
         </va-button>
-      </va-badge>
+        <span
+          v-if="unreadCount > 0"
+          style="position: absolute; top: 2px; right: 2px; background: #e53935; color: white; border-radius: 10px; padding: 1px 5px; font-size: 10px; font-weight: 700; line-height: 12px; min-width: 16px; text-align: center; border: 1.5px solid #2563eb; box-shadow: 0 2px 4px rgba(0,0,0,0.2); pointer-events: none;"
+        >
+          {{ unreadCount > 99 ? '99+' : unreadCount }}
+        </span>
+      </div>
     </template>
 
     <va-dropdown-content
@@ -133,17 +133,17 @@ const fetchNotifications = async () => {
     const data = await $fetch('/api/notifications', {
       headers: { Authorization: `Bearer ${tokenCookie.value}` }
     })
-    if (data && Array.isArray(data)) {
-      notifications.value = data.map(n => ({
-        id: n.id || Math.random(),
-        title: n.title || '',
-        message: n.message || n.content || '',
-        type: (n.type || 'INFO').toUpperCase(),
-        linkUrl: n.linkUrl || n.url || null,
-        read: Boolean(n.read),
-        createdAt: n.createdAt || n.timestamp || new Date().toISOString()
-      }))
-    }
+    // Backend returns PageResponse { content: [...], totalElements, ... }
+    const items = Array.isArray(data) ? data : (data && Array.isArray(data.content) ? data.content : [])
+    notifications.value = items.map(n => ({
+      id: n.id || Math.random(),
+      title: n.title || '',
+      message: n.message || n.content || '',
+      type: (n.type || 'INFO').toUpperCase(),
+      linkUrl: n.linkUrl || n.url || null,
+      read: Boolean(n.read || n.isRead),
+      createdAt: n.createdAt || n.timestamp || new Date().toISOString()
+    }))
   } catch (e) {
     console.debug('Initial notifications fetch skipped or returned empty:', e)
   }
@@ -231,7 +231,7 @@ const handleNotificationClick = async (item) => {
   if (item.id && tokenCookie.value) {
     try {
       await $fetch(`/api/notifications/${item.id}/read`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: { Authorization: `Bearer ${tokenCookie.value}` }
       })
     } catch {
@@ -248,7 +248,7 @@ const markAllAsRead = async () => {
   if (tokenCookie.value) {
     try {
       await $fetch('/api/notifications/read-all', {
-        method: 'POST',
+        method: 'PUT',
         headers: { Authorization: `Bearer ${tokenCookie.value}` }
       })
     } catch {

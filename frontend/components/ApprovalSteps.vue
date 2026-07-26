@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div v-if="request?.steps && request.steps.length > 0">
     <div v-for="group in groupedSteps" :key="group.order" style="margin-bottom: 0.25rem;">
       <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
@@ -6,24 +6,25 @@
           <div style="display: flex; justify-content: space-between; margin-bottom: 4px; align-items: center;">
             <span style="font-weight: bold; color: var(--va-primary); display: flex; align-items: center;">
               <span style="display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; background-color:var(--va-primary); color:white; border-radius:50%; font-size:0.75rem; margin-right:6px; font-weight:bold;">{{ step.stepOrder }}</span>
-              {{ step.stepType === 'CONSENSUS' ? '?⑹쓽' : (step.stepType === 'DRAFT' ? '湲곗븞' : '寃곗옱') }} - {{ getUserName(step.assigneeId) }}
+              {{ step.stepType === 'CONSENSUS' ? '합의' : (step.stepType === 'DRAFT' ? '기안' : '결재') }} - {{ step.assigneeName || getUserName(step.assigneeId) }}
             </span>
-            <va-badge :text="step.stepType === 'DRAFT' ? '?곸떊?꾨즺' : step.status" :color="step.stepType === 'DRAFT' ? 'info' : (step.status === 'APPROVED' ? 'success' : (step.status === 'REJECTED' ? 'danger' : 'warning'))" size="small" />
+            <va-badge :text="step.stepType === 'DRAFT' ? '기안완료' : step.status" :color="step.stepType === 'DRAFT' ? 'info' : (step.status === 'APPROVED' ? 'success' : (step.status === 'REJECTED' ? 'danger' : 'warning'))" size="small" />
           </div>
           <div v-if="step.status === 'APPROVED' || step.status === 'REJECTED' || step.stepType === 'DRAFT'" style="font-size: 0.75rem; color: var(--va-text-secondary); margin-bottom: 4px; text-align: right;">
-            {{ new Date(step.updatedAt).toLocaleString() }} 泥섎━??          </div>
+            {{ new Date(step.updatedAt).toLocaleString() }} 처리됨
+          </div>
           <div v-if="step.comment" style="color: var(--va-text-primary); background: var(--va-background-secondary); padding: 4px 8px; border-radius: 4px; border-left: 3px solid var(--va-primary); font-style: italic;">
             "{{ step.comment }}"
           </div>
           <div v-else style="color: var(--va-text-secondary); font-style: italic;">
-            ?섍껄 ?놁쓬
+            의견 없음
           </div>
         </div>
       </div>
     </div>
     
     <div v-if="observersList.length > 0" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #ccc;">
-      <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; color: #555;">?듬낫??李몄“)</div>
+      <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; color: #555;">참조자 목록</div>
       <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
         <va-badge v-for="obsId in observersList" :key="obsId" color="info" preset="secondary">{{ getUserName(obsId) }}</va-badge>
       </div>
@@ -35,15 +36,11 @@
 import { computed } from 'vue'
 
 const props = defineProps({
-  request: { type: Object, required: true },
-  users: { type: Array, default: () => [] }
+  request: { type: Object, required: true }
 })
 
-const getUserName = (id) => {
-  if (!id) return ''
-  const u = props.users.find(x => x.uuid === id)
-  if (u) return u.username
-  return id
+const getUserName = (id, fallbackName) => {
+  return fallbackName || id || ''
 }
 
 const groupedSteps = computed(() => {

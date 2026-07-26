@@ -492,17 +492,27 @@ const evalConditionRule = (field, formData) => {
   const readOnlyFields = perm.readOnlyFields || []
   const editableFields = perm.editableFields || []
 
-  if (field?.key && hiddenFields.includes(field.key)) {
+  const isFieldInList = (f, list) => {
+    if (!f || !list || !Array.isArray(list) || list.length === 0) return false
+    const fKeyUpper = String(f.key || '').toUpperCase()
+    const fId = String(f.id || '')
+    return list.some(item => {
+      const itemStr = String(item).trim()
+      return itemStr.toUpperCase() === fKeyUpper || (fId && itemStr === fId)
+    })
+  }
+
+  if (isFieldInList(field, hiddenFields)) {
     return { show: false, highlight: false, required: false, readOnly: true, disabled: true }
   }
 
-  if (field?.key && readOnlyFields.includes(field.key)) {
+  if (isFieldInList(field, readOnlyFields)) {
     defaultRes.readOnly = true
   }
 
-  if (field?.key && editableFields.length > 0 && !editableFields.includes(field.key)) {
+  if (editableFields.length > 0 && !isFieldInList(field, editableFields)) {
     if (!props.isEdit) {
-      // In CREATE mode, fields not in editableFields are hidden completely (users only see designated creation fields)
+      // In CREATE mode, fields not in editableFields are hidden completely
       return { show: false, highlight: false, required: false, readOnly: true, disabled: true }
     } else {
       defaultRes.readOnly = true
@@ -563,14 +573,33 @@ const evalConditionRule = (field, formData) => {
   return defaultRes
 }
 
-const extractFilename = (url) => {
-  if (!url) return 'Download'
-  try {
-    if (url.includes('?name=')) return decodeURIComponent(url.split('?name=')[1].split('&')[0])
-    return decodeURIComponent(url.split('/').pop().split('?')[0]) || 'Download'
-  } catch (e) {
-    return 'Download'
+const extractFilename = (input) => {
+  if (!input) return ''
+  if (typeof input === 'object') {
+    if (input.name && input.name !== 'Download') return input.name
+    if (input.originalName) return input.originalName
+    if (input.url) input = input.url
+    else return ''
   }
+  let str = String(input).trim()
+  if (!str || str === '-' || str === '[]' || str === '{}' || str === 'null' || str === 'undefined') return ''
+  
+  try {
+    if (str.startsWith('{') || str.startsWith('[')) {
+      const parsed = JSON.parse(str)
+      if (Array.isArray(parsed) && parsed.length > 0) return extractFilename(parsed[0])
+      if (typeof parsed === 'object' && (parsed.name || parsed.originalName)) return parsed.name || parsed.originalName
+    }
+  } catch (e) {}
+
+  try {
+    if (str.includes('?name=')) return decodeURIComponent(str.split('?name=')[1].split('&')[0])
+    if (str.includes('?filename=')) return decodeURIComponent(str.split('?filename=')[1].split('&')[0])
+    const fname = decodeURIComponent(str.split('/').pop().split('?')[0])
+    if (fname && fname !== '-' && fname !== 'null') return fname
+  } catch (e) {}
+  
+  return str
 }
 
 let draggedItemIndex = null

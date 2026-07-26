@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { useCookie } from '#app'
+import { formatMultilingual } from './useMultilingual'
 
 export const useApprovalEnricher = () => {
   const token = useCookie('auth_token')
@@ -142,14 +143,10 @@ export const useApprovalEnricher = () => {
         const nameField = fields.find(f => f.id === nameFieldId)
         
         if (idField && recordData[idField.key] !== undefined) {
-          enriched.idAttribute = recordData[idField.key]
+          enriched.idAttribute = formatMultilingual(recordData[idField.key])
         }
         if (nameField && recordData[nameField.key] !== undefined) {
-          let val = recordData[nameField.key]
-          if (typeof val === 'object' && val !== null) {
-            val = JSON.stringify(val)
-          }
-          enriched.nameAttribute = val
+          enriched.nameAttribute = formatMultilingual(recordData[nameField.key])
         }
         
         // Summary logic
@@ -201,17 +198,15 @@ export const useApprovalEnricher = () => {
                 fNameLower.includes('명') || fNameLower.includes('이름') || fNameLower.includes('name') || fNameLower.includes('title') ||
                 keyLower.includes('name') || keyLower.includes('title')
             )) {
-              let val = recordData[key]
-              if (typeof val === 'object' && val !== null) val = JSON.stringify(val)
-              enriched.nameAttribute = val
+              enriched.nameAttribute = formatMultilingual(recordData[key])
             }
           }
           
           // 2nd pass: if still empty, pick the first available non-object value for ID and second for Name
           if (!enriched.idAttribute || !enriched.nameAttribute) {
-            const values = Object.values(recordData).filter(v => typeof v !== 'object' && v !== null && v !== '')
-            if (!enriched.idAttribute && values.length > 0) enriched.idAttribute = values[0]
-            if (!enriched.nameAttribute && values.length > 1) enriched.nameAttribute = values[1]
+            const keys = Object.keys(recordData)
+            if (!enriched.idAttribute && keys.length > 0) enriched.idAttribute = formatMultilingual(recordData[keys[0]])
+            if (!enriched.nameAttribute && keys.length > 1) enriched.nameAttribute = formatMultilingual(recordData[keys[1]])
           }
         }
       } catch(e) {

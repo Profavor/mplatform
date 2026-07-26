@@ -51,7 +51,7 @@ public class GlobalRecordController {
     }
 
     @PostMapping("/{id}/delete-request")
-    @PreAuthorize("hasPermission(null, 'record:delete') or hasPermission(null, 'workflow:request')")
+    @PreAuthorize("hasPermission(null, 'record:write') or hasPermission(null, 'workflow:request')")
     public ResponseEntity<?> deleteRecordRequest(
             @PathVariable UUID id,
             @RequestBody com.classification.domain_system.dto.RecordRequest request) {

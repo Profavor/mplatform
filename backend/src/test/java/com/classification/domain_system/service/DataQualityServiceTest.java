@@ -42,8 +42,10 @@ class DataQualityServiceTest {
     void setUp() {
         nodeId = UUID.randomUUID();
         lenient().when(nodeRepository.findById(nodeId)).thenReturn(Optional.empty());
-        // Default: engine returns empty result (no violations)
+        // Default: engine returns empty result (no violations) — both old and new signature
         lenient().when(dqRuleEngine.evaluate(eq(nodeId), any(), any()))
+                .thenReturn(new DqEvaluationResult());
+        lenient().when(dqRuleEngine.evaluate(eq(nodeId), any(), any(), any(), any()))
                 .thenReturn(new DqEvaluationResult());
     }
 
@@ -192,7 +194,7 @@ class DataQualityServiceTest {
             DqEvaluationResult engineResult = new DqEvaluationResult();
             engineResult.addViolation("_json", "PARSE", "ERROR",
                     Map.of("en", "Invalid JSON format"), "NOT_JSON");
-            when(dqRuleEngine.evaluate(eq(nodeId), eq("NOT_JSON"), any())).thenReturn(engineResult);
+            when(dqRuleEngine.evaluate(eq(nodeId), eq("NOT_JSON"), any(), any(), any())).thenReturn(engineResult);
 
             DataQualityService.DQResult result = dataQualityService.validateData(nodeId, "NOT_JSON");
 
@@ -250,7 +252,7 @@ class DataQualityServiceTest {
             DqEvaluationResult engineResult = new DqEvaluationResult();
             engineResult.addViolation("email", "REGEX", "ERROR",
                     Map.of("en", "Invalid email format"), "bad-email");
-            when(dqRuleEngine.evaluate(eq(nodeId), any(), any())).thenReturn(engineResult);
+            when(dqRuleEngine.evaluate(eq(nodeId), any(), any(), any(), any())).thenReturn(engineResult);
             when(fieldDefinitionService.getEffectiveFields(nodeId)).thenReturn(List.of());
 
             DataQualityService.DQResult result = dataQualityService.validateData(nodeId, "{\"email\":\"bad-email\"}");
@@ -265,7 +267,7 @@ class DataQualityServiceTest {
             DqEvaluationResult engineResult = new DqEvaluationResult();
             engineResult.addViolation("nickname", "LENGTH", "WARNING",
                     Map.of("en", "Nickname is too short"), "ab");
-            when(dqRuleEngine.evaluate(eq(nodeId), any(), any())).thenReturn(engineResult);
+            when(dqRuleEngine.evaluate(eq(nodeId), any(), any(), any(), any())).thenReturn(engineResult);
             when(fieldDefinitionService.getEffectiveFields(nodeId)).thenReturn(List.of());
 
             DataQualityService.DQResult result = dataQualityService.validateData(nodeId, "{\"nickname\":\"ab\"}");
@@ -313,6 +315,74 @@ class DataQualityServiceTest {
             assertThat(result.isValid).isFalse();
             assertThat(result.errors).anyMatch(e -> e.contains("name") || e.contains("required"));
         }
+
+        @Test
+        @DisplayName("DqRuleEngine에 targetFieldKeys가 올바르게 전달되어 비대상 필드의 엔진 에러가 발생하지 않음")
+        void engineReceivesTargetFieldKeys_NonTargetFieldViolationsExcluded() {
+            FieldDefinition nameField = makeField("name", "TEXT", false);
+            FieldDefinition emailField = makeField("email", "TEXT", false);
+            when(fieldDefinitionService.getEffectiveFields(nodeId)).thenReturn(List.of(nameField, emailField));
+
+            // Engine mock: when called with targetFieldKeys=["name"], return no violations
+            // (since engine filters at field level, "email" violations should not appear)
+            when(dqRuleEngine.evaluate(eq(nodeId), any(), any(), any(), eq(List.of("name"))))
+                    .thenReturn(new DqEvaluationResult());
+
+            DataQualityService.DQResult result = dataQualityService.validateData(
+                    nodeId, "{\"name\":\"test\",\"email\":\"invalid\"}", null, List.of("name")
+            );
+
+            assertThat(result.isValid).isTrue();
+            assertThat(result.errors).isEmpty();
+            // Verify engine was called WITH the targetFieldKeys
+            verify(dqRuleEngine).evaluate(eq(nodeId), any(), any(), any(), eq(List.of("name")));
+        }
+
+        @Test
+        @DisplayName("targetFieldKeys가 null이면 DqRuleEngine에 null이 전달되어 전체 필드를 검사함")
+        void nullTargetFieldKeys_EngineChecksAllFields() {
+            FieldDefinition nameField = makeField("name", "TEXT", false);
+            when(fieldDefinitionService.getEffectiveFields(nodeId)).thenReturn(List.of(nameField));
+
+            // Engine returns violation for all fields
+            DqEvaluationResult engineResult = new DqEvaluationResult();
+            engineResult.addViolation("name", "NOT_NULL", "ERROR",
+                    Map.of("en", "Name is required"), "null");
+            when(dqRuleEngine.evaluate(eq(nodeId), any(), any(), any(), isNull()))
+                    .thenReturn(engineResult);
+
+            DataQualityService.DQResult result = dataQualityService.validateData(
+                    nodeId, "{}", null, null
+            );
+
+            assertThat(result.isValid).isFalse();
+            assertThat(result.errors).anyMatch(e -> e.contains("Name is required"));
+            // Verify engine was called with null targetFieldKeys
+            verify(dqRuleEngine).evaluate(eq(nodeId), any(), any(), any(), isNull());
+        }
+
+        @Test
+        @DisplayName("엔진이 비대상 필드 violation을 반환해도 사후 필터링으로 제외됨 (이중 안전장치)")
+        void engineViolationForNonTargetField_FilteredByPostProcessing() {
+            FieldDefinition nameField = makeField("name", "TEXT", false);
+            FieldDefinition emailField = makeField("email", "TEXT", false);
+            when(fieldDefinitionService.getEffectiveFields(nodeId)).thenReturn(List.of(nameField, emailField));
+
+            // Simulate engine returning violation for BOTH fields (hypothetical bypass)
+            DqEvaluationResult engineResult = new DqEvaluationResult();
+            engineResult.addViolation("email", "REGEX", "ERROR",
+                    Map.of("en", "Invalid email format"), "bad");
+            when(dqRuleEngine.evaluate(eq(nodeId), any(), any(), any(), eq(List.of("name"))))
+                    .thenReturn(engineResult);
+
+            DataQualityService.DQResult result = dataQualityService.validateData(
+                    nodeId, "{\"name\":\"test\",\"email\":\"bad\"}", null, List.of("name")
+            );
+
+            // "email" violation should be filtered out by post-processing
+            assertThat(result.isValid).isTrue();
+            assertThat(result.errors).isEmpty();
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -328,3 +398,4 @@ class DataQualityServiceTest {
         return f;
     }
 }
+

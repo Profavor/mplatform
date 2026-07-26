@@ -48,22 +48,22 @@
           {{ getLabelById(id) }}
         </va-chip>
       </div>
-    </div>
 
-    <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; margin-bottom: 1.5rem;">
-      <va-button preset="secondary" @click="$emit('update:modelValue', false)">{{ $t('cancel') }}</va-button>
-      <va-button
-        @click="submitAccessRequest"
-        :disabled="!selectedDomainToRequest || selectedDomainToRequest.length === 0 || submitting"
-        :loading="submitting"
-      >
-        {{ $t('submit_request') }}
-      </va-button>
+      <div style="display: flex; justify-content: flex-end; margin-top: 0.5rem;">
+        <va-button
+          size="small"
+          @click="submitAccessRequest"
+          :disabled="!selectedDomainToRequest || selectedDomainToRequest.length === 0 || submitting"
+          :loading="submitting"
+        >
+          {{ $t('submit_request') }}
+        </va-button>
+      </div>
     </div>
 
     <va-divider class="my-4" />
 
-    <!-- ② 신청중인 도메인 -->
+    <!-- ② 신청중인 도메인 (날짜별 개별 취소 가능) -->
     <div class="mb-4">
       <h3 class="font-bold mb-2 text-sm text-gray-700">
         {{ $t('pending_requests') || (isEn ? 'Pending Requests' : '신청중인 도메인') }}
@@ -75,7 +75,7 @@
         <div
           v-for="req in pendingRequests"
           :key="req.id"
-          style="display: flex; align-items: center; justify-content: space-between; background: var(--va-background-element); border-radius: 6px; padding: 0.4rem 0.7rem;"
+          style="display: flex; align-items: center; justify-content: space-between; background: var(--va-background-element); border-radius: 6px; padding: 0.45rem 0.75rem;"
         >
           <div>
             <div style="font-size: 0.85rem; font-weight: 600;">{{ req.domainName }}</div>
@@ -83,9 +83,21 @@
               {{ formatDate(req.requestedAt) }}
             </div>
           </div>
-          <va-chip color="warning" size="small" style="font-size: 0.72rem;">
-            {{ $t('status_pending') || (isEn ? 'Pending' : '검토중') }}
-          </va-chip>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <va-chip color="warning" size="small" style="font-size: 0.72rem;">
+              {{ $t('status_pending') || (isEn ? 'Pending' : '검토중') }}
+            </va-chip>
+            <va-button
+              preset="secondary"
+              color="danger"
+              size="small"
+              style="font-size: 0.75rem; padding: 0 6px; height: 24px;"
+              :loading="cancelingId === req.id"
+              @click="cancelAccessRequest(req.id)"
+            >
+              {{ $t('cancel_request') || (isEn ? 'Cancel' : '신청 취소') }}
+            </va-button>
+          </div>
         </div>
       </div>
     </div>
@@ -114,6 +126,12 @@
     >
       {{ $t('duplicate_request_warning') || (isEn ? 'Some domains are already pending approval and were skipped.' : '이미 신청중인 도메인은 중복 신청이 제외되었습니다.') }}
     </va-alert>
+
+    <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
+      <va-button preset="secondary" @click="$emit('update:modelValue', false)">
+        {{ $t('close') || (isEn ? 'Close' : '닫기') }}
+      </va-button>
+    </div>
   </va-modal>
 </template>
 
@@ -142,6 +160,7 @@ const domainList = ref([])        // 승인된 내 도메인
 const pendingRequests = ref([])   // 현재 신청중인 도메인
 const selectedDomainToRequest = ref([])
 const submitting = ref(false)
+const cancelingId = ref(null)
 const duplicateWarning = ref(false)
 
 // 신청중인 domainId 집합 (중복 방지용)
@@ -288,10 +307,28 @@ const submitAccessRequest = async () => {
     ))
     isOpen.value = false
     selectedDomainToRequest.value = []
+    await loadDomains()
   } catch (e) {
     console.error('Error submitting requests:', e)
   } finally {
     submitting.value = false
+  }
+}
+
+const cancelAccessRequest = async (requestId) => {
+  if (!requestId) return
+  cancelingId.value = requestId
+  try {
+    const headers = { Authorization: `Bearer ${tokenCookie.value}` }
+    await $fetch(`/api/permissions/requests/${requestId}`, {
+      method: 'DELETE',
+      headers
+    })
+    await loadDomains()
+  } catch (e) {
+    console.error('Error canceling request:', e)
+  } finally {
+    cancelingId.value = null
   }
 }
 </script>

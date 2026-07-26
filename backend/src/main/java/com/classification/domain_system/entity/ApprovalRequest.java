@@ -30,6 +30,9 @@ public class ApprovalRequest {
     @Column(name = "requester_id", nullable = false)
     private UUID requesterId;
 
+    @Transient
+    private String requesterName;
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "node_id")
     private ClassificationNode classificationNode;
@@ -51,6 +54,9 @@ public class ApprovalRequest {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "observer_ids")
     private String observerIds;
+
+    @Transient
+    private List<String> observerNames;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

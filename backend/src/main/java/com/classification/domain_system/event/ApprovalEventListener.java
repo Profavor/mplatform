@@ -36,6 +36,7 @@ public class ApprovalEventListener {
     private final CalculatedFieldEvaluator calculatedFieldEvaluator;
     private final RecordHistoryWriter recordHistoryWriter;
     private final com.classification.domain_system.service.NotificationService notificationService;
+    private final com.classification.domain_system.repository.UserRepository userRepository;
     
     @org.springframework.beans.factory.annotation.Autowired
     @org.springframework.context.annotation.Lazy
@@ -63,16 +64,22 @@ public class ApprovalEventListener {
         autoApproveStepsIfRequesterIsAssignee(approval);
 
         if (notificationService != null && approval.getSteps() != null && approval.getCurrentStepOrder() != null) {
+            String actionLabel = resolveActionLabel(approval.getTargetType());
+            String requesterName = resolveUserName(approval.getRequesterId());
+            String domainName = resolveDomainName(approval);
+            String classificationName = resolveClassificationName(approval);
+            String summary = extractChangeSummary(approval);
+
             approval.getSteps().stream()
                     .filter(s -> s.getStepOrder().equals(approval.getCurrentStepOrder()) && s.getAssigneeId() != null)
                     .forEach(s -> {
                         try {
                             notificationService.createNotification(
                                     s.getAssigneeId(),
-                                    "Approval Request Pending",
-                                    "New approval request received: " + approval.getId(),
+                                    "@i18n:notifications.approval_pending",
+                                    buildNotificationMessage(actionLabel, requesterName, domainName, classificationName, summary),
                                     "APPROVAL",
-                                    "/approvals/" + approval.getId()
+                                    "/approvals"
                             );
                         } catch (Exception ex) {
                             log.warn("Failed to create approval notification for assignee {}", s.getAssigneeId(), ex);
@@ -100,12 +107,15 @@ public class ApprovalEventListener {
 
             if (notificationService != null && approval.getRequesterId() != null) {
                 try {
+                    String actionLabel = resolveActionLabel(approval.getTargetType());
+                    String domainName = resolveDomainName(approval);
+                    String classificationName = resolveClassificationName(approval);
                     notificationService.createNotification(
                             approval.getRequesterId(),
-                            "Approval Step Approved",
-                            "Approval step " + approvedStep.getStepOrder() + " completed for request: " + approval.getId(),
+                            "@i18n:notifications.approval_step_approved",
+                            buildStepApprovedMessage(actionLabel, approvedStep.getStepOrder(), domainName, classificationName),
                             "APPROVAL",
-                            "/approvals/" + approval.getId()
+                            "/approvals"
                     );
                 } catch (Exception ex) {
                     log.warn("Failed to create approval notification for requester {}", approval.getRequesterId(), ex);
@@ -133,16 +143,22 @@ public class ApprovalEventListener {
                     autoApproveStepsIfRequesterIsAssignee(approval);
 
                     if (notificationService != null && approval.getSteps() != null) {
+                        String nextActionLabel = resolveActionLabel(approval.getTargetType());
+                        String nextRequesterName = resolveUserName(approval.getRequesterId());
+                        String nextDomainName = resolveDomainName(approval);
+                        String nextClassificationName = resolveClassificationName(approval);
+                        String nextSummary = extractChangeSummary(approval);
+
                         approval.getSteps().stream()
                                 .filter(s -> s.getStepOrder().equals(approval.getCurrentStepOrder()) && s.getAssigneeId() != null)
                                 .forEach(s -> {
                                     try {
                                         notificationService.createNotification(
                                                 s.getAssigneeId(),
-                                                "Approval Request Pending",
-                                                "New approval request step received: " + approval.getId(),
+                                                "@i18n:notifications.approval_pending",
+                                                buildNotificationMessage(nextActionLabel, nextRequesterName, nextDomainName, nextClassificationName, nextSummary),
                                                 "APPROVAL",
-                                                "/approvals/" + approval.getId()
+                                                "/approvals"
                                         );
                                     } catch (Exception ex) {
                                         log.warn("Failed to create approval step notification for assignee {}", s.getAssigneeId(), ex);
@@ -156,12 +172,15 @@ public class ApprovalEventListener {
 
                     if (notificationService != null && approval.getRequesterId() != null) {
                         try {
+                            String finalActionLabel = resolveActionLabel(approval.getTargetType());
+                            String finalDomainName = resolveDomainName(approval);
+                            String finalClassificationName = resolveClassificationName(approval);
                             notificationService.createNotification(
                                     approval.getRequesterId(),
-                                    "Approval Request Finalized",
-                                    "Your request " + approval.getId() + " has been fully approved.",
+                                    "@i18n:notifications.approval_finalized",
+                                    buildFinalizedMessage(finalActionLabel, finalDomainName, finalClassificationName),
                                     "APPROVAL",
-                                    "/approvals/" + approval.getId()
+                                    "/approvals"
                             );
                         } catch (Exception ex) {
                             log.warn("Failed to create final approval notification for requester {}", approval.getRequesterId(), ex);

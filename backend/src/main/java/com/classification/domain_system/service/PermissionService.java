@@ -42,11 +42,6 @@ public class PermissionService {
             }
         }
 
-        boolean isAdmin = authorities.contains("ROLE_ADMIN");
-
-        if (isAdmin) {
-            authorities.add("*");
-        }
 
         // 1. Role 마스터 테이블 기반 권한 확장 (roleStr/user.getRole()과 매칭되는 Role 엔티티 조회)
         Set<String> roleNamesToSearch = new HashSet<>();

@@ -122,7 +122,7 @@ const { t } = useI18n()
 const { init } = useToast()
 const { customFetch } = useCustomFetch()
 const { formatWithTimezone } = useTimezoneDate()
-const { hasPermission, isAdmin } = usePermission()
+const { hasPermission } = usePermission()
 
 const selectedDomain = ref<string>('')
 const domainOptions = ref<{label: string, value: string}[]>([])
@@ -132,7 +132,7 @@ const selectedCandidate = ref<any>(null)
 const isMergeModalOpen = ref(false)
 
 const hasWritePermission = computed(() => {
-  return isAdmin() || hasPermission('domain:write') || hasPermission('domain:*')
+  return hasPermission('domain:write') || hasPermission('domain:*')
 })
 
 const statusOptions = computed(() => [

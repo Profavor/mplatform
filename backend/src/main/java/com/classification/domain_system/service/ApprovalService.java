@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import java.util.List;
 import java.util.UUID;
 import java.util.ArrayList;
+import java.util.stream.Collectors;
 import java.util.Map;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -93,8 +94,13 @@ public class ApprovalService {
     }
 
     public List<WorkflowConfig> resolveWorkflows(UUID nodeId, String actionType) {
+        return resolveWorkflowsForUser(nodeId, actionType, null, null);
+    }
+
+    public List<WorkflowConfig> resolveWorkflowsForUser(UUID nodeId, String actionType, UUID requesterId, String userRole) {
         if (nodeId == null) return java.util.Collections.emptyList();
 
+        List<WorkflowConfig> rawList = new java.util.ArrayList<>();
         ClassificationNode current = nodeRepository.findById(nodeId).orElse(null);
         Domain targetDomain = null;
 
@@ -109,7 +115,8 @@ public class ApprovalService {
                         .filter(this::isEffectiveConfig)
                         .toList();
                 if (!effective.isEmpty()) {
-                    return effective;
+                    rawList = effective;
+                    break;
                 }
                 current = current.getParent();
             }
@@ -118,17 +125,62 @@ public class ApprovalService {
         }
 
         // Fallback to domain level
-        if (targetDomain != null) {
+        if (rawList.isEmpty() && targetDomain != null) {
             List<WorkflowConfig> domainConfs = workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(
                 targetDomain.getId(), actionType
             );
-            return domainConfs.stream()
+            rawList = domainConfs.stream()
                     .filter(c -> !Boolean.FALSE.equals(c.getIsActive()))
                     .filter(this::isEffectiveConfig)
                     .toList();
         }
 
-        return java.util.Collections.emptyList();
+        if (requesterId == null && (userRole == null || userRole.isBlank())) {
+            return rawList;
+        }
+
+        // Filter workflows that allow user to perform this action
+        return rawList.stream()
+                .filter(config -> allowsUserAction(config, actionType, requesterId, userRole))
+                .toList();
+    }
+
+    private boolean allowsUserAction(WorkflowConfig config, String actionType, UUID requesterId, String userRole) {
+        if (config == null || config.getStepsConfig() == null || config.getStepsConfig().isBlank()) return true;
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(config.getStepsConfig());
+            if (!root.has("permissions") || !root.get("permissions").isArray() || root.get("permissions").isEmpty()) {
+                return true;
+            }
+            for (com.fasterxml.jackson.databind.JsonNode perm : root.get("permissions")) {
+                String targetType = perm.has("targetType") ? perm.get("targetType").asText() : "";
+                String targetId = perm.has("targetId") ? perm.get("targetId").asText() : "";
+                String targetRole = perm.has("targetRole") ? perm.get("targetRole").asText() : "";
+
+                boolean matchesUser = "USER".equalsIgnoreCase(targetType) && matchesUserIdentity(targetId, requesterId);
+                boolean matchesRole = "ROLE".equalsIgnoreCase(targetType) && userRole != null &&
+                        (targetRole.equalsIgnoreCase(userRole)
+                         || ("ROLE_" + targetRole).equalsIgnoreCase(userRole)
+                         || targetRole.equalsIgnoreCase("ROLE_" + userRole));
+                boolean matchesAll = "ALL".equalsIgnoreCase(targetType) || "EVERYONE".equalsIgnoreCase(targetType) || "*".equals(targetType) || targetType.isBlank();
+
+                if (matchesUser || matchesRole || matchesAll) {
+                    if (perm.has("allowedActions") && perm.get("allowedActions").isArray()) {
+                        for (com.fasterxml.jackson.databind.JsonNode act : perm.get("allowedActions")) {
+                            if (act.asText().equalsIgnoreCase(actionType) || act.asText().equals("*") || "ALL".equalsIgnoreCase(act.asText())) {
+                                return true;
+                            }
+                        }
+                    } else {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        } catch (Exception e) {
+            return true;
+        }
     }
 
     public WorkflowConfig resolveWorkflow(UUID nodeId, String actionType) {
@@ -192,12 +244,48 @@ public class ApprovalService {
             approval.setObserverIds("[]");
             log.error("Failed to parse observerIds", e);
         }
-        if (approval.getSteps() == null) {
-            approval.setSteps(new java.util.ArrayList<>());
-        } else {
-            approval.getSteps().clear();
-        }
         approval.getSteps().addAll(steps);
+    }
+
+    public void enrichUserNames(ApprovalRequest request) {
+        if (request == null) return;
+        if (request.getRequesterId() != null) {
+            userRepository.findById(request.getRequesterId().toString())
+                .ifPresentOrElse(
+                    u -> request.setRequesterName(u.getUsername()),
+                    () -> request.setRequesterName(request.getRequesterId().toString())
+                );
+        }
+        if (request.getSteps() != null) {
+            for (ApprovalStep step : request.getSteps()) {
+                if (step.getAssigneeId() != null) {
+                    userRepository.findById(step.getAssigneeId().toString())
+                        .ifPresentOrElse(
+                            u -> step.setAssigneeName(u.getUsername()),
+                            () -> step.setAssigneeName(step.getAssigneeId().toString())
+                        );
+                }
+            }
+        }
+        if (request.getObserverIds() != null && !request.getObserverIds().isBlank()) {
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                List<String> obsIds = mapper.readValue(request.getObserverIds(), new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {});
+                if (obsIds != null) {
+                    List<String> names = obsIds.stream().map(id -> 
+                        userRepository.findById(id).map(com.classification.domain_system.entity.User::getUsername).orElse(id)
+                    ).collect(Collectors.toList());
+                    request.setObserverNames(names);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to parse observerIds for enrichment", e);
+            }
+        }
+    }
+
+    public void enrichUserNames(List<ApprovalRequest> requests) {
+        if (requests == null) return;
+        requests.forEach(this::enrichUserNames);
     }
 
     /**
@@ -234,9 +322,13 @@ public class ApprovalService {
                     String targetRole = perm.has("targetRole") ? perm.get("targetRole").asText() : "";
 
                     boolean matchesUser = "USER".equalsIgnoreCase(targetType) && matchesUserIdentity(targetId, requesterId);
-                    boolean matchesRole = "ROLE".equalsIgnoreCase(targetType) && userRole != null && targetRole.equalsIgnoreCase(userRole);
+                    boolean matchesRole = "ROLE".equalsIgnoreCase(targetType) && userRole != null &&
+                            (targetRole.equalsIgnoreCase(userRole)
+                             || ("ROLE_" + targetRole).equalsIgnoreCase(userRole)
+                             || targetRole.equalsIgnoreCase("ROLE_" + userRole));
+                    boolean matchesAll = "ALL".equalsIgnoreCase(targetType) || "EVERYONE".equalsIgnoreCase(targetType) || "*".equals(targetType) || targetType.isBlank();
 
-                    if (matchesUser || matchesRole) {
+                    if (matchesUser || matchesRole || matchesAll) {
                         if (perm.has("fieldPermissions") && perm.get("fieldPermissions").has("editableFields")) {
                             List<String> list = new java.util.ArrayList<>();
                             for (com.fasterxml.jackson.databind.JsonNode f : perm.get("fieldPermissions").get("editableFields")) {
@@ -274,9 +366,13 @@ public class ApprovalService {
                     String targetRole = perm.has("targetRole") ? perm.get("targetRole").asText() : "";
 
                     boolean matchesUser = "USER".equalsIgnoreCase(targetType) && matchesUserIdentity(targetId, requesterId);
-                    boolean matchesRole = "ROLE".equalsIgnoreCase(targetType) && userRole != null && targetRole.equalsIgnoreCase(userRole);
+                    boolean matchesRole = "ROLE".equalsIgnoreCase(targetType) && userRole != null &&
+                            (targetRole.equalsIgnoreCase(userRole)
+                             || ("ROLE_" + targetRole).equalsIgnoreCase(userRole)
+                             || targetRole.equalsIgnoreCase("ROLE_" + userRole));
+                    boolean matchesAll = "ALL".equalsIgnoreCase(targetType) || "EVERYONE".equalsIgnoreCase(targetType) || "*".equals(targetType) || targetType.isBlank();
 
-                    if (matchesUser || matchesRole) {
+                    if (matchesUser || matchesRole || matchesAll) {
                         if (perm.has("readOnlyFields") && perm.get("readOnlyFields").isArray()) {
                             List<String> list = new java.util.ArrayList<>();
                             for (com.fasterxml.jackson.databind.JsonNode f : perm.get("readOnlyFields")) {
@@ -307,9 +403,13 @@ public class ApprovalService {
                     String targetRole = perm.has("targetRole") ? perm.get("targetRole").asText() : "";
 
                     boolean matchesUser = "USER".equalsIgnoreCase(targetType) && matchesUserIdentity(targetId, requesterId);
-                    boolean matchesRole = "ROLE".equalsIgnoreCase(targetType) && userRole != null && targetRole.equalsIgnoreCase(userRole);
+                    boolean matchesRole = "ROLE".equalsIgnoreCase(targetType) && userRole != null &&
+                            (targetRole.equalsIgnoreCase(userRole)
+                             || ("ROLE_" + targetRole).equalsIgnoreCase(userRole)
+                             || targetRole.equalsIgnoreCase("ROLE_" + userRole));
+                    boolean matchesAll = "ALL".equalsIgnoreCase(targetType) || "EVERYONE".equalsIgnoreCase(targetType) || "*".equals(targetType) || targetType.isBlank();
 
-                    if (matchesUser || matchesRole) {
+                    if (matchesUser || matchesRole || matchesAll) {
                         if (perm.has("hiddenFields") && perm.get("hiddenFields").isArray()) {
                             List<String> list = new java.util.ArrayList<>();
                             for (com.fasterxml.jackson.databind.JsonNode f : perm.get("hiddenFields")) {

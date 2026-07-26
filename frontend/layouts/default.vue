@@ -332,10 +332,7 @@ const getRoleBadgeStyle = (role) => {
 
 const filteredMenus = computed(() => {
   const roles = effectiveRoles.value
-  const isAdmin = roles.some(r => {
-    const norm = String(r).replace(/^ROLE_/, '')
-    return norm === 'ADMIN' || norm === 'ORG_ADMIN'
-  })
+  const myRolesNormalized = roles.map(r => String(r).trim().replace(/^ROLE_/, ''))
   
   const filterTree = (nodes) => {
     return nodes.filter(node => {
@@ -344,12 +341,9 @@ const filteredMenus = computed(() => {
       if (node.requiredRole) {
         const requiredRoles = node.requiredRole.split(',').map(r => r.trim().replace(/^ROLE_/, '')).filter(Boolean)
         if (requiredRoles.length > 0) {
-          if (!isAdmin) {
-            const myRolesNormalized = roles.map(r => String(r).trim().replace(/^ROLE_/, ''))
-            const hasMatchingRole = myRolesNormalized.some(myRole => requiredRoles.includes(myRole))
-            if (!hasMatchingRole) {
-              canAccess = false
-            }
+          const hasMatchingRole = myRolesNormalized.some(myRole => requiredRoles.includes(myRole))
+          if (!hasMatchingRole) {
+            canAccess = false
           }
         }
       }
@@ -438,18 +432,13 @@ const route = useRoute()
 
 const isMounted = ref(false)
 const userPermissionsCookie = useCookie('user_permissions')
+const { currentUser, fetchCurrentUser } = useAuthUser()
 
-const syncPermissions = async () => {
-  try {
-    if (!tokenCookie.value) return
-    const me = await $fetch('/api/auth/me', {
-      headers: { Authorization: `Bearer ${tokenCookie.value}` }
-    })
-    if (me && Array.isArray(me.permissions)) {
-      userPermissionsCookie.value = me.permissions
-    }
-  } catch (e) {
-    console.error('Failed to sync permissions from DB:', e)
+const syncCurrentUserInfo = async () => {
+  if (!tokenCookie.value) return
+  const me = await fetchCurrentUser(true)
+  if (me && Array.isArray(me.permissions)) {
+    userPermissionsCookie.value = me.permissions
   }
 }
 
@@ -458,10 +447,9 @@ onMounted(async () => {
     applyPreset(savedTheme.value)
   }
   
-  await syncPermissions()
+  await syncCurrentUserInfo()
   await fetchMenus(true)
   await fetchUserOrganizationName()
-  await syncCurrentUserInfo()
   await fetchDepartmentRoles()
 
   if (window.innerWidth < 768) {
@@ -484,13 +472,6 @@ watch(route, () => {
   }
 })
 
-const currentUser = computed(() => {
-  if (userCookie.value) {
-    return typeof userCookie.value === 'string' ? JSON.parse(userCookie.value) : userCookie.value
-  }
-  return null
-})
-
 const userOrgNameMap = ref({})
 
 const fetchUserOrganizationName = async () => {
@@ -508,32 +489,6 @@ const fetchUserOrganizationName = async () => {
     }
   } catch (e) {
     console.error('Failed to fetch orgs for header navbar:', e)
-  }
-}
-
-const syncCurrentUserInfo = async () => {
-  if (!tokenCookie.value) return
-  try {
-    const me = await $fetch('/api/auth/me', {
-      headers: { Authorization: `Bearer ${tokenCookie.value}` }
-    })
-    if (me && me.username) {
-      const updated = {
-        ...(currentUser.value || {}),
-        id: me.id || me.uuid,
-        uuid: me.uuid || me.id,
-        username: me.username,
-        role: me.role,
-        organizationId: me.organizationId,
-        departmentId: me.departmentId,
-        timezone: me.timezone,
-        serverOffset: me.serverOffset,
-        permissions: me.permissions || []
-      }
-      userCookie.value = JSON.stringify(updated)
-    }
-  } catch (e) {
-    console.error('Failed to sync current user info from /api/auth/me:', e)
   }
 }
 

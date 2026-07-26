@@ -38,7 +38,7 @@ public class PermissionMasterController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasPermission(null, 'admin:delete') or hasPermission(null, 'role:write')")
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'role:write')")
     public ResponseEntity<Void> deleteGroup(@PathVariable String id) {
         permissionMasterService.deleteGroup(id);
         return ResponseEntity.ok().build();
@@ -51,7 +51,7 @@ public class PermissionMasterController {
     }
 
     @DeleteMapping("/items/{itemId}")
-    @PreAuthorize("hasPermission(null, 'admin:delete') or hasPermission(null, 'role:write')")
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'role:write')")
     public ResponseEntity<Void> deleteItem(@PathVariable UUID itemId) {
         permissionMasterService.deleteItem(itemId);
         return ResponseEntity.ok().build();

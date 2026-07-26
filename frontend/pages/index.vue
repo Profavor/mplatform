@@ -108,7 +108,7 @@
                     <span><strong>{{ t('classification') }}:</strong> {{ todo.approvalRequest.classificationNode.name?.[currentLocale] || todo.approvalRequest.classificationNode.name?.['en'] || 'Unknown' }}</span>
                   </div>
                   <div class="todo-requester">
-                    <strong>{{ t('requester') }}:</strong> {{ getUserName(todo.approvalRequest?.requesterId) }}
+                    <strong>{{ t('requester') }}:</strong> {{ todo.approvalRequest?.requesterName || getUserName(todo.approvalRequest?.requesterId) }}
                   </div>
                   <div class="todo-date">
                     <strong>{{ t('date') }}:</strong> {{ formatDate(todo.approvalRequest?.createdAt) }}
@@ -216,10 +216,6 @@ onMounted(async () => {
     const headers = { Authorization: `Bearer ${tokenCookie.value}` }
     const myUuid = currentUser.value?.uuid
     
-    try {
-      const uRes = await fetch('/api/auth/users', { headers })
-      if (uRes.ok) userList.value = await uRes.json()
-    } catch(e) {}
 
     try {
       domainList.value = await $fetch('/api/domains', { headers })
@@ -303,10 +299,8 @@ const getActionTypeLabel = (changes) => {
   return t('create')
 }
 
-const getUserName = (uuid) => {
-  if (!uuid) return ''
-  const u = userList.value.find(user => user.uuid === uuid)
-  return u ? u.username : uuid
+const getUserName = (uuid, nameFallback) => {
+  return nameFallback || uuid || ''
 }
 
 const chartOption = ref({

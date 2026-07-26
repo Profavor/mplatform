@@ -78,7 +78,7 @@ public class OrganizationController {
 
     @DeleteMapping("/{id}")
     @org.springframework.transaction.annotation.Transactional
-    @PreAuthorize("hasPermission(null, 'admin:delete') or hasPermission(null, 'org:write')")
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'org:write')")
     public ResponseEntity<Void> deleteOrganization(@PathVariable UUID id) {
         return organizationRepository.findById(id)
                 .map(org -> {
@@ -165,7 +165,7 @@ public class OrganizationController {
 
     @DeleteMapping("/{orgId}/departments/{deptId}")
     @org.springframework.transaction.annotation.Transactional
-    @PreAuthorize("hasPermission(null, 'admin:delete') or hasPermission(null, 'org:write')")
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'org:write')")
     public ResponseEntity<Void> deleteDepartment(@PathVariable UUID orgId, @PathVariable UUID deptId) {
         return departmentRepository.findById(deptId)
                 .map(dept -> {

@@ -46,7 +46,7 @@ public class MenuController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasPermission(null, 'admin:delete') or hasPermission(null, 'menu:write')")
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'menu:write')")
     public ResponseEntity<Void> deleteMenu(@PathVariable Long id) {
         menuService.deleteMenu(id);
         return ResponseEntity.ok().build();

@@ -48,14 +48,25 @@ public class DqRuleEngine {
      * Returns a result containing all violations (both ERROR and WARNING).
      */
     public DqEvaluationResult evaluate(UUID nodeId, String jsonString) {
-        return evaluate(nodeId, jsonString, null, null);
+        return evaluate(nodeId, jsonString, null, null, null);
     }
 
     public DqEvaluationResult evaluate(UUID nodeId, String jsonString, UUID recordId) {
-        return evaluate(nodeId, jsonString, recordId, null);
+        return evaluate(nodeId, jsonString, recordId, null, null);
     }
 
     public DqEvaluationResult evaluate(UUID nodeId, String jsonString, UUID recordId, Map<UUID, List<FieldDefinition>> nodeFieldsCache) {
+        return evaluate(nodeId, jsonString, recordId, nodeFieldsCache, null);
+    }
+
+    /**
+     * Evaluate DQ rules for a given node and JSON record data.
+     * @param targetFieldKeys if non-null and non-empty, only fields whose key is in this list will be evaluated.
+     *                        If null or empty, all fields are evaluated.
+     */
+    public DqEvaluationResult evaluate(UUID nodeId, String jsonString, UUID recordId,
+                                       Map<UUID, List<FieldDefinition>> nodeFieldsCache,
+                                       List<String> targetFieldKeys) {
         DqEvaluationResult result = new DqEvaluationResult();
 
         JsonNode dataNode;
@@ -100,6 +111,12 @@ public class DqRuleEngine {
 
         for (FieldDefinition field : effectiveFields) {
             if (field.getId() == null) continue;
+
+            // Skip fields not in targetFieldKeys when workflow specifies editable fields
+            if (targetFieldKeys != null && !targetFieldKeys.isEmpty()
+                    && !targetFieldKeys.contains(field.getKey())) {
+                continue;
+            }
 
             // Skip DQ validation if field is hidden, read-only, or disabled by condition rules
             if (!shouldValidateDqForField(field, dataNode)) {

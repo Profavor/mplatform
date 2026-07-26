@@ -22,10 +22,10 @@
               />
             </div>
             <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; padding: 0 0.5rem;">
-              <va-button v-if="isAdmin || hasPermission('domain:write') || hasPermission('domain:*')" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="create_new_folder" @click="openDomainModal()" color="primary">Domain</va-button>
+              <va-button v-if="hasPermission('domain:write') || hasPermission('domain:*')" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="create_new_folder" @click="openDomainModal()" color="primary">Domain</va-button>
               <va-button v-if="hasPermission('node:write') || hasPermission('node:*')" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="note_add" @click="openNodeModal()" :disabled="!selectedNode" color="primary" :preset="selectedNode ? 'primary' : 'secondary'">Node</va-button>
             </div>
-            <div v-if="!isAdmin" style="margin-top: 0.75rem; padding: 0 0.5rem;">
+            <div style="margin-top: 0.75rem; padding: 0 0.5rem;">
               <va-button preset="secondary" style="width: 100%;" @click="showRequestAccessModal = true">Request Domain Access</va-button>
             </div>
             <div style="margin-top: 0.75rem; padding: 0 0.5rem;">
@@ -638,12 +638,7 @@ const currentUser = computed(() => {
   return null
 })
 
-const isAdmin = computed(() => {
-  const r = currentUser.value?.role
-  if (!r) return false
-  const roles = Array.isArray(r) ? r : String(r).split(',').map(item => item.trim()).filter(Boolean)
-  return roles.some(role => role === 'ROLE_ADMIN' || role === 'ORG_ADMIN')
-})
+
 
 const fetchFields = () => {
   if (fieldsGridApi.value) {
@@ -1024,8 +1019,6 @@ onMounted(async () => {
   }
   loadTree()
   try {
-    const users = await $fetch('/api/auth/users', { headers: getAuthHeaders() }).catch(() => [])
-    userOptions.value = users.map(u => ({ text: u.username, value: u.uuid }))
     
     unitOptions.value = [
       'kg', 'g', 'mg', 't', 'lb', 'oz', 
