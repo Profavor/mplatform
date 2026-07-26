@@ -85,6 +85,8 @@
 
 
 
+# 7. 결재/워크플로우 엔진 (Approval & Workflow Engine)
+
 결재 상태 전이 및 워크플로우 진행 로직은 강결합을 피하기 위해 **Spring ApplicationEvent 기반의 이벤트 드리븐(Event-Driven) 아키텍처**로 구현되어 있다. 
 
 ### 7.1 주요 이벤트 및 리스너(`ApprovalEventListener`) 역할
@@ -99,3 +101,52 @@
 ### 7.2 예외 상황 및 보완 로직
 - **결재 반려(Reject) 연쇄 동기화**: 결재가 반려될 경우 이벤트 발행을 생략하고 즉시 전체 워크플로우를 종료하며, 대상이 `RECORD`인 경우 원본 레코드의 상태 역시 `REJECTED`로 동기화한다.
 - **관리자 대리 결재 (Admin Proxy)**: `ADMIN` 역할을 가진 관리자는 담당자가 아니어도 특정 대기 중(`PENDING`)인 단계를 강제로 대리 승인/반려할 수 있다. 승인 시에는 동일하게 `ApprovalStepApprovedEvent`가 발행되어 이벤트 드리븐 파이프라인을 그대로 타게 되며, 이력에는 `(Admin Proxy)`가 남는다.
+
+### 7.3 WorkflowConfig 해석(Resolution) 순서 - `ApprovalService.resolveWorkflows`
+레코드/스키마 변경 기안 시점에 어떤 결재선을 적용할지는 `workflow_config` 테이블을 다음 순서로 조회하여 결정한다.
+1. 대상 노드(`nodeId`)부터 시작해, 해당 노드에 `action_type`이 일치하고 `is_active=true`이며 **비어있지 않은**(`isEffectiveConfig`) `workflow_config`가 있는지 확인한다.
+2. 없으면 부모 노드로 한 단계씩 올라가며(`ClassificationNode.parent`) 동일하게 반복한다. 즉, **가장 가까운 조상 노드의 설정이 우선**하며 상위(도메인에 더 가까운) 노드의 설정은 무시된다.
+3. 트리 전체에 노드 레벨 설정이 하나도 없으면, 최종적으로 도메인 레벨(`domain_id`가 있고 `node_id`가 없는) 설정으로 폴백한다.
+4. `isEffectiveConfig`는 `steps_config`가 `null`/빈 문자열이거나 정확히 `{"steps":[],"observerIds":[]}`(빈 결재선 placeholder)인 경우 "설정 없음"으로 취급해 건너뛴다.
+5. 위 과정으로 찾은 목록(`resolveWorkflows`) 중 **하나를 선택**할 때(`resolveWorkflow`)는 `is_default=true`인 규칙을 우선하고, 없으면 목록의 첫 번째 규칙을 사용한다.
+6. 레코드 기안(`RecordRequest.workflowConfigId`)에서 특정 규칙의 ID를 직접 지정한 경우, 위 탐색 로직 전체를 건너뛰고 해당 ID의 `workflow_config`를 그대로 사용한다(`resolveWorkflowById`).
+
+> 하나의 노드/도메인에 동일 `action_type`으로 여러 `workflow_config`가 있을 수 있으므로(4.4 참고), 기안자는 프론트엔드에서 `GET /api/approval-requests/available-workflows/{nodeId}`로 후보 목록을 조회한 뒤 원하는 서식을 선택해 기안할 수 있다.
+
+### 7.4 `steps_config` JSON 스키마와 필드/행위 단위 권한
+`workflow_config.steps_config`는 아래 두 영역을 함께 담는 단일 JSON 컬럼이다.
+
+```json
+{
+  "permissions": [
+    {
+      "targetType": "ROLE",
+      "targetId": "",
+      "targetRole": "DOMAIN_EDITOR",
+      "ruleName": { "ko": "편집자 규칙" },
+      "allowedActions": ["CREATE", "UPDATE"],
+      "editableFields": ["종목명", "수량"],
+      "readOnlyFields": ["등록일"],
+      "hiddenFields": ["내부메모"]
+    }
+  ],
+  "approvalLine": [
+    { "stepOrder": 1, "stepName": "1차 검토", "assigneeType": "USER", "assigneeId": "...", "approvalMode": "ANY" }
+  ],
+  "observerIds": ["user-uuid-1"]
+}
+```
+(과거 데이터 호환을 위해 `approvalLine` 대신 `steps` 키도 동일하게 인식한다.)
+
+- **결재선 생성(`buildDynamicSteps`)**: `approvalLine`/`steps` 배열의 각 항목마다 `ApprovalStep`을 생성한다. `stepOrder`가 1인 단계만 최초 상태를 `PENDING`으로, 나머지는 `WAITING`으로 시작한다. `assigneeId`가 지정되면 UUID로, `assigneeRole`이 지정되면 역할로 저장된다.
+- **행위 권한 검증(`validateUserActionPermission`, hard-block)**: 기안자의 사용자ID/역할과 `permissions[].targetType`+`targetId`(또는 `targetRole`)이 일치하는 규칙을 찾아, `allowedActions`에 요청 행위(`CREATE`/`UPDATE`)가 없으면 `ACCESS_DENIED` 예외로 기안 자체를 차단한다. 일치하는 권한 규칙이 없으면 제약 없이 통과한다.
+- **필드 단위 권한(`extractEditableFields`/`extractReadOnlyFields`/`extractHiddenFields`)**: 동일한 매칭 로직으로 기안자에게 적용되는 규칙을 찾아 편집 가능/읽기 전용/숨김 필드 목록을 반환한다. `editableFields`가 반환되면 DQ 검증(`DataQualityService.validateData`) 시 해당 필드 목록으로 제한된다.
+- **사용자 식별 매칭(`matchesUserIdentity`)**: `permissions[].targetId`에는 UUID 또는 username 문자열이 모두 저장될 수 있다. UUID 문자열 비교가 실패하면 `UserRepository`로 username → UUID 변환 후 재비교한다.
+- **규칙 이름 조회(`extractRuleName`)**: 매칭된 권한 규칙의 `ruleName`을 그대로 반환해, `GET /api/approval-requests/effective-permission/{nodeId}` 응답에서 어떤 규칙이 적용되었는지 프론트엔드에 노출한다.
+- **저장 시점 유효성 검증(`WorkflowConfigController.validateWorkflowConfig`)**: `steps_config` 저장(`POST /api/workflow-configs`, `/domain/{domainId}`, `/node/{nodeId}`) 시 `steps` 배열의 `stepOrder`가 1부터 시작해 공백 없이 연속(1,2,3...)해야 하며, 위반 시 `INVALID_WORKFLOW_CONFIG` 오류로 저장이 거부된다.
+- **갭 (스펙에 없던 실제 동작):** `ApprovalStepConfigDto.approvalMode`(`ANY`/`ALL`) 필드가 존재하지만, 실제 결재 단계 진행 로직(`ApprovalEventListener.onApprovalStepApproved`)은 이 값을 참조하지 않고 항상 **같은 차수(stepOrder)의 모든 결재자가 승인해야 다음 차수로 진행**하는 것으로 고정 동작한다. 즉 UI/DTO 상으로만 존재하고 실제로는 강제되지 않는 미사용 옵션이다.
+
+### 7.5 다중 워크플로우 관리 화면 (`/admin/workflow`)
+- 하나의 노드 또는 도메인에 `action_type`(`CREATE`/`UPDATE`/`DELETE`/`SCHEMA_CHANGE`)별로 여러 개의 `workflow_config`를 등록·관리할 수 있으며, 목록 화면에서는 페이징(`GET /api/workflow-configs/page`)과 행위 유형/도메인/노드/검색어 필터를 지원한다.
+- 규칙 저장 시 `is_default` 체크박스로 기본 규칙을 지정할 수 있고, `SCHEMA_CHANGE` 유형은 결재선(기안자 규칙)만 노출되며 그 외 유형은 결재선과 필드/행위 권한 규칙을 함께 설정한다.
+- 노드/도메인 단위로 규칙을 저장(`POST /api/workflow-configs/node/{nodeId}`, `/domain/{domainId}`)하면 해당 노드(또는 도메인) + `node_id IS NULL` 조합의 기존 규칙을 전부 삭제한 뒤 새 목록으로 재생성하는 **전체 교체(replace-all)** 방식으로 동작한다. 개별 규칙만 부분 수정하려면 `POST /api/workflow-configs`(단건 upsert)를 사용해야 한다.

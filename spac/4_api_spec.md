@@ -36,13 +36,30 @@
 | GET | `/records/domain/{domainId}` | 도메인 기준 레코드 목록 조회(검색·페이징) |
 | POST | `/records/{id}/update-request` | 레코드 수정 요청(기안) |
 | POST | `/records/{id}/delete-request` | 레코드 삭제 요청(기안) |
-| GET | `/approval-requests/effective-workflow/{nodeId}` | 노드에 적용될 결재 라인 미리보기 |
+| GET | `/approval-requests/effective-workflow/{nodeId}?actionType=` | 해당 노드+행위유형에 유효(비어있지 않은) 결재선이 존재하는지 여부(boolean)만 반환 |
+| GET | `/approval-requests/available-workflows/{nodeId}?actionType=` | 해당 노드+행위유형에 적용 가능한 `workflow_config` 후보 전체 목록 조회 *(설계 문서에 없던 실제 구현, 다중 서식 선택용)* |
+| GET | `/approval-requests/effective-permission/{nodeId}?actionType=&workflowId=` | 로그인 사용자 기준으로 적용될 규칙명(`ruleName`), 편집가능/읽기전용/숨김 필드 목록을 반환 *(설계 문서에 없던 실제 구현)*. `workflowId` 생략 시 7.3절 해석 순서로 자동 결정 |
 | GET | `/approval-requests`, `/approval-requests/all`, `/approval-requests/todos`, `/approval-requests/my-requests` | 결재 요청/내 결재함/내 기안함 조회 |
 | GET | `/approval-requests/{id}` | 결재 요청 상세 |
 | POST | `/approval-requests/steps/{stepId}/approve` | 단계 승인 |
 | POST | `/approval-requests/steps/{stepId}/reject` | 단계 반려 |
 | POST | `/approval-requests/steps/{stepId}/admin-approve` | (관리자 전용) 대리 승인 |
 | POST | `/approval-requests/steps/{stepId}/admin-reject` | (관리자 전용) 대리 반려 |
+
+### 워크플로우 설정 (Workflow Config) *(설계 문서에 없던 실제 구현)*
+결재선/필드 권한 규칙(`workflow_config`) 자체를 관리하는 어드민 전용 API. 필요 권한: `admin:read`/`admin:write` 또는 `workflow:read`/`workflow:write`.
+
+| Method | Endpoint | 설명 |
+|---|---|---|
+| GET | `/workflow-configs/page?page=&size=&actionType=&domainId=&nodeId=&query=` | 전체 규칙 페이징 조회(관리 화면 목록용). `actionType=ALL` 또는 생략 시 전체 |
+| GET | `/workflow-configs/domain/{domainId}`, `/domain/{domainId}/all` | 해당 도메인의 도메인 레벨(노드 미지정) 규칙 목록 |
+| GET | `/workflow-configs/node/{nodeId}` | 해당 노드에 직접 지정된 규칙 목록 |
+| POST | `/workflow-configs/domain/{domainId}` | 도메인 레벨 규칙 **전체 교체**(기존 규칙 삭제 후 요청 본문의 목록으로 재생성) |
+| POST | `/workflow-configs/node/{nodeId}` | 노드 레벨 규칙 **전체 교체**(기존 규칙 삭제 후 요청 본문의 목록으로 재생성) |
+| POST | `/workflow-configs` | 단건 저장(신규 생성 또는 `id` 지정 시 부분 수정) |
+| DELETE | `/workflow-configs/{id}` | 규칙 단건 삭제 |
+
+> `steps_config`의 `steps`/`approvalLine` 배열에 `stepOrder`가 있을 경우, 저장 시 1부터 시작하는 연속된 값인지 검증하며 위반 시 `400 INVALID_WORKFLOW_CONFIG`를 반환한다(3_business_logic.md 7.4절 참고).
 
 ### 매칭 / Golden Record
 | Method | Endpoint | 설명 |

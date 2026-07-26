@@ -107,13 +107,36 @@
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
 | id | UUID/PK | 승인 요청 ID |
-| target_type | enum | 변경 대상 유형 (`SCHEMA`, `RECORD`) |
+| target_type | enum | 변경 대상 유형. 최초 설계의 `SCHEMA`/`RECORD` 2종 대신, 실제로는 `RECORD`, `RECORD_UPDATE`, `RECORD_DELETE`, `SCHEMA_FIELD_ADD`, `SCHEMA_FIELD_UPDATE`, `SCHEMA_NODE_CREATE`, `SCHEMA_NODE_MOVE`, `SCHEMA_NODE_UPDATE` 세분화된 값을 사용한다 |
 | target_id | UUID | 변경 대상 ID (노드 ID 또는 레코드 ID) |
-| requester_id | UUID | 요청자 사용자 ID |
-| approver_id | UUID, nullable | 승인자 사용자 ID |
+| requester_id | UUID | 요청자(기안자) 사용자 ID |
+| node_id | UUID, FK, nullable | 대상이 속한 분류 노드 (`classification_node`) |
+| current_step_order | int | 현재 진행 중인 결재 차수. 값이 0이면 기안자 본인의 Draft 단계, 1 이상이면 실제 결재자 차수 |
 | status | enum | 승인 상태 (`PENDING`, `APPROVED`, `REJECTED`) |
-| changes | JSONB | 변경될 내용 (예: 레코드 수정 시 새로운 data JSON, 스키마 변경 시 필드 정의) |
+| changes | JSONB | 변경될 내용 (예: 레코드 수정 시 `{"before":..,"after":..}`, 스키마 변경 시 `{"nodeId"/"domainId":.., "request":..}`) |
+| observer_ids | JSONB, nullable | 결재선에는 없으나 진행 상황을 참조(열람)만 하는 사용자 ID 배열. `workflow_config.steps_config`의 `observerIds`에서 상신 시점에 복사됨 |
+| version | bigint | 낙관적 락(Optimistic Lock) 버전. 여러 결재자가 마지막 단계를 동시에 승인할 때의 경쟁 상태(race condition)를 방지하기 위해 사용 |
 | created_at / updated_at | datetime | |
+
+> **정정:** 스펙상의 `approver_id`(단일 승인자) 컬럼은 실제 엔티티에 존재하지 않는다. 승인은 단일 승인자가 아니라 `approval_step`(하위 테이블, 결재 단계별 `assigneeId`/`status`)의 목록으로 관리되는 다단계 구조다.
+
+#### (1-3) workflow_config — 결재선/필드 권한 라우팅 규칙 정의 테이블
+노드 또는 도메인 단위로, 행위 유형(생성/수정/삭제/스키마변경)별 결재선과 필드 단위 권한을 정의하는 테이블. `approval_request`가 상신될 때 이 테이블에서 적용할 규칙을 찾아 결재 단계(`approval_step`)를 동적으로 생성한다.
+
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | UUID/PK | 워크플로우 설정 ID |
+| domain_id | UUID, nullable | 적용 대상 도메인 ID. `node_id`가 없을 때 해당 도메인 전체의 기본 규칙으로 적용 |
+| node_id | UUID, nullable | 적용 대상 노드 ID. 지정되면 도메인 레벨 규칙보다 우선 적용 |
+| action_type | string(30) | 적용 행위 유형 (`CREATE`, `UPDATE`, `DELETE`, `SCHEMA_CHANGE`) |
+| name | text (다국어 JSON) | 규칙 이름, 예: `{"ko":"국내주식 등록 서식","en":"Domestic Stock Form"}` |
+| description | text | 규칙 설명 |
+| is_default | boolean, default false | 동일 (노드/도메인 + action_type) 조합에 여러 규칙이 있을 때 기본으로 선택될 규칙 표시 |
+| is_active | boolean, default true | false인 규칙은 해석(resolve) 시 제외됨(삭제하지 않고 비활성화만 가능) |
+| steps_config | text (JSON) | 결재선(`approvalLine`/`steps`), 필드/행위 권한(`permissions`), 참조자(`observerIds`)를 담는 JSON. 구조는 `3_business_logic.md` 7.3~7.4절 참고 |
+| created_at / updated_at | datetime | |
+
+> **다건 허용:** 하나의 노드(또는 도메인) + action_type 조합에 여러 개의 `workflow_config`가 동시에 존재할 수 있다(예: "일반 등록 서식"과 "간이 등록 서식"을 함께 운영). 레코드 기안 시 `RecordRequest.workflowConfigId`로 특정 규칙을 직접 지정하지 않으면 `is_default=true`인 규칙이, 그마저 없으면 첫 번째 규칙이 사용된다.
 
 #### (2) ~ (5) 원 설계상의 분리 테이블 (미구현, 참고용)
 아래 4개는 최초 설계 문서에만 존재하며 실제 코드베이스에는 구현되어 있지 않다. 위 (1)의 `data` 컬럼이 이 역할을 대신한다.

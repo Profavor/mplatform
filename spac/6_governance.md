@@ -13,7 +13,7 @@
 | **DOMAIN_EDITOR** (도메인 편집자) | 도메인 및 필드 생성/편집 권한 |
 | **VIEWER** (조회자) | 도메인/노드/필드/레코드/DQ 정보 읽기 전용 |
 
-- **세분화된 권한(`PermissionMaster`/`PermissionGroup`/`PermissionItem`)**: 역할과 별개로 `record:write`, `record:unmask`, `domain:read`, `domain:write` 등 기능 단위 권한 아이템을 두어, 마스킹 해제(`record:unmask`) 같은 민감 동작을 역할이 아닌 권한 아이템 단위로 제어한다.
+- **세분화된 권한(`PermissionMaster`/`PermissionGroup`/`PermissionItem`)**: 역할과 별개로 `record:write`, `record:unmask`, `domain:read`, `domain:write`, `workflow:read`, `workflow:write` 등 기능 단위 권한 아이템을 두어, 마스킹 해제(`record:unmask`)나 워크플로우 규칙 관리(`workflow:*`) 같은 민감 동작을 역할이 아닌 권한 아이템 단위로 제어한다. `workflow:*` 권한은 `admin:*` 권한과 OR 조건으로 평가되어, 시스템 관리자가 아니어도 워크플로우 관리 권한만 별도로 부여받은 사용자가 `/admin/workflow` 화면과 `/api/workflow-configs` API를 사용할 수 있다.
 - **도메인 단위 접근 제어(`DomainPermission`)**: 사용자-도메인 매핑(`DomainAccessRequest`로 신청 → 승인 시 `DomainPermission` 생성) 방식이며, 현재는 **도메인 단위**로만 부여된다. 스펙에서 언급한 "노드 단위" 권한 부여는 아직 없음.
 
 ### 10.2 변경 이력 추적 (Audit Trail)
@@ -34,8 +34,9 @@
 운영 환경에서 스키마(노드/필드)뿐만 아니라 **실제 데이터(레코드)**가 무분별하게 변경되는 것을 방지하기 위해 통일된 승인 워크플로우를 거친다. 두 워크플로우 모두 구현되어 있다.
 
 **[데이터(Record) 워크플로우]**
-1. **생성/수정/삭제 요청 (Pending):** Domain Editor 등 편집 권한을 가진 사용자가 레코드를 조작하면 즉시 데이터가 반영되지 않고, 이전/이후 변경 사항(Changes)을 담은 `ApprovalRequest`(상태: `PENDING`) 데이터가 생성된다. 이 시점에 DQ 룰 검증(동기, hard-block)과 중복 검사(정확/퍼지)가 함께 수행된다.
-2. **결재 단계 진행 (Steps):** 라우팅 룰에 따라 순차적인 `ApprovalStep`이 생성되며, 할당된 결재권자들은 전용 "Approvals" 페이지에서 결재를 진행한다. 결재자는 화면상에서 Before/After 차이를 확인하고 **의견(Comment)** 을 기재한 후 승인 또는 반려를 선택한다.
+0. **라우팅 룰 정의 (`workflow_config`):** 어드민 화면(`/admin/workflow`)에서 노드 또는 도메인 단위로, 행위 유형(`CREATE`/`UPDATE`/`DELETE`/`SCHEMA_CHANGE`)별 결재선과 사용자/역할 단위 필드 권한(편집가능/읽기전용/숨김)을 사전에 정의한다. 동일 대상+행위 유형에 여러 서식을 등록해 두고 기본 서식(`is_default`)을 지정할 수 있으며, 기안자가 기안 화면에서 서식을 직접 선택할 수도 있다. 상세 해석 순서는 `3_business_logic.md` 7.3절, JSON 스키마는 7.4절 참고.
+1. **생성/수정/삭제 요청 (Pending):** Domain Editor 등 편집 권한을 가진 사용자가 레코드를 조작하면 즉시 데이터가 반영되지 않고, 이전/이후 변경 사항(Changes)을 담은 `ApprovalRequest`(상태: `PENDING`) 데이터가 생성된다. 이 시점에 워크플로우 규칙에 정의된 행위 권한 검증(허용되지 않은 행위면 `ACCESS_DENIED`로 즉시 차단), DQ 룰 검증(동기, hard-block, 편집 가능 필드로 범위 제한), 중복 검사(정확/퍼지)가 함께 수행된다.
+2. **결재 단계 진행 (Steps):** 워크플로우 규칙의 결재선에 따라 순차적인 `ApprovalStep`이 생성되며, 할당된 결재권자들은 전용 "Approvals" 페이지에서 결재를 진행한다. 결재자는 화면상에서 Before/After 차이를 확인하고 **의견(Comment)** 을 기재한 후 승인 또는 반려를 선택한다. 같은 차수에 결재자가 여럿이면 전원이 승인해야 다음 차수로 진행된다(규칙 상 `approvalMode` ANY/ALL 옵션은 정의만 되어 있을 뿐 실제로는 적용되지 않는 갭이 있음).
 3. **최종 승인(Approve) 및 반영:** 모든 결재 단계가 승인 처리되면, `RecordHistory`에 이력을 남김과 동시에 실제 원본 `Record` 테이블에 데이터가 최종 반영(`ACTIVE` 처리 또는 `DELETE`)된다.
 4. **반려(Reject):** 결재 단계 중 하나라도 반려되면, 해당 상신 건 전체가 `REJECTED` 처리되며 원본 데이터는 수정 전 상태를 유지한다.
 
