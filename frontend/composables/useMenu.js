@@ -39,6 +39,11 @@ export const useMenu = () => {
 
   const logAccess = async (menuPath) => {
     try {
+      if (!menuPath || menuPath === '/install' || menuPath === '/login') return
+
+      const token = useCookie('auth_token')
+      if (!token.value) return
+
       let menuId = null
       
       const findIdByPath = (items) => {
@@ -54,14 +59,13 @@ export const useMenu = () => {
       
       menuId = findIdByPath(menus.value)
 
-      const token = useCookie('auth_token')
       await $fetch('/api/menus/access', {
         method: 'POST',
-        headers: token.value ? { Authorization: `Bearer ${token.value}` } : {},
+        headers: { Authorization: `Bearer ${token.value}` },
         body: { menuId, menuPath }
-      })
+      }).catch(() => null)
     } catch (error) {
-      console.error('Failed to log menu access:', error)
+      // Ignore menu access logging errors
     }
   }
 

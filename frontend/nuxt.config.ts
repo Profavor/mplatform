@@ -27,7 +27,7 @@ export default defineNuxtConfig({
     defaultLocale: 'ko',
     strategy: 'no_prefix',
     lazy: true,
-    langDir: 'locales/'
+    langDir: 'locales'
   },
   build: {
   },

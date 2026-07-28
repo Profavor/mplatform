@@ -10,18 +10,28 @@ export function hasPermission(
     return false
   }
 
-  if (userPermissions.includes('*')) {
+  // 1. 앞자리가 '*' 인 경우 (전역 모든 권한: '*', '*:*', '*:write' 등)
+  const hasGlobalWildcard = userPermissions.some(perm => {
+    if (!perm) return false
+    const trimmed = perm.trim().toLowerCase()
+    return trimmed === '*' || trimmed === '*:*' || trimmed.startsWith('*:')
+  })
+  if (hasGlobalWildcard) {
     return true
   }
 
-  if (userPermissions.includes(requiredPermission)) {
+  // 2. 정확한 권한 코드 매칭 (Exact Match: 'domain:write' === 'domain:write')
+  const normalizedRequired = requiredPermission.trim().toLowerCase()
+  const hasExactMatch = userPermissions.some(perm => perm && perm.trim().toLowerCase() === normalizedRequired)
+  if (hasExactMatch) {
     return true
   }
 
-  // 와일드카드 체크 (예: node:* -> node:write, node:read)
-  if (requiredPermission.includes(':')) {
-    const domainPrefix = requiredPermission.split(':')[0] + ':*'
-    if (userPermissions.includes(domainPrefix)) {
+  // 3. 뒷자리가 '*' 인 경우 (해당 리소스의 모든 권한: 'domain:*' -> 'domain:write', 'domain:read')
+  if (normalizedRequired.includes(':')) {
+    const domainPrefix = normalizedRequired.split(':')[0] + ':*'
+    const hasDomainWildcard = userPermissions.some(perm => perm && perm.trim().toLowerCase() === domainPrefix)
+    if (hasDomainWildcard) {
       return true
     }
   }

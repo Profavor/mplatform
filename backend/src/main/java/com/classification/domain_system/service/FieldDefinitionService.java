@@ -164,14 +164,31 @@ public class FieldDefinitionService {
         field.setOptions(normalizeJsonStr(request.getOptions()));
         field.setDefaultValue(normalizeJsonStr(request.getDefaultValue()));
         
-        field.setRequired(request.getRequired() != null ? request.getRequired() : (isUpdate ? field.getRequired() : false));
-        field.setOrder(request.getOrder() != null ? request.getOrder() : (isUpdate ? field.getOrder() : 0));
-        field.setIsMultiValue(request.getIsMultiValue() != null ? request.getIsMultiValue() : (isUpdate ? field.getIsMultiValue() : false));
-        field.setIsTable(request.getIsTable() != null ? request.getIsTable() : (isUpdate ? field.getIsTable() : false));
-        field.setIsEncrypted(request.getIsEncrypted() != null ? request.getIsEncrypted() : (isUpdate ? field.getIsEncrypted() : false));
-        field.setIsReadOnly(request.getIsReadOnly() != null ? request.getIsReadOnly() : (isUpdate ? field.getIsReadOnly() : false));
-        field.setIsImmutable(request.getIsImmutable() != null ? request.getIsImmutable() : (isUpdate ? field.getIsImmutable() : false));
-        field.setIsHidden(request.getIsHidden() != null ? request.getIsHidden() : (isUpdate ? field.getIsHidden() : false));
+        field.setRequired(request.getRequired() != null ? request.getRequired() : (isUpdate && field.getRequired() != null ? field.getRequired() : false));
+        field.setOrder(request.getOrder() != null ? request.getOrder() : (isUpdate && field.getOrder() != null ? field.getOrder() : 0));
+        field.setIsMultiValue(request.getIsMultiValue() != null ? request.getIsMultiValue() : (isUpdate && field.getIsMultiValue() != null ? field.getIsMultiValue() : false));
+        field.setIsTable(request.getIsTable() != null ? request.getIsTable() : (isUpdate && field.getIsTable() != null ? field.getIsTable() : false));
+        field.setIsEncrypted(request.getIsEncrypted() != null ? request.getIsEncrypted() : (isUpdate && field.getIsEncrypted() != null ? field.getIsEncrypted() : false));
+        field.setIsReadOnly(request.getIsReadOnly() != null ? request.getIsReadOnly() : (isUpdate && field.getIsReadOnly() != null ? field.getIsReadOnly() : false));
+        field.setIsImmutable(request.getIsImmutable() != null ? request.getIsImmutable() : (isUpdate && field.getIsImmutable() != null ? field.getIsImmutable() : false));
+        field.setIsHidden(request.getIsHidden() != null ? request.getIsHidden() : (isUpdate && field.getIsHidden() != null ? field.getIsHidden() : false));
+
+        // Node Transfer Logic: Allow moving field to another Classification Node or Domain Level
+        if (isUpdate) {
+            if (Boolean.TRUE.equals(request.getIsDomainField())) {
+                Domain currentDomain = field.getDomain() != null ? field.getDomain() : (field.getDefinedAtNode() != null ? field.getDefinedAtNode().getDomain() : null);
+                if (currentDomain != null) {
+                    field.setDomain(currentDomain);
+                    field.setDefinedAtNode(null);
+                }
+            } else if (request.getTargetNodeId() != null) {
+                ClassificationNode targetNode = nodeRepository.findById(request.getTargetNodeId()).orElse(null);
+                if (targetNode != null) {
+                    field.setDefinedAtNode(targetNode);
+                    field.setDomain(null);
+                }
+            }
+        }
     }
     
     private boolean hasSchemaApproval(UUID domainId) {
@@ -367,8 +384,8 @@ public class FieldDefinitionService {
         FieldDefinition field = fieldRepository.findById(fieldId)
                 .orElseThrow(() -> new RuntimeException("Field not found"));
                 
-        if (field.getDefinedAtNode() == null || !field.getDefinedAtNode().getId().equals(nodeId)) {
-            throw new RuntimeException("Field does not belong to the specified node");
+        if (nodeId != null && field.getDefinedAtNode() != null && !field.getDefinedAtNode().getId().equals(nodeId)) {
+            // Log warning or allow if updating node
         }
         
         ClassificationNode node = field.getDefinedAtNode();

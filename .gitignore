@@ -11,3 +11,5 @@ scratch_puppeteer/
 .vscode/
 run_server.bat
 *.bat
+backend/data/
+.idea/

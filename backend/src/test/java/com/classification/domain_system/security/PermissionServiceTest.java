@@ -69,23 +69,29 @@ class PermissionServiceTest {
     }
 
     @Test
-    @DisplayName("ADMIN 역할 보유 시 전역 와일드카드(*) 권한 자동 부여 검증")
+    @DisplayName("DB Role 마스터에 설정된 ROLE_ADMIN의 permissions(*)가 동적으로 수집되는지 검증")
     void testAdminRolePermissions() {
         String username = "adminUser";
         User user = new User();
         user.setId(UUID.randomUUID().toString());
         user.setUsername(username);
-        user.setRole("ADMIN");
+        user.setRole("ROLE_ADMIN");
+
+        Role adminRole = new Role();
+        adminRole.setId(UUID.randomUUID());
+        adminRole.setName("ROLE_ADMIN");
+        adminRole.setPermissions(Set.of("*"));
 
         when(userRepository.findByUsername(username)).thenReturn(Optional.of(user));
         when(userRoleRepository.findByUserId(user.getId())).thenReturn(Collections.emptyList());
+        when(roleRepository.findAll()).thenReturn(List.of(adminRole));
 
-        Collection<GrantedAuthority> authorities = permissionService.getAuthoritiesForUser(username, "ADMIN");
+        Collection<GrantedAuthority> authorities = permissionService.getAuthoritiesForUser(username, "ROLE_ADMIN");
         Set<String> authStrings = new HashSet<>();
         authorities.forEach(a -> authStrings.add(a.getAuthority()));
 
         assertTrue(authStrings.contains("ROLE_ADMIN"));
-        assertTrue(authStrings.contains("*"));
+        assertTrue(authStrings.contains("*"), "DB Role 마스터에 설정된 '*' 권한이 수집되어야 합니다");
     }
 
     @Test

@@ -18,10 +18,17 @@ public class DatabaseInitializer implements ApplicationRunner {
     private EntityManager entityManager;
 
     @Override
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void run(ApplicationArguments args) {
         try {
-            // Create GIN Index for JSONB column in record table if not exists
+            // Check if current DB is PostgreSQL before running PostgreSQL-specific GIN index creation
+            Object dialect = entityManager.getEntityManagerFactory().getProperties().get("hibernate.dialect");
+            String dialectStr = dialect != null ? dialect.toString() : "";
+            if (dialectStr.contains("H2")) {
+                log.info("Skipping GIN index creation for H2 database.");
+                return;
+            }
+
             String createIndexSql = "CREATE INDEX IF NOT EXISTS idx_record_data_gin ON record USING GIN (CAST(data AS jsonb))";
             entityManager.createNativeQuery(createIndexSql).executeUpdate();
             log.info("Successfully ensured GIN index on record.data column for performance optimization.");

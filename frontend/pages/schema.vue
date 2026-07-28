@@ -180,6 +180,22 @@
         <va-input v-model="newField.name.ko" label="Field Name (KO)" class="mb-4" style="flex: 1; min-width: 0;" />
         <va-input v-model="newField.name.en" label="Field Name (EN)" class="mb-4" style="flex: 1; min-width: 0;" />
       </div>
+      
+      <div style="display: flex; gap: 1rem; align-items: center;" class="mb-4">
+        <va-select 
+          v-model="newField.targetNodeId" 
+          :options="availableClassificationNodes" 
+          value-by="value"
+          label="소속 분류 노드 (Classification Node)" 
+          style="flex: 1; min-width: 0;"
+          :disabled="newField.isDomainField"
+          clearable
+        />
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 1.2rem;">
+          <va-checkbox v-model="newField.isDomainField" label="도메인 공통 필드" />
+        </div>
+      </div>
+
       <va-select 
         v-model="newField.fieldGroupId" 
         :options="groupOptions" 
@@ -859,6 +875,26 @@ const domainOptions = computed(() => {
   }))
 })
 
+const availableClassificationNodes = computed(() => {
+  const options = []
+  const flatten = (nodes, prefix = '') => {
+    if (!nodes || !Array.isArray(nodes)) return
+    for (const node of nodes) {
+      if (!node.isDomain && node.id) {
+        options.push({
+          text: `${prefix}${node.label || node.name || 'Node'}`,
+          value: node.id
+        })
+      }
+      if (node.children && node.children.length) {
+        flatten(node.children, `${prefix}${node.label || node.name} > `)
+      }
+    }
+  }
+  flatten(treeNodes.value)
+  return options
+})
+
 const columnDefs = computed(() => [
   { 
     headerName: 'Name', 
@@ -1305,6 +1341,8 @@ const openFieldModal = async (rowData = null) => {
       formula: rowData.formula || '', 
       unit: rowData.unit || '',
       fieldGroupId: rowData.fieldGroup?.id || null,
+      targetNodeId: rowData.definedAtNode?.id || (selectedNode.value?.isDomain ? null : selectedNode.value?.id),
+      isDomainField: !rowData.definedAtNode && (!!rowData.domain || selectedNode.value?.isDomain),
       gridWidth: rowData.gridWidth || null,
       tableColumnWidth: rowData.tableColumnWidth || null
     }
@@ -1348,7 +1386,9 @@ const openFieldModal = async (rowData = null) => {
       name: {ko:'', en:''}, key: '', type: 'TEXT', required: false, order: 0, 
       fieldGroupId: null, targetDomainId: null, isMultiValue: false, isSearchable: true, 
       isEncrypted: false, isReadOnly: false, isImmutable: false, isHidden: false, isHighlighted: false, 
-      formula: '', unit: '', gridWidth: null, tableColumnWidth: null 
+      formula: '', unit: '', gridWidth: null, tableColumnWidth: null,
+      targetNodeId: selectedNode.value?.isDomain ? null : selectedNode.value?.id,
+      isDomainField: !!selectedNode.value?.isDomain
     }
     resetConditionFields()
     newFieldOptionsList.value = []
@@ -1485,6 +1525,8 @@ const saveField = async () => {
     const payload = {
       name: newField.value.name,
       fieldGroupId: newField.value.fieldGroupId || newField.value.fieldGroup?.id || null,
+      targetNodeId: newField.value.isDomainField ? null : newField.value.targetNodeId,
+      isDomainField: newField.value.isDomainField,
       key: newField.value.key,
       type: newField.value.type,
       unit: newField.value.unit,

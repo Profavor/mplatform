@@ -65,6 +65,18 @@ public class RoleInitializer {
             role.setPermissions(permissions);
             role.setIsSystemRole(true);
             roleRepository.save(role);
+        } else {
+            // 이미 존재하는 경우에도 ROLE_ADMIN은 permissions에 '*'가 확실히 포함되도록 DB 업데이트
+            existingOpt.ifPresent(role -> {
+                if ("ROLE_ADMIN".equals(name) || "ADMIN".equals(name)) {
+                    if (role.getPermissions() == null || !role.getPermissions().contains("*")) {
+                        java.util.Set<String> perms = role.getPermissions() == null ? new java.util.HashSet<>() : new java.util.HashSet<>(role.getPermissions());
+                        perms.add("*");
+                        role.setPermissions(perms);
+                        roleRepository.save(role);
+                    }
+                }
+            });
         }
     }
 }

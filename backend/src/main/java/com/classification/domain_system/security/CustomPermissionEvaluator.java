@@ -54,17 +54,17 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
         for (GrantedAuthority authority : authentication.getAuthorities()) {
             String auth = authority.getAuthority().trim();
 
-            // 1. 전역 슈퍼 관리자 권한 (*:*, *, ROLE_ADMIN)
-            if ("*:*".equalsIgnoreCase(auth) || "*".equals(auth) || "ROLE_ADMIN".equalsIgnoreCase(auth)) {
+            // 1. 전역 와일드카드 권한 (앞자리가 * 인 경우: *, *:*, *:write 등)
+            if ("*".equals(auth) || "*:*".equalsIgnoreCase(auth) || auth.startsWith("*:") || auth.startsWith("*:")) {
                 return true;
             }
 
-            // 2. 리소스 단위 와일드카드 (예: record:*)
+            // 2. 리소스 단위 와일드카드 (뒷자리가 * 인 경우: 예: domain:*)
             if (wildcardResourcePermission.equalsIgnoreCase(auth)) {
                 return true;
             }
 
-            // 3. 정확한 리소스:액션 일치 (예: record:write)
+            // 3. 정확한 리소스:액션 일치 (예: domain:write)
             if (requiredPermission.equalsIgnoreCase(auth)) {
                 return true;
             }
@@ -76,7 +76,7 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
     private boolean checkAuthority(Authentication authentication, String rawPermission) {
         for (GrantedAuthority authority : authentication.getAuthorities()) {
             String auth = authority.getAuthority().trim();
-            if ("*:*".equalsIgnoreCase(auth) || "*".equals(auth) || "ROLE_ADMIN".equalsIgnoreCase(auth)) {
+            if ("*".equals(auth) || "*:*".equalsIgnoreCase(auth) || auth.startsWith("*:") || auth.startsWith("*:")) {
                 return true;
             }
             if (rawPermission.equalsIgnoreCase(auth)) {

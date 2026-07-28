@@ -70,4 +70,16 @@ class CustomPermissionEvaluatorTest {
         assertTrue(permissionEvaluator.hasPermission(auth, null, "dq:read"));
         assertFalse(permissionEvaluator.hasPermission(auth, null, "dq:write"));
     }
+
+    @Test
+    @DisplayName("DB 전역 와일드카드(*) Authority 보유 시 조직/도메인 생성/수정/삭제 권한 통과 검증")
+    void testAdminRoleAuthorityMatch() {
+        Authentication authWildcard = new UsernamePasswordAuthenticationToken(
+                "admin1", null, List.of(new SimpleGrantedAuthority("*"))
+        );
+
+        assertTrue(permissionEvaluator.hasPermission(authWildcard, null, "org:write"));
+        assertTrue(permissionEvaluator.hasPermission(authWildcard, null, "admin:write"));
+        assertTrue(permissionEvaluator.hasPermission(authWildcard, "organization", "write"));
+    }
 }

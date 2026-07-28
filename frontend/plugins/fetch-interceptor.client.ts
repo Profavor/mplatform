@@ -41,7 +41,7 @@ export default defineNuxtPlugin((nuxtApp) => {
         })
 
         if (!response.ok) {
-          console.warn('Token refresh HTTP failed status:', response.status)
+          clearAuthCookies()
           return null
         }
 
@@ -50,9 +50,11 @@ export default defineNuxtPlugin((nuxtApp) => {
           setAuthCookies(res.token, res.refreshToken)
           return res.token
         }
+        clearAuthCookies()
         return null
       } catch (err) {
-        console.error('Failed to perform token refresh:', err)
+        clearAuthCookies()
+        return null
         return null
       } finally {
         isRefreshing = false

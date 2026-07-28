@@ -56,6 +56,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/system/**").permitAll()
                 // Inbound Webhook: 외부 시스템이 자체 채널 시크릿 토큰으로 호출하므로 JWT 인증 제외
                 .requestMatchers(HttpMethod.POST, "/api/integration/inbound/**").permitAll()
                 .requestMatchers("/api/**").authenticated()
