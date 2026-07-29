@@ -16,8 +16,10 @@ public interface MatchCandidateRepository extends JpaRepository<MatchCandidate, 
     Page<MatchCandidate> findByNodeIdAndStatus(UUID nodeId, String status, Pageable pageable);
     Page<MatchCandidate> findByStatus(String status, Pageable pageable);
 
+    Page<MatchCandidate> findByDomainId(UUID domainId, Pageable pageable);
     Page<MatchCandidate> findByDomainIdAndStatus(UUID domainId, String status, Pageable pageable);
 
+    Page<MatchCandidate> findByNodeIdIn(List<UUID> nodeIds, Pageable pageable);
     Page<MatchCandidate> findByNodeIdInAndStatus(List<UUID> nodeIds, String status, Pageable pageable);
 
     // --- 피드백 통계 집계 쿼리 ---

@@ -2,17 +2,17 @@
   <div class="page-container p-4 flex flex-col h-full bg-gray-50">
     <div class="page-header flex justify-between items-center mb-6">
       <h1 class="page-title text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
-        {{ $t('match_review.title') }}
+        {{ $t('match_review.title') || '매칭 후보 검토' }}
       </h1>
       <div class="flex gap-3">
         <va-select
           v-model="selectedDomain"
           :options="domainOptions"
           value-by="value"
-          :placeholder="$t('match_review.domain_select')"
+          :placeholder="$t('match_review.domain_select') || '도메인 선택'"
           class="w-48"
         />
-        <va-button color="primary" icon="refresh" @click="refreshGrid">{{ $t('match_review.refresh') }}</va-button>
+        <va-button color="primary" icon="refresh" @click="refreshGrid">{{ $t('match_review.refresh') || '새로고침' }}</va-button>
       </div>
     </div>
 
@@ -29,10 +29,10 @@
       </div>
       <div class="flex gap-2" v-if="hasWritePermission">
         <va-button color="success" icon="check_circle" :disabled="selectedRows.length === 0" @click="batchConfirm">
-          {{ $t('match_review.batch_confirm') }} ({{ selectedRows.length }})
+          {{ $t('match_review.batch_confirm') || '일괄 승인' }} ({{ selectedRows.length }})
         </va-button>
         <va-button color="danger" icon="cancel" :disabled="selectedRows.length === 0" @click="batchReject">
-          {{ $t('match_review.batch_reject') }} ({{ selectedRows.length }})
+          {{ $t('match_review.batch_reject') || '일괄 거절' }} ({{ selectedRows.length }})
         </va-button>
       </div>
     </div>
@@ -41,22 +41,26 @@
       <!-- Grid Section -->
       <va-card class="flex-1 flex flex-col shadow-md border border-gray-200">
         <va-card-content class="flex-1 p-0 flex flex-col h-full">
-          <ag-grid-vue
-            style="width: 100%; height: 100%;"
-            class="ag-theme-alpine"
-            :columnDefs="columnDefs"
-            :defaultColDef="defaultColDef"
-            rowModelType="serverSide"
-            :serverSideDatasource="serverSideDatasource"
-            :cacheBlockSize="20"
-            :rowSelection="{ mode: 'multiRow' }"
-            :pagination="true"
-            :paginationPageSize="20"
-            :paginationPageSizeSelector="[10, 20, 50]"
-            @grid-ready="onGridReady"
-            @selection-changed="onSelectionChanged"
-            @row-clicked="onRowClicked"
-          />
+          <client-only>
+            <ag-grid-vue
+              v-if="isMounted"
+              style="width: 100%; height: 100%;"
+              :theme="gridTheme"
+              :columnDefs="columnDefs"
+              :defaultColDef="defaultColDef"
+              :autoSizeStrategy="autoSizeStrategy"
+              rowModelType="serverSide"
+              :serverSideDatasource="serverSideDatasource"
+              :cacheBlockSize="20"
+              :rowSelection="{ mode: 'multiRow' }"
+              :pagination="true"
+              :paginationPageSize="20"
+              :paginationPageSizeSelector="[10, 20, 50]"
+              @grid-ready="onGridReady"
+              @selection-changed="onSelectionChanged"
+              @row-clicked="onRowClicked"
+            />
+          </client-only>
         </va-card-content>
       </va-card>
 
@@ -64,13 +68,13 @@
       <va-card v-if="selectedCandidate" class="w-96 shadow-md border border-gray-200 flex flex-col glassmorphism">
         <va-card-title class="bg-gradient-to-r from-gray-100 to-gray-50 border-b pb-3">
           <div class="flex justify-between items-center w-full">
-            <span>{{ $t('match_review.field_details') }}</span>
+            <span>{{ $t('match_review.field_details') || '후보 상세 내용' }}</span>
             <va-badge :text="(selectedCandidate.score * 100).toFixed(1) + '%'" :color="getScoreColor(selectedCandidate.score)" />
           </div>
         </va-card-title>
         <va-card-content class="flex-1 overflow-y-auto p-4">
           <div class="mb-4">
-            <h4 class="font-semibold text-gray-700 mb-2">{{ $t('match_review.existing_record') }}</h4>
+            <h4 class="font-semibold text-gray-700 mb-2">{{ $t('match_review.existing_record') || '기존 레코드' }}</h4>
             <div class="bg-white p-3 rounded border text-sm text-gray-600 break-all">
               <div v-for="(val, key) in selectedCandidate.existingRecord" :key="'ex-'+key" class="mb-1">
                 <span class="font-medium text-gray-800">{{ key }}:</span> {{ formatValue(val) }}
@@ -78,7 +82,7 @@
             </div>
           </div>
           <div class="mb-4">
-            <h4 class="font-semibold text-gray-700 mb-2">{{ $t('match_review.incoming_data') }}</h4>
+            <h4 class="font-semibold text-gray-700 mb-2">{{ $t('match_review.incoming_data') || '유입 레코드' }}</h4>
             <div class="bg-white p-3 rounded border text-sm text-gray-600 break-all">
               <div v-for="(val, key) in selectedCandidate.incomingData" :key="'in-'+key" class="mb-1">
                 <span class="font-medium text-gray-800">{{ key }}:</span> {{ formatValue(val) }}
@@ -87,8 +91,8 @@
           </div>
         </va-card-content>
         <div class="p-4 border-t flex justify-end gap-2 bg-gray-50" v-if="hasWritePermission && selectedCandidate.status === 'PENDING_REVIEW'">
-          <va-button preset="secondary" color="danger" @click="rejectSingle(selectedCandidate)">{{ $t('match_review.reject_new') }}</va-button>
-          <va-button color="success" @click="openMergeModal(selectedCandidate)">{{ $t('match_review.confirm_merge') }}</va-button>
+          <va-button preset="secondary" color="danger" @click="rejectSingle(selectedCandidate)">{{ $t('match_review.reject_new') || '거절' }}</va-button>
+          <va-button color="success" @click="openMergeModal(selectedCandidate)">{{ $t('match_review.confirm_merge') || '병합 검토' }}</va-button>
         </div>
       </va-card>
     </div>
@@ -112,10 +116,10 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vuestic-ui'
 import { AgGridVue } from 'ag-grid-vue3'
-import 'ag-grid-enterprise'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useTimezoneDate } from '~/composables/useTimezoneDate'
 import { usePermission } from '~/composables/usePermission'
+import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import MergeReviewModal from '~/components/records/MergeReviewModal.vue'
 
 const { t } = useI18n()
@@ -123,7 +127,9 @@ const { init } = useToast()
 const { customFetch } = useCustomFetch()
 const { formatWithTimezone } = useTimezoneDate()
 const { hasPermission } = usePermission()
+const { gridTheme, autoSizeStrategy } = useAgGridTheme()
 
+const isMounted = ref(false)
 const selectedDomain = ref<string>('')
 const domainOptions = ref<{label: string, value: string}[]>([])
 const statusFilter = ref('PENDING_REVIEW')
@@ -136,10 +142,10 @@ const hasWritePermission = computed(() => {
 })
 
 const statusOptions = computed(() => [
-  { label: t('match_review.status_pending'), value: 'PENDING_REVIEW' },
-  { label: t('match_review.status_confirmed'), value: 'CONFIRMED_MERGE' },
-  { label: t('match_review.status_rejected'), value: 'REJECTED' },
-  { label: 'ALL', value: 'ALL' }
+  { label: t('match_review.status_pending') || '검토 대기', value: 'PENDING_REVIEW' },
+  { label: t('match_review.status_confirmed') || '병합 완료', value: 'CONFIRMED_MERGE' },
+  { label: t('match_review.status_rejected') || '거절됨', value: 'REJECTED' },
+  { label: '전체', value: 'ALL' }
 ])
 
 let gridApi: any = null
@@ -156,7 +162,6 @@ const getScoreColor = (score: number) => {
   return 'danger'
 }
 
-// Custom Cell Renderers could be defined as components, but here we just use value formatters where possible.
 const columnDefs = computed(() => [
   { 
     headerName: 'ID', 
@@ -165,10 +170,10 @@ const columnDefs = computed(() => [
     headerCheckboxSelection: true,
     width: 150
   },
-  { field: 'source', headerName: t('merge.source'), width: 150 },
+  { field: 'source', headerName: t('merge.source') || '소스 시스템', width: 150 },
   { 
     field: 'score', 
-    headerName: t('match_review.similarity_score'), 
+    headerName: t('match_review.similarity_score') || '유사도 점수', 
     width: 200,
     cellRenderer: (params: any) => {
       if (params.value == null) return ''
@@ -184,22 +189,21 @@ const columnDefs = computed(() => [
   },
   { 
     field: 'status', 
-    headerName: t('match_review.status_filter'),
+    headerName: t('match_review.status_filter') || '상태',
     width: 150,
     cellRenderer: (params: any) => {
       let color = 'gray'
       let text = params.value
-      if (params.value === 'PENDING_REVIEW') { color = 'warning'; text = t('match_review.status_pending') }
-      else if (params.value === 'CONFIRMED_MERGE') { color = 'success'; text = t('match_review.status_confirmed') }
-      else if (params.value === 'REJECTED') { color = 'danger'; text = t('match_review.status_rejected') }
+      if (params.value === 'PENDING_REVIEW') { color = 'warning'; text = t('match_review.status_pending') || '검토 대기' }
+      else if (params.value === 'CONFIRMED_MERGE') { color = 'success'; text = t('match_review.status_confirmed') || '병합 완료' }
+      else if (params.value === 'REJECTED') { color = 'danger'; text = t('match_review.status_rejected') || '거절됨' }
       
-      // Inline styles for basic badge appearance in AG Grid
       return `<span style="padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; background-color: var(--va-${color}); color: white;">${text}</span>`
     }
   },
   { 
     field: 'createdAt', 
-    headerName: t('schema_history.changed_at'),
+    headerName: t('schema_history.changed_at') || '생성 시각',
     valueFormatter: (params: any) => params.value ? formatWithTimezone(params.value) : '-'
   }
 ])
@@ -221,7 +225,6 @@ const serverSideDatasource = {
       }
 
       const res = await customFetch(url)
-      // Adapt based on typical spring boot pageable response
       const content = res.content || res.data || []
       const totalElements = res.totalElements !== undefined ? res.totalElements : (res.total || content.length)
       
@@ -233,11 +236,19 @@ const serverSideDatasource = {
   }
 }
 
+const getDomainName = (d: any) => {
+  if (!d) return ''
+  if (typeof d.name === 'object') {
+    return d.name.ko || d.name.en || d.id
+  }
+  return d.name || d.id
+}
+
 const fetchDomains = async () => {
   try {
     const res = await customFetch('/api/domains')
     domainOptions.value = (res.content || res || []).map((d: any) => ({
-      label: d.name || d.id,
+      label: getDomainName(d),
       value: d.id
     }))
     if (domainOptions.value.length > 0 && !selectedDomain.value) {
@@ -297,10 +308,10 @@ const rejectSingle = async (candidate: any) => {
     await customFetch(`/api/match-candidates/${candidate.id}/reject`, {
       method: 'POST'
     })
-    init({ message: t('match_review.reject_success'), color: 'success' })
+    init({ message: t('match_review.reject_success') || '거절 처리되었습니다.', color: 'success' })
     refreshGrid()
   } catch (e) {
-    init({ message: t('match_review.reject_fail'), color: 'danger' })
+    init({ message: t('match_review.reject_fail') || '거절 처리에 실패했습니다.', color: 'danger' })
   }
 }
 
@@ -311,10 +322,10 @@ const batchConfirm = async () => {
       method: 'POST',
       body: { ids, domainId: selectedDomain.value }
     })
-    init({ message: t('match_review.confirm_success'), color: 'success' })
+    init({ message: t('match_review.confirm_success') || '승인 처리되었습니다.', color: 'success' })
     refreshGrid()
   } catch (e) {
-    init({ message: t('match_review.confirm_fail'), color: 'danger' })
+    init({ message: t('match_review.confirm_fail') || '승인 처리에 실패했습니다.', color: 'danger' })
   }
 }
 
@@ -325,10 +336,10 @@ const batchReject = async () => {
       method: 'POST',
       body: { ids }
     })
-    init({ message: t('match_review.reject_success'), color: 'success' })
+    init({ message: t('match_review.reject_success') || '거절 처리되었습니다.', color: 'success' })
     refreshGrid()
   } catch (e) {
-    init({ message: t('match_review.reject_fail'), color: 'danger' })
+    init({ message: t('match_review.reject_fail') || '거절 처리에 실패했습니다.', color: 'danger' })
   }
 }
 
@@ -337,6 +348,7 @@ watch(selectedDomain, () => {
 })
 
 onMounted(() => {
+  isMounted.value = true
   fetchDomains()
 })
 </script>

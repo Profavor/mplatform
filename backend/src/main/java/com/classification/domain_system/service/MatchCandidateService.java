@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,12 +34,36 @@ public class MatchCandidateService {
     private final RecordMergeService recordMergeService;
 
     @Transactional(readOnly = true)
-    public PageResponse<MatchCandidate> getCandidatesByDomain(UUID domainId, int page, int size) {
-        List<ClassificationNode> nodes = nodeRepository.findByDomainId(domainId);
-        List<UUID> nodeIds = nodes.stream().map(ClassificationNode::getId).toList();
+    public PageResponse<MatchCandidate> getCandidatesByDomain(UUID domainId, String status, int page, int size) {
+        String targetStatus = (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) ? status : null;
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        Page<MatchCandidate> candidatePage = candidateRepository.findByNodeIdInAndStatus(nodeIds, "PENDING_REVIEW", PageRequest.of(page, size, Sort.by("createdAt").descending()));
+        Page<MatchCandidate> candidatePage;
+        if (targetStatus != null) {
+            candidatePage = candidateRepository.findByDomainIdAndStatus(domainId, targetStatus, pageable);
+        } else {
+            candidatePage = candidateRepository.findByDomainId(domainId, pageable);
+        }
+
+        if (candidatePage.isEmpty()) {
+            List<ClassificationNode> nodes = nodeRepository.findByDomainId(domainId);
+            List<UUID> nodeIds = nodes.stream().map(ClassificationNode::getId).toList();
+
+            if (!nodeIds.isEmpty()) {
+                if (targetStatus != null) {
+                    candidatePage = candidateRepository.findByNodeIdInAndStatus(nodeIds, targetStatus, pageable);
+                } else {
+                    candidatePage = candidateRepository.findByNodeIdIn(nodeIds, pageable);
+                }
+            }
+        }
+
         return PageResponse.of(candidatePage);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<MatchCandidate> getCandidatesByDomain(UUID domainId, int page, int size) {
+        return getCandidatesByDomain(domainId, null, page, size);
     }
 
     @Transactional

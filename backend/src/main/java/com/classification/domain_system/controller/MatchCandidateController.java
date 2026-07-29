@@ -23,9 +23,10 @@ public class MatchCandidateController {
     @PreAuthorize("hasPermission(null, 'domain:read')")
     public ResponseEntity<PageResponse<MatchCandidate>> getCandidates(
             @PathVariable UUID domainId,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(candidateService.getCandidatesByDomain(domainId, page, size));
+        return ResponseEntity.ok(candidateService.getCandidatesByDomain(domainId, status, page, size));
     }
 
     @PostMapping("/api/match-candidates/{id}/confirm")
