@@ -53,7 +53,7 @@ public class MenuDataInitializer {
                 createMenuIfAbsent("시스템 로그", "/admin/system-logs", "receipt_long", adminId, 4, Set.of("ROLE_ADMIN"));
                 createMenuIfAbsent("매칭 검토", "/admin/match-review", "fact_check", adminId, 5, Set.of("ROLE_ADMIN"));
                 createMenuIfAbsent("워크플로우 관리", "/admin/workflow", "account_tree", adminId, 6, Set.of("ROLE_ADMIN"));
-                createMenuIfAbsent("외부 연동 관리", "/admin/integration", "hub", adminId, 7, Set.of("ROLE_ADMIN"));
+                createMenuIfAbsent("외부 연동 관리", "/admin/integration/channels", "hub", adminId, 7, Set.of("ROLE_ADMIN"));
                 createMenuIfAbsent("매칭 규칙 관리", "/admin/matching-rules", "rule", adminId, 8, Set.of("ROLE_ADMIN"));
             }
 
@@ -65,7 +65,7 @@ public class MenuDataInitializer {
 
     private Menu createMenuIfAbsent(String name, String path, String icon, Long parentId, Integer sortOrder, Set<String> roles) {
         Menu existing = menuRepository.findAll().stream()
-                .filter(m -> path.equalsIgnoreCase(m.getPath()))
+                .filter(m -> path.equalsIgnoreCase(m.getPath()) || ("/admin/integration/channels".equals(path) && "/admin/integration".equalsIgnoreCase(m.getPath())))
                 .findFirst().orElse(null);
 
         if (existing == null) {
@@ -83,8 +83,12 @@ public class MenuDataInitializer {
             log.info("Initialized menu: [{}] -> {}", name, path);
             return saved;
         } else {
-            // Update roles or parentId if missing
+            // Update path, roles or parentId if missing
             boolean updated = false;
+            if (!path.equalsIgnoreCase(existing.getPath())) {
+                existing.setPath(path);
+                updated = true;
+            }
             if (existing.getParentId() == null && parentId != null) {
                 existing.setParentId(parentId);
                 updated = true;
