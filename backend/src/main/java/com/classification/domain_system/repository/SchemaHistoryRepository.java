@@ -13,5 +13,6 @@ import java.util.UUID;
 public interface SchemaHistoryRepository extends JpaRepository<SchemaHistory, UUID>, JpaSpecificationExecutor<SchemaHistory> {
     Page<SchemaHistory> findByDomainIdOrderByChangedAtDesc(UUID domainId, Pageable pageable);
     java.util.List<SchemaHistory> findByDomainIdOrderByChangedAtDesc(UUID domainId);
+    java.util.List<SchemaHistory> findByDomainIdAndChangedAtAfterOrderByChangedAtDesc(UUID domainId, java.time.LocalDateTime changedAt);
 }
 

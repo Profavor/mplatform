@@ -10,6 +10,7 @@ import java.util.UUID;
 @Repository
 public interface ClassificationNodeRepository extends JpaRepository<ClassificationNode, UUID> {
     List<ClassificationNode> findByDomain_IdAndParentIsNullAndIsDeletedFalseOrderByOrderAsc(UUID domainId);
+    List<ClassificationNode> findByDomain_IdAndAxis_IdAndParentIsNullAndIsDeletedFalseOrderByOrderAsc(UUID domainId, UUID axisId);
     List<ClassificationNode> findByParentIdAndIsDeletedFalseOrderByOrderAsc(UUID parentId);
     List<ClassificationNode> findByPathStartingWithAndIsDeletedFalse(String pathPrefix);
     List<ClassificationNode> findByDomainId(UUID domainId);

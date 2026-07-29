@@ -1,146 +1,128 @@
 # 3. 데이터 모델 (PostgreSQL 기준)
 
 ### 3.1 domain
-도메인 자체의 정보뿐만 아니라, **이 도메인에 속하는 레코드(Record)를 대표하는 식별 필드**를 매핑한다. (도메인 참조 시 UI 렌더링 및 검색 키로 사용됨)
+도메인 자체의 정보뿐만 아니라, **이 도메인에 속하는 레코드(Record)를 대표하는 식별 필드**를 매핑한다.
 
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
 | id | UUID/PK | 도메인 ID |
 | name | JSONB | 도메인명 다국어 맵 (예: `{"ko":"임직원", "en":"Employee"}`) |
 | description | JSONB | 도메인 설명 다국어 맵 |
-| identifier_field_id | UUID/FK, nullable | 레코드 식별자 필드 (예: 사번 필드의 ID). 참조 시 검색용 키로 사용됨. |
-| display_name_field_id | UUID/FK, nullable | 레코드 표시명 필드 (예: 성명 필드의 ID). 참조 시 드롭다운에 표시됨. |
-| description_field_id | UUID/FK, nullable | 레코드 설명 필드 (예: 직급 필드의 ID). 참조 시 부가 정보로 표시됨. |
+| identifier_field_id | UUID/FK, nullable | 레코드 식별자 필드 |
+| display_name_field_id | UUID/FK, nullable | 레코드 표시명 필드 |
+| description_field_id | UUID/FK, nullable | 레코드 설명 필드 |
 | created_at / updated_at | datetime | |
 
-> **무결성 규칙:** 위 3개의 FK가 가리키는 필드 정의는 반드시 해당 도메인의 루트 노드(모든 레코드가 상속받는)에 정의되어야 한다.
+### 3.1.1 classification_axis *(다축 분류체계 지원)*
+도메인 내의 분류축(예: 부서 축, 고용형태 축, 카테고리 축)을 정의하는 테이블.
+
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | UUID/PK | 분류축 ID |
+| domain_id | UUID/FK | 소속 도메인 ID |
+| axis_code | string(50) | 분류축 식별 코드 (예: `DEFAULT`, `DEPT`, `EMPLOYMENT_TYPE`) |
+| name | JSONB | 분류축 명칭 다국어 맵 |
+| description | string(1000) | 분류축 상세 설명 |
+| is_default | boolean, default false | 도메인의 기본 분류축 여부 (도메인당 1개) |
+| sort_order | int, default 0 | 정렬 순서 |
+| created_at / updated_at | datetime | |
 
 ### 3.2 classification_node
-도메인을 루트로 하는 트리. **본 스펙에서는 도메인=root node(parent_id = null)** 로 통합 관리한다.
+분류 트리를 구성하는 노드. 특정 `axis_id`에 속할 수 있으며, `axis_id`가 null인 경우 기본 분류축으로 간주한다.
 
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
 | id | UUID/PK | 노드 ID |
 | domain_id | UUID/FK | 소속 도메인 |
-| parent_id | UUID/FK, nullable | 부모 노드 (null이면 도메인 루트) |
-| name | JSONB | 노드명 다국어 맵 (예: `{"ko":"정규직", "en":"Regular"}`) |
-| path | string | 조상 경로 캐시 (예: `/임직원/정규직/수습`), 조회 및 연쇄 작업 최적화용 |
+| axis_id | UUID/FK, nullable | 소속 분류축 ID (`classification_axis`) |
+| parent_id | UUID/FK, nullable | 부모 노드 (null이면 분류축의 루트) |
+| name | JSONB | 노드명 다국어 맵 |
+| path | string | 조상 경로 캐시 (예: `ROOT > 영업본부 > 영업1팀`) |
 | depth | int | 루트로부터의 깊이 |
-| order | int | 형제 노드 간 정렬 순서 |
+| node_order | int | 형제 노드 간 정렬 순서 |
 | is_deleted | boolean, default false | 논리적 삭제 여부 |
 | deleted_at | datetime, nullable | 삭제 일시 |
 | created_at / updated_at | datetime | |
 
-> **무결성 규칙 (PostgreSQL 구현체):**
-> 1. 순환 참조 금지(자기 자신 또는 자손을 parent로 지정 불가)
-> 2. 동일 부모 하위 노드명 중복 금지 → **Partial Unique Index** 사용:
->    `CREATE UNIQUE INDEX idx_node_unique_name_active ON classification_node (domain_id, parent_id, name) WHERE is_deleted = false;`
+### 3.2.1 record_secondary_node *(레코드 다축 서브 매핑)*
+레코드가 주 분류 노드 외 타 분류축 노드에 속할 수 있도록 지원하는 다대다 매핑 테이블.
+
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | UUID/PK | 매핑 ID |
+| record_id | UUID, index | 레코드 ID |
+| node_id | UUID/FK, index | 매핑 대상 서브 분류 노드 ID |
+| axis_id | UUID, index | 서브 노드가 속한 분류축 ID |
+| created_at | datetime | 매핑 일시 |
 
 ### 3.3 field_definition
-필드는 **특정 classification_node에 정의**되며, 그 노드와 모든 하위 노드에서 유효하다.
+필드는 특정 `classification_node`에 정의되며, 그 노드와 모든 하위 노드에 자동 상속된다.
 
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
 | id | UUID/PK | 필드 ID |
 | defined_at_node_id | UUID/FK | 이 필드를 최초로 정의한 노드 |
-| name | JSONB | 필드명 다국어 맵 (예: `{"ko":"입사일", "en":"Hire Date"}`) |
-| key | string | 시스템용 식별자 (snake_case, 노드 내 유일) |
-| type | enum | 필드 타입 (아래 3.3.1 참조) |
-| options | JSON, nullable | 타입별 세부 설정 및 UI/Validation 힌트 (아래 3.3.2 참조) |
+| name | JSONB | 필드명 다국어 맵 |
+| key | string | 시스템용 식별자 (snake_case) |
+| type | enum | 필드 타입 (`TEXT`, `NUMBER`, `DATE`, `TIME`, `I18N`, `RICH_TEXT`, `SELECT`, `MULTI_SELECT`, `TABLE`, `FILE`, `REFERENCE`) |
+| options | JSON, nullable | 타입별 세부 설정 |
 | required | boolean | 필수 여부 |
 | default_value | JSON, nullable | 기본값 |
 | order | int | 표시 순서 |
-| is_removed | boolean, default false | 상속된 필드를 이 노드부터 제외시킬지 여부 (Soft delete형 오버라이드) |
-| is_multi_value | boolean, default false | 하나의 필드에 여러 값(배열)을 허용할지 여부 (FILE, REFERENCE 타입은 별도 테이블로 관리하므로 불필요) |
-| is_table | boolean, default false | 필드 값이 테이블형(행x열) 데이터인지 여부 |
-| is_encrypted | boolean, default false | 값을 암호화하여 저장해야 하는지 여부 (FILE, REFERENCE 타입에는 적용 불가) |
-| is_searchable | boolean, default false | 검색/필터링 대상 필드로 지정할지 여부 (인덱싱 대상) |
-| is_highlighted | boolean, default false | 필드 표시 시 강조(Highlight) 여부 |
+| is_removed | boolean, default false | Soft delete형 오버라이드 |
+| is_multi_value | boolean, default false | 다중값 배열 허용 여부 |
+| is_table | boolean, default false | TABLE형 데이터 여부 |
+| is_encrypted | boolean, default false | 암호화 저장 여부 |
+| is_searchable | boolean, default false | 검색 대상 지정 여부 |
+| is_highlighted | boolean, default false | 강조 표시 여부 |
 | created_at / updated_at | datetime | |
 
-#### 3.3.1 필드 타입 (type Enum)
-`TEXT`, `NUMBER`, `DATE`, `TIME`, `I18N`, `RICH_TEXT`, `SELECT`, `MULTI_SELECT`, `TABLE`, `FILE`, `REFERENCE`
-
-#### 3.3.2 필드 옵션 (options JSON) 권장 스펙
-프론트엔드 UI 렌더링 및 백엔드 Validation을 위해 타입별로 아래 구조를 준수한다.
-
-| type | options JSON 스펙 예시 |
-| :--- | :--- |
-| **TEXT** | `{ "max_length": 50, "placeholder": "이름 입력" }` |
-| **NUMBER** | `{ "min": 0, "max": 100, "step": 0.1, "unit": "kg" }` |
-| **DATE** | `{ "format": "YYYY-MM-DD" }` |
-| **TIME** | `{ "format": "HH:mm" }` |
-| **I18N** | `{ "supported_locales": ["ko", "en", "ja"] }` |
-| **RICH_TEXT**| `{ "max_length": 5000, "toolbar": ["bold", "image"] }` |
-| **SELECT** | `{ "choices": [ {"value": "male", "label": "남성"}, {"value": "female", "label": "여성"} ] }` |
-| **MULTI_SELECT**| `{ "choices": [ {"value": "reading", "label": "독서"} ], "max_count": 3 }` |
-| **TABLE** | `{ "columns": [ {"key": "company", "type": "TEXT", "required": true}, {"key": "start_date", "type": "DATE"} ] }` *(행 내부 스키마 정의)* |
-| **FILE** | `{ "allowed_extensions": ["jpg", "pdf"], "max_size_mb": 10, "max_count": 5 }` |
-| **REFERENCE**| `{ "target_domain_ids": ["참조가능도메인_UUID"], "is_multi": false }` |
-
-### 3.4 실제 데이터 저장 구조
-
-> **구현 현황 안내:** 아래는 당초 설계한 "5-way 라우팅" 구조이며, 검색/타입 안전성 관점의 이상적인 모델이다. **실제 구현은 이보다 단순화되어 있다** — `record.data` 단일 JSONB 컬럼에 TABLE형 필드의 행 데이터, 파일 필드의 다운로드 경로, REFERENCE 필드의 대상 레코드 ID, 심지어 암호화된 값(`is_encrypted=true`)까지 모두 함께 저장된다. 별도의 `record_table_field`, `record_encrypted_value`, `record_file`, `record_relation` 테이블/엔티티는 존재하지 않는다. 이 방식은 스키마가 단순해지는 대신, TABLE 필드의 행 단위 검색이나 REFERENCE의 역참조(어떤 레코드들이 나를 참조하는지) 조회가 어렵다는 트레이드오프가 있다.
-
-#### (1) record — 기본 레코드 + 전체 필드 (JSONB, 실제 구현)
-스칼라 값, 다중값(배열), 다국어, 선택형뿐 아니라 TABLE 행 데이터, FILE 경로, REFERENCE 대상 ID, 암호문(encrypted)까지 전부 이 컬럼에 저장한다.
-
+### 3.4 record — 레코드 본체
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
 | id | UUID/PK | 레코드 ID |
-| node_id | UUID/FK | 어떤 분류 노드에 속하는 데이터인지 |
-| status | enum | 레코드 상태 (`DRAFT`, `PENDING_APPROVAL`, `ACTIVE`, `INACTIVE`, `MISMATCHED`, `REJECTED`, `MERGED`) — 실제 구현에는 병합된 레코드를 나타내는 `MERGED` 상태가 추가됨 |
-| data | JSONB (실제로는 String 컬럼에 JSON 직렬화) | 전체 필드 값 모음. 예: `{"이름":"홍길동", "보유자격증":["정보처리기사"]}` |
-| version | int | 레코드 버전(수정마다 증가) |
-| source_system | string | 이 레코드(또는 최근 갱신)를 생성한 소스 시스템명 |
-| merged_into_record_id | UUID, nullable | 병합되어 사라진 경우 병합 대상(survivor) 레코드 ID |
-| approval_request_id | UUID, nullable | 현재 레코드를 생성/변경한 결재 요청 ID |
+| node_id | UUID/FK | 주 분류 노드 ID |
+| status | enum | 상태 (`DRAFT`, `PENDING_APPROVAL`, `ACTIVE`, `INACTIVE`, `MISMATCHED`, `REJECTED`, `MERGED`) |
+| data | JSONB / String | 전체 필드 데이터 JSON 직렬화 |
+| version | int | 레코드 버전 |
+| source_system | string | 출처 소스 시스템명 |
+| merged_into_record_id | UUID, nullable | 병합 대상(survivor) 레코드 ID |
+| approval_request_id | UUID, nullable | 관련 결재 요청 ID |
 | created_at / updated_at | datetime | |
 
-> **필드별 소스 계보:** `record_field_source` 테이블이 실제로 존재하며, `(record_id, field_key)` 별로 최근 값을 기록한 소스 시스템명과 갱신 시각을 저장한다. 인바운드 연계 시 `source_priority`(소스 시스템 우선순위) 규칙에 따라 필드 단위로 병합(Survivorship)할 때 사용된다.
-
-> **검색 최적화:** `is_searchable=true`인 필드는 표현식 인덱스 생성. (예: `CREATE INDEX idx_record_name ON record ((data->>'이름'));`)
-
-#### (1-2) approval_request — 거버넌스 승인 워크플로우 관리 테이블
-데이터 및 스키마 변경 사항에 대한 결재/승인 상태를 관리한다.
+### 3.5 dq_score_snapshot *(DQ 시계열 트렌드)*
+크론/수동 DQ 스캔 실행 시 도메인의 품질 점수를 이력 저장하는 테이블.
 
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
-| id | UUID/PK | 승인 요청 ID |
-| target_type | enum | 변경 대상 유형. 최초 설계의 `SCHEMA`/`RECORD` 2종 대신, 실제로는 `RECORD`, `RECORD_UPDATE`, `RECORD_DELETE`, `SCHEMA_FIELD_ADD`, `SCHEMA_FIELD_UPDATE`, `SCHEMA_NODE_CREATE`, `SCHEMA_NODE_MOVE`, `SCHEMA_NODE_UPDATE` 세분화된 값을 사용한다 |
-| target_id | UUID | 변경 대상 ID (노드 ID 또는 레코드 ID) |
-| requester_id | UUID | 요청자(기안자) 사용자 ID |
-| node_id | UUID, FK, nullable | 대상이 속한 분류 노드 (`classification_node`) |
-| current_step_order | int | 현재 진행 중인 결재 차수. 값이 0이면 기안자 본인의 Draft 단계, 1 이상이면 실제 결재자 차수 |
-| status | enum | 승인 상태 (`PENDING`, `APPROVED`, `REJECTED`) |
-| changes | JSONB | 변경될 내용 (예: 레코드 수정 시 `{"before":..,"after":..}`, 스키마 변경 시 `{"nodeId"/"domainId":.., "request":..}`) |
-| observer_ids | JSONB, nullable | 결재선에는 없으나 진행 상황을 참조(열람)만 하는 사용자 ID 배열. `workflow_config.steps_config`의 `observerIds`에서 상신 시점에 복사됨 |
-| version | bigint | 낙관적 락(Optimistic Lock) 버전. 여러 결재자가 마지막 단계를 동시에 승인할 때의 경쟁 상태(race condition)를 방지하기 위해 사용 |
-| created_at / updated_at | datetime | |
+| id | UUID/PK | 스냅샷 ID |
+| domain_id | UUID, index | 소속 도메인 ID |
+| score | double | 품질 점수 (0.0 ~ 100.0) |
+| total_records | bigint | 전체 레코드 수 |
+| total_violations | bigint | 전체 위반 건수 |
+| scan_type | string(20) | 스캔 유형 (`SCHEDULED`, `MANUAL`) |
+| recorded_at | datetime, index | 스냅샷 기록 일시 |
 
-> **정정:** 스펙상의 `approver_id`(단일 승인자) 컬럼은 실제 엔티티에 존재하지 않는다. 승인은 단일 승인자가 아니라 `approval_step`(하위 테이블, 결재 단계별 `assigneeId`/`status`)의 목록으로 관리되는 다단계 구조다.
-
-#### (1-3) workflow_config — 결재선/필드 권한 라우팅 규칙 정의 테이블
-노드 또는 도메인 단위로, 행위 유형(생성/수정/삭제/스키마변경)별 결재선과 필드 단위 권한을 정의하는 테이블. `approval_request`가 상신될 때 이 테이블에서 적용할 규칙을 찾아 결재 단계(`approval_step`)를 동적으로 생성한다.
-
+### 3.6 integration_channels & integration_logs *(연계 & DLQ)*
+#### integration_channels
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
-| id | UUID/PK | 워크플로우 설정 ID |
-| domain_id | UUID, nullable | 적용 대상 도메인 ID. `node_id`가 없을 때 해당 도메인 전체의 기본 규칙으로 적용 |
-| node_id | UUID, nullable | 적용 대상 노드 ID. 지정되면 도메인 레벨 규칙보다 우선 적용 |
-| action_type | string(30) | 적용 행위 유형 (`CREATE`, `UPDATE`, `DELETE`, `SCHEMA_CHANGE`) |
-| name | text (다국어 JSON) | 규칙 이름, 예: `{"ko":"국내주식 등록 서식","en":"Domestic Stock Form"}` |
-| description | text | 규칙 설명 |
-| is_default | boolean, default false | 동일 (노드/도메인 + action_type) 조합에 여러 규칙이 있을 때 기본으로 선택될 규칙 표시 |
-| is_active | boolean, default true | false인 규칙은 해석(resolve) 시 제외됨(삭제하지 않고 비활성화만 가능) |
-| steps_config | text (JSON) | 결재선(`approvalLine`/`steps`), 필드/행위 권한(`permissions`), 참조자(`observerIds`)를 담는 JSON. 구조는 `3_business_logic.md` 7.3~7.4절 참고 |
-| created_at / updated_at | datetime | |
+| id | UUID/PK | 채널 ID |
+| name / type / direction | string | 채널명, 방식(`WEB_SERVICE`, `JDBC` 등), 방향(`INBOUND`, `OUTBOUND`) |
+| config_json / mapping_config_json | text | 채널 및 SpEL 매핑 규칙 |
+| max_retries | int, default 3 | 최대 재시도 횟수 |
+| retry_backoff_ms | bigint, default 1000 | 기본 백오프 간격 (ms) |
+| use_exponential_backoff | boolean, default true | 지수 백오프 적용 여부 |
+| is_active / requires_approval | boolean | 활성화 및 승인 필요 여부 |
 
-> **다건 허용:** 하나의 노드(또는 도메인) + action_type 조합에 여러 개의 `workflow_config`가 동시에 존재할 수 있다(예: "일반 등록 서식"과 "간이 등록 서식"을 함께 운영). 레코드 기안 시 `RecordRequest.workflowConfigId`로 특정 규칙을 직접 지정하지 않으면 `is_default=true`인 규칙이, 그마저 없으면 첫 번째 규칙이 사용된다.
-
-#### (2) ~ (5) 원 설계상의 분리 테이블 (미구현, 참고용)
-아래 4개는 최초 설계 문서에만 존재하며 실제 코드베이스에는 구현되어 있지 않다. 위 (1)의 `data` 컬럼이 이 역할을 대신한다.
-- **record_table_field**: 한 필드가 여러 행 x 여러 컬럼 구조를 가질 때(`type='TABLE'`) 사용할 예정이었던 테이블.
-- **record_encrypted_value**: 암호화 대상 값(`is_encrypted=true`)과 동등 비교용 blind index를 저장할 예정이었던 테이블.
-- **record_file**: FILE 타입 필드의 첨부파일 메타데이터를 저장할 예정이었던 테이블. 실제로는 `/api/files/upload`로 선업로드 후 반환된 다운로드 경로 문자열이 `record.data`에 그대로 저장된다.
-- **record_relation**: REFERENCE 타입 필드의 대상 레코드 ID를 저장할 예정이었던 테이블. 실제로는 대상 레코드의 UUID가 `record.data`에 그대로 저장된다(역참조 조회를 위한 별도 인덱스 테이블 없음).
+#### integration_logs
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | UUID/PK | 로그 ID |
+| channel_id / record_id | UUID | 소속 채널 ID 및 대상 레코드 ID |
+| status | string(20) | 상태 (`SUCCESS`, `FAIL`, `DEAD_LETTER`) |
+| original_payload / mapped_payload | text | 원본 및 매핑 페이로드 |
+| error_message / stack_trace | text | 오류 메시지 및 스택트레이스 |
+| retry_count | int, default 0 | 현재까지 재시도 횟수 |
+| next_retry_at | datetime, nullable | 지수 백오프 적용 다음 재시도 예정 시각 |
+| created_at | datetime | 생성 일시 |

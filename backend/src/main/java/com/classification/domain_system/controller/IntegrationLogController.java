@@ -19,6 +19,7 @@ public class IntegrationLogController {
 
     private final IntegrationLogRepository repository;
     private final com.classification.domain_system.integration.IntegrationLogService logService;
+    private final com.classification.domain_system.integration.IntegrationRetryService retryService;
 
     @GetMapping
     @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'log:read')")
@@ -44,5 +45,20 @@ public class IntegrationLogController {
     public org.springframework.http.ResponseEntity<Void> retryLog(@PathVariable UUID logId) {
         logService.retryLog(logId);
         return org.springframework.http.ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/dead-letter")
+    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'log:read')")
+    public com.classification.domain_system.dto.PageResponse<IntegrationLog> getDeadLetters(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        return com.classification.domain_system.dto.PageResponse.of(retryService.getDeadLetters(page, size));
+    }
+
+    @PostMapping("/dead-letter/retry-all")
+    @PreAuthorize("hasPermission(null, 'admin:write')")
+    public org.springframework.http.ResponseEntity<java.util.Map<String, Object>> retryAllDeadLetters() {
+        int retriedCount = retryService.retryAllDeadLetters();
+        return org.springframework.http.ResponseEntity.ok(java.util.Map.of("retriedCount", retriedCount));
     }
 }

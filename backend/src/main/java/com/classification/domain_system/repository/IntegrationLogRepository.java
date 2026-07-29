@@ -12,4 +12,7 @@ import java.util.UUID;
 public interface IntegrationLogRepository extends JpaRepository<IntegrationLog, UUID> {
     Page<IntegrationLog> findByChannelId(UUID channelId, Pageable pageable);
     java.util.List<IntegrationLog> findByRecordIdOrderByCreatedAtDesc(UUID recordId);
+    Page<IntegrationLog> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);
+    java.util.List<IntegrationLog> findByStatus(String status);
+    java.util.List<IntegrationLog> findByStatusAndNextRetryAtBefore(String status, java.time.LocalDateTime now);
 }

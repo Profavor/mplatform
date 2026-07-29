@@ -50,6 +50,15 @@ public class IntegrationChannel {
     @Column(name = "requires_approval", nullable = false)
     private boolean requiresApproval = false;
 
+    @Column(name = "max_retries", nullable = false)
+    private int maxRetries = 3;
+
+    @Column(name = "retry_backoff_ms", nullable = false)
+    private long retryBackoffMs = 1000L;
+
+    @Column(name = "use_exponential_backoff", nullable = false)
+    private boolean useExponentialBackoff = true;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

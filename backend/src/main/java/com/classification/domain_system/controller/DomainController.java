@@ -127,6 +127,7 @@ public class DomainController {
 
     private final com.classification.domain_system.service.dq.DqRuleEngine dqRuleEngine;
     private final com.classification.domain_system.repository.DqRuleRepository dqRuleRepository;
+    private final com.classification.domain_system.service.DqScoreSnapshotService dqScoreSnapshotService;
 
     // FieldGroups
     @GetMapping("/{domainId}/groups")
@@ -168,7 +169,9 @@ public class DomainController {
     @PostMapping("/{domainId}/dq-scan")
     @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<java.util.Map<String, Object>> runDomainDqScan(@PathVariable UUID domainId) {
-        return ResponseEntity.ok(dqRuleEngine.runDomainDqScan(domainId));
+        java.util.Map<String, Object> scoreData = dqRuleEngine.runDomainDqScan(domainId);
+        dqScoreSnapshotService.recordSnapshot(domainId, scoreData, "MANUAL");
+        return ResponseEntity.ok(scoreData);
     }
 
     @GetMapping("/{domainId}/dq-rules-count")
@@ -187,5 +190,21 @@ public class DomainController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(dqRuleEngine.getDomainDqViolations(domainId, severity, fieldKey, PageRequest.of(page, size)));
+    }
+
+    @GetMapping("/{domainId}/dq-score/trend")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public ResponseEntity<java.util.List<com.classification.domain_system.entity.DqScoreSnapshot>> getDqScoreTrend(
+            @PathVariable UUID domainId,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime from,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime to) {
+        return ResponseEntity.ok(dqScoreSnapshotService.getTrend(domainId, from, to));
+    }
+
+    @GetMapping("/{domainId}/dq-score/recent")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public ResponseEntity<java.util.List<com.classification.domain_system.entity.DqScoreSnapshot>> getDqScoreRecent(
+            @PathVariable UUID domainId) {
+        return ResponseEntity.ok(dqScoreSnapshotService.getRecentSnapshots(domainId));
     }
 }

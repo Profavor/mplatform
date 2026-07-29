@@ -280,6 +280,7 @@ public class FieldDefinitionService {
         return addField(nodeId, request, false);
     }
     
+    @org.springframework.cache.annotation.CacheEvict(value = "effectiveFields", allEntries = true)
     @Transactional
     public FieldDefinition addField(UUID nodeId, FieldDefinitionRequest request, boolean bypassApproval) {
         ClassificationNode node = nodeRepository.findById(nodeId)
@@ -319,6 +320,7 @@ public class FieldDefinitionService {
         return addDomainField(domainId, request, false);
     }
     
+    @org.springframework.cache.annotation.CacheEvict(value = "effectiveFields", allEntries = true)
     @Transactional
     public FieldDefinition addDomainField(UUID domainId, FieldDefinitionRequest request, boolean bypassApproval) {
         Domain domain = domainRepository.findById(domainId)
@@ -429,6 +431,7 @@ public class FieldDefinitionService {
         return updateDomainField(domainId, fieldId, request, false);
     }
     
+    @org.springframework.cache.annotation.CacheEvict(value = "effectiveFields", allEntries = true)
     @Transactional
     public FieldDefinition updateDomainField(UUID domainId, UUID fieldId, FieldDefinitionRequest request, boolean bypassApproval) {
         FieldDefinition field = fieldRepository.findById(fieldId)
@@ -475,6 +478,7 @@ public class FieldDefinitionService {
         return savedField;
     }
     
+    @org.springframework.cache.annotation.Cacheable(value = "effectiveFields", key = "#nodeId", unless = "#result == null")
     @Transactional(readOnly = true)
     public List<FieldDefinition> getEffectiveFields(UUID nodeId) {
         if (nodeId == null) {

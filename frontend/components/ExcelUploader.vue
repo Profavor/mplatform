@@ -88,8 +88,108 @@
           </div>
         </div>
 
-        <!-- Step 3: Progress -->
-        <div v-else-if="step === 3" class="flex flex-col items-center justify-center p-10 space-y-4">
+        <!-- Step 3: Validation Report -->
+        <div v-else-if="step === 3" class="space-y-4">
+          <!-- Validating Spinner -->
+          <div v-if="validating" class="flex flex-col items-center justify-center p-10 space-y-3">
+            <div class="w-full bg-gray-200 rounded-full h-3 dark:bg-gray-700 overflow-hidden">
+              <div class="bg-indigo-500 h-3 rounded-full animate-pulse" style="width: 60%"></div>
+            </div>
+            <p class="text-sm font-medium text-gray-600 dark:text-gray-300">행 단위 DQ 검증 중...</p>
+          </div>
+
+          <!-- Validation Result -->
+          <template v-else-if="validationResult">
+            <!-- Summary Banner -->
+            <div class="rounded-lg p-4 flex items-center gap-4"
+                 :class="validationResult.invalidRows === 0
+                   ? 'bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800'
+                   : 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800'">
+              <div class="text-3xl">{{ validationResult.invalidRows === 0 ? '✅' : '⚠️' }}</div>
+              <div>
+                <p class="font-semibold text-sm" :class="validationResult.invalidRows === 0 ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'">
+                  {{ validationResult.invalidRows === 0 ? '모든 행이 DQ 검증을 통과했습니다!' : `${validationResult.invalidRows}건의 행에서 DQ 위반이 발견되었습니다.` }}
+                </p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  전체 {{ validationResult.totalRows }}행 중 통과 {{ validationResult.validRows }}행 · 실패 {{ validationResult.invalidRows }}행
+                </p>
+              </div>
+            </div>
+
+            <!-- Filter Toggle -->
+            <div v-if="validationResult.invalidRows > 0" class="flex items-center gap-2">
+              <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none">
+                <input type="checkbox" v-model="showOnlyErrors" class="rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                위반 행만 보기
+              </label>
+            </div>
+
+            <!-- Violation Details Table -->
+            <div v-if="filteredValidationDetails.length > 0" class="overflow-x-auto max-h-[45vh] overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg">
+              <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                <thead class="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10">
+                  <tr>
+                    <th class="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300 w-16">행</th>
+                    <th class="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300 w-20">결과</th>
+                    <th class="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300">위반 필드</th>
+                    <th class="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300">심각도</th>
+                    <th class="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300">위반 사유</th>
+                    <th class="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300">입력값</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800">
+                  <template v-for="row in filteredValidationDetails" :key="row.rowNumber">
+                    <!-- Row with no violations -->
+                    <tr v-if="row.violations.length === 0" class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                      <td class="px-4 py-2 font-mono text-gray-700 dark:text-gray-300">{{ row.rowNumber + 1 }}</td>
+                      <td class="px-4 py-2">
+                        <span class="inline-flex items-center gap-1 text-green-600 dark:text-green-400 font-medium text-xs">
+                          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                          통과
+                        </span>
+                      </td>
+                      <td colspan="4" class="px-4 py-2 text-gray-400 dark:text-gray-500 italic">-</td>
+                    </tr>
+                    <!-- Row with violations: one <tr> per violation -->
+                    <tr v-for="(v, vIdx) in row.violations" :key="`${row.rowNumber}-${vIdx}`" class="hover:bg-red-50/50 dark:hover:bg-red-900/10">
+                      <td v-if="vIdx === 0" :rowspan="row.violations.length" class="px-4 py-2 font-mono text-gray-700 dark:text-gray-300 align-top border-r border-gray-100 dark:border-gray-800">
+                        {{ row.rowNumber + 1 }}
+                      </td>
+                      <td v-if="vIdx === 0" :rowspan="row.violations.length" class="px-4 py-2 align-top border-r border-gray-100 dark:border-gray-800">
+                        <span class="inline-flex items-center gap-1 text-red-600 dark:text-red-400 font-medium text-xs">
+                          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
+                          실패
+                        </span>
+                      </td>
+                      <td class="px-4 py-2">
+                        <code class="text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-800 dark:text-gray-200">{{ v.fieldKey }}</code>
+                      </td>
+                      <td class="px-4 py-2">
+                        <span class="text-xs font-medium px-2 py-0.5 rounded-full"
+                              :class="v.severity === 'ERROR'
+                                ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300'
+                                : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300'">
+                          {{ v.severity }}
+                        </span>
+                      </td>
+                      <td class="px-4 py-2 text-gray-600 dark:text-gray-400 text-xs">
+                        {{ getValidationMessage(v.message) }}
+                      </td>
+                      <td class="px-4 py-2">
+                        <code class="text-xs bg-gray-50 dark:bg-gray-800 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-400">
+                          {{ v.actualValue || '(빈 값)' }}
+                        </code>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </template>
+        </div>
+
+        <!-- Step 4: Upload Progress -->
+        <div v-else-if="step === 4" class="flex flex-col items-center justify-center p-10 space-y-4">
           <div class="w-full bg-gray-200 rounded-full h-4 dark:bg-gray-700 mb-2 overflow-hidden relative">
             <div class="bg-blue-600 h-4 rounded-full transition-all duration-300" :style="{ width: progress + '%' }"></div>
           </div>
@@ -102,13 +202,21 @@
 
       <!-- Footer -->
       <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 bg-gray-50 dark:bg-gray-800">
-        <button v-if="step !== 3" @click="$emit('close')" class="px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600 transition-colors">
+        <button v-if="step !== 4" @click="$emit('close')" class="px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600 transition-colors">
           Cancel
         </button>
-        <button v-if="step === 2" @click="startUpload" class="px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
-          Start Upload
+        <button v-if="step === 2" @click="runValidation" class="px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+          검증 후 업로드
         </button>
-        <button v-if="step === 3 && progress === 100" @click="$emit('close')" class="px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors">
+        <button v-if="step === 3 && !validating && validationResult" @click="step = 2" class="px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600 transition-colors">
+          ← 매핑 수정
+        </button>
+        <button v-if="step === 3 && !validating && validationResult" @click="proceedUpload" class="px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white transition-colors"
+                :class="validationResult.invalidRows === 0 ? 'bg-green-600 hover:bg-green-700' : 'bg-orange-500 hover:bg-orange-600'"
+                :title="validationResult.invalidRows > 0 ? '위반 행은 제외하고 유효한 행만 업로드합니다' : ''">
+          {{ validationResult.invalidRows === 0 ? '업로드 시작' : `유효한 ${validationResult.validRows}행만 업로드` }}
+        </button>
+        <button v-if="step === 4 && progress === 100" @click="$emit('close')" class="px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors">
           Done
         </button>
       </div>
@@ -149,6 +257,11 @@ const excelHeaders = ref([]);
 const mapping = ref({}); // { fieldKey: excelHeaderName }
 const progress = ref(0);
 const uploadError = ref(null);
+
+// Validation state
+const validating = ref(false);
+const validationResult = ref(null);
+const showOnlyErrors = ref(true);
 
 const { locale } = useI18n();
 
@@ -302,13 +415,70 @@ const handleFileUpload = (e) => {
   reader.readAsBinaryString(file);
 };
 
-const startUpload = async () => {
-  // Validate required fields mapping
+/**
+ * Excel 행을 RecordRequest 형태로 변환하는 헬퍼 함수.
+ * 검증과 업로드 모두에서 재사용합니다.
+ */
+const transformRowToRequest = (row) => {
+  const dataObj = {};
+  props.nodeFields.forEach(field => {
+    if (field.type === 'MULTILINGUAL') {
+      const koHeader = mapping.value[field.key + '_ko'];
+      const enHeader = mapping.value[field.key + '_en'];
+      if (koHeader || enHeader) {
+        dataObj[field.key] = {
+          ko: koHeader ? String(row[koHeader] || '') : '',
+          en: enHeader ? String(row[enHeader] || '') : ''
+        };
+      }
+    } else if (field.type === 'DOMAIN_REFERENCE') {
+      const excelHeader = mapping.value[field.key];
+      if (excelHeader && row[excelHeader] !== undefined) {
+        const val = String(row[excelHeader]);
+        const refData = props.domainReferences[field.key];
+        
+        if (refData && val) {
+          const targetFields = refData.fields || [];
+          const idFieldId = refData.domainInfo?.identifierFieldId;
+          const idFieldInfo = targetFields.find(f => f.id === idFieldId);
+          
+          const matchedRecord = (refData.records || []).find(r => {
+            if (!r.data) return false;
+            try {
+              const parsed = JSON.parse(r.data);
+              if (idFieldInfo && String(parsed[idFieldInfo.key]) === val) return true;
+            } catch (e) {}
+            return false;
+          });
+          
+          dataObj[field.key] = matchedRecord ? matchedRecord.id : val;
+        } else {
+          dataObj[field.key] = val;
+        }
+      }
+    } else {
+      const excelHeader = mapping.value[field.key];
+      if (excelHeader && row[excelHeader] !== undefined) {
+        dataObj[field.key] = String(row[excelHeader]);
+      }
+    }
+  });
+  
+  return {
+    data: JSON.stringify(dataObj),
+    requesterId: currentUser.value?.uuid || '123e4567-e89b-12d3-a456-426614174000',
+    comment: 'Bulk upload via Excel'
+  };
+};
+
+/**
+ * 매핑 완료 후 batch-validate API를 호출하여 행 단위 사전 검증을 수행합니다.
+ */
+const runValidation = async () => {
+  // 필수 필드 매핑 검증
   const missingReq = props.nodeFields.filter(f => {
     if (!f.required) return false;
-    if (f.type === 'MULTILINGUAL') {
-      return !mapping.value[f.key + '_ko']; // At least KO is required for multilingual
-    }
+    if (f.type === 'MULTILINGUAL') return !mapping.value[f.key + '_ko'];
     return !mapping.value[f.key];
   });
   
@@ -318,95 +488,95 @@ const startUpload = async () => {
   }
 
   step.value = 3;
+  validating.value = true;
+  validationResult.value = null;
+  showOnlyErrors.value = true;
+
+  try {
+    const requests = parsedData.value.map(row => transformRowToRequest(row));
+
+    const result = await $fetch(`/api/nodes/${props.nodeId}/records/batch-validate`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token.value}` },
+      body: requests
+    });
+
+    validationResult.value = result;
+  } catch (err) {
+    console.error('Validation failed:', err);
+    uploadErrorMsg.value = '검증 중 오류가 발생했습니다: ' + (err.data?.message || err.message || '');
+    step.value = 2;
+  } finally {
+    validating.value = false;
+  }
+};
+
+/**
+ * 검증 통과한 행만 실제 업로드를 수행합니다.
+ */
+const proceedUpload = async () => {
+  step.value = 4;
   progress.value = 10;
   uploadError.value = null;
 
+  // 검증 결과에서 유효한 행만 필터링
+  const validRowNumbers = new Set();
+  if (validationResult.value && validationResult.value.details) {
+    for (const detail of validationResult.value.details) {
+      if (detail.valid) {
+        validRowNumbers.add(detail.rowNumber - 1); // 0-based index
+      }
+    }
+  } else {
+    // 검증 결과 없으면 전체 업로드
+    parsedData.value.forEach((_, idx) => validRowNumbers.add(idx));
+  }
+
+  const validRows = parsedData.value.filter((_, idx) => validRowNumbers.has(idx));
+
+  if (validRows.length === 0) {
+    uploadError.value = '업로드 가능한 유효한 행이 없습니다.';
+    return;
+  }
+
   try {
     const batchSize = 100;
-    const totalBatches = Math.ceil(parsedData.value.length / batchSize);
     let uploadedCount = 0;
 
-    for (let i = 0; i < parsedData.value.length; i += batchSize) {
-      const chunk = parsedData.value.slice(i, i + batchSize);
-      
-      // Transform mapped chunk
-      const requests = chunk.map(row => {
-        const dataObj = {};
-        props.nodeFields.forEach(field => {
-          if (field.type === 'MULTILINGUAL') {
-            const koHeader = mapping.value[field.key + '_ko'];
-            const enHeader = mapping.value[field.key + '_en'];
-            if (koHeader || enHeader) {
-              dataObj[field.key] = {
-                ko: koHeader ? String(row[koHeader] || '') : '',
-                en: enHeader ? String(row[enHeader] || '') : ''
-              };
-            }
-          } else if (field.type === 'DOMAIN_REFERENCE') {
-            const excelHeader = mapping.value[field.key];
-            if (excelHeader && row[excelHeader] !== undefined) {
-              const val = String(row[excelHeader]);
-              const refData = props.domainReferences[field.key];
-              
-              if (refData && val) {
-                const targetFields = refData.fields || [];
-                const idFieldId = refData.domainInfo?.identifierFieldId;
-                
-                const idFieldInfo = targetFields.find(f => f.id === idFieldId);
-                
-                const matchedRecord = (refData.records || []).find(r => {
-                  if (!r.data) return false;
-                  try {
-                    const parsed = JSON.parse(r.data);
-                    if (idFieldInfo && String(parsed[idFieldInfo.key]) === val) return true;
-                  } catch (e) {}
-                  return false;
-                });
-                
-                if (matchedRecord) {
-                  dataObj[field.key] = matchedRecord.id;
-                } else {
-                  dataObj[field.key] = val; // Fallback
-                }
-              } else {
-                dataObj[field.key] = val;
-              }
-            }
-          } else {
-            const excelHeader = mapping.value[field.key];
-            if (excelHeader && row[excelHeader] !== undefined) {
-              dataObj[field.key] = String(row[excelHeader]);
-            }
-          }
-        });
-        
-        return {
-          data: JSON.stringify(dataObj),
-          requesterId: currentUser.value?.uuid || '123e4567-e89b-12d3-a456-426614174000',
-          comment: 'Bulk upload via Excel'
-        };
-      });
+    for (let i = 0; i < validRows.length; i += batchSize) {
+      const chunk = validRows.slice(i, i + batchSize);
+      const requests = chunk.map(row => transformRowToRequest(row));
 
-      const res = await $fetch(`/api/nodes/${props.nodeId}/records/batch`, {
+      await $fetch(`/api/nodes/${props.nodeId}/records/batch`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token.value}`
-        },
+        headers: { Authorization: `Bearer ${token.value}` },
         body: requests
       });
 
       uploadedCount += chunk.length;
-      progress.value = 10 + ((uploadedCount / parsedData.value.length) * 90);
+      progress.value = 10 + ((uploadedCount / validRows.length) * 90);
     }
     
     progress.value = 100;
-    setTimeout(() => {
-      emit('uploaded');
-    }, 1000);
+    setTimeout(() => { emit('uploaded'); }, 1000);
     
   } catch (err) {
     console.error(err);
     uploadError.value = "Upload failed: " + (err.data?.message || err.message || "An error occurred");
   }
+};
+
+const filteredValidationDetails = computed(() => {
+  if (!validationResult.value?.details) return [];
+  if (showOnlyErrors.value) {
+    return validationResult.value.details.filter(d => !d.valid);
+  }
+  return validationResult.value.details;
+});
+
+const getValidationMessage = (msgMap) => {
+  if (!msgMap) return '검증 규칙 위반';
+  if (typeof msgMap === 'string') return msgMap;
+  return msgMap[locale.value] || msgMap.ko || msgMap.en || Object.values(msgMap)[0] || '검증 규칙 위반';
 };
 </script>

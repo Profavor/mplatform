@@ -31,6 +31,11 @@ public class ClassificationNode {
     @JoinColumn(name = "parent_id")
     private ClassificationNode parent;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "axis_id")
+    private ClassificationAxis axis;
+
     @OneToMany(mappedBy = "parent")
     @OrderBy("order ASC")
     @org.hibernate.annotations.SQLRestriction("is_deleted = false")
@@ -83,5 +88,10 @@ public class ClassificationNode {
     @com.fasterxml.jackson.annotation.JsonProperty("domainName")
     public Map<String, String> getDomainName() {
         return this.domain != null ? this.domain.getName() : null;
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("axisId")
+    public UUID getAxisId() {
+        return this.axis != null ? this.axis.getId() : null;
     }
 }

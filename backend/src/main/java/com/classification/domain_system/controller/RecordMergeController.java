@@ -48,4 +48,13 @@ public class RecordMergeController {
         recordMergeService.updateSurvivorshipRules(domainId, rules);
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping("/{id}/unmerge")
+    @PreAuthorize("hasPermission(null, 'record:write')")
+    public ResponseEntity<Record> unmergeRecord(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal String username) {
+        Record unmerged = recordMergeService.unmergeRecord(id, username != null ? username : "SYSTEM");
+        return ResponseEntity.ok(unmerged);
+    }
 }

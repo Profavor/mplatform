@@ -120,6 +120,51 @@
         </div>
       </div>
 
+      <!-- DQ Score Trend Card -->
+      <va-card class="trend-card mb-6">
+        <va-card-title class="card-header-title flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <va-icon name="show_chart" size="small" color="primary" />
+            <span>DQ 품질 점수 트렌드 히스토리 (DQ Score Trend)</span>
+          </div>
+          <span class="text-xs text-gray-400 font-normal">최근 스캔 기록 {{ recentSnapshots.length }}건</span>
+        </va-card-title>
+        <va-card-content>
+          <div v-if="recentSnapshots.length === 0" class="text-sm text-gray-400 py-6 text-center">
+            아직 기록된 DQ 스냅샷이 없습니다. "Run DQ Scan" 버튼을 클릭해 스캔을 실행하세요.
+          </div>
+          <div v-else class="space-y-3">
+            <!-- Trend Bar Sparkline / Points -->
+            <div class="flex items-end gap-2 h-28 pt-4 pb-1 px-2 border-b border-gray-100 dark:border-gray-800 overflow-x-auto">
+              <div
+                v-for="(snap, idx) in recentSnapshots"
+                :key="snap.id || idx"
+                class="flex-1 min-w-[36px] flex flex-col items-center gap-1 group relative cursor-pointer"
+              >
+                <!-- Tooltip -->
+                <div class="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center bg-gray-900 text-white text-xs rounded px-2 py-1 z-20 whitespace-nowrap shadow-lg">
+                  <span class="font-bold">{{ snap.score }}점</span>
+                  <span class="text-[10px] text-gray-300">{{ formatDate(snap.recordedAt) }} ({{ snap.scanType }})</span>
+                  <span class="text-[10px] text-gray-400">위반 {{ snap.totalViolations }}건 / 전체 {{ snap.totalRecords }}행</span>
+                </div>
+                <!-- Bar height based on score % -->
+                <span class="text-[10px] font-semibold text-gray-500 group-hover:text-blue-600 dark:text-gray-400">{{ Math.round(snap.score) }}%</span>
+                <div class="w-full bg-gray-100 dark:bg-gray-800 rounded-t h-20 flex items-end overflow-hidden">
+                  <div
+                    class="w-full rounded-t transition-all duration-300"
+                    :class="snap.score >= 90 ? 'bg-emerald-500' : snap.score >= 70 ? 'bg-amber-500' : 'bg-rose-500'"
+                    :style="{ height: `${Math.max(snap.score, 5)}%` }"
+                  ></div>
+                </div>
+                <span class="text-[9px] text-gray-400 font-mono truncate w-full text-center">
+                  {{ formatDateShort(snap.recordedAt) }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </va-card-content>
+      </va-card>
+
       <!-- Breakdown Analytics Section -->
       <div class="analytics-grid">
         <!-- Violations by Severity -->
@@ -366,6 +411,7 @@ const loading = ref(false)
 const scanning = ref(false)
 
 const fieldMap = ref({})
+const recentSnapshots = ref([])
 
 // Violation Details State
 const violationList = ref([])
@@ -448,6 +494,16 @@ function formatDate(dtStr) {
   }
 }
 
+function formatDateShort(dtStr) {
+  if (!dtStr) return ''
+  try {
+    const d = new Date(dtStr)
+    return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`
+  } catch (e) {
+    return ''
+  }
+}
+
 function getPercentage(count, total) {
   if (!total || total === 0) return 0
   return Math.round((count / total) * 100)
@@ -497,6 +553,17 @@ async function fetchViolations() {
   }
 }
 
+async function fetchRecentSnapshots(domainId) {
+  try {
+    const headers = getHeaders()
+    const list = await $fetch(`/api/domains/${domainId}/dq-score/recent`, { headers })
+    recentSnapshots.value = list || []
+  } catch (e) {
+    console.error('Failed to fetch recent DQ snapshots:', e)
+    recentSnapshots.value = []
+  }
+}
+
 async function triggerScan() {
   const val = selectedDomainId.value
   const domainId = typeof val === 'object' && val !== null ? (val.value || val.id) : val
@@ -508,7 +575,7 @@ async function triggerScan() {
     const score = await $fetch(`/api/domains/${domainId}/dq-scan`, { method: 'POST', headers })
     scoreData.value = score
     violationPage.value = 0
-    await fetchViolations()
+    await Promise.all([fetchViolations(), fetchRecentSnapshots(domainId)])
   } catch (e) {
     console.error('DQ scan error:', e)
   } finally {
@@ -572,7 +639,7 @@ watch(selectedDomainId, async (val) => {
     ])
     scoreData.value = score
     ruleCount.value = rules?.count ?? 0
-    await fetchViolations()
+    await Promise.all([fetchViolations(), fetchRecentSnapshots(domainId)])
   } catch (e) {
     console.error('Failed to fetch DQ score:', e)
     scoreData.value = null

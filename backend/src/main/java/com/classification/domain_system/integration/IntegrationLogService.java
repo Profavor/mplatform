@@ -15,6 +15,7 @@ public class IntegrationLogService {
     private final IntegrationLogRepository logRepository;
     private final com.classification.domain_system.repository.IntegrationChannelRepository channelRepository;
     private final org.springframework.context.ApplicationContext applicationContext;
+    private final IntegrationRetryService retryService;
 
     @Transactional
     public void logSuccess(UUID channelId, UUID recordId, String eventType, String originalPayload, String mappedPayload) {
@@ -36,38 +37,29 @@ public class IntegrationLogService {
         log.setEventType(eventType);
         log.setOriginalPayload(originalPayload);
         log.setMappedPayload(mappedPayload);
-        log.setStatus("FAIL");
+        log.setRetryCount(retryCount);
+        
         // truncate error message if too long
         if (errorMessage != null && errorMessage.length() > 5000) {
             errorMessage = errorMessage.substring(0, 5000);
         }
         log.setErrorMessage(errorMessage);
         log.setStackTrace(stackTrace);
-        log.setRetryCount(retryCount);
+
+        // 채널 설정 기반으로 STATUS (FAIL vs DEAD_LETTER) 및 nextRetryAt 계산
+        if (retryService != null) {
+            retryService.updateLogRetryStatus(log);
+        } else {
+            log.setStatus("FAIL");
+        }
+
         logRepository.save(log);
     }
 
     @Transactional
     public void retryLog(UUID logId) {
-        IntegrationLog log = logRepository.findById(logId)
-                .orElseThrow(() -> new IllegalArgumentException("Log not found"));
-        
-        com.classification.domain_system.entity.IntegrationChannel channel = channelRepository.findById(log.getChannelId())
-                .orElseThrow(() -> new IllegalArgumentException("Channel not found"));
-
-        org.springframework.messaging.Message<String> retryMessage = org.springframework.messaging.support.MessageBuilder
-                .withPayload(log.getOriginalPayload())
-                .setHeader("RECORD_ID", log.getRecordId())
-                .setHeader("EVENT_TYPE", log.getEventType())
-                .setHeader("CHANNEL_ID", channel.getId())
-                .setHeader("CHANNEL_TYPE", channel.getType())
-                .setHeader("MAPPING_CONFIG", channel.getMappingConfigJson())
-                .setHeader("CHANNEL_CONFIG", channel.getConfigJson())
-                .setHeader("ORIGINAL_PAYLOAD", log.getOriginalPayload())
-                .setHeader("IS_RETRY", true)
-                .build();
-
-        org.springframework.messaging.MessageChannel channelBean = applicationContext.getBean("integrationProcessingChannel", org.springframework.messaging.MessageChannel.class);
-        channelBean.send(retryMessage);
+        if (retryService != null) {
+            retryService.retrySingleLog(logId);
+        }
     }
 }

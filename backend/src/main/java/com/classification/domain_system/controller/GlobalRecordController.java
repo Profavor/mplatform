@@ -22,6 +22,7 @@ public class GlobalRecordController {
     private final RecordRepository recordRepository;
     private final com.classification.domain_system.service.ApprovalService approvalService;
     private final com.classification.domain_system.service.RecordService recordService;
+    private final com.classification.domain_system.service.MultiAxisRecordService multiAxisRecordService;
     
     @GetMapping("/{id}")
     @PreAuthorize("hasPermission(null, 'record:read')")
@@ -96,5 +97,20 @@ public class GlobalRecordController {
                 domainId, searchParams, PageRequest.of(page, size, sort));
         records = recordService.prepareRecordsForRead(records);
         return ResponseEntity.ok(PageResponse.of(records));
+    }
+
+    @GetMapping("/{id}/secondary-nodes")
+    @PreAuthorize("hasPermission(null, 'record:read')")
+    public ResponseEntity<java.util.List<com.classification.domain_system.dto.RecordSecondaryNodeResponse>> getSecondaryNodes(@PathVariable UUID id) {
+        return ResponseEntity.ok(multiAxisRecordService.getSecondaryNodes(id));
+    }
+
+    @PostMapping("/{id}/secondary-nodes")
+    @PreAuthorize("hasPermission(null, 'record:write')")
+    public ResponseEntity<java.util.List<com.classification.domain_system.dto.RecordSecondaryNodeResponse>> setSecondaryNodes(
+            @PathVariable UUID id,
+            @RequestBody com.classification.domain_system.dto.RecordSecondaryNodeRequest request) {
+        java.util.List<UUID> nodeIds = request != null ? request.getNodeIds() : java.util.Collections.emptyList();
+        return ResponseEntity.ok(multiAxisRecordService.setSecondaryNodes(id, nodeIds));
     }
 }

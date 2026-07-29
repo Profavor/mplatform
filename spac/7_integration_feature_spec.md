@@ -1,47 +1,23 @@
-# 연계 채널(Integration Channels) 기능 사양서
+# 7. 외부 연계 (Integration) & DLQ 명세
 
-본 문서는 타 시스템과의 데이터 연계를 위해 구축된 **연계 채널(Integration Channels)** 관리 기능에 대한 명세서입니다.
+## 7.1 연계 채널 (IntegrationChannel) 설정
+- **방향:** Inbound (시크릿 토큰 인증 Webhook) 및 Outbound (Spring Integration 동적 라우팅).
+- **지원 프로토콜:** HTTP REST Webhook, JDBC Direct SQL, Apache Kafka, RabbitMQ (AMQP).
+- **재시도 백오프 설정:**
+  - `maxRetries`: 최대 재시도 횟수 (기본 3회)
+  - `retryBackoffMs`: 기본 백오프 간격 (ms, 기본 1000ms)
+  - `useExponentialBackoff`: 지수 백오프 적용 여부 (기본 true)
 
-## 1. 개요
-* **목적**: 시스템 내 도메인 데이터를 외부 웹 서비스(API), 데이터베이스(JDBC), 메시지 큐(Kafka 등) 시스템과 연동하기 위한 설정 및 관리 기능
-* **프론트엔드**: Vue 3, Vuestic UI, AG-Grid, Vue I18n
-* **백엔드**: Spring Boot, JPA (Hibernate), RestTemplate
+---
 
-## 2. 주요 기능
-### 2.1 채널 등록 및 수정
-사용자는 연계 대상(타겟 시스템)에 맞춰 채널을 생성하고 수정할 수 있습니다.
-- **채널 타입 지원**: 
-  - `WEB_SERVICE`: 외부 REST/HTTP API 통신 (http, https 모두 지원)
-  - `JDBC`: 외부 관계형 데이터베이스 직접 연동
-  - `MESSAGE_QUEUE`: 이벤트 기반 메시징 큐 연동
-- **활성화 여부**: 각 채널은 활성/비활성 상태로 스위칭 가능.
-
-### 2.2 채널별 상세 설정
-채널 타입에 따라 입력받는 설정값이 동적으로 변경되며, 이는 `configJson` 형태로 데이터베이스에 저장됩니다.
-- **WEB_SERVICE**
-  - 필수값: 엔드포인트 URL, HTTP Method (GET, POST, PUT 등)
-  - 커스텀 기능: API 인증(Authorization, Bearer Token 등) 및 커스텀 파라미터 전달을 위한 **동적 HTTP Headers 추가/삭제 기능**
-- **JDBC**
-  - 필수값: DB 접속 URL, 사용자명, 비밀번호, 대상 테이블명
-- **MESSAGE_QUEUE**
-  - 필수값: 브로커 URL, 토픽명
-
-### 2.3 연결 테스트 (Connection Test)
-- 프론트엔드에서 입력된 설정 정보(특히 `WEB_SERVICE`의 Headers, URL 등)를 기반으로, 저장 전 백엔드 서버를 통해 타겟 시스템과 통신이 가능한지 실시간으로 검증하는 기능 지원.
-
-### 2.4 데이터 필드 맵핑 (Field Mapping)
-다수의 데이터 필드 맵핑 시 발생하는 복잡도를 줄이기 위해 **클라이언트 사이드 AG-Grid**를 도입하여 엑셀 형태의 직관적인 편집 환경 제공.
-- **주요 컬럼**:
-  - `타겟 필드명`: 전송될 시스템의 필드명 (최소 너비 적용)
-  - `도메인 필드 (선택)`: 기준 도메인 필드 드롭다운
-  - `소스 추출 표현식`: Payload 기반 변환 로직 및 동적 함수 구문 (공간 최대 확보)
-  - `관리`: 개별 행 삭제 버튼 (고정 너비 120px)
-- **페이징 처리 예외**: 이 데이터는 대용량 레코드가 아닌 환경 설정 JSON 텍스트이므로 서버 사이드 페이징을 제외한 클라이언트 그리드로 구현.
-
-## 3. 다국어 (i18n) 지원
-연계 채널 관리 화면의 모든 텍스트, 경고창, 표 헤더 및 알림(Toast) 메시지는 `integration.channels` 네임스페이스 하위로 매핑되어 한국어(`ko.json`)와 영어(`en.json`) 환경을 완벽하게 지원합니다.
-
-## 4. 데이터베이스 및 초기화 규칙
-- 연계 채널 데이터는 `integration_channel` 테이블에 저장되며, 채널 정보 및 맵핑 정보는 JSON 형태로 보관됩니다.
-- DB 작업 시 `TRUNCATE TABLE` 사용을 금지하며, 채널 삭제 시 개별 삭제(Delete) 로직을 거쳐 처리됩니다.
-- **초기화 구문 예외 처리**: `MenuDataInitializer` 등에 하드코딩되어 있던 메뉴 초기화(Integration Logs 등) 강제 삽입 로직을 제거하여, 사용자가 UI를 통해 삭제한 메뉴가 서버 재구동 시 부활하지 않도록 조치하였습니다.
+## 7.2 지수 백오프 & Dead-Letter Queue (DLQ) 메커니즘
+- **다음 재시도 시각 계산:**
+  $$nextRetryAt = now + retryBackoffMs \times 2^{retryCount}$$
+- **DLQ 상태 전환:**
+  - `retryCount >= maxRetries`에 도달하면 `IntegrationLog` 상태가 `FAIL`에서 `DEAD_LETTER`로 격리된다.
+- **자동 재시도 스케줄러 (`IntegrationRetryScheduler`):**
+  - `@Scheduled(cron = "0 * * * * ?")` 1분 간격으로 `nextRetryAt`이 지닌 `FAIL` 연계 로그를 자동 재시도 전송한다.
+- **수동 관리 API:**
+  - `GET /api/admin/integration/logs/dead-letter`: DLQ 목록 조회
+  - `POST /api/admin/integration/logs/{logId}/retry`: 개별 로그 1건 수동 재시도
+  - `POST /api/admin/integration/logs/dead-letter/retry-all`: DLQ 전체 일괄 재시도

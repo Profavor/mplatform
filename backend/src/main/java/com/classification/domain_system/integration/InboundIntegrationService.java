@@ -9,6 +9,7 @@ import com.classification.domain_system.repository.IntegrationChannelRepository;
 import com.classification.domain_system.repository.RecordHistoryRepository;
 import com.classification.domain_system.repository.RecordRepository;
 import com.classification.domain_system.service.MatchingService;
+import com.classification.domain_system.service.NotificationService;
 import com.classification.domain_system.service.dq.DqRuleEngine;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -43,6 +44,7 @@ public class InboundIntegrationService {
     private final com.classification.domain_system.service.ApprovalService approvalService;
     private final com.classification.domain_system.repository.SourcePriorityRepository sourcePriorityRepository;
     private final com.classification.domain_system.repository.RecordFieldSourceRepository recordFieldSourceRepository;
+    private final NotificationService notificationService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional
@@ -102,6 +104,21 @@ public class InboundIntegrationService {
             String stackTrace = getStackTraceAsString(e);
             logService.logError(channelId, null, "INBOUND_RECEIVE", rawPayload, null, e.getMessage(), stackTrace, 1);
             log.error("Failed to process inbound data for channel [{}]: {}", channelId, e.getMessage(), e);
+
+            if (notificationService != null) {
+                try {
+                    notificationService.createNotification(
+                            null,
+                            "[Inbound 연계 오류] " + channel.getName(),
+                            "인바운드 데이터 연계 처리 중 오류 발생: " + e.getMessage(),
+                            "SYSTEM",
+                            "/admin/integration/channels"
+                    );
+                } catch (Exception notificationEx) {
+                    log.error("Failed to send integration error notification", notificationEx);
+                }
+            }
+
             throw new RuntimeException("Inbound 데이터 처리 중 오류가 발생했습니다: " + e.getMessage(), e);
         }
     }

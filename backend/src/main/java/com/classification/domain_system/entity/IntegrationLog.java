@@ -33,7 +33,7 @@ public class IntegrationLog {
     private String mappedPayload;
 
     @Column(nullable = false, length = 20)
-    private String status; // SUCCESS, FAIL
+    private String status; // SUCCESS, FAIL, DEAD_LETTER
 
     @Column(columnDefinition = "TEXT")
     private String errorMessage;
@@ -43,6 +43,9 @@ public class IntegrationLog {
 
     @Column(nullable = false)
     private int retryCount = 0;
+
+    @Column(name = "next_retry_at")
+    private LocalDateTime nextRetryAt;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

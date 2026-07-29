@@ -3,6 +3,8 @@ package com.classification.domain_system.controller;
 import com.classification.domain_system.entity.ApprovalRequest;
 import com.classification.domain_system.entity.Record;
 import com.classification.domain_system.service.ApprovalService;
+import com.classification.domain_system.service.BatchValidationService;
+import com.classification.domain_system.dto.BatchValidationResult;
 import com.classification.domain_system.repository.RecordRepository;
 import com.classification.domain_system.dto.RecordRequest;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +35,7 @@ public class RecordController {
     private final RecordRepository recordRepository;
     private final ClassificationNodeRepository classificationNodeRepository;
     private final com.classification.domain_system.service.RecordService recordService;
+    private final BatchValidationService batchValidationService;
     
     @PostMapping
     @PreAuthorize("hasPermission(null, 'record:write') or hasPermission(null, 'workflow:request')")
@@ -55,6 +58,14 @@ public class RecordController {
             approvals.add(approvalService.requestRecordCreation(nodeId, req));
         }
         return ResponseEntity.ok(approvals);
+    }
+
+    @PostMapping("/batch-validate")
+    @PreAuthorize("hasPermission(null, 'record:write') or hasPermission(null, 'workflow:request')")
+    public ResponseEntity<BatchValidationResult> validateBatchRecords(
+            @PathVariable UUID nodeId,
+            @RequestBody List<RecordRequest> requests) {
+        return ResponseEntity.ok(batchValidationService.validateBatch(nodeId, requests));
     }
     
     @GetMapping

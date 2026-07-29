@@ -25,6 +25,7 @@ public class DqScheduledScanService {
     private final ClassificationNodeRepository nodeRepository;
     private final RecordRepository recordRepository;
     private final DqRuleEngine dqRuleEngine;
+    private final DqScoreSnapshotService dqScoreSnapshotService;
 
     private final NotificationService notificationService;
     private final com.classification.domain_system.repository.UserRepository userRepository;
@@ -41,6 +42,9 @@ public class DqScheduledScanService {
             try {
                 Map<String, Object> scoreMap = dqRuleEngine.runDomainDqScan(domain.getId());
                 long totalViolations = scoreMap.get("totalViolations") != null ? (long) scoreMap.get("totalViolations") : 0L;
+
+                // 스캔 결과를 스냅샷으로 기록
+                dqScoreSnapshotService.recordSnapshot(domain.getId(), scoreMap, "SCHEDULED");
 
                 if (totalViolations > 0 && notificationService != null) {
                     String domainName = domain.getName() != null && domain.getName().containsKey("ko") 
@@ -82,3 +86,4 @@ public class DqScheduledScanService {
         log.info("[DQ Schedule] Completed automated periodic DQ scan. Total scanned domains: {}", scannedDomainCount);
     }
 }
+

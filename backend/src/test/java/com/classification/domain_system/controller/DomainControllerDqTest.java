@@ -4,6 +4,7 @@ import com.classification.domain_system.service.DomainService;
 import com.classification.domain_system.service.FieldDefinitionService;
 import com.classification.domain_system.service.FieldGroupService;
 import com.classification.domain_system.service.SectorService;
+import com.classification.domain_system.service.DqScoreSnapshotService;
 import com.classification.domain_system.service.dq.DqRuleEngine;
 import com.classification.domain_system.repository.DqRuleRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,6 +27,7 @@ class DomainControllerDqTest {
     private FieldGroupService fieldGroupService;
     private DqRuleEngine dqRuleEngine;
     private DqRuleRepository dqRuleRepository;
+    private DqScoreSnapshotService dqScoreSnapshotService;
 
     @BeforeEach
     void setUp() {
@@ -35,10 +37,11 @@ class DomainControllerDqTest {
         fieldGroupService = mock(FieldGroupService.class);
         dqRuleEngine = mock(DqRuleEngine.class);
         dqRuleRepository = mock(DqRuleRepository.class);
+        dqScoreSnapshotService = mock(DqScoreSnapshotService.class);
 
         controller = new DomainController(
                 domainService, fieldService, sectorService, fieldGroupService,
-                dqRuleEngine, dqRuleRepository
+                dqRuleEngine, dqRuleRepository, dqScoreSnapshotService
         );
     }
 

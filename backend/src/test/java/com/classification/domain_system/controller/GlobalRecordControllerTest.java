@@ -53,6 +53,9 @@ class GlobalRecordControllerTest {
     @MockitoBean
     private com.classification.domain_system.service.RecordService recordService;
 
+    @MockitoBean
+    private com.classification.domain_system.service.MultiAxisRecordService multiAxisRecordService;
+
     private UUID domainId;
     private UUID recordId;
 
