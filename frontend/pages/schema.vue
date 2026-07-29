@@ -186,13 +186,12 @@
           v-model="newField.targetNodeId" 
           :options="availableClassificationNodes" 
           value-by="value"
-          label="소속 분류 노드 (Classification Node)" 
+          label="소속 노드 / 도메인 변경 (Belonging Node / Domain)" 
           style="flex: 1; min-width: 0;"
-          :disabled="newField.isDomainField"
-          clearable
+          @update:model-value="onTargetNodeSelected"
         />
         <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 1.2rem;">
-          <va-checkbox v-model="newField.isDomainField" label="도메인 공통 필드" />
+          <va-checkbox v-model="newField.isDomainField" label="도메인 공통 필드" @update:model-value="onIsDomainFieldChecked" />
         </div>
       </div>
 
@@ -880,20 +879,52 @@ const availableClassificationNodes = computed(() => {
   const flatten = (nodes, prefix = '') => {
     if (!nodes || !Array.isArray(nodes)) return
     for (const node of nodes) {
-      if (!node.isDomain && node.id) {
+      if (node.isDomain && node.id) {
+        const dName = node.label || node.name || 'Domain'
+        options.push({
+          text: `🌐 [도메인] ${dName} (${currentLocale.value === 'ko' ? '도메인 공통' : 'Domain Level'})`,
+          value: `domain_${node.id}`,
+          isDomain: true,
+          domainId: node.id
+        })
+      } else if (node.id) {
         options.push({
           text: `${prefix}${node.label || node.name || 'Node'}`,
-          value: node.id
+          value: node.id,
+          isDomain: false
         })
       }
       if (node.children && node.children.length) {
-        flatten(node.children, `${prefix}${node.label || node.name} > `)
+        const nextPrefix = node.isDomain ? '' : `${prefix}${node.label || node.name} > `
+        flatten(node.children, nextPrefix)
       }
     }
   }
   flatten(treeNodes.value)
   return options
 })
+
+const onTargetNodeSelected = (val) => {
+  if (typeof val === 'string' && val.startsWith('domain_')) {
+    newField.value.isDomainField = true
+  } else {
+    newField.value.isDomainField = false
+  }
+}
+
+const onIsDomainFieldChecked = (val) => {
+  if (val) {
+    const currentDomainId = selectedNode.value?.isDomain ? selectedNode.value?.id : selectedNode.value?.domainId
+    if (currentDomainId) {
+      newField.value.targetNodeId = `domain_${currentDomainId}`
+    }
+  } else {
+    if (typeof newField.value.targetNodeId === 'string' && newField.value.targetNodeId.startsWith('domain_')) {
+      const firstNode = availableClassificationNodes.value.find(n => !n.isDomain)
+      newField.value.targetNodeId = firstNode ? firstNode.value : null
+    }
+  }
+}
 
 const columnDefs = computed(() => [
   { 
@@ -1334,6 +1365,10 @@ const openFieldModal = async (rowData = null) => {
   if (rowData) {
     isEditMode.value = true
     editingId.value = rowData.id
+    const isDomain = !rowData.definedAtNode && (!!rowData.domain || selectedNode.value?.isDomain)
+    const domainId = rowData.domain?.id || (selectedNode.value?.isDomain ? selectedNode.value?.id : selectedNode.value?.domainId)
+    const initialTargetId = isDomain ? (domainId ? `domain_${domainId}` : null) : (rowData.definedAtNode?.id || selectedNode.value?.id)
+
     newField.value = { 
       ...rowData, 
       name: { ...rowData.name }, 
@@ -1341,8 +1376,8 @@ const openFieldModal = async (rowData = null) => {
       formula: rowData.formula || '', 
       unit: rowData.unit || '',
       fieldGroupId: rowData.fieldGroup?.id || null,
-      targetNodeId: rowData.definedAtNode?.id || (selectedNode.value?.isDomain ? null : selectedNode.value?.id),
-      isDomainField: !rowData.definedAtNode && (!!rowData.domain || selectedNode.value?.isDomain),
+      targetNodeId: initialTargetId,
+      isDomainField: isDomain,
       gridWidth: rowData.gridWidth || null,
       tableColumnWidth: rowData.tableColumnWidth || null
     }
@@ -1382,13 +1417,17 @@ const openFieldModal = async (rowData = null) => {
   } else {
     isEditMode.value = false
     editingId.value = null
+    const isDomain = !!selectedNode.value?.isDomain
+    const currentDomainId = selectedNode.value?.isDomain ? selectedNode.value?.id : selectedNode.value?.domainId
+    const initialTargetId = isDomain ? (currentDomainId ? `domain_${currentDomainId}` : null) : selectedNode.value?.id
+
     newField.value = { 
       name: {ko:'', en:''}, key: '', type: 'TEXT', required: false, order: 0, 
       fieldGroupId: null, targetDomainId: null, isMultiValue: false, isSearchable: true, 
       isEncrypted: false, isReadOnly: false, isImmutable: false, isHidden: false, isHighlighted: false, 
       formula: '', unit: '', gridWidth: null, tableColumnWidth: null,
-      targetNodeId: selectedNode.value?.isDomain ? null : selectedNode.value?.id,
-      isDomainField: !!selectedNode.value?.isDomain
+      targetNodeId: initialTargetId,
+      isDomainField: isDomain
     }
     resetConditionFields()
     newFieldOptionsList.value = []
@@ -1522,11 +1561,15 @@ const saveField = async () => {
     }
     const method = isEditMode.value ? 'PUT' : 'POST'
 
+    const isDomainTarget = typeof newField.value.targetNodeId === 'string' && newField.value.targetNodeId.startsWith('domain_')
+    const finalIsDomainField = Boolean(newField.value.isDomainField || isDomainTarget)
+    const finalTargetNodeId = finalIsDomainField ? null : newField.value.targetNodeId
+
     const payload = {
       name: newField.value.name,
       fieldGroupId: newField.value.fieldGroupId || newField.value.fieldGroup?.id || null,
-      targetNodeId: newField.value.isDomainField ? null : newField.value.targetNodeId,
-      isDomainField: newField.value.isDomainField,
+      targetNodeId: finalTargetNodeId,
+      isDomainField: finalIsDomainField,
       key: newField.value.key,
       type: newField.value.type,
       unit: newField.value.unit,

@@ -173,20 +173,18 @@ public class FieldDefinitionService {
         field.setIsImmutable(request.getIsImmutable() != null ? request.getIsImmutable() : (isUpdate && field.getIsImmutable() != null ? field.getIsImmutable() : false));
         field.setIsHidden(request.getIsHidden() != null ? request.getIsHidden() : (isUpdate && field.getIsHidden() != null ? field.getIsHidden() : false));
 
-        // Node Transfer Logic: Allow moving field to another Classification Node or Domain Level
-        if (isUpdate) {
-            if (Boolean.TRUE.equals(request.getIsDomainField())) {
-                Domain currentDomain = field.getDomain() != null ? field.getDomain() : (field.getDefinedAtNode() != null ? field.getDefinedAtNode().getDomain() : null);
-                if (currentDomain != null) {
-                    field.setDomain(currentDomain);
-                    field.setDefinedAtNode(null);
-                }
-            } else if (request.getTargetNodeId() != null) {
-                ClassificationNode targetNode = nodeRepository.findById(request.getTargetNodeId()).orElse(null);
-                if (targetNode != null) {
-                    field.setDefinedAtNode(targetNode);
-                    field.setDomain(null);
-                }
+        // Node Transfer Logic: Allow moving or specifying field to another Classification Node or Domain Level
+        if (Boolean.TRUE.equals(request.getIsDomainField())) {
+            Domain currentDomain = field.getDomain() != null ? field.getDomain() : (field.getDefinedAtNode() != null ? field.getDefinedAtNode().getDomain() : null);
+            if (currentDomain != null) {
+                field.setDomain(currentDomain);
+                field.setDefinedAtNode(null);
+            }
+        } else if (request.getTargetNodeId() != null) {
+            ClassificationNode targetNode = nodeRepository.findById(request.getTargetNodeId()).orElse(null);
+            if (targetNode != null) {
+                field.setDefinedAtNode(targetNode);
+                field.setDomain(null);
             }
         }
     }

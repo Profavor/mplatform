@@ -113,4 +113,62 @@ class FieldNodeTransferTest {
         assertNotNull(updated.getDomain());
         assertEquals(domain.getId(), updated.getDomain().getId());
     }
+
+    @Test
+    @DisplayName("노드 레벨 필드 생성 중 isDomainField가 true인 경우 도메인 레벨 필드로 생성되는지 검증")
+    void testCreateFieldWithIsDomainFieldTrue() {
+        UUID nodeId = UUID.randomUUID();
+        Domain domain = new Domain();
+        domain.setId(UUID.randomUUID());
+
+        ClassificationNode node = new ClassificationNode();
+        node.setId(nodeId);
+        node.setDomain(domain);
+
+        FieldDefinitionRequest request = new FieldDefinitionRequest();
+        request.setKey("domain_field_key");
+        request.setIsDomainField(true);
+
+        when(nodeRepository.findById(nodeId)).thenReturn(Optional.of(node));
+        when(fieldRepository.save(any(FieldDefinition.class))).thenAnswer(i -> i.getArgument(0));
+
+        FieldDefinition created = fieldService.addFieldDirect(nodeId, request);
+
+        assertNull(created.getDefinedAtNode());
+        assertNotNull(created.getDomain());
+        assertEquals(domain.getId(), created.getDomain().getId());
+    }
+
+    @Test
+    @DisplayName("노드 레벨 필드 생성 중 targetNodeId가 다른 분류 노드로 지정된 경우 해당 타겟 노드로 생성되는지 검증")
+    void testCreateFieldWithTargetNodeId() {
+        UUID nodeId = UUID.randomUUID();
+        UUID targetNodeId = UUID.randomUUID();
+        Domain domain = new Domain();
+        domain.setId(UUID.randomUUID());
+
+        ClassificationNode node = new ClassificationNode();
+        node.setId(nodeId);
+        node.setDomain(domain);
+
+        ClassificationNode targetNode = new ClassificationNode();
+        targetNode.setId(targetNodeId);
+        targetNode.setDomain(domain);
+
+        FieldDefinitionRequest request = new FieldDefinitionRequest();
+        request.setKey("node_field_key");
+        request.setTargetNodeId(targetNodeId);
+        request.setIsDomainField(false);
+
+        when(nodeRepository.findById(nodeId)).thenReturn(Optional.of(node));
+        when(nodeRepository.findById(targetNodeId)).thenReturn(Optional.of(targetNode));
+        when(fieldRepository.save(any(FieldDefinition.class))).thenAnswer(i -> i.getArgument(0));
+
+        FieldDefinition created = fieldService.addFieldDirect(nodeId, request);
+
+        assertNotNull(created.getDefinedAtNode());
+        assertEquals(targetNodeId, created.getDefinedAtNode().getId());
+        assertNull(created.getDomain());
+    }
 }
+
