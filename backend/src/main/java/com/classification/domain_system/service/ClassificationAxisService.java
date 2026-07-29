@@ -32,9 +32,17 @@ public class ClassificationAxisService {
 
     @Transactional(readOnly = true)
     public List<ClassificationAxisResponse> getAxesByDomain(UUID domainId) {
-        return axisRepository.findByDomainIdOrderBySortOrderAsc(domainId).stream()
-                .map(ClassificationAxisResponse::fromEntity)
-                .collect(Collectors.toList());
+        if (domainId == null) {
+            return List.of();
+        }
+        try {
+            return axisRepository.findByDomainIdOrderBySortOrderAsc(domainId).stream()
+                    .map(ClassificationAxisResponse::fromEntity)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("Failed to get axes for domainId: {}", domainId, e);
+            return List.of();
+        }
     }
 
     @Transactional(readOnly = true)

@@ -11,7 +11,8 @@ import java.util.UUID;
 @Repository
 public interface ClassificationAxisRepository extends JpaRepository<ClassificationAxis, UUID> {
 
-    List<ClassificationAxis> findByDomainIdOrderBySortOrderAsc(UUID domainId);
+    @org.springframework.data.jpa.repository.Query("SELECT a FROM ClassificationAxis a WHERE a.domain.id = :domainId ORDER BY a.sortOrder ASC")
+    List<ClassificationAxis> findByDomainIdOrderBySortOrderAsc(@org.springframework.data.repository.query.Param("domainId") UUID domainId);
 
     Optional<ClassificationAxis> findByDomainIdAndIsDefaultTrue(UUID domainId);
 
