@@ -72,22 +72,21 @@ public class DomainService {
     @Transactional
     @CacheEvict(value = "domains", key = "#id")
     public Domain updateDomain(UUID id, DomainRequest request) {
-        if (request.getIdentifierFieldId() == null) {
-            throw new IllegalArgumentException("Identifier Field (ID) is required.");
-        }
-        if (request.getDisplayNameFieldId() == null) {
-            throw new IllegalArgumentException("Display Name Field is required.");
-        }
-        
         Domain domain = getDomain(id);
-        domain.setName(request.getName());
-        domain.setDescription(request.getDescription());
+        if (request.getName() != null && !request.getName().isEmpty()) {
+            domain.setName(request.getName());
+        }
+        if (request.getDescription() != null) {
+            domain.setDescription(request.getDescription());
+        }
         domain.setIdentifierFieldId(request.getIdentifierFieldId());
         domain.setDisplayNameFieldId(request.getDisplayNameFieldId());
         domain.setDescriptionFieldId(request.getDescriptionFieldId());
         domain.setIcon(request.getIcon());
-        domain.setSortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0);
-        domain.setNumberingPattern(request.getNumberingPattern());
+        domain.setSortOrder(request.getSortOrder() != null ? request.getSortOrder() : domain.getSortOrder());
+        if (request.getNumberingPattern() != null) {
+            domain.setNumberingPattern(request.getNumberingPattern());
+        }
         if (request.getAutoDqScanEnabled() != null) {
             domain.setAutoDqScanEnabled(request.getAutoDqScanEnabled());
         }

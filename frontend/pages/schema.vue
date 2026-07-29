@@ -1466,11 +1466,11 @@ const saveDomain = async () => {
       body: {
         name: newDomain.value.name,
         description: newDomain.value.description,
-        identifierFieldId: newDomain.value.identifierFieldId,
-        displayNameFieldId: newDomain.value.displayNameFieldId,
-        descriptionFieldId: newDomain.value.descriptionFieldId,
-        icon: newDomain.value.icon,
-        sortOrder: newDomain.value.sortOrder,
+        identifierFieldId: newDomain.value.identifierFieldId || null,
+        displayNameFieldId: newDomain.value.displayNameFieldId || null,
+        descriptionFieldId: newDomain.value.descriptionFieldId || null,
+        icon: newDomain.value.icon || '',
+        sortOrder: newDomain.value.sortOrder || 0,
         numberingPattern: newDomain.value.numberingPattern,
         autoDqScanEnabled: newDomain.value.autoDqScanEnabled
       }
