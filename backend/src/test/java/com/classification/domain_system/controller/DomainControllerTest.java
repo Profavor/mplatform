@@ -147,6 +147,28 @@ class DomainControllerTest {
     }
 
     @Test
+    @DisplayName("PUT /api/domains/{id} - 식별/표시 필드가 null인 경우에도 도메인 수정 성공")
+    void updateDomainWithNullFields() throws Exception {
+        // given
+        UUID id = UUID.randomUUID();
+        Domain updated = createTestDomain(id, "초기도메인", "Initial Domain");
+        given(domainService.updateDomain(any(UUID.class), any())).willReturn(updated);
+
+        Map<String, Object> request = new HashMap<>();
+        request.put("name", Map.of("ko", "초기도메인", "en", "Initial Domain"));
+        request.put("identifierFieldId", null);
+        request.put("displayNameFieldId", null);
+
+        // when & then
+        mockMvc.perform(put("/api/domains/{id}", id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andDo(print())
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.name.ko").value("초기도메인"));
+    }
+
+    @Test
     @DisplayName("GET /api/domains/{domainId}/fields - 필드 조회 성공")
     void getDomainFields() throws Exception {
         // given

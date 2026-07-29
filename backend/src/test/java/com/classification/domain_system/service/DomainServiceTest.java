@@ -202,31 +202,26 @@ class DomainServiceTest extends BaseServiceTest {
         }
 
         @Test
-        @DisplayName("실패 - identifierFieldId 누락 시 예외 발생")
-        void failMissingIdentifierFieldId() {
+        @DisplayName("성공 - identifierFieldId 및 displayNameFieldId가 null인 초기 도메인도 정상 수정된다")
+        void successWithoutFieldIds() {
             // given
             UUID id = UUID.randomUUID();
-            DomainRequest request = createTestDomainRequest("인사", "HR");
+            Domain existing = createTestDomain(id, "인사", "HR");
+            DomainRequest request = createTestDomainRequest("인사관리", "HR Management");
             request.setIdentifierFieldId(null);
-
-            // when & then
-            assertThatThrownBy(() -> domainService.updateDomain(id, request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Identifier Field");
-        }
-
-        @Test
-        @DisplayName("실패 - displayNameFieldId 누락 시 예외 발생")
-        void failMissingDisplayNameFieldId() {
-            // given
-            UUID id = UUID.randomUUID();
-            DomainRequest request = createTestDomainRequest("인사", "HR");
             request.setDisplayNameFieldId(null);
 
-            // when & then
-            assertThatThrownBy(() -> domainService.updateDomain(id, request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Display Name Field");
+            given(domainRepository.findById(id)).willReturn(Optional.of(existing));
+            given(domainRepository.save(any(Domain.class))).willReturn(existing);
+
+            // when
+            Domain result = domainService.updateDomain(id, request);
+
+            // then
+            assertThat(result).isNotNull();
+            assertThat(result.getIdentifierFieldId()).isNull();
+            assertThat(result.getDisplayNameFieldId()).isNull();
+            verify(domainRepository).save(any(Domain.class));
         }
     }
 }
