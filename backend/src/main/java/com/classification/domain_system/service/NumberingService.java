@@ -52,8 +52,8 @@ public class NumberingService {
      * Safely increments sequence by 1, saves to DB, and returns the newly generated code.
      */
     @Transactional
-    public synchronized String issueNextCode(UUID domainId) {
-        Domain domain = domainRepository.findById(domainId)
+    public String issueNextCode(UUID domainId) {
+        Domain domain = domainRepository.findWithLockById(domainId)
                 .orElseThrow(() -> new RuntimeException("Domain not found: " + domainId));
 
         if (domain.getNumberingPattern() == null || domain.getNumberingPattern().isBlank()) {

@@ -17,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -45,10 +46,48 @@ class RecordMergeControllerTest {
     private com.classification.domain_system.context.AuthContext authContext;
 
     private UUID recordId;
+    private UUID mergedRecordId;
 
     @BeforeEach
     void setUp() {
         recordId = UUID.randomUUID();
+        mergedRecordId = UUID.randomUUID();
+    }
+
+    @Test
+    @DisplayName("수동 병합 POST /api/records/merge 성공 시 survivor 레코드 반환")
+    void mergeRecords_Success() throws Exception {
+        Record survivor = new Record();
+        survivor.setId(recordId);
+        survivor.setStatus("ACTIVE");
+
+        when(recordMergeService.mergeRecords(any(), any())).thenReturn(survivor);
+
+        String jsonBody = "{\"survivorRecordId\":\"" + recordId + "\", \"mergedRecordIds\":[\"" + mergedRecordId + "\"]}";
+
+        mockMvc.perform(post("/api/records/merge")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(recordId.toString()));
+    }
+
+    @Test
+    @DisplayName("자동 병합 POST /api/records/merge/auto 성공 시 survivor 레코드 반환")
+    void autoMergeRecords_Success() throws Exception {
+        Record survivor = new Record();
+        survivor.setId(recordId);
+        survivor.setStatus("ACTIVE");
+
+        when(recordMergeService.mergeWithSurvivorship(eq(recordId), eq(List.of(mergedRecordId)), any())).thenReturn(survivor);
+
+        String jsonBody = "{\"survivorRecordId\":\"" + recordId + "\", \"mergedRecordIds\":[\"" + mergedRecordId + "\"]}";
+
+        mockMvc.perform(post("/api/records/merge/auto")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(recordId.toString()));
     }
 
     @Test

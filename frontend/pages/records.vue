@@ -256,6 +256,7 @@
       :user-list="userList"
       @close="showDetailModal = false"
       @delete="requestDeleteRecord"
+      @unmerge="handleUnmergeRecord"
       @openHistory="openHistory"
       @save="promptDraftComment('UPDATE')"
       @openDomainRef="openDomainRefModal($event.fieldKey, $event.isCreate)"
@@ -1114,6 +1115,22 @@ const openRecordDetailModal = async (record) => {
   
   openHistory()
   showDetailModal.value = true
+}
+
+const handleUnmergeRecord = async (record) => {
+  const targetId = record?.id || selectedRecordId.value
+  if (!targetId) return
+  try {
+    await $fetch(`/api/records/${targetId}/unmerge`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    init({ message: t('merge.unmerge_success') || '레코드가 성공적으로 언머지(복구) 되었습니다.', color: 'success' })
+    showDetailModal.value = false
+    refreshRecords()
+  } catch (e) {
+    init({ message: t('merge.unmerge_fail') || '언머지 처리 중 오류가 발생했습니다.', color: 'danger' })
+  }
 }
 
 

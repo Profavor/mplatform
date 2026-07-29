@@ -223,6 +223,35 @@ class MatchingServiceTest {
             assertThat(result.score).isGreaterThanOrEqualTo(0.80);
             assertThat(result.duplicateRecordIds).containsExactly(cand.getId());
         }
+
+        @Test
+        @DisplayName("P2-1: FUZZY 매칭 시 recordRepository.findByNodeId에 PageRequest.of(0, 500) 상한이 전달된다")
+        void customRule_FuzzyMatch_UsesPaginationLimit() {
+            domain.setIdentifierFieldId(null);
+
+            MatchingRule rule = new MatchingRule();
+            rule.setId(UUID.randomUUID());
+            rule.setNodeId(nodeId);
+            rule.setRuleName("상호 유사도 검사");
+            rule.setTargetFieldKeys("[\"name\"]");
+            rule.setMatchType("FUZZY");
+            rule.setSimilarityThreshold(0.80);
+
+            Record cand = new Record();
+            cand.setId(UUID.randomUUID());
+            cand.setData("{\"name\":\"주식회사 삼성전자\"}");
+
+            when(nodeRepository.findById(nodeId)).thenReturn(Optional.of(node));
+            when(matchingRuleRepository.findByDomainIdAndIsActiveTrue(domainId)).thenReturn(List.of(rule));
+
+            org.mockito.ArgumentCaptor<Pageable> pageableCaptor = org.mockito.ArgumentCaptor.forClass(Pageable.class);
+            when(recordRepository.findByNodeId(eq(nodeId), pageableCaptor.capture()))
+                    .thenReturn(new PageImpl<>(List.of(cand)));
+
+            matchingService.checkDuplicates(nodeId, "{\"name\":\"(주)삼성전자\"}");
+
+            assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(500);
+        }
     }
 }
 

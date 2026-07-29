@@ -576,10 +576,14 @@
     "execute_merge": "Execute Merge",
     "cancel": "Cancel",
     "merge_success": "Records merged successfully",
-    "merge_fail": "Failed to merge records"
+    "merge_fail": "Failed to merge records",
+    "unmerge": "Unmerge",
+    "unmerge_success": "Record unmerged and restored successfully",
+    "unmerge_fail": "Failed to unmerge record"
   },
   "survivorship": {
     "title": "Survivorship Rule Management",
+    "description": "Configure survivorship rules and strategies applied to each field during auto merge.",
     "strategy": "Strategy",
     "source_priority": "Source Priority",
     "most_recent": "Most Recent Data First",
@@ -587,7 +591,11 @@
     "manual": "Manual Selection",
     "field_key": "Target Field",
     "all_fields": "All Fields (Default)",
-    "priority_order": "Priority Order"
+    "priority_order": "Priority Order",
+    "priority": "Priority",
+    "add_rule": "Add Rule",
+    "save_success": "Survivorship rules saved successfully",
+    "save_fail": "Failed to save survivorship rules"
   },
   "schema_history": {
     "title": "Schema Change History",

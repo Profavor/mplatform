@@ -574,10 +574,14 @@
     "execute_merge": "병합 실행",
     "cancel": "취소",
     "merge_success": "레코드 병합이 완료되었습니다",
-    "merge_fail": "병합에 실패했습니다"
+    "merge_fail": "병합에 실패했습니다",
+    "unmerge": "언머지 (복구)",
+    "unmerge_success": "레코드가 성공적으로 언머지(복구) 되었습니다",
+    "unmerge_fail": "언머지 처리 중 오류가 발생했습니다"
   },
   "survivorship": {
     "title": "서바이버십 룰 관리",
+    "description": "도메인 레코드 자동 병합 시 각 필드에 적용될 서바이버십 규칙 및 전략을 설정합니다.",
     "strategy": "전략",
     "source_priority": "소스 우선순위",
     "most_recent": "최신 데이터 우선",
@@ -585,7 +589,11 @@
     "manual": "수동 선택",
     "field_key": "대상 필드",
     "all_fields": "전체 필드 (기본값)",
-    "priority_order": "우선순위"
+    "priority_order": "우선순위",
+    "priority": "우선순위",
+    "add_rule": "규칙 추가",
+    "save_success": "서바이버십 규칙이 저장되었습니다",
+    "save_fail": "서바이버십 규칙 저장에 실패했습니다"
   },
   "schema_history": {
     "title": "스키마 변경 이력",

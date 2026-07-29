@@ -17,4 +17,8 @@ public interface DomainRepository extends JpaRepository<Domain, UUID> {
 
     @Query("SELECT d FROM Domain d JOIN DomainPermission dp ON d.id = dp.domain.id WHERE dp.user.id = :userId ORDER BY d.sortOrder ASC")
     List<Domain> findAllByUserIdOrderBySortOrderAsc(@Param("userId") String userId);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT d FROM Domain d WHERE d.id = :id")
+    java.util.Optional<Domain> findWithLockById(@Param("id") UUID id);
 }

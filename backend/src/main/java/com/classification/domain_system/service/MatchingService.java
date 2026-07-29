@@ -137,8 +137,8 @@ public class MatchingService {
                         }
                     }
                 } else {
-                    // FUZZY matching
-                    List<Record> candidateRecords = recordRepository.findByNodeId(nodeId, Pageable.unpaged()).getContent();
+                    // FUZZY matching (상한 500건으로 페이징 제한)
+                    List<Record> candidateRecords = recordRepository.findByNodeId(nodeId, org.springframework.data.domain.PageRequest.of(0, 500)).getContent();
                     for (Record cand : candidateRecords) {
                         if (cand.getData() == null) continue;
                         try {

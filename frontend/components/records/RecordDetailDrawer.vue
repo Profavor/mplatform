@@ -291,6 +291,14 @@
     <!-- Action Buttons -->
     <div style="display: flex; justify-content: flex-end; margin-top: 1rem; gap: 0.5rem;">
       <va-button
+        v-if="activeMainTab === 'details' && !isEditing && recordStatus === 'MERGED' && canWrite"
+        color="warning"
+        icon="call_split"
+        @click="$emit('unmerge', localRecord)"
+      >
+        Unmerge (언머지)
+      </va-button>
+      <va-button
         v-if="activeMainTab === 'details' && !isEditing && !isSnapshotMode && canDelete"
         color="danger"
         @click="$emit('delete')"
@@ -485,6 +493,7 @@ const emit = defineEmits([
   'close',
   'save',
   'delete',
+  'unmerge',
   'openHistory',
   'openDomainRef',
   'viewDiffDetails',

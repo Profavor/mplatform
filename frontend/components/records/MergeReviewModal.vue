@@ -108,8 +108,8 @@ const props = defineProps<{
   show: boolean
   existingRecord: any
   incomingData: any
-  candidateId: string
-  domainId: string
+  candidateId?: string
+  domainId?: string
 }>()
 
 const emit = defineEmits(['close', 'merged'])
@@ -122,6 +122,7 @@ const isSubmitting = ref(false)
 const mode = ref('auto')
 const previewRecord = ref<any>({})
 const comparisonItems = ref<any[]>([])
+const survivorshipRules = ref<any[]>([])
 
 const modeOptions = computed(() => [
   { label: t('merge.auto_survivorship'), value: 'auto' },
@@ -136,7 +137,6 @@ const columns = computed(() => [
 
 const formatValue = (val: any) => {
   if (val === null || val === undefined) return '-'
-  // date formatting heuristic
   if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(val)) {
     return formatWithTimezone(val)
   }
@@ -144,47 +144,75 @@ const formatValue = (val: any) => {
   return String(val)
 }
 
+const getRecordData = (recordObj: any) => {
+  if (!recordObj) return {}
+  if (typeof recordObj.data === 'string') {
+    try { return JSON.parse(recordObj.data) } catch (e) { return {} }
+  }
+  if (typeof recordObj.data === 'object' && recordObj.data !== null) {
+    return recordObj.data
+  }
+  return recordObj
+}
+
 const buildComparisonItems = () => {
-  const items = []
-  const existing = props.existingRecord || {}
-  const incoming = props.incomingData || {}
-  const allKeys = new Set([...Object.keys(existing), ...Object.keys(incoming)])
+  const existingMap = getRecordData(props.existingRecord)
+  const incomingMap = getRecordData(props.incomingData)
+  const allKeys = new Set([...Object.keys(existingMap), ...Object.keys(incomingMap)])
   
-  // exclude system fields
   allKeys.delete('id')
   allKeys.delete('createdAt')
   allKeys.delete('updatedAt')
 
+  const items = []
   for (const key of allKeys) {
     items.push({
       fieldName: key,
-      existingValue: existing[key],
-      incomingValue: incoming[key],
-      selectedValue: 'existing' // default manual selection
+      existingValue: existingMap[key],
+      incomingValue: incomingMap[key],
+      selectedValue: 'existing'
     })
   }
   comparisonItems.value = items
 }
 
+const fetchSurvivorshipRules = async () => {
+  if (!props.domainId) return
+  try {
+    const res = await customFetch(`/api/records/domains/${props.domainId}/survivorship-rules`)
+    survivorshipRules.value = res || []
+  } catch (e) {
+    survivorshipRules.value = []
+  }
+}
+
 const updatePreview = async () => {
+  const existingMap = getRecordData(props.existingRecord)
+  const incomingMap = getRecordData(props.incomingData)
+
   if (mode.value === 'auto') {
-    // call preview API for auto mode
-    try {
-      const res = await customFetch(`/api/records/merge/auto-preview`, {
-        method: 'POST',
-        body: {
-          domainId: props.domainId,
-          existingRecord: props.existingRecord,
-          incomingData: props.incomingData
+    const preview: any = { ...existingMap }
+    
+    // Apply local survivorship rules preview
+    for (const item of comparisonItems.value) {
+      const fieldKey = item.fieldName
+      const rule = survivorshipRules.value.find((r: any) => r.fieldKey === fieldKey)
+      
+      if (rule) {
+        if (rule.strategy === 'MOST_COMPLETE') {
+          const exStr = item.existingValue != null ? String(item.existingValue) : ''
+          const inStr = item.incomingValue != null ? String(item.incomingValue) : ''
+          if (inStr.length > exStr.length) {
+            preview[fieldKey] = item.incomingValue
+          }
+        } else if (rule.strategy === 'MOST_RECENT') {
+          preview[fieldKey] = item.incomingValue !== undefined ? item.incomingValue : item.existingValue
         }
-      })
-      previewRecord.value = res || {}
-    } catch (e) {
-      console.error(e)
+      }
     }
+    previewRecord.value = preview
   } else {
-    // build preview from manual selections
-    const newRecord: any = { ...props.existingRecord }
+    const newRecord: any = { ...existingMap }
     comparisonItems.value.forEach(item => {
       newRecord[item.fieldName] = item.selectedValue === 'incoming' 
         ? item.incomingValue 
@@ -196,28 +224,36 @@ const updatePreview = async () => {
 
 const executeMerge = async () => {
   isSubmitting.value = true
+  const survivorId = props.existingRecord?.id || props.existingRecord?.survivorRecordId
+  const mergedId = props.incomingData?.id || props.candidateId
+
+  if (!survivorId || !mergedId) {
+    init({ message: t('merge.merge_fail'), color: 'danger' })
+    isSubmitting.value = false
+    return
+  }
+
   try {
     if (mode.value === 'auto') {
-      await customFetch(`/api/records/merge/auto`, {
+      await customFetch('/api/records/merge/auto', {
         method: 'POST',
         body: {
-          candidateId: props.candidateId,
-          domainId: props.domainId
+          survivorRecordId: survivorId,
+          mergedRecordIds: [mergedId]
         }
       })
     } else {
-      const fieldSelections: Record<string, string> = {}
+      const fieldResolutions: Record<string, string> = {}
       comparisonItems.value.forEach(item => {
-        fieldSelections[item.fieldName] = item.selectedValue
+        fieldResolutions[item.fieldName] = item.selectedValue === 'incoming' ? mergedId : survivorId
       })
       
-      await customFetch(`/api/records/merge`, {
+      await customFetch('/api/records/merge', {
         method: 'POST',
         body: {
-          candidateId: props.candidateId,
-          domainId: props.domainId,
-          selections: fieldSelections,
-          finalRecord: previewRecord.value
+          survivorRecordId: survivorId,
+          mergedRecordIds: [mergedId],
+          fieldResolutions
         }
       })
     }
@@ -236,17 +272,19 @@ watch(() => mode.value, () => {
   updatePreview()
 })
 
-watch(() => props.show, (val) => {
+watch(() => props.show, async (val) => {
   if (val) {
     buildComparisonItems()
+    await fetchSurvivorshipRules()
     mode.value = 'auto'
     updatePreview()
   }
 })
 
-onMounted(() => {
+onMounted(async () => {
   if (props.show) {
     buildComparisonItems()
+    await fetchSurvivorshipRules()
     updatePreview()
   }
 })

@@ -31,6 +31,9 @@
             <div style="margin-top: 0.75rem; padding: 0 0.5rem;">
               <va-button style="width: 100%; border-radius: 8px; font-weight: 600;" color="info" icon="tune" @click="openSectorGroupModal" :disabled="!treeNodes || treeNodes.length === 0" preset="secondary">{{ $t('manage_sectors_groups') || 'Manage Sectors & Groups' }}</va-button>
             </div>
+            <div style="margin-top: 0.75rem; padding: 0 0.5rem;">
+              <va-button style="width: 100%; border-radius: 8px; font-weight: 600;" color="primary" icon="alt_route" @click="showSurvivorshipModal = true" :disabled="!selectedNode" preset="secondary">Survivorship Rules (서바이버십 규칙)</va-button>
+            </div>
           </va-card-content>
         </va-card>
       </div>
@@ -507,6 +510,14 @@
     <!-- Request Access Modal -->
     <DomainAccessRequestModal v-model="showRequestAccessModal" />
 
+    <!-- Survivorship Rules Modal -->
+    <SurvivorshipRulesModal
+      v-if="showSurvivorshipModal"
+      :show="showSurvivorshipModal"
+      :domainId="selectedNode?.domainId || selectedNode?.id || (selectedNode?.type === 'domain' ? selectedNode?.id : '')"
+      @close="showSurvivorshipModal = false"
+    />
+
     <!-- DQ Rule Editor Modal -->
     <DqRuleEditor
       v-model="showDqRuleEditor"
@@ -584,9 +595,11 @@ import { useCookie, useState } from '#app'
 import { AgGridVue } from 'ag-grid-vue3'
 import SchemaHistoryTab from '~/components/schema/SchemaHistoryTab.vue'
 import WorkflowConfigTab from '~/components/schema/WorkflowConfigTab.vue'
+import SurvivorshipRulesModal from '~/components/schema/SurvivorshipRulesModal.vue'
 
 const { gridTheme, autoSizeStrategy } = useAgGridTheme()
 
+const showSurvivorshipModal = ref(false)
 const showErrorAlertModal = ref(false)
 const errorAlertTitle = ref('')
 const errorAlertHeader = ref('')
