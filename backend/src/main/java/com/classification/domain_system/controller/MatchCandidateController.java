@@ -53,4 +53,24 @@ public class MatchCandidateController {
             @AuthenticationPrincipal String username) {
         return ResponseEntity.ok(candidateService.ignoreCandidate(id, username));
     }
+
+    @PostMapping("/api/match-candidates/batch/confirm")
+    @PreAuthorize("hasPermission(null, 'domain:write')")
+    public ResponseEntity<Void> batchConfirm(
+            @RequestBody BatchRequest request,
+            @AuthenticationPrincipal String username) {
+        candidateService.batchConfirmCandidates(request.ids(), request.domainId(), username);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/api/match-candidates/batch/reject")
+    @PreAuthorize("hasPermission(null, 'domain:write')")
+    public ResponseEntity<Void> batchReject(
+            @RequestBody BatchRequest request,
+            @AuthenticationPrincipal String username) {
+        candidateService.batchRejectCandidates(request.ids(), username);
+        return ResponseEntity.ok().build();
+    }
+
+    public record BatchRequest(java.util.List<UUID> ids, UUID domainId) {}
 }

@@ -126,5 +126,29 @@ public class MatchCandidateService {
         candidate.setReviewedAt(LocalDateTime.now());
         return candidateRepository.save(candidate);
     }
+
+    @Transactional
+    public void batchConfirmCandidates(List<UUID> ids, UUID domainId, String username) {
+        if (ids == null || ids.isEmpty()) return;
+        for (UUID id : ids) {
+            try {
+                confirmCandidate(id, null, username);
+            } catch (Exception e) {
+                log.warn("Failed to confirm candidate in batch: {}", id, e);
+            }
+        }
+    }
+
+    @Transactional
+    public void batchRejectCandidates(List<UUID> ids, String username) {
+        if (ids == null || ids.isEmpty()) return;
+        for (UUID id : ids) {
+            try {
+                rejectCandidate(id, username);
+            } catch (Exception e) {
+                log.warn("Failed to reject candidate in batch: {}", id, e);
+            }
+        }
+    }
 }
 

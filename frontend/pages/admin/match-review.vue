@@ -49,8 +49,7 @@
               :columnDefs="columnDefs"
               :defaultColDef="defaultColDef"
               :autoSizeStrategy="autoSizeStrategy"
-              rowModelType="serverSide"
-              :serverSideDatasource="serverSideDatasource"
+              rowModelType="infinite"
               :cacheBlockSize="20"
               :rowSelection="{ mode: 'multiRow' }"
               :pagination="true"
@@ -208,33 +207,35 @@ const columnDefs = computed(() => [
   }
 ])
 
-const serverSideDatasource = {
+const createDatasource = () => ({
   getRows: async (params: any) => {
     if (!selectedDomain.value) {
-      params.success({ rowData: [], rowCount: 0 })
+      params.successCallback([], 0)
       return
     }
 
-    const page = params.request.startRow / (params.request.endRow - params.request.startRow)
-    const size = params.request.endRow - params.request.startRow
+    const startRow = params.startRow || 0
+    const endRow = params.endRow || 20
+    const size = Math.max(endRow - startRow, 1)
+    const page = Math.floor(startRow / size)
 
     try {
       let url = `/api/domains/${selectedDomain.value}/match-candidates?page=${page}&size=${size}`
-      if (statusFilter.value !== 'ALL') {
+      if (statusFilter.value && statusFilter.value !== 'ALL') {
         url += `&status=${statusFilter.value}`
       }
 
       const res = await customFetch(url)
-      const content = res.content || res.data || []
-      const totalElements = res.totalElements !== undefined ? res.totalElements : (res.total || content.length)
+      const content = res?.content || res?.data || (Array.isArray(res) ? res : [])
+      const totalElements = res?.totalElements !== undefined ? res.totalElements : content.length
       
-      params.success({ rowData: content, rowCount: totalElements })
+      params.successCallback(content, totalElements)
     } catch (e) {
-      console.error(e)
-      params.fail()
+      console.error('Failed to get rows', e)
+      params.failCallback()
     }
   }
-}
+})
 
 const getDomainName = (d: any) => {
   if (!d) return ''
@@ -247,7 +248,8 @@ const getDomainName = (d: any) => {
 const fetchDomains = async () => {
   try {
     const res = await customFetch('/api/domains')
-    domainOptions.value = (res.content || res || []).map((d: any) => ({
+    const list = res?.content || res?.data || (Array.isArray(res) ? res : [])
+    domainOptions.value = list.map((d: any) => ({
       label: getDomainName(d),
       value: d.id
     }))
@@ -261,11 +263,14 @@ const fetchDomains = async () => {
 
 const onGridReady = (params: any) => {
   gridApi = params.api
+  if (selectedDomain.value) {
+    gridApi.setGridOption('datasource', createDatasource())
+  }
 }
 
 const refreshGrid = () => {
-  if (gridApi) {
-    gridApi.refreshServerSide()
+  if (gridApi && selectedDomain.value) {
+    gridApi.setGridOption('datasource', createDatasource())
   }
   selectedRows.value = []
   selectedCandidate.value = null
