@@ -1678,7 +1678,7 @@ const saveAllSectors = async () => {
 
   domainSectors.value = await $fetch(`/api/domains/${dId}/sectors`, { headers: getAuthHeaders() })
   if (!hasError) {
-    init({ message: `섹터 ${saveCount}건이 성공적으로 저장되었습니다.`, color: 'success' })
+    showCustomAlert(`섹터 ${saveCount}건이 성공적으로 저장되었습니다.`, '저장 완료', 'Notification', 'success')
   } else {
     showCustomAlert('일부 섹터 저장 중 오류가 발생했습니다.', '저장 오류', 'Error', 'error')
   }
@@ -1722,7 +1722,7 @@ const saveAllGroups = async () => {
 
   domainGroups.value = await $fetch(`/api/domains/${dId}/groups`, { headers: getAuthHeaders() })
   if (!hasError) {
-    init({ message: `그룹 ${saveCount}건이 성공적으로 저장되었습니다.`, color: 'success' })
+    showCustomAlert(`그룹 ${saveCount}건이 성공적으로 저장되었습니다.`, '저장 완료', 'Notification', 'success')
   } else {
     showCustomAlert('일부 그룹 저장 중 오류가 발생했습니다.', '저장 오류', 'Error', 'error')
   }
