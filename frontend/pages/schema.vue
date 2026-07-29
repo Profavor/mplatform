@@ -453,8 +453,9 @@
           <div style="display:flex; justify-content:space-between; margin-bottom: 1rem; align-items: center;">
             <h3 style="font-weight:bold; margin: 0;">Sectors</h3>
             <div style="display:flex; gap: 0.5rem;">
-              <va-button size="small" @click="addSectorRow">Add Row</va-button>
-              <va-button size="small" color="danger" @click="deleteSelectedSector" :outline="isDark">Delete Selected</va-button>
+              <va-button size="small" icon="add" @click="addSectorRow">행 추가</va-button>
+              <va-button size="small" color="primary" icon="save" @click="saveAllSectors">저장</va-button>
+              <va-button size="small" color="danger" icon="delete" @click="deleteSelectedSector" :outline="isDark">선택 삭제</va-button>
             </div>
           </div>
           <div style="flex: 1; width: 100%;">
@@ -466,7 +467,6 @@
               :rowData="domainSectors"
               :defaultColDef="sgDefaultColDef"
               @grid-ready="onSectorGridReady"
-              @rowValueChanged="onSectorRowSaved"
               editType="fullRow"
               :rowSelection="{ mode: 'singleRow' }"
             />
@@ -478,8 +478,9 @@
           <div style="display:flex; justify-content:space-between; margin-bottom: 1rem; align-items: center;">
             <h3 style="font-weight:bold; margin: 0;">Groups</h3>
             <div style="display:flex; gap: 0.5rem;">
-              <va-button size="small" @click="addGroupRow">Add Row</va-button>
-              <va-button size="small" color="danger" @click="deleteSelectedGroup" :outline="isDark">Delete Selected</va-button>
+              <va-button size="small" icon="add" @click="addGroupRow">행 추가</va-button>
+              <va-button size="small" color="primary" icon="save" @click="saveAllGroups">저장</va-button>
+              <va-button size="small" color="danger" icon="delete" @click="deleteSelectedGroup" :outline="isDark">선택 삭제</va-button>
             </div>
           </div>
           <div style="flex: 1; width: 100%;">
@@ -491,16 +492,18 @@
               :rowData="domainGroups"
               :defaultColDef="sgDefaultColDef"
               @grid-ready="onGroupGridReady"
-              @rowValueChanged="onGroupRowSaved"
               editType="fullRow"
               :rowSelection="{ mode: 'singleRow' }"
             />
           </div>
         </div>
       </div>
-      <div style="display: flex; justify-content: space-between; margin-top: 1rem;">
-        <span style="font-size: 0.85em; color: #888;">* Double-click a row to edit. Press Enter to save.</span>
-        <va-button @click="showSectorGroupModal = false">Close</va-button>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; border-top: 1px solid #eee; padding-top: 0.75rem;">
+        <span style="font-size: 0.85em; color: #666;">* 셀 수정 후 상단 또는 하단의 '저장' 버튼을 클릭하여 변경사항을 반영하세요.</span>
+        <div style="display: flex; gap: 0.5rem;">
+          <va-button color="primary" icon="save" @click="saveSectorGroupChanges">저장</va-button>
+          <va-button preset="secondary" @click="showSectorGroupModal = false">닫기</va-button>
+        </div>
       </div>
     </va-modal>
 
@@ -1641,53 +1644,96 @@ const addGroupRow = () => {
   domainGroups.value = [...domainGroups.value, { sector: { id: null }, name: { ko: '', en: '' }, sortOrder: 0, isDefaultOpen: true }]
 }
 
-const onSectorRowSaved = async (event) => {
-  const data = event.data
-  const dId = selectedNode.value.domainId
-  if (!data.name?.ko && !data.name?.en) {
-    showCustomAlert('Sector name is required.', 'Input Missing', 'Warning', 'warning')
-    domainSectors.value = await $fetch(`/api/domains/${dId}/sectors`, { headers: getAuthHeaders() })
-    return
+const saveAllSectors = async () => {
+  if (sectorGridApi.value) {
+    sectorGridApi.value.stopEditing(false)
   }
-  try {
-    if (data.id) {
-      await $fetch(`/api/domains/${dId}/sectors/${data.id}`, { method: 'PUT', headers: getAuthHeaders(), body: data })
-    } else {
-      await $fetch(`/api/domains/${dId}/sectors`, { method: 'POST', headers: getAuthHeaders(), body: data })
+  const dId = selectedNode.value?.domainId
+  if (!dId) return
+
+  let hasError = false
+  let saveCount = 0
+
+  for (const item of domainSectors.value) {
+    const hasName = typeof item.name === 'object' ? (item.name.ko || item.name.en) : item.name
+    if (!hasName) continue
+
+    const payload = {
+      name: typeof item.name === 'string' ? { ko: item.name } : item.name,
+      sortOrder: item.sortOrder || 0
     }
-    domainSectors.value = await $fetch(`/api/domains/${dId}/sectors`, { headers: getAuthHeaders() })
-  } catch(e) { showCustomAlert('Error saving sector', 'Save Error', 'Error', 'error') }
+
+    try {
+      if (item.id) {
+        await $fetch(`/api/domains/${dId}/sectors/${item.id}`, { method: 'PUT', headers: getAuthHeaders(), body: payload })
+      } else {
+        await $fetch(`/api/domains/${dId}/sectors`, { method: 'POST', headers: getAuthHeaders(), body: payload })
+      }
+      saveCount++
+    } catch (e) {
+      console.error('Failed to save sector', e)
+      hasError = true
+    }
+  }
+
+  domainSectors.value = await $fetch(`/api/domains/${dId}/sectors`, { headers: getAuthHeaders() })
+  if (!hasError) {
+    init({ message: `섹터 ${saveCount}건이 성공적으로 저장되었습니다.`, color: 'success' })
+  } else {
+    showCustomAlert('일부 섹터 저장 중 오류가 발생했습니다.', '저장 오류', 'Error', 'error')
+  }
 }
 
-const onGroupRowSaved = async (event) => {
-  const data = event.data
-  const dId = selectedNode.value.domainId
-  if (!data.name?.ko && !data.name?.en) {
-    showCustomAlert('Group name is required.', 'Input Missing', 'Warning', 'warning')
-    domainGroups.value = await $fetch(`/api/domains/${dId}/groups`, { headers: getAuthHeaders() })
-    return
+const saveAllGroups = async () => {
+  if (groupGridApi.value) {
+    groupGridApi.value.stopEditing(false)
   }
-  if (!data.sector?.id) {
-    showCustomAlert('Sector is required.', 'Input Missing', 'Warning', 'warning')
-    domainGroups.value = await $fetch(`/api/domains/${dId}/groups`, { headers: getAuthHeaders() })
-    return
-  }
-  
-  const payload = {
-    sectorId: data.sector.id,
-    name: data.name,
-    sortOrder: data.sortOrder,
-    isDefaultOpen: data.isDefaultOpen
-  }
-  
-  try {
-    if (data.id) {
-      await $fetch(`/api/domains/${dId}/groups/${data.id}`, { method: 'PUT', headers: getAuthHeaders(), body: payload })
-    } else {
-      await $fetch(`/api/domains/${dId}/groups`, { method: 'POST', headers: getAuthHeaders(), body: payload })
+  const dId = selectedNode.value?.domainId
+  if (!dId) return
+
+  let hasError = false
+  let saveCount = 0
+
+  for (const item of domainGroups.value) {
+    const hasName = typeof item.name === 'object' ? (item.name.ko || item.name.en) : item.name
+    if (!hasName) continue
+    const sectorId = item.sector?.id || item.sectorId
+    if (!sectorId) continue
+
+    const payload = {
+      sectorId: sectorId,
+      name: typeof item.name === 'string' ? { ko: item.name } : item.name,
+      sortOrder: item.sortOrder || 0,
+      isDefaultOpen: item.isDefaultOpen !== false
     }
-    domainGroups.value = await $fetch(`/api/domains/${dId}/groups`, { headers: getAuthHeaders() })
-  } catch(e) { showCustomAlert('Error saving group', 'Save Error', 'Error', 'error') }
+
+    try {
+      if (item.id) {
+        await $fetch(`/api/domains/${dId}/groups/${item.id}`, { method: 'PUT', headers: getAuthHeaders(), body: payload })
+      } else {
+        await $fetch(`/api/domains/${dId}/groups`, { method: 'POST', headers: getAuthHeaders(), body: payload })
+      }
+      saveCount++
+    } catch (e) {
+      console.error('Failed to save group', e)
+      hasError = true
+    }
+  }
+
+  domainGroups.value = await $fetch(`/api/domains/${dId}/groups`, { headers: getAuthHeaders() })
+  if (!hasError) {
+    init({ message: `그룹 ${saveCount}건이 성공적으로 저장되었습니다.`, color: 'success' })
+  } else {
+    showCustomAlert('일부 그룹 저장 중 오류가 발생했습니다.', '저장 오류', 'Error', 'error')
+  }
+}
+
+const saveSectorGroupChanges = async () => {
+  if (sgActiveTab.value === 0) {
+    await saveAllSectors()
+  } else {
+    await saveAllGroups()
+  }
 }
 
 const deleteSelectedSector = async () => {
