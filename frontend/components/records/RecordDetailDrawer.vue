@@ -95,6 +95,17 @@
         <button
           v-if="!isSnapshotMode"
           type="button"
+          :class="['segmented-tab-btn', { active: activeMainTab === 'secondary' }]"
+          @click="activeMainTab = 'secondary'"
+          style="flex: 1; border: none; padding: 8px; cursor: pointer; border-radius: 6px; font-weight: 600; display: flex; align-items: center; justify-content: center; background: transparent; transition: all 0.2s;"
+        >
+          <span style="margin-right: 6px;">🌿</span>
+          <span>다축/보조 노드</span>
+          <span class="tab-badge" style="margin-left: 6px; background: rgba(0,0,0,0.1); padding: 2px 6px; border-radius: 10px; font-size: 0.75rem;">{{ secondaryNodes?.length || 0 }}</span>
+        </button>
+        <button
+          v-if="!isSnapshotMode"
+          type="button"
           :class="['segmented-tab-btn', { active: activeMainTab === 'history' }]"
           @click="activeMainTab = 'history'"
           style="flex: 1; border: none; padding: 8px; cursor: pointer; border-radius: 6px; font-weight: 600; display: flex; align-items: center; justify-content: center; background: transparent; transition: all 0.2s;"
@@ -262,6 +273,34 @@
               </div>
             </va-collapse>
           </va-accordion>
+        </div>
+      </div>
+
+      <!-- Secondary Nodes Tab Content -->
+      <div v-show="activeMainTab === 'secondary'" style="flex: 1; overflow-y: auto; padding: 0.5rem;">
+        <div style="margin-bottom: 1rem;">
+          <h4 style="font-weight: 700; font-size: 1rem; color: var(--va-text-primary); margin: 0 0 0.25rem 0;">
+            레코드 보조 분류 노드 매핑 (Secondary Classification Nodes)
+          </h4>
+          <p style="font-size: 0.85rem; color: var(--va-text-secondary); margin: 0;">
+            주 분류 노드 이외에 레코드가 속한 보조 분류 노드 할당 정보를 확인합니다.
+          </p>
+        </div>
+
+        <div v-if="loadingSecondaryNodes" style="text-align: center; padding: 2rem;">
+          <va-progress-circle indeterminate color="primary" />
+        </div>
+        <div v-else-if="secondaryNodes.length === 0" style="padding: 1.5rem; text-align: center; color: var(--va-text-secondary); background: var(--va-background-element); border-radius: 6px;">
+          할당된 보조 분류 노드가 없습니다.
+        </div>
+        <div v-else style="display: flex; flex-direction: column; gap: 0.5rem;">
+          <div v-for="sec in secondaryNodes" :key="sec.nodeId" style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; border: 1px solid var(--va-background-border); border-radius: 6px; background: var(--va-background-primary);">
+            <div>
+              <div style="font-weight: 700; font-size: 0.95rem;">{{ sec.nodeName || sec.nodeCode }}</div>
+              <div style="font-size: 0.8rem; color: var(--va-text-secondary);">축(Axis): {{ sec.axisName || sec.axisCode || '-' }}</div>
+            </div>
+            <va-chip color="info" size="small" outline>{{ sec.nodeCode || sec.nodeId }}</va-chip>
+          </div>
         </div>
       </div>
 
@@ -526,6 +565,30 @@ const activeMainTab = ref('details')
 const activeSectorTab = ref(0)
 const focusedDateFields = ref({})
 const localRecord = ref({})
+
+const secondaryNodes = ref([])
+const loadingSecondaryNodes = ref(false)
+
+const loadSecondaryNodes = async () => {
+  const recId = props.record?.id || localRecord.value?.id
+  if (!recId) return
+  loadingSecondaryNodes.value = true
+  try {
+    const token = useCookie('auth_token').value
+    const res = await $fetch(`/api/records/${recId}/secondary-nodes`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    secondaryNodes.value = res || []
+  } catch (e) {
+    secondaryNodes.value = []
+  } finally {
+    loadingSecondaryNodes.value = false
+  }
+}
+
+watch(() => props.show, (val) => {
+  if (val) loadSecondaryNodes()
+})
 
 watch(
   () => props.record,

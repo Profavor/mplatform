@@ -69,6 +69,9 @@ class DomainControllerTest {
     @MockitoBean
     private com.classification.domain_system.context.AuthContext authContext;
 
+    @MockitoBean
+    private com.classification.domain_system.service.DqScoreSnapshotService dqScoreSnapshotService;
+
     private Domain createTestDomain(UUID id, String koName, String enName) {
         Domain domain = new Domain();
         domain.setId(id);

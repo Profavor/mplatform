@@ -47,6 +47,7 @@
                 <va-tab>{{ $t('tab_fields') || 'Fields' }}</va-tab>
                 <va-tab>{{ $t('tab_workflows') || 'Workflows' }}</va-tab>
                 <va-tab>{{ $t('schema_history.title') || 'Schema History' }}</va-tab>
+                <va-tab>Classification Axes (분류 축)</va-tab>
               </template>
             </va-tabs>
           </va-card-title>
@@ -94,6 +95,11 @@
             <!-- Schema History Tab -->
             <div v-show="activeTab === 2" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 1rem; overflow-y: auto;">
               <SchemaHistoryTab :domain-id="selectedNode?.domainId || selectedNode?.id || (selectedNode?.type === 'domain' ? selectedNode?.id : null)" />
+            </div>
+
+            <!-- Classification Axes Tab -->
+            <div v-show="activeTab === 3" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+              <ClassificationAxisTab :domain-id="selectedNode?.domainId || selectedNode?.id || (selectedNode?.type === 'domain' ? selectedNode?.id : '')" />
             </div>
           </va-card-content>
         </va-card>
@@ -595,6 +601,7 @@ import { useCookie, useState } from '#app'
 import { AgGridVue } from 'ag-grid-vue3'
 import SchemaHistoryTab from '~/components/schema/SchemaHistoryTab.vue'
 import WorkflowConfigTab from '~/components/schema/WorkflowConfigTab.vue'
+import ClassificationAxisTab from '~/components/schema/ClassificationAxisTab.vue'
 import SurvivorshipRulesModal from '~/components/schema/SurvivorshipRulesModal.vue'
 
 const { gridTheme, autoSizeStrategy } = useAgGridTheme()

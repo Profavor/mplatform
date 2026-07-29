@@ -166,6 +166,23 @@
           <div class="flex justify-between items-center w-full">
             <h2 style="text-transform: none; font-size: 1.2rem; margin: 0; color: var(--va-dark);">Integration Monitoring Logs</h2>
             <div class="flex items-center" style="gap: 1rem;">
+              <va-switch
+                v-model="isDlqOnly"
+                label="DLQ(Dead-Letter)만 보기"
+                color="danger"
+                size="small"
+                @update:modelValue="fetchIntegrationLogs(1)"
+              />
+              <va-button
+                v-if="isDlqOnly"
+                color="danger"
+                icon="refresh"
+                size="small"
+                :loading="isBulkRetrying"
+                @click="retryAllDlq"
+              >
+                DLQ 전체 재시도 (Retry All)
+              </va-button>
               <va-select
                 v-model="selectedChannelId"
                 :options="channelOptions"
@@ -173,8 +190,8 @@
                 text-by="name"
                 placeholder="모든 채널 (All Channels)"
                 clearable
-                style="width: 250px"
-                @update:modelValue="fetchIntegrationLogs(0)"
+                style="width: 220px"
+                @update:modelValue="fetchIntegrationLogs(1)"
               />
               <va-button icon="refresh" preset="secondary" @click="fetchIntegrationLogs(integrationCurrentPage)">Refresh</va-button>
             </div>
@@ -813,6 +830,8 @@ const selectedChannelId = ref(null)
 const isIntegrationLoading = ref(false)
 const integrationCurrentPage = ref(1)
 const integrationTotalPages = ref(0)
+const isDlqOnly = ref(false)
+const isBulkRetrying = ref(false)
 
 const showIntegrationDetailsModal = ref(false)
 const selectedIntegrationLog = ref(null)
@@ -855,11 +874,16 @@ const fetchIntegrationLogs = async (pageIndex) => {
       query.append('channelId', selectedChannelId.value)
     }
     
-    const data = await $fetch(`/api/admin/integration/logs?${query.toString()}`, {
+    const endpoint = isDlqOnly.value
+      ? `/api/admin/integration/logs/dead-letter?${query.toString()}`
+      : `/api/admin/integration/logs?${query.toString()}`
+
+    const data = await $fetch(endpoint, {
       headers: { Authorization: `Bearer ${token.value}` }
     })
     
-    integrationLogs.value = data.content.map(log => {
+    const content = data.content || data || []
+    integrationLogs.value = content.map(log => {
       const channel = rawChannels.value.find(c => c.id === log.channelId)
       const rawName = channel ? channel.name : null
       const direction = channel ? (channel.direction || 'OUTBOUND') : 'OUTBOUND'
@@ -870,12 +894,28 @@ const fetchIntegrationLogs = async (pageIndex) => {
         createdAt: new Date(log.createdAt).toLocaleString(locale.value === 'ko' ? 'ko-KR' : 'en-US')
       }
     })
-    integrationTotalPages.value = data.totalPages
-    integrationCurrentPage.value = (data.number + 1)
+    integrationTotalPages.value = data.totalPages || 1
+    integrationCurrentPage.value = (data.number != null ? data.number + 1 : 1)
   } catch (e) {
     console.error('Failed to load integration logs:', e)
   } finally {
     isIntegrationLoading.value = false
+  }
+}
+
+const retryAllDlq = async () => {
+  isBulkRetrying.value = true
+  try {
+    const count = await $fetch('/api/admin/integration/logs/dead-letter/retry-all', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    init({ message: `DLQ 총 ${count || 0}건의 재시도가 상신되었습니다.`, color: 'success' })
+    fetchIntegrationLogs(1)
+  } catch (e) {
+    init({ message: 'DLQ 일괄 재시도 실패', color: 'danger' })
+  } finally {
+    isBulkRetrying.value = false
   }
 }
 

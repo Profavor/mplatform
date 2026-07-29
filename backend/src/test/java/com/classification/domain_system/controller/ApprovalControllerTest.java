@@ -51,6 +51,9 @@ class ApprovalControllerTest {
     @MockitoBean
     private com.classification.domain_system.context.AuthContext authContext;
 
+    @MockitoBean
+    private com.classification.domain_system.repository.UserRepository userRepository;
+
     private UUID nodeId;
     private UUID stepId;
     private UUID approverId;

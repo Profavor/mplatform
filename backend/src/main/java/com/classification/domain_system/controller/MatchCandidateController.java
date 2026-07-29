@@ -44,4 +44,12 @@ public class MatchCandidateController {
             @AuthenticationPrincipal String username) {
         return ResponseEntity.ok(candidateService.rejectCandidate(id, username));
     }
+
+    @PostMapping("/api/match-candidates/{id}/ignore")
+    @PreAuthorize("hasPermission(null, 'domain:write')")
+    public ResponseEntity<MatchCandidate> ignore(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal String username) {
+        return ResponseEntity.ok(candidateService.ignoreCandidate(id, username));
+    }
 }

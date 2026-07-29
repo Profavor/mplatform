@@ -54,6 +54,7 @@ public class MenuDataInitializer {
                 createMenuIfAbsent("매칭 검토", "/admin/match-review", "fact_check", adminId, 5, Set.of("ROLE_ADMIN"));
                 createMenuIfAbsent("워크플로우 관리", "/admin/workflow", "account_tree", adminId, 6, Set.of("ROLE_ADMIN"));
                 createMenuIfAbsent("외부 연동 관리", "/admin/integration", "hub", adminId, 7, Set.of("ROLE_ADMIN"));
+                createMenuIfAbsent("매칭 규칙 관리", "/admin/matching-rules", "rule", adminId, 8, Set.of("ROLE_ADMIN"));
             }
 
             log.info("System menu tree initialization completed successfully.");

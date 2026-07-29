@@ -29,7 +29,15 @@
         hoverable
       >
         <template #cell(fieldKey)="{ rowData }">
+          <va-select
+            v-if="fieldOptions.length > 0"
+            v-model="rowData.fieldKey"
+            :options="fieldOptions"
+            value-by="value"
+            dense
+          />
           <va-input
+            v-else
             v-model="rowData.fieldKey"
             placeholder="e.g. name, phone"
             dense
@@ -97,6 +105,7 @@ const { init } = useToast()
 const { customFetch } = useCustomFetch()
 
 const rules = ref<any[]>([])
+const domainFields = ref<any[]>([])
 const isSaving = ref(false)
 
 const strategyOptions = computed(() => [
@@ -105,26 +114,38 @@ const strategyOptions = computed(() => [
   { label: 'MOST_COMPLETE (최고 완전성/길이)', value: 'MOST_COMPLETE' }
 ])
 
+const fieldOptions = computed(() => {
+  return domainFields.value.map((f: any) => ({
+    label: `${f.name} (${f.key})`,
+    value: f.key
+  }))
+})
+
 const columns = computed(() => [
-  { key: 'fieldKey', label: t('survivorship.field_key') },
-  { key: 'strategy', label: t('survivorship.strategy') },
-  { key: 'priority', label: t('survivorship.priority'), width: 100 },
+  { key: 'fieldKey', label: t('survivorship.field_key') || '필드 (Field Key)' },
+  { key: 'strategy', label: t('survivorship.strategy') || '생존 전략 (Strategy)' },
+  { key: 'priority', label: t('survivorship.priority') || '우선순위', width: 100 },
   { key: 'actions', label: '', width: 80 }
 ])
 
 const loadRules = async () => {
   if (!props.domainId) return
   try {
-    const res = await customFetch(`/api/records/domains/${props.domainId}/survivorship-rules`)
-    rules.value = res || []
+    const [rulesRes, fieldsRes] = await Promise.all([
+      customFetch(`/api/records/domains/${props.domainId}/survivorship-rules`),
+      customFetch(`/api/domains/${props.domainId}/fields`)
+    ])
+    rules.value = rulesRes || []
+    domainFields.value = fieldsRes || []
   } catch (e) {
     rules.value = []
+    domainFields.value = []
   }
 }
 
 const addRule = () => {
   rules.value.push({
-    fieldKey: '',
+    fieldKey: domainFields.value[0]?.key || '',
     strategy: 'SOURCE_PRIORITY',
     priority: rules.value.length + 1
   })
@@ -141,11 +162,11 @@ const saveRules = async () => {
       method: 'PUT',
       body: rules.value
     })
-    init({ message: t('survivorship.save_success'), color: 'success' })
+    init({ message: t('survivorship.save_success') || '병합 생존 규칙이 저장되었습니다.', color: 'success' })
     emit('saved')
     emit('close')
   } catch (e) {
-    init({ message: t('survivorship.save_fail'), color: 'danger' })
+    init({ message: t('survivorship.save_fail') || '생존 규칙 저장 중 오류가 발생했습니다.', color: 'danger' })
   } finally {
     isSaving.value = false
   }

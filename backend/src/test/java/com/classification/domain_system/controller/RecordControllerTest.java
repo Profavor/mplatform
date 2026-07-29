@@ -65,6 +65,9 @@ class RecordControllerTest {
     @MockitoBean
     private com.classification.domain_system.service.RecordService recordService;
 
+    @MockitoBean
+    private com.classification.domain_system.service.BatchValidationService batchValidationService;
+
     private UUID nodeId;
 
     @BeforeEach

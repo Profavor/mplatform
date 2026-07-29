@@ -127,7 +127,22 @@
             <va-icon name="show_chart" size="small" color="primary" />
             <span>DQ 품질 점수 트렌드 히스토리 (DQ Score Trend)</span>
           </div>
-          <span class="text-xs text-gray-400 font-normal">최근 스캔 기록 {{ recentSnapshots.length }}건</span>
+          <div class="flex items-center gap-2">
+            <va-button-toggle
+              v-model="trendPeriod"
+              preset="secondary"
+              border-color="primary"
+              size="small"
+              :options="[
+                { label: '최근 7일', value: 7 },
+                { label: '최근 30일', value: 30 },
+                { label: '최근 90일', value: 90 },
+                { label: '전체 (Recent)', value: 0 }
+              ]"
+              @update:modelValue="onTrendPeriodChange"
+            />
+            <span class="text-xs text-gray-400 font-normal">조회 {{ recentSnapshots.length }}건</span>
+          </div>
         </va-card-title>
         <va-card-content>
           <div v-if="recentSnapshots.length === 0" class="text-sm text-gray-400 py-6 text-center">
@@ -553,14 +568,32 @@ async function fetchViolations() {
   }
 }
 
+const trendPeriod = ref(30)
+
 async function fetchRecentSnapshots(domainId) {
   try {
     const headers = getHeaders()
-    const list = await $fetch(`/api/domains/${domainId}/dq-score/recent`, { headers })
+    let url = `/api/domains/${domainId}/dq-score/recent`
+
+    if (trendPeriod.value > 0) {
+      const now = new Date()
+      const fromDate = new Date(now.getTime() - trendPeriod.value * 24 * 60 * 60 * 1000)
+      url = `/api/domains/${domainId}/dq-score/trend?from=${fromDate.toISOString()}&to=${now.toISOString()}`
+    }
+
+    const list = await $fetch(url, { headers })
     recentSnapshots.value = list || []
   } catch (e) {
-    console.error('Failed to fetch recent DQ snapshots:', e)
+    console.error('Failed to fetch DQ score trend snapshots:', e)
     recentSnapshots.value = []
+  }
+}
+
+function onTrendPeriodChange() {
+  const val = selectedDomainId.value
+  const domainId = typeof val === 'object' && val !== null ? (val.value || val.id) : val
+  if (domainId) {
+    fetchRecentSnapshots(domainId)
   }
 }
 

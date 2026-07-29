@@ -640,11 +640,12 @@ import RecordFormModal from '~/components/records/RecordFormModal.vue'
 import RecordDetailDrawer from '~/components/records/RecordDetailDrawer.vue'
 import RecordCompareModal from '~/components/records/RecordCompareModal.vue'
 
-import { useColors } from 'vuestic-ui'
+import { useColors, useModal } from 'vuestic-ui'
 import { useI18n } from 'vue-i18n'
 import { usePermission } from '~/composables/usePermission'
 
 const { t } = useI18n()
+const { confirm } = useModal()
 const { gridTheme, autoSizeStrategy } = useAgGridTheme()
 const { hasPermission } = usePermission()
 const { downloadFileWithAuth } = useFileDownloader()
@@ -1120,6 +1121,15 @@ const openRecordDetailModal = async (record) => {
 const handleUnmergeRecord = async (record) => {
   const targetId = record?.id || selectedRecordId.value
   if (!targetId) return
+
+  const isConfirmed = await confirm({
+    title: t('merge.unmerge_confirm_title') || '병합 취소 (Unmerge)',
+    message: t('merge.unmerge_confirm_msg') || '이 레코드의 병합 상태를 되돌리시겠습니까? 병합 이전 상태로 데이터가 복원됩니다.',
+    okText: t('confirm') || '확인',
+    cancelText: t('cancel') || '취소'
+  })
+  if (!isConfirmed) return
+
   try {
     await $fetch(`/api/records/${targetId}/unmerge`, {
       method: 'POST',
