@@ -1,46 +1,78 @@
 <template>
-  <div class="page-container p-4 flex flex-col h-full bg-gray-50">
-    <div class="page-header flex justify-between items-center mb-6">
-      <h1 class="page-title text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
-        {{ $t('match_review.title') || '매칭 후보 검토' }}
-      </h1>
-      <div class="flex gap-3">
-        <va-select
-          v-model="selectedDomain"
-          :options="domainOptions"
-          value-by="value"
-          :placeholder="$t('match_review.domain_select') || '도메인 선택'"
-          class="w-48"
-        />
-        <va-button color="primary" icon="refresh" @click="refreshGrid">{{ $t('match_review.refresh') || '새로고침' }}</va-button>
+  <div class="page-container p-6 bg-slate-50 min-h-screen flex flex-col gap-5">
+    <!-- Page Header -->
+    <div class="flex flex-wrap justify-between items-center bg-white p-5 rounded-xl border border-slate-200 shadow-sm gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+          <va-icon name="fact_check" color="primary" size="28px" />
+          {{ $t('match_review.title') || '매칭 후보 검토' }}
+        </h1>
+        <p class="text-xs text-slate-500 mt-1">
+          유사도가 높은 매칭 후보 데이터를 검토하여 마스터 데이터 병합 승인 또는 반결 처리를 진행합니다.
+        </p>
       </div>
-    </div>
 
-    <!-- Status Filters & Batch Actions -->
-    <div class="flex justify-between items-center mb-4">
-      <div class="flex gap-2">
-        <va-button-toggle
-          v-model="statusFilter"
-          :options="statusOptions"
-          preset="secondary"
-          color="primary"
-          @update:modelValue="onStatusFilterChanged"
-        />
-      </div>
-      <div class="flex gap-2" v-if="hasWritePermission">
-        <va-button color="success" icon="check_circle" :disabled="selectedRows.length === 0" @click="batchConfirm">
-          {{ $t('match_review.batch_confirm') || '일괄 승인' }} ({{ selectedRows.length }})
-        </va-button>
-        <va-button color="danger" icon="cancel" :disabled="selectedRows.length === 0" @click="batchReject">
-          {{ $t('match_review.batch_reject') || '일괄 거절' }} ({{ selectedRows.length }})
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-slate-600 whitespace-nowrap">대상 도메인:</span>
+          <va-select
+            v-model="selectedDomain"
+            :options="domainOptions"
+            value-by="value"
+            :placeholder="$t('match_review.domain_select') || '도메인 선택'"
+            class="w-56"
+          />
+        </div>
+        <va-button color="primary" preset="secondary" icon="refresh" @click="refreshGrid">
+          {{ $t('match_review.refresh') || '새로고침' }}
         </va-button>
       </div>
     </div>
 
-    <div class="flex-1 flex gap-4 min-h-0">
+    <!-- Status Filters & Batch Action Controls -->
+    <va-card flat class="border border-slate-200 shadow-sm rounded-xl">
+      <va-card-content class="p-4 flex flex-wrap justify-between items-center gap-4">
+        <div class="flex items-center gap-3">
+          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">검토 상태:</span>
+          <va-button-toggle
+            v-model="statusFilter"
+            :options="statusOptions"
+            preset="secondary"
+            color="primary"
+            size="small"
+            @update:modelValue="onStatusFilterChanged"
+          />
+        </div>
+
+        <div class="flex items-center gap-2" v-if="hasWritePermission">
+          <va-button
+            color="success"
+            icon="check_circle"
+            size="small"
+            :disabled="selectedRows.length === 0"
+            @click="batchConfirm"
+          >
+            {{ $t('match_review.batch_confirm') || '일괄 승인' }} ({{ selectedRows.length }})
+          </va-button>
+          <va-button
+            color="danger"
+            preset="secondary"
+            icon="cancel"
+            size="small"
+            :disabled="selectedRows.length === 0"
+            @click="batchReject"
+          >
+            {{ $t('match_review.batch_reject') || '일괄 거절' }} ({{ selectedRows.length }})
+          </va-button>
+        </div>
+      </va-card-content>
+    </va-card>
+
+    <!-- Main Content Layout (Grid + Detail Sidebar) -->
+    <div class="flex gap-5 items-start">
       <!-- Grid Section -->
-      <va-card class="flex-1 flex flex-col shadow-md border border-gray-200">
-        <va-card-content class="flex-1 p-0 flex flex-col h-full">
+      <va-card class="flex-1 shadow-sm border border-slate-200 rounded-xl overflow-hidden">
+        <va-card-content class="p-0" style="height: 600px;">
           <client-only>
             <ag-grid-vue
               v-if="isMounted"
@@ -64,34 +96,55 @@
       </va-card>
 
       <!-- Detail Sidebar -->
-      <va-card v-if="selectedCandidate" class="w-96 shadow-md border border-gray-200 flex flex-col glassmorphism">
-        <va-card-title class="bg-gradient-to-r from-gray-100 to-gray-50 border-b pb-3">
-          <div class="flex justify-between items-center w-full">
-            <span>{{ $t('match_review.field_details') || '후보 상세 내용' }}</span>
-            <va-badge :text="(selectedCandidate.score * 100).toFixed(1) + '%'" :color="getScoreColor(selectedCandidate.score)" />
-          </div>
+      <va-card v-if="selectedCandidate" class="w-96 shadow-md border border-slate-200 rounded-xl overflow-hidden glassmorphism flex flex-col" style="height: 600px;">
+        <va-card-title class="bg-slate-100 border-b border-slate-200 py-3 px-4 flex justify-between items-center">
+          <span class="font-bold text-slate-700 text-sm flex items-center gap-1.5">
+            <va-icon name="info" size="18px" color="primary" />
+            {{ $t('match_review.field_details') || '후보 상세 비교' }}
+          </span>
+          <va-badge
+            :text="(selectedCandidate.score * 100).toFixed(1) + '%'"
+            :color="getScoreColor(selectedCandidate.score)"
+          />
         </va-card-title>
-        <va-card-content class="flex-1 overflow-y-auto p-4">
-          <div class="mb-4">
-            <h4 class="font-semibold text-gray-700 mb-2">{{ $t('match_review.existing_record') || '기존 레코드' }}</h4>
-            <div class="bg-white p-3 rounded border text-sm text-gray-600 break-all">
-              <div v-for="(val, key) in selectedCandidate.existingRecord" :key="'ex-'+key" class="mb-1">
-                <span class="font-medium text-gray-800">{{ key }}:</span> {{ formatValue(val) }}
+
+        <va-card-content class="flex-1 overflow-y-auto p-4 space-y-4">
+          <!-- Existing Record Data -->
+          <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
+            <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+              <va-icon name="inventory_2" size="14px" color="gray" />
+              {{ $t('match_review.existing_record') || '기존 마스터 레코드' }}
+            </h4>
+            <div class="space-y-1 text-xs text-slate-600 break-all">
+              <div v-for="(val, key) in parseRecordData(selectedCandidate.existingRecord)" :key="'ex-'+key" class="flex justify-between py-1 border-b border-slate-100 last:border-0">
+                <span class="font-medium text-slate-700">{{ key }}:</span>
+                <span class="text-slate-900 font-mono">{{ formatValue(val) }}</span>
               </div>
             </div>
           </div>
-          <div class="mb-4">
-            <h4 class="font-semibold text-gray-700 mb-2">{{ $t('match_review.incoming_data') || '유입 레코드' }}</h4>
-            <div class="bg-white p-3 rounded border text-sm text-gray-600 break-all">
-              <div v-for="(val, key) in selectedCandidate.incomingData" :key="'in-'+key" class="mb-1">
-                <span class="font-medium text-gray-800">{{ key }}:</span> {{ formatValue(val) }}
+
+          <!-- Incoming Record Data -->
+          <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
+            <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+              <va-icon name="move_to_inbox" size="14px" color="info" />
+              {{ $t('match_review.incoming_data') || '신규 유입 레코드' }}
+            </h4>
+            <div class="space-y-1 text-xs text-slate-600 break-all">
+              <div v-for="(val, key) in parseRecordData(selectedCandidate.incomingData)" :key="'in-'+key" class="flex justify-between py-1 border-b border-slate-100 last:border-0">
+                <span class="font-medium text-slate-700">{{ key }}:</span>
+                <span class="text-slate-900 font-mono">{{ formatValue(val) }}</span>
               </div>
             </div>
           </div>
         </va-card-content>
-        <div class="p-4 border-t flex justify-end gap-2 bg-gray-50" v-if="hasWritePermission && selectedCandidate.status === 'PENDING_REVIEW'">
-          <va-button preset="secondary" color="danger" @click="rejectSingle(selectedCandidate)">{{ $t('match_review.reject_new') || '거절' }}</va-button>
-          <va-button color="success" @click="openMergeModal(selectedCandidate)">{{ $t('match_review.confirm_merge') || '병합 검토' }}</va-button>
+
+        <div class="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2" v-if="hasWritePermission && selectedCandidate.status === 'PENDING_REVIEW'">
+          <va-button preset="secondary" color="danger" size="small" @click="rejectSingle(selectedCandidate)">
+            {{ $t('match_review.reject_new') || '거절' }}
+          </va-button>
+          <va-button color="success" size="small" icon="merge_type" @click="openMergeModal(selectedCandidate)">
+            {{ $t('match_review.confirm_merge') || '병합 검토' }}
+          </va-button>
         </div>
       </va-card>
     </div>
@@ -152,7 +205,7 @@ let gridApi: any = null
 const defaultColDef = {
   sortable: true,
   resizable: true,
-  minWidth: 100
+  minWidth: 120
 }
 
 const getScoreColor = (score: number) => {
@@ -167,29 +220,30 @@ const columnDefs = computed(() => [
     field: 'id', 
     checkboxSelection: true, 
     headerCheckboxSelection: true,
-    width: 150
+    width: 140
   },
-  { field: 'source', headerName: t('merge.source') || '소스 시스템', width: 150 },
+  { field: 'source', headerName: t('merge.source') || '소스 시스템', width: 140 },
   { 
     field: 'score', 
     headerName: t('match_review.similarity_score') || '유사도 점수', 
-    width: 200,
+    width: 180,
     cellRenderer: (params: any) => {
-      if (params.value == null) return ''
+      if (params.value == null) return '-'
       const pct = (params.value * 100).toFixed(1)
-      const colorClass = params.value >= 0.9 ? 'text-green-600' : (params.value >= 0.8 ? 'text-yellow-600' : 'text-red-600')
-      return `<div class="flex items-center h-full gap-2">
-                <div class="w-full bg-gray-200 rounded h-2">
-                  <div class="h-2 rounded ${params.value >= 0.9 ? 'bg-green-500' : (params.value >= 0.8 ? 'bg-yellow-500' : 'bg-red-500')}" style="width: ${pct}%"></div>
+      const colorClass = params.value >= 0.9 ? 'text-emerald-600' : (params.value >= 0.8 ? 'text-amber-600' : 'text-rose-600')
+      const bgClass = params.value >= 0.9 ? 'bg-emerald-500' : (params.value >= 0.8 ? 'bg-amber-500' : 'bg-rose-500')
+      return `<div class="flex items-center h-full gap-2 px-1">
+                <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                  <div class="h-2 rounded-full ${bgClass}" style="width: ${pct}%"></div>
                 </div>
-                <span class="text-xs font-bold ${colorClass}">${pct}%</span>
+                <span class="text-xs font-bold ${colorClass} w-12 text-right">${pct}%</span>
               </div>`
     }
   },
   { 
     field: 'status', 
     headerName: t('match_review.status_filter') || '상태',
-    width: 150,
+    width: 140,
     cellRenderer: (params: any) => {
       let color = 'gray'
       let text = params.value
@@ -197,12 +251,13 @@ const columnDefs = computed(() => [
       else if (params.value === 'CONFIRMED_MERGE') { color = 'success'; text = t('match_review.status_confirmed') || '병합 완료' }
       else if (params.value === 'REJECTED') { color = 'danger'; text = t('match_review.status_rejected') || '거절됨' }
       
-      return `<span style="padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; background-color: var(--va-${color}); color: white;">${text}</span>`
+      return `<span style="padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; background-color: var(--va-${color}); color: white;">${text}</span>`
     }
   },
   { 
     field: 'createdAt', 
     headerName: t('schema_history.changed_at') || '생성 시각',
+    width: 180,
     valueFormatter: (params: any) => params.value ? formatWithTimezone(params.value) : '-'
   }
 ])
@@ -290,6 +345,14 @@ const onRowClicked = (event: any) => {
   selectedCandidate.value = event.data
 }
 
+const parseRecordData = (data: any) => {
+  if (!data) return {}
+  if (typeof data === 'string') {
+    try { return JSON.parse(data) } catch (e) { return { value: data } }
+  }
+  return data
+}
+
 const formatValue = (val: any) => {
   if (val === null || val === undefined) return '-'
   if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(val)) {
@@ -360,7 +423,7 @@ onMounted(() => {
 
 <style scoped>
 .glassmorphism {
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(12px);
 }
 </style>

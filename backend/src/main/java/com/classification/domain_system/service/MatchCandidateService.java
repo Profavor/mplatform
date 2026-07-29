@@ -35,7 +35,7 @@ public class MatchCandidateService {
 
     @Transactional(readOnly = true)
     public PageResponse<MatchCandidate> getCandidatesByDomain(UUID domainId, String status, int page, int size) {
-        List<ClassificationNode> nodes = nodeRepository.findByDomainId(domainId);
+        List<ClassificationNode> nodes = nodeRepository.findByDomain_Id(domainId);
         if (nodes == null || nodes.isEmpty()) {
             return PageResponse.of(Page.empty());
         }
