@@ -35,27 +35,23 @@ public class MatchCandidateService {
 
     @Transactional(readOnly = true)
     public PageResponse<MatchCandidate> getCandidatesByDomain(UUID domainId, String status, int page, int size) {
-        String targetStatus = (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) ? status : null;
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-
-        Page<MatchCandidate> candidatePage;
-        if (targetStatus != null) {
-            candidatePage = candidateRepository.findByDomainIdAndStatus(domainId, targetStatus, pageable);
-        } else {
-            candidatePage = candidateRepository.findByDomainId(domainId, pageable);
+        List<ClassificationNode> nodes = nodeRepository.findByDomainId(domainId);
+        if (nodes == null || nodes.isEmpty()) {
+            return PageResponse.of(Page.empty());
         }
 
-        if (candidatePage.isEmpty()) {
-            List<ClassificationNode> nodes = nodeRepository.findByDomainId(domainId);
-            List<UUID> nodeIds = nodes.stream().map(ClassificationNode::getId).toList();
+        List<UUID> nodeIds = nodes.stream().map(ClassificationNode::getId).toList();
+        if (nodeIds.isEmpty()) {
+            return PageResponse.of(Page.empty());
+        }
 
-            if (!nodeIds.isEmpty()) {
-                if (targetStatus != null) {
-                    candidatePage = candidateRepository.findByNodeIdInAndStatus(nodeIds, targetStatus, pageable);
-                } else {
-                    candidatePage = candidateRepository.findByNodeIdIn(nodeIds, pageable);
-                }
-            }
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<MatchCandidate> candidatePage;
+
+        if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) {
+            candidatePage = candidateRepository.findByNodeIdInAndStatus(nodeIds, status, pageable);
+        } else {
+            candidatePage = candidateRepository.findByNodeIdIn(nodeIds, pageable);
         }
 
         return PageResponse.of(candidatePage);
