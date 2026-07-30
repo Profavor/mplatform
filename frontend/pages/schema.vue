@@ -1450,7 +1450,7 @@ const openFieldModal = async (rowData = null) => {
 const saveDomain = async () => {
   try {
     const url = isEditMode.value ? `/api/domains/${newDomain.value.id}` : `/api/domains`
-    const extractId = (val: any) => {
+    const extractId = (val) => {
       if (!val) return null
       if (typeof val === 'string') return val
       if (typeof val === 'object' && val.value) return val.value
@@ -1470,7 +1470,7 @@ const saveDomain = async () => {
       displayNameFieldId: extractId(newDomain.value.displayNameFieldId),
       descriptionFieldId: extractId(newDomain.value.descriptionFieldId),
       icon: newDomain.value.icon || '',
-      sortOrder: parseInt(newDomain.value.sortOrder as string) || 0,
+      sortOrder: parseInt(newDomain.value.sortOrder) || 0,
       numberingPattern: newDomain.value.numberingPattern || '',
       autoDqScanEnabled: Boolean(newDomain.value.autoDqScanEnabled)
     }
