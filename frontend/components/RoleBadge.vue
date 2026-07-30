@@ -1,14 +1,16 @@
 <template>
-  <span class="role-badge-wrapper" style="display: inline-flex; gap: 0.35rem; flex-wrap: wrap;">
-    <va-badge
+  <span class="role-badge-wrapper" style="display: inline-flex; gap: 0.35rem; flex-wrap: wrap; align-items: center;">
+    <va-chip
       v-for="role in roleListInput"
       :key="role"
       :color="getRoleColor(role)"
-      class="mr-1 mb-1"
-      style="padding: 4px 8px; font-weight: 600;"
+      size="small"
+      class="mr-1"
+      style="font-weight: 700; letter-spacing: 0.2px; font-size: 0.78rem;"
     >
-      {{ formatRoleText(role) }}
-    </va-badge>
+      <va-icon name="verified_user" size="small" style="margin-right: 4px;" />
+      {{ formatRoleText(role, hideCode) }}
+    </va-chip>
   </span>
 </template>
 
@@ -24,6 +26,10 @@ const props = defineProps({
   orgId: {
     type: String,
     default: null
+  },
+  hideCode: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -45,7 +51,7 @@ const roleListInput = computed(() => {
 })
 
 const getRoleColor = (code) => {
-  const norm = code ? code.replace('ROLE_', '') : ''
+  const norm = code ? code.replace('ROLE_', '').toUpperCase() : ''
   switch (norm) {
     case 'ADMIN': return 'danger'
     case 'ORG_ADMIN': return 'warning'
@@ -53,6 +59,7 @@ const getRoleColor = (code) => {
     case 'DOMAIN_EDITOR': return 'info'
     case 'DQ_MANAGER': return 'success'
     case 'VIEWER': return 'secondary'
+    case 'USER': return 'info'
     default: return 'primary'
   }
 }

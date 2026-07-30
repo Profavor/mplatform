@@ -790,5 +790,13 @@
   "dq_error_message": "Error Message",
   "dq_sort_order": "Sort Order",
   "add_dq_rule": "Add Rule",
-  "edit_dq_rule": "Edit Rule"
+  "edit_dq_rule": "Edit Rule",
+  "user_profile_title": "User Profile",
+  "org_info_title": "Organization Information",
+  "company_org": "Company / Organization",
+  "department": "Department",
+  "team": "Team",
+  "assigned_at": "Assignment Date",
+  "org_history_title": "Organization History",
+  "no_org_history": "No organization change history recorded."
 }

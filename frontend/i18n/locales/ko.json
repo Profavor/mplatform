@@ -788,5 +788,13 @@
   "dq_error_message": "오류 메시지",
   "dq_sort_order": "적용 순서",
   "add_dq_rule": "규칙 추가",
-  "edit_dq_rule": "규칙 수정"
+  "edit_dq_rule": "규칙 수정",
+  "user_profile_title": "사용자 프로필",
+  "org_info_title": "소속 조직 정보",
+  "company_org": "회사 / 조직",
+  "department": "부서",
+  "team": "팀",
+  "assigned_at": "조직 배치 일시",
+  "org_history_title": "소속 조직 이동 / 변경 이력",
+  "no_org_history": "기록된 조직 이동 이력이 없습니다."
 }

@@ -321,34 +321,52 @@
                 <div style="font-size: 0.85rem; font-weight: 600; color: var(--va-secondary); margin-bottom: 0.25rem;">
                   {{ formatDate(log.changedAt) }}
                 </div>
+                <div
+                  v-if="log.changedByName"
+                  style="font-size: 0.8rem; font-weight: 700; color: var(--va-text-primary); display: inline-flex; align-items: center; gap: 0.3rem; cursor: pointer; transition: all 0.2s ease-in-out; padding: 0.15rem 0.45rem; border-radius: 6px; background: var(--va-background-element); border: 1px solid var(--va-background-border);"
+                  class="user-profile-trigger"
+                  :title="t('view_user_profile') || '사용자 프로필 보기'"
+                  @click="openUserProfileModal(log)"
+                >
+                  <va-icon name="account_circle" size="small" color="primary" />
+                  <span>{{ log.changedByName }}</span>
+                </div>
               </template>
               <template #after>
                 <va-card outlined style="margin-bottom: 1.5rem; width: 100%;">
                   <va-card-title style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border-bottom: 1px solid var(--va-background-border);">
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
                       <va-badge :color="getHistoryTimelineColor(log.changeType)" :text="log.changeType === 'PENDING_APPROVAL' ? (t('pending_approval') || '결재 진행중') : log.changeType" />
-                      <span style="font-weight: 700; font-size: 0.95rem;">
-                        {{ getUserName(log.changedBy, log.changedBy) }}
-                      </span>
                     </div>
-                    <va-button
-                      v-if="log.changeType === 'PENDING_APPROVAL' || log.changeType === 'UPDATE'"
-                      preset="secondary"
-                      size="small"
-                      icon="visibility"
-                      @click="log.changeType === 'PENDING_APPROVAL' && log.rawRequest ? $emit('viewDiffDetails', log.rawRequest.changes, log.rawRequest.targetType, true) : $emit('viewDiffDetails', log.previousData, log.newData, false)"
-                    >
-                      {{ t('view_changes') || '변경 내역 보기' }}
-                    </va-button>
-                    <va-button
-                      v-else-if="log.changeType === 'CREATE' || log.changeType === 'DELETE'"
-                      preset="secondary"
-                      size="small"
-                      icon="history"
-                      @click="$emit('viewSnapshot', log.id)"
-                    >
-                      {{ t('view_snapshot') || '스냅샷 보기' }}
-                    </va-button>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                      <va-button
+                        v-if="log.newData || log.previousData"
+                        preset="secondary"
+                        size="small"
+                        icon="history"
+                        @click="$emit('viewSnapshot', log.newData || log.previousData)"
+                      >
+                        {{ t('view_snapshot') || '스냅샷 보기' }}
+                      </va-button>
+                      <va-button
+                        v-if="log.approvalRequestId"
+                        preset="secondary"
+                        size="small"
+                        icon="fact_check"
+                        @click="$emit('viewApprovalHistory', log)"
+                      >
+                        {{ t('approval_history_btn') || '결재 내역' }}
+                      </va-button>
+                      <va-button
+                        v-else-if="log.sourceSystem"
+                        preset="secondary"
+                        size="small"
+                        icon="sync"
+                        @click="$emit('viewIntegrationHistory', log)"
+                      >
+                        {{ t('integration_history_btn') || '연계 내역' }}
+                      </va-button>
+                    </div>
                   </va-card-title>
                   <va-card-content v-if="log.changeType === 'UPDATE' && log.previousData && log.newData" style="padding: 1rem; background: var(--va-background-secondary);">
                     <!-- Inline Diff Rendering -->
@@ -359,11 +377,11 @@
                         </span>
                         <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1; flex-wrap: wrap;">
                           <span style="text-decoration: line-through; color: var(--va-danger); background: rgba(229, 57, 53, 0.1); padding: 0.1rem 0.4rem; border-radius: 4px;">
-                            {{ formatDiffValue(fieldKey, log.previousData[fieldKey]) }}
+                            {{ formatDiffValue(fieldKey, safeParseJson(log.previousData)[fieldKey]) }}
                           </span>
                           <va-icon name="arrow_forward" size="small" color="secondary" />
                           <span style="color: var(--va-success); background: rgba(30, 203, 114, 0.1); padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 600;">
-                            {{ formatDiffValue(fieldKey, log.newData[fieldKey]) }}
+                            {{ formatDiffValue(fieldKey, safeParseJson(log.newData)[fieldKey]) }}
                           </span>
                         </div>
                       </div>
@@ -422,6 +440,12 @@
       <va-button @click="handleClose">Close</va-button>
     </div>
   </va-modal>
+
+  <!-- Reusable User Profile Modal Component -->
+  <UserProfileModal
+    v-model="showUserProfileModal"
+    :user-profile="selectedUserProfile"
+  />
 </template>
 
 <script setup>
@@ -459,6 +483,27 @@ const createUnifiedBtn = (label, colorHex, onClick) => {
 
 const { t, locale: i18nLocale } = useI18n()
 
+const showUserProfileModal = ref(false)
+const selectedUserProfile = ref(null)
+
+const openUserProfileModal = (log) => {
+  if (!log) return;
+  if (log.changedUserProfile) {
+    selectedUserProfile.value = log.changedUserProfile;
+  } else {
+    selectedUserProfile.value = {
+      id: log.changedBy,
+      username: log.changedByName || log.changedBy || 'Unknown User',
+      role: 'USER',
+      organizationName: null,
+      departmentName: null,
+      teamName: null,
+      timezone: null
+    };
+  }
+  showUserProfileModal.value = true;
+};
+
 const getHistoryTimelineColor = (type) => {
   if (type === 'PENDING_APPROVAL') return 'warning';
   if (type === 'CREATE') return 'success';
@@ -466,13 +511,21 @@ const getHistoryTimelineColor = (type) => {
   return 'primary';
 };
 
+const safeParseJson = (val) => {
+  if (!val) return {};
+  if (typeof val === 'object') return val;
+  try { return JSON.parse(val); } catch (e) { return {}; }
+};
+
 const getChangedKeys = (prev, curr) => {
   if (!prev || !curr) return [];
-  const keys = new Set([...Object.keys(prev), ...Object.keys(curr)]);
+  const prevObj = safeParseJson(prev);
+  const currObj = safeParseJson(curr);
+  const keys = new Set([...Object.keys(prevObj), ...Object.keys(currObj)]);
   const changed = [];
   for (const k of keys) {
     if (k === 'id' || k === 'createdAt' || k === 'updatedAt' || k === 'createdBy' || k === 'updatedBy' || k === 'domainId' || k === 'status') continue;
-    if (JSON.stringify(prev[k]) !== JSON.stringify(curr[k])) {
+    if (JSON.stringify(prevObj[k]) !== JSON.stringify(currObj[k])) {
       changed.push(k);
     }
   }
@@ -481,12 +534,31 @@ const getChangedKeys = (prev, curr) => {
 
 const formatDiffValue = (key, val) => {
   if (val === null || val === undefined) return '(null)';
+  const f = props.fields?.find(f => f.key === key || String(f.id) === String(key) || (f.key && String(f.key).toLowerCase() === String(key).toLowerCase()));
+  if (f && f.options) {
+    let opts = [];
+    if (typeof f.options === 'string') {
+      try {
+        const parsed = JSON.parse(f.options);
+        opts = Array.isArray(parsed) ? parsed : [];
+      } catch(e) {}
+    } else if (Array.isArray(f.options)) {
+      opts = f.options;
+    }
+    if (Array.isArray(opts) && opts.length > 0) {
+      const matchedOpt = opts.find(o => o && (String(o.value) === String(val) || String(o.code) === String(val) || String(o.id) === String(val)));
+      if (matchedOpt) {
+        return matchedOpt.label || matchedOpt.name || String(val);
+      }
+    }
+  }
   if (typeof val === 'object') return JSON.stringify(val);
   return String(val);
 };
 
 const getFieldLabelByKey = (key) => {
-  const f = props.fields?.find(f => f.key === key);
+  if (!key) return '';
+  const f = props.fields?.find(f => f.key === key || String(f.id) === String(key) || (f.key && String(f.key).toLowerCase() === String(key).toLowerCase()));
   return f ? getTranslatedName(f.name) : key;
 };
 
@@ -798,11 +870,15 @@ const historyColumns = computed(() => [
   { key: 'actions', label: t('actions') || '동작' }
 ])
 
+const isUuid = (val) => typeof val === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(val)
+
 const getUserName = (uuid, nameFallback) => {
-  if (nameFallback) return nameFallback
-  if (!uuid) return ''
-  const u = props.userList?.find((user) => user.uuid === uuid || user.id === uuid)
-  return u ? u.username : uuid
+  const target = uuid || nameFallback
+  if (!target) return ''
+  const u = props.userList?.find((user) => user.uuid === target || user.id === target || user.username === target)
+  if (u) return u.username || u.name || ''
+  if (isUuid(target)) return ''
+  return target
 }
 
 const parseDate = (dateString) => {

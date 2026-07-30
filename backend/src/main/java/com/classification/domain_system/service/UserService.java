@@ -17,6 +17,7 @@ import com.classification.domain_system.dto.SelfUserUpdateDto;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final com.classification.domain_system.repository.UserOrgHistoryRepository userOrgHistoryRepository;
 
     @Transactional(readOnly = true)
     public List<UserDto> getAllUsers() {
@@ -29,12 +30,53 @@ public class UserService {
     public com.classification.domain_system.entity.User updateAdminUserInfo(String userId, AdminUserUpdateDto dto) {
         com.classification.domain_system.entity.User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+
+        java.util.UUID prevOrgId = user.getOrganizationId();
+        java.util.UUID prevDeptId = user.getDepartmentId();
+        java.util.UUID prevTeamId = user.getTeamId();
+
+        boolean orgChanged = false;
+        if (dto.getOrganizationId() != null && !java.util.Objects.equals(prevOrgId, dto.getOrganizationId())) {
+            user.setOrganizationId(dto.getOrganizationId());
+            orgChanged = true;
+        }
+        if (!java.util.Objects.equals(prevDeptId, dto.getDepartmentId())) {
+            user.setDepartmentId(dto.getDepartmentId());
+            orgChanged = true;
+        }
+        if (dto.getTeamId() != null && !java.util.Objects.equals(prevTeamId, dto.getTeamId())) {
+            user.setTeamId(dto.getTeamId());
+            orgChanged = true;
+        }
         if (dto.getRole() != null) user.setRole(dto.getRole());
-        if (dto.getOrganizationId() != null) user.setOrganizationId(dto.getOrganizationId());
-        user.setDepartmentId(dto.getDepartmentId());
-        if (dto.getTeamId() != null) user.setTeamId(dto.getTeamId());
         if (dto.getIsActive() != null) user.setIsActive(dto.getIsActive());
-        return userRepository.save(user);
+
+        com.classification.domain_system.entity.User savedUser = userRepository.save(user);
+
+        if (orgChanged) {
+            String currentOperator = "SYSTEM";
+            try {
+                org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                if (auth != null && auth.getName() != null) {
+                    currentOperator = auth.getName();
+                }
+            } catch (Exception e) {
+                // fallback
+            }
+
+            com.classification.domain_system.entity.UserOrgHistory hist = new com.classification.domain_system.entity.UserOrgHistory();
+            hist.setUserId(userId);
+            hist.setPrevOrganizationId(prevOrgId);
+            hist.setPrevDepartmentId(prevDeptId);
+            hist.setPrevTeamId(prevTeamId);
+            hist.setNewOrganizationId(savedUser.getOrganizationId());
+            hist.setNewDepartmentId(savedUser.getDepartmentId());
+            hist.setNewTeamId(savedUser.getTeamId());
+            hist.setChangedBy(currentOperator);
+            userOrgHistoryRepository.save(hist);
+        }
+
+        return savedUser;
     }
 
     @Transactional

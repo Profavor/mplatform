@@ -8,6 +8,19 @@ export default defineNuxtConfig({
   vuestic: {
     css: ['typography', 'grid', 'reset'],
     config: {
+      colors: {
+        presets: {
+          light: {
+            divider: '#e0e0e0'
+          },
+          dark: {
+            divider: '#333333'
+          }
+        },
+        variables: {
+          divider: '#e0e0e0'
+        }
+      },
       components: {
         VaModal: {
           closeButton: true

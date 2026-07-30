@@ -992,7 +992,18 @@ const extractFilename = (input) => {
 };
 
 const processRecordDataWithFields = (rawDataObj, fields) => {
-  const rawData = typeof rawDataObj === 'string' ? (rawDataObj ? JSON.parse(rawDataObj) : {}) : (rawDataObj || {})
+  let rawData = {}
+  if (typeof rawDataObj === 'string') {
+    if (rawDataObj.trim()) {
+      try {
+        rawData = JSON.parse(rawDataObj)
+      } catch (e) {
+        rawData = {}
+      }
+    }
+  } else if (rawDataObj && typeof rawDataObj === 'object') {
+    rawData = rawDataObj
+  }
   const data = { ...rawData }
   const fieldsToProcess = fields || []
   
@@ -2394,7 +2405,8 @@ const handleExcelUploaded = () => {
 }
 
 const getFieldLabelByKey = (key) => {
-  const f = nodeFields.value?.find(field => field.key === key)
+  if (!key) return ''
+  const f = nodeFields.value?.find(field => field.key === key || String(field.id) === String(key) || (field.key && String(field.key).toLowerCase() === String(key).toLowerCase()))
   return f ? getTranslatedName(f.name) : key
 }
 

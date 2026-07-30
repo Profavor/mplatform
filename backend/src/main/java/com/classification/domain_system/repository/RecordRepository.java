@@ -30,5 +30,7 @@ public interface RecordRepository extends JpaRepository<Record, UUID>, CustomRec
     Page<Record> findByDomainId(@org.springframework.data.repository.query.Param("domainId") UUID domainId, Pageable pageable);
     
     long countByStatus(String status);
-    long countByNodeDomainIdAndStatus(UUID domainId, String status);
+
+    @org.springframework.data.jpa.repository.Query("SELECT COUNT(r) FROM Record r WHERE r.node.domain.id = :domainId AND r.status = :status")
+    long countByNodeDomainIdAndStatus(@org.springframework.data.repository.query.Param("domainId") UUID domainId, @org.springframework.data.repository.query.Param("status") String status);
 }

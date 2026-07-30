@@ -111,6 +111,36 @@
               </va-button>
             </div>
           </div>
+
+          <va-divider style="margin: 1.5rem 0;" />
+
+          <!-- Organization Change History (Admin Only) -->
+          <div>
+            <h3 style="font-weight: bold; margin-bottom: 0.75rem; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.4rem;">
+              <va-icon name="history" color="primary" />
+              <span>{{ $t('org_history_title') }}</span>
+            </h3>
+            <div v-if="!userOrgHistory || userOrgHistory.length === 0" style="color: var(--va-text-secondary); font-size: 0.85rem; padding: 0.5rem 0;">
+              {{ $t('no_org_history') }}
+            </div>
+            <div v-else style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 220px; overflow-y: auto;">
+              <div
+                v-for="h in userOrgHistory"
+                :key="h.id"
+                style="padding: 0.75rem 1rem; background: var(--va-background-element); border-radius: 8px; border: 1px solid var(--va-background-border); font-size: 0.85rem;"
+              >
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                  <span style="font-weight: 600; color: var(--va-text-secondary);">📅 {{ formatDate(h.changedAt) }}</span>
+                  <va-badge size="small" color="info" :text="h.changedBy || 'SYSTEM'" />
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; font-weight: 700; color: var(--va-text-primary);">
+                  <span>{{ getI18nText(h.prevDepartmentName || h.prevOrganizationName) || '-' }}</span>
+                  <va-icon name="arrow_forward" size="small" color="primary" />
+                  <span style="color: var(--va-primary);">{{ getI18nText(h.newDepartmentName || h.newOrganizationName) || '-' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </va-card-content>
       </va-card>
     </div>
@@ -424,6 +454,19 @@ const selectUser = async (user) => {
     selectedUserDeptId.value = user.departmentId
     await fetchAllDepartments()
     await loadUserPermissions(user.id)
+    await loadUserOrgHistory(user.id)
+  }
+}
+
+const userOrgHistory = ref([])
+
+const loadUserOrgHistory = async (userId) => {
+  try {
+    userOrgHistory.value = await $fetch(`/api/users/${userId}/org-history`, {
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+  } catch (e) {
+    userOrgHistory.value = []
   }
 }
 

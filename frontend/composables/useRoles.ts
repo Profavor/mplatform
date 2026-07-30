@@ -114,11 +114,14 @@ export function useRoles() {
     return cleanInput
   }
 
-  const formatRoleText = (code: string): string => {
+  const formatRoleText = (code: string, hideCode = false): string => {
     if (!code) return ''
     const cleanInput = code.trim()
     const rawDisp = getRoleDisplayName(cleanInput)
     const disp = getMultilingualText(rawDisp)
+    if (hideCode) {
+      return disp || cleanInput
+    }
     if (disp && disp !== cleanInput && !disp.startsWith(cleanInput)) {
       return `${cleanInput} (${disp})`
     }

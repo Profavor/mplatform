@@ -92,7 +92,7 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                 if ("EQ".equals(op) || "CONTAINS".equals(op) || "STARTS_WITH".equals(op) || "ENDS_WITH".equals(op)) {
                     String cond;
                     if (isH2) {
-                        cond = " AND (r.data ILIKE :searchValLike" + paramIndex + ") ";
+                        cond = " AND (CAST(r.data AS VARCHAR) LIKE :searchValLike" + paramIndex + ") ";
                     } else {
                         String pgPrefix = 
                             "CAST(r.data AS jsonb) @> CAST(:searchValStr" + paramIndex + " AS jsonb) " +
@@ -114,7 +114,7 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                 } else if ("BETWEEN".equals(op)) {
                     String cond;
                     if (isH2) {
-                        cond = " AND (r.data ILIKE :searchValLike" + paramIndex + ") ";
+                        cond = " AND (CAST(r.data AS VARCHAR) LIKE :searchValLike" + paramIndex + ") ";
                     } else {
                         cond = " AND ( (NULLIF(CAST(r.data AS jsonb)->>'" + safeKey + "', '') ~ '^[0-9]+(\\.[0-9]+)?$' " +
                                " AND CAST(NULLIF(CAST(r.data AS jsonb)->>'" + safeKey + "', '') AS NUMERIC) BETWEEN :searchValMin" + paramIndex + " AND :searchValMax" + paramIndex + ") " +
@@ -134,7 +134,7 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                     };
                     String cond;
                     if (isH2) {
-                        cond = " AND (r.data ILIKE :searchValLike" + paramIndex + ") ";
+                        cond = " AND (CAST(r.data AS VARCHAR) LIKE :searchValLike" + paramIndex + ") ";
                     } else {
                         cond = " AND ( (NULLIF(CAST(r.data AS jsonb)->>'" + safeKey + "', '') ~ '^[0-9]+(\\.[0-9]+)?$' " +
                                " AND CAST(NULLIF(CAST(r.data AS jsonb)->>'" + safeKey + "', '') AS NUMERIC) " + sqlOp + " :searchVal" + paramIndex + ") " +
@@ -282,7 +282,7 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                 if ("EQ".equals(op) || "CONTAINS".equals(op) || "STARTS_WITH".equals(op) || "ENDS_WITH".equals(op)) {
                     String cond;
                     if (isH2) {
-                        cond = " AND (r.data ILIKE :searchValLike" + paramIndex + ") ";
+                        cond = " AND (CAST(r.data AS VARCHAR) LIKE :searchValLike" + paramIndex + ") ";
                     } else {
                         String pgPrefix = 
                             "CAST(r.data AS jsonb) @> CAST(:searchValStr" + paramIndex + " AS jsonb) " +
@@ -304,7 +304,7 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                 } else if ("BETWEEN".equals(op)) {
                     String cond;
                     if (isH2) {
-                        cond = " AND (r.data ILIKE :searchValLike" + paramIndex + ") ";
+                        cond = " AND (CAST(r.data AS VARCHAR) LIKE :searchValLike" + paramIndex + ") ";
                     } else {
                         cond = " AND ( (NULLIF(CAST(r.data AS jsonb)->>'" + safeKey + "', '') ~ '^[0-9]+(\\.[0-9]+)?$' " +
                                " AND CAST(NULLIF(CAST(r.data AS jsonb)->>'" + safeKey + "', '') AS NUMERIC) BETWEEN :searchValMin" + paramIndex + " AND :searchValMax" + paramIndex + ") " +
@@ -324,7 +324,7 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                     };
                     String cond;
                     if (isH2) {
-                        cond = " AND (r.data ILIKE :searchValLike" + paramIndex + ") ";
+                        cond = " AND (CAST(r.data AS VARCHAR) LIKE :searchValLike" + paramIndex + ") ";
                     } else {
                         cond = " AND ( (NULLIF(CAST(r.data AS jsonb)->>'" + safeKey + "', '') ~ '^[0-9]+(\\.[0-9]+)?$' " +
                                " AND CAST(NULLIF(CAST(r.data AS jsonb)->>'" + safeKey + "', '') AS NUMERIC) " + sqlOp + " :searchVal" + paramIndex + ") " +
