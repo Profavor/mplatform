@@ -1022,7 +1022,6 @@ const deserializeUiData = (row) => {
   } catch (e) { console.error('Failed to parse mappingConfigJson', e) }
 }
 
-const isLoading = ref(false)
 
 // Recent Logs Logic
 const recentLogs = ref([])
