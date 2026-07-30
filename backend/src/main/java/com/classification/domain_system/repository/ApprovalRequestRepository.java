@@ -21,6 +21,7 @@ public interface ApprovalRequestRepository extends JpaRepository<ApprovalRequest
     Page<ApprovalRequest> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);
     Page<ApprovalRequest> findByRequesterIdOrderByCreatedAtDesc(UUID requesterId, Pageable pageable);
     List<ApprovalRequest> findByTargetIdAndStatus(UUID targetId, String status);
+    List<ApprovalRequest> findByCreatedAtAfter(java.time.LocalDateTime createdAt);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM ApprovalRequest a WHERE a.id = :id")

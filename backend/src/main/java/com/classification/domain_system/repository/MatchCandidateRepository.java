@@ -15,6 +15,7 @@ import java.util.List;
 public interface MatchCandidateRepository extends JpaRepository<MatchCandidate, UUID> {
     Page<MatchCandidate> findByNodeIdAndStatus(UUID nodeId, String status, Pageable pageable);
     Page<MatchCandidate> findByStatus(String status, Pageable pageable);
+    long countByStatus(String status);
 
     Page<MatchCandidate> findByDomainId(UUID domainId, Pageable pageable);
     Page<MatchCandidate> findByDomainIdAndStatus(UUID domainId, String status, Pageable pageable);

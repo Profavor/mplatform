@@ -18,6 +18,7 @@ public interface DqViolationRepository extends JpaRepository<DqViolation, UUID> 
     List<DqViolation> findByRecordIdAndResolvedFalse(UUID recordId);
 
     long countByRecordIdAndResolvedFalse(UUID recordId);
+    long countByResolvedFalse();
 
     @Query("SELECT v.fieldKey, COUNT(v) FROM DqViolation v WHERE v.recordId IN " +
            "(SELECT r.id FROM Record r WHERE r.node.domain.id = :domainId) " +

@@ -759,5 +759,17 @@
   "grant_permission_success": "선택한 도메인 권한이 성공적으로 부여되었습니다.",
   "matching_rules": {
     "title": "매칭 규칙 관리 (Matching Rules)"
-  }
+  },
+  "pending_match_candidates": "매칭 검토 대기",
+  "open_dq_violations": "미조치 품질 위반",
+  "approval_trend_title": "최근 7일 결재 요청 및 처리 추이",
+  "domain_distribution_title": "도메인별 마스터 레코드 분포",
+  "governance_health_title": "데이터 거버넌스 & 품질 조치 현황",
+  "go_to_dq_dashboard": "품질 관리 이동",
+  "go_to_match_review": "매칭 검토 이동",
+  "no_domain_records": "등록된 마스터 레코드가 없습니다.",
+  "managed_master_records": "관리 중인 마스터 레코드",
+  "potential_duplicates": "중복 가능성 추정 건",
+  "approval_success_rate": "결재 승인율",
+  "approval_stats_summary": "승인 {approved}건 / 반려 {rejected}건"
 }

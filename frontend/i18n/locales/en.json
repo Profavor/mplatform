@@ -761,5 +761,17 @@
   "grant_permission_success": "Selected domain permissions granted successfully.",
   "matching_rules": {
     "title": "Matching Rules Management"
-  }
+  },
+  "pending_match_candidates": "Pending Match Candidates",
+  "open_dq_violations": "Open DQ Violations",
+  "approval_trend_title": "7-Day Approval Requests Trend",
+  "domain_distribution_title": "Master Record Distribution by Domain",
+  "governance_health_title": "Governance & Data Quality Health",
+  "go_to_dq_dashboard": "Go to DQ Dashboard",
+  "go_to_match_review": "Go to Match Review",
+  "no_domain_records": "No master records found.",
+  "managed_master_records": "Managed Master Records",
+  "potential_duplicates": "Potential Duplicates",
+  "approval_success_rate": "Approval Success Rate",
+  "approval_stats_summary": "Approved {approved} / Rejected {rejected}"
 }
