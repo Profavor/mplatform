@@ -39,6 +39,14 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(ex.getErrorCode(), ex.getMessage()));
     }
 
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadableException(org.springframework.http.converter.HttpMessageNotReadableException ex, HttpServletRequest request) {
+        log.error("JSON parse error at URI: {}. Message: {}", request.getRequestURI(), ex.getMessage(), ex);
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ErrorResponse.of(ErrorCode.INVALID_INPUT, "JSON Parse Error: " + ex.getMessage()));
+    }
+
     @ExceptionHandler({ValidationException.class, IllegalArgumentException.class})
     public ResponseEntity<ErrorResponse> handleValidationException(Exception ex, HttpServletRequest request) {
         log.warn("Validation/IllegalArgument exception at URI: {}. Message: {}", request.getRequestURI(), ex.getMessage());

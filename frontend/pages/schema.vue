@@ -1450,25 +1450,44 @@ const openFieldModal = async (rowData = null) => {
 const saveDomain = async () => {
   try {
     const url = isEditMode.value ? `/api/domains/${newDomain.value.id}` : `/api/domains`
+    const extractId = (val: any) => {
+      if (!val) return null
+      if (typeof val === 'string') return val
+      if (typeof val === 'object' && val.value) return val.value
+      return null
+    }
+
+    const payload = {
+      name: { 
+        ko: newDomain.value.name?.ko || '', 
+        en: newDomain.value.name?.en || '' 
+      },
+      description: { 
+        ko: newDomain.value.description?.ko || '', 
+        en: newDomain.value.description?.en || '' 
+      },
+      identifierFieldId: extractId(newDomain.value.identifierFieldId),
+      displayNameFieldId: extractId(newDomain.value.displayNameFieldId),
+      descriptionFieldId: extractId(newDomain.value.descriptionFieldId),
+      icon: newDomain.value.icon || '',
+      sortOrder: parseInt(newDomain.value.sortOrder as string) || 0,
+      numberingPattern: newDomain.value.numberingPattern || '',
+      autoDqScanEnabled: Boolean(newDomain.value.autoDqScanEnabled)
+    }
+
+    console.log('Sending Domain Update Payload:', payload)
+
     await $fetch(url, {
       method: isEditMode.value ? 'PUT' : 'POST',
       headers: getAuthHeaders(),
-      body: {
-        name: newDomain.value.name,
-        description: newDomain.value.description,
-        identifierFieldId: (typeof newDomain.value.identifierFieldId === 'object' && newDomain.value.identifierFieldId !== null) ? newDomain.value.identifierFieldId.value : (newDomain.value.identifierFieldId || null),
-        displayNameFieldId: (typeof newDomain.value.displayNameFieldId === 'object' && newDomain.value.displayNameFieldId !== null) ? newDomain.value.displayNameFieldId.value : (newDomain.value.displayNameFieldId || null),
-        descriptionFieldId: (typeof newDomain.value.descriptionFieldId === 'object' && newDomain.value.descriptionFieldId !== null) ? newDomain.value.descriptionFieldId.value : (newDomain.value.descriptionFieldId || null),
-        icon: newDomain.value.icon || '',
-        sortOrder: newDomain.value.sortOrder || 0,
-        numberingPattern: newDomain.value.numberingPattern,
-        autoDqScanEnabled: newDomain.value.autoDqScanEnabled
-      }
+      body: payload
     })
     showDomainModal.value = false
     await loadTree()
   } catch (e) {
-    showCustomAlert(t('error_saving_domain'), 'Domain Save Error', 'Error', 'error')
+    const msg = e.response?._data?.message || e.message || 'Unknown error'
+    console.error('Domain Save Error Details:', e.response?._data)
+    showCustomAlert('Domain Save Error: ' + msg, 'Error', 'Error', 'error')
   }
 }
 
