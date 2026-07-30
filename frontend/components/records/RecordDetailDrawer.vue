@@ -305,20 +305,80 @@
       </div>
 
       <!-- History Tab Content (AG-Grid with Pagination) -->
-      <div v-show="activeMainTab === 'history'" style="height: 100%; width: 100%; display: flex; flex-direction: column; flex: 1; overflow: hidden;">
+      <div v-show="activeMainTab === 'history'" style="height: 100%; width: 100%; display: flex; flex-direction: column; flex: 1; overflow-y: auto; padding-right: 8px;">
         <div v-if="!history || history.length === 0" style="text-align: center; color: #777; padding: 2rem;">
-          {{ $t('no_history_data') || '이력 데이터가 없습니다.' }}
+          {{ t('audit_no_history') || '이력 내역이 없습니다.' }}
         </div>
-        <div v-else style="height: 100%; width: 100%; flex: 1; overflow: hidden;">
-          <ag-grid-vue
-            style="width: 100%; height: 100%;"
-            :theme="gridTheme"
-            :columnDefs="historyGridColumnDefs"
-            :rowData="history"
-            :pagination="true"
-            :paginationPageSize="10"
-            :paginationPageSizeSelector="[5, 10, 20, 50]"
-          />
+        <div v-else style="padding: 1rem 0.5rem;">
+          <va-timeline vertical>
+            <va-timeline-item
+              v-for="(log, idx) in history"
+              :key="log.id || idx"
+              :color="getHistoryTimelineColor(log.changeType)"
+              active
+            >
+              <template #before>
+                <div style="font-size: 0.85rem; font-weight: 600; color: var(--va-secondary); margin-bottom: 0.25rem;">
+                  {{ formatDate(log.changedAt) }}
+                </div>
+              </template>
+              <template #after>
+                <va-card outlined style="margin-bottom: 1.5rem; width: 100%;">
+                  <va-card-title style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border-bottom: 1px solid var(--va-background-border);">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                      <va-badge :color="getHistoryTimelineColor(log.changeType)" :text="log.changeType === 'PENDING_APPROVAL' ? (t('pending_approval') || '결재 진행중') : log.changeType" />
+                      <span style="font-weight: 700; font-size: 0.95rem;">
+                        {{ getUserName(log.changedBy, log.changedBy) }}
+                      </span>
+                    </div>
+                    <va-button
+                      v-if="log.changeType === 'PENDING_APPROVAL' || log.changeType === 'UPDATE'"
+                      preset="secondary"
+                      size="small"
+                      icon="visibility"
+                      @click="log.changeType === 'PENDING_APPROVAL' && log.rawRequest ? $emit('viewDiffDetails', log.rawRequest.changes, log.rawRequest.targetType, true) : $emit('viewDiffDetails', log.previousData, log.newData, false)"
+                    >
+                      {{ t('view_changes') || '변경 내역 보기' }}
+                    </va-button>
+                    <va-button
+                      v-else-if="log.changeType === 'CREATE' || log.changeType === 'DELETE'"
+                      preset="secondary"
+                      size="small"
+                      icon="history"
+                      @click="$emit('viewSnapshot', log.id)"
+                    >
+                      {{ t('view_snapshot') || '스냅샷 보기' }}
+                    </va-button>
+                  </va-card-title>
+                  <va-card-content v-if="log.changeType === 'UPDATE' && log.previousData && log.newData" style="padding: 1rem; background: var(--va-background-secondary);">
+                    <!-- Inline Diff Rendering -->
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                      <div v-for="fieldKey in getChangedKeys(log.previousData, log.newData)" :key="fieldKey" style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem;">
+                        <span style="font-weight: 700; color: var(--va-text-primary); min-width: 100px;">
+                          {{ getFieldLabelByKey(fieldKey) }}:
+                        </span>
+                        <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1; flex-wrap: wrap;">
+                          <span style="text-decoration: line-through; color: var(--va-danger); background: rgba(229, 57, 53, 0.1); padding: 0.1rem 0.4rem; border-radius: 4px;">
+                            {{ formatDiffValue(fieldKey, log.previousData[fieldKey]) }}
+                          </span>
+                          <va-icon name="arrow_forward" size="small" color="secondary" />
+                          <span style="color: var(--va-success); background: rgba(30, 203, 114, 0.1); padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 600;">
+                            {{ formatDiffValue(fieldKey, log.newData[fieldKey]) }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </va-card-content>
+                  <va-card-content v-else-if="log.changeType === 'CREATE'" style="padding: 1rem; color: var(--va-success); font-weight: 600;">
+                    <va-icon name="add_circle_outline" class="mr-2" /> {{ t('initial_created') || '최초 생성되었습니다.' }}
+                  </va-card-content>
+                  <va-card-content v-else-if="log.changeType === 'DELETE'" style="padding: 1rem; color: var(--va-danger); font-weight: 600;">
+                    <va-icon name="remove_circle_outline" class="mr-2" /> {{ t('deleted_status') || '레코드가 삭제되었습니다.' }}
+                  </va-card-content>
+                </va-card>
+              </template>
+            </va-timeline-item>
+          </va-timeline>
         </div>
       </div>
 
@@ -398,6 +458,37 @@ const createUnifiedBtn = (label, colorHex, onClick) => {
 
 
 const { t, locale: i18nLocale } = useI18n()
+
+const getHistoryTimelineColor = (type) => {
+  if (type === 'PENDING_APPROVAL') return 'warning';
+  if (type === 'CREATE') return 'success';
+  if (type === 'DELETE') return 'danger';
+  return 'primary';
+};
+
+const getChangedKeys = (prev, curr) => {
+  if (!prev || !curr) return [];
+  const keys = new Set([...Object.keys(prev), ...Object.keys(curr)]);
+  const changed = [];
+  for (const k of keys) {
+    if (k === 'id' || k === 'createdAt' || k === 'updatedAt' || k === 'createdBy' || k === 'updatedBy' || k === 'domainId' || k === 'status') continue;
+    if (JSON.stringify(prev[k]) !== JSON.stringify(curr[k])) {
+      changed.push(k);
+    }
+  }
+  return changed;
+};
+
+const formatDiffValue = (key, val) => {
+  if (val === null || val === undefined) return '(null)';
+  if (typeof val === 'object') return JSON.stringify(val);
+  return String(val);
+};
+
+const getFieldLabelByKey = (key) => {
+  const f = props.fields?.find(f => f.key === key);
+  return f ? getTranslatedName(f.name) : key;
+};
 
 const historyGridColumnDefs = computed(() => {
   // Touch i18nLocale value for reactive updates on locale change

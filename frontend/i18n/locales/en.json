@@ -773,5 +773,22 @@
   "managed_master_records": "Managed Master Records",
   "potential_duplicates": "Potential Duplicates",
   "approval_success_rate": "Approval Success Rate",
-  "approval_stats_summary": "Approved {approved} / Rejected {rejected}"
+  "approval_stats_summary": "Approved {approved} / Rejected {rejected}",
+  "audit_trail": "Audit Trail",
+  "audit_change_type": "Change Type",
+  "audit_changed_by": "Changed By",
+  "audit_source_system": "Source System",
+  "audit_previous_data": "Previous Data",
+  "audit_new_data": "New Data",
+  "audit_no_history": "No history found.",
+  "audit_field_changed": "{field} changed",
+  "dq_rules_management": "Data Quality Rules Management",
+  "dq_rules_desc": "Configure data quality rules applied to each field.",
+  "dq_rule_type": "Rule Type",
+  "dq_severity": "Severity",
+  "dq_params": "Parameters",
+  "dq_error_message": "Error Message",
+  "dq_sort_order": "Sort Order",
+  "add_dq_rule": "Add Rule",
+  "edit_dq_rule": "Edit Rule"
 }

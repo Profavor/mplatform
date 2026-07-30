@@ -771,5 +771,22 @@
   "managed_master_records": "관리 중인 마스터 레코드",
   "potential_duplicates": "중복 가능성 추정 건",
   "approval_success_rate": "결재 승인율",
-  "approval_stats_summary": "승인 {approved}건 / 반려 {rejected}건"
+  "approval_stats_summary": "승인 {approved}건 / 반려 {rejected}건",
+  "audit_trail": "변경 이력 (Audit Trail)",
+  "audit_change_type": "변경 유형",
+  "audit_changed_by": "변경자",
+  "audit_source_system": "출처 시스템",
+  "audit_previous_data": "변경 전 데이터",
+  "audit_new_data": "변경 후 데이터",
+  "audit_no_history": "이력 내역이 없습니다.",
+  "audit_field_changed": "{field} 변경됨",
+  "dq_rules_management": "품질 검증 규칙 관리",
+  "dq_rules_desc": "각 필드에 적용될 데이터 품질 검증 규칙(Data Quality Rules)을 설정합니다.",
+  "dq_rule_type": "규칙 유형",
+  "dq_severity": "중요도",
+  "dq_params": "설정 파라미터(Params)",
+  "dq_error_message": "오류 메시지",
+  "dq_sort_order": "적용 순서",
+  "add_dq_rule": "규칙 추가",
+  "edit_dq_rule": "규칙 수정"
 }
