@@ -22,8 +22,16 @@ public class MatchingRule {
     @Column(name = "domain_id", nullable = false)
     private UUID domainId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "domain_id", insertable = false, updatable = false)
+    private Domain domain;
+
     @Column(name = "node_id")
     private UUID nodeId; // Nullable if applies to all nodes in domain
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "node_id", insertable = false, updatable = false)
+    private ClassificationNode node;
 
     @Column(name = "rule_name", nullable = false)
     private String ruleName;

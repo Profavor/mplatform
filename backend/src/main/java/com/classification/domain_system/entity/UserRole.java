@@ -25,8 +25,16 @@ public class UserRole {
     @Column(name = "user_id", nullable = false)
     private String userId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", insertable = false, updatable = false)
+    private User user;
+
     @Column(name = "role_id", nullable = false)
     private UUID roleId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "role_id", insertable = false, updatable = false)
+    private Role role;
 
     @Column(name = "granted_by")
     private String grantedBy;

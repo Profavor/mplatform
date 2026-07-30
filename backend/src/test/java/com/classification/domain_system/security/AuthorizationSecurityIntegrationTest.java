@@ -53,7 +53,7 @@ class AuthorizationSecurityIntegrationTest {
     @BeforeEach
     void setUp() {
         userToken = jwtUtil.generateToken("regular_user", "ROLE_USER", "user-1");
-        adminToken = jwtUtil.generateToken("admin_user", "ADMIN", "admin-1");
+        adminToken = jwtUtil.generateToken("admin_user", "ROLE_ADMIN", "admin-1");
     }
 
     @Test

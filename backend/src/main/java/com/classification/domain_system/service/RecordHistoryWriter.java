@@ -14,7 +14,7 @@ public class RecordHistoryWriter {
 
     private final RecordHistoryRepository recordHistoryRepository;
 
-    public void logHistory(Record record, String changeType, UUID changedBy, String prevData, String newData, UUID approvalRequestId) {
+    public void logHistory(Record record, String changeType, String changedBy, String prevData, String newData, UUID approvalRequestId) {
         RecordHistory history = new RecordHistory();
         history.setRecordId(record.getId());
         history.setChangeType(changeType);

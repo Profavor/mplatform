@@ -61,8 +61,8 @@ public class FieldDefinitionService {
         return "system";
     }
 
-    private UUID getCurrentUserId() {
-        return UUID.randomUUID(); // Simplified, normally fetch from SecurityContext
+    private String getCurrentUserId() {
+        return UUID.randomUUID().toString(); // Simplified, normally fetch from SecurityContext
     }
 
     private ApprovalRequest createSchemaApprovalRequest(Domain domain, ClassificationNode node, String targetType, String changes) {
@@ -91,7 +91,7 @@ public class FieldDefinitionService {
                             com.classification.domain_system.entity.ApprovalStep step = new com.classification.domain_system.entity.ApprovalStep();
                             step.setApprovalRequest(approval);
                             step.setStepType(stepNode.get("stepType").asText());
-                            step.setAssigneeId(UUID.fromString(stepNode.get("assigneeId").asText()));
+                            step.setAssigneeId(stepNode.get("assigneeId").asText());
                             step.setStepOrder(stepNode.get("stepOrder").asInt());
                             step.setStatus(step.getStepOrder() == 1 ? "PENDING" : "WAITING");
                             steps.add(step);
@@ -385,7 +385,7 @@ public class FieldDefinitionService {
                 .orElseThrow(() -> new RuntimeException("Field not found"));
                 
         if (nodeId != null && field.getDefinedAtNode() != null && !field.getDefinedAtNode().getId().equals(nodeId)) {
-            // Log warning or allow if updating node
+            throw new RuntimeException("Field does not belong to the specified node");
         }
         
         ClassificationNode node = field.getDefinedAtNode();

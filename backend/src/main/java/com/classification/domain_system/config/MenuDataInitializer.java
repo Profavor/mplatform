@@ -75,7 +75,6 @@ public class MenuDataInitializer {
                     .icon(icon)
                     .parentId(parentId)
                     .sortOrder(sortOrder)
-                    .requiredRole(roles.contains("ROLE_ADMIN") && roles.size() == 1 ? "ROLE_ADMIN" : "ROLE_USER")
                     .isActive(true)
                     .build();
             newMenu.getRequiredRoles().addAll(roles);

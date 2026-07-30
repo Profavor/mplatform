@@ -6,6 +6,6 @@ import java.util.UUID;
 @Data
 public class ApprovalStepRequest {
     private String stepType; // CONSENSUS, APPROVAL
-    private UUID assigneeId;
+    private String assigneeId;
     private Integer stepOrder;
 }

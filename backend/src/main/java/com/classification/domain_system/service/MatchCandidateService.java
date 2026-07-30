@@ -1,11 +1,14 @@
 package com.classification.domain_system.service;
 
+import com.classification.domain_system.config.MdmProperties;
+
 import com.classification.domain_system.dto.PageResponse;
 import com.classification.domain_system.entity.ClassificationNode;
 import com.classification.domain_system.entity.MatchCandidate;
 import com.classification.domain_system.entity.Record;
 import com.classification.domain_system.exception.BusinessException;
 import com.classification.domain_system.exception.ErrorCode;
+import com.classification.domain_system.exception.CustomAccessDeniedException;
 import com.classification.domain_system.exception.ResourceNotFoundException;
 import com.classification.domain_system.repository.ClassificationNodeRepository;
 import com.classification.domain_system.repository.MatchCandidateRepository;
@@ -32,6 +35,18 @@ public class MatchCandidateService {
     private final RecordRepository recordRepository;
     private final ClassificationNodeRepository nodeRepository;
     private final RecordMergeService recordMergeService;
+    private final MdmProperties mdmProperties;
+
+    private String resolveUsername(String username) {
+        if (username != null && !username.isBlank()) {
+            return username;
+        }
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && auth.getName() != null && !"anonymousUser".equals(auth.getName())) {
+            return auth.getName();
+        }
+        throw new CustomAccessDeniedException("Unauthenticated user context");
+    }
 
     @Transactional(readOnly = true)
     public PageResponse<MatchCandidate> getCandidatesByDomain(UUID domainId, String status, int page, int size) {
@@ -84,7 +99,7 @@ public class MatchCandidateService {
         }
 
         candidate.setStatus("CONFIRMED_MERGE");
-        candidate.setReviewedBy(username != null ? username : "STEWARD");
+        candidate.setReviewedBy(resolveUsername(username));
         candidate.setReviewedAt(LocalDateTime.now());
         candidateRepository.save(candidate);
 
@@ -104,7 +119,7 @@ public class MatchCandidateService {
         }
 
         candidate.setStatus("REJECTED");
-        candidate.setReviewedBy(username != null ? username : "STEWARD");
+        candidate.setReviewedBy(resolveUsername(username));
         candidate.setReviewedAt(LocalDateTime.now());
         candidateRepository.save(candidate);
 
@@ -130,7 +145,7 @@ public class MatchCandidateService {
         }
 
         candidate.setStatus("IGNORED");
-        candidate.setReviewedBy(username != null ? username : "STEWARD");
+        candidate.setReviewedBy(resolveUsername(username));
         candidate.setReviewedAt(LocalDateTime.now());
         return candidateRepository.save(candidate);
     }

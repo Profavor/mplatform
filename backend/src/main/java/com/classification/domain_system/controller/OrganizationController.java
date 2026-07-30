@@ -119,14 +119,6 @@ public class OrganizationController {
                     .map(String::trim)
                     .collect(java.util.stream.Collectors.toSet());
             dept.setRoles(clean);
-            dept.setRole(String.join(",", clean));
-        } else if (dept.getRole() != null) {
-            java.util.Set<String> clean = java.util.Arrays.stream(dept.getRole().split(","))
-                    .filter(r -> !r.trim().isEmpty())
-                    .map(String::trim)
-                    .collect(java.util.stream.Collectors.toSet());
-            dept.setRoles(clean);
-            dept.setRole(String.join(",", clean));
         }
         return ResponseEntity.ok(departmentRepository.save(dept));
     }
@@ -148,15 +140,6 @@ public class OrganizationController {
                                 .collect(java.util.stream.Collectors.toSet());
                         existing.getRoles().clear();
                         existing.getRoles().addAll(clean);
-                        existing.setRole(String.join(",", clean));
-                    } else if (deptReq.getRole() != null) {
-                        java.util.Set<String> clean = java.util.Arrays.stream(deptReq.getRole().split(","))
-                                .filter(r -> !r.trim().isEmpty())
-                                .map(String::trim)
-                                .collect(java.util.stream.Collectors.toSet());
-                        existing.getRoles().clear();
-                        existing.getRoles().addAll(clean);
-                        existing.setRole(String.join(",", clean));
                     }
                     return ResponseEntity.ok(departmentRepository.save(existing));
                 })

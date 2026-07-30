@@ -35,44 +35,22 @@ class UserDataInitializerTest {
     private UserDataInitializer userDataInitializer;
 
     @Test
-    @DisplayName("admin 계정이 없을 때 admin 계정을 ROLE_ADMIN 권한과 암호화된 비밀번호로 생성한다")
+    @DisplayName("UserDataInitializer 실행 시 설치 마법사가 처리하므로 생성을 스킵한다")
     void run_createsAdminUserWhenNotExists() {
-        // given
-        given(userRepository.findByUsername("admin")).willReturn(Optional.empty());
-        given(passwordEncoder.encode("Knight12!")).willReturn("encodedPassword123");
-
         // when
         userDataInitializer.run(applicationArguments);
 
         // then
-        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository, times(1)).save(userCaptor.capture());
-        
-        User savedUser = userCaptor.getValue();
-        assertEquals("admin", savedUser.getUsername());
-        assertEquals("encodedPassword123", savedUser.getPassword());
-        assertEquals("ROLE_ADMIN", savedUser.getRole());
-        assertTrue(savedUser.getIsActive());
+        verify(userRepository, never()).save(any(User.class));
     }
 
     @Test
-    @DisplayName("admin 계정이 이미 존재할 때 비밀번호와 ROLE_ADMIN 권한을 업데이트한다")
+    @DisplayName("UserDataInitializer 실행 시 이미 존재하는 유저도 업데이트하지 않고 스킵한다")
     void run_updatesAdminUserWhenAlreadyExists() {
-        // given
-        User existingAdmin = new User();
-        existingAdmin.setUsername("admin");
-        existingAdmin.setPassword("oldPassword");
-        existingAdmin.setRole("ROLE_USER");
-
-        given(userRepository.findByUsername("admin")).willReturn(Optional.of(existingAdmin));
-        given(passwordEncoder.encode("Knight12!")).willReturn("newEncodedPassword123");
-
         // when
         userDataInitializer.run(applicationArguments);
 
         // then
-        verify(userRepository, times(1)).save(existingAdmin);
-        assertEquals("newEncodedPassword123", existingAdmin.getPassword());
-        assertEquals("ROLE_ADMIN", existingAdmin.getRole());
+        verify(userRepository, never()).save(any(User.class));
     }
 }

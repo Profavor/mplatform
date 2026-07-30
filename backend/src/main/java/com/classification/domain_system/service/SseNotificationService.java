@@ -14,9 +14,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SseNotificationService {
 
     private static final long TIMEOUT_MS = 30 * 60 * 1000L; // 30 minutes
-    private final Map<UUID, SseEmitter> emitterMap = new ConcurrentHashMap<>();
+    private final Map<String, SseEmitter> emitterMap = new ConcurrentHashMap<>();
 
-    public SseEmitter subscribe(UUID userId) {
+    public SseEmitter subscribe(String userId) {
         SseEmitter emitter = new SseEmitter(TIMEOUT_MS);
 
         emitterMap.put(userId, emitter);
@@ -37,7 +37,7 @@ public class SseNotificationService {
         return emitter;
     }
 
-    public void sendNotification(UUID userId, Notification notification) {
+    public void sendNotification(String userId, Notification notification) {
         SseEmitter emitter = emitterMap.get(userId);
         if (emitter != null) {
             try {

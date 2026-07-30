@@ -26,8 +26,8 @@ public class ApprovalStep {
     @Column(name = "step_type", nullable = false, length = 20)
     private String stepType; // CONSENSUS, APPROVAL
 
-    @Column(name = "assignee_id")
-    private UUID assigneeId;
+    @Column(name = "assignee_id", length = 100)
+    private String assigneeId;
 
     @Transient
     private String assigneeName;

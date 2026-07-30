@@ -56,14 +56,14 @@ class ApprovalControllerTest {
 
     private UUID nodeId;
     private UUID stepId;
-    private UUID approverId;
+    private String approverId;
 
     @BeforeEach
     void setUp() {
         nodeId = UUID.randomUUID();
         stepId = UUID.randomUUID();
-        approverId = UUID.randomUUID();
-        when(authContext.getUserId()).thenReturn(approverId.toString());
+        approverId = UUID.randomUUID().toString();
+        when(authContext.getUserId()).thenReturn(approverId);
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -142,7 +142,7 @@ class ApprovalControllerTest {
             approvalRequest.setId(UUID.randomUUID());
             approvalRequest.setStatus("APPROVED");
 
-            UUID spoofedId = UUID.randomUUID();
+            String spoofedId = UUID.randomUUID().toString();
             when(approvalService.approveStep(eq(stepId), eq(approverId), isNull()))
                     .thenReturn(approvalRequest);
 
@@ -218,7 +218,7 @@ class ApprovalControllerTest {
         @Test
         @DisplayName("getMyTodos - assigneeId 파라미터가 서비스로 전달")
         void getMyTodos_AssigneeIdPassed() throws Exception {
-            UUID assigneeId = UUID.randomUUID();
+            String assigneeId = UUID.randomUUID().toString();
             ApprovalStep step = new ApprovalStep();
             step.setId(UUID.randomUUID());
 

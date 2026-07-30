@@ -16,9 +16,8 @@ import java.util.UUID;
 @Table(name = "record_secondary_node", indexes = {
         @Index(name = "idx_record_sec_record", columnList = "record_id"),
         @Index(name = "idx_record_sec_node", columnList = "node_id"),
-        @Index(name = "idx_record_sec_axis", columnList = "axis_id")
-}, uniqueConstraints = {
-        @UniqueConstraint(name = "uk_record_axis", columnNames = {"record_id", "axis_id"})
+        @Index(name = "idx_record_sec_axis", columnList = "axis_id"),
+        @Index(name = "uk_record_axis", columnList = "record_id, axis_id", unique = true)
 })
 @Getter
 @Setter
@@ -31,6 +30,10 @@ public class RecordSecondaryNode {
 
     @Column(name = "record_id", nullable = false)
     private UUID recordId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "record_id", insertable = false, updatable = false)
+    private Record record;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "node_id", nullable = false)

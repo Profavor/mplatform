@@ -28,29 +28,23 @@ public class ApprovalController {
     private final AuthContext authContext;
     private final com.classification.domain_system.repository.UserRepository userRepository;
     
-    private UUID getAuthenticatedUserId() {
+    private String getAuthenticatedUserId() {
         String userIdStr = authContext.getUserId();
         if (userIdStr == null || userIdStr.isBlank()) {
             throw new CustomAccessDeniedException("Unauthenticated user context");
         }
-        try {
-            return UUID.fromString(userIdStr);
-        } catch (Exception e) {
-            return userRepository.findByUsername(userIdStr)
-                    .map(u -> UUID.fromString(u.getId()))
-                    .orElseThrow(() -> new CustomAccessDeniedException("User not found: " + userIdStr));
-        }
+        return userIdStr;
     }
 
-    private UUID resolveUserUuid(String input) {
+    private String resolveUserUuid(String input) {
         if (input == null || input.isBlank() || "null".equalsIgnoreCase(input) || "undefined".equalsIgnoreCase(input)) {
             return getAuthenticatedUserId();
         }
         try {
-            return UUID.fromString(input);
+            return UUID.fromString(input).toString();
         } catch (Exception e) {
             return userRepository.findByUsername(input)
-                    .map(u -> UUID.fromString(u.getId()))
+                    .map(u -> u.getId().toString())
                     .orElseGet(this::getAuthenticatedUserId);
         }
     }
@@ -66,11 +60,11 @@ public class ApprovalController {
     public ResponseEntity<List<com.classification.domain_system.entity.WorkflowConfig>> getAvailableWorkflows(
             @PathVariable UUID nodeId, 
             @RequestParam String actionType) {
-        UUID authenticatedUserId = null;
+        String authenticatedUserId = null;
         String userRole = null;
         try {
             authenticatedUserId = getAuthenticatedUserId();
-            com.classification.domain_system.entity.User u = userRepository.findById(authenticatedUserId.toString()).orElse(null);
+            com.classification.domain_system.entity.User u = userRepository.findById(authenticatedUserId).orElse(null);
             if (u != null) {
                 userRole = u.getRole();
             }
@@ -86,11 +80,11 @@ public class ApprovalController {
             @PathVariable UUID nodeId, 
             @RequestParam String actionType,
             @RequestParam(required = false) UUID workflowId) {
-        UUID authenticatedUserId = null;
+        String authenticatedUserId = null;
         String userRole = null;
         try {
             authenticatedUserId = getAuthenticatedUserId();
-            com.classification.domain_system.entity.User u = userRepository.findById(authenticatedUserId.toString()).orElse(null);
+            com.classification.domain_system.entity.User u = userRepository.findById(authenticatedUserId).orElse(null);
             if (u != null) {
                 userRole = u.getRole();
             }
@@ -166,7 +160,7 @@ public class ApprovalController {
             @RequestParam(required = false) String assigneeId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
-        UUID targetAssigneeId = resolveUserUuid(assigneeId);
+        String targetAssigneeId = resolveUserUuid(assigneeId);
         var todoPage = approvalService.getMyTodos(targetAssigneeId, PageRequest.of(page, size));
         if (todoPage.getContent() != null) {
             todoPage.getContent().forEach(s -> {
@@ -183,7 +177,7 @@ public class ApprovalController {
             @RequestParam(required = false) String requesterId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
-        UUID targetRequesterId = resolveUserUuid(requesterId);
+        String targetRequesterId = resolveUserUuid(requesterId);
         var myReqPage = approvalService.getMyRequests(targetRequesterId, PageRequest.of(page, size));
         approvalService.enrichUserNames(myReqPage.getContent());
         return ResponseEntity.ok(PageResponse.of(myReqPage));
@@ -200,7 +194,7 @@ public class ApprovalController {
     public ResponseEntity<ApprovalRequest> approveStep(
             @PathVariable UUID stepId, 
             @RequestBody(required = false) Map<String, String> payload) {
-        UUID approverId = getAuthenticatedUserId();
+        String approverId = getAuthenticatedUserId();
         String comment = payload != null ? payload.get("comment") : null;
         return ResponseEntity.ok(approvalService.approveStep(stepId, approverId, comment));
     }
@@ -209,25 +203,27 @@ public class ApprovalController {
     public ResponseEntity<ApprovalRequest> rejectStep(
             @PathVariable UUID stepId, 
             @RequestBody(required = false) Map<String, String> payload) {
-        UUID approverId = getAuthenticatedUserId();
+        String approverId = getAuthenticatedUserId();
         String comment = payload != null ? payload.get("comment") : null;
         return ResponseEntity.ok(approvalService.rejectStep(stepId, approverId, comment));
     }
     
     @PostMapping("/steps/{stepId}/admin-approve")
+    @org.springframework.security.access.prepost.PreAuthorize("hasPermission(null, 'admin:write')")
     public ResponseEntity<ApprovalRequest> adminApproveStep(
             @PathVariable UUID stepId, 
             @RequestBody(required = false) Map<String, String> payload) {
-        UUID adminId = getAuthenticatedUserId();
+        String adminId = getAuthenticatedUserId();
         String comment = payload != null ? payload.get("comment") : null;
         return ResponseEntity.ok(approvalService.adminApproveStep(stepId, adminId, comment));
     }
     
     @PostMapping("/steps/{stepId}/admin-reject")
+    @org.springframework.security.access.prepost.PreAuthorize("hasPermission(null, 'admin:write')")
     public ResponseEntity<ApprovalRequest> adminRejectStep(
             @PathVariable UUID stepId, 
             @RequestBody(required = false) Map<String, String> payload) {
-        UUID adminId = getAuthenticatedUserId();
+        String adminId = getAuthenticatedUserId();
         String comment = payload != null ? payload.get("comment") : null;
         return ResponseEntity.ok(approvalService.adminRejectStep(stepId, adminId, comment));
     }

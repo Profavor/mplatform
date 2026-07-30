@@ -31,7 +31,7 @@ public class NotificationService {
     private final UserRepository userRepository;
 
     @Transactional
-    public Notification createNotification(UUID userId, String title, String message, String type, String linkUrl) {
+    public Notification createNotification(String userId, String title, String message, String type, String linkUrl) {
         Notification notification = new Notification();
         notification.setUserId(userId);
         notification.setTitle(title);
@@ -62,7 +62,7 @@ public class NotificationService {
     }
 
     @Transactional
-    public int markAllAsRead(UUID userId) {
+    public int markAllAsRead(String userId) {
         return notificationRepository.markAllAsRead(userId);
     }
 
@@ -72,7 +72,7 @@ public class NotificationService {
     }
 
     @Transactional
-    public int deleteAllUserNotifications(UUID userId) {
+    public int deleteAllUserNotifications(String userId) {
         return notificationRepository.deleteByUserId(userId);
     }
 
@@ -91,14 +91,14 @@ public class NotificationService {
     }
 
     @Transactional(readOnly = true)
-    public Page<Notification> getUserNotifications(UUID userId, Pageable pageable) {
+    public Page<Notification> getUserNotifications(String userId, Pageable pageable) {
         Page<Notification> page = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
         page.getContent().forEach(this::enrichNotification);
         return page;
     }
 
     @Transactional(readOnly = true)
-    public long getUnreadCount(UUID userId) {
+    public long getUnreadCount(String userId) {
         return notificationRepository.countByUserIdAndIsReadFalse(userId);
     }
 
@@ -152,9 +152,9 @@ public class NotificationService {
         }
     }
 
-    private String resolveUserName(UUID userId) {
+    private String resolveUserName(String userId) {
         if (userId == null) return "사용자";
-        return userRepository.findById(userId.toString())
+        return userRepository.findById(userId)
                 .map(User::getUsername)
                 .orElse("사용자");
     }

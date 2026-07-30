@@ -43,8 +43,8 @@ class ApprovalEventListenerTest {
     @DisplayName("성공 - ApprovalRequestCreatedEvent 발생 시, 1단계와 2단계 결재자가 기안자 본인이면 2단계까지 자동 전결된다")
     void successAutoApproveOnRequestCreated() {
         // given
-        UUID requesterId = UUID.randomUUID();
-        UUID otherUserId = UUID.randomUUID();
+        String requesterId = UUID.randomUUID().toString();
+        String otherUserId = UUID.randomUUID().toString();
         UUID recordId = UUID.randomUUID();
 
         ApprovalRequest approval = new ApprovalRequest();
@@ -96,8 +96,8 @@ class ApprovalEventListenerTest {
     @DisplayName("성공 - ApprovalStepApprovedEvent 발생 시, 다음 차수의 모든 결재자가 기안자와 다르면 대기 상태로 유지된다")
     void successStopAtOtherOnStepApproved() {
         // given
-        UUID requesterId = UUID.randomUUID();
-        UUID otherUserId = UUID.randomUUID();
+        String requesterId = UUID.randomUUID().toString();
+        String otherUserId = UUID.randomUUID().toString();
 
         ApprovalRequest approval = new ApprovalRequest();
         approval.setId(UUID.randomUUID());
@@ -110,7 +110,7 @@ class ApprovalEventListenerTest {
         step1.setApprovalRequest(approval);
         step1.setStepOrder(1);
         step1.setStepType("APPROVAL");
-        step1.setAssigneeId(UUID.randomUUID());
+        step1.setAssigneeId(UUID.randomUUID().toString());
         step1.setStatus("APPROVED");
 
         // step2: 다음 차수, 결재자는 타인(너) -> 자동승인 안됨

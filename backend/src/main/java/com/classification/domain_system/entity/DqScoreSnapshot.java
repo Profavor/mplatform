@@ -25,8 +25,12 @@ public class DqScoreSnapshot {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(nullable = false)
+    @Column(name = "domain_id", nullable = false)
     private UUID domainId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "domain_id", insertable = false, updatable = false)
+    private Domain domain;
 
     /** DQ 점수 (0.0 ~ 100.0) */
     @Column(nullable = false)

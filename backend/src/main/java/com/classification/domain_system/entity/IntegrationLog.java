@@ -17,11 +17,19 @@ public class IntegrationLog {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(nullable = false)
+    @Column(name = "channel_id", nullable = false)
     private UUID channelId;
 
-    @Column(nullable = true)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "channel_id", insertable = false, updatable = false)
+    private IntegrationChannel channel;
+
+    @Column(name = "record_id", nullable = true)
     private UUID recordId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "record_id", insertable = false, updatable = false)
+    private Record record;
 
     @Column(nullable = false, length = 50)
     private String eventType; // CREATE, UPDATE, DELETE

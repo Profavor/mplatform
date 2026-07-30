@@ -82,8 +82,8 @@ public class MenuServiceTest {
     @Test
     void testChildRolesUnionInParentNode() {
         Menu parent = Menu.builder().id(10L).name("Management").path("/mgt").sortOrder(1).isActive(true).build();
-        Menu child1 = Menu.builder().id(11L).name("Sub 1").parentId(10L).requiredRole("USER, DQ_MANAGER").sortOrder(1).isActive(true).build();
-        Menu child2 = Menu.builder().id(12L).name("Sub 2").parentId(10L).requiredRole("DATA_STEWARD, USER").sortOrder(2).isActive(true).build();
+        Menu child1 = Menu.builder().id(11L).name("Sub 1").parentId(10L).requiredRoles(new java.util.HashSet<>(java.util.Arrays.asList("USER", "DQ_MANAGER"))).sortOrder(1).isActive(true).build();
+        Menu child2 = Menu.builder().id(12L).name("Sub 2").parentId(10L).requiredRoles(new java.util.HashSet<>(java.util.Arrays.asList("DATA_STEWARD", "USER"))).sortOrder(2).isActive(true).build();
 
         when(menuRepository.findAllByIsActiveTrueOrderBySortOrderAsc())
                 .thenReturn(Arrays.asList(parent, child1, child2));
@@ -92,7 +92,9 @@ public class MenuServiceTest {
 
         assertThat(tree).hasSize(1);
         Map<String, Object> parentNode = tree.get(0);
-        String unionRoles = (String) parentNode.get("requiredRole");
+        
+        @SuppressWarnings("unchecked")
+        List<String> unionRoles = (List<String>) parentNode.get("requiredRoles");
 
         assertThat(unionRoles).contains("USER");
         assertThat(unionRoles).contains("DQ_MANAGER");

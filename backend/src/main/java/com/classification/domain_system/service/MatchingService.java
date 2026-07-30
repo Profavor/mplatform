@@ -9,6 +9,7 @@ import com.classification.domain_system.repository.ClassificationNodeRepository;
 import com.classification.domain_system.repository.FieldDefinitionRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
+import com.classification.domain_system.config.MdmProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import java.util.*;
@@ -23,6 +24,7 @@ public class MatchingService {
     private final RecordRepository recordRepository;
     private final ClassificationNodeRepository nodeRepository;
     private final FieldDefinitionRepository fieldDefinitionRepository;
+    private final MdmProperties mdmProperties;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public static class DuplicateResult {
@@ -137,38 +139,46 @@ public class MatchingService {
                         }
                     }
                 } else {
-                    // FUZZY matching (상한 500건으로 페이징 제한)
-                    List<Record> candidateRecords = recordRepository.findByNodeId(nodeId, org.springframework.data.domain.PageRequest.of(0, 500)).getContent();
-                    for (Record cand : candidateRecords) {
-                        if (cand.getData() == null) continue;
-                        try {
-                            Map<String, Object> candData = mapper.readValue(cand.getData(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
-                            double totalScore = 0.0;
-                            int count = 0;
-                            for (String field : fields) {
-                                Object v1 = data.get(field);
-                                Object v2 = candData.get(field);
-                                if (v1 != null && v2 != null) {
-                                    String s1 = v1.toString().trim().toLowerCase().replaceAll("[^a-zA-Z0-9가-힣]", "");
-                                    String s2 = v2.toString().trim().toLowerCase().replaceAll("[^a-zA-Z0-9가-힣]", "");
-                                    double sim = similarityAlgo.apply(s1, s2);
-                                    totalScore += sim;
-                                    count++;
+                    // FUZZY matching
+                    int pageSize = (mdmProperties != null && mdmProperties.getMatching() != null && mdmProperties.getMatching().getFuzzyMaxCandidates() > 0)
+                            ? mdmProperties.getMatching().getFuzzyMaxCandidates() : 500;
+                    int maxPages = (mdmProperties != null && mdmProperties.getMatching() != null && mdmProperties.getMatching().getFuzzyMaxPages() > 0)
+                            ? mdmProperties.getMatching().getFuzzyMaxPages() : 10;
+                    for (int page = 0; page < maxPages; page++) {
+                        org.springframework.data.domain.Page<Record> candidatePage = recordRepository.findByNodeId(nodeId, org.springframework.data.domain.PageRequest.of(page, pageSize));
+                        List<Record> candidateRecords = candidatePage.getContent();
+                        for (Record cand : candidateRecords) {
+                            if (cand.getData() == null) continue;
+                            try {
+                                Map<String, Object> candData = mapper.readValue(cand.getData(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+                                double totalScore = 0.0;
+                                int count = 0;
+                                for (String field : fields) {
+                                    Object v1 = data.get(field);
+                                    Object v2 = candData.get(field);
+                                    if (v1 != null && v2 != null) {
+                                        String s1 = v1.toString().trim().toLowerCase().replaceAll("[^a-zA-Z0-9가-힣]", "");
+                                        String s2 = v2.toString().trim().toLowerCase().replaceAll("[^a-zA-Z0-9가-힣]", "");
+                                        double sim = similarityAlgo.apply(s1, s2);
+                                        totalScore += sim;
+                                        count++;
+                                    }
                                 }
-                            }
-                            if (count > 0) {
-                                double avgScore = totalScore / count;
-                                if (avgScore >= threshold) {
-                                    result.hasDuplicates = true;
-                                    result.duplicateRecordIds.add(cand.getId());
-                                    result.message = "Fuzzy duplicate candidate found based on rule: " + rule.getRuleName() + " (Score: " + String.format("%.2f", avgScore) + ")";
-                                    result.score = avgScore;
-                                    result.matchedRuleId = rule.getId();
-                                    result.matchType = "FUZZY";
-                                    return result;
+                                if (count > 0) {
+                                    double avgScore = totalScore / count;
+                                    if (avgScore >= threshold) {
+                                        result.hasDuplicates = true;
+                                        result.duplicateRecordIds.add(cand.getId());
+                                        result.message = "Fuzzy duplicate candidate found based on rule: " + rule.getRuleName() + " (Score: " + String.format("%.2f", avgScore) + ")";
+                                        result.score = avgScore;
+                                        result.matchedRuleId = rule.getId();
+                                        result.matchType = "FUZZY";
+                                        return result;
+                                    }
                                 }
-                            }
-                        } catch (Exception ignored) {}
+                            } catch (Exception ignored) {}
+                        }
+                        if (!candidatePage.hasNext()) break;
                     }
                 }
             }
@@ -177,5 +187,47 @@ public class MatchingService {
         }
 
         return result;
+    }
+
+    public List<Map<String, Object>> fuzzySearch(UUID nodeId, String keyword, int page, int size) {
+        if (keyword == null || keyword.isBlank()) {
+            return Collections.emptyList();
+        }
+        int maxPages = mdmProperties.getMatching().getFuzzyMaxPages();
+        if (page >= maxPages) {
+            return Collections.emptyList();
+        }
+        
+        org.springframework.data.domain.Page<Record> candidatePage = recordRepository.findByNodeId(nodeId, org.springframework.data.domain.PageRequest.of(page, size));
+        List<Map<String, Object>> results = new ArrayList<>();
+        org.apache.commons.text.similarity.JaroWinklerSimilarity similarityAlgo = new org.apache.commons.text.similarity.JaroWinklerSimilarity();
+        String s2 = keyword.trim().toLowerCase().replaceAll("[^a-zA-Z0-9가-힣]", "");
+        
+        for (Record cand : candidatePage.getContent()) {
+            if (cand.getData() == null) continue;
+            try {
+                Map<String, Object> candData = mapper.readValue(cand.getData(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+                double maxScore = 0.0;
+                for (Object value : candData.values()) {
+                    if (value == null) continue;
+                    String s1 = value.toString().trim().toLowerCase().replaceAll("[^a-zA-Z0-9가-힣]", "");
+                    double sim = similarityAlgo.apply(s1, s2);
+                    if (sim > maxScore) {
+                        maxScore = sim;
+                    }
+                }
+                
+                if (maxScore >= 0.5) {
+                    Map<String, Object> hit = new HashMap<>();
+                    hit.put("recordId", cand.getId());
+                    hit.put("data", candData);
+                    hit.put("score", maxScore);
+                    results.add(hit);
+                }
+            } catch (Exception ignored) {}
+        }
+        
+        results.sort((a, b) -> Double.compare((Double) b.get("score"), (Double) a.get("score")));
+        return results;
     }
 }

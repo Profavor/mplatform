@@ -1,5 +1,7 @@
 package com.classification.domain_system.service;
 
+import com.classification.domain_system.config.MdmProperties;
+
 import com.classification.domain_system.entity.ClassificationNode;
 import com.classification.domain_system.entity.Domain;
 import com.classification.domain_system.entity.Record;
@@ -26,6 +28,7 @@ public class DqScheduledScanService {
     private final RecordRepository recordRepository;
     private final DqRuleEngine dqRuleEngine;
     private final DqScoreSnapshotService dqScoreSnapshotService;
+    private final MdmProperties mdmProperties;
 
     private final NotificationService notificationService;
     private final com.classification.domain_system.repository.UserRepository userRepository;
@@ -57,7 +60,7 @@ public class DqScheduledScanService {
                         for (var user : users) {
                             try {
                                 notificationService.createNotification(
-                                        java.util.UUID.fromString(user.getId()),
+                                        user.getId(),
                                         title,
                                         message,
                                         "DQ_VIOLATION",
@@ -69,7 +72,7 @@ public class DqScheduledScanService {
                         }
                     } else {
                         notificationService.createNotification(
-                                java.util.UUID.fromString("00000000-0000-0000-0000-000000000000"),
+                                mdmProperties.getDq().getSystemUserId(),
                                 title,
                                 message,
                                 "DQ_VIOLATION",

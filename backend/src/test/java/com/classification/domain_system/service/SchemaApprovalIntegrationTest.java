@@ -165,7 +165,7 @@ public class SchemaApprovalIntegrationTest {
 
     @Test
     void testSchemaApprovalFinalApproval() {
-        UUID approverId = UUID.randomUUID();
+        String approverId = UUID.randomUUID().toString();
         WorkflowConfig config = new WorkflowConfig();
         config.setDomainId(testDomain.getId());
         config.setActionType("SCHEMA_CHANGE");
@@ -200,7 +200,7 @@ public class SchemaApprovalIntegrationTest {
 
     @Test
     void testSchemaApprovalRejection() {
-        UUID approverId = UUID.randomUUID();
+        String approverId = UUID.randomUUID().toString();
         WorkflowConfig config = new WorkflowConfig();
         config.setDomainId(testDomain.getId());
         config.setActionType("SCHEMA_CHANGE");

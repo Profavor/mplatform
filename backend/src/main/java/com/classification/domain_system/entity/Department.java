@@ -11,8 +11,8 @@ import java.util.HashSet;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "department", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"organization_id", "name"})
+@Table(name = "department", indexes = {
+    @Index(name = "uk_department_org_name", columnList = "organization_id, name", unique = true)
 })
 @Getter
 @Setter
@@ -27,6 +27,10 @@ public class Department {
     @Column(name = "organization_id", nullable = false)
     private UUID organizationId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id", insertable = false, updatable = false)
+    private Organization organization;
+
     @Column(nullable = false, length = 255)
     private String name;
 
@@ -36,12 +40,14 @@ public class Department {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Deprecated
-    @Column(length = 50)
-    private String role; // Legacy fallback
+
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "department_roles", joinColumns = @JoinColumn(name = "department_id"))
+    @CollectionTable(
+            name = "department_roles", 
+            joinColumns = @JoinColumn(name = "department_id"),
+            indexes = @Index(name = "uk_department_roles", columnList = "department_id, role_name", unique = true)
+    )
     @Column(name = "role_name")
     private Set<String> roles = new HashSet<>();
 

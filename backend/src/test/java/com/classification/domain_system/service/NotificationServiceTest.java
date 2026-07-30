@@ -36,11 +36,11 @@ class NotificationServiceTest {
     @InjectMocks
     private NotificationService notificationService;
 
-    private UUID userId;
+    private String userId;
 
     @BeforeEach
     void setUp() {
-        userId = UUID.randomUUID();
+        userId = UUID.randomUUID().toString();
     }
 
     @Test

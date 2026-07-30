@@ -36,6 +36,10 @@ public class Record {
     @Column(name = "approval_request_id")
     private UUID approvalRequestId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "approval_request_id", insertable = false, updatable = false)
+    private ApprovalRequest approvalRequest;
+
     @Column(name = "version", nullable = false, columnDefinition = "integer default 1")
     private Integer version = 1;
 
@@ -44,6 +48,10 @@ public class Record {
 
     @Column(name = "merged_into_record_id")
     private UUID mergedIntoRecordId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "merged_into_record_id", insertable = false, updatable = false)
+    private Record mergedIntoRecord;
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;

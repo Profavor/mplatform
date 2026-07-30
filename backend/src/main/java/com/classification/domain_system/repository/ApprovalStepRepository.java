@@ -12,5 +12,5 @@ import org.springframework.data.domain.Pageable;
 
 @Repository
 public interface ApprovalStepRepository extends JpaRepository<ApprovalStep, UUID> {
-    Page<ApprovalStep> findByAssigneeIdAndStatus(UUID assigneeId, String status, Pageable pageable);
+    Page<ApprovalStep> findByAssigneeIdAndStatus(String assigneeId, String status, Pageable pageable);
 }

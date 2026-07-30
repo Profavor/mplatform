@@ -22,6 +22,10 @@ public class RecordFieldSource {
     @Column(name = "record_id", nullable = false)
     private UUID recordId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "record_id", insertable = false, updatable = false)
+    private Record record;
+
     @Column(name = "field_key", nullable = false, length = 100)
     private String fieldKey;
 

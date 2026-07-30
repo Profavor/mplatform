@@ -32,8 +32,8 @@ class OrganizationDataInitializerTest {
         OrganizationDataInitializer initializer = new OrganizationDataInitializer(orgRepository, roleInitializer);
         initializer.run(mock(ApplicationArguments.class));
 
-        verify(orgRepository, times(1)).save(any(Organization.class));
-        verify(roleInitializer, times(1)).createDefaultRolesForOrg(any());
+        verify(orgRepository, never()).save(any(Organization.class));
+        verify(roleInitializer, never()).createDefaultRolesForOrg(any());
     }
 
     @Test

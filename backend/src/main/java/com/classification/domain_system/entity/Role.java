@@ -11,8 +11,8 @@ import java.util.HashSet;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "role", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"organization_id", "name"})
+@Table(name = "role", indexes = {
+    @Index(name = "uk_role_org_name", columnList = "organization_id, name", unique = true)
 })
 @Getter
 @Setter
@@ -27,6 +27,10 @@ public class Role {
     @Column(name = "organization_id", nullable = false)
     private UUID organizationId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id", insertable = false, updatable = false)
+    private Organization organization;
+
     @Column(nullable = false, length = 255)
     private String name;
 
@@ -37,7 +41,11 @@ public class Role {
     private String description;
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "role_permissions", joinColumns = @JoinColumn(name = "role_id"))
+    @CollectionTable(
+            name = "role_permissions", 
+            joinColumns = @JoinColumn(name = "role_id"),
+            indexes = @Index(name = "uk_role_permissions", columnList = "role_id, permission", unique = true)
+    )
     @Column(name = "permission")
     private Set<String> permissions = new HashSet<>();
 

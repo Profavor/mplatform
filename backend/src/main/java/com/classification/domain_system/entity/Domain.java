@@ -24,6 +24,10 @@ public class Domain {
     @Column(name = "organization_id")
     private UUID organizationId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id", insertable = false, updatable = false)
+    private Organization organization;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false)
     private Map<String, String> name = new HashMap<>();
@@ -35,11 +39,23 @@ public class Domain {
     @Column(name = "identifier_field_id")
     private UUID identifierFieldId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "identifier_field_id", insertable = false, updatable = false)
+    private FieldDefinition identifierField;
+
     @Column(name = "display_name_field_id")
     private UUID displayNameFieldId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "display_name_field_id", insertable = false, updatable = false)
+    private FieldDefinition displayNameField;
+
     @Column(name = "description_field_id")
     private UUID descriptionFieldId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "description_field_id", insertable = false, updatable = false)
+    private FieldDefinition descriptionField;
 
     @Column(name = "icon")
     private String icon;

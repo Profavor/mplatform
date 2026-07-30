@@ -94,7 +94,7 @@ class DomainServiceTest extends BaseServiceTest {
             com.classification.domain_system.entity.User admin = new com.classification.domain_system.entity.User();
             admin.setId(UUID.randomUUID().toString());
             admin.setUsername("adminUser");
-            admin.setRole("ADMIN");
+            admin.setRole("ROLE_ADMIN");
             
             given(userRepository.findByUsername("adminUser")).willReturn(Optional.of(admin));
             given(domainRepository.findAllByOrderBySortOrderAsc()).willReturn(domains);
@@ -130,7 +130,7 @@ class DomainServiceTest extends BaseServiceTest {
             com.classification.domain_system.entity.User multiRoleUser = new com.classification.domain_system.entity.User();
             multiRoleUser.setId(UUID.randomUUID().toString());
             multiRoleUser.setUsername("profavor");
-            multiRoleUser.setRole("DATA_STEWARD,ADMIN");
+            multiRoleUser.setRole("ROLE_DATA_STEWARD,ROLE_ADMIN");
             
             given(userRepository.findByUsername("profavor")).willReturn(Optional.of(multiRoleUser));
             given(domainRepository.findAllByOrderBySortOrderAsc()).willReturn(domains);

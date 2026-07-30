@@ -32,6 +32,8 @@ class DqScheduledScanServiceTest {
     private NotificationService notificationService;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private DqScoreSnapshotService dqScoreSnapshotService;
 
     @InjectMocks
     private DqScheduledScanService dqScheduledScanService;
@@ -62,7 +64,7 @@ class DqScheduledScanServiceTest {
 
         verify(dqRuleEngine, times(1)).runDomainDqScan(domainId);
         verify(notificationService, times(1)).createNotification(
-                eq(UUID.fromString(user.getId())),
+                eq(user.getId()),
                 contains("Violation"),
                 contains("고객 도메인"),
                 eq("DQ_VIOLATION"),

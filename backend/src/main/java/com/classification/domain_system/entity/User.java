@@ -1,8 +1,6 @@
 package com.classification.domain_system.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
@@ -27,8 +25,26 @@ public class User {
     private String role;
     private String timezone;
 
+    @Column(name = "organization_id")
     private UUID organizationId;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id", insertable = false, updatable = false)
+    private Organization organization;
+
+    @Column(name = "department_id")
     private UUID departmentId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id", insertable = false, updatable = false)
+    private Department department;
+
+    @Column(name = "team_id")
     private UUID teamId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "team_id", insertable = false, updatable = false)
+    private Team team;
+
     private Boolean isActive = true;
 }

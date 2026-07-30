@@ -1,8 +1,8 @@
 spring:
   datasource:
     url: ${DB_URL:jdbc:h2:file:./data/mplatform;MODE=PostgreSQL;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1}
-    username: ${DB_USERNAME:sa}
-    password: ${DB_PASSWORD:}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:password}
     driver-class-name: ${DB_DRIVER_CLASS_NAME:org.h2.Driver}
   h2:
     console:
@@ -24,9 +24,25 @@ spring:
       - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
 
 jwt:
-  secret: ${JWT_SECRET:mplatform_secret_key_which_must_be_at_least_256_bits_long_for_hs256_security_token_generation}
+  secret: ${JWT_SECRET}
   access-token-expiration-sec: ${JWT_ACCESS_EXPIRATION_SEC:1800}
   refresh-token-expiration-sec: ${JWT_REFRESH_EXPIRATION_SEC:172800}
 
 file:
   upload-dir: ${FILE_UPLOAD_DIR:./uploads}
+
+security:
+  encryption:
+    secret-key: ${ENCRYPTION_SECRET_KEY}
+
+mdm:
+  matching:
+    fuzzy-max-candidates: 500
+    fuzzy-max-pages: 10
+    feedback-precision-threshold: 0.95
+    feedback-score-increment: 0.02
+  dq:
+    system-user-id: SYSTEM
+    trend-window-days: 30
+  merge:
+    default-source-priority: 999

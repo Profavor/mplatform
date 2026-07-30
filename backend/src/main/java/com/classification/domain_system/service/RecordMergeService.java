@@ -1,5 +1,7 @@
 package com.classification.domain_system.service;
 
+import com.classification.domain_system.config.MdmProperties;
+
 import com.classification.domain_system.entity.*;
 import com.classification.domain_system.entity.Record;
 import com.classification.domain_system.event.MasterDataChangedEvent;
@@ -29,8 +31,10 @@ public class RecordMergeService {
     private final SurvivorshipRuleRepository survivorshipRuleRepository;
     private final SourcePriorityRepository sourcePriorityRepository;
     private final RecordFieldSourceRepository recordFieldSourceRepository;
+    private final com.classification.domain_system.repository.UserRepository userRepository;
     private final FieldDefinitionRepository fieldDefinitionRepository;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final MdmProperties mdmProperties;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public static class MergeRequest {
@@ -39,12 +43,15 @@ public class RecordMergeService {
         public Map<String, UUID> fieldResolutions; // fieldKey -> selected source RecordId
     }
 
-    private UUID parseUserUuid(String username) {
+    private String parseUserUuid(String username) {
         if (username == null || username.isBlank()) return null;
         try {
-            return UUID.fromString(username);
-        } catch (IllegalArgumentException e) {
-            return UUID.nameUUIDFromBytes(username.getBytes(StandardCharsets.UTF_8));
+            return UUID.fromString(username).toString();
+        } catch (Exception e) {
+            if (userRepository == null) return username;
+            return userRepository.findByUsername(username)
+                    .map(u -> u.getId().toString())
+                    .orElse(username);
         }
     }
 
@@ -356,11 +363,12 @@ public class RecordMergeService {
                     RecordFieldSource fieldSource = recordFieldSourceRepository.findByRecordIdAndFieldKey(cand.getId(), fieldKey).orElse(null);
                     String sys = fieldSource != null ? fieldSource.getSourceSystem() : cand.getSourceSystem();
 
+                    int defaultPriority = (mdmProperties != null && mdmProperties.getMerge() != null) ? mdmProperties.getMerge().getDefaultSourcePriority() : 999;
                     int priority = sourcePriorities.stream()
                             .filter(sp -> sp.getSourceSystem() != null && sp.getSourceSystem().equalsIgnoreCase(sys))
                             .map(SourcePriority::getPriority)
                             .findFirst()
-                            .orElse(999);
+                            .orElse(defaultPriority);
 
                     if (priority < bestPriority) {
                         bestPriority = priority;

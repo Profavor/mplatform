@@ -22,8 +22,16 @@ public class MatchCandidate {
     @Column(name = "node_id", nullable = false)
     private UUID nodeId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "node_id", insertable = false, updatable = false)
+    private ClassificationNode node;
+
     @Column(name = "existing_record_id", nullable = false)
     private UUID existingRecordId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "existing_record_id", insertable = false, updatable = false)
+    private Record existingRecord;
 
     @Column(name = "incoming_data_json", columnDefinition = "TEXT", nullable = false)
     private String incomingDataJson;
@@ -37,8 +45,16 @@ public class MatchCandidate {
     @Column(name = "domain_id")
     private UUID domainId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "domain_id", insertable = false, updatable = false)
+    private Domain domain;
+
     @Column(name = "matched_rule_id")
     private UUID matchedRuleId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "matched_rule_id", insertable = false, updatable = false)
+    private MatchingRule matchedRule;
 
     @Column(name = "source", nullable = false, length = 20)
     private String source; // MANUAL, INBOUND

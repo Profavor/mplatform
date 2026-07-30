@@ -22,6 +22,10 @@ public class DqScanSchedule {
     @Column(name = "domain_id", nullable = false)
     private UUID domainId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "domain_id", insertable = false, updatable = false)
+    private Domain domain;
+
     @Column(name = "cron_expression", nullable = false, length = 100)
     private String cronExpression;
 

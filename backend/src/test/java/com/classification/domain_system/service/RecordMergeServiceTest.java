@@ -264,7 +264,7 @@ class RecordMergeServiceTest {
         ArgumentCaptor<RecordHistory> historyCaptor = ArgumentCaptor.forClass(RecordHistory.class);
         verify(recordHistoryRepository, atLeastOnce()).save(historyCaptor.capture());
 
-        assertThat(historyCaptor.getAllValues()).allMatch(h -> expectedUuid.equals(h.getChangedBy()));
+        assertThat(historyCaptor.getAllValues()).allMatch(h -> operator.equals(h.getChangedBy()));
     }
 
     @Test

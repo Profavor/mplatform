@@ -37,6 +37,10 @@ public class IntegrationChannel {
     @Column(name = "node_id")
     private UUID nodeId; // Associated Domain (ClassificationNode) ID
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "node_id", insertable = false, updatable = false)
+    private ClassificationNode node;
+
     @Column(columnDefinition = "TEXT")
     private String configJson; // Target endpoint, DB connection, Topic name, etc.
 

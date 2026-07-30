@@ -19,7 +19,7 @@ import java.util.Optional;
 @Repository
 public interface ApprovalRequestRepository extends JpaRepository<ApprovalRequest, UUID>, JpaSpecificationExecutor<ApprovalRequest> {
     Page<ApprovalRequest> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);
-    Page<ApprovalRequest> findByRequesterIdOrderByCreatedAtDesc(UUID requesterId, Pageable pageable);
+    Page<ApprovalRequest> findByRequesterIdOrderByCreatedAtDesc(String requesterId, Pageable pageable);
     List<ApprovalRequest> findByTargetIdAndStatus(UUID targetId, String status);
     List<ApprovalRequest> findByCreatedAtAfter(java.time.LocalDateTime createdAt);
 

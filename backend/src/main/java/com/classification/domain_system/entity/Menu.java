@@ -31,12 +31,14 @@ public class Menu {
     @Column(name = "sort_order")
     private Integer sortOrder;
 
-    @Deprecated
-    @Column(name = "required_role", length = 50)
-    private String requiredRole; // Legacy fallback field
+
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "menu_roles", joinColumns = @JoinColumn(name = "menu_id"))
+    @CollectionTable(
+            name = "menu_roles", 
+            joinColumns = @JoinColumn(name = "menu_id"),
+            indexes = @Index(name = "uk_menu_roles", columnList = "menu_id, role_name", unique = true)
+    )
     @Column(name = "role_name")
     @Builder.Default
     private Set<String> requiredRoles = new HashSet<>();

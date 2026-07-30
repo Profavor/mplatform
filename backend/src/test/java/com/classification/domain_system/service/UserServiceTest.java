@@ -41,7 +41,7 @@ public class UserServiceTest {
         Pageable pageable = PageRequest.of(0, 10);
         Page<User> mockPage = new PageImpl<>(Arrays.asList(u1, u2), pageable, 2);
 
-        when(userRepository.findByUsernameContainingIgnoreCase(eq("admin"), eq(pageable)))
+        when(userRepository.findByUsernameContainingIgnoreCaseOrRoleContainingIgnoreCase(eq("admin"), eq("admin"), eq(pageable)))
                 .thenReturn(mockPage);
 
         // When

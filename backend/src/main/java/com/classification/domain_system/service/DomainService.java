@@ -48,8 +48,10 @@ public class DomainService {
         boolean hasFullAccess = auth.getAuthorities().stream()
                 .anyMatch(a -> "*:*".equals(a.getAuthority()) 
                             || "*".equals(a.getAuthority()) 
-                            || "domain:*".equalsIgnoreCase(a.getAuthority()) 
-                            || "ROLE_ADMIN".equalsIgnoreCase(a.getAuthority()));
+                            || "domain:*".equalsIgnoreCase(a.getAuthority())
+                            || "admin:read".equalsIgnoreCase(a.getAuthority())
+                            || "ROLE_ADMIN".equalsIgnoreCase(a.getAuthority())
+                            || "ROLE_SYSTEM_ADMIN".equalsIgnoreCase(a.getAuthority()));
 
         if (hasFullAccess) {
             return domainRepository.findAllByOrderBySortOrderAsc();

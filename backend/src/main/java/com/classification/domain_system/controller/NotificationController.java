@@ -25,24 +25,22 @@ public class NotificationController {
     private final SseNotificationService sseNotificationService;
     private final AuthContext authContext;
 
-    private UUID getCurrentUserId(UUID paramUserId) {
-        if (paramUserId != null) {
+    private String getCurrentUserId(String paramUserId) {
+        if (paramUserId != null && !paramUserId.isBlank()) {
             return paramUserId;
         }
         if (authContext != null && authContext.getUserId() != null) {
-            try {
-                return UUID.fromString(authContext.getUserId());
-            } catch (Exception ignored) {}
+            return authContext.getUserId();
         }
         throw new IllegalArgumentException("User ID is required");
     }
 
     @GetMapping
     public ResponseEntity<PageResponse<Notification>> getNotifications(
-            @RequestParam(required = false) UUID userId,
+            @RequestParam(required = false) String userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        UUID currentUserId = getCurrentUserId(userId);
+        String currentUserId = getCurrentUserId(userId);
         Pageable pageable = PageRequest.of(page, size);
         Page<Notification> notifications = notificationService.getUserNotifications(currentUserId, pageable);
         return ResponseEntity.ok(PageResponse.of(notifications));
@@ -54,15 +52,15 @@ public class NotificationController {
     }
 
     @PutMapping("/read-all")
-    public ResponseEntity<Map<String, Integer>> markAllAsRead(@RequestParam(required = false) UUID userId) {
-        UUID currentUserId = getCurrentUserId(userId);
+    public ResponseEntity<Map<String, Integer>> markAllAsRead(@RequestParam(required = false) String userId) {
+        String currentUserId = getCurrentUserId(userId);
         int count = notificationService.markAllAsRead(currentUserId);
         return ResponseEntity.ok(Map.of("updatedCount", count));
     }
 
     @GetMapping("/unread-count")
-    public ResponseEntity<Map<String, Long>> getUnreadCount(@RequestParam(required = false) UUID userId) {
-        UUID currentUserId = getCurrentUserId(userId);
+    public ResponseEntity<Map<String, Long>> getUnreadCount(@RequestParam(required = false) String userId) {
+        String currentUserId = getCurrentUserId(userId);
         long count = notificationService.getUnreadCount(currentUserId);
         return ResponseEntity.ok(Map.of("unreadCount", count));
     }
@@ -74,20 +72,20 @@ public class NotificationController {
     }
 
     @DeleteMapping("/clear-all")
-    public ResponseEntity<Map<String, Integer>> deleteAllNotifications(@RequestParam(required = false) UUID userId) {
-        UUID currentUserId = getCurrentUserId(userId);
+    public ResponseEntity<Map<String, Integer>> deleteAllNotifications(@RequestParam(required = false) String userId) {
+        String currentUserId = getCurrentUserId(userId);
         int count = notificationService.deleteAllUserNotifications(currentUserId);
         return ResponseEntity.ok(Map.of("deletedCount", count));
     }
 
     @DeleteMapping
-    public ResponseEntity<Map<String, Integer>> deleteAllNotificationsShortcut(@RequestParam(required = false) UUID userId) {
+    public ResponseEntity<Map<String, Integer>> deleteAllNotificationsShortcut(@RequestParam(required = false) String userId) {
         return deleteAllNotifications(userId);
     }
 
     @GetMapping("/subscribe")
-    public SseEmitter subscribe(@RequestParam(required = false) UUID userId) {
-        UUID currentUserId = getCurrentUserId(userId);
+    public SseEmitter subscribe(@RequestParam(required = false) String userId) {
+        String currentUserId = getCurrentUserId(userId);
         return sseNotificationService.subscribe(currentUserId);
     }
 }

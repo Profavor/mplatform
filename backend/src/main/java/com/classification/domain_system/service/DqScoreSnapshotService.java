@@ -2,6 +2,7 @@ package com.classification.domain_system.service;
 
 import com.classification.domain_system.entity.DqScoreSnapshot;
 import com.classification.domain_system.repository.DqScoreSnapshotRepository;
+import com.classification.domain_system.config.MdmProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ import java.util.UUID;
 public class DqScoreSnapshotService {
 
     private final DqScoreSnapshotRepository snapshotRepository;
+    private final MdmProperties mdmProperties;
 
     /**
      * DQ 스캔 결과를 스냅샷으로 기록합니다.
@@ -55,7 +57,8 @@ public class DqScoreSnapshotService {
      */
     public List<DqScoreSnapshot> getTrend(UUID domainId, LocalDateTime from, LocalDateTime to) {
         if (from == null) {
-            from = LocalDateTime.now().minusDays(30);
+            int days = (mdmProperties != null && mdmProperties.getDq() != null) ? mdmProperties.getDq().getTrendWindowDays() : 30;
+            from = LocalDateTime.now().minusDays(days);
         }
         if (to == null) {
             to = LocalDateTime.now();

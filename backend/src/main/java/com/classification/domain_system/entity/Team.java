@@ -25,8 +25,16 @@ public class Team {
     @Column(name = "organization_id", nullable = false)
     private UUID organizationId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id", insertable = false, updatable = false)
+    private Organization organization;
+
     @Column(name = "department_id")
     private UUID departmentId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id", insertable = false, updatable = false)
+    private Department department;
 
     @Column(nullable = false, length = 255)
     private String name;

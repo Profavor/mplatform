@@ -54,6 +54,10 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
         for (GrantedAuthority authority : authentication.getAuthorities()) {
             String auth = authority.getAuthority().trim();
 
+            if ("ROLE_ADMIN".equalsIgnoreCase(auth) || "ROLE_SYSTEM_ADMIN".equalsIgnoreCase(auth)) {
+                return true;
+            }
+
             // 1. 전역 와일드카드 권한 (앞자리가 * 인 경우: *, *:*, *:write 등)
             if ("*".equals(auth) || "*:*".equalsIgnoreCase(auth) || auth.startsWith("*:") || auth.startsWith("*:")) {
                 return true;

@@ -26,7 +26,7 @@ public class FieldEncryptionService {
     private final SecretKey aesKey;
     private final SecretKey hmacKey;
 
-    public FieldEncryptionService(@Value("${security.encryption.secret-key:0123456789abcdef0123456789abcdef}") String secretKey) {
+    public FieldEncryptionService(@Value("${security.encryption.secret-key}") String secretKey) {
         byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
         if (keyBytes.length < 32) {
             byte[] padded = new byte[32];

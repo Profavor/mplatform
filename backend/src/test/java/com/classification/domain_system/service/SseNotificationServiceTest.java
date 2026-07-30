@@ -14,12 +14,12 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 class SseNotificationServiceTest {
 
     private SseNotificationService sseNotificationService;
-    private UUID userId;
+    private String userId;
 
     @BeforeEach
     void setUp() {
         sseNotificationService = new SseNotificationService();
-        userId = UUID.randomUUID();
+        userId = UUID.randomUUID().toString();
     }
 
     @Test

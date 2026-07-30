@@ -332,7 +332,7 @@ public class ApprovalEventListener {
         }
     }
 
-    private void logHistory(Record record, String changeType, UUID changedBy, String prevData, String newData, UUID approvalRequestId) {
+    private void logHistory(Record record, String changeType, String changedBy, String prevData, String newData, UUID approvalRequestId) {
         recordHistoryWriter.logHistory(record, changeType, changedBy, prevData, newData, approvalRequestId);
     }
 
@@ -365,9 +365,9 @@ public class ApprovalEventListener {
         }
     }
 
-    private String resolveUserName(UUID userId) {
+    private String resolveUserName(String userId) {
         if (userId == null) return "사용자";
-        return userRepository.findById(userId.toString())
+        return userRepository.findById(userId)
                 .map(com.classification.domain_system.entity.User::getUsername)
                 .orElse("사용자");
     }

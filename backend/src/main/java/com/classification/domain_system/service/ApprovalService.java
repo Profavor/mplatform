@@ -64,11 +64,12 @@ public class ApprovalService {
             "status", "targetType", "targetId", "id", "currentStepOrder", "createdAt", "updatedAt"
     );
 
+
     private String recomputeCalculatedFields(UUID nodeId, String dataJson) {
         return calculatedFieldEvaluator.recomputeCalculatedFields(nodeId, dataJson);
     }
 
-    private void logHistory(Record record, String changeType, UUID changedBy, String prevData, String newData, UUID approvalRequestId) {
+    private void logHistory(Record record, String changeType, String changedBy, String prevData, String newData, UUID approvalRequestId) {
         recordHistoryWriter.logHistory(record, changeType, changedBy, prevData, newData, approvalRequestId);
     }
 
@@ -98,7 +99,7 @@ public class ApprovalService {
         return resolveWorkflowsForUser(nodeId, actionType, null, null);
     }
 
-    public List<WorkflowConfig> resolveWorkflowsForUser(UUID nodeId, String actionType, UUID requesterId, String userRole) {
+    public List<WorkflowConfig> resolveWorkflowsForUser(UUID nodeId, String actionType, String requesterId, String userRole) {
         if (nodeId == null) return java.util.Collections.emptyList();
 
         List<WorkflowConfig> rawList = new java.util.ArrayList<>();
@@ -146,7 +147,7 @@ public class ApprovalService {
                 .toList();
     }
 
-    private boolean allowsUserAction(WorkflowConfig config, String actionType, UUID requesterId, String userRole) {
+    private boolean allowsUserAction(WorkflowConfig config, String actionType, String requesterId, String userRole) {
         if (config == null || config.getStepsConfig() == null || config.getStepsConfig().isBlank()) return true;
         try {
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
@@ -212,7 +213,7 @@ public class ApprovalService {
                         step.setStatus(step.getStepOrder() == 1 ? "PENDING" : "WAITING");
                         
                         if (stepNode.has("assigneeId") && !stepNode.get("assigneeId").asText().isBlank()) {
-                            step.setAssigneeId(UUID.fromString(stepNode.get("assigneeId").asText()));
+                            step.setAssigneeId(stepNode.get("assigneeId").asText());
                         }
                         if (stepNode.has("assigneeRole") && !stepNode.get("assigneeRole").asText().isBlank()) {
                             step.setAssigneeRole(stepNode.get("assigneeRole").asText());
@@ -225,7 +226,7 @@ public class ApprovalService {
                         step.setApprovalRequest(approval);
                         step.setStepType(stepNode.has("stepType") ? stepNode.get("stepType").asText() : "APPROVAL");
                         if (stepNode.has("assigneeId") && !stepNode.get("assigneeId").asText().isBlank()) {
-                            step.setAssigneeId(UUID.fromString(stepNode.get("assigneeId").asText()));
+                            step.setAssigneeId(stepNode.get("assigneeId").asText());
                         }
                         step.setStepOrder(stepNode.get("stepOrder").asInt());
                         step.setStatus(step.getStepOrder() == 1 ? "PENDING" : "WAITING");
@@ -251,19 +252,19 @@ public class ApprovalService {
     public void enrichUserNames(ApprovalRequest request) {
         if (request == null) return;
         if (request.getRequesterId() != null) {
-            userRepository.findById(request.getRequesterId().toString())
+            userRepository.findById(request.getRequesterId())
                 .ifPresentOrElse(
                     u -> request.setRequesterName(u.getUsername()),
-                    () -> request.setRequesterName(request.getRequesterId().toString())
+                    () -> request.setRequesterName(request.getRequesterId())
                 );
         }
         if (request.getSteps() != null) {
             for (ApprovalStep step : request.getSteps()) {
                 if (step.getAssigneeId() != null) {
-                    userRepository.findById(step.getAssigneeId().toString())
+                    userRepository.findById(step.getAssigneeId())
                         .ifPresentOrElse(
                             u -> step.setAssigneeName(u.getUsername()),
-                            () -> step.setAssigneeName(step.getAssigneeId().toString())
+                            () -> step.setAssigneeName(step.getAssigneeId())
                         );
                 }
             }
@@ -293,15 +294,15 @@ public class ApprovalService {
      * Workflow 관리 화면에서 저장한 targetId(username)와 요청자의 UUID를 매칭합니다.
      * targetId가 UUID 형식이면 직접 비교, username 형식이면 UserRepository를 통해 변환 후 비교합니다.
      */
-    private boolean matchesUserIdentity(String targetId, UUID requesterId) {
+    private boolean matchesUserIdentity(String targetId, String requesterId) {
         if (targetId == null || targetId.isBlank() || requesterId == null) return false;
         // 1. UUID 직접 비교
-        if (targetId.equalsIgnoreCase(requesterId.toString())) return true;
+        if (targetId.equalsIgnoreCase(requesterId)) return true;
         // 2. targetId가 username인 경우 → DB에서 User 조회하여 UUID 비교
         try {
             java.util.Optional<User> user = userRepository.findByUsername(targetId);
             if (user.isPresent() && user.get().getId() != null) {
-                return requesterId.toString().equalsIgnoreCase(user.get().getId());
+                return requesterId.equalsIgnoreCase(user.get().getId());
             }
         } catch (Exception e) {
             log.debug("Failed to resolve username '{}' to UUID", targetId, e);
@@ -309,7 +310,7 @@ public class ApprovalService {
         return false;
     }
 
-    public List<String> extractEditableFields(WorkflowConfig config, UUID requesterId, String userRole) {
+    public List<String> extractEditableFields(WorkflowConfig config, String requesterId, String userRole) {
         if (config == null || config.getStepsConfig() == null || config.getStepsConfig().isBlank()) {
             return null;
         }
@@ -353,7 +354,7 @@ public class ApprovalService {
         return null;
     }
 
-    public List<String> extractReadOnlyFields(WorkflowConfig config, UUID requesterId, String userRole) {
+    public List<String> extractReadOnlyFields(WorkflowConfig config, String requesterId, String userRole) {
         if (config == null || config.getStepsConfig() == null || config.getStepsConfig().isBlank()) {
             return null;
         }
@@ -390,7 +391,7 @@ public class ApprovalService {
         return null;
     }
 
-    public List<String> extractHiddenFields(WorkflowConfig config, UUID requesterId, String userRole) {
+    public List<String> extractHiddenFields(WorkflowConfig config, String requesterId, String userRole) {
         if (config == null || config.getStepsConfig() == null || config.getStepsConfig().isBlank()) {
             return null;
         }
@@ -427,7 +428,7 @@ public class ApprovalService {
         return null;
     }
 
-    public com.fasterxml.jackson.databind.JsonNode extractRuleName(WorkflowConfig config, UUID requesterId, String userRole) {
+    public com.fasterxml.jackson.databind.JsonNode extractRuleName(WorkflowConfig config, String requesterId, String userRole) {
         if (config == null || config.getStepsConfig() == null || config.getStepsConfig().isBlank()) {
             return null;
         }
@@ -454,7 +455,7 @@ public class ApprovalService {
         return null;
     }
 
-    public void validateUserActionPermission(WorkflowConfig config, UUID requesterId, String userRole, String requestedAction) {
+    public void validateUserActionPermission(WorkflowConfig config, String requesterId, String userRole, String requestedAction) {
         if (config == null || config.getStepsConfig() == null || config.getStepsConfig().isBlank()) {
             return;
         }
@@ -501,7 +502,7 @@ public class ApprovalService {
                 
         // Check if Domain has the required mapping fields
         Domain domain = node.getDomain();
-        if (domain.getIdentifierFieldId() == null || domain.getDisplayNameFieldId() == null) {
+        if (domain == null || domain.getIdentifierFieldId() == null || domain.getDisplayNameFieldId() == null) {
             throw new BusinessException(ErrorCode.DOMAIN_MISSING_FIELD_MAPPING, "Domain is missing required field mappings (ID or Name). Please configure the domain settings first.");
         }
         
@@ -697,7 +698,7 @@ public class ApprovalService {
         return saved;
     }
         @Transactional
-    public ApprovalRequest approveStep(UUID stepId, UUID approverId, String comment) {
+    public ApprovalRequest approveStep(UUID stepId, String approverId, String comment) {
         ApprovalStep step = stepRepository.findById(stepId)
                 .orElseThrow(() -> new ResourceNotFoundException("Step not found"));
                 
@@ -724,7 +725,7 @@ public class ApprovalService {
     }
     
     @Transactional
-    public ApprovalRequest rejectStep(UUID stepId, UUID approverId, String comment) {
+    public ApprovalRequest rejectStep(UUID stepId, String approverId, String comment) {
         ApprovalStep step = stepRepository.findById(stepId)
                 .orElseThrow(() -> new ResourceNotFoundException("Step not found"));
                 
@@ -753,14 +754,10 @@ public class ApprovalService {
     }
     
     @Transactional
-    public ApprovalRequest adminApproveStep(UUID stepId, UUID adminId, String comment) {
-        User admin = userRepository.findById(adminId.toString())
+    public ApprovalRequest adminApproveStep(UUID stepId, String adminId, String comment) {
+        User admin = userRepository.findById(adminId)
                 .orElseThrow(() -> new ResourceNotFoundException("Admin user not found"));
                 
-        if (!"ROLE_ADMIN".equalsIgnoreCase(admin.getRole()) && !"ADMIN".equalsIgnoreCase(admin.getRole())) {
-            throw new CustomAccessDeniedException("User is not an admin");
-        }
-        
         ApprovalStep step = stepRepository.findById(stepId)
                 .orElseThrow(() -> new ResourceNotFoundException("Step not found"));
                 
@@ -779,14 +776,10 @@ public class ApprovalService {
     }
     
     @Transactional
-    public ApprovalRequest adminRejectStep(UUID stepId, UUID adminId, String comment) {
-        User admin = userRepository.findById(adminId.toString())
+    public ApprovalRequest adminRejectStep(UUID stepId, String adminId, String comment) {
+        User admin = userRepository.findById(adminId)
                 .orElseThrow(() -> new ResourceNotFoundException("Admin user not found"));
                 
-        if (!"ROLE_ADMIN".equalsIgnoreCase(admin.getRole()) && !"ADMIN".equalsIgnoreCase(admin.getRole())) {
-            throw new CustomAccessDeniedException("User is not an admin");
-        }
-        
         ApprovalStep step = stepRepository.findById(stepId)
                 .orElseThrow(() -> new ResourceNotFoundException("Step not found"));
                 
@@ -1034,12 +1027,12 @@ public class ApprovalService {
     }
     
     @Transactional(readOnly = true)
-    public Page<ApprovalStep> getMyTodos(UUID assigneeId, Pageable pageable) {
+    public Page<ApprovalStep> getMyTodos(String assigneeId, Pageable pageable) {
         return stepRepository.findByAssigneeIdAndStatus(assigneeId, "PENDING", pageable);
     }
 
     @Transactional(readOnly = true)
-    public Page<ApprovalRequest> getMyRequests(UUID requesterId, Pageable pageable) {
+    public Page<ApprovalRequest> getMyRequests(String requesterId, Pageable pageable) {
         return approvalRepository.findByRequesterIdOrderByCreatedAtDesc(requesterId, pageable);
     }
 

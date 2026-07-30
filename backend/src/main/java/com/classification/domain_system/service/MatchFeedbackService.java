@@ -4,6 +4,7 @@ import com.classification.domain_system.dto.MatchFeedbackStats;
 import com.classification.domain_system.entity.MatchingRule;
 import com.classification.domain_system.repository.MatchCandidateRepository;
 import com.classification.domain_system.repository.MatchingRuleRepository;
+import com.classification.domain_system.config.MdmProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +27,7 @@ public class MatchFeedbackService {
 
     private final MatchCandidateRepository matchCandidateRepository;
     private final MatchingRuleRepository matchingRuleRepository;
+    private final MdmProperties mdmProperties;
 
     /**
      * 특정 매칭 룰의 피드백 통계를 조회합니다.
@@ -114,7 +116,8 @@ public class MatchFeedbackService {
 
         if (rejectedMaxScore != null) {
             // 오탐만 존재 → 오탐 최대 점수 바로 위로 추천
-            return Math.min(rejectedMaxScore + 0.02, 1.0);
+            double increment = (mdmProperties != null && mdmProperties.getMatching() != null) ? mdmProperties.getMatching().getFeedbackScoreIncrement() : 0.02;
+            return Math.min(rejectedMaxScore + increment, 1.0);
         }
 
         // 정탐만 존재 → 현재 threshold 유지
@@ -136,7 +139,8 @@ public class MatchFeedbackService {
 
         double currentThreshold = rule.getSimilarityThreshold() != null ? rule.getSimilarityThreshold() : 0.85;
 
-        if (precision >= 0.95) {
+        double precisionThreshold = (mdmProperties != null && mdmProperties.getMatching() != null) ? mdmProperties.getMatching().getFeedbackPrecisionThreshold() : 0.95;
+        if (precision >= precisionThreshold) {
             return String.format("정탐률 %.1f%%로 우수합니다. 현재 임계값(%.2f)을 유지해도 좋습니다.", precision * 100, currentThreshold);
         }
 

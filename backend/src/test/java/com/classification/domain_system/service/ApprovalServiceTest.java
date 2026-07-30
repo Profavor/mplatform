@@ -60,7 +60,7 @@ class ApprovalServiceTest extends BaseServiceTest {
                 .willAnswer(invocation -> invocation.getArgument(1));
     }
 
-    private RecordRequest createRecordRequest(String data, UUID requesterId) {
+    private RecordRequest createRecordRequest(String data, String requesterId) {
         RecordRequest req = new RecordRequest();
         req.setData(data);
         req.setRequesterId(requesterId);
@@ -77,7 +77,7 @@ class ApprovalServiceTest extends BaseServiceTest {
         void success() {
             // given
             UUID nodeId = UUID.randomUUID();
-            UUID requesterId = UUID.randomUUID();
+            String requesterId = UUID.randomUUID().toString();
             UUID domainId = UUID.randomUUID();
 
             Domain domain = createTestDomain(domainId, "인사", "HR");
@@ -126,7 +126,7 @@ class ApprovalServiceTest extends BaseServiceTest {
         void failNodeNotFound() {
             // given
             UUID nodeId = UUID.randomUUID();
-            RecordRequest request = createRecordRequest("{}", UUID.randomUUID());
+            RecordRequest request = createRecordRequest("{}", UUID.randomUUID().toString());
             given(nodeRepository.findById(nodeId)).willReturn(Optional.empty());
 
             // when & then
@@ -145,7 +145,7 @@ class ApprovalServiceTest extends BaseServiceTest {
             domain.setDisplayNameFieldId(null);
             ClassificationNode node = createTestNode(nodeId, domain);
 
-            RecordRequest request = createRecordRequest("{}", UUID.randomUUID());
+            RecordRequest request = createRecordRequest("{}", UUID.randomUUID().toString());
             given(nodeRepository.findById(nodeId)).willReturn(Optional.of(node));
 
             // when & then
@@ -164,7 +164,7 @@ class ApprovalServiceTest extends BaseServiceTest {
             domain.setDisplayNameFieldId(UUID.randomUUID());
             ClassificationNode node = createTestNode(nodeId, domain);
 
-            RecordRequest request = createRecordRequest("{}", UUID.randomUUID());
+            RecordRequest request = createRecordRequest("{}", UUID.randomUUID().toString());
 
             DataQualityService.DQResult dqResult = new DataQualityService.DQResult();
             dqResult.isValid = false;
@@ -189,8 +189,8 @@ class ApprovalServiceTest extends BaseServiceTest {
         void failNotAssignee() {
             // given
             UUID stepId = UUID.randomUUID();
-            UUID assigneeId = UUID.randomUUID();
-            UUID otherUserId = UUID.randomUUID();
+            String assigneeId = UUID.randomUUID().toString();
+            String otherUserId = UUID.randomUUID().toString();
 
             ApprovalStep step = new ApprovalStep();
             step.setId(stepId);
@@ -210,7 +210,7 @@ class ApprovalServiceTest extends BaseServiceTest {
         void failAlreadyProcessed() {
             // given
             UUID stepId = UUID.randomUUID();
-            UUID assigneeId = UUID.randomUUID();
+            String assigneeId = UUID.randomUUID().toString();
 
             ApprovalStep step = new ApprovalStep();
             step.setId(stepId);
@@ -235,8 +235,8 @@ class ApprovalServiceTest extends BaseServiceTest {
         void failNotAssignee() {
             // given
             UUID stepId = UUID.randomUUID();
-            UUID assigneeId = UUID.randomUUID();
-            UUID otherUserId = UUID.randomUUID();
+            String assigneeId = UUID.randomUUID().toString();
+            String otherUserId = UUID.randomUUID().toString();
 
             ApprovalStep step = new ApprovalStep();
             step.setId(stepId);
@@ -256,7 +256,7 @@ class ApprovalServiceTest extends BaseServiceTest {
         void successRejectDeleteRequest() {
             // given
             UUID stepId = UUID.randomUUID();
-            UUID assigneeId = UUID.randomUUID();
+            String assigneeId = UUID.randomUUID().toString();
             UUID recordId = UUID.randomUUID();
 
             ApprovalRequest approval = new ApprovalRequest();
@@ -299,7 +299,7 @@ class ApprovalServiceTest extends BaseServiceTest {
         void successApproveAndPublishEvent() {
             // given
             UUID stepId = UUID.randomUUID();
-            UUID assigneeId = UUID.randomUUID();
+            String assigneeId = UUID.randomUUID().toString();
 
             ApprovalRequest approval = new ApprovalRequest();
             approval.setId(UUID.randomUUID());
@@ -332,7 +332,7 @@ class ApprovalServiceTest extends BaseServiceTest {
         void passesRecordIdToDqService() {
             UUID recordId = UUID.randomUUID();
             UUID nodeId = UUID.randomUUID();
-            UUID requesterId = UUID.randomUUID();
+            String requesterId = UUID.randomUUID().toString();
 
             Domain domain = new Domain();
             domain.setId(UUID.randomUUID());
@@ -400,7 +400,7 @@ class ApprovalServiceTest extends BaseServiceTest {
             given(recordRepository.findReferencingRecords("parentRecordId", recordId.toString(), recordId))
                     .willReturn(List.of(referrer));
 
-            assertThatThrownBy(() -> approvalService.requestRecordDeletion(recordId, createRecordRequest("{}", UUID.randomUUID())))
+            assertThatThrownBy(() -> approvalService.requestRecordDeletion(recordId, createRecordRequest("{}", UUID.randomUUID().toString())))
                     .isInstanceOf(BusinessException.class)
                     .extracting(exception -> ((BusinessException) exception).getErrorCode())
                     .isEqualTo(ErrorCode.RECORD_REFERENCED_BY_OTHERS);
@@ -429,7 +429,7 @@ class ApprovalServiceTest extends BaseServiceTest {
             given(workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(any(), eq("DELETE"))).willReturn(Collections.emptyList());
             given(approvalRepository.saveAndFlush(any(ApprovalRequest.class))).willReturn(savedApproval);
 
-            ApprovalRequest result = approvalService.requestRecordDeletion(recordId, createRecordRequest("{}", UUID.randomUUID()));
+            ApprovalRequest result = approvalService.requestRecordDeletion(recordId, createRecordRequest("{}", UUID.randomUUID().toString()));
 
             assertThat(result).isSameAs(savedApproval);
             verify(approvalRepository).saveAndFlush(any(ApprovalRequest.class));
@@ -447,7 +447,7 @@ class ApprovalServiceTest extends BaseServiceTest {
         @DisplayName("approvalLine JSON 구성 시 1차(PENDING), 2차(WAITING) 승인 스텝이 순차 생성된다")
         void multiStepApprovalLine_CreatesSequentialSteps() {
             UUID nodeId = UUID.randomUUID();
-            UUID requesterId = UUID.randomUUID();
+            String requesterId = UUID.randomUUID().toString();
             UUID approver1 = UUID.randomUUID();
 
             Domain domain = createTestDomain(UUID.randomUUID(), "domain", "DOMAIN");
@@ -481,7 +481,7 @@ class ApprovalServiceTest extends BaseServiceTest {
             assertThat(result.getSteps()).hasSize(3);
             assertThat(result.getSteps().get(0).getStepOrder()).isEqualTo(1);
             assertThat(result.getSteps().get(0).getStatus()).isEqualTo("PENDING");
-            assertThat(result.getSteps().get(0).getAssigneeId()).isEqualTo(approver1);
+            assertThat(result.getSteps().get(0).getAssigneeId()).isEqualTo(approver1.toString());
 
             assertThat(result.getSteps().get(1).getStepOrder()).isEqualTo(2);
             assertThat(result.getSteps().get(1).getStatus()).isEqualTo("WAITING");
@@ -496,7 +496,7 @@ class ApprovalServiceTest extends BaseServiceTest {
         void userWithCreateOnlyPermission_CannotPerformUpdateAction() {
             UUID recordId = UUID.randomUUID();
             UUID nodeId = UUID.randomUUID();
-            UUID requesterId = UUID.randomUUID();
+            String requesterId = UUID.randomUUID().toString();
 
             ClassificationNode node = new ClassificationNode();
             node.setId(nodeId);
@@ -531,7 +531,7 @@ class ApprovalServiceTest extends BaseServiceTest {
         @Test
         @DisplayName("username으로 등록된 워크플로우 자격 매칭 검증 성공")
         void validateUserActionPermission_MatchingByUsername_Success() {
-            UUID requesterId = UUID.randomUUID();
+            String requesterId = UUID.randomUUID().toString();
             String username = "profavor.user";
 
             com.classification.domain_system.entity.User mockUser = new com.classification.domain_system.entity.User();

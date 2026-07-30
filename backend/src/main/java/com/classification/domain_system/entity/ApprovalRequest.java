@@ -27,8 +27,8 @@ public class ApprovalRequest {
     @Column(name = "target_id", nullable = false)
     private UUID targetId;
 
-    @Column(name = "requester_id", nullable = false)
-    private UUID requesterId;
+    @Column(name = "requester_id", nullable = false, length = 100)
+    private String requesterId;
 
     @Transient
     private String requesterName;

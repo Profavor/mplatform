@@ -29,8 +29,16 @@ public class DqRule {
     @Column(name = "domain_id")
     private UUID domainId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "domain_id", insertable = false, updatable = false)
+    private Domain domain;
+
     @Column(name = "node_id")
     private UUID nodeId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "node_id", insertable = false, updatable = false)
+    private ClassificationNode node;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "rule_type", nullable = false, length = 30)
