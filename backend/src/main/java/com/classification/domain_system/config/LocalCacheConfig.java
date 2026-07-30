@@ -16,6 +16,7 @@ public class LocalCacheConfig {
     @Bean
     @ConditionalOnMissingBean(CacheManager.class)
     public CacheManager cacheManager() {
-        return new ConcurrentMapCacheManager("effectiveFields");
+        // 인자를 전달하지 않으면 요청 시점에 동적으로 캐시를 생성합니다.
+        return new ConcurrentMapCacheManager();
     }
 }

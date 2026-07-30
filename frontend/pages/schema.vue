@@ -1475,8 +1475,6 @@ const saveDomain = async () => {
       autoDqScanEnabled: Boolean(newDomain.value.autoDqScanEnabled)
     }
 
-    console.log('Sending Domain Update Payload:', payload)
-
     await $fetch(url, {
       method: isEditMode.value ? 'PUT' : 'POST',
       headers: getAuthHeaders(),
