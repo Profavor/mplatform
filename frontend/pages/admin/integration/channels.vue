@@ -50,6 +50,47 @@
       </va-card-content>
     </va-card>
 
+    <!-- Recent Integration Logs Dashboard -->
+    <va-card class="mb-4">
+      <va-card-title>
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+          <span style="font-size: 1.1rem; color: var(--va-text-primary);">
+            <va-icon name="monitor_heart" class="mr-2" color="primary" />
+            최근 연동 로그 모니터링 (Recent Integration Logs)
+          </span>
+          <va-button preset="secondary" icon="refresh" size="small" @click="fetchRecentLogs">새로고침</va-button>
+        </div>
+      </va-card-title>
+      <va-card-content>
+        <va-data-table
+          :items="recentLogs"
+          :columns="logColumns"
+          :loading="isLogsLoading"
+          striped
+          hoverable
+        >
+          <template #cell(direction)="{ rowData }">
+            <va-badge
+              :text="rowData.direction === 'INBOUND' ? 'Inbound' : 'Outbound'"
+              :color="rowData.direction === 'INBOUND' ? 'warning' : 'info'"
+            />
+          </template>
+          <template #cell(status)="{ rowData }">
+            <va-badge
+              :text="rowData.status"
+              :color="rowData.status === 'SUCCESS' ? 'success' : 'danger'"
+            />
+          </template>
+          <template #cell(channelName)="{ rowData }">
+            {{ getChannelNameById(rowData.channelId) }}
+          </template>
+          <template #cell(createdAt)="{ rowData }">
+            {{ formatDate(rowData.createdAt) }}
+          </template>
+        </va-data-table>
+      </va-card-content>
+    </va-card>
+
     <!-- Create/Edit Modal (Premium Standardized Design) -->
     <va-modal
       v-model="showModal"
@@ -981,6 +1022,37 @@ const deserializeUiData = (row) => {
   } catch (e) { console.error('Failed to parse mappingConfigJson', e) }
 }
 
+const isLoading = ref(false)
+
+// Recent Logs Logic
+const recentLogs = ref([])
+const isLogsLoading = ref(false)
+const logColumns = [
+  { key: 'direction', label: '방향' },
+  { key: 'channelName', label: '채널명' },
+  { key: 'eventType', label: '이벤트 타입' },
+  { key: 'status', label: '상태' },
+  { key: 'createdAt', label: '발생 일시' }
+]
+
+const getChannelNameById = (id) => {
+  const ch = channels.value.find(c => c.id === id)
+  if (ch) return parseI18nName(ch.name)
+  return id
+}
+
+const fetchRecentLogs = async () => {
+  isLogsLoading.value = true
+  try {
+    const res = await customFetch('/api/admin/integration/logs?page=0&size=10&sortField=createdAt&sortOrder=DESC')
+    recentLogs.value = res?.content || []
+  } catch (error) {
+    console.error('Failed to fetch recent logs', error)
+  } finally {
+    isLogsLoading.value = false
+  }
+}
+
 const fetchChannels = async () => {
   isLoading.value = true
   try {
@@ -989,7 +1061,7 @@ const fetchChannels = async () => {
     })
     channels.value = data
   } catch (e) {
-    console.error('Failed to load channels:', e)
+    console.error('Failed to fetch channels:', e)
   } finally {
     isLoading.value = false
   }
@@ -1083,6 +1155,7 @@ const confirmDelete = async (id) => {
 
 onMounted(() => {
   fetchChannels()
+  fetchRecentLogs()
   fetchDomains()
 })
 </script>

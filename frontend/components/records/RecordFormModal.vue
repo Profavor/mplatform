@@ -200,6 +200,35 @@
           </va-collapse>
         </va-accordion>
       </div>
+
+      <!-- Secondary Axes Section -->
+      <div v-if="axesList.length > 0" style="margin-bottom: 1rem; margin-top: 1rem;">
+        <va-accordion multiple style="width: 100%;">
+          <va-collapse
+            header="다중 분류 축 (Secondary Axes)"
+            solid
+            color="background-element"
+            v-model="secondaryAxesOpen"
+          >
+            <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
+              <div v-for="axis in axesList" :key="axis.id">
+                <label style="font-weight: 700; font-size: 0.85rem; color: var(--va-text-secondary); display: block; margin-bottom: 0.5rem;">
+                  {{ axis.name?.ko || axis.name?.en || axis.name || 'Axis' }}
+                </label>
+                <va-select
+                  v-model="localSecondaryNodeSelections[axis.id]"
+                  :options="getNodesForAxis(axis.id)"
+                  value-by="id"
+                  text-by="label"
+                  multiple
+                  searchable
+                  placeholder="노드 선택 (Select nodes)"
+                />
+              </div>
+            </div>
+          </va-collapse>
+        </va-accordion>
+      </div>
     </div>
     <div style="display: flex; justify-content: flex-end; margin-top: 1rem; gap: 0.5rem;">
       <va-button
@@ -245,6 +274,11 @@ const modalVisible = computed({
 })
 
 const selectedWorkflowId = ref('')
+
+const secondaryAxesOpen = ref([true])
+const axesList = ref([])
+const allNodes = ref([])
+const localSecondaryNodeSelections = ref({})
 
 const availableWorkflowOptions = computed(() => {
   if (!props.availableWorkflows || props.availableWorkflows.length === 0) {
@@ -319,6 +353,20 @@ watch(
   () => props.record,
   (newVal) => {
     localRecord.value = newVal || {}
+    // Reset secondary node selections when record changes
+    localSecondaryNodeSelections.value = {}
+    if (newVal && newVal._secondaryNodeIds) {
+       // if we pass down secondary node IDs from parent
+       const ids = newVal._secondaryNodeIds
+       allNodes.value.forEach(node => {
+          if (node.axisId && ids.includes(node.id)) {
+             if (!localSecondaryNodeSelections.value[node.axisId]) {
+               localSecondaryNodeSelections.value[node.axisId] = []
+             }
+             localSecondaryNodeSelections.value[node.axisId].push(node.id)
+          }
+       })
+    }
   },
   { immediate: true, deep: true }
 )
@@ -328,9 +376,18 @@ const handleClose = () => {
 }
 
 const handleSave = () => {
+  // Flatten secondary nodes
+  const secNodes = []
+  Object.values(localSecondaryNodeSelections.value).forEach(arr => {
+    if (Array.isArray(arr)) {
+      secNodes.push(...arr)
+    }
+  })
+
   emit('save', {
     isEdit: props.isEdit,
     record: localRecord.value,
+    secondaryNodes: secNodes,
     workflowConfigId: selectedWorkflowId.value && selectedWorkflowId.value !== 'DEFAULT' ? selectedWorkflowId.value : null
   })
 }
@@ -476,6 +533,65 @@ const evaluateConditionExpression = (expr, formData) => {
     return false
   }
 }
+
+// Fetch Axes and Nodes
+const fetchAxesAndNodes = async () => {
+  if (!props.selectedDomainInfo?.id) return
+  try {
+    const domainId = props.selectedDomainInfo.id
+    const [axesRes, nodesRes] = await Promise.all([
+      $fetch(`/api/domains/${domainId}/axes`),
+      $fetch(`/api/domains/${domainId}/nodes/tree`)
+    ])
+    axesList.value = axesRes || []
+    
+    // Flatten tree
+    const flat = []
+    const flatten = (nodes) => {
+      if (!nodes) return
+      nodes.forEach(n => {
+        flat.push(n)
+        if (n.children && n.children.length > 0) flatten(n.children)
+      })
+    }
+    flatten(nodesRes)
+    allNodes.value = flat
+
+    // Initialize selections if editing
+    if (localRecord.value && localRecord.value._secondaryNodeIds) {
+      const ids = localRecord.value._secondaryNodeIds
+      const selections = {}
+      allNodes.value.forEach(node => {
+        if (node.axisId && ids.includes(node.id)) {
+          if (!selections[node.axisId]) selections[node.axisId] = []
+          selections[node.axisId].push(node.id)
+        }
+      })
+      localSecondaryNodeSelections.value = selections
+    }
+  } catch (e) {
+    console.error('Failed to fetch axes/nodes for secondary mapping', e)
+  }
+}
+
+const getNodesForAxis = (axisId) => {
+  return allNodes.value
+    .filter(n => n.axisId === axisId)
+    .map(n => ({
+      id: n.id,
+      label: n.name?.ko || n.name?.en || n.name || 'Unnamed'
+    }))
+}
+
+watch(() => props.show, (val) => {
+  if (val) {
+    fetchAxesAndNodes()
+  } else {
+    axesList.value = []
+    allNodes.value = []
+    localSecondaryNodeSelections.value = {}
+  }
+})
 
 const evalConditionRule = (field, formData) => {
   const defaultRes = {

@@ -258,7 +258,7 @@
       @delete="requestDeleteRecord"
       @unmerge="handleUnmergeRecord"
       @openHistory="openHistory"
-      @save="promptDraftComment('UPDATE')"
+      @save="promptDraftComment('UPDATE', $event)"
       @openDomainRef="openDomainRefModal($event.fieldKey, $event.isCreate)"
       @viewDiffDetails="viewDiffDetails"
       @viewSnapshot="viewSnapshot"
@@ -640,12 +640,13 @@ import RecordFormModal from '~/components/records/RecordFormModal.vue'
 import RecordDetailDrawer from '~/components/records/RecordDetailDrawer.vue'
 import RecordCompareModal from '~/components/records/RecordCompareModal.vue'
 
-import { useColors, useModal } from 'vuestic-ui'
+import { useColors, useModal, useToast } from 'vuestic-ui'
 import { useI18n } from 'vue-i18n'
 import { usePermission } from '~/composables/usePermission'
 
 const { t } = useI18n()
 const { confirm } = useModal()
+const { init: initToast } = useToast()
 const { gridTheme, autoSizeStrategy } = useAgGridTheme()
 const { hasPermission } = usePermission()
 const { downloadFileWithAuth } = useFileDownloader()
@@ -2166,11 +2167,21 @@ const saveEditedRecord = async () => {
       }
     }
     const payload = { requesterId: reqId, data: JSON.stringify(formatDataForSave(dataToSave)), comment: draftCommentText.value }
-    await $fetch(`/api/records/${selectedRecordId.value}/update-request`, {
+    const res = await $fetch(`/api/records/${selectedRecordId.value}/update-request`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token.value}` },
       body: payload
     })
+    
+    // Save Secondary Nodes if any
+    if (pendingSecondaryNodes.value.length > 0) {
+      await $fetch(`/api/records/${selectedRecordId.value}/secondary-nodes`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token.value}` },
+        body: { nodeIds: pendingSecondaryNodes.value }
+      }).catch(e => console.error('Failed to save secondary nodes on update', e))
+    }
+
     isEditingRecord.value = false
     showDetailModal.value = false
     showCustomAlert(
@@ -2469,7 +2480,14 @@ const focusFirstMissingField = () => {
   })
 }
 
-const promptDraftComment = async (action) => {
+const pendingSecondaryNodes = ref([])
+
+const promptDraftComment = async (action, eventPayload) => {
+  if (eventPayload && eventPayload.secondaryNodes) {
+    pendingSecondaryNodes.value = eventPayload.secondaryNodes
+  } else {
+    pendingSecondaryNodes.value = []
+  }
   const targetData = action === 'CREATE' ? recordFormData.value : selectedRecordData.value
 
   const missing = validateRequiredFields(targetData)
@@ -2588,12 +2606,21 @@ const saveRecord = async () => {
       workflowConfigId: selectedWorkflowConfigId.value
     }
     
-    await $fetch(`/api/nodes/${selectedNode.value.id}/records`, {
+    const res = await $fetch(`/api/nodes/${selectedNode.value.id}/records`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token.value}` },
       body: payload
     })
     
+    // Save Secondary Nodes if any
+    if (res && res.record && res.record.id && pendingSecondaryNodes.value.length > 0) {
+      await $fetch(`/api/records/${res.record.id}/secondary-nodes`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token.value}` },
+        body: { nodeIds: pendingSecondaryNodes.value }
+      }).catch(e => console.error('Failed to save secondary nodes', e))
+    }
+
     showCreateModal.value = false
     await fetchRecords()
   } catch (error) {

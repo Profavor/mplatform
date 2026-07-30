@@ -32,7 +32,7 @@
               <va-button style="width: 100%; border-radius: 8px; font-weight: 600;" color="info" icon="tune" @click="openSectorGroupModal" :disabled="!treeNodes || treeNodes.length === 0" preset="secondary">{{ $t('manage_sectors_groups') || 'Manage Sectors & Groups' }}</va-button>
             </div>
             <div style="margin-top: 0.75rem; padding: 0 0.5rem;">
-              <va-button style="width: 100%; border-radius: 8px; font-weight: 600;" color="primary" icon="alt_route" @click="showSurvivorshipModal = true" :disabled="!selectedNode" preset="secondary">Survivorship Rules (서바이버십 규칙)</va-button>
+              <va-button style="width: 100%; border-radius: 8px; font-weight: 600;" color="primary" icon="alt_route" @click="$router.push('/admin/survivorship')" preset="secondary">Survivorship Rules (서바이버십 규칙)</va-button>
             </div>
           </va-card-content>
         </va-card>
@@ -519,14 +519,6 @@
     <!-- Request Access Modal -->
     <DomainAccessRequestModal v-model="showRequestAccessModal" />
 
-    <!-- Survivorship Rules Modal -->
-    <SurvivorshipRulesModal
-      v-if="showSurvivorshipModal"
-      :show="showSurvivorshipModal"
-      :domainId="selectedNode?.domainId || selectedNode?.id || (selectedNode?.type === 'domain' ? selectedNode?.id : '')"
-      @close="showSurvivorshipModal = false"
-    />
-
     <!-- DQ Rule Editor Modal -->
     <DqRuleEditor
       v-model="showDqRuleEditor"
@@ -605,11 +597,9 @@ import { AgGridVue } from 'ag-grid-vue3'
 import SchemaHistoryTab from '~/components/schema/SchemaHistoryTab.vue'
 import WorkflowConfigTab from '~/components/schema/WorkflowConfigTab.vue'
 import ClassificationAxisTab from '~/components/schema/ClassificationAxisTab.vue'
-import SurvivorshipRulesModal from '~/components/schema/SurvivorshipRulesModal.vue'
 
 const { gridTheme, autoSizeStrategy } = useAgGridTheme()
 
-const showSurvivorshipModal = ref(false)
 const showErrorAlertModal = ref(false)
 const errorAlertTitle = ref('')
 const errorAlertHeader = ref('')
@@ -1466,9 +1456,9 @@ const saveDomain = async () => {
       body: {
         name: newDomain.value.name,
         description: newDomain.value.description,
-        identifierFieldId: newDomain.value.identifierFieldId || null,
-        displayNameFieldId: newDomain.value.displayNameFieldId || null,
-        descriptionFieldId: newDomain.value.descriptionFieldId || null,
+        identifierFieldId: (typeof newDomain.value.identifierFieldId === 'object' && newDomain.value.identifierFieldId !== null) ? newDomain.value.identifierFieldId.value : (newDomain.value.identifierFieldId || null),
+        displayNameFieldId: (typeof newDomain.value.displayNameFieldId === 'object' && newDomain.value.displayNameFieldId !== null) ? newDomain.value.displayNameFieldId.value : (newDomain.value.displayNameFieldId || null),
+        descriptionFieldId: (typeof newDomain.value.descriptionFieldId === 'object' && newDomain.value.descriptionFieldId !== null) ? newDomain.value.descriptionFieldId.value : (newDomain.value.descriptionFieldId || null),
         icon: newDomain.value.icon || '',
         sortOrder: newDomain.value.sortOrder || 0,
         numberingPattern: newDomain.value.numberingPattern,
