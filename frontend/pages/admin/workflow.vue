@@ -542,7 +542,13 @@ const gridApi = ref<any>(null)
 
 const onGridReady = (params: any) => {
   gridApi.value = params.api
-  params.api.sizeColumnsToFit()
+  setTimeout(() => {
+    if (params.api && !params.api.isDestroyed()) {
+      try {
+        params.api.sizeColumnsToFit()
+      } catch (e) {}
+    }
+  }, 100)
 }
 
 // AG-Grid Column Definitions

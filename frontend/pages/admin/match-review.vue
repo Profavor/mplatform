@@ -83,7 +83,7 @@
               :autoSizeStrategy="autoSizeStrategy"
               rowModelType="infinite"
               :cacheBlockSize="20"
-              :rowSelection="{ mode: 'multiRow' }"
+              :rowSelection="{ mode: 'multiRow', checkboxes: true, headerCheckbox: false }"
               :pagination="true"
               :paginationPageSize="20"
               :paginationPageSizeSelector="[10, 20, 50]"
@@ -218,8 +218,6 @@ const columnDefs = computed(() => [
   { 
     headerName: 'ID', 
     field: 'id', 
-    checkboxSelection: true, 
-    headerCheckboxSelection: true,
     width: 140
   },
   { field: 'source', headerName: t('merge.source') || '소스 시스템', width: 140 },

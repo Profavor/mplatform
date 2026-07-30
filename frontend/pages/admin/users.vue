@@ -58,10 +58,10 @@
             </h3>
             
             <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; align-items: center; font-size: 0.88rem; color: var(--va-text-secondary); flex-wrap: wrap;">
-              <span>현재 소속 정보:</span>
+              <span>{{ $t('current_affiliation') }}</span>
               <va-badge :text="getOrgName(selectedUser.organizationId)" color="info" outline size="small" />
               <va-badge v-if="getDeptName(selectedUser.departmentId)" :text="getDeptName(selectedUser.departmentId)" color="success" outline size="small" />
-              <span v-else style="font-style: italic; color: #888;">(부서 미할당 - [조직 관리] 메뉴에서 부서 지정 가능)</span>
+              <span v-else style="font-style: italic; color: #888;">{{ $t('no_dept_assigned_tip') }}</span>
             </div>
 
             <div style="display: flex; gap: 0.75rem; align-items: flex-end;">
@@ -481,7 +481,7 @@ const grantPermissions = async () => {
     )
     selectedDomainsToGrant.value = []
     await loadUserPermissions(selectedUser.value.id)
-    showCustomAlert('선택한 도메인 권한이 성공적으로 부여되었습니다.', getLabel('update_success', '부여 완료'), getLabel('notification', '알림'), 'success')
+    showCustomAlert(getLabel('grant_permission_success', '선택한 도메인 권한이 성공적으로 부여되었습니다.'), getLabel('update_success', '부여 완료'), getLabel('notification', '알림'), 'success')
   } catch (e) {
     showCustomAlert('Failed to grant permissions: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
   }

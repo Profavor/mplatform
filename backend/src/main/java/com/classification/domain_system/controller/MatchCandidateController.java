@@ -29,6 +29,15 @@ public class MatchCandidateController {
         return ResponseEntity.ok(candidateService.getCandidatesByDomain(domainId, status, page, size));
     }
 
+    @GetMapping("/api/match-candidates")
+    @PreAuthorize("hasPermission(null, 'domain:read')")
+    public ResponseEntity<PageResponse<MatchCandidate>> getAllCandidates(
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(candidateService.getAllCandidates(status, page, size));
+    }
+
     @PostMapping("/api/match-candidates/{id}/confirm")
     @PreAuthorize("hasPermission(null, 'domain:write')")
     public ResponseEntity<MatchCandidate> confirm(

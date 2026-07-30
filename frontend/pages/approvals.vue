@@ -1312,8 +1312,7 @@ const getUserName = (uuid, nameFallback) => {
 onMounted(async () => {
   await loadMetadata()
   await loadRequests()
-  const route = useRoute()
-  if (route.query.openModalId) {
+  if (route?.query?.openModalId) {
     const stepToOpen = pendingSteps.value.find(s => String(s.id) === String(route.query.openModalId))
     if (stepToOpen) {
       selectedPendingStep.value = stepToOpen

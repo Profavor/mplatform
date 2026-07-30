@@ -296,6 +296,7 @@
                   :theme="gridTheme"
                   :columnDefs="mappingColumnDefs"
                   :rowData="uiMappings"
+                  :autoSizeStrategy="{ type: 'fitGridWidth' }"
                   @grid-ready="onMappingGridReady"
                   @cell-value-changed="onMappingCellValueChanged"
                 >
@@ -746,7 +747,13 @@ const onDomainSelected = (domainId) => {
 let mappingGridApi = null
 const onMappingGridReady = (params) => {
   mappingGridApi = params.api
-  params.api.sizeColumnsToFit()
+  setTimeout(() => {
+    if (params.api && !params.api.isDestroyed()) {
+      try {
+        params.api.sizeColumnsToFit()
+      } catch (e) {}
+    }
+  }, 100)
 }
 
 const validateSpelExpression = (expr) => {

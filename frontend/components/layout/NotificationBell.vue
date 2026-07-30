@@ -1,171 +1,173 @@
 <template>
-  <va-dropdown placement="bottom-end" stick-to-edges class="notification-dropdown">
-    <template #anchor>
-      <div style="position: relative; display: inline-flex; align-items: center; justify-content: center;">
-        <va-button
-          preset="plain"
-          class="notification-bell-btn"
-          style="color: white !important; padding: 0.4rem; border-radius: 50%; min-width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center;"
-          :aria-label="$t('notifications.title')"
-        >
-          <va-icon name="notifications" size="24px" />
-        </va-button>
-        <span
-          v-if="unreadCount > 0"
-          style="position: absolute; top: 2px; right: 2px; background: #e53935; color: white; border-radius: 10px; padding: 1px 5px; font-size: 10px; font-weight: 700; line-height: 12px; min-width: 16px; text-align: center; border: 1.5px solid #2563eb; box-shadow: 0 2px 4px rgba(0,0,0,0.2); pointer-events: none;"
-        >
-          {{ unreadCount > 99 ? '99+' : unreadCount }}
-        </span>
-      </div>
-    </template>
-
-    <va-dropdown-content
-      class="notification-dropdown-panel"
-      :style="{
-        padding: '0',
-        width: '360px',
-        maxWidth: '90vw',
-        borderRadius: '16px',
-        overflow: 'hidden',
-        boxShadow: isDark ? '0 16px 45px rgba(0,0,0,0.7), 0 0 25px rgba(99,102,241,0.25)' : '0 12px 36px rgba(0,0,0,0.18)',
-        border: isDark ? '1px solid rgba(139,92,246,0.35)' : '1px solid var(--va-background-border)',
-        background: isDark ? 'rgba(31, 41, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-        backdropFilter: 'blur(16px)'
-      }"
-    >
-      <!-- Header -->
-      <div class="notification-header">
-        <div class="header-title-box">
-          <va-icon name="notifications_active" size="20px" class="header-icon" />
-          <span class="header-title">{{ $t('notifications.title') }}</span>
-          <va-badge
-            v-if="unreadCount > 0"
-            :text="unreadCount"
-            color="danger"
-            size="small"
-            class="header-unread-count"
-          />
-        </div>
-        <div style="display: flex; align-items: center; gap: 0.25rem;">
+  <div class="notification-bell-wrapper" style="display: inline-flex; align-items: center;">
+    <va-dropdown placement="bottom-end" stick-to-edges class="notification-dropdown">
+      <template #anchor>
+        <div style="position: relative; display: inline-flex; align-items: center; justify-content: center;">
           <va-button
+            preset="plain"
+            class="notification-bell-btn"
+            style="color: white !important; padding: 0.4rem; border-radius: 50%; min-width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center;"
+            :aria-label="$t('notifications.title')"
+          >
+            <va-icon name="notifications" size="24px" />
+          </va-button>
+          <span
             v-if="unreadCount > 0"
-            preset="plain"
-            size="small"
-            color="primary"
-            class="mark-all-btn"
-            @click="markAllAsRead"
+            style="position: absolute; top: 2px; right: 2px; background: #e53935; color: white; border-radius: 10px; padding: 1px 5px; font-size: 10px; font-weight: 700; line-height: 12px; min-width: 16px; text-align: center; border: 1.5px solid #2563eb; box-shadow: 0 2px 4px rgba(0,0,0,0.2); pointer-events: none;"
           >
-            {{ $t('notifications.mark_all_read') }}
-          </va-button>
-          <va-button
-            v-if="notifications.length > 0"
-            preset="plain"
-            size="small"
-            color="secondary"
-            class="clear-all-btn"
-            title="알림 모두 비우기"
-            @click="deleteAllNotifications"
-          >
-            <va-icon name="delete_sweep" size="18px" />
-          </va-button>
+            {{ unreadCount > 99 ? '99+' : unreadCount }}
+          </span>
         </div>
-      </div>
+      </template>
 
-      <va-divider style="margin: 0;" />
-
-      <!-- Notification List -->
-      <div class="notification-list">
-        <template v-if="notifications.length > 0">
-          <div
-            v-for="item in notifications"
-            :key="item.id"
-            class="notification-item"
-            :class="{ unread: !item.read }"
-            @click="handleNotificationClick(item)"
-          >
-            <div class="item-left">
-              <span class="type-dot" :class="getTypeClass(item.type)"></span>
-            </div>
-
-            <div class="item-body">
-              <div class="item-top">
-                <va-badge
-                  :color="getTypeBadgeColor(item.type)"
-                  size="small"
-                  class="type-badge"
-                >
-                  {{ getTypeLabel(item.type) }}
-                </va-badge>
-                <span class="item-time">{{ formatTime(item.createdAt) }}</span>
-              </div>
-              <div class="item-title">{{ formatTitle(item.title) }}</div>
-              <div v-if="item.message" class="item-message">{{ formatMessage(item.message) }}</div>
-            </div>
-
+      <va-dropdown-content
+        class="notification-dropdown-panel"
+        :style="{
+          padding: '0',
+          width: '360px',
+          maxWidth: '90vw',
+          borderRadius: '16px',
+          overflow: 'hidden',
+          boxShadow: isDark ? '0 16px 45px rgba(0,0,0,0.7), 0 0 25px rgba(99,102,241,0.25)' : '0 12px 36px rgba(0,0,0,0.18)',
+          border: isDark ? '1px solid rgba(139,92,246,0.35)' : '1px solid var(--va-background-border)',
+          background: isDark ? 'rgba(31, 41, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(16px)'
+        }"
+      >
+        <!-- Header -->
+        <div class="notification-header">
+          <div class="header-title-box">
+            <va-icon name="notifications_active" size="20px" class="header-icon" />
+            <span class="header-title">{{ $t('notifications.title') }}</span>
+            <va-badge
+              v-if="unreadCount > 0"
+              :text="unreadCount"
+              color="danger"
+              size="small"
+              class="header-unread-count"
+            />
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.25rem;">
             <va-button
+              v-if="unreadCount > 0"
+              preset="plain"
+              size="small"
+              color="primary"
+              class="mark-all-btn"
+              @click="markAllAsRead"
+            >
+              {{ $t('notifications.mark_all_read') }}
+            </va-button>
+            <va-button
+              v-if="notifications.length > 0"
               preset="plain"
               size="small"
               color="secondary"
-              class="item-delete-btn"
-              title="삭제"
-              @click.stop="deleteNotification(item)"
+              class="clear-all-btn"
+              title="알림 모두 비우기"
+              @click="deleteAllNotifications"
             >
-              <va-icon name="close" size="14px" />
+              <va-icon name="delete_sweep" size="18px" />
             </va-button>
           </div>
-        </template>
+        </div>
 
-        <!-- Empty State -->
-        <div v-else class="empty-notifications">
-          <va-icon name="notifications_off" size="40px" color="secondary" style="opacity: 0.5;" />
-          <p class="empty-text">{{ $t('notifications.no_notifications') }}</p>
+        <va-divider style="margin: 0;" />
+
+        <!-- Notification List -->
+        <div class="notification-list">
+          <template v-if="notifications.length > 0">
+            <div
+              v-for="item in notifications"
+              :key="item.id"
+              class="notification-item"
+              :class="{ unread: !item.read }"
+              @click="handleNotificationClick(item)"
+            >
+              <div class="item-left">
+                <span class="type-dot" :class="getTypeClass(item.type)"></span>
+              </div>
+
+              <div class="item-body">
+                <div class="item-top">
+                  <va-badge
+                    :color="getTypeBadgeColor(item.type)"
+                    size="small"
+                    class="type-badge"
+                  >
+                    {{ getTypeLabel(item.type) }}
+                  </va-badge>
+                  <span class="item-time">{{ formatTime(item.createdAt) }}</span>
+                </div>
+                <div class="item-title">{{ formatTitle(item.title) }}</div>
+                <div v-if="item.message" class="item-message">{{ formatMessage(item.message) }}</div>
+              </div>
+
+              <va-button
+                preset="plain"
+                size="small"
+                color="secondary"
+                class="item-delete-btn"
+                title="삭제"
+                @click.stop="deleteNotification(item)"
+              >
+                <va-icon name="close" size="14px" />
+              </va-button>
+            </div>
+          </template>
+
+          <!-- Empty State -->
+          <div v-else class="empty-notifications">
+            <va-icon name="notifications_off" size="40px" color="secondary" style="opacity: 0.5;" />
+            <p class="empty-text">{{ $t('notifications.no_notifications') }}</p>
+          </div>
+        </div>
+      </va-dropdown-content>
+    </va-dropdown>
+
+    <!-- Combined Global Modal for Approval Details & Action Review -->
+    <va-modal v-model="showApprovalModal" size="large" close-button hide-default-actions>
+      <template #header>
+        <div v-if="activeRequest" style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding-right: 2.5rem;">
+          <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+            <va-icon :name="isPendingAssignee ? 'rate_review' : 'verified_user'" color="primary" />
+            {{ isPendingAssignee ? ($t('approval_review') || '결재 요청 심사 및 내역') : ($t('details') || '결재 상세 내역') }}
+          </h3>
+          <div v-if="activeRequest.requesterUsername" style="font-size: 0.85rem; color: var(--va-text-secondary);">
+            기안자: {{ activeRequest.requesterUsername }}
+          </div>
+        </div>
+      </template>
+
+      <div v-if="activeRequest" style="padding: 1rem 0 0 0;">
+        <!-- 1. Existing Approval Details & History Timeline -->
+        <ApprovalDetailsViewer :request="activeRequest" />
+
+        <!-- 2. Action Area (If user is pending assignee) -->
+        <div v-if="isPendingAssignee" style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px dashed var(--va-background-border);">
+          <div style="font-weight: 700; margin-bottom: 0.5rem; font-size: 0.95rem; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.4rem;">
+            <va-icon name="edit_note" color="primary" size="18px" />
+            심사 의견 작성
+          </div>
+          <textarea
+            v-model="commentData" 
+            placeholder="의견 추가 (선택)..." 
+            style="width: 100%; box-sizing: border-box; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 8px; padding: 0.75rem 1rem; color: var(--va-text-primary); resize: vertical; min-height: 80px; font-family: inherit; font-size: 0.9rem; margin-bottom: 1rem;"
+          ></textarea>
+          <div style="display: flex; gap: 1rem;">
+            <va-button color="success" icon="check" style="flex: 1;" @click="handleSingleAction('approve')">승인</va-button>
+            <va-button color="danger" icon="close" preset="secondary" style="flex: 1;" @click="handleSingleAction('reject')">반려</va-button>
+          </div>
         </div>
       </div>
-    </va-dropdown-content>
-  </va-dropdown>
 
-  <!-- Combined Global Modal for Approval Details & Action Review -->
-  <va-modal v-model="showApprovalModal" size="large" close-button hide-default-actions>
-    <template #header>
-      <div v-if="activeRequest" style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding-right: 2.5rem;">
-        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-          <va-icon :name="isPendingAssignee ? 'rate_review' : 'verified_user'" color="primary" />
-          {{ isPendingAssignee ? ($t('approval_review') || '결재 요청 심사 및 내역') : ($t('details') || '결재 상세 내역') }}
-        </h3>
-        <div v-if="activeRequest.requesterUsername" style="font-size: 0.85rem; color: var(--va-text-secondary);">
-          기안자: {{ activeRequest.requesterUsername }}
+      <template #footer>
+        <div v-if="!isPendingAssignee" style="display: flex; justify-content: flex-end;">
+          <va-button preset="secondary" @click="showApprovalModal = false">닫기</va-button>
         </div>
-      </div>
-    </template>
-
-    <div v-if="activeRequest" style="padding: 1rem 0 0 0;">
-      <!-- 1. Existing Approval Details & History Timeline -->
-      <ApprovalDetailsViewer :request="activeRequest" />
-
-      <!-- 2. Action Area (If user is pending assignee) -->
-      <div v-if="isPendingAssignee" style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px dashed var(--va-background-border);">
-        <div style="font-weight: 700; margin-bottom: 0.5rem; font-size: 0.95rem; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.4rem;">
-          <va-icon name="edit_note" color="primary" size="18px" />
-          심사 의견 작성
-        </div>
-        <textarea
-          v-model="commentData" 
-          placeholder="의견 추가 (선택)..." 
-          style="width: 100%; box-sizing: border-box; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 8px; padding: 0.75rem 1rem; color: var(--va-text-primary); resize: vertical; min-height: 80px; font-family: inherit; font-size: 0.9rem; margin-bottom: 1rem;"
-        ></textarea>
-        <div style="display: flex; gap: 1rem;">
-          <va-button color="success" icon="check" style="flex: 1;" @click="handleSingleAction('approve')">승인</va-button>
-          <va-button color="danger" icon="close" preset="secondary" style="flex: 1;" @click="handleSingleAction('reject')">반려</va-button>
-        </div>
-      </div>
-    </div>
-
-    <template #footer>
-      <div v-if="!isPendingAssignee" style="display: flex; justify-content: flex-end;">
-        <va-button preset="secondary" @click="showApprovalModal = false">닫기</va-button>
-      </div>
-    </template>
-  </va-modal>
+      </template>
+    </va-modal>
+  </div>
 </template>
 
 <script setup>

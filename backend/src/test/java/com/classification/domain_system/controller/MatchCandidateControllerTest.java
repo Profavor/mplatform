@@ -52,4 +52,15 @@ class MatchCandidateControllerTest {
         mockMvc.perform(post("/api/match-candidates/" + candidateId + "/ignore"))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    @DisplayName("GET /api/match-candidates 엔드포인트가 200 OK를 반환한다")
+    void getAllCandidates_Success() throws Exception {
+        when(matchCandidateService.getAllCandidates(any(), any(Integer.class), any(Integer.class)))
+                .thenReturn(com.classification.domain_system.dto.PageResponse.of(org.springframework.data.domain.Page.empty()));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/match-candidates")
+                .param("status", "PENDING"))
+                .andExpect(status().isOk());
+    }
 }

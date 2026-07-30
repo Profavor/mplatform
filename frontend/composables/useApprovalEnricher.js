@@ -4,6 +4,7 @@ import { formatMultilingual } from './useMultilingual'
 
 export const useApprovalEnricher = () => {
   const token = useCookie('auth_token')
+  const localeCookie = useCookie('locale', { default: () => 'ko' })
   const domains = ref({})
   const domainsFull = ref({})
   const nodes = ref({})
@@ -90,7 +91,7 @@ export const useApprovalEnricher = () => {
       }
     }
     if (typeof obj !== 'object' || obj === null) return obj
-    const locale = useCookie('locale', { default: () => 'ko' }).value
+    const locale = localeCookie.value || 'ko'
     return obj[locale] || obj.en || obj.ko || JSON.stringify(obj)
   }
 

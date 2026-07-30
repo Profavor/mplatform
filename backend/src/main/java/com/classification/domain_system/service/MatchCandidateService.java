@@ -62,6 +62,18 @@ public class MatchCandidateService {
         return getCandidatesByDomain(domainId, null, page, size);
     }
 
+    @Transactional(readOnly = true)
+    public PageResponse<MatchCandidate> getAllCandidates(String status, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<MatchCandidate> candidatePage;
+        if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) {
+            candidatePage = candidateRepository.findByStatus(status, pageable);
+        } else {
+            candidatePage = candidateRepository.findAll(pageable);
+        }
+        return PageResponse.of(candidatePage);
+    }
+
     @Transactional
     public MatchCandidate confirmCandidate(UUID candidateId, RecordMergeService.MergeRequest mergeReq, String username) {
         MatchCandidate candidate = candidateRepository.findById(candidateId)

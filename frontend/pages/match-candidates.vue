@@ -203,6 +203,8 @@ const statusOptions = [
   { value: 'IGNORED', text: 'IGNORED (별도유지)' }
 ]
 
+const token = useCookie('auth_token')
+
 const pendingCount = computed(() => {
   return candidates.value.filter(c => c.status === 'PENDING').length
 })
@@ -210,10 +212,12 @@ const pendingCount = computed(() => {
 const loadCandidates = async () => {
   loading.value = true
   try {
-    const res = await $fetch<any[]>('/api/match-candidates', {
+    const res = await $fetch<any>('/api/match-candidates', {
+      headers: token.value ? { Authorization: `Bearer ${token.value}` } : {},
       params: { status: selectedStatus.value }
-    }).catch(() => [])
-    candidates.value = res || []
+    }).catch(() => null)
+    const items = Array.isArray(res) ? res : (res?.content || [])
+    candidates.value = items
   } finally {
     loading.value = false
   }
@@ -238,6 +242,7 @@ const mergeCandidate = async () => {
   try {
     await $fetch('/api/records/merge', {
       method: 'POST',
+      headers: token.value ? { Authorization: `Bearer ${token.value}` } : {},
       body: {
         survivorRecordId: selectedCandidate.value.sourceRecordId,
         mergedRecordIds: [selectedCandidate.value.candidateRecordId]
@@ -254,7 +259,8 @@ const ignoreCandidate = async () => {
   if (!selectedCandidate.value) return
   try {
     await $fetch(`/api/match-candidates/${selectedCandidate.value.id}/ignore`, {
-      method: 'POST'
+      method: 'POST',
+      headers: token.value ? { Authorization: `Bearer ${token.value}` } : {}
     })
     showDiffModal.value = false
     await loadCandidates()

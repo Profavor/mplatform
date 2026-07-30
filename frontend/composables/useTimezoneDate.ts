@@ -1,3 +1,6 @@
+import { getCurrentInstance, hasInjectionContext } from 'vue'
+import { useCookie } from '#app'
+
 /**
  * 개인화 타임존(Timezone) 설정 및 ISO-8601 LocalDateTime 파싱 방어 헬퍼 Composable
  */
@@ -51,11 +54,18 @@ export function formatWithTimezone(
 
   let timeZone = targetTimezone
   if (!timeZone) {
-    try {
-      // Nuxt useCookie 기반 개인화 타임존 조회
-      const cookieTz = useCookie('timezone', { default: () => 'Asia/Seoul' }).value
-      timeZone = cookieTz || 'Asia/Seoul'
-    } catch {
+    const canInject = typeof hasInjectionContext === 'function' ? hasInjectionContext() : !!getCurrentInstance()
+    if (canInject) {
+      try {
+        const cookieTz = useCookie('timezone', { default: () => 'Asia/Seoul' }).value
+        timeZone = cookieTz || 'Asia/Seoul'
+      } catch {
+        timeZone = 'Asia/Seoul'
+      }
+    } else if (typeof document !== 'undefined') {
+      const match = document.cookie.match(/(?:^|; )timezone=([^;]*)/)
+      timeZone = match ? decodeURIComponent(match[1]) : 'Asia/Seoul'
+    } else {
       timeZone = 'Asia/Seoul'
     }
   }

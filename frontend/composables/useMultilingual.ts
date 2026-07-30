@@ -1,8 +1,24 @@
+import { getCurrentInstance, hasInjectionContext } from 'vue'
 import { useCookie } from '#app'
+
+const getLocaleFromCookie = (): string => {
+  const canInject = typeof hasInjectionContext === 'function' ? hasInjectionContext() : !!getCurrentInstance()
+  if (canInject) {
+    try {
+      const c = useCookie('locale', { default: () => 'ko' })
+      if (c && c.value) return c.value
+    } catch (e) {}
+  }
+  if (typeof document !== 'undefined') {
+    const match = document.cookie.match(/(?:^|; )locale=([^;]*)/)
+    if (match) return decodeURIComponent(match[1])
+  }
+  return 'ko'
+}
 
 export const formatMultilingual = (val: any, targetLocale?: string): string => {
   if (val === null || val === undefined) return ''
-  const locale = targetLocale || (useCookie('locale', { default: () => 'ko' }).value || 'ko')
+  const locale = targetLocale || getLocaleFromCookie()
 
   // Object 타입인 경우
   if (typeof val === 'object') {
