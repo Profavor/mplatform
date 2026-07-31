@@ -58,6 +58,7 @@ public class ApprovalService {
     private final com.classification.domain_system.repository.DomainRepository domainRepository;
     private final com.classification.domain_system.repository.FieldDefinitionRepository fieldDefinitionRepository;
     private final CalculatedFieldEvaluator calculatedFieldEvaluator;
+    private final com.classification.domain_system.websocket.WebSocketPublisher webSocketPublisher;
     private final RecordHistoryWriter recordHistoryWriter;
     private final com.classification.domain_system.repository.RoleRepository roleRepository;
 
@@ -871,6 +872,7 @@ public class ApprovalService {
         }
         
         revertRecordStatusOnRejection(approval);
+        sendRejectionNotification(approval, approverId, comment);
         
         return approval;
     }
@@ -918,8 +920,58 @@ public class ApprovalService {
         approvalRepository.saveAndFlush(approval);
         
         revertRecordStatusOnRejection(approval);
+        sendRejectionNotification(approval, adminId, comment);
         
         return approval;
+    }
+
+    private String resolveActionLabel(String targetType) {
+        if (targetType == null) return "결재";
+        switch (targetType.toUpperCase()) {
+            case "RECORD_CREATE": return "데이터 등록";
+            case "RECORD_UPDATE": return "데이터 수정";
+            case "RECORD_DELETE": return "데이터 삭제";
+            case "SCHEMA_FIELD_ADD": return "필드 추가";
+            case "SCHEMA_FIELD_UPDATE": return "필드 속성 변경";
+            case "SCHEMA_FIELD_DELETE": return "필드 삭제";
+            default:
+                return targetType;
+        }
+    }
+
+    private void sendRejectionNotification(ApprovalRequest approval, String rejecterId, String comment) {
+        if (approval == null || notificationService == null || approval.getRequesterId() == null) return;
+        try {
+            String rejecterName = userRepository.findById(rejecterId).map(User::getUsername).orElse(rejecterId);
+            String actionLabel = resolveActionLabel(approval.getTargetType());
+            
+            String msg = rejecterName + "님이 " + actionLabel + " 요청을 반려하였습니다.";
+            if (comment != null && !comment.isBlank()) {
+                msg += " (반려 사유: " + comment + ")";
+            }
+
+            notificationService.createNotification(
+                    approval.getRequesterId(),
+                    "@i18n:notifications.approval_rejected",
+                    msg,
+                    "APPROVAL",
+                    "/approvals?requestId=" + approval.getId()
+            );
+        } catch (Exception ex) {
+            log.warn("Failed to send rejection notification for request {}", approval.getId(), ex);
+        }
+
+        if (webSocketPublisher != null) {
+            java.util.Map<String, Object> payload = java.util.Map.of(
+                    "eventType", "REJECTED",
+                    "approvalId", approval.getId(),
+                    "status", "REJECTED",
+                    "targetType", approval.getTargetType() != null ? approval.getTargetType() : "",
+                    "targetId", approval.getTargetId() != null ? approval.getTargetId() : ""
+            );
+            webSocketPublisher.publishApprovalEvent("/topic/approvals/" + approval.getId(), payload);
+            webSocketPublisher.publishApprovalEvent("/topic/approvals/status-changes", payload);
+        }
     }
     
     @Transactional(readOnly = true)

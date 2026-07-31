@@ -681,7 +681,8 @@
     "type_dq": "Data Quality",
     "approval_pending": "Approval Request Pending",
     "approval_step_approved": "Approval Step Approved",
-    "approval_finalized": "Approval Request Finalized"
+    "approval_finalized": "Approval Request Finalized",
+    "approval_rejected": "Approval Request Rejected"
   },
   "workflow_center_title": "Workflow & Permission Management Center",
   "workflow_management_desc": "Easily explore workflow templates with AG-Grid and manage or edit them using the dedicated modal dialog.",

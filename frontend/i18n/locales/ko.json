@@ -679,7 +679,8 @@
     "type_dq": "데이터 품질",
     "approval_pending": "결재 요청 대기",
     "approval_step_approved": "결재 단계 승인 완료",
-    "approval_finalized": "결재 최종 완료"
+    "approval_finalized": "결재 최종 완료",
+    "approval_rejected": "결재 요청 반려"
   },
   "workflow_center_title": "워크플로우 & 권한 관리 센터",
   "workflow_management_desc": "워크플로우 서식을 AG-Grid 테이블로 빠르게 탐색하고, 전용 모달 대화상자에서 손쉽게 생성 및 편집합니다.",

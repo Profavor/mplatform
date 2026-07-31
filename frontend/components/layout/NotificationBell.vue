@@ -569,6 +569,7 @@ const formatTitle = (title) => {
   if (normTitle === 'Approval Request Pending') return t('notifications.approval_pending')
   if (normTitle === 'Approval Step Approved') return t('notifications.approval_step_approved')
   if (normTitle === 'Approval Request Finalized') return t('notifications.approval_finalized')
+  if (normTitle === 'Approval Request Rejected') return t('notifications.approval_rejected')
   if (te(normTitle)) {
     return t(normTitle)
   }
