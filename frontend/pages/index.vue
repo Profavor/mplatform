@@ -130,7 +130,7 @@
             <div v-for="todo in todos" :key="todo.id" class="todo-item-card">
               <div class="todo-item-main">
                 <div class="todo-badges">
-                  <va-badge :text="todo.stepType" :color="todo.stepType === 'CONSENSUS' ? 'warning' : 'danger'" class="badge-bold" />
+                  <va-badge :text="getStepTypeLabel(todo.stepType)" :color="todo.stepType === 'CONSENSUS' ? 'warning' : 'danger'" class="badge-bold" />
                   <va-badge :text="getActionTypeLabel(todo.approvalRequest?.changes)" color="info" outline class="badge-bold" />
                 </div>
 
@@ -359,6 +359,12 @@ const goToApprovals = (todo) => {
   router.push(`/approvals?openModalId=${todo.id}`)
 }
 
+const getStepTypeLabel = (stepType) => {
+  if (stepType === 'CONSENSUS') return t('step_consensus')
+  if (stepType === 'APPROVAL') return t('step_approval')
+  return stepType || ''
+}
+
 const getActionTypeLabel = (changes) => {
   if (!changes) return t('create')
   try {
@@ -394,7 +400,7 @@ const trendChartOption = computed(() => {
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: dates.length ? dates : ['D-6', 'D-5', 'D-4', 'D-3', 'D-2', 'D-1', 'Today'],
+      data: dates.length ? dates : ['D-6', 'D-5', 'D-4', 'D-3', 'D-2', 'D-1', t('today')],
       axisLabel: { color: textColor },
       axisLine: { lineStyle: { color: splitLineColor } }
     },
