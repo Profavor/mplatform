@@ -58,15 +58,19 @@ const router = useRouter()
 const route = useRoute()
 const isExpanded = ref(false)
 
+const currentLang = computed(() => {
+  const loc = (locale?.value || useCookie('locale')?.value || 'ko').toLowerCase()
+  return loc.startsWith('en') ? 'en' : 'ko'
+})
+
 const getMenuTitle = (menu) => {
   if (!menu || !menu.name) return ''
-  const currentLang = (locale?.value || 'ko').toLowerCase().startsWith('en') ? 'en' : 'ko'
 
-  // 무조건 DB에 저장된 값 기반 (JSON 형태면 ko/en 추출, 평문이면 그대로)
+  // DB에 정식 보관된 JSON 구조 {"ko": "...", "en": "..."} 파싱
   try {
     const parsed = typeof menu.name === 'object' ? menu.name : (String(menu.name).trim().startsWith('{') ? JSON.parse(menu.name) : null)
     if (parsed && typeof parsed === 'object') {
-      const title = currentLang === 'en' ? (parsed.en || parsed.ko) : (parsed.ko || parsed.en)
+      const title = currentLang.value === 'en' ? (parsed.en || parsed.ko) : (parsed.ko || parsed.en)
       if (title) return String(title)
     }
   } catch (e) {}
