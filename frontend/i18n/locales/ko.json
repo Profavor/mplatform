@@ -853,7 +853,7 @@
     "radioPlayThisPlaylist": "이 플레이리스트 재생하기",
     "radioMyPlaylistDefault": "내 연동 플레이리스트",
     "radioConfigDesc": "관리자 개인의 YouTube Music / 유튜브 채널 및 플레이리스트를 연동하여 손쉽게 원클릭으로 방송할 수 있습니다.",
-    "radioChannelUrlPlaceholder": "https://www.youtube.com/@mychannel 또는 내 유튜브 뮤직 프로필...",
+    "radioChannelUrlPlaceholder": "https://www.youtube.com/{'@'}mychannel 또는 내 유튜브 뮤직 프로필...",
     "radioPlaylistUrlPlaceholder": "https://www.youtube.com/playlist?list=PL12345... 또는 PL12345",
     "radioPlaylistTitlePlaceholder": "예: 🎧 내 유튜브 뮤직 힐링 리스트",
     "radioPlayingNow": "현재 라이브 방송 중",

@@ -855,7 +855,7 @@
     "radioPlayThisPlaylist": "Play This Playlist",
     "radioMyPlaylistDefault": "My Synced Playlist",
     "radioConfigDesc": "Sync your personal YouTube Music / YouTube Channel and playlist to easily broadcast with a single click.",
-    "radioChannelUrlPlaceholder": "https://www.youtube.com/@mychannel or YouTube Music profile...",
+    "radioChannelUrlPlaceholder": "https://www.youtube.com/{'@'}mychannel or YouTube Music profile...",
     "radioPlaylistUrlPlaceholder": "https://www.youtube.com/playlist?list=PL12345... or PL12345",
     "radioPlaylistTitlePlaceholder": "e.g.: 🎧 My YouTube Music Playlist",
     "radioPlayingNow": "Currently Live Broadcasting",
