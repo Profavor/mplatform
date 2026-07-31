@@ -618,11 +618,25 @@ const proxyReject = async (stepId) => {
   }
 }
 
+const handleApprovalUpdated = () => {
+  refreshGrid()
+}
+
 onMounted(async () => {
   await Promise.all([
     loadMetadata(),
     userStore.fetchUserMap(),
     roleStore.dispatch('fetchRoles')
   ])
+  if (process.client) {
+    window.addEventListener('approval-updated', handleApprovalUpdated)
+  }
+})
+
+onUnmounted(() => {
+  if (process.client) {
+    window.removeEventListener('approval-updated', handleApprovalUpdated)
+  }
 })
 </script>
+

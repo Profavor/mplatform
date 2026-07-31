@@ -296,9 +296,16 @@ const handleIncomingNotification = (rawPayload) => {
 
   notifications.value.unshift(newNotif)
 
+  if (itemType === 'APPROVAL' || (payload.linkUrl && payload.linkUrl.includes('/approvals')) || (payload.eventType && payload.eventType.includes('APPROVAL'))) {
+    if (process.client) {
+      window.dispatchEvent(new CustomEvent('approval-updated', { detail: payload }))
+    }
+  }
+
   try {
+    const toastMsg = buildCleanToastMessage(newNotif.title, newNotif.message)
     notifyToast({
-      message: newNotif.title + (newNotif.message ? `: ${newNotif.message}` : ''),
+      message: toastMsg,
       color: getTypeBadgeColor(newNotif.type),
       duration: 4000
     })
@@ -379,16 +386,42 @@ const handleNotificationClick = async (item) => {
       })
       if (fullReq) {
         const enriched = await enrichRequest(fullReq)
-        const myUserId = parseJwtUserId(tokenCookie.value)
         
-        const pendingStep = (enriched.steps || []).find(s => 
-          s.status === 'PENDING' && (myUserId ? String(s.assigneeId) === String(myUserId) : true)
-        )
+        // Extract current user info (ID & Roles)
+        const userCookie = useCookie('user_data')
+        let userObj = null
+        if (userCookie.value) {
+          if (typeof userCookie.value === 'object') userObj = userCookie.value
+          else {
+            try { userObj = JSON.parse(userCookie.value) } catch {}
+          }
+        }
+        const myUserId = userObj?.id || userObj?.uuid || parseJwtUserId(tokenCookie.value)
+        const myRole = userObj?.role || ''
+        const myRoles = Array.isArray(userObj?.roles) ? userObj.roles : (myRole ? [myRole] : [])
+
+        const pendingStep = (enriched.steps || []).find(s => {
+          if (s.status !== 'PENDING') return false
+          
+          if (myUserId && s.assigneeId && String(s.assigneeId) === String(myUserId)) {
+            return true
+          }
+          if (s.assigneeRole) {
+            const stepRole = String(s.assigneeRole).toUpperCase()
+            if (myRoles.some(r => String(r).toUpperCase() === stepRole)) {
+              return true
+            }
+          }
+          if (item.type === 'APPROVAL' && enriched.status === 'PENDING' && s.stepOrder === enriched.currentStepOrder) {
+            return true
+          }
+          return false
+        })
 
         activeRequest.value = enriched
         commentData.value = ''
 
-        if (pendingStep) {
+        if (pendingStep && enriched.status === 'PENDING') {
           pendingStepId.value = pendingStep.id
           isPendingAssignee.value = true
         } else {
@@ -403,6 +436,7 @@ const handleNotificationClick = async (item) => {
       console.warn('Could not open modal directly for notification, falling back to router:', e)
     }
   }
+
 
   if (item.linkUrl) {
     let targetUrl = item.linkUrl
@@ -507,7 +541,25 @@ const getTypeClass = (type) => {
   return `type-dot-${norm.toLowerCase()}`
 }
 
+const buildCleanToastMessage = (rawTitle, rawMessage) => {
+  const cleanTitle = formatTitle(rawTitle)
+  let cleanMsg = formatMessage(rawMessage)
+
+  if (cleanMsg) {
+    cleanMsg = cleanMsg.replace(/\s*\([^)]*fieldGroupId[^)]*\)/gi, '')
+    cleanMsg = cleanMsg.replace(/\s*\([^)]*key:[^)]*\)/gi, '')
+    cleanMsg = cleanMsg.replace(/:\s*[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g, '')
+    cleanMsg = cleanMsg.trim()
+  }
+
+  if (cleanTitle && cleanMsg) {
+    return `[${cleanTitle}] ${cleanMsg}`
+  }
+  return cleanTitle || cleanMsg || '새로운 알림이 도착하였습니다.'
+}
+
 const formatTitle = (title) => {
+
   if (!title) return ''
   if (title.startsWith('@i18n:')) {
     const key = title.replace('@i18n:', '')

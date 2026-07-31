@@ -30,17 +30,8 @@
             <template v-if="getParsedChanges(request?.changes)">
               <!-- Schema Change Details Display (For SCHEMA_FIELD_ADD, SCHEMA_FIELD_UPDATE, SCHEMA_FIELD_DELETE) -->
               <div v-if="isSchemaApproval" class="schema-card" style="background: var(--va-background-secondary); border-left: 4px solid var(--va-warning); border-radius: 8px; padding: 1.25rem; margin-bottom: 0.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-                <!-- Submission Reason Card -->
-                <div v-if="schemaSubmissionReason" style="background: rgba(59, 130, 246, 0.08); border-left: 4px solid var(--va-primary); border-radius: 6px; padding: 0.85rem 1.1rem; margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.3rem;">
-                  <div style="font-size: 0.8rem; font-weight: bold; color: var(--va-primary); display: flex; align-items: center; gap: 0.4rem;">
-                    <va-icon name="chat" size="small" /> {{ $t('submission_reason') || '상신 사유 (의견)' }}
-                  </div>
-                  <div style="font-size: 0.92rem; color: var(--va-text-primary); white-space: pre-wrap; line-height: 1.5;">
-                    {{ schemaSubmissionReason }}
-                  </div>
-                </div>
-
                 <!-- Header Banner -->
+
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--va-background-border); flex-wrap: wrap; gap: 0.5rem;">
                   <div style="display: flex; align-items: center; gap: 0.6rem;">
                     <va-badge 
@@ -312,7 +303,7 @@
               <div v-if="s.status === 'APPROVED' || s.status === 'REJECTED' || s.stepType === 'DRAFT'" style="font-size: 0.75rem; color: var(--va-text-secondary); margin-bottom: 4px; text-align: right;">
                 {{ formatDate(s.updatedAt) }} {{ t('processed') }}
               </div>
-              <div v-if="s.comment" style="color: var(--va-text-primary); background: var(--va-background-secondary); padding: 4px 8px; border-radius: 4px; border-left: 3px solid var(--va-primary); font-style: italic;">
+              <div v-if="s.comment" style="color: var(--va-text-primary); background: var(--va-background-secondary); padding: 6px 10px; border-radius: 4px; border-left: 3px solid var(--va-primary); font-style: italic; white-space: pre-wrap; word-break: break-word; line-height: 1.5;">
                 "{{ s.comment }}"
               </div>
               <div v-else style="color: var(--va-text-secondary); font-style: italic;">

@@ -393,11 +393,21 @@ const checkQueryForModal = async () => {
     if (!fullReq) return
     
     const enriched = await enrichRequest(fullReq)
-    const currentPendingStep = (enriched.steps || []).find(s => 
-      s.status === 'PENDING' && String(s.assigneeId) === String(myUuid.value)
-    )
+    const userObj = userCookie.value ? (typeof userCookie.value === 'object' ? userCookie.value : JSON.parse(userCookie.value)) : null
+    const myUserRoles = Array.isArray(userObj?.roles) ? userObj.roles : (userObj?.role ? [userObj.role] : [])
+    
+    const currentPendingStep = (enriched.steps || []).find(s => {
+      if (s.status !== 'PENDING') return false
+      if (myUuid.value && s.assigneeId && String(s.assigneeId) === String(myUuid.value)) return true
+      if (s.assigneeRole) {
+        const stepRole = String(s.assigneeRole).toUpperCase()
+        if (myUserRoles.some(r => String(r).toUpperCase() === stepRole)) return true
+      }
+      if (enriched.status === 'PENDING' && s.stepOrder === enriched.currentStepOrder) return true
+      return false
+    })
 
-    if (currentPendingStep) {
+    if (currentPendingStep && enriched.status === 'PENDING') {
       currentPendingStep.approvalRequest = enriched
       selectedPendingStep.value = currentPendingStep
       showActionModal.value = true
@@ -478,8 +488,13 @@ const bulkReject = async () => {
 }
 
 const handleSingleAction = async (stepId, action) => {
-  await handleAction(stepId, action)
-  showActionModal.value = false
+  try {
+    await handleAction(stepId, action)
+  } catch (e) {
+    console.error('Error handling single approval action:', e)
+  } finally {
+    showActionModal.value = false
+  }
 }
 const myRequests = ref([])
 const commentData = ref({})
@@ -1267,7 +1282,6 @@ const handleAction = async (stepId, action, isBulk = false) => {
     init({ message: `결재가 성공적으로 ${actionName} 되었습니다.`, color: 'success' })
     if (!isBulk) {
       await loadRequests()
-      refreshGrids()
     }
   } catch (error) {
     console.error(`Failed to ${action}:`, error)
@@ -1279,10 +1293,10 @@ const handleAction = async (stepId, action, isBulk = false) => {
       init({ message: `결재 ${actionName} 실패: ${errMsg}`, color: 'danger' })
     }
     await loadRequests()
-    refreshGrids()
   } finally {
     hideLoading()
   }
+
 }
 
 const loadedEffectiveNodes = new Set();
