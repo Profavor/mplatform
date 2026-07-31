@@ -18,6 +18,18 @@
                 <!-- Notification Bell -->
                 <NotificationBell class="mr-2" />
 
+                <!-- Radio DJ Control Button for Admins -->
+                <va-button
+                  v-if="effectiveRoles.includes('ROLE_ADMIN')"
+                  preset="plain"
+                  class="mr-2"
+                  style="color: white !important;"
+                  title="🎵 DJ 방송 제어판"
+                  @click="showRadioDjModal = true"
+                >
+                  <va-icon name="radio" size="large" />
+                </va-button>
+
                 <!-- Theme Toggle for Desktop -->
                 <va-button preset="plain" class="mr-2 hide-mobile theme-btn" @click="toggleTheme" style="color: white !important;">
                   <va-icon :name="isDark ? 'light_mode' : 'dark_mode'" size="large" />
@@ -163,6 +175,10 @@
         <DomainAccessRequestModal v-model="showRequestAccessModal" />
         <!-- Floating In-App Messenger Widget -->
         <InAppMessenger />
+        <!-- Live System Radio Player Widget -->
+        <SystemRadioWidget />
+        <!-- Admin DJ Music Control Modal -->
+        <AdminMusicControlModal v-model="showRadioDjModal" />
       </template>
     </va-layout>
   </div>
@@ -176,6 +192,8 @@ import { useColors } from 'vuestic-ui'
 import { useMenu } from '~/composables/useMenu'
 import NotificationBell from '~/components/layout/NotificationBell.vue'
 import InAppMessenger from '~/components/chat/InAppMessenger.vue'
+import SystemRadioWidget from '~/components/chat/SystemRadioWidget.vue'
+import AdminMusicControlModal from '~/components/chat/AdminMusicControlModal.vue'
 
 const { t, locale, setLocale } = useI18n()
 const { applyPreset, currentPresetName } = useColors()
@@ -187,6 +205,7 @@ const currentLocale = useCookie('locale', { default: () => 'ko' })
 const savedTheme = useCookie('theme', { default: () => 'light' })
 
 const showSettingsModal = ref(false)
+const showRadioDjModal = ref(false)
 const savedTimezone = useCookie('timezone', { default: () => 'Asia/Seoul' })
 const selectedTimezone = ref('')
 const isSavingTimezone = ref(false)

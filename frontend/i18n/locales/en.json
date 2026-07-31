@@ -831,6 +831,19 @@
     "noDialogue": "No messages yet.",
     "attachFileTooltip": "Attach file",
     "downloadFile": "Download",
-    "forwardedFilePrefix": "[Forwarded File]"
+    "forwardedFilePrefix": "[Forwarded File]",
+    "radioTitle": "📻 Live Radio",
+    "radioDjTitle": "🎵 DJ Control Panel",
+    "radioConnectTab": "🔗 Sync YouTube / Playlist",
+    "radioBroadcastTab": "📢 Live Broadcast",
+    "radioChannelUrl": "YouTube Channel / Music URL",
+    "radioPlaylistUrl": "Playlist URL / ID",
+    "radioPlaylistTitle": "Playlist Title",
+    "radioSaveConfig": "Save YouTube Sync Config",
+    "radioStartBroadcast": "Start Live Broadcast to All Users",
+    "radioStopBroadcast": "Stop Broadcast",
+    "radioTrackTitle": "Track Title / YouTube URL",
+    "radioPlayingNow": "Currently Live Broadcasting",
+    "radioDjBadge": "DJ"
   }
 }

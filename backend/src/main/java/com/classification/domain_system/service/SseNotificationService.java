@@ -51,4 +51,16 @@ public class SseNotificationService {
             }
         }
     }
+
+    public void broadcastNotification(Object data) {
+        for (Map.Entry<String, SseEmitter> entry : emitterMap.entrySet()) {
+            try {
+                entry.getValue().send(SseEmitter.event()
+                        .name("notification")
+                        .data(data));
+            } catch (Exception e) {
+                emitterMap.remove(entry.getKey());
+            }
+        }
+    }
 }

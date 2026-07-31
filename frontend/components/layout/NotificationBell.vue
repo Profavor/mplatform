@@ -249,11 +249,11 @@ const handleIncomingNotification = (rawPayload) => {
   }
   if (!payload) return
 
-  if (payload.eventType === 'CHAT_MESSAGE') {
+  if (payload.eventType === 'CHAT_MESSAGE' || payload.eventType === 'MUSIC_PLAY' || payload.eventType === 'MUSIC_STOP') {
     if (process.client) {
       window.dispatchEvent(new CustomEvent('chat-message-received', { detail: payload }))
     }
-    return
+    if (payload.eventType === 'CHAT_MESSAGE') return
   }
 
   if (payload.eventType === 'ROOM_READ') {

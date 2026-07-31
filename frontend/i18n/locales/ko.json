@@ -829,6 +829,19 @@
     "noDialogue": "대화가 없습니다.",
     "attachFileTooltip": "파일 첨부하기",
     "downloadFile": "다운로드",
-    "forwardedFilePrefix": "[전달된 파일]"
+    "forwardedFilePrefix": "[전달된 파일]",
+    "radioTitle": "📻 라이브 라디오",
+    "radioDjTitle": "🎵 DJ 방송 제어판",
+    "radioConnectTab": "🔗 내 YouTube 계정 / 플레이리스트 연동",
+    "radioBroadcastTab": "📢 라이브 방송 송출",
+    "radioChannelUrl": "내 유튜브 채널/뮤직 URL",
+    "radioPlaylistUrl": "재생목록(Playlist) URL / ID",
+    "radioPlaylistTitle": "재생목록 제목",
+    "radioSaveConfig": "계정/플레이리스트 연동 저장",
+    "radioStartBroadcast": "전 사용자 방송 송출 시작",
+    "radioStopBroadcast": "방송 중단",
+    "radioTrackTitle": "곡 제목 / 유튜브 URL",
+    "radioPlayingNow": "현재 라이브 방송 중",
+    "radioDjBadge": "DJ"
   }
 }
