@@ -43,23 +43,23 @@
         <va-input
           v-model="youtubeUrlInput"
           :label="$t('messenger.radioTrackTitle')"
-          placeholder="https://www.youtube.com/watch?v=5qap5aO4i9A 또는 lofi 라이브 URL..."
+          :placeholder="$t('messenger.radioUrlPlaceholder')"
           style="width: 100%;"
         />
 
         <va-input
           v-model="trackTitleInput"
-          label="곡 제목 / 방송 타이틀 (선택)"
-          placeholder="예: ☕ 오후 업무용 힐링 Lofi BGM"
+          :label="$t('messenger.radioCustomTitleLabel')"
+          :placeholder="$t('messenger.radioCustomTitlePlaceholder')"
           style="width: 100%;"
         />
 
         <!-- Preset Fast Picker if user config exists -->
         <div v-if="savedConfig && savedConfig.playlistId" style="background: var(--va-background-element); border-radius: 8px; padding: 10px;">
-          <div style="font-size: 0.8rem; font-weight: 700; margin-bottom: 6px;">🔗 {{ savedConfig.playlistTitle || '내 연동 플레이리스트' }}</div>
+          <div style="font-size: 0.8rem; font-weight: 700; margin-bottom: 6px;">🔗 {{ savedConfig.playlistTitle || $t('messenger.radioMyPlaylistDefault') }}</div>
           <div style="font-size: 0.75rem; color: var(--va-text-secondary); margin-bottom: 6px;">Playlist ID: {{ savedConfig.playlistId }}</div>
           <va-button size="small" preset="secondary" @click="usePlaylistPreset">
-            이 플레이리스트 재생하기
+            {{ $t('messenger.radioPlayThisPlaylist') }}
           </va-button>
         </div>
 
@@ -73,25 +73,25 @@
       <!-- Tab 2: Sync YouTube Account & Playlist -->
       <div v-else-if="activeTab === 'config'" style="display: flex; flex-direction: column; gap: 12px;">
         <div style="font-size: 0.85rem; color: var(--va-text-secondary); line-height: 1.4;">
-          관리자 개인의 **YouTube Music / 유튜브 채널 및 플레이리스트**를 연동하여 손쉽게 원클릭으로 방송할 수 있습니다.
+          {{ $t('messenger.radioConfigDesc') }}
         </div>
 
         <va-input
           v-model="configForm.channelUrl"
           :label="$t('messenger.radioChannelUrl')"
-          placeholder="https://www.youtube.com/@mychannel 또는 내 유튜브 뮤직 프로필..."
+          :placeholder="$t('messenger.radioChannelUrlPlaceholder')"
         />
 
         <va-input
           v-model="configForm.playlistUrl"
           :label="$t('messenger.radioPlaylistUrl')"
-          placeholder="https://www.youtube.com/playlist?list=PL12345... 또는 PL12345"
+          :placeholder="$t('messenger.radioPlaylistUrlPlaceholder')"
         />
 
         <va-input
           v-model="configForm.playlistTitle"
           :label="$t('messenger.radioPlaylistTitle')"
-          placeholder="예: 🎧 내 유튜브 뮤직 힐링 리스트"
+          :placeholder="$t('messenger.radioPlaylistTitlePlaceholder')"
         />
 
         <div style="display: flex; justify-content: flex-end; margin-top: 8px;">

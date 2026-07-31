@@ -19,7 +19,7 @@
           style="border-radius: 12px; font-weight: 800;"
           @click="resumeAudio"
         >
-          ▶️ {{ $t('radioTitle') || '라디오 듣기' }}
+          ▶️ {{ $t('messenger.radioListenBtn') }}
         </va-button>
 
         <!-- Equalizer Visualizer Animation -->

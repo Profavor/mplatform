@@ -841,7 +841,17 @@
     "radioStartBroadcast": "전 사용자 방송 송출 시작",
     "radioStopBroadcast": "방송 중단",
     "radioTrackTitle": "곡 제목 / 유튜브 URL",
+    "radioUrlPlaceholder": "https://www.youtube.com/watch?v=5qap5aO4i9A 또는 lofi 라이브 URL...",
+    "radioCustomTitleLabel": "곡 제목 / 방송 타이틀 (선택)",
+    "radioCustomTitlePlaceholder": "예: ☕ 오후 업무용 힐링 Lofi BGM",
+    "radioPlayThisPlaylist": "이 플레이리스트 재생하기",
+    "radioMyPlaylistDefault": "내 연동 플레이리스트",
+    "radioConfigDesc": "관리자 개인의 YouTube Music / 유튜브 채널 및 플레이리스트를 연동하여 손쉽게 원클릭으로 방송할 수 있습니다.",
+    "radioChannelUrlPlaceholder": "https://www.youtube.com/@mychannel 또는 내 유튜브 뮤직 프로필...",
+    "radioPlaylistUrlPlaceholder": "https://www.youtube.com/playlist?list=PL12345... 또는 PL12345",
+    "radioPlaylistTitlePlaceholder": "예: 🎧 내 유튜브 뮤직 힐링 리스트",
     "radioPlayingNow": "현재 라이브 방송 중",
-    "radioDjBadge": "DJ"
+    "radioDjBadge": "DJ",
+    "radioListenBtn": "라디오 듣기"
   }
 }

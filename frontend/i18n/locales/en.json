@@ -843,7 +843,17 @@
     "radioStartBroadcast": "Start Live Broadcast to All Users",
     "radioStopBroadcast": "Stop Broadcast",
     "radioTrackTitle": "Track Title / YouTube URL",
+    "radioUrlPlaceholder": "https://www.youtube.com/watch?v=5qap5aO4i9A or lofi live URL...",
+    "radioCustomTitleLabel": "Track / Broadcast Title (Optional)",
+    "radioCustomTitlePlaceholder": "e.g.: ☕ Afternoon Healing Lofi BGM",
+    "radioPlayThisPlaylist": "Play This Playlist",
+    "radioMyPlaylistDefault": "My Synced Playlist",
+    "radioConfigDesc": "Sync your personal YouTube Music / YouTube Channel and playlist to easily broadcast with a single click.",
+    "radioChannelUrlPlaceholder": "https://www.youtube.com/@mychannel or YouTube Music profile...",
+    "radioPlaylistUrlPlaceholder": "https://www.youtube.com/playlist?list=PL12345... or PL12345",
+    "radioPlaylistTitlePlaceholder": "e.g.: 🎧 My YouTube Music Playlist",
     "radioPlayingNow": "Currently Live Broadcasting",
-    "radioDjBadge": "DJ"
+    "radioDjBadge": "DJ",
+    "radioListenBtn": "Listen to Radio"
   }
 }
