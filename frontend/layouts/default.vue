@@ -353,32 +353,31 @@ const getRoleBadgeStyle = (role) => {
 }
 
 const filteredMenus = computed(() => {
-  const roles = effectiveRoles.value
-  const myRolesNormalized = roles.map(r => String(r).trim().replace(/^ROLE_/, ''))
-  
+  const myRoles = effectiveRoles.value
+
+  const hasAccess = (node) => {
+    // requiredRoles 배열 (API 응답 표준)
+    const roles = node.requiredRoles || []
+    // requiredRole 문자열 (레거시 호환)
+    if (node.requiredRole) {
+      node.requiredRole.split(',').map(r => r.trim()).filter(Boolean).forEach(r => roles.push(r))
+    }
+    if (roles.length === 0) return true
+    return myRoles.some(myRole => roles.includes(myRole))
+  }
+
   const filterTree = (nodes) => {
     return nodes.filter(node => {
-      let canAccess = true
-      
-      if (node.requiredRole) {
-        const requiredRoles = node.requiredRole.split(',').map(r => r.trim().replace(/^ROLE_/, '')).filter(Boolean)
-        if (requiredRoles.length > 0) {
-          const hasMatchingRole = myRolesNormalized.some(myRole => requiredRoles.includes(myRole))
-          if (!hasMatchingRole) {
-            canAccess = false
-          }
-        }
-      }
-      
-      if (!canAccess) return false
-      
+      if (!hasAccess(node)) return false
       if (node.children && node.children.length > 0) {
         node.children = filterTree(node.children)
+        // 부모 메뉴는 접근 가능한 자식이 하나라도 있어야 표시
+        if (node.children.length === 0) return false
       }
       return true
     })
   }
-  
+
   if (!menus.value) return []
   const menusCopy = JSON.parse(JSON.stringify(menus.value))
   return filterTree(menusCopy)
