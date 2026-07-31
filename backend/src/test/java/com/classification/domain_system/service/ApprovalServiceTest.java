@@ -50,6 +50,8 @@ class ApprovalServiceTest extends BaseServiceTest {
     @Mock private CalculatedFieldEvaluator calculatedFieldEvaluator;
     @Mock private RecordHistoryWriter recordHistoryWriter;
     @Mock private UserRepository userRepository;
+    @Mock private UserRoleRepository userRoleRepository;
+    @Mock private RecordMergeService recordMergeService;
 
     @InjectMocks
     private ApprovalService approvalService;
@@ -553,6 +555,98 @@ class ApprovalServiceTest extends BaseServiceTest {
 
             List<String> editable = approvalService.extractEditableFields(config, requesterId, null);
             assertThat(editable).containsExactly("emp_id");
+        }
+    }
+
+    @Nested
+    @DisplayName("requestRecordMerge")
+    class RequestRecordMerge {
+
+        @Test
+        @DisplayName("성공 - 레코드 병합 결재 요청 시 ApprovalRequest(RECORD_MERGE)가 생성된다")
+        void success() {
+            UUID survivorId = UUID.randomUUID();
+            UUID mergedId = UUID.randomUUID();
+            UUID nodeId = UUID.randomUUID();
+            String requesterId = UUID.randomUUID().toString();
+
+            Domain domain = createTestDomain(UUID.randomUUID(), "도메인", "DOM");
+            ClassificationNode node = createTestNode(nodeId, domain);
+
+            Record survivor = new Record();
+            survivor.setId(survivorId);
+            survivor.setNode(node);
+            survivor.setStatus("ACTIVE");
+            survivor.setData("{\"name\":\"survivor\"}");
+
+            Record merged = new Record();
+            merged.setId(mergedId);
+            merged.setNode(node);
+            merged.setStatus("ACTIVE");
+            merged.setData("{\"name\":\"merged\"}");
+
+            given(recordRepository.findById(survivorId)).willReturn(Optional.of(survivor));
+            given(recordRepository.findById(mergedId)).willReturn(Optional.of(merged));
+
+            DataQualityService.DQResult dqResult = new DataQualityService.DQResult();
+            dqResult.isValid = true;
+            given(dqService.validateData(eq(nodeId), any(), eq(survivorId), eq(null))).willReturn(dqResult);
+
+            given(approvalRepository.saveAndFlush(any(ApprovalRequest.class))).willAnswer(inv -> {
+                ApprovalRequest req = inv.getArgument(0);
+                req.setId(UUID.randomUUID());
+                return req;
+            });
+
+            RecordMergeService.MergeRequest request = new RecordMergeService.MergeRequest();
+            request.survivorRecordId = survivorId;
+            request.mergedRecordIds = List.of(mergedId);
+
+            ApprovalRequest result = approvalService.requestRecordMerge(request, requesterId);
+
+            assertThat(result).isNotNull();
+            assertThat(result.getTargetType()).isEqualTo("RECORD_MERGE");
+            assertThat(result.getTargetId()).isEqualTo(survivorId);
+            verify(approvalRepository).saveAndFlush(any(ApprovalRequest.class));
+            verify(eventPublisher).publishEvent(any(ApprovalRequestCreatedEvent.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("RoleBasedApproval")
+    class RoleBasedApproval {
+
+        @Test
+        @DisplayName("성공 - 역할(assigneeRole)로 지정된 결재 단계를 해당 역할 사용자가 승인할 수 있다")
+        void approveStep_WithRole_Success() {
+            UUID stepId = UUID.randomUUID();
+            String approverId = UUID.randomUUID().toString();
+            String roleName = "DATA_STEWARD";
+
+            ApprovalRequest approval = new ApprovalRequest();
+            approval.setId(UUID.randomUUID());
+            approval.setStatus("PENDING");
+
+            ApprovalStep step = new ApprovalStep();
+            step.setId(stepId);
+            step.setApprovalRequest(approval);
+            step.setStepOrder(1);
+            step.setStatus("PENDING");
+            step.setAssigneeRole(roleName);
+            step.setAssigneeId(null);
+
+            given(stepRepository.findById(stepId)).willReturn(Optional.of(step));
+
+            com.classification.domain_system.entity.User user = new com.classification.domain_system.entity.User();
+            user.setId(approverId);
+            user.setRole(roleName);
+            given(userRepository.findById(approverId)).willReturn(Optional.of(user));
+
+            ApprovalRequest result = approvalService.approveStep(stepId, approverId, "역할 승인");
+
+            assertThat(result).isNotNull();
+            assertThat(step.getStatus()).isEqualTo("APPROVED");
+            verify(stepRepository).saveAndFlush(step);
         }
     }
 }

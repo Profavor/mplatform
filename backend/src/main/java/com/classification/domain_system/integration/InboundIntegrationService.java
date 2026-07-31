@@ -242,8 +242,6 @@ public class InboundIntegrationService {
 
                 existingRecord.setData(mergedDataJson);
                 existingRecord.setSourceSystem(sourceSystem);
-                int nextVer = (existingRecord.getVersion() != null ? existingRecord.getVersion() : 1) + 1;
-                existingRecord.setVersion(nextVer);
                 existingRecord.setUpdatedAt(LocalDateTime.now());
                 Record saved = recordRepository.save(existingRecord);
 
@@ -254,7 +252,7 @@ public class InboundIntegrationService {
                 history.setPreviousData(prevData);
                 history.setNewData(itemJson);
                 history.setApprovalRequestId(null);
-                history.setVersion(nextVer);
+                history.setVersion(saved.getVersion());
                 history.setSourceSystem(sourceSystem);
                 recordHistoryRepository.save(history);
 
@@ -265,7 +263,7 @@ public class InboundIntegrationService {
                     log.error("[Inbound DQE] Error evaluating record [{}]: {}", saved.getId(), e.getMessage());
                 }
 
-                log.info("[Inbound] 기존 레코드 발견으로 UPDATE 처리 완료: id={}, ver={}", saved.getId(), nextVer);
+                log.info("[Inbound] 기존 레코드 발견으로 UPDATE 처리 완료: id={}, ver={}", saved.getId(), saved.getVersion());
                 return saved.getId();
             }
         }

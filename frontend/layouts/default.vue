@@ -161,6 +161,8 @@
         </va-modal>
         <!-- Request Access Modal -->
         <DomainAccessRequestModal v-model="showRequestAccessModal" />
+        <!-- Floating In-App Messenger Widget -->
+        <InAppMessenger />
       </template>
     </va-layout>
   </div>
@@ -173,6 +175,7 @@ import { useCookie, useState } from '#app'
 import { useColors } from 'vuestic-ui'
 import { useMenu } from '~/composables/useMenu'
 import NotificationBell from '~/components/layout/NotificationBell.vue'
+import InAppMessenger from '~/components/chat/InAppMessenger.vue'
 
 const { t, locale, setLocale } = useI18n()
 const { applyPreset, currentPresetName } = useColors()

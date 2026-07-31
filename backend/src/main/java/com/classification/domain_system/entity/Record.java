@@ -40,6 +40,7 @@ public class Record {
     @JoinColumn(name = "approval_request_id", insertable = false, updatable = false)
     private ApprovalRequest approvalRequest;
 
+    @jakarta.persistence.Version
     @Column(name = "version", nullable = false, columnDefinition = "integer default 1")
     private Integer version = 1;
 

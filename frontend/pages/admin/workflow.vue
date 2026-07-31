@@ -419,7 +419,8 @@ const actionTypeOptions = computed(() => [
   { value: 'CREATE', text: `🆕 ${t('action_type_create')}` },
   { value: 'UPDATE', text: `✏️ ${t('action_type_update')}` },
   { value: 'DELETE', text: `🗑️ ${t('action_type_delete')}` },
-  { value: 'SCHEMA_CHANGE', text: `⚙️ ${t('action_type_schema_change')}` }
+  { value: 'SCHEMA_CHANGE', text: `⚙️ ${t('action_type_schema_change')}` },
+  { value: 'MERGE', text: `🔀 ${t('action_type_merge')}` }
 ])
 
 const actionFilterTabs = computed(() => [
@@ -427,7 +428,8 @@ const actionFilterTabs = computed(() => [
   { value: 'CREATE', text: t('action_type_create_short') },
   { value: 'UPDATE', text: t('action_type_update_short') },
   { value: 'DELETE', text: t('action_type_delete_short') },
-  { value: 'SCHEMA_CHANGE', text: t('action_type_schema_change_short') }
+  { value: 'SCHEMA_CHANGE', text: t('action_type_schema_change_short') },
+  { value: 'MERGE', text: t('action_type_merge_short') }
 ])
 
 const scopeLevelOptions = computed(() => [
@@ -591,12 +593,14 @@ const columnDefs = computed<any[]>(() => [
       if (type === 'UPDATE') { badgeClass = 'info'; label = t('action_type_update_short') }
       else if (type === 'DELETE') { badgeClass = 'danger'; label = t('action_type_delete_short') }
       else if (type === 'SCHEMA_CHANGE') { badgeClass = 'warning'; label = t('action_type_schema_change_short') }
+      else if (type === 'MERGE') { badgeClass = 'purple'; label = t('action_type_merge_short') }
 
       const colors: any = {
         primary: '#2563eb',
         info: '#0284c7',
         danger: '#dc2626',
-        warning: '#d97706'
+        warning: '#d97706',
+        purple: '#9333ea'
       }
       return `<span style="background:${colors[badgeClass]}; color:#fff; font-size:0.75rem; font-weight:700; padding:3px 8px; border-radius:12px;">${label}</span>`
     }

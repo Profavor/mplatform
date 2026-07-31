@@ -37,10 +37,17 @@ public class JwtUtil {
     }
 
     public String generateToken(String username, String role, String userId) {
+        return generateToken(username, role, userId, null);
+    }
+
+    public String generateToken(String username, String role, String userId, String sessionId) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", role);
         claims.put("userId", userId);
         claims.put("uuid", userId); // backward compatibility
+        if (sessionId != null) {
+            claims.put("sessionId", sessionId);
+        }
         
         return Jwts.builder()
                 .setClaims(claims)
@@ -57,6 +64,15 @@ public class JwtUtil {
     
     public String extractUsername(String token) {
         return extractAllClaims(token).getSubject();
+    }
+
+    public String extractSessionId(String token) {
+        try {
+            Claims claims = extractAllClaims(token);
+            return (String) claims.get("sessionId");
+        } catch (Exception e) {
+            return null;
+        }
     }
     
     public boolean isTokenValid(String token) {

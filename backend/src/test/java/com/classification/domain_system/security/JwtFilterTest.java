@@ -24,6 +24,7 @@ class JwtFilterTest {
     private JwtUtil jwtUtil;
     private PermissionService permissionService;
     private AuthContext authContext;
+    private com.classification.domain_system.repository.UserRepository userRepository;
     private JwtFilter jwtFilter;
     private HttpServletRequest request;
     private HttpServletResponse response;
@@ -39,11 +40,12 @@ class JwtFilterTest {
         jwtUtil.init();
 
         permissionService = mock(PermissionService.class);
+        userRepository = mock(com.classification.domain_system.repository.UserRepository.class);
         when(permissionService.getAuthoritiesForUser(anyString(), anyString()))
                 .thenReturn(List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER")));
 
         authContext = new AuthContext();
-        jwtFilter = new JwtFilter(jwtUtil, permissionService, authContext);
+        jwtFilter = JwtFilter.createForTest(jwtUtil, permissionService, authContext, userRepository);
         request = mock(HttpServletRequest.class);
         response = mock(HttpServletResponse.class);
         filterChain = mock(FilterChain.class);

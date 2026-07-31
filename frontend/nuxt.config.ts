@@ -40,7 +40,10 @@ export default defineNuxtConfig({
     defaultLocale: 'ko',
     strategy: 'no_prefix',
     lazy: true,
-    langDir: 'locales'
+    langDir: 'locales',
+    bundle: {
+      optimizeTranslationDirective: false
+    }
   },
   build: {
   },
@@ -61,7 +64,8 @@ export default defineNuxtConfig({
     }
   },
   routeRules: {
-    '/api/**': { proxy: process.env.API_BASE_URL ? `${process.env.API_BASE_URL}/api/**` : 'http://localhost:8080/api/**' }
+    '/api/**': { proxy: process.env.API_BASE_URL ? `${process.env.API_BASE_URL}/api/**` : 'http://localhost:8080/api/**' },
+    '/ws-stomp/**': { proxy: process.env.API_BASE_URL ? `${process.env.API_BASE_URL.replace('http', 'ws')}/ws-stomp/**` : 'ws://localhost:8080/ws-stomp/**' }
   },
   vite: {
     server: {

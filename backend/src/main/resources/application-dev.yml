@@ -45,4 +45,7 @@ mdm:
     system-user-id: SYSTEM
     trend-window-days: 30
   merge:
-    default-source-priority: 999
+    default_source-priority: 999
+
+chat:
+  retention-days: ${CHAT_RETENTION_DAYS:7}

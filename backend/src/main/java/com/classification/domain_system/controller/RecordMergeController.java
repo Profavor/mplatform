@@ -1,7 +1,9 @@
 package com.classification.domain_system.controller;
 
+import com.classification.domain_system.entity.ApprovalRequest;
 import com.classification.domain_system.entity.Record;
 import com.classification.domain_system.entity.SurvivorshipRule;
+import com.classification.domain_system.service.ApprovalService;
 import com.classification.domain_system.service.RecordMergeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -17,23 +19,25 @@ import java.util.UUID;
 public class RecordMergeController {
 
     private final RecordMergeService recordMergeService;
+    private final ApprovalService approvalService;
 
     @PostMapping("/merge")
     @PreAuthorize("hasPermission(null, 'record:write')")
-    public ResponseEntity<Record> mergeRecords(
+    public ResponseEntity<ApprovalRequest> mergeRecords(
             @RequestBody RecordMergeService.MergeRequest request,
             @AuthenticationPrincipal String username) {
-        Record survivor = recordMergeService.mergeRecords(request, username != null ? username : "SYSTEM");
-        return ResponseEntity.ok(survivor);
+        ApprovalRequest approval = approvalService.requestRecordMerge(request, username != null ? username : "SYSTEM");
+        return ResponseEntity.ok(approval);
     }
 
     @PostMapping("/merge/auto")
     @PreAuthorize("hasPermission(null, 'record:write')")
-    public ResponseEntity<Record> autoMergeRecords(
+    public ResponseEntity<ApprovalRequest> autoMergeRecords(
             @RequestBody RecordMergeService.MergeRequest request,
             @AuthenticationPrincipal String username) {
-        Record survivor = recordMergeService.mergeWithSurvivorship(request.survivorRecordId, request.mergedRecordIds, username != null ? username : "SYSTEM");
-        return ResponseEntity.ok(survivor);
+        RecordMergeService.MergeRequest mergeReq = recordMergeService.buildSurvivorshipMergeRequest(request.survivorRecordId, request.mergedRecordIds);
+        ApprovalRequest approval = approvalService.requestRecordMerge(mergeReq, username != null ? username : "SYSTEM");
+        return ResponseEntity.ok(approval);
     }
 
     @GetMapping("/domains/{domainId}/survivorship-rules")

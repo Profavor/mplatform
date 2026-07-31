@@ -1,14 +1,15 @@
 package com.classification.domain_system.security;
 
 import com.classification.domain_system.context.AuthContext;
+import com.classification.domain_system.repository.UserRepository;
 import com.classification.domain_system.service.PermissionService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -19,13 +20,33 @@ import java.io.IOException;
 import java.util.Collection;
 
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final PermissionService permissionService;
     private final AuthContext authContext;
+    private final ObjectProvider<UserRepository> userRepositoryProvider;
+
+    public JwtFilter(JwtUtil jwtUtil, PermissionService permissionService, AuthContext authContext, ObjectProvider<UserRepository> userRepositoryProvider) {
+        this.jwtUtil = jwtUtil;
+        this.permissionService = permissionService;
+        this.authContext = authContext;
+        this.userRepositoryProvider = userRepositoryProvider;
+    }
+
+    public static JwtFilter createForTest(JwtUtil jwtUtil, PermissionService permissionService, AuthContext authContext, UserRepository userRepository) {
+        return new JwtFilter(jwtUtil, permissionService, authContext, new SimpleObjectProvider<>(userRepository));
+    }
+
+    private static class SimpleObjectProvider<T> implements ObjectProvider<T> {
+        private final T instance;
+        SimpleObjectProvider(T instance) { this.instance = instance; }
+        @Override public T getObject() { return instance; }
+        @Override public T getObject(Object... args) { return instance; }
+        @Override public T getIfAvailable() { return instance; }
+        @Override public T getIfUnique() { return instance; }
+    }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -65,6 +86,24 @@ public class JwtFilter extends OncePerRequestFilter {
                 if (userId == null) {
                     userId = claims.get("uuid", String.class);
                 }
+
+                // 단일 세션(activeSessionId) 검증
+                UserRepository repo = userRepositoryProvider != null ? userRepositoryProvider.getIfAvailable() : null;
+                if (repo != null) {
+                    var userOpt = repo.findByUsername(username);
+                    if (userOpt.isPresent()) {
+                        String activeSessionId = userOpt.get().getActiveSessionId();
+                        String tokenSessionId = (String) claims.get("sessionId");
+                        log.info("[JwtFilter Check] User: {}, DB activeSessionId: {}, Token sessionId: {}", username, activeSessionId, tokenSessionId);
+                        // DB에 activeSessionId가 설정되어 있는 경우, 토큰의 sessionId가 없거나 다르면 기존 세션이므로 즉시 차단
+                        if (activeSessionId != null && !activeSessionId.equals(tokenSessionId)) {
+                            log.warn("Session invalidated due to concurrent login for user: {}", username);
+                            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Session expired due to login from another device.");
+                            return;
+                        }
+                    }
+                }
+
                 authContext.setUserId(userId != null ? userId : username);
 
                 Collection<GrantedAuthority> authorities = permissionService.getAuthoritiesForUser(username, roleStr);

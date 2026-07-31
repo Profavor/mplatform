@@ -65,6 +65,14 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(code, ex.getMessage()));
     }
 
+    @ExceptionHandler({jakarta.persistence.OptimisticLockException.class, org.springframework.orm.ObjectOptimisticLockingFailureException.class})
+    public ResponseEntity<ErrorResponse> handleOptimisticLockException(Exception ex, HttpServletRequest request) {
+        log.warn("Optimistic lock conflict at URI: {}. Message: {}", request.getRequestURI(), ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ErrorResponse.of(ErrorCode.OPTIMISTIC_LOCK_ERROR, "다른 사용자가 이미 이 레코드를 수정했습니다. 새로고침 후 다시 시도해주세요."));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleAllExceptions(Exception ex, HttpServletRequest request) {
         String stackTrace = getStackTraceAsString(ex);

@@ -161,7 +161,14 @@ public class ApprovalController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
         String targetAssigneeId = resolveUserUuid(assigneeId);
-        var todoPage = approvalService.getMyTodos(targetAssigneeId, PageRequest.of(page, size));
+        String userRole = null;
+        try {
+            userRole = userRepository.findById(targetAssigneeId).map(com.classification.domain_system.entity.User::getRole).orElse(null);
+        } catch (Exception ignored) {}
+
+        var todoPage = (userRole != null && !userRole.isBlank())
+                ? approvalService.getMyTodos(targetAssigneeId, userRole, PageRequest.of(page, size))
+                : approvalService.getMyTodos(targetAssigneeId, PageRequest.of(page, size));
         if (todoPage.getContent() != null) {
             todoPage.getContent().forEach(s -> {
                 if (s.getApprovalRequest() != null) {

@@ -35,6 +35,9 @@ class ApprovalEventListenerTest {
     @Mock private FieldDefinitionService fieldDefinitionService;
     @Mock private CalculatedFieldEvaluator calculatedFieldEvaluator;
     @Mock private RecordHistoryWriter recordHistoryWriter;
+    @Mock private com.classification.domain_system.service.NotificationService notificationService;
+    @Mock private UserRepository userRepository;
+    @Mock private com.classification.domain_system.websocket.WebSocketPublisher webSocketPublisher;
 
     @InjectMocks
     private ApprovalEventListener eventListener;

@@ -30,3 +30,6 @@ file:
 logging:
   level:
     com.classification.domain_system.integration.DataMappingTransformer: DEBUG
+
+chat:
+  retention-days: ${CHAT_RETENTION_DAYS:7}

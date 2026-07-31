@@ -33,6 +33,8 @@ public class RecordMergeService {
     private final RecordFieldSourceRepository recordFieldSourceRepository;
     private final com.classification.domain_system.repository.UserRepository userRepository;
     private final FieldDefinitionRepository fieldDefinitionRepository;
+    private final DataQualityService dqService;
+    private final NotificationService notificationService;
     private final ApplicationEventPublisher applicationEventPublisher;
     private final MdmProperties mdmProperties;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -106,11 +108,17 @@ public class RecordMergeService {
 
         try {
             String newDataJson = objectMapper.writeValueAsString(finalDataMap);
+
+            if (dqService != null && survivor.getNode() != null) {
+                DataQualityService.DQResult dqResult = dqService.validateData(survivor.getNode().getId(), newDataJson, survivor.getId(), null);
+                if (dqResult != null && !dqResult.isValid) {
+                    throw new BusinessException(ErrorCode.DATA_QUALITY_CHECK_FAILED, String.join(", ", dqResult.errors));
+                }
+            }
+
             survivor.setData(newDataJson);
-            int nextVer = (survivor.getVersion() != null ? survivor.getVersion() : 1) + 1;
-            survivor.setVersion(nextVer);
             survivor.setUpdatedAt(LocalDateTime.now());
-            recordRepository.save(survivor);
+            Record savedSurvivor = recordRepository.save(survivor);
 
             // Update RecordFieldSource (field lineage) for survivor
             for (Map.Entry<String, Object> entry : finalDataMap.entrySet()) {
@@ -153,7 +161,7 @@ public class RecordMergeService {
             survivorHistory.setChangedBy(parseUserUuid(operatorUsername));
             survivorHistory.setPreviousData(prevSurvivorData);
             survivorHistory.setNewData(newDataJson);
-            survivorHistory.setVersion(nextVer);
+            survivorHistory.setVersion(savedSurvivor.getVersion());
             recordHistoryRepository.save(survivorHistory);
 
             // Update Merged Records to MERGED status & RecordHistory
@@ -162,7 +170,7 @@ public class RecordMergeService {
                 m.setStatus("MERGED");
                 m.setMergedIntoRecordId(survivor.getId());
                 m.setUpdatedAt(LocalDateTime.now());
-                recordRepository.save(m);
+                Record savedM = recordRepository.save(m);
 
                 RecordHistory mHistory = new RecordHistory();
                 mHistory.setRecordId(m.getId());
@@ -170,7 +178,7 @@ public class RecordMergeService {
                 mHistory.setChangedBy(parseUserUuid(operatorUsername));
                 mHistory.setPreviousData(prevMergedData);
                 mHistory.setNewData(null);
-                mHistory.setVersion((m.getVersion() != null ? m.getVersion() : 1) + 1);
+                mHistory.setVersion(savedM.getVersion());
                 recordHistoryRepository.save(mHistory);
             }
 
@@ -189,10 +197,8 @@ public class RecordMergeService {
                                 refMap.put(fieldKey, survivor.getId().toString());
                                 String newRefDataJson = objectMapper.writeValueAsString(refMap);
                                 refRec.setData(newRefDataJson);
-                                int nextRefVer = (refRec.getVersion() != null ? refRec.getVersion() : 1) + 1;
-                                refRec.setVersion(nextRefVer);
                                 refRec.setUpdatedAt(LocalDateTime.now());
-                                recordRepository.save(refRec);
+                                Record savedRefRec = recordRepository.save(refRec);
 
                                 RecordHistory refHistory = new RecordHistory();
                                 refHistory.setRecordId(refRec.getId());
@@ -200,7 +206,7 @@ public class RecordMergeService {
                                 refHistory.setChangedBy(parseUserUuid(operatorUsername));
                                 refHistory.setPreviousData(prevRefData);
                                 refHistory.setNewData(newRefDataJson);
-                                refHistory.setVersion(nextRefVer);
+                                refHistory.setVersion(savedRefRec.getVersion());
                                 recordHistoryRepository.save(refHistory);
                             }
                         } catch (Exception e) {
@@ -217,6 +223,33 @@ public class RecordMergeService {
                 for (Record m : mergedRecords) {
                     UUID mNodeId = m.getNode() != null ? m.getNode().getId() : null;
                     applicationEventPublisher.publishEvent(new MasterDataChangedEvent(this, m.getId(), mNodeId, "MERGED_INTO", m.getData()));
+                }
+            }
+
+            // P2. 알림 발송
+            if (notificationService != null) {
+                for (Record m : mergedRecords) {
+                    String targetUserId = null;
+                    List<RecordHistory> histories = recordHistoryRepository.findByRecordIdOrderByChangedAtDesc(m.getId());
+                    if (histories != null && !histories.isEmpty()) {
+                        targetUserId = histories.get(0).getChangedBy();
+                    }
+                    if (targetUserId == null) {
+                        targetUserId = parseUserUuid(operatorUsername);
+                    }
+                    if (targetUserId != null) {
+                        try {
+                            notificationService.createNotification(
+                                    targetUserId,
+                                    "레코드 병합 안내",
+                                    "레코드가 병합되어 마스터 레코드(" + survivor.getId() + ")로 통합되었습니다.",
+                                    "RECORD_MERGE",
+                                    "/records/" + survivor.getId()
+                            );
+                        } catch (Exception ex) {
+                            log.warn("Failed to create merge notification for user {}", targetUserId, ex);
+                        }
+                    }
                 }
             }
 
@@ -244,7 +277,7 @@ public class RecordMergeService {
         m.setStatus("ACTIVE");
         m.setMergedIntoRecordId(null);
         m.setUpdatedAt(LocalDateTime.now());
-        recordRepository.save(m);
+        Record savedM = recordRepository.save(m);
 
         RecordHistory mHistory = new RecordHistory();
         mHistory.setRecordId(m.getId());
@@ -252,7 +285,7 @@ public class RecordMergeService {
         mHistory.setChangedBy(parseUserUuid(operatorUsername));
         mHistory.setPreviousData(null);
         mHistory.setNewData(m.getData());
-        mHistory.setVersion((m.getVersion() != null ? m.getVersion() : 1) + 1);
+        mHistory.setVersion(savedM.getVersion());
         recordHistoryRepository.save(mHistory);
 
         // Roll back survivor data to pre-merge state (previousData of MERGE_SURVIVOR history)
@@ -268,10 +301,8 @@ public class RecordMergeService {
                     String currentSurvivorData = survivor.getData();
                     String rolledBackData = mergeHist.get().getPreviousData();
                     survivor.setData(rolledBackData);
-                    int nextVer = (survivor.getVersion() != null ? survivor.getVersion() : 1) + 1;
-                    survivor.setVersion(nextVer);
                     survivor.setUpdatedAt(LocalDateTime.now());
-                    recordRepository.save(survivor);
+                    Record savedSurvivor = recordRepository.save(survivor);
 
                     /*
                      * 트레이드오프: 언머지 시 survivor 레코드 전체를 병합 이전 시점의 previousData로 복원합니다.
@@ -283,7 +314,7 @@ public class RecordMergeService {
                     survivorRollbackHistory.setChangedBy(parseUserUuid(operatorUsername));
                     survivorRollbackHistory.setPreviousData(currentSurvivorData);
                     survivorRollbackHistory.setNewData(rolledBackData);
-                    survivorRollbackHistory.setVersion(nextVer);
+                    survivorRollbackHistory.setVersion(savedSurvivor.getVersion());
                     recordHistoryRepository.save(survivorRollbackHistory);
                 }
             }
@@ -295,12 +326,37 @@ public class RecordMergeService {
             applicationEventPublisher.publishEvent(new MasterDataChangedEvent(this, m.getId(), mNodeId, "UNMERGE", m.getData()));
         }
 
+        // P2. 알림 발송
+        if (notificationService != null) {
+            String targetUserId = null;
+            List<RecordHistory> histories = recordHistoryRepository.findByRecordIdOrderByChangedAtDesc(m.getId());
+            if (histories != null && !histories.isEmpty()) {
+                targetUserId = histories.get(0).getChangedBy();
+            }
+            if (targetUserId == null) {
+                targetUserId = parseUserUuid(operatorUsername);
+            }
+            if (targetUserId != null) {
+                try {
+                    notificationService.createNotification(
+                            targetUserId,
+                            "레코드 병합 해제 안내",
+                            "병합이 취소되어 레코드가 복원되었습니다.",
+                            "RECORD_UNMERGE",
+                            "/records/" + m.getId()
+                    );
+                } catch (Exception ex) {
+                    log.warn("Failed to create unmerge notification for user {}", targetUserId, ex);
+                }
+            }
+        }
+
         log.info("[RecordMerge] Successfully unmerged record ID: {}", mergedRecordId);
         return m;
     }
 
-    @Transactional
-    public Record mergeWithSurvivorship(UUID survivorId, List<UUID> mergedIds, String operatorUsername) {
+    @Transactional(readOnly = true)
+    public MergeRequest buildSurvivorshipMergeRequest(UUID survivorId, List<UUID> mergedIds) {
         Record survivor = recordRepository.findById(survivorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Survivor record not found"));
 
@@ -392,7 +448,6 @@ public class RecordMergeService {
                     }
                 }
             } else if ("MOST_COMPLETE".equalsIgnoreCase(strategy)) {
-                /* non-null/non-blank 값 우선, 동률 시 문자열 길이/survivor 우선 */
                 int maxLength = -1;
                 for (Record cand : validCandidates) {
                     Object val = candidateDataMaps.get(cand.getId()).get(fieldKey);
@@ -416,6 +471,12 @@ public class RecordMergeService {
         req.survivorRecordId = survivorId;
         req.mergedRecordIds = mergedIds;
         req.fieldResolutions = fieldResolutions;
+        return req;
+    }
+
+    @Transactional
+    public Record mergeWithSurvivorship(UUID survivorId, List<UUID> mergedIds, String operatorUsername) {
+        MergeRequest req = buildSurvivorshipMergeRequest(survivorId, mergedIds);
         return mergeRecords(req, operatorUsername);
     }
 

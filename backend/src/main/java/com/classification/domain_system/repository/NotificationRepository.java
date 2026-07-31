@@ -22,6 +22,8 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
 
     java.util.List<Notification> findByLinkUrlContainingAndIsReadFalse(String linkUrlPart);
 
+    java.util.List<Notification> findByLinkUrlContaining(String linkUrlPart);
+
     @Modifying
     @Query("DELETE FROM Notification n WHERE n.userId = :userId")
     int deleteByUserId(@Param("userId") String userId);

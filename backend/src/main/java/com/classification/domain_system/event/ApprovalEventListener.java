@@ -38,6 +38,11 @@ public class ApprovalEventListener {
     private final RecordHistoryWriter recordHistoryWriter;
     private final com.classification.domain_system.service.NotificationService notificationService;
     private final com.classification.domain_system.repository.UserRepository userRepository;
+    private final com.classification.domain_system.websocket.WebSocketPublisher webSocketPublisher;
+    
+    @org.springframework.beans.factory.annotation.Autowired
+    @org.springframework.context.annotation.Lazy
+    private com.classification.domain_system.service.RecordMergeService recordMergeService;
     
     @org.springframework.beans.factory.annotation.Autowired
     @org.springframework.context.annotation.Lazy
@@ -72,21 +77,11 @@ public class ApprovalEventListener {
             String summary = extractChangeSummary(approval);
 
             approval.getSteps().stream()
-                    .filter(s -> s.getStepOrder().equals(approval.getCurrentStepOrder()) && s.getAssigneeId() != null)
-                    .forEach(s -> {
-                        try {
-                            notificationService.createNotification(
-                                    s.getAssigneeId(),
-                                    "@i18n:notifications.approval_pending",
-                                    buildNotificationMessage(actionLabel, requesterName, domainName, classificationName, summary),
-                                    "APPROVAL",
-                                    "/approvals?requestId=" + approval.getId()
-                            );
-                        } catch (Exception ex) {
-                            log.warn("Failed to create approval notification for assignee {}", s.getAssigneeId(), ex);
-                        }
-                    });
+                    .filter(s -> s.getStepOrder().equals(approval.getCurrentStepOrder()))
+                    .forEach(s -> sendPendingStepNotification(s, actionLabel, requesterName, domainName, classificationName, summary, approval.getId()));
         }
+
+        broadcastApprovalStatusChange(approval, "CREATED");
     }
 
     @EventListener
@@ -151,20 +146,8 @@ public class ApprovalEventListener {
                         String nextSummary = extractChangeSummary(approval);
 
                         approval.getSteps().stream()
-                                .filter(s -> s.getStepOrder().equals(approval.getCurrentStepOrder()) && s.getAssigneeId() != null)
-                                .forEach(s -> {
-                                    try {
-                                        notificationService.createNotification(
-                                                s.getAssigneeId(),
-                                                "@i18n:notifications.approval_pending",
-                                                buildNotificationMessage(nextActionLabel, nextRequesterName, nextDomainName, nextClassificationName, nextSummary),
-                                                "APPROVAL",
-                                                "/approvals?requestId=" + approval.getId()
-                                        );
-                                    } catch (Exception ex) {
-                                        log.warn("Failed to create approval step notification for assignee {}", s.getAssigneeId(), ex);
-                                    }
-                                });
+                                .filter(s -> s.getStepOrder().equals(approval.getCurrentStepOrder()))
+                                .forEach(s -> sendPendingStepNotification(s, nextActionLabel, nextRequesterName, nextDomainName, nextClassificationName, nextSummary, approval.getId()));
                     }
                 } else {
                     approval.setStatus("APPROVED");
@@ -189,6 +172,7 @@ public class ApprovalEventListener {
                     }
                 }
             }
+            broadcastApprovalStatusChange(approval, "UPDATED");
         } catch (org.springframework.orm.ObjectOptimisticLockingFailureException | jakarta.persistence.OptimisticLockException e) {
             log.warn("Concurrent modification detected for ApprovalRequest ID: {}. Another thread already advanced or finalized this request.", requestFromEvent.getId());
         }
@@ -270,7 +254,6 @@ public class ApprovalEventListener {
 
             String finalData = recomputeCalculatedFields(record.getNode().getId(), changesJson);
             record.setData(finalData);
-            record.setVersion(1);
             recordRepository.save(record);
             logHistory(record, "CREATE", approval.getRequesterId(), null, finalData, approval.getId());
             applicationEventPublisher.publishEvent(new MasterDataChangedEvent(this, record.getId(), record.getNode().getId(), "CREATE", finalData));
@@ -286,7 +269,6 @@ public class ApprovalEventListener {
                     record.setData(afterData);
                 }
                 record.setStatus("ACTIVE");
-                record.setVersion(record.getVersion() + 1);
                 recordRepository.save(record);
                 logHistory(record, "UPDATE", approval.getRequesterId(), prevData, record.getData(), approval.getId());
                 applicationEventPublisher.publishEvent(new MasterDataChangedEvent(this, record.getId(), record.getNode().getId(), "UPDATE", record.getData()));
@@ -300,6 +282,16 @@ public class ApprovalEventListener {
             logHistory(record, "DELETE", approval.getRequesterId(), deletedData, null, approval.getId());
             recordRepository.delete(record);
             applicationEventPublisher.publishEvent(new MasterDataChangedEvent(this, record.getId(), record.getNode().getId(), "DELETE", deletedData));
+        } else if ("RECORD_MERGE".equals(approval.getTargetType())) {
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                com.classification.domain_system.service.RecordMergeService.MergeRequest request = mapper.readValue(approval.getChanges(), com.classification.domain_system.service.RecordMergeService.MergeRequest.class);
+                if (recordMergeService != null) {
+                    recordMergeService.mergeRecords(request, approval.getRequesterId());
+                }
+            } catch (Exception e) {
+                log.error("Error applying final approval for RECORD_MERGE", e);
+            }
         } else if (approval.getTargetType() != null && approval.getTargetType().startsWith("SCHEMA_")) {
             try {
                 ObjectMapper mapper = new ObjectMapper();
@@ -359,6 +351,7 @@ public class ApprovalEventListener {
             case "RECORD": return "신규 등록";
             case "RECORD_UPDATE": return "정보 변경";
             case "RECORD_DELETE": return "삭제/폐기";
+            case "RECORD_MERGE": return "골든레코드 병합";
             default:
                 if (targetType.startsWith("SCHEMA_")) return "스키마 변경";
                 return "결재";
@@ -457,5 +450,50 @@ public class ApprovalEventListener {
 
     private String buildFinalizedMessage(String actionLabel, String domainName, String classificationName) {
         return "[" + domainName + " > " + classificationName + "] " + actionLabel + " 요청이 최종 승인되었습니다.";
+    }
+
+    private void sendPendingStepNotification(ApprovalStep step, String actionLabel, String requesterName, String domainName, String classificationName, String summary, UUID approvalId) {
+        if (step == null || notificationService == null) return;
+        List<String> targetUserIds = new ArrayList<>();
+        if (step.getAssigneeId() != null && !step.getAssigneeId().isBlank()) {
+            targetUserIds.add(step.getAssigneeId());
+        }
+        if (step.getAssigneeRole() != null && !step.getAssigneeRole().isBlank()) {
+            List<com.classification.domain_system.entity.User> roleUsers = userRepository.findAll().stream()
+                    .filter(u -> step.getAssigneeRole().equalsIgnoreCase(u.getRole()))
+                    .toList();
+            for (com.classification.domain_system.entity.User u : roleUsers) {
+                if (!targetUserIds.contains(u.getId())) {
+                    targetUserIds.add(u.getId());
+                }
+            }
+        }
+        for (String targetUserId : targetUserIds) {
+            try {
+                notificationService.createNotification(
+                        targetUserId,
+                        "@i18n:notifications.approval_pending",
+                        buildNotificationMessage(actionLabel, requesterName, domainName, classificationName, summary),
+                        "APPROVAL",
+                        "/approvals?requestId=" + approvalId
+                );
+            } catch (Exception ex) {
+                log.warn("Failed to create approval notification for assignee {}", targetUserId, ex);
+            }
+        }
+    }
+
+    private void broadcastApprovalStatusChange(ApprovalRequest approval, String eventType) {
+        if (approval == null || webSocketPublisher == null) return;
+        java.util.Map<String, Object> payload = java.util.Map.of(
+                "eventType", eventType,
+                "approvalId", approval.getId(),
+                "status", approval.getStatus() != null ? approval.getStatus() : "",
+                "currentStepOrder", approval.getCurrentStepOrder() != null ? approval.getCurrentStepOrder() : 0,
+                "targetType", approval.getTargetType() != null ? approval.getTargetType() : "",
+                "targetId", approval.getTargetId() != null ? approval.getTargetId() : ""
+        );
+        webSocketPublisher.publishApprovalEvent("/topic/approvals/" + approval.getId(), payload);
+        webSocketPublisher.publishApprovalEvent("/topic/approvals/status-changes", payload);
     }
 }

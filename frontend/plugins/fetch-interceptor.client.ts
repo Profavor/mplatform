@@ -99,6 +99,15 @@ export default defineNuxtPlugin((nuxtApp) => {
           return
         }
 
+        const respBody = typeof response._data === 'string' ? response._data : JSON.stringify(response._data || '')
+        if (respBody.includes('another device') || respBody.includes('Session expired')) {
+          clearAuthCookies()
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login'
+          }
+          return
+        }
+
         const refreshToken = getCookieValue('refresh_token')
         if (!refreshToken) {
           clearAuthCookies()

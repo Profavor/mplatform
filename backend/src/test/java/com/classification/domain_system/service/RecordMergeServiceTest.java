@@ -40,6 +40,10 @@ class RecordMergeServiceTest {
     @Mock
     private FieldDefinitionRepository fieldDefinitionRepository;
     @Mock
+    private DataQualityService dqService;
+    @Mock
+    private NotificationService notificationService;
+    @Mock
     private ApplicationEventPublisher applicationEventPublisher;
 
     @InjectMocks
@@ -348,5 +352,55 @@ class RecordMergeServiceTest {
         assertThatThrownBy(() -> recordMergeService.mergeRecords(req, "admin"))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("Cannot merge records from a different node/domain.");
+    }
+
+    @Test
+    @DisplayName("P1: mergeRecords - DQ 검증 실패 시 DATA_QUALITY_CHECK_FAILED 예외 발생 및 병합 중단")
+    void mergeRecords_DqValidationFailed_ThrowsException() {
+        RecordMergeService.MergeRequest req = new RecordMergeService.MergeRequest();
+        req.survivorRecordId = survivorId;
+        req.mergedRecordIds = List.of(mergedId);
+
+        when(recordRepository.findById(survivorId)).thenReturn(Optional.of(survivor));
+        when(recordRepository.findById(mergedId)).thenReturn(Optional.of(merged));
+
+        DataQualityService.DQResult dqResult = new DataQualityService.DQResult();
+        dqResult.isValid = false;
+        dqResult.errors = List.of("필수 필드가 누락되었습니다.");
+        when(dqService.validateData(eq(nodeId), any(), eq(survivorId), eq(null))).thenReturn(dqResult);
+
+        assertThatThrownBy(() -> recordMergeService.mergeRecords(req, "admin"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("필수 필드가 누락되었습니다.");
+    }
+
+    @Test
+    @DisplayName("P2: mergeRecords - 병합 성공 시 NotificationService.createNotification이 호출된다")
+    void mergeRecords_NotificationSent() {
+        RecordMergeService.MergeRequest req = new RecordMergeService.MergeRequest();
+        req.survivorRecordId = survivorId;
+        req.mergedRecordIds = List.of(mergedId);
+
+        when(recordRepository.findById(survivorId)).thenReturn(Optional.of(survivor));
+        when(recordRepository.findById(mergedId)).thenReturn(Optional.of(merged));
+        when(recordRepository.save(any(Record.class))).thenAnswer(i -> i.getArgument(0));
+
+        recordMergeService.mergeRecords(req, "admin");
+
+        verify(notificationService).createNotification(any(), eq("레코드 병합 안내"), any(), eq("RECORD_MERGE"), any());
+    }
+
+    @Test
+    @DisplayName("P2: unmergeRecord - 언머지 성공 시 NotificationService.createNotification이 호출된다")
+    void unmergeRecord_NotificationSent() {
+        merged.setStatus("MERGED");
+        merged.setMergedIntoRecordId(survivorId);
+
+        when(recordRepository.findById(mergedId)).thenReturn(Optional.of(merged));
+        when(recordRepository.save(any(Record.class))).thenAnswer(i -> i.getArgument(0));
+
+        recordMergeService.unmergeRecord(mergedId, "admin");
+
+        verify(notificationService).createNotification(any(), eq("레코드 병합 해제 안내"), any(), eq("RECORD_UNMERGE"), any());
     }
 }

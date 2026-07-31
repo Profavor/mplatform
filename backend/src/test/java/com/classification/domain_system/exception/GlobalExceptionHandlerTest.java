@@ -58,4 +58,16 @@ class GlobalExceptionHandlerTest {
         assertEquals("내부 오류가 발생했습니다.", response.getBody().getMessage());
         assertFalse(response.getBody().getMessage().contains("Secret internal database"));
     }
+
+    @Test
+    @DisplayName("P3: OptimisticLockException 발생 시 409 Conflict 및 안내 메시지 반환")
+    void handleOptimisticLockException() {
+        jakarta.persistence.OptimisticLockException ex = new jakarta.persistence.OptimisticLockException("Row was updated or deleted by another transaction");
+        ResponseEntity<ErrorResponse> response = handler.handleOptimisticLockException(ex, request);
+
+        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("OPTIMISTIC_LOCK_ERROR", response.getBody().getErrorCode());
+        assertTrue(response.getBody().getMessage().contains("다른 사용자가 이미 이 레코드를 수정했습니다"));
+    }
 }

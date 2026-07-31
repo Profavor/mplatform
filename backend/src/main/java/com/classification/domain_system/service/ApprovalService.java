@@ -181,6 +181,12 @@ public class ApprovalService {
             }
             return false;
         } catch (Exception e) {
+            switch (actionType) {
+                case "RECORD": return true;
+                case "RECORD_UPDATE": return true;
+                case "RECORD_DELETE": return true;
+                case "RECORD_MERGE": return true;
+            }
             return true;
         }
     }
@@ -697,12 +703,26 @@ public class ApprovalService {
         eventPublisher.publishEvent(new ApprovalRequestCreatedEvent(saved));
         return saved;
     }
-        @Transactional
+        private boolean isStepAssigneeOrRoleMatch(ApprovalStep step, String approverId) {
+        if (step == null || approverId == null) return false;
+        if (approverId.equals(step.getAssigneeId())) {
+            return true;
+        }
+        if (step.getAssigneeRole() != null && !step.getAssigneeRole().isBlank()) {
+            User user = userRepository.findById(approverId).orElse(null);
+            if (user != null && step.getAssigneeRole().equalsIgnoreCase(user.getRole())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Transactional
     public ApprovalRequest approveStep(UUID stepId, String approverId, String comment) {
         ApprovalStep step = stepRepository.findById(stepId)
                 .orElseThrow(() -> new ResourceNotFoundException("Step not found"));
                 
-        if (!step.getAssigneeId().equals(approverId)) {
+        if (!isStepAssigneeOrRoleMatch(step, approverId)) {
             throw new CustomAccessDeniedException(ErrorCode.NOT_STEP_ASSIGNEE, "You are not the assignee for this step");
         }
         if (!"PENDING".equals(step.getStatus())) {
@@ -714,9 +734,10 @@ public class ApprovalService {
         stepRepository.saveAndFlush(step);
         
         ApprovalRequest approval = step.getApprovalRequest();
-        if (dqService != null) { // mark notification read
+        if (notificationService != null) {
             try {
-                notificationService.markApprovalNotificationsAsRead(approval.getId());
+                String approverName = userRepository.findById(approverId).map(User::getUsername).orElse(approverId);
+                notificationService.updateApprovalNotificationsToProcessed(approval.getId(), approverName, "APPROVED");
             } catch (Exception ignored) {}
         }
         eventPublisher.publishEvent(new ApprovalStepApprovedEvent(approval, step));
@@ -729,7 +750,7 @@ public class ApprovalService {
         ApprovalStep step = stepRepository.findById(stepId)
                 .orElseThrow(() -> new ResourceNotFoundException("Step not found"));
                 
-        if (!step.getAssigneeId().equals(approverId)) {
+        if (!isStepAssigneeOrRoleMatch(step, approverId)) {
             throw new CustomAccessDeniedException(ErrorCode.NOT_STEP_ASSIGNEE, "You are not the assignee for this step");
         }
         if (!"PENDING".equals(step.getStatus())) {
@@ -744,9 +765,12 @@ public class ApprovalService {
         approval.setStatus("REJECTED");
         approvalRepository.saveAndFlush(approval);
         
-        try {
-            notificationService.markApprovalNotificationsAsRead(approval.getId());
-        } catch (Exception ignored) {}
+        if (notificationService != null) {
+            try {
+                String approverName = userRepository.findById(approverId).map(User::getUsername).orElse(approverId);
+                notificationService.updateApprovalNotificationsToProcessed(approval.getId(), approverName, "REJECTED");
+            } catch (Exception ignored) {}
+        }
         
         revertRecordStatusOnRejection(approval);
         
@@ -1028,6 +1052,14 @@ public class ApprovalService {
     
     @Transactional(readOnly = true)
     public Page<ApprovalStep> getMyTodos(String assigneeId, Pageable pageable) {
+        return getMyTodos(assigneeId, null, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ApprovalStep> getMyTodos(String assigneeId, String userRole, Pageable pageable) {
+        if (userRole != null && !userRole.isBlank()) {
+            return stepRepository.findMyPendingSteps(assigneeId, userRole, "PENDING", pageable);
+        }
         return stepRepository.findByAssigneeIdAndStatus(assigneeId, "PENDING", pageable);
     }
 
@@ -1039,5 +1071,86 @@ public class ApprovalService {
     @Transactional(readOnly = true)
     public ApprovalRequest getRequestById(UUID id) {
         return approvalRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("ApprovalRequest not found"));
+    }
+
+    @Transactional
+    public ApprovalRequest requestRecordMerge(RecordMergeService.MergeRequest request, String requesterId) {
+        if (request == null || request.survivorRecordId == null) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "Survivor record ID is required.");
+        }
+        Record survivor = recordRepository.findById(request.survivorRecordId)
+                .orElseThrow(() -> new ResourceNotFoundException("Survivor record not found: " + request.survivorRecordId));
+
+        if ("MERGED".equalsIgnoreCase(survivor.getStatus()) || "REJECTED".equalsIgnoreCase(survivor.getStatus())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "Cannot merge into an inactive/merged record.");
+        }
+
+        if (request.mergedRecordIds != null) {
+            for (UUID mergedId : request.mergedRecordIds) {
+                if (mergedId.equals(survivor.getId())) continue;
+                Record m = recordRepository.findById(mergedId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Merged record not found: " + mergedId));
+                if (m.getNode() != null && survivor.getNode() != null && !m.getNode().getId().equals(survivor.getNode().getId())) {
+                    throw new BusinessException(ErrorCode.INVALID_INPUT, "Cannot merge records from a different node/domain.");
+                }
+            }
+        }
+
+        // P1. 미리 DQ 검증 수행
+        Map<String, Object> finalDataMap = new java.util.HashMap<>();
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            if (survivor.getData() != null) {
+                Map<String, Object> sMap = mapper.readValue(survivor.getData(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+                finalDataMap.putAll(sMap);
+            }
+            if (request.fieldResolutions != null) {
+                for (Map.Entry<String, UUID> entry : request.fieldResolutions.entrySet()) {
+                    Record chosen = recordRepository.findById(entry.getValue()).orElse(null);
+                    if (chosen != null && chosen.getData() != null) {
+                        Map<String, Object> cMap = mapper.readValue(chosen.getData(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+                        if (cMap.containsKey(entry.getKey())) {
+                            finalDataMap.put(entry.getKey(), cMap.get(entry.getKey()));
+                        }
+                    }
+                }
+            }
+            String mergedJson = mapper.writeValueAsString(finalDataMap);
+            if (survivor.getNode() != null) {
+                DataQualityService.DQResult dqResult = dqService.validateData(survivor.getNode().getId(), mergedJson, survivor.getId(), null);
+                if (dqResult != null && !dqResult.isValid) {
+                    throw new BusinessException(ErrorCode.DATA_QUALITY_CHECK_FAILED, String.join(", ", dqResult.errors));
+                }
+            }
+        } catch (BusinessException be) {
+            throw be;
+        } catch (Exception e) {
+            log.error("Failed to validate DQ for record merge request", e);
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "Error preparing merge data for approval.");
+        }
+
+        ApprovalRequest approval = new ApprovalRequest();
+        approval.setTargetType("RECORD_MERGE");
+        approval.setTargetId(survivor.getId());
+        approval.setRequesterId(requesterId);
+        approval.setClassificationNode(survivor.getNode());
+        approval.setStatus("PENDING");
+
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            approval.setChanges(mapper.writeValueAsString(request));
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "Failed to serialize merge request.");
+        }
+
+        UUID nodeId = survivor.getNode() != null ? survivor.getNode().getId() : null;
+        List<WorkflowConfig> configs = resolveWorkflows(nodeId, "MERGE");
+        WorkflowConfig config = configs != null && !configs.isEmpty() ? configs.get(0) : null;
+        buildDynamicSteps(approval, config);
+        approval.setCurrentStepOrder(1);
+
+        ApprovalRequest saved = approvalRepository.saveAndFlush(approval);
+        eventPublisher.publishEvent(new ApprovalRequestCreatedEvent(saved));
+        return saved;
     }
 }

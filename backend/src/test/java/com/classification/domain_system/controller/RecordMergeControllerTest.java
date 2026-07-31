@@ -37,6 +37,9 @@ class RecordMergeControllerTest {
     private RecordMergeService recordMergeService;
 
     @MockitoBean
+    private com.classification.domain_system.service.ApprovalService approvalService;
+
+    @MockitoBean
     private JwtUtil jwtUtil;
 
     @MockitoBean
@@ -55,13 +58,14 @@ class RecordMergeControllerTest {
     }
 
     @Test
-    @DisplayName("수동 병합 POST /api/records/merge 성공 시 survivor 레코드 반환")
+    @DisplayName("수동 병합 POST /api/records/merge 성공 시 ApprovalRequest(RECORD_MERGE) 반환")
     void mergeRecords_Success() throws Exception {
-        Record survivor = new Record();
-        survivor.setId(recordId);
-        survivor.setStatus("ACTIVE");
+        com.classification.domain_system.entity.ApprovalRequest approval = new com.classification.domain_system.entity.ApprovalRequest();
+        approval.setId(UUID.randomUUID());
+        approval.setTargetType("RECORD_MERGE");
+        approval.setTargetId(recordId);
 
-        when(recordMergeService.mergeRecords(any(), any())).thenReturn(survivor);
+        when(approvalService.requestRecordMerge(any(), any())).thenReturn(approval);
 
         String jsonBody = "{\"survivorRecordId\":\"" + recordId + "\", \"mergedRecordIds\":[\"" + mergedRecordId + "\"]}";
 
@@ -69,17 +73,24 @@ class RecordMergeControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(jsonBody))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(recordId.toString()));
+                .andExpect(jsonPath("$.targetType").value("RECORD_MERGE"))
+                .andExpect(jsonPath("$.targetId").value(recordId.toString()));
     }
 
     @Test
-    @DisplayName("자동 병합 POST /api/records/merge/auto 성공 시 survivor 레코드 반환")
+    @DisplayName("자동 병합 POST /api/records/merge/auto 성공 시 ApprovalRequest(RECORD_MERGE) 반환")
     void autoMergeRecords_Success() throws Exception {
-        Record survivor = new Record();
-        survivor.setId(recordId);
-        survivor.setStatus("ACTIVE");
+        com.classification.domain_system.entity.ApprovalRequest approval = new com.classification.domain_system.entity.ApprovalRequest();
+        approval.setId(UUID.randomUUID());
+        approval.setTargetType("RECORD_MERGE");
+        approval.setTargetId(recordId);
 
-        when(recordMergeService.mergeWithSurvivorship(eq(recordId), eq(List.of(mergedRecordId)), any())).thenReturn(survivor);
+        RecordMergeService.MergeRequest mergeReq = new RecordMergeService.MergeRequest();
+        mergeReq.survivorRecordId = recordId;
+        mergeReq.mergedRecordIds = List.of(mergedRecordId);
+
+        when(recordMergeService.buildSurvivorshipMergeRequest(eq(recordId), eq(List.of(mergedRecordId)))).thenReturn(mergeReq);
+        when(approvalService.requestRecordMerge(any(), any())).thenReturn(approval);
 
         String jsonBody = "{\"survivorRecordId\":\"" + recordId + "\", \"mergedRecordIds\":[\"" + mergedRecordId + "\"]}";
 
@@ -87,7 +98,8 @@ class RecordMergeControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(jsonBody))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(recordId.toString()));
+                .andExpect(jsonPath("$.targetType").value("RECORD_MERGE"))
+                .andExpect(jsonPath("$.targetId").value(recordId.toString()));
     }
 
     @Test

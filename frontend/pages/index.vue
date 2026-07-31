@@ -261,7 +261,21 @@ const currentUser = computed(() => {
   return null
 })
 
+const loadDashboardTodos = async () => {
+  const headers = { Authorization: `Bearer ${tokenCookie.value}` }
+  const myUuid = currentUser.value?.uuid
+  if (myUuid) {
+    try {
+      const todoRes = await $fetch(`/api/approval-requests/todos?assigneeId=${myUuid}`, { headers })
+      todos.value = Array.isArray(todoRes) ? todoRes : (todoRes?.content || [])
+    } catch(e) {}
+  }
+}
+
 onMounted(async () => {
+  if (process.client) {
+    window.addEventListener('approval-updated', loadDashboardTodos)
+  }
   try {
     const headers = { Authorization: `Bearer ${tokenCookie.value}` }
     const myUuid = currentUser.value?.uuid
@@ -486,6 +500,11 @@ const formatDate = (dateString) => {
   const formatted = date.toLocaleString(undefined, { timeZone: tz })
   return formatted.replace(/\s*(GMT|UTC|KST|PST|EST|CET)[-+0-9:]*/gi, '').trim()
 }
+onUnmounted(() => {
+  if (process.client) {
+    window.removeEventListener('approval-updated', loadDashboardTodos)
+  }
+})
 </script>
 
 <style scoped>

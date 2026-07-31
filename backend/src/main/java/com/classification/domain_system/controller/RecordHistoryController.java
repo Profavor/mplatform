@@ -1,7 +1,6 @@
 package com.classification.domain_system.controller;
 
 import com.classification.domain_system.entity.RecordHistory;
-import com.classification.domain_system.entity.User;
 import com.classification.domain_system.repository.RecordHistoryRepository;
 import com.classification.domain_system.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;

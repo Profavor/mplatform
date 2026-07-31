@@ -37,14 +37,14 @@ public class SseNotificationService {
         return emitter;
     }
 
-    public void sendNotification(String userId, Notification notification) {
+    public void sendNotification(String userId, Object data) {
         SseEmitter emitter = emitterMap.get(userId);
         if (emitter != null) {
             try {
                 emitter.send(SseEmitter.event()
                         .name("notification")
-                        .data(notification));
-                log.info("Sent SSE notification to user {}: {}", userId, notification.getTitle());
+                        .data(data));
+                log.info("Sent SSE notification to user {}", userId);
             } catch (Exception e) {
                 log.warn("Failed to send SSE notification to user {}, removing emitter: {}", userId, e.getMessage());
                 emitterMap.remove(userId);

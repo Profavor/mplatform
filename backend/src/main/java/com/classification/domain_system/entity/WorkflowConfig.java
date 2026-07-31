@@ -35,7 +35,7 @@ public class WorkflowConfig {
     private ClassificationNode node;
 
     @Column(name = "action_type", nullable = false, length = 30)
-    private String actionType; // CREATE, UPDATE, DELETE, SCHEMA_CHANGE
+    private String actionType; // CREATE, UPDATE, DELETE, SCHEMA_CHANGE, MERGE
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "name", columnDefinition = "text")

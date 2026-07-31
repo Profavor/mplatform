@@ -27,6 +27,7 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final SseNotificationService sseNotificationService;
+    private final com.classification.domain_system.websocket.WebSocketPublisher webSocketPublisher;
     private final ApprovalRequestRepository approvalRepository;
     private final UserRepository userRepository;
 
@@ -47,6 +48,14 @@ public class NotificationService {
                 sseNotificationService.sendNotification(userId, saved);
             } catch (Exception e) {
                 log.error("Failed to push SSE notification for user {}", userId, e);
+            }
+        }
+
+        if (webSocketPublisher != null) {
+            try {
+                webSocketPublisher.publishNotification(userId, saved);
+            } catch (Exception e) {
+                log.error("Failed to push WebSocket notification for user {}", userId, e);
             }
         }
 
@@ -87,6 +96,33 @@ public class NotificationService {
             }
         } catch (Exception e) {
             log.warn("Failed to mark approval notifications as read for request {}", approvalRequestId, e);
+        }
+    }
+
+    @Transactional
+    public void updateApprovalNotificationsToProcessed(UUID approvalId, String approverName, String actionType) {
+        if (approvalId == null) return;
+        try {
+            String linkUrlPart = "requestId=" + approvalId;
+            List<Notification> list = notificationRepository.findByLinkUrlContaining(linkUrlPart);
+            String actionLabel = "REJECTED".equalsIgnoreCase(actionType) ? "반려" : "승인";
+            String statusPrefix = "[처리 완료] ";
+            String statusText = (approverName != null && !approverName.isBlank() ? approverName : "담당자") + "님에 의해 " + actionLabel + " 처리되었습니다.";
+
+            for (Notification n : list) {
+                String origMsg = n.getMessage() != null ? n.getMessage() : "";
+                if (!origMsg.startsWith(statusPrefix)) {
+                    n.setMessage(statusPrefix + statusText + " (" + origMsg + ")");
+                    notificationRepository.save(n);
+                    if (webSocketPublisher != null) {
+                        try {
+                            webSocketPublisher.publishNotification(n.getUserId(), n);
+                        } catch (Exception ignored) {}
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to update approval notifications to processed for request: {}", approvalId, e);
         }
     }
 

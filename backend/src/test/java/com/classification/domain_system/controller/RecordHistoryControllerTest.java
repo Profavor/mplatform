@@ -38,6 +38,21 @@ class RecordHistoryControllerTest {
     private UserRepository userRepository;
 
     @MockitoBean
+    private com.classification.domain_system.repository.UserRoleRepository userRoleRepository;
+
+    @MockitoBean
+    private com.classification.domain_system.repository.UserOrgHistoryRepository userOrgHistoryRepository;
+
+    @MockitoBean
+    private com.classification.domain_system.repository.DepartmentRepository departmentRepository;
+
+    @MockitoBean
+    private com.classification.domain_system.repository.TeamRepository teamRepository;
+
+    @MockitoBean
+    private com.classification.domain_system.repository.OrganizationRepository organizationRepository;
+
+    @MockitoBean
     private JwtUtil jwtUtil;
 
     @MockitoBean

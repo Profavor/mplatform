@@ -91,16 +91,16 @@
               <div class="item-body">
                 <div class="item-top">
                   <va-badge
-                    :color="getTypeBadgeColor(item.type)"
+                    :color="item.message && item.message.includes('[처리 완료]') ? 'secondary' : getTypeBadgeColor(item.type)"
                     size="small"
                     class="type-badge"
                   >
-                    {{ getTypeLabel(item.type) }}
+                    {{ item.message && item.message.includes('[처리 완료]') ? '처리 완료' : getTypeLabel(item.type) }}
                   </va-badge>
                   <span class="item-time">{{ formatTime(item.createdAt) }}</span>
                 </div>
-                <div class="item-title">{{ formatTitle(item.title) }}</div>
-                <div v-if="item.message" class="item-message">{{ formatMessage(item.message) }}</div>
+                <div class="item-title" :style="{ opacity: item.message && item.message.includes('[처리 완료]') ? 0.7 : 1 }">{{ formatTitle(item.title) }}</div>
+                <div v-if="item.message" class="item-message" :style="{ color: item.message && item.message.includes('[처리 완료]') ? 'var(--va-text-secondary)' : 'inherit', fontWeight: item.message && item.message.includes('[처리 완료]') ? '600' : 'normal' }">{{ formatMessage(item.message) }}</div>
               </div>
 
               <va-button
@@ -248,6 +248,40 @@ const handleIncomingNotification = (rawPayload) => {
     }
   }
   if (!payload) return
+
+  if (payload.eventType === 'CHAT_MESSAGE') {
+    if (process.client) {
+      window.dispatchEvent(new CustomEvent('chat-message-received', { detail: payload }))
+    }
+    return
+  }
+
+  if (payload.eventType === 'ROOM_READ') {
+    if (process.client) {
+      window.dispatchEvent(new CustomEvent('chat-room-read', { detail: payload }))
+    }
+    return
+  }
+
+  if (payload.eventType === 'MESSAGE_DELETED') {
+    if (process.client) {
+      window.dispatchEvent(new CustomEvent('chat-message-deleted', { detail: payload }))
+    }
+    return
+  }
+
+  if (payload.eventType === 'FORCE_LOGOUT') {
+    notifyToast({
+      message: payload.message || '다른 기기에서 로그인되어 현재 세션이 종료되었습니다.',
+      color: 'danger',
+      duration: 5000
+    })
+    tokenCookie.value = null
+    const userCookie = useCookie('user_data')
+    userCookie.value = null
+    router.push('/login')
+    return
+  }
 
   const itemType = String(payload.type || 'INFO').toUpperCase()
   const newNotif = {
@@ -514,10 +548,18 @@ const formatTime = (dateInput) => {
   return formatWithTimezone(dateInput)
 }
 
+const { connect: connectWS, disconnect: disconnectWS } = useWebSocket()
+
 onMounted(async () => {
   isComponentMounted = true
   await fetchNotifications()
   connectSSE()
+  if (process.client) {
+    connectWS((data) => {
+      fetchNotifications()
+      window.dispatchEvent(new CustomEvent('approval-updated'))
+    })
+  }
 })
 
 onUnmounted(() => {
@@ -527,6 +569,7 @@ onUnmounted(() => {
     eventSource.close()
     eventSource = null
   }
+  disconnectWS()
 })
 </script>
 

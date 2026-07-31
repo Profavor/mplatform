@@ -47,4 +47,7 @@ public class User {
     private Team team;
 
     private Boolean isActive = true;
+
+    @Column(name = "active_session_id")
+    private String activeSessionId;
 }
