@@ -20,7 +20,7 @@ export function prepareFetchOptions(options: any = {}, token?: string | null, ti
 }
 
 export function useCustomFetch() {
-  const token = useCookie('token').value
+  const token = useCookie('auth_token').value || useCookie('token').value
   const timezone = useCookie('timezone', { default: () => 'Asia/Seoul' }).value
   const { handleError } = useApiError()
 

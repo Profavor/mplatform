@@ -13,7 +13,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import com.classification.domain_system.entity.ApprovalRequest;
+import com.classification.domain_system.entity.ApprovalStep;
 import com.classification.domain_system.entity.WorkflowConfig;
 import com.classification.domain_system.repository.WorkflowConfigRepository;
 import com.classification.domain_system.repository.ApprovalRequestRepository;
@@ -28,7 +30,9 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class FieldDefinitionService {
+
     
     private final FieldDefinitionRepository fieldRepository;
     private final ClassificationNodeRepository nodeRepository;
@@ -54,6 +58,12 @@ public class FieldDefinitionService {
     
     private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule()).disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.classification.domain_system.context.AuthContext authContext;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.classification.domain_system.repository.UserRepository userRepository;
+
     private String getCurrentUser() {
         if (SecurityContextHolder.getContext().getAuthentication() != null && SecurityContextHolder.getContext().getAuthentication().getName() != null) {
             return SecurityContextHolder.getContext().getAuthentication().getName();
@@ -62,52 +72,84 @@ public class FieldDefinitionService {
     }
 
     private String getCurrentUserId() {
-        return UUID.randomUUID().toString(); // Simplified, normally fetch from SecurityContext
+        if (authContext != null && authContext.getUserId() != null && !authContext.getUserId().isBlank()) {
+            return authContext.getUserId();
+        }
+        if (SecurityContextHolder.getContext().getAuthentication() != null && SecurityContextHolder.getContext().getAuthentication().getName() != null) {
+            String name = SecurityContextHolder.getContext().getAuthentication().getName();
+            if (name != null && !name.isBlank() && !"anonymousUser".equals(name)) {
+                return name;
+            }
+        }
+        return getCurrentUser();
     }
 
-    private ApprovalRequest createSchemaApprovalRequest(Domain domain, ClassificationNode node, String targetType, String changes) {
+    public boolean hasPendingSchemaApproval(UUID domainId, UUID nodeId) {
+        if (approvalRequestRepository == null) return false;
+        List<ApprovalRequest> list = new java.util.ArrayList<>();
+        if (domainId != null) {
+            list.addAll(approvalRequestRepository.findByTargetIdAndStatus(domainId, "PENDING"));
+        }
+        if (nodeId != null) {
+            list.addAll(approvalRequestRepository.findByTargetIdAndStatus(nodeId, "PENDING"));
+        }
+        return list.stream().anyMatch(r -> r.getTargetType() != null && r.getTargetType().startsWith("SCHEMA_"));
+    }
+
+    private void validateNoPendingSchemaApproval(UUID domainId, UUID nodeId) {
+        if (hasPendingSchemaApproval(domainId, nodeId)) {
+            throw new com.classification.domain_system.exception.BusinessException(
+                com.classification.domain_system.exception.ErrorCode.INVALID_INPUT,
+                "현재 진행 중인 스키마 결재 건이 있습니다. 결재 완료 전까지 수정할 수 없습니다."
+            );
+        }
+    }
+
+    private ApprovalRequest createSchemaApprovalRequest(Domain domain, ClassificationNode node, String targetType, java.util.Map<String, Object> changesMap, String reason) {
         ApprovalRequest approval = new ApprovalRequest();
         approval.setTargetType(targetType);
         approval.setTargetId(node != null ? node.getId() : domain.getId());
         approval.setClassificationNode(node);
         approval.setRequesterId(getCurrentUserId());
         approval.setStatus("PENDING");
-        approval.setChanges(changes);
+        try {
+            approval.setChanges(objectMapper.writeValueAsString(changesMap));
+        } catch (Exception e) {
+            approval.setChanges("{}");
+        }
+        approval.setReason(reason);
         approval.setCurrentStepOrder(1);
         
-        WorkflowConfig config = approvalService.resolveWorkflow(node != null ? node.getId() : null, "SCHEMA_CHANGE");
+        WorkflowConfig config = approvalService.resolveWorkflow(node != null ? node.getId() : (domain != null ? domain.getId() : null), "SCHEMA_CHANGE");
         if (config == null && domain != null) {
             List<WorkflowConfig> list = workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(domain.getId(), "SCHEMA_CHANGE");
+            if (list.isEmpty()) {
+                list = workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(domain.getId(), "UPDATE");
+            }
             if (!list.isEmpty()) config = list.get(0);
         }
         
         if (config != null) {
-            try {
-                if (config.getStepsConfig() != null && !config.getStepsConfig().isEmpty()) {
-                    com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(config.getStepsConfig());
-                    List<com.classification.domain_system.entity.ApprovalStep> steps = new java.util.ArrayList<>();
-                    if (root.has("steps") && root.get("steps").isArray()) {
-                        for (com.fasterxml.jackson.databind.JsonNode stepNode : root.get("steps")) {
-                            com.classification.domain_system.entity.ApprovalStep step = new com.classification.domain_system.entity.ApprovalStep();
-                            step.setApprovalRequest(approval);
-                            step.setStepType(stepNode.get("stepType").asText());
-                            step.setAssigneeId(stepNode.get("assigneeId").asText());
-                            step.setStepOrder(stepNode.get("stepOrder").asInt());
-                            step.setStatus(step.getStepOrder() == 1 ? "PENDING" : "WAITING");
-                            steps.add(step);
-                        }
-                    }
-                    if (root.has("observerIds") && root.get("observerIds").isArray()) {
-                        approval.setObserverIds(objectMapper.writeValueAsString(root.get("observerIds")));
-                    } else {
-                        approval.setObserverIds("[]");
-                    }
-                    approval.setSteps(steps);
-                }
-            } catch (Exception e) {
-                approval.setObserverIds("[]");
-            }
+            approvalService.buildDynamicSteps(approval, config);
         }
+        
+        // Add Requester's DRAFT Step (stepOrder = 0)
+        String currentUserId = getCurrentUserId();
+        String currentUsername = currentUserId;
+        if (userRepository != null && currentUserId != null) {
+            java.util.Optional<com.classification.domain_system.entity.User> uOpt = userRepository.findById(currentUserId);
+            if (uOpt.isEmpty()) uOpt = userRepository.findByUsername(currentUserId);
+            if (uOpt.isPresent()) currentUsername = uOpt.get().getUsername();
+        }
+        ApprovalStep draftStep = new ApprovalStep();
+        draftStep.setApprovalRequest(approval);
+        draftStep.setStepType("DRAFT");
+        draftStep.setAssigneeId(currentUserId);
+        draftStep.setAssigneeName(currentUsername);
+        draftStep.setStepOrder(0);
+        draftStep.setStatus("APPROVED");
+        draftStep.setComment(reason);
+        approval.getSteps().add(0, draftStep);
         
         ApprovalRequest saved = approvalRequestRepository.saveAndFlush(approval);
         eventPublisher.publishEvent(new ApprovalRequestCreatedEvent(saved));
@@ -286,15 +328,19 @@ public class FieldDefinitionService {
         Domain domain = node.getDomain();
 
         if (!bypassApproval && hasSchemaApproval(domain.getId())) {
+            validateNoPendingSchemaApproval(domain.getId(), nodeId);
             try {
+                String reason = request.getReason() != null ? request.getReason() : request.getComment();
                 java.util.Map<String, Object> changesMap = new java.util.HashMap<>();
                 changesMap.put("nodeId", nodeId);
                 changesMap.put("request", request);
-                createSchemaApprovalRequest(domain, node, "SCHEMA_FIELD_ADD", objectMapper.writeValueAsString(changesMap));
+                if (reason != null) changesMap.put("reason", reason);
+                createSchemaApprovalRequest(domain, node, "SCHEMA_FIELD_ADD", changesMap, reason);
                 FieldDefinition pendingField = new FieldDefinition();
                 pendingField.setId(UUID.randomUUID());
                 return pendingField;
             } catch (Exception e) {
+                if (e instanceof com.classification.domain_system.exception.BusinessException) throw e;
                 throw new RuntimeException("Failed to create schema approval request", e);
             }
         }
@@ -325,15 +371,19 @@ public class FieldDefinitionService {
                 .orElseThrow(() -> new RuntimeException("Domain not found"));
                 
         if (!bypassApproval && hasSchemaApproval(domain.getId())) {
+            validateNoPendingSchemaApproval(domainId, null);
             try {
+                String reason = request.getReason() != null ? request.getReason() : request.getComment();
                 java.util.Map<String, Object> changesMap = new java.util.HashMap<>();
                 changesMap.put("domainId", domainId);
                 changesMap.put("request", request);
-                createSchemaApprovalRequest(domain, null, "SCHEMA_FIELD_ADD", objectMapper.writeValueAsString(changesMap));
+                if (reason != null) changesMap.put("reason", reason);
+                createSchemaApprovalRequest(domain, null, "SCHEMA_FIELD_ADD", changesMap, reason);
                 FieldDefinition pendingField = new FieldDefinition();
                 pendingField.setId(UUID.randomUUID());
                 return pendingField;
             } catch (Exception e) {
+                if (e instanceof com.classification.domain_system.exception.BusinessException) throw e;
                 throw new RuntimeException("Failed to create schema approval request", e);
             }
         }
@@ -392,14 +442,19 @@ public class FieldDefinitionService {
         Domain domain = node.getDomain();
 
         if (!bypassApproval && hasSchemaApproval(domain.getId())) {
+            validateNoPendingSchemaApproval(domain.getId(), nodeId);
             try {
+                String reason = request.getReason() != null ? request.getReason() : request.getComment();
                 java.util.Map<String, Object> changesMap = new java.util.HashMap<>();
                 changesMap.put("nodeId", nodeId);
                 changesMap.put("fieldId", fieldId);
+                changesMap.put("before", toStateMap(field));
                 changesMap.put("request", request);
-                createSchemaApprovalRequest(domain, node, "SCHEMA_FIELD_UPDATE", objectMapper.writeValueAsString(changesMap));
+                if (reason != null) changesMap.put("reason", reason);
+                createSchemaApprovalRequest(domain, node, "SCHEMA_FIELD_UPDATE", changesMap, reason);
                 return field;
             } catch (Exception e) {
+                if (e instanceof com.classification.domain_system.exception.BusinessException) throw e;
                 throw new RuntimeException("Failed to create schema approval request", e);
             }
         }
@@ -435,21 +490,29 @@ public class FieldDefinitionService {
         FieldDefinition field = fieldRepository.findById(fieldId)
                 .orElseThrow(() -> new RuntimeException("Field not found"));
                 
-        if (field.getDomain() == null || !field.getDomain().getId().equals(domainId)) {
+        Domain domain = field.getDomain() != null ? field.getDomain() : (field.getDefinedAtNode() != null ? field.getDefinedAtNode().getDomain() : null);
+        if (domain == null || !domain.getId().equals(domainId)) {
             throw new RuntimeException("Field does not belong to the specified domain");
         }
         
         if (!bypassApproval && hasSchemaApproval(domainId)) {
+            validateNoPendingSchemaApproval(domainId, null);
             try {
+                String reason = request.getReason() != null ? request.getReason() : request.getComment();
                 java.util.Map<String, Object> changesMap = new java.util.HashMap<>();
                 changesMap.put("domainId", domainId);
                 changesMap.put("fieldId", fieldId);
+                changesMap.put("before", toStateMap(field));
                 changesMap.put("request", request);
-                createSchemaApprovalRequest(domainRepository.findById(domainId).orElse(null), null, "SCHEMA_FIELD_UPDATE", objectMapper.writeValueAsString(changesMap));
+                if (reason != null) changesMap.put("reason", reason);
+                createSchemaApprovalRequest(domainRepository.findById(domainId).orElse(null), null, "SCHEMA_FIELD_UPDATE", changesMap, reason);
                 return field;
             } catch (Exception e) {
-                throw new RuntimeException("Failed to create schema approval request", e);
+                log.error("Failed to create schema approval request details:", e);
+                if (e instanceof com.classification.domain_system.exception.BusinessException) throw e;
+                throw new RuntimeException("Failed to create schema approval request: " + (e.getMessage() != null ? e.getMessage() : e.toString()), e);
             }
+
         }
 
         java.util.Map<String, Object> beforeState = new java.util.HashMap<>();

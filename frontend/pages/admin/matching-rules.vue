@@ -17,7 +17,7 @@
           v-model="selectedDomainId"
           :options="domainOptions"
           value-by="value"
-          label-by="label"
+          text-by="text"
           placeholder="도메인 선택"
           style="min-width: 220px;"
           @update:modelValue="onDomainChange"
@@ -135,7 +135,7 @@
           v-model="form.selectedFields"
           :options="domainFieldOptions"
           value-by="value"
-          label-by="label"
+          text-by="text"
           multiple
           label="대상 필드 다중 선택 (Target Fields)"
           class="mb-3"
@@ -187,8 +187,9 @@ const { init } = useToast()
 const { confirm } = useModal()
 const { customFetch } = useCustomFetch()
 
+const domainStore = useDomain()
 const selectedDomainId = ref('')
-const domainOptions = ref([])
+const domainOptions = computed(() => domainStore.domainOptions.value)
 const domainFieldOptions = ref([])
 
 const rules = ref([])
@@ -230,18 +231,13 @@ const parseFields = (raw) => {
 
 const loadDomains = async () => {
   try {
-    const res = await customFetch('/api/domains')
-    const list = res?.content || res || []
-    domainOptions.value = list.map(d => ({
-      label: d.name || d.domainName,
-      value: d.id
-    }))
+    await domainStore.fetchDomains()
     if (domainOptions.value.length > 0 && !selectedDomainId.value) {
       selectedDomainId.value = domainOptions.value[0].value
       onDomainChange()
     }
   } catch (e) {
-    domainOptions.value = []
+    console.error('Failed to load domains', e)
   }
 }
 
@@ -250,10 +246,27 @@ const loadDomainFields = async () => {
   try {
     const res = await customFetch(`/api/domains/${selectedDomainId.value}/fields`)
     const list = res || []
-    domainFieldOptions.value = list.map(f => ({
-      label: `${f.name} (${f.key})`,
-      value: f.key
-    }))
+    domainFieldOptions.value = list.map(f => {
+      let pName = f.key || ''
+      if (f.name) {
+        if (typeof f.name === 'object') {
+          pName = f.name.ko || f.name.en || f.key
+        } else if (typeof f.name === 'string') {
+          try {
+            const parsed = JSON.parse(f.name)
+            pName = parsed.ko || parsed.en || f.name
+          } catch (e) {
+            pName = f.name
+          }
+        }
+      }
+      const displayLabel = `${pName} (${f.key})`
+      return {
+        label: displayLabel,
+        text: displayLabel,
+        value: f.key
+      }
+    })
   } catch (e) {
     domainFieldOptions.value = []
   }

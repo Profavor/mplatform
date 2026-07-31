@@ -13,6 +13,10 @@ vi.mock('vue-i18n', () => ({
   })
 }))
 
+// Mock global $fetch for component unit tests
+// @ts-ignore
+globalThis.$fetch = vi.fn().mockResolvedValue([])
+
 describe('ApprovalDetailsViewer Component - RECORD_UPDATE Filtering Test', () => {
   it('RECORD_UPDATE 시 변경되지 않은 영문 이름은 제외하고 새 파일 추가 항목만 표출되어야 함', () => {
     const mockRequest = {
@@ -58,5 +62,55 @@ describe('ApprovalDetailsViewer Component - RECORD_UPDATE Filtering Test', () =>
 
     // 2. 변경되지 않은 영문 이름(Test233)은 변경 항목(수정됨)에 표출되지 않아야 함
     expect(text).not.toContain('Test233')
+  })
+
+  it('SCHEMA_FIELD_UPDATE 시 스키마 전용 카드 UI와 필드 속성 비교표가 표출되어야 함', () => {
+    const mockSchemaRequest = {
+      id: 'req-schema-1',
+      targetType: 'SCHEMA_FIELD_UPDATE',
+      targetId: 'domain-uuid-123',
+      changes: JSON.stringify({
+        fieldId: 'field-uuid-456',
+        request: {
+          name: { ko: '입사일', en: 'Join Date' },
+          key: 'JOIN_DATE',
+          type: 'DATE',
+          required: true,
+          order: 4
+        },
+        before: {
+          name: { ko: '입사일', en: 'Join Date' },
+          key: 'JOIN_DATE',
+          type: 'DATE',
+          required: false,
+          order: 4
+        }
+      }),
+      steps: [
+        { stepOrder: 1, stepType: 'APPROVAL', assigneeRole: 'DOMAIN_EDITOR', status: 'PENDING' }
+      ]
+    }
+
+    const wrapper = mount(ApprovalDetailsViewer, {
+      props: {
+        request: mockSchemaRequest
+      },
+      global: {
+        mocks: {
+          $t: (key: string) => key
+        },
+        stubs: {
+          VaIcon: true,
+          VaBadge: true,
+          VaButton: true,
+          VaChip: true
+        }
+      }
+    })
+
+    const text = wrapper.text()
+    expect(text).toContain('입사일')
+    expect(text).toContain('JOIN_DATE')
+    expect(text).toContain('schema_change_comparison')
   })
 })

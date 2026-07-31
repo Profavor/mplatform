@@ -71,4 +71,19 @@ public class RoleController {
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
+
+    @PostMapping("/sync-defaults")
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'role:write')")
+    public ResponseEntity<Void> syncDefaultRolesForAllOrganizations() {
+        roleInitializer.syncDefaultRolesForAllOrganizations();
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/org/{orgId}/sync-defaults")
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'role:write')")
+    public ResponseEntity<Void> syncDefaultRolesForOrg(@PathVariable UUID orgId) {
+        roleInitializer.createDefaultRolesForOrg(orgId);
+        return ResponseEntity.ok().build();
+    }
 }
+

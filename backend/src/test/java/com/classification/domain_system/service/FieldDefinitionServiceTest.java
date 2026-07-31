@@ -377,4 +377,26 @@ class FieldDefinitionServiceTest {
                     .hasMessageContaining("Field does not belong to the specified node");
         }
     }
+
+    @Nested
+    @DisplayName("hasPendingSchemaApproval 검증")
+    class PendingSchemaApproval {
+        @Mock private com.classification.domain_system.repository.ApprovalRequestRepository approvalRequestRepository;
+
+        @Test
+        @DisplayName("진행 중인 스키마 결재 건이 존재하면 true 반환")
+        void whenPendingSchemaApprovalExists_ReturnsTrue() {
+            com.classification.domain_system.entity.ApprovalRequest pending = new com.classification.domain_system.entity.ApprovalRequest();
+            pending.setTargetType("SCHEMA_FIELD_UPDATE");
+            pending.setStatus("PENDING");
+
+            when(approvalRequestRepository.findByTargetIdAndStatus(domainId, "PENDING"))
+                    .thenReturn(List.of(pending));
+
+            org.springframework.test.util.ReflectionTestUtils.setField(fieldDefinitionService, "approvalRequestRepository", approvalRequestRepository);
+
+            boolean result = fieldDefinitionService.hasPendingSchemaApproval(domainId, null);
+            assertThat(result).isTrue();
+        }
+    }
 }

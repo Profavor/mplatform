@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import java.util.List;
 import java.util.UUID;
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.Map;
 import org.springframework.data.domain.Page;
@@ -58,6 +59,37 @@ public class ApprovalService {
     private final com.classification.domain_system.repository.FieldDefinitionRepository fieldDefinitionRepository;
     private final CalculatedFieldEvaluator calculatedFieldEvaluator;
     private final RecordHistoryWriter recordHistoryWriter;
+    private final com.classification.domain_system.repository.RoleRepository roleRepository;
+
+    public String resolveRoleDisplayName(String roleCode) {
+        if (roleCode == null || roleCode.isBlank()) return "";
+        if (roleRepository == null) return roleCode;
+        try {
+            List<com.classification.domain_system.entity.Role> roles = roleRepository.findAll();
+            for (com.classification.domain_system.entity.Role r : roles) {
+                if (r.getName() != null) {
+                    if (r.getName().equalsIgnoreCase(roleCode) || r.getName().equalsIgnoreCase("ROLE_" + roleCode) || ("ROLE_" + r.getName()).equalsIgnoreCase(roleCode)) {
+                        if (r.getDisplayName() != null && !r.getDisplayName().isBlank()) {
+                            String raw = r.getDisplayName().trim();
+                            if (raw.startsWith("{") && raw.endsWith("}")) {
+                                try {
+                                    com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                                    com.fasterxml.jackson.databind.JsonNode node = mapper.readTree(raw);
+                                    if (node.has("ko") && !node.get("ko").asText().isBlank()) {
+                                        return node.get("ko").asText();
+                                    } else if (node.has("en") && !node.get("en").asText().isBlank()) {
+                                        return node.get("en").asText();
+                                    }
+                                } catch (Exception ignored) {}
+                            }
+                            return raw;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {}
+        return roleCode;
+    }
 
     private static final java.util.Set<String> ALLOWED_FILTER_KEYS = java.util.Set.of(
             "domainName", "classificationName", "requesterId", "changes", "summary",
@@ -203,39 +235,34 @@ public class ApprovalService {
         return workflowConfigRepository.findById(workflowId).orElse(null);
     }
 
-    private void buildDynamicSteps(ApprovalRequest approval, WorkflowConfig config) {
+    public void buildDynamicSteps(ApprovalRequest approval, WorkflowConfig config) {
         List<ApprovalStep> steps = new java.util.ArrayList<>();
         try {
             if (config != null && config.getStepsConfig() != null && !config.getStepsConfig().isEmpty()) {
                 com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
                 com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(config.getStepsConfig());
                 
+                com.fasterxml.jackson.databind.JsonNode stepsArray = null;
                 if (root.has("approvalLine") && root.get("approvalLine").isArray()) {
-                    for (com.fasterxml.jackson.databind.JsonNode stepNode : root.get("approvalLine")) {
+                    stepsArray = root.get("approvalLine");
+                } else if (root.has("steps") && root.get("steps").isArray()) {
+                    stepsArray = root.get("steps");
+                }
+
+                if (stepsArray != null) {
+                    for (com.fasterxml.jackson.databind.JsonNode stepNode : stepsArray) {
                         ApprovalStep step = new ApprovalStep();
                         step.setApprovalRequest(approval);
                         step.setStepType(stepNode.has("stepType") ? stepNode.get("stepType").asText() : "APPROVAL");
-                        step.setStepOrder(stepNode.get("stepOrder").asInt());
+                        step.setStepOrder(stepNode.has("stepOrder") ? stepNode.get("stepOrder").asInt() : (steps.size() + 1));
                         step.setStatus(step.getStepOrder() == 1 ? "PENDING" : "WAITING");
                         
-                        if (stepNode.has("assigneeId") && !stepNode.get("assigneeId").asText().isBlank()) {
+                        if (stepNode.has("assigneeId") && !stepNode.get("assigneeId").asText().isBlank() && !"null".equalsIgnoreCase(stepNode.get("assigneeId").asText())) {
                             step.setAssigneeId(stepNode.get("assigneeId").asText());
                         }
-                        if (stepNode.has("assigneeRole") && !stepNode.get("assigneeRole").asText().isBlank()) {
+                        if (stepNode.has("assigneeRole") && !stepNode.get("assigneeRole").asText().isBlank() && !"null".equalsIgnoreCase(stepNode.get("assigneeRole").asText())) {
                             step.setAssigneeRole(stepNode.get("assigneeRole").asText());
                         }
-                        steps.add(step);
-                    }
-                } else if (root.has("steps") && root.get("steps").isArray()) {
-                    for (com.fasterxml.jackson.databind.JsonNode stepNode : root.get("steps")) {
-                        ApprovalStep step = new ApprovalStep();
-                        step.setApprovalRequest(approval);
-                        step.setStepType(stepNode.has("stepType") ? stepNode.get("stepType").asText() : "APPROVAL");
-                        if (stepNode.has("assigneeId") && !stepNode.get("assigneeId").asText().isBlank()) {
-                            step.setAssigneeId(stepNode.get("assigneeId").asText());
-                        }
-                        step.setStepOrder(stepNode.get("stepOrder").asInt());
-                        step.setStatus(step.getStepOrder() == 1 ? "PENDING" : "WAITING");
                         steps.add(step);
                     }
                 }
@@ -250,28 +277,99 @@ public class ApprovalService {
             }
         } catch (Exception e) {
             approval.setObserverIds("[]");
-            log.error("Failed to parse observerIds", e);
+            log.error("Failed to parse observerIds / stepsConfig", e);
         }
         approval.getSteps().addAll(steps);
     }
 
     public void enrichUserNames(ApprovalRequest request) {
         if (request == null) return;
+        List<com.classification.domain_system.entity.User> allUsers = userRepository.findAll();
         if (request.getRequesterId() != null) {
-            userRepository.findById(request.getRequesterId())
-                .ifPresentOrElse(
-                    u -> request.setRequesterName(u.getUsername()),
-                    () -> request.setRequesterName(request.getRequesterId())
-                );
+            String reqId = request.getRequesterId();
+            Optional<com.classification.domain_system.entity.User> uOpt = userRepository.findById(reqId);
+            if (uOpt.isEmpty()) {
+                uOpt = userRepository.findByUsername(reqId);
+            }
+            if (uOpt.isEmpty() && !allUsers.isEmpty()) {
+                uOpt = allUsers.stream().filter(u -> u.getId().equalsIgnoreCase(reqId) || u.getUsername().equalsIgnoreCase(reqId)).findFirst();
+                if (uOpt.isEmpty() && allUsers.size() == 1) {
+                    uOpt = Optional.of(allUsers.get(0));
+                }
+            }
+            if (uOpt.isPresent()) {
+                request.setRequesterName(uOpt.get().getUsername());
+            } else if (!allUsers.isEmpty()) {
+                request.setRequesterName(allUsers.get(0).getUsername());
+            } else {
+                request.setRequesterName(reqId);
+            }
         }
         if (request.getSteps() != null) {
             for (ApprovalStep step : request.getSteps()) {
-                if (step.getAssigneeId() != null) {
-                    userRepository.findById(step.getAssigneeId())
-                        .ifPresentOrElse(
-                            u -> step.setAssigneeName(u.getUsername()),
-                            () -> step.setAssigneeName(step.getAssigneeId())
-                        );
+                if (step.getAssigneeId() != null && !step.getAssigneeId().isBlank() && !"null".equalsIgnoreCase(step.getAssigneeId())) {
+                    String assId = step.getAssigneeId();
+                    Optional<com.classification.domain_system.entity.User> uOpt = userRepository.findById(assId);
+                    if (uOpt.isEmpty()) {
+                        uOpt = userRepository.findByUsername(assId);
+                    }
+                    if (uOpt.isEmpty() && !allUsers.isEmpty()) {
+                        uOpt = allUsers.stream().filter(u -> u.getId().equalsIgnoreCase(assId) || u.getUsername().equalsIgnoreCase(assId)).findFirst();
+                        if (uOpt.isEmpty() && allUsers.size() == 1) {
+                            uOpt = Optional.of(allUsers.get(0));
+                        }
+                    }
+                    if (uOpt.isPresent()) {
+                        step.setAssigneeName(uOpt.get().getUsername());
+                    } else if (!allUsers.isEmpty() && assId.matches("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")) {
+                        step.setAssigneeName(allUsers.get(0).getUsername());
+                    } else {
+                        step.setAssigneeName(assId);
+                    }
+                } else if (step.getAssigneeRole() != null && !step.getAssigneeRole().isBlank() && !"null".equalsIgnoreCase(step.getAssigneeRole())) {
+                    String roleDisp = resolveRoleDisplayName(step.getAssigneeRole());
+                    step.setAssigneeName("역할: " + roleDisp);
+                } else {
+                    // Try to repair step if assignee is missing by checking current WorkflowConfig
+                    try {
+                        UUID nodeId = request.getClassificationNode() != null ? request.getClassificationNode().getId() : null;
+                        UUID targetId = request.getTargetId();
+                        WorkflowConfig config = resolveWorkflow(nodeId != null ? nodeId : targetId, "SCHEMA_CHANGE");
+                        if (config == null && targetId != null) {
+                            List<WorkflowConfig> list = workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(targetId, "SCHEMA_CHANGE");
+                            if (list.isEmpty()) {
+                                list = workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(targetId, "UPDATE");
+                            }
+                            if (!list.isEmpty()) config = list.get(0);
+                        }
+                        if (config != null && config.getStepsConfig() != null) {
+                            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                            com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(config.getStepsConfig());
+                            com.fasterxml.jackson.databind.JsonNode stepsArray = root.has("approvalLine") ? root.get("approvalLine") : (root.has("steps") ? root.get("steps") : null);
+                            if (stepsArray != null && stepsArray.isArray()) {
+                                for (com.fasterxml.jackson.databind.JsonNode stepNode : stepsArray) {
+                                    int order = stepNode.has("stepOrder") ? stepNode.get("stepOrder").asInt() : 1;
+                                    if (order == step.getStepOrder()) {
+                                        if (stepNode.has("assigneeRole") && !stepNode.get("assigneeRole").asText().isBlank()) {
+                                            String role = stepNode.get("assigneeRole").asText();
+                                            step.setAssigneeRole(role);
+                                            step.setAssigneeName("역할: " + role);
+                                            stepRepository.save(step);
+                                        } else if (stepNode.has("assigneeId") && !stepNode.get("assigneeId").asText().isBlank()) {
+                                            String assignee = stepNode.get("assigneeId").asText();
+                                            step.setAssigneeId(assignee);
+                                            userRepository.findById(assignee).ifPresent(u -> step.setAssigneeName(u.getUsername()));
+                                            stepRepository.save(step);
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                    if (step.getAssigneeName() == null || step.getAssigneeName().isBlank()) {
+                        step.setAssigneeName("승인자 미지정");
+                    }
                 }
             }
         }
@@ -969,7 +1067,8 @@ public class ApprovalService {
                 ));
             }
             
-            if (sort != null && sort.isSorted()) {
+            boolean isCountQuery = Long.class.equals(query.getResultType()) || long.class.equals(query.getResultType());
+            if (!isCountQuery && sort != null && sort.isSorted()) {
                 Map<UUID, String> idKeyMap = new java.util.HashMap<>();
                 Map<UUID, String> nameKeyMap = new java.util.HashMap<>();
                 try {
@@ -1052,7 +1151,7 @@ public class ApprovalService {
     
     @Transactional(readOnly = true)
     public Page<ApprovalStep> getMyTodos(String assigneeId, Pageable pageable) {
-        return getMyTodos(assigneeId, null, pageable);
+        return getMyTodos(assigneeId, (String) null, pageable);
     }
 
     @Transactional(readOnly = true)
@@ -1064,8 +1163,29 @@ public class ApprovalService {
     }
 
     @Transactional(readOnly = true)
+    public Page<ApprovalStep> getMyTodos(String assigneeId, java.util.Collection<String> userRoles, Pageable pageable) {
+        if (userRoles != null && !userRoles.isEmpty()) {
+            return stepRepository.findMyPendingStepsForRoles(assigneeId, userRoles, "PENDING", pageable);
+        }
+        return getMyTodos(assigneeId, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ApprovalStep> getMyTodos(String assigneeId, String username, java.util.Collection<String> userRoles, Pageable pageable) {
+        if (userRoles != null && !userRoles.isEmpty()) {
+            return stepRepository.findMyPendingStepsForUserAndRoles(assigneeId, username, userRoles, "PENDING", pageable);
+        }
+        return getMyTodos(assigneeId, pageable);
+    }
+
+    @Transactional(readOnly = true)
     public Page<ApprovalRequest> getMyRequests(String requesterId, Pageable pageable) {
         return approvalRepository.findByRequesterIdOrderByCreatedAtDesc(requesterId, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ApprovalRequest> getMyRequests(String requesterId, String username, Pageable pageable) {
+        return approvalRepository.findMyRequestsForUser(requesterId, username, pageable);
     }
 
     @Transactional(readOnly = true)

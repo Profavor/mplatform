@@ -40,7 +40,7 @@
                     v-model="selectedFieldId"
                     :options="fieldOptions"
                     value-by="id"
-                    label-by="label"
+                    text-by="text"
                     placeholder="트리에서 노드를 선택한 후 필드를 선택하세요."
                     :disabled="!selectedNode"
                     @update:modelValue="onFieldSelected"
@@ -138,10 +138,6 @@ import { AgGridVue } from 'ag-grid-vue3'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vuestic-ui'
-
-definePageMeta({
-  layout: 'admin'
-})
 
 const { t } = useI18n()
 const { init } = useToast()
@@ -255,10 +251,14 @@ const onNodeSelected = async (node) => {
       headers: { Authorization: `Bearer ${token.value}` }
     })
     
-    fieldOptions.value = (fields || []).map(f => ({
-      id: f.id,
-      label: `${f.key} (${parseName(f.name)})`
-    }))
+    fieldOptions.value = (fields || []).map(f => {
+      const displayStr = `${f.key} (${parseName(f.name)})`
+      return {
+        id: f.id,
+        label: displayStr,
+        text: displayStr
+      }
+    })
   } catch (e) {
     console.error('Failed to load fields', e)
     init({ message: '필드 목록을 불러오지 못했습니다.', color: 'danger' })

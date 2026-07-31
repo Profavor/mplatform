@@ -2,14 +2,87 @@ import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import NotificationBell from '../../components/layout/NotificationBell.vue'
 
+// $fetch Nuxt global mock
+vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([]))
+
 // Global mocks for Nuxt composables & Vuestic UI
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string) => key })
 }))
 
-vi.mock('#app', () => ({
-  useCookie: () => ({ value: 'fake-token' }),
-  useRouter: () => ({ push: vi.fn() })
+
+vi.mock('vue-router', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  useRoute: () => ({ path: '/', query: {}, params: {} })
+}))
+
+vi.mock('~/composables/useApprovalEnricher', () => ({
+  useApprovalEnricher: () => ({
+    loadMetadata: vi.fn().mockResolvedValue(undefined),
+    getFieldsForNode: vi.fn().mockResolvedValue([]),
+    enrichApprovalDetails: vi.fn().mockResolvedValue(null),
+    nodes: { value: {} },
+    domains: { value: {} },
+    fieldSchemas: { value: {} }
+  })
+}))
+
+vi.mock('~/composables/useWebSocket', () => ({
+  useWebSocket: () => ({
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+    isConnected: { value: false }
+  })
+}))
+
+vi.mock('#app', async (importOriginal) => {
+  const actual = await importOriginal<any>()
+  return {
+    ...actual,
+    useCookie: () => ({ value: 'fake-token' }),
+    useRouter: () => ({ push: vi.fn() }),
+    useRuntimeConfig: () => ({ public: { apiBaseUrl: 'http://localhost:8080' } })
+  }
+})
+
+vi.mock('~/stores/useUserStore', () => ({
+  useUserStore: () => ({
+    userMap: { value: {} },
+    isInitialized: { value: true },
+    fetchUserMap: vi.fn().mockResolvedValue({}),
+    getUserName: (id: string, fallback: string) => fallback || id || '',
+    parseI18nVal: (val: any) => String(val || '')
+  })
+}))
+
+vi.mock('~/stores/useRoleStore', () => ({
+  useRoleStore: () => ({
+    rolesList: { value: [] },
+    roleOptions: { value: [] },
+    isInitialized: { value: true },
+    dispatch: vi.fn().mockResolvedValue([]),
+    getRoleDisplayName: (code: string) => code,
+    formatRoleText: (code: string) => code,
+    getUserOrgId: () => null,
+    fetchRolesForOrg: vi.fn().mockResolvedValue([]),
+    initGlobalRoles: vi.fn().mockResolvedValue([]),
+    globalRoleLookupMap: { value: {} },
+    orgRolesMap: { value: {} }
+  })
+}))
+
+vi.mock('~/composables/useRoles', () => ({
+  useRoles: () => ({
+    rolesList: { value: [] },
+    roleOptions: { value: [] },
+    isInitialized: { value: true },
+    dispatch: vi.fn().mockResolvedValue([]),
+    getRoleDisplayName: (code: string) => code,
+    formatRoleText: (code: string) => code,
+    getUserOrgId: () => null,
+    fetchRolesForOrg: vi.fn().mockResolvedValue([]),
+    initGlobalRoles: vi.fn().mockResolvedValue([])
+  })
 }))
 
 vi.mock('vuestic-ui', async (importOriginal) => {

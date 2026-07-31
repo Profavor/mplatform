@@ -511,27 +511,12 @@
       </div>
     </va-modal>
 
-    <!-- Draft Comment Modal -->
-    <va-modal
+    <!-- Draft Comment Modal (공통 상신 의견 작성 모달) -->
+    <SubmissionCommentModal
       v-model="showDraftCommentModal"
-      :title="currentLocale === 'en' ? 'Submission Comment' : '상신 의견 작성'"
-      :ok-text="currentLocale === 'en' ? 'Submit' : '상신'"
-      :cancel-text="currentLocale === 'en' ? 'Cancel' : '취소'"
-      @ok="executePendingSave"
-      :prevent-click-outside="true"
-      :no-outside-dismiss="true"
-    >
-      <div style="padding: 1rem;">
-        <p style="margin-bottom: 1rem; color: #555;">
-          {{ currentLocale === 'en' ? '(Optional) Enter a comment for the approver.' : '(선택사항) 결재권자에게 남길 기안 의견을 작성해 주세요.' }}
-        </p>
-        <va-textarea 
-          v-model="draftCommentText" 
-          :placeholder="currentLocale === 'en' ? 'Enter your comment...' : '의견을 입력하세요...'" 
-          style="width: 100%;"
-        />
-      </div>
-    </va-modal>
+      v-model:comment="draftCommentText"
+      @submit="executePendingSave"
+    />
 
     <!-- Diff Modal -->
     <va-modal v-model="showDiffModal" title="변경 내역 상세" hide-default-actions size="large" :prevent-click-outside="true" :no-outside-dismiss="true">

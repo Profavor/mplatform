@@ -24,7 +24,7 @@ public class MusicBroadcastController {
     }
 
     @GetMapping("/admin/youtube-config")
-    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'admin:write')")
+    @PreAuthorize("hasPermission(null, 'user:read') or hasPermission(null, 'user:write')")
     public ResponseEntity<UserYoutubeConfig> getYoutubeConfig() {
         String userId = getAuthenticatedUserId();
         return ResponseEntity.ok(musicBroadcastService.getYoutubeConfig(userId));

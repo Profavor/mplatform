@@ -142,4 +142,69 @@ public class PermissionService {
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList());
     }
+
+    @Transactional(readOnly = true)
+    public Set<String> getUserRoles(User user) {
+        Set<String> roles = new HashSet<>();
+        if (user == null) return roles;
+
+        if (user.getRole() != null && !user.getRole().isBlank()) {
+            for (String r : user.getRole().split(",")) {
+                String trimmed = r.trim();
+                if (!trimmed.isEmpty()) {
+                    roles.add(trimmed);
+                    if (trimmed.startsWith("ROLE_")) {
+                        roles.add(trimmed.substring(5));
+                    } else {
+                        roles.add("ROLE_" + trimmed);
+                    }
+                }
+            }
+        }
+
+        try {
+            List<UserRole> userRoles = userRoleRepository.findByUserId(user.getId());
+            if (userRoles != null && !userRoles.isEmpty()) {
+                Set<UUID> roleIds = userRoles.stream().map(UserRole::getRoleId).collect(Collectors.toSet());
+                List<Role> explicitRoles = roleRepository.findAllById(roleIds);
+                for (Role r : explicitRoles) {
+                    if (r.getName() != null && !r.getName().isBlank()) {
+                        String name = r.getName().trim();
+                        roles.add(name);
+                        if (name.startsWith("ROLE_")) {
+                            roles.add(name.substring(5));
+                        } else {
+                            roles.add("ROLE_" + name);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to fetch UserRole mappings for user {}", user.getId(), e);
+        }
+
+        if (user.getDepartmentId() != null) {
+            try {
+                departmentRepository.findById(user.getDepartmentId()).ifPresent(dept -> {
+                    if (dept.getRoles() != null) {
+                        for (String r : dept.getRoles()) {
+                            if (r != null && !r.isBlank()) {
+                                String trimmed = r.trim();
+                                roles.add(trimmed);
+                                if (trimmed.startsWith("ROLE_")) {
+                                    roles.add(trimmed.substring(5));
+                                } else {
+                                    roles.add("ROLE_" + trimmed);
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (Exception e) {
+                log.error("Failed to fetch department roles for user {}", user.getId(), e);
+            }
+        }
+
+        return roles;
+    }
 }

@@ -20,7 +20,7 @@
         v-model="selectedStatus"
         :options="statusOptions"
         value-by="value"
-        label-by="text"
+        text-by="text"
         :label="t('status_filter')"
         style="width: 200px;"
         @update:model-value="loadCandidates"

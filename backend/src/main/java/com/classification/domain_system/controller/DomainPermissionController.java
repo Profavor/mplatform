@@ -101,7 +101,7 @@ public class DomainPermissionController {
     }
 
     @PutMapping("/users/{userId}/role")
-    @PreAuthorize("hasPermission(null, 'admin:write')")
+    @PreAuthorize("hasPermission(null, 'org:write')")
     public ResponseEntity<Void> updateUserRole(@PathVariable String userId, @RequestBody Map<String, String> payload) {
         String role = payload.get("role");
         userService.updateUserRole(userId, role);
@@ -109,7 +109,7 @@ public class DomainPermissionController {
     }
 
     @PutMapping("/users/{userId}/tenant-info")
-    @PreAuthorize("hasPermission(null, 'admin:write')")
+    @PreAuthorize("hasPermission(null, 'org:write')")
     public ResponseEntity<Void> updateUserTenantInfo(@PathVariable String userId, @RequestBody Map<String, Object> payload) {
         String role = (String) payload.get("role");
         String orgIdStr = (String) payload.get("organizationId");

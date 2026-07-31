@@ -41,9 +41,9 @@
             </div>
 
             <div style="font-size: 0.85rem; color: var(--va-text-secondary); display: flex; align-items: center; gap: 0.75rem;">
-              <span v-if="selectedPendingStep.approvalRequest?.requesterUsername">
+              <span v-if="selectedPendingStep.approvalRequest">
                 <va-icon name="person" size="small" style="margin-right: 2px;" />
-                {{ t('requester') || '기안자' }}: <strong>{{ selectedPendingStep.approvalRequest.requesterUsername }}</strong>
+                {{ t('requester') || '기안자' }}: <strong>{{ getRequesterName(selectedPendingStep.approvalRequest) }}</strong>
               </span>
               <span>
                 <va-icon name="schedule" size="small" style="margin-right: 2px;" />
@@ -116,9 +116,9 @@
             </div>
 
             <div style="font-size: 0.85rem; color: var(--va-text-secondary); display: flex; align-items: center; gap: 0.75rem;">
-              <span v-if="selectedRequest.requesterUsername">
+              <span v-if="selectedRequest">
                 <va-icon name="person" size="small" style="margin-right: 2px;" />
-                {{ t('requester') || '기안자' }}: <strong>{{ selectedRequest.requesterUsername }}</strong>
+                {{ t('requester') || '기안자' }}: <strong>{{ getRequesterName(selectedRequest) }}</strong>
               </span>
               <span>
                 <va-icon name="schedule" size="small" style="margin-right: 2px;" />
@@ -159,6 +159,8 @@ import { useI18n } from 'vue-i18n'
 import { useApprovalEnricher } from '~/composables/useApprovalEnricher'
 import ApprovalDetailsViewer from '~/components/ApprovalDetailsViewer.vue'
 import { usePermission } from '~/composables/usePermission'
+import { useUserStore } from '~/stores/useUserStore'
+import { useRoleStore } from '~/stores/useRoleStore'
 
 const { hasPermission } = usePermission()
 
@@ -1122,12 +1124,12 @@ const getStepperSteps = (req) => {
   return result;
 }
 
+const userStore = useUserStore()
+const roleStore = useRoleStore()
+
 const getRequesterName = (req) => {
   if (!req) return '알 수 없음';
-  if (req.requesterName) return req.requesterName;
-  if (!req.steps) return '알 수 없음';
-  const draftStep = req.steps.find(s => s.stepType === 'DRAFT');
-  return draftStep ? (draftStep.assigneeName || getUserName(draftStep.assigneeId)) : '알 수 없음';
+  return userStore.getUserName(req.requesterId, req.requesterName || req.requesterUsername);
 }
 
 const getClassificationName = (node, field) => {
@@ -1306,12 +1308,16 @@ const loadFieldNamesForRecord = async (targetId, nodeId = null) => {
 }
 
 const getUserName = (uuid, nameFallback) => {
-  return nameFallback || uuid || ''
+  return userStore.getUserName(uuid, nameFallback)
 }
 
 onMounted(async () => {
-  await loadMetadata()
-  await loadRequests()
+  await Promise.all([
+    loadMetadata(),
+    loadRequests(),
+    userStore.fetchUserMap(),
+    roleStore.dispatch('fetchRoles')
+  ])
   if (route?.query?.openModalId) {
     const stepToOpen = pendingSteps.value.find(s => String(s.id) === String(route.query.openModalId))
     if (stepToOpen) {

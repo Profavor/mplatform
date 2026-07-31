@@ -1,5 +1,6 @@
 package com.classification.domain_system.config;
 
+import com.classification.domain_system.service.RoleInitializer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Component;
 public class RoleDataMigrationInitializer implements CommandLineRunner {
 
     private final JdbcTemplate jdbcTemplate;
+    private final RoleInitializer roleInitializer;
 
     @Override
     public void run(String... args) throws Exception {
@@ -53,9 +55,15 @@ public class RoleDataMigrationInitializer implements CommandLineRunner {
             }
 
             // 5. 기본 시스템 역할들의 is_system_role 및 display_name 보정
-            jdbcTemplate.update("UPDATE role SET is_system_role = true WHERE name IN ('ADMIN', 'ROLE_ADMIN', 'ORG_ADMIN', 'DATA_STEWARD', 'DOMAIN_EDITOR', 'DQ_MANAGER', 'VIEWER', 'USER', 'ROLE_USER')");
+            jdbcTemplate.update("UPDATE role SET is_system_role = true WHERE name IN ('ADMIN', 'ROLE_ADMIN', 'ORG_ADMIN', 'DATA_STEWARD', 'DOMAIN_EDITOR', 'DQ_MANAGER', 'INTEGRATION_MANAGER', 'VIEWER', 'USER', 'ROLE_USER')");
             jdbcTemplate.update("UPDATE role SET display_name = '{\"ko\":\"시스템 관리자\",\"en\":\"System Admin\"}' WHERE name IN ('ADMIN', 'ROLE_ADMIN') AND (display_name IS NULL OR display_name = '')");
             jdbcTemplate.update("UPDATE role SET display_name = '{\"ko\":\"조직 관리자\",\"en\":\"Organization Admin\"}' WHERE name = 'ORG_ADMIN' AND (display_name IS NULL OR display_name = '')");
+            jdbcTemplate.update("UPDATE role SET display_name = '{\"ko\":\"연계 관리자\",\"en\":\"Integration Manager\"}' WHERE name = 'INTEGRATION_MANAGER' AND (display_name IS NULL OR display_name = '')");
+
+            // 5-1. INTEGRATION_MANAGER 역할 퍼미션 (org:read, field:read, user:read) 보정
+            jdbcTemplate.update("INSERT INTO role_permissions (role_id, permission) SELECT id, 'org:read' FROM role WHERE name = 'INTEGRATION_MANAGER' AND NOT EXISTS (SELECT 1 FROM role_permissions rp WHERE rp.role_id = role.id AND rp.permission = 'org:read')");
+            jdbcTemplate.update("INSERT INTO role_permissions (role_id, permission) SELECT id, 'field:read' FROM role WHERE name = 'INTEGRATION_MANAGER' AND NOT EXISTS (SELECT 1 FROM role_permissions rp WHERE rp.role_id = role.id AND rp.permission = 'field:read')");
+            jdbcTemplate.update("INSERT INTO role_permissions (role_id, permission) SELECT id, 'user:read' FROM role WHERE name = 'INTEGRATION_MANAGER' AND NOT EXISTS (SELECT 1 FROM role_permissions rp WHERE rp.role_id = role.id AND rp.permission = 'user:read')");
 
             // 6. department_roles 1NF 테이블: 'ADMIN' -> 'ROLE_ADMIN'
             int updatedDeptRoles = jdbcTemplate.update(
@@ -92,9 +100,15 @@ public class RoleDataMigrationInitializer implements CommandLineRunner {
                 log.info("Migrated {} 'record:read' permission(s) to USER and VIEWER roles.", addedRecordReadPerms);
             }
 
+            // 10. 모든 조직 대상 8대 기본 역할 및 퍼미션 동기화
+            if (roleInitializer != null) {
+                roleInitializer.syncDefaultRolesForAllOrganizations();
+            }
+
             log.info("Completed safety DB data migration for ROLE_ADMIN and ORG_ADMIN.");
         } catch (Exception e) {
             log.error("Error occurred during DB role data migration", e);
         }
     }
 }
+

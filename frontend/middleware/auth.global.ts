@@ -31,23 +31,4 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   if (!token.value) {
     return navigateTo('/login')
   }
-
-  // 3. 관리자 라우트 인가(Authorization) 가드: /admin/* 접근 시 역할 확인
-  if (to.path.startsWith('/admin')) {
-    try {
-      const userData = userDataCookie.value
-      if (userData) {
-        const parsed = typeof userData === 'string' ? JSON.parse(userData) : userData
-        const role = parsed?.role || ''
-        const roles = role.split(',').map((r: string) => r.trim().toUpperCase())
-        const adminRoles = ['ADMIN', 'ROLE_ADMIN', 'ORG_ADMIN', 'ROLE_ORG_ADMIN']
-        const hasAdminAccess = roles.some((r: string) => adminRoles.includes(r))
-        if (!hasAdminAccess) {
-          return navigateTo('/')
-        }
-      }
-    } catch (e) {
-      // user_data 파싱 실패 시 접근 허용 (백엔드 @PreAuthorize가 최종 방어)
-    }
-  }
 })

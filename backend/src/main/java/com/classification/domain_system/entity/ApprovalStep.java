@@ -29,8 +29,21 @@ public class ApprovalStep {
     @Column(name = "assignee_id", length = 100)
     private String assigneeId;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "assignee_id", insertable = false, updatable = false, foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+    @org.hibernate.annotations.NotFound(action = org.hibernate.annotations.NotFoundAction.IGNORE)
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "password"})
+    private User assigneeUser;
+
     @Transient
     private String assigneeName;
+
+    public String getAssigneeName() {
+        if (assigneeUser != null && assigneeUser.getUsername() != null) {
+            return assigneeUser.getUsername();
+        }
+        return assigneeName != null ? assigneeName : assigneeId;
+    }
 
     @Column(name = "assignee_role", length = 50)
     private String assigneeRole;

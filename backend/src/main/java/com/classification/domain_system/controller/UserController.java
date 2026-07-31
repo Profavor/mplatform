@@ -29,7 +29,7 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping
-    @PreAuthorize("hasPermission(null, 'admin:read')")
+    @PreAuthorize("hasPermission(null, 'user:read')")
     public ResponseEntity<List<UserDto>> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUsers());
     }
@@ -52,14 +52,14 @@ public class UserController {
     private com.classification.domain_system.repository.TeamRepository teamRepository;
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasPermission(null, 'admin:write')")
+    @PreAuthorize("hasPermission(null, 'user:write')")
     public ResponseEntity<User> updateUser(@PathVariable String id, @RequestBody AdminUserUpdateDto updateReq) {
         User u = userService.updateAdminUserInfo(id, updateReq);
         return ResponseEntity.ok(u);
     }
 
     @GetMapping("/{id}/org-history")
-    @PreAuthorize("hasPermission(null, 'admin:read')")
+    @PreAuthorize("hasPermission(null, 'user:read')")
     public ResponseEntity<List<Map<String, Object>>> getUserOrgHistory(@PathVariable String id) {
         List<com.classification.domain_system.entity.UserOrgHistory> list = userOrgHistoryRepository.findByUserIdOrderByChangedAtDesc(id);
         List<Map<String, Object>> result = list.stream().map(oh -> {
@@ -87,6 +87,18 @@ public class UserController {
         }).collect(Collectors.toList());
 
         return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/map")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, String>> getUserMap() {
+        List<UserDto> users = userService.getAllUsers();
+        Map<String, String> map = new HashMap<>();
+        for (UserDto u : users) {
+            if (u.id != null) map.put(u.id, u.username != null ? u.username : u.id);
+            if (u.username != null) map.put(u.username, u.username);
+        }
+        return ResponseEntity.ok(map);
     }
     
     public static class UserDto {

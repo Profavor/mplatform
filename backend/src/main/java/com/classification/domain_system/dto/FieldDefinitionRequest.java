@@ -28,4 +28,6 @@ public class FieldDefinitionRequest {
     private Boolean isHidden;
     private UUID targetNodeId;
     private Boolean isDomainField;
+    private String reason;
+    private String comment;
 }

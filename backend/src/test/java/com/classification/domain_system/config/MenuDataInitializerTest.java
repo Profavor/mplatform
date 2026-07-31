@@ -35,22 +35,30 @@ class MenuDataInitializerTest {
         // when
         menuDataInitializer.initMenus();
 
-        // then - 7 top-level INSERT (no params) + 8 admin sub-menu INSERT (with adminId param)
+        // then - 7 top-level INSERT (no params) + 10 admin sub-menu INSERT (with adminId param)
         verify(jdbcTemplate, times(7)).update(contains("INSERT INTO menu"));
-        verify(jdbcTemplate, times(8)).update(contains("INSERT INTO menu"), any(Long.class));
+        verify(jdbcTemplate, times(10)).update(contains("INSERT INTO menu"), any(Long.class));
     }
 
     @Test
-    @DisplayName("메뉴 데이터가 이미 있으면 초기화를 스킵한다")
-    void initMenus_skipsWhenDataExists() {
-        // given - menu 테이블에 데이터가 이미 있을 때
+    @DisplayName("메뉴 데이터가 이미 있지만 하위 메뉴가 없을 경우 새로 추가한다")
+    void initMenus_addsApprovalMonitorSubMenuWhenMissing() {
+        // given - menu 테이블에 데이터가 있고, '/admin' parent가 있지만 하위 메뉴가 없을 때
         given(jdbcTemplate.queryForObject(eq("SELECT COUNT(*) FROM menu"), eq(Long.class)))
                 .willReturn(15L);
+        given(jdbcTemplate.queryForList(eq("SELECT id FROM menu WHERE path = '/admin' AND parent_id IS NULL"), eq(Long.class)))
+                .willReturn(java.util.List.of(7L));
+        given(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), anyString(), eq(7L)))
+                .willReturn(0);
+        given(jdbcTemplate.queryForList(anyString(), eq(Long.class), anyString(), eq(7L)))
+                .willReturn(java.util.List.of(99L));
+        given(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq(99L), anyString()))
+                .willReturn(0);
 
         // when
         menuDataInitializer.initMenus();
 
-        // then - INSERT가 호출되지 않아야 한다
-        verify(jdbcTemplate, never()).update(contains("INSERT INTO menu"));
+        // then - 10개 하위 메뉴 INSERT 검증
+        verify(jdbcTemplate, atLeastOnce()).update(contains("INSERT INTO menu"), any(), any(), any(), eq(7L), any());
     }
 }

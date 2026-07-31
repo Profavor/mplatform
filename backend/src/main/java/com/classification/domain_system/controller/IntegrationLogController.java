@@ -41,7 +41,7 @@ public class IntegrationLogController {
     }
 
     @PostMapping("/{logId}/retry")
-    @PreAuthorize("hasPermission(null, 'admin:write')")
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'integration:write')")
     public org.springframework.http.ResponseEntity<Void> retryLog(@PathVariable UUID logId) {
         logService.retryLog(logId);
         return org.springframework.http.ResponseEntity.ok().build();
@@ -56,7 +56,7 @@ public class IntegrationLogController {
     }
 
     @PostMapping("/dead-letter/retry-all")
-    @PreAuthorize("hasPermission(null, 'admin:write')")
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'integration:write')")
     public org.springframework.http.ResponseEntity<java.util.Map<String, Object>> retryAllDeadLetters() {
         int retriedCount = retryService.retryAllDeadLetters();
         return org.springframework.http.ResponseEntity.ok(java.util.Map.of("retriedCount", retriedCount));

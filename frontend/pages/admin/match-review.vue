@@ -290,22 +290,9 @@ const createDatasource = () => ({
   }
 })
 
-const getDomainName = (d: any) => {
-  if (!d) return ''
-  if (typeof d.name === 'object') {
-    return d.name.ko || d.name.en || d.id
-  }
-  return d.name || d.id
-}
-
 const fetchDomains = async () => {
   try {
-    const res = await customFetch('/api/domains')
-    const list = res?.content || res?.data || (Array.isArray(res) ? res : [])
-    domainOptions.value = list.map((d: any) => ({
-      label: getDomainName(d),
-      value: d.id
-    }))
+    await domainStore.fetchDomains()
     if (domainOptions.value.length > 0 && !selectedDomain.value) {
       selectedDomain.value = domainOptions.value[0].value
     }

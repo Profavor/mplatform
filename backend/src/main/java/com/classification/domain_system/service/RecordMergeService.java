@@ -488,10 +488,16 @@ public class RecordMergeService {
     @Transactional
     public void updateSurvivorshipRules(UUID domainId, List<SurvivorshipRule> rules) {
         List<SurvivorshipRule> existing = survivorshipRuleRepository.findByDomainIdOrderByPriorityAsc(domainId);
-        survivorshipRuleRepository.deleteAll(existing);
-        rules.forEach(r -> {
-            r.setDomainId(domainId);
-            survivorshipRuleRepository.save(r);
-        });
+        if (!existing.isEmpty()) {
+            survivorshipRuleRepository.deleteAll(existing);
+            survivorshipRuleRepository.flush();
+        }
+        if (rules != null) {
+            rules.forEach(r -> {
+                r.setId(null);
+                r.setDomainId(domainId);
+                survivorshipRuleRepository.save(r);
+            });
+        }
     }
 }

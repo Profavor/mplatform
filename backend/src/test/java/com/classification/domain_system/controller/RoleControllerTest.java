@@ -21,6 +21,7 @@ import java.util.UUID;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = RoleController.class)
@@ -66,4 +67,27 @@ class RoleControllerTest {
         verify(userRoleRepository).deleteByRoleId(roleId);
         verify(roleRepository).delete(role);
     }
+
+    @Test
+    @DisplayName("syncDefaultRolesForAllOrganizations - 전체 조직 대상 기본 역할 및 퍼미션 동기화 성공")
+    void syncDefaultRolesForAllOrganizations_Success() throws Exception {
+        mockMvc.perform(post("/api/roles/sync-defaults")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        verify(roleInitializer).syncDefaultRolesForAllOrganizations();
+    }
+
+    @Test
+    @DisplayName("syncDefaultRolesForOrg - 특정 조직 대상 기본 역할 및 퍼미션 동기화 성공")
+    void syncDefaultRolesForOrg_Success() throws Exception {
+        UUID orgId = UUID.randomUUID();
+
+        mockMvc.perform(post("/api/roles/org/" + orgId + "/sync-defaults")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        verify(roleInitializer).createDefaultRolesForOrg(orgId);
+    }
 }
+

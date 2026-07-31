@@ -30,8 +30,26 @@ public class ApprovalRequest {
     @Column(name = "requester_id", nullable = false, length = 100)
     private String requesterId;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "requester_id", insertable = false, updatable = false, foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+    @org.hibernate.annotations.NotFound(action = org.hibernate.annotations.NotFoundAction.IGNORE)
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "password"})
+    private User requester;
+
     @Transient
     private String requesterName;
+
+    public String getRequesterName() {
+        if (requester != null && requester.getUsername() != null) {
+            return requester.getUsername();
+        }
+        return requesterName != null ? requesterName : requesterId;
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("requesterUsername")
+    public String getRequesterUsername() {
+        return getRequesterName();
+    }
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "node_id")
@@ -54,6 +72,9 @@ public class ApprovalRequest {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "observer_ids")
     private String observerIds;
+
+    @Column(name = "reason", columnDefinition = "TEXT")
+    private String reason;
 
     @Transient
     private List<String> observerNames;

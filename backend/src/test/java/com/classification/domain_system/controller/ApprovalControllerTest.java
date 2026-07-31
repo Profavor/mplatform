@@ -54,6 +54,9 @@ class ApprovalControllerTest {
     @MockitoBean
     private com.classification.domain_system.repository.UserRepository userRepository;
 
+    @MockitoBean
+    private com.classification.domain_system.service.FieldDefinitionService fieldDefinitionService;
+
     private UUID nodeId;
     private UUID stepId;
     private String approverId;

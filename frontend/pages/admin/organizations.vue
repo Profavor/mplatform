@@ -12,13 +12,18 @@
         </p>
       </div>
       <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <va-button preset="secondary" icon="published_with_changes" color="warning" :loading="isSyncingRoles" @click="handleSyncDefaultRoles">
+          {{ $t('sync_default_roles') }}
+        </va-button>
         <va-button preset="secondary" icon="admin_panel_settings" @click="showPermMasterModal = true">
-          {{ getLabel('perm_master_management', '세부 권한 마스터 관리') }}
+          {{ $t('perm_master_management') }}
         </va-button>
         <va-button color="primary" icon="add" @click="openCreateOrgModal">
-          {{ t('create_organization') }}
+          {{ $t('create_organization') }}
         </va-button>
       </div>
+
+
     </div>
 
     <!-- Main Layout -->
@@ -554,8 +559,53 @@
           </client-only>
         </div>
 
-        <div style="display: flex; justify-content: flex-end; margin-top: 0.5rem;">
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
           <va-button preset="secondary" @click="showUserSearchSelectModalFlag = false">{{ getLabel('close', '닫기') }}</va-button>
+          <va-button color="primary" icon="save" @click="saveAllSearchModalUserRoles">{{ getLabel('save', '저장') }}</va-button>
+        </div>
+      </div>
+    </va-modal>
+
+    <!-- Multi-Role Selection Modal -->
+    <va-modal
+      v-model="showMultiRoleEditModalFlag"
+      :title="`[${editingRoleUser?.username || ''}] 구성원 역할 지정 (다중 선택)`"
+      hide-default-actions
+      size="medium"
+      :prevent-click-outside="true"
+      :no-outside-dismiss="true"
+    >
+      <div style="padding: 1rem 0; display: flex; flex-direction: column; gap: 1rem;">
+        <p style="margin: 0; font-size: 0.9rem; color: var(--va-text-secondary);">
+          해당 구성원에게 부여할 하나 이상의 부서 역할을 선택하세요.
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 0.6rem; max-height: 280px; overflow-y: auto; padding: 0.5rem; border: 1px solid var(--va-background-border); border-radius: 8px; background: var(--va-background-element);">
+          <div
+            v-for="opt in availableOrgRoleOptions"
+            :key="opt.value"
+            style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; border-radius: 6px; background: var(--va-background-secondary); cursor: pointer;"
+            @click="toggleRoleCheckbox(opt.value)"
+          >
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+              <va-checkbox
+                :model-value="selectedRoleCheckboxes.includes(opt.value)"
+                @update:model-value="toggleRoleCheckbox(opt.value)"
+                @click.stop
+              />
+              <span style="font-weight: 700; font-size: 0.92rem; color: var(--va-text-primary);">
+                {{ opt.label }}
+              </span>
+            </div>
+            <span style="font-family: monospace; font-size: 0.8rem; color: var(--va-text-secondary); background: var(--va-background-border); padding: 2px 6px; border-radius: 4px;">
+              {{ opt.cleanValue }}
+            </span>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
+          <va-button preset="secondary" @click="showMultiRoleEditModalFlag = false">{{ getLabel('cancel', '취소') }}</va-button>
+          <va-button color="primary" icon="save" @click="saveMultiRoleForUser">{{ getLabel('save', '저장') }}</va-button>
         </div>
       </div>
     </va-modal>
@@ -644,16 +694,21 @@ import { AgGridVue } from 'ag-grid-vue3'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import PermissionMatrix from '~/components/PermissionMatrix.vue'
 import UserRoleSelect from '~/components/UserRoleSelect.vue'
+import { useRoleStore } from '~/stores/useRoleStore'
 
 const { gridTheme } = useAgGridTheme()
 const isMounted = ref(false)
+const roleStore = useRoleStore()
+const isSyncingRoles = ref(false)
 
 const { t, locale } = useI18n()
+const { init: initToast } = useToast()
 
 const getLabel = (key, fallback) => {
-  const res = t(key)
-  return (!res || res === key) ? fallback : res
+  const translated = t(key)
+  return (translated && translated !== key) ? translated : (fallback || key)
 }
+
 
 const getI18nText = (textStr) => {
   if (!textStr) return ''
@@ -668,6 +723,45 @@ const getI18nText = (textStr) => {
     return textStr
   }
 }
+
+const handleSyncDefaultRoles = async () => {
+  const targetOrgId = selectedOrg.value?.id
+  const targetName = selectedOrg.value ? (getI18nText(selectedOrg.value.displayName) || selectedOrg.value.name) : ''
+  
+  const confirmMsg = targetOrgId 
+    ? t('sync_default_roles_confirm_org', { name: targetName })
+    : t('sync_default_roles_confirm_all')
+
+  if (!confirm(confirmMsg)) return
+
+  isSyncingRoles.value = true
+  try {
+    const success = await roleStore.syncDefaultRoles(targetOrgId)
+    if (success) {
+      if (typeof initToast === 'function') {
+        initToast({ message: t('sync_default_roles_success'), color: 'success' })
+      }
+      if (targetOrgId && typeof loadRoles === 'function') {
+        await loadRoles(targetOrgId)
+      } else if (typeof loadOrganizations === 'function') {
+        await loadOrganizations()
+      }
+    } else {
+      if (typeof initToast === 'function') {
+        initToast({ message: t('sync_default_roles_fail'), color: 'danger' })
+      }
+    }
+  } catch (e) {
+    console.error(e)
+    if (typeof initToast === 'function') {
+      initToast({ message: t('sync_default_roles_error'), color: 'danger' })
+    }
+  } finally {
+    isSyncingRoles.value = false
+  }
+}
+
+
 
 const token = useCookie('auth_token')
 const showErrorAlertModal = ref(false)
@@ -861,6 +955,69 @@ const filteredUsersToSearch = computed(() => {
   )
 })
 
+const showMultiRoleEditModalFlag = ref(false)
+const editingRoleUser = ref(null)
+const selectedRoleCheckboxes = ref([])
+
+const availableOrgRoleOptions = computed(() => {
+  const loadedRoles = roleStore.rolesList.value || []
+
+  return loadedRoles.map(r => {
+    const rawName = r.name || ''
+    const cleanName = rawName.startsWith('ROLE_') ? rawName.replace('ROLE_', '') : rawName
+    const dispName = getI18nText(r.displayName) || getI18nText(r.name) || cleanName
+    return {
+      value: rawName,
+      cleanValue: cleanName,
+      label: dispName
+    }
+  })
+})
+
+const openMultiRoleEditModal = (user) => {
+  editingRoleUser.value = user
+  const userRolesArr = getUserRolesArray(user.role)
+  selectedRoleCheckboxes.value = availableOrgRoleOptions.value
+    .filter(opt => userRolesArr.some(ur => ur === opt.value || ur === opt.cleanValue || `ROLE_${ur}` === opt.value))
+    .map(opt => opt.value)
+  showMultiRoleEditModalFlag.value = true
+}
+
+const toggleRoleCheckbox = (val) => {
+  const idx = selectedRoleCheckboxes.value.indexOf(val)
+  if (idx >= 0) {
+    selectedRoleCheckboxes.value.splice(idx, 1)
+  } else {
+    selectedRoleCheckboxes.value.push(val)
+  }
+}
+
+const saveMultiRoleForUser = async () => {
+  if (!editingRoleUser.value || !targetManagingDept.value) return
+  const user = editingRoleUser.value
+  const chosenRolesStr = selectedRoleCheckboxes.value.join(',')
+  try {
+    await $fetch(`/api/permissions/users/${user.id}/tenant-info`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token.value}` },
+      body: {
+        organizationId: selectedOrg.value.id,
+        departmentId: targetManagingDept.value.id,
+        role: chosenRolesStr
+      }
+    })
+    user.role = chosenRolesStr
+    user.departmentId = targetManagingDept.value.id
+    updateLoggedUserCookieIfSelf(user.id, selectedOrg.value.id, targetManagingDept.value.id, chosenRolesStr)
+    await fetchAllUsersList()
+    await loadOrgDetails(selectedOrg.value.id)
+    showCustomAlert(`'${user.username}' 구성원의 역할이 성공적으로 저장되었습니다.`, getLabel('update_success', '저장 완료'), getLabel('notification', '알림'), 'success')
+    showMultiRoleEditModalFlag.value = false
+  } catch (e) {
+    showCustomAlert('Failed to update user roles: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
+  }
+}
+
 const userGridColumnDefs = computed(() => [
   {
     headerName: getLabel('username_col', '사용자명 (Username)'),
@@ -875,16 +1032,31 @@ const userGridColumnDefs = computed(() => [
     }
   },
   {
-    headerName: getLabel('role_assign_col', '부서 할당 역할 지정'),
+    headerName: getLabel('role_assign_col', '부서 할당 역할 (다중 지정 가능)'),
     field: 'role',
-    flex: 1.5,
-    minWidth: 150,
+    flex: 2.5,
+    minWidth: 220,
     cellRenderer: (params) => {
       if (!params.data) return ''
-      const currentRole = params.value || 'USER'
-      const roles = ['ADMIN', 'ORG_ADMIN', 'DATA_STEWARD', 'DOMAIN_EDITOR', 'DQ_MANAGER', 'VIEWER', 'USER']
-      const optionsHtml = roles.map(r => `<option value="${r}" ${r === currentRole ? 'selected' : ''}>${r}</option>`).join('')
-      return `<select id="role-sel-${params.data.id}" style="padding: 3px 8px; border-radius: 4px; border: 1px solid var(--va-background-border); background: var(--va-background-element); color: var(--va-text-primary); font-weight: 700; font-size: 0.8rem; cursor: pointer;">${optionsHtml}</select>`
+      const userRolesArr = getUserRolesArray(params.value)
+      const options = availableOrgRoleOptions.value
+
+      const chipsHtml = userRolesArr.map(r => {
+        const clean = r.startsWith('ROLE_') ? r.replace('ROLE_', '') : r
+        const matched = options.find(opt => opt.value === r || opt.cleanValue === clean)
+        const labelStr = matched ? matched.label : clean
+        return `<span style="background: rgba(37, 99, 235, 0.1); color: #2563eb; padding: 2px 7px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; border: 1px solid rgba(37, 99, 235, 0.2); margin-right: 3px; display: inline-block;">${labelStr}</span>`
+      }).join('')
+
+      return `<div style="display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; width: 100%;">
+        <div style="display: flex; flex-wrap: wrap; gap: 0.2rem; flex: 1; min-width: 0; overflow: hidden; align-items: center;">${chipsHtml || '<span style="color: #9ca3af; font-size: 0.75rem;">역할 없음</span>'}</div>
+        <button style="background: var(--va-background-secondary); border: 1px solid var(--va-background-border); color: var(--va-text-primary); padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-weight: 600; flex-shrink: 0;">✏️ 역할 변경</button>
+      </div>`
+    },
+    onCellClicked: (params) => {
+      if (params.data) {
+        openMultiRoleEditModal(params.data)
+      }
     }
   },
   {
@@ -905,20 +1077,20 @@ const userGridColumnDefs = computed(() => [
     }
   },
   {
-    headerName: getLabel('dept_assign_col', '부서 지정'),
+    headerName: getLabel('dept_assign_col', '부서 지정 / 역할 저장'),
     field: 'actions',
-    flex: 1,
-    minWidth: 120,
+    flex: 1.3,
+    minWidth: 140,
     cellRenderer: (params) => {
       if (!params.data) return ''
       const isCurrent = params.data.departmentId === targetManagingDept.value?.id
       if (isCurrent) {
-        return `<span style="color: #16a34a; font-weight: 700; font-size: 0.85rem;">✓ ${getLabel('assigned', '소속됨')}</span>`
+        return `<button style="background: #16a34a; color: white; border: none; border-radius: 4px; padding: 4px 10px; font-size: 0.8rem; cursor: pointer; font-weight: 600;">💾 ${getLabel('save', '저장')}</button>`
       }
       return `<button style="background: #2563eb; color: white; border: none; border-radius: 4px; padding: 4px 10px; font-size: 0.8rem; cursor: pointer; font-weight: 600;">+ ${getLabel('assign_dept', '부서 등록')}</button>`
     },
     onCellClicked: (params) => {
-      if (params.data && params.data.departmentId !== targetManagingDept.value?.id) {
+      if (params.data) {
         assignUserFromSearchModal(params.data)
       }
     }
@@ -927,12 +1099,18 @@ const userGridColumnDefs = computed(() => [
 
 const openManageMembersModal = async (dept) => {
   targetManagingDept.value = dept
+  if (selectedOrg.value?.id) {
+    await roleStore.fetchRolesForOrg(selectedOrg.value.id, true)
+  }
   await fetchAllUsersList()
   showManageMembersModalFlag.value = true
 }
 
-const openUserSearchSelectModal = () => {
+const openUserSearchSelectModal = async () => {
   userSearchKeyword.value = ''
+  if (selectedOrg.value?.id) {
+    await roleStore.fetchRolesForOrg(selectedOrg.value.id, true)
+  }
   showUserSearchSelectModalFlag.value = true
 }
 
@@ -982,6 +1160,7 @@ const assignUserFromSearchModal = async (user) => {
   if (!targetManagingDept.value || !user) return
   const selectElem = document.getElementById(`role-sel-${user.id}`)
   const chosenRole = selectElem ? selectElem.value : (user.role || 'USER')
+  const isCurrent = user.departmentId === targetManagingDept.value.id
 
   try {
     await $fetch(`/api/permissions/users/${user.id}/tenant-info`, {
@@ -993,13 +1172,48 @@ const assignUserFromSearchModal = async (user) => {
         role: chosenRole
       }
     })
+    user.role = chosenRole
+    user.departmentId = targetManagingDept.value.id
     updateLoggedUserCookieIfSelf(user.id, selectedOrg.value.id, targetManagingDept.value.id, chosenRole)
     await fetchAllUsersList()
     await loadOrgDetails(selectedOrg.value.id)
-    showCustomAlert(`'${user.username}' 구성원이 [${chosenRole}] 역할로 부서에 성공적으로 등록되었습니다.`, getLabel('update_success', '등록 완료'), getLabel('notification', '알림'), 'success')
+    const actionText = isCurrent ? '역할 변경 저장' : '부서 및 역할 등록'
+    showCustomAlert(`'${user.username}' 구성원이 [${chosenRole}] 역할로 ${actionText} 되었습니다.`, getLabel('update_success', `${actionText} 완료`), getLabel('notification', '알림'), 'success')
   } catch (e) {
-    showCustomAlert('Failed to add user to dept: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
+    showCustomAlert('Failed to update user dept/role: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
   }
+}
+
+const saveAllSearchModalUserRoles = async () => {
+  if (!targetManagingDept.value || !filteredUsersToSearch.value) return
+  let updatedCount = 0
+  for (const user of filteredUsersToSearch.value) {
+    const selectElem = document.getElementById(`role-sel-${user.id}`)
+    const chosenRole = selectElem ? selectElem.value : user.role
+    const isCurrent = user.departmentId === targetManagingDept.value.id
+    if (isCurrent && chosenRole && chosenRole !== user.role) {
+      try {
+        await $fetch(`/api/permissions/users/${user.id}/tenant-info`, {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${token.value}` },
+          body: {
+            organizationId: selectedOrg.value.id,
+            departmentId: targetManagingDept.value.id,
+            role: chosenRole
+          }
+        })
+        user.role = chosenRole
+        updateLoggedUserCookieIfSelf(user.id, selectedOrg.value.id, targetManagingDept.value.id, chosenRole)
+        updatedCount++
+      } catch (e) {
+        console.error(`Failed to update role for user ${user.username}`, e)
+      }
+    }
+  }
+  await fetchAllUsersList()
+  await loadOrgDetails(selectedOrg.value.id)
+  showCustomAlert(updatedCount > 0 ? `${updatedCount}명 구성원의 역할 변경이 저장되었습니다.` : '모든 사용자의 부서 및 역할 정보가 최신 상태입니다.', getLabel('save_success', '저장 완료'), getLabel('notification', '알림'), 'success')
+  showUserSearchSelectModalFlag.value = false
 }
 
 const removeUserFromDept = async (user) => {

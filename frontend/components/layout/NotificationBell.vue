@@ -133,8 +133,8 @@
             <va-icon :name="isPendingAssignee ? 'rate_review' : 'verified_user'" color="primary" />
             {{ isPendingAssignee ? ($t('approval_review') || '결재 요청 심사 및 내역') : ($t('details') || '결재 상세 내역') }}
           </h3>
-          <div v-if="activeRequest.requesterUsername" style="font-size: 0.85rem; color: var(--va-text-secondary);">
-            기안자: {{ activeRequest.requesterUsername }}
+          <div v-if="activeRequest.requesterName || activeRequest.requesterUsername || activeRequest.requesterId" style="font-size: 0.85rem; color: var(--va-text-secondary);">
+            {{ $t('label_drafter') || '기안자' }}: {{ activeRequest.requesterName || activeRequest.requesterUsername || activeRequest.requesterId }}
           </div>
         </div>
       </template>

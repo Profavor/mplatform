@@ -31,9 +31,6 @@
             <div style="margin-top: 0.75rem; padding: 0 0.5rem;">
               <va-button style="width: 100%; border-radius: 8px; font-weight: 600;" color="info" icon="tune" @click="openSectorGroupModal" :disabled="!treeNodes || treeNodes.length === 0" preset="secondary">{{ $t('manage_sectors_groups') || 'Manage Sectors & Groups' }}</va-button>
             </div>
-            <div style="margin-top: 0.75rem; padding: 0 0.5rem;">
-              <va-button style="width: 100%; border-radius: 8px; font-weight: 600;" color="primary" icon="alt_route" @click="$router.push('/admin/survivorship')" preset="secondary">Survivorship Rules (서바이버십 규칙)</va-button>
-            </div>
           </va-card-content>
         </va-card>
       </div>
@@ -54,6 +51,10 @@
           <va-card-content style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 0;">
             <!-- Fields Tab -->
             <div v-show="activeTab === 0" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 1rem;">
+              <va-alert v-if="hasPendingSchemaApproval" color="warning" icon="lock" style="margin-bottom: 0.75rem;">
+                <span style="font-weight: bold;">{{ $t('schema_approval_in_progress') || '결재 진행 중' }}:</span>
+                {{ $t('pending_schema_approval_exists') || '현재 진행 중인 스키마 결재 건이 있습니다. 결재 완료 전까지 수정할 수 없습니다.' }}
+              </va-alert>
               <div class="schema-grid-wrapper">
                 <ag-grid-vue
                   style="width: 100%; height: 100%;"
@@ -432,9 +433,21 @@
         </div>
       </div>
 
+      <!-- Submission Reason (Comment) Input -->
+      <div style="margin-top: 1rem;">
+        <va-textarea
+          v-model="newField.reason"
+          :label="$t('schema_reason') || '상신 사유 (의견)'"
+          :placeholder="$t('schema_reason_placeholder') || '스키마 변경 사유를 상세히 작성해 주세요.'"
+          class="w-full"
+          rows="2"
+          :disabled="hasPendingSchemaApproval"
+        />
+      </div>
+
       <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
         <va-button preset="secondary" @click="showFieldModal = false">Cancel</va-button>
-        <va-button v-if="hasPermission('field:write') || hasPermission('field:*')" @click="saveField">{{ isEditMode ? 'Save' : 'Create' }}</va-button>
+        <va-button v-if="hasPermission('field:write') || hasPermission('field:*')" :disabled="hasPendingSchemaApproval" @click="saveField">{{ isEditMode ? 'Save' : 'Create' }}</va-button>
       </div>
     </va-modal>
 
@@ -579,6 +592,13 @@
         </div>
       </div>
     </va-modal>
+
+    <!-- Submission Comment Modal (공통 상신 의견 작성 모달) -->
+    <SubmissionCommentModal
+      v-model="showFieldCommentModal"
+      v-model:comment="draftFieldCommentText"
+      @submit="executePendingFieldSave"
+    />
   </div>
 </template>
 
@@ -680,6 +700,8 @@ const gridApi = ref(null)
 const showDomainModal = ref(false)
 const showNodeModal = ref(false)
 const showFieldModal = ref(false)
+const showFieldCommentModal = ref(false)
+const draftFieldCommentText = ref('')
 const showSectorGroupModal = ref(false)
 const showIconPickerModal = ref(false)
 const tempIcon = ref('')
@@ -1168,10 +1190,13 @@ const saveWorkflowConfigs = async () => {
       const flatSteps = []
       conf.steps.forEach((step, sIdx) => {
         step.users.forEach(u => {
-          if (u.assigneeId && u.stepType) {
+          const hasAssignee = u.assigneeType === 'ROLE' ? !!u.assigneeRole : !!u.assigneeId
+          if (hasAssignee && u.stepType) {
             flatSteps.push({
               stepType: u.stepType,
-              assigneeId: u.assigneeId,
+              assigneeType: u.assigneeType || (u.assigneeRole ? 'ROLE' : 'USER'),
+              assigneeId: u.assigneeType === 'ROLE' ? null : (u.assigneeId || null),
+              assigneeRole: u.assigneeType === 'ROLE' ? (u.assigneeRole || null) : null,
               stepOrder: sIdx + 1
             })
           }
@@ -1180,6 +1205,7 @@ const saveWorkflowConfigs = async () => {
       
       const stepsConfig = JSON.stringify({
           steps: flatSteps,
+          approvalLine: flatSteps,
           observerIds: conf.observerIds || []
       })
       
@@ -1249,7 +1275,7 @@ const onNodeSelected = async (nodes) => {
              const parsed = wf.stepsConfig ? JSON.parse(wf.stepsConfig) : { steps: [], observerIds: [] }
              
              // Convert flat steps back into grouped UI steps
-             const flatSteps = parsed.steps || []
+             const flatSteps = parsed.steps || parsed.approvalLine || []
              const grouped = []
              let currentOrder = -1
              let currentStep = null
@@ -1262,7 +1288,9 @@ const onNodeSelected = async (nodes) => {
                  }
                  currentStep.users.push({
                      stepType: fs.stepType,
-                     assigneeId: fs.assigneeId
+                     assigneeType: fs.assigneeType || (fs.assigneeRole ? 'ROLE' : 'USER'),
+                     assigneeId: fs.assigneeId || null,
+                     assigneeRole: fs.assigneeRole || null
                  })
              }
              
@@ -1278,6 +1306,24 @@ const onNodeSelected = async (nodes) => {
   }
   
   fetchFields();
+  await checkPendingSchemaStatus();
+}
+
+const hasPendingSchemaApproval = ref(false)
+
+const checkPendingSchemaStatus = async () => {
+  if (!selectedNode.value) {
+    hasPendingSchemaApproval.value = false;
+    return;
+  }
+  const domainId = selectedNode.value.isDomain ? selectedNode.value.id : selectedNode.value.domainId;
+  const nodeId = selectedNode.value.isDomain ? null : selectedNode.value.id;
+  try {
+    const res = await $fetch(`/api/approval-requests/pending-schema-status?domainId=${domainId || ''}&nodeId=${nodeId || ''}`, { headers: getAuthHeaders() });
+    hasPendingSchemaApproval.value = Boolean(res?.hasPendingApproval);
+  } catch (e) {
+    hasPendingSchemaApproval.value = false;
+  }
 }
 
 const handleNodeEdit = async (node) => {
@@ -1364,6 +1410,7 @@ const resetConditionFields = () => {
 }
 
 const openFieldModal = async (rowData = null) => {
+  await checkPendingSchemaStatus()
   if (selectedNode.value && (!fields.value || fields.value.length === 0)) {
     try {
       const fieldUrl = selectedNode.value.isDomain
@@ -1481,6 +1528,7 @@ const saveDomain = async () => {
       body: payload
     })
     showDomainModal.value = false
+    await useDomain().fetchDomains(true)
     await loadTree()
   } catch (e) {
     const msg = e.response?._data?.message || e.message || 'Unknown error'
@@ -1578,6 +1626,12 @@ const saveField = async () => {
 
   newField.value.options = JSON.stringify(existingOptsObj)
   
+  draftFieldCommentText.value = newField.value.reason || ''
+  showFieldCommentModal.value = true
+}
+
+const executePendingFieldSave = async () => {
+  newField.value.reason = draftFieldCommentText.value
   try {
     let url = ''
     if (selectedNode.value.isDomain) {
@@ -1616,7 +1670,8 @@ const saveField = async () => {
       isReadOnly: newField.value.isReadOnly,
       isImmutable: newField.value.isImmutable,
       isHidden: newField.value.isHidden,
-      isHighlighted: newField.value.isHighlighted
+      isHighlighted: newField.value.isHighlighted,
+      reason: newField.value.reason || ''
     }
 
     await $fetch(url, {
@@ -1627,9 +1682,10 @@ const saveField = async () => {
     newField.value = { 
       name: { ko: '', en: '' }, 
       fieldGroupId: null,
-      key: '', type: 'TEXT', options: '', required: false, isMultiValue: false, isSearchable: true, isEncrypted: false, isReadOnly: false, isImmutable: false, isHidden: false, isHighlighted: false, order: 0 
+      key: '', type: 'TEXT', options: '', required: false, isMultiValue: false, isSearchable: true, isEncrypted: false, isReadOnly: false, isImmutable: false, isHidden: false, isHighlighted: false, order: 0, reason: ''
     }
     showFieldModal.value = false
+    showFieldCommentModal.value = false
     await onNodeSelected(selectedNode.value)
   } catch (error) {
     showCustomAlert('Error saving field', 'Save Error', 'Error', 'error')

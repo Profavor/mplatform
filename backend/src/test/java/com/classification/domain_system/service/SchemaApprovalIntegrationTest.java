@@ -184,8 +184,7 @@ public class SchemaApprovalIntegrationTest {
             .findFirst().orElseThrow();
 
         ApprovalStep step = approvalStepRepository.findAll().stream()
-            .filter(s -> s.getApprovalRequest().getId().equals(request.getId()))
-            .sorted(java.util.Comparator.comparing(ApprovalStep::getStepOrder))
+            .filter(s -> s.getApprovalRequest().getId().equals(request.getId()) && "PENDING".equals(s.getStatus()))
             .findFirst().orElseThrow();
         
         // This triggers the event
@@ -219,8 +218,7 @@ public class SchemaApprovalIntegrationTest {
             .findFirst().orElseThrow();
 
         ApprovalStep step = approvalStepRepository.findAll().stream()
-            .filter(s -> s.getApprovalRequest().getId().equals(request.getId()))
-            .sorted(java.util.Comparator.comparing(ApprovalStep::getStepOrder))
+            .filter(s -> s.getApprovalRequest().getId().equals(request.getId()) && "PENDING".equals(s.getStatus()))
             .findFirst().orElseThrow();
         
         approvalService.rejectStep(step.getId(), approverId, "Rejected");

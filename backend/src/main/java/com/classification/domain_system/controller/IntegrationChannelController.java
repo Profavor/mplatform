@@ -23,19 +23,19 @@ public class IntegrationChannelController {
     private final IntegrationTestService testService;
 
     @PostMapping("/test-connection")
-    @PreAuthorize("hasPermission(null, 'admin:write')")
+    @PreAuthorize("hasPermission(null, 'integration:write')")
     public ResponseEntity<ConnectionTestResponse> testConnection(@RequestBody ConnectionTestRequest request) {
         return ResponseEntity.ok(testService.testConnection(request));
     }
 
     @GetMapping
-    @PreAuthorize("hasPermission(null, 'admin:read')")
+    @PreAuthorize("hasPermission(null, 'integration:read')")
     public List<IntegrationChannel> getAll() {
         return repository.findAll();
     }
 
     @PostMapping
-    @PreAuthorize("hasPermission(null, 'admin:write')")
+    @PreAuthorize("hasPermission(null, 'integration:write')")
     public IntegrationChannel create(@RequestBody IntegrationChannel channel) {
         if (channel.getDirection() == null || channel.getDirection().isBlank()) {
             channel.setDirection("OUTBOUND");
@@ -44,7 +44,7 @@ public class IntegrationChannelController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasPermission(null, 'admin:write')")
+    @PreAuthorize("hasPermission(null, 'integration:write')")
     public ResponseEntity<IntegrationChannel> update(@PathVariable UUID id, @RequestBody IntegrationChannel updated) {
         return repository.findById(id).map(channel -> {
             channel.setName(updated.getName());
@@ -61,7 +61,7 @@ public class IntegrationChannelController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasPermission(null, 'admin:write')")
+    @PreAuthorize("hasPermission(null, 'integration:write')")
     public ResponseEntity<Void> deleteChannel(@PathVariable UUID id) {
         if (repository.existsById(id)) {
             repository.deleteById(id);

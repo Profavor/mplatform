@@ -392,6 +392,7 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { AgGridVue } from 'ag-grid-vue3'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
+import { useRoleStore } from '~/stores/useRoleStore'
 
 const { customFetch } = useCustomFetch()
 const { gridTheme, autoSizeStrategy } = useAgGridTheme()
@@ -460,10 +461,21 @@ const pageSize = ref(20)
 
 // Raw Master Data REFs
 const rawDomainList = ref<any[]>([])
-const rawRoleList = ref<any[]>([])
 const rawUserList = ref<any[]>([])
 const rawFieldList = ref<any[]>([])
 const rawNodeTree = ref<any[]>([])
+
+// Role Store (centralized - no direct API call)
+const roleStore = useRoleStore()
+const roleOptions = roleStore.roleOptions
+const roleMap = computed(() => {
+  const map: Record<string, string> = {}
+  roleStore.rolesList.value.forEach((r: any) => {
+    if (!r || !r.name) return
+    map[r.name] = roleStore.getRoleDisplayName(r.name) || r.name
+  })
+  return map
+})
 
 // Reactive Computed Master Data & Options
 const domainOptions = computed(() => {
@@ -477,36 +489,6 @@ const domainMap = computed(() => {
   const map: Record<string, string> = {}
   rawDomainList.value.forEach((d: any) => {
     map[d.id] = getLocalizedName(d.name) || d.code || d.id
-  })
-  return map
-})
-
-const roleOptions = computed(() => {
-  const options: Array<{ value: string; text: string }> = []
-  const seenNames = new Set<string>()
-  const seenLabels = new Set<string>()
-
-  rawRoleList.value.forEach((r: any) => {
-    if (!r || !r.name) return
-    const name = r.name
-    const normName = name.startsWith('ROLE_') ? name.replace('ROLE_', '') : name
-    const label = getLocalizedName(r.displayName) || r.name
-
-    if (!seenNames.has(name) && !seenNames.has(normName) && !seenLabels.has(label)) {
-      seenNames.add(name)
-      seenNames.add(normName)
-      seenLabels.add(label)
-      options.push({ value: name, text: label })
-    }
-  })
-  return options
-})
-
-const roleMap = computed(() => {
-  const map: Record<string, string> = {}
-  rawRoleList.value.forEach((r: any) => {
-    if (!r || !r.name) return
-    map[r.name] = getLocalizedName(r.displayName) || r.name
   })
   return map
 })
@@ -684,11 +666,13 @@ const defaultColDef = {
   filter: true
 }
 
+const domainStore = useDomain()
+
 // Fetch Master Data
 const fetchDomains = async () => {
   try {
-    const res: any = await customFetch('/api/domains')
-    rawDomainList.value = Array.isArray(res) ? res : (res?.content || [])
+    const list = await domainStore.fetchDomains()
+    rawDomainList.value = list
   } catch (e) {
     console.error('Failed to fetch domains', e)
   }
@@ -705,10 +689,9 @@ const fetchUsers = async () => {
 
 const fetchRoles = async () => {
   try {
-    const res: any = await customFetch('/api/roles')
-    rawRoleList.value = Array.isArray(res) ? res : []
+    await roleStore.dispatch('fetchRoles')
   } catch (e) {
-    console.error('Failed to fetch roles', e)
+    console.error('Failed to fetch roles via store', e)
   }
 }
 

@@ -369,10 +369,12 @@ import { useToast } from 'vuestic-ui'
 import { AgGridVue } from 'ag-grid-vue3'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { useI18n } from 'vue-i18n'
+import { useCustomFetch } from '~/composables/useCustomFetch'
 
 const { t, locale } = useI18n()
 const { gridTheme } = useAgGridTheme()
 const { init } = useToast()
+const { customFetch } = useCustomFetch()
 const token = useCookie('auth_token')
 
 const channelNameKo = ref('')

@@ -9,7 +9,7 @@
             v-model="filter.fieldKey"
             :options="fieldOptions"
             value-by="value"
-            label-by="text"
+            text-by="text"
             style="width: 160px;"
             dense
           />
@@ -17,7 +17,7 @@
             v-model="filter.operator"
             :options="operatorOptions"
             value-by="value"
-            label-by="text"
+            text-by="text"
             style="width: 130px;"
             dense
           />

@@ -648,5 +648,37 @@ class ApprovalServiceTest extends BaseServiceTest {
             assertThat(step.getStatus()).isEqualTo("APPROVED");
             verify(stepRepository).saveAndFlush(step);
         }
+
+        @Test
+        @DisplayName("성공 - role로 구성된 stepsConfig에서 assigneeRole이 올바르게 추출되어 ApprovalStep에 설정된다")
+        void buildDynamicSteps_ParsesAssigneeRole() {
+            ApprovalRequest approval = new ApprovalRequest();
+            WorkflowConfig config = new WorkflowConfig();
+            config.setStepsConfig("{\"steps\":[{\"stepOrder\":1,\"stepType\":\"APPROVAL\",\"assigneeType\":\"ROLE\",\"assigneeRole\":\"DOMAIN_EDITOR\"}]}");
+
+            approvalService.buildDynamicSteps(approval, config);
+
+            assertThat(approval.getSteps()).hasSize(1);
+            assertThat(approval.getSteps().get(0).getAssigneeRole()).isEqualTo("DOMAIN_EDITOR");
+            assertThat(approval.getSteps().get(0).getStatus()).isEqualTo("PENDING");
+        }
+
+        @Test
+        @DisplayName("성공 - 다중 역할 목록(userRoles)을 기반으로 할당된 결재 단계를 정상 조회한다")
+        void getMyTodos_WithUserRolesCollection_Success() {
+            String assigneeId = UUID.randomUUID().toString();
+            List<String> userRoles = List.of("DOMAIN_EDITOR", "ROLE_DOMAIN_EDITOR");
+            org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+
+            org.springframework.data.domain.Page<ApprovalStep> mockPage = new org.springframework.data.domain.PageImpl<>(List.of(new ApprovalStep()));
+            given(stepRepository.findMyPendingStepsForRoles(eq(assigneeId), eq(userRoles), eq("PENDING"), eq(pageable)))
+                    .willReturn(mockPage);
+
+            org.springframework.data.domain.Page<ApprovalStep> result = approvalService.getMyTodos(assigneeId, userRoles, pageable);
+
+            assertThat(result).isNotNull();
+            assertThat(result.getContent()).hasSize(1);
+            verify(stepRepository).findMyPendingStepsForRoles(assigneeId, userRoles, "PENDING", pageable);
+        }
     }
 }

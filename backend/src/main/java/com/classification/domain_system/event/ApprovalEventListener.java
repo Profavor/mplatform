@@ -187,10 +187,13 @@ public class ApprovalEventListener {
             progress = false;
             final int currentOrder = approval.getCurrentStepOrder();
             List<ApprovalStep> pendingAutoSteps = approval.getSteps().stream()
-                    .filter(s -> s.getStepOrder().equals(currentOrder) 
+                    .filter(s -> s.getStepOrder() != null
+                            && s.getStepOrder().equals(currentOrder) 
                             && "PENDING".equals(s.getStatus()) 
+                            && s.getAssigneeId() != null
                             && s.getAssigneeId().equals(approval.getRequesterId()))
                     .toList();
+
             
             if (!pendingAutoSteps.isEmpty()) {
                 for (ApprovalStep step : pendingAutoSteps) {
