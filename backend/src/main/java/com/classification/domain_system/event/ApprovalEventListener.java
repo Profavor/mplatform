@@ -101,23 +101,6 @@ public class ApprovalEventListener {
                 return;
             }
 
-            if (notificationService != null && approval.getRequesterId() != null) {
-                try {
-                    String actionLabel = resolveActionLabel(approval.getTargetType());
-                    String domainName = resolveDomainName(approval);
-                    String classificationName = resolveClassificationName(approval);
-                    notificationService.createNotification(
-                            approval.getRequesterId(),
-                            "@i18n:notifications.approval_step_approved",
-                            buildStepApprovedMessage(actionLabel, approvedStep.getStepOrder(), domainName, classificationName),
-                            "APPROVAL",
-                            "/approvals?requestId=" + approval.getId()
-                    );
-                } catch (Exception ex) {
-                    log.warn("Failed to create approval notification for requester {}", approval.getRequesterId(), ex);
-                }
-            }
-
             boolean allApproved = approval.getSteps().stream()
                     .filter(s -> s.getStepOrder().equals(approval.getCurrentStepOrder()))
                     .allMatch(s -> "APPROVED".equals(s.getStatus()));
@@ -130,6 +113,23 @@ public class ApprovalEventListener {
                         .orElse(null);
                         
                 if (nextOrder != null) {
+                    if (notificationService != null && approval.getRequesterId() != null) {
+                        try {
+                            String actionLabel = resolveActionLabel(approval.getTargetType());
+                            String domainName = resolveDomainName(approval);
+                            String classificationName = resolveClassificationName(approval);
+                            notificationService.createNotification(
+                                    approval.getRequesterId(),
+                                    "@i18n:notifications.approval_step_approved",
+                                    buildStepApprovedMessage(actionLabel, approvedStep.getStepOrder(), domainName, classificationName),
+                                    "APPROVAL",
+                                    "/approvals?requestId=" + approval.getId()
+                            );
+                        } catch (Exception ex) {
+                            log.warn("Failed to create approval notification for requester {}", approval.getRequesterId(), ex);
+                        }
+                    }
+
                     approval.getSteps().stream()
                             .filter(s -> s.getStepOrder().equals(nextOrder))
                             .forEach(s -> s.setStatus("PENDING"));
@@ -172,6 +172,7 @@ public class ApprovalEventListener {
                     }
                 }
             }
+
             broadcastApprovalStatusChange(approval, "UPDATED");
         } catch (org.springframework.orm.ObjectOptimisticLockingFailureException | jakarta.persistence.OptimisticLockException e) {
             log.warn("Concurrent modification detected for ApprovalRequest ID: {}. Another thread already advanced or finalized this request.", requestFromEvent.getId());

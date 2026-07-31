@@ -16,6 +16,9 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.util.Map;
 import java.util.UUID;
 
+import com.classification.domain_system.security.JwtUtil;
+import io.jsonwebtoken.Claims;
+
 @RestController
 @RequestMapping("/api/notifications")
 @RequiredArgsConstructor
@@ -24,6 +27,7 @@ public class NotificationController {
     private final NotificationService notificationService;
     private final SseNotificationService sseNotificationService;
     private final AuthContext authContext;
+    private final JwtUtil jwtUtil;
 
     private String getCurrentUserId(String paramUserId) {
         if (paramUserId != null && !paramUserId.isBlank()) {
@@ -84,8 +88,39 @@ public class NotificationController {
     }
 
     @GetMapping("/subscribe")
-    public SseEmitter subscribe(@RequestParam(required = false) String userId) {
-        String currentUserId = getCurrentUserId(userId);
+    public SseEmitter subscribe(@RequestParam(required = false) String userId, @RequestParam(required = false) String token) {
+        String currentUserId = userId;
+        String currentUsername = null;
+
+        if (token != null && !token.isBlank() && jwtUtil != null && jwtUtil.isTokenValid(token)) {
+            try {
+                Claims claims = jwtUtil.extractAllClaims(token);
+                if (currentUserId == null || currentUserId.isBlank()) {
+                    currentUserId = (String) claims.get("userId");
+                    if (currentUserId == null || currentUserId.isBlank()) {
+                        currentUserId = (String) claims.get("uuid");
+                    }
+                }
+                currentUsername = claims.getSubject();
+            } catch (Exception ignored) {}
+        }
+
+        if (currentUserId == null || currentUserId.isBlank()) {
+            try {
+                currentUserId = getCurrentUserId(userId);
+            } catch (Exception e) {
+                if (currentUsername != null) {
+                    currentUserId = currentUsername;
+                } else {
+                    throw e;
+                }
+            }
+        }
+
+        if (currentUsername != null && !currentUsername.equals(currentUserId)) {
+            sseNotificationService.subscribe(currentUsername);
+        }
+
         return sseNotificationService.subscribe(currentUserId);
     }
 }

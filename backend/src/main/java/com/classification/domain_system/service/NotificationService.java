@@ -46,6 +46,10 @@ public class NotificationService {
         if (sseNotificationService != null) {
             try {
                 sseNotificationService.sendNotification(userId, saved);
+                User targetUser = userRepository.findById(userId).orElse(null);
+                if (targetUser != null && targetUser.getUsername() != null && !targetUser.getUsername().equals(userId)) {
+                    sseNotificationService.sendNotification(targetUser.getUsername(), saved);
+                }
             } catch (Exception e) {
                 log.error("Failed to push SSE notification for user {}", userId, e);
             }
@@ -54,6 +58,10 @@ public class NotificationService {
         if (webSocketPublisher != null) {
             try {
                 webSocketPublisher.publishNotification(userId, saved);
+                User targetUser = userRepository.findById(userId).orElse(null);
+                if (targetUser != null && targetUser.getUsername() != null && !targetUser.getUsername().equals(userId)) {
+                    webSocketPublisher.publishNotification(targetUser.getUsername(), saved);
+                }
             } catch (Exception e) {
                 log.error("Failed to push WebSocket notification for user {}", userId, e);
             }
