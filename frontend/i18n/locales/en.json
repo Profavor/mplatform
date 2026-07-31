@@ -860,6 +860,11 @@
     "radioPlaylistTitlePlaceholder": "e.g.: 🎧 My YouTube Music Playlist",
     "radioPlayingNow": "Currently Live Broadcasting",
     "radioDjBadge": "DJ",
-    "radioListenBtn": "Listen to Radio"
+    "radioListenBtn": "Listen to Radio",
+    "translateMessage": "🌐 Translate Message",
+    "hideTranslation": "🌐 Hide Translation",
+    "translating": "Translating...",
+    "translationResult": "Translation",
+    "translationError": "Failed to translate message."
   }
 }

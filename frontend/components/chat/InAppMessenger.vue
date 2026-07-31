@@ -105,7 +105,21 @@
                 }"
               >
                 <!-- TEXT & EMOJI -->
-                <span v-if="msg.messageType === 'TEXT' || msg.messageType === 'EMOJI'">{{ msg.content }}</span>
+                <div v-if="msg.messageType === 'TEXT' || msg.messageType === 'EMOJI'">
+                  <span>{{ msg.content }}</span>
+                  <!-- Translation Result Box -->
+                  <div v-if="msg.showTranslation" style="margin-top: 8px; padding: 6px 10px; background: rgba(0,0,0,0.15); border-left: 3px solid #60a5fa; border-radius: 4px; font-size: 0.82rem; color: inherit;">
+                    <div style="font-size: 0.68rem; opacity: 0.85; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+                      <span>🌐 {{ $t('messenger.translationResult') }}</span>
+                    </div>
+                    <div v-if="msg.isTranslating" style="font-style: italic; opacity: 0.7; margin-top: 2px;">
+                      {{ $t('messenger.translating') }}
+                    </div>
+                    <div v-else style="margin-top: 2px;">
+                      {{ msg.translatedText }}
+                    </div>
+                  </div>
+                </div>
                 
                 <!-- IMAGE -->
                 <div v-else-if="msg.messageType === 'IMAGE'">
@@ -216,8 +230,11 @@
     <div
       v-if="contextMenu.show"
       class="chat-context-menu"
-      :style="{ position: 'fixed', top: contextMenu.y + 'px', left: contextMenu.x + 'px', zIndex: 9999, background: 'var(--va-background-element)', border: '1px solid var(--va-background-border)', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.25)', padding: '4px 0', minWidth: '120px' }"
+      :style="{ position: 'fixed', top: contextMenu.y + 'px', left: contextMenu.x + 'px', zIndex: 9999, background: 'var(--va-background-element)', border: '1px solid var(--va-background-border)', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.25)', padding: '4px 0', minWidth: '130px' }"
     >
+      <div v-if="contextMenu.msg && (contextMenu.msg.messageType === 'TEXT' || contextMenu.msg.messageType === 'EMOJI')" style="padding: 8px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.85rem;" @click="toggleTranslateMsg">
+        <va-icon name="g_translate" size="16px" color="primary" /> {{ contextMenu.msg.showTranslation ? $t('messenger.hideTranslation') : $t('messenger.translateMessage') }}
+      </div>
       <div style="padding: 8px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.85rem;" @click="copyMsgContent">
         <va-icon name="content_copy" size="16px" /> {{ $t('messenger.contextCopy') }}
       </div>
@@ -416,6 +433,34 @@ const searchFilteredUsers = computed(() => {
     return !q || name.includes(q) || role.includes(q)
   })
 })
+
+const toggleTranslateMsg = async () => {
+  const msg = contextMenu.value.msg
+  contextMenu.value.show = false
+  if (!msg || !msg.content) return
+
+  if (msg.showTranslation) {
+    msg.showTranslation = false
+    return
+  }
+
+  msg.showTranslation = true
+  if (msg.translatedText) return
+
+  msg.isTranslating = true
+  try {
+    const res: any = await $fetch('/api/chat/translate', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${tokenCookie.value}` },
+      body: { text: msg.content }
+    })
+    msg.translatedText = res?.translated || msg.content
+  } catch (e) {
+    msg.translatedText = t('messenger.translationError')
+  } finally {
+    msg.isTranslating = false
+  }
+}
 
 const quickEmojis = ['👍', '❤️', '😂', '🎉', '🔥', '✅', '🙏']
 

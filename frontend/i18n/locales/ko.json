@@ -858,6 +858,11 @@
     "radioPlaylistTitlePlaceholder": "예: 🎧 내 유튜브 뮤직 힐링 리스트",
     "radioPlayingNow": "현재 라이브 방송 중",
     "radioDjBadge": "DJ",
-    "radioListenBtn": "라디오 듣기"
+    "radioListenBtn": "라디오 듣기",
+    "translateMessage": "🌐 번역하기",
+    "hideTranslation": "🌐 번역 접기",
+    "translating": "번역 중...",
+    "translationResult": "번역",
+    "translationError": "번역 처리 중 에러가 발생했습니다."
   }
 }
