@@ -12,10 +12,10 @@ FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN mkdir -p /app/uploads && chown -R appuser:appgroup /app
 
-COPY --from=builder /app/target/*.jar app.jar
+COPY --from=builder --chown=appuser:appgroup /app/target/*.jar app.jar
 
-# JVM 메모리를 Render Free 플랜(512MB) 한도 내인 256MB로 제한하는 옵션
 ENV JAVA_OPTS="-Xms128m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:+UseSerialGC"
 ENV PORT=8080
 EXPOSE 8080

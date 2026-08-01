@@ -31,12 +31,23 @@ public class LocalStorageService implements FileStorageService {
     private final Path fileStorageLocation;
 
     public LocalStorageService(@Value("${file.upload-dir:./uploads}") String uploadDir) {
-        this.fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
+        Path location;
         try {
-            Files.createDirectories(this.fileStorageLocation);
+            location = Paths.get(uploadDir).toAbsolutePath().normalize();
+            if (!Files.exists(location)) {
+                Files.createDirectories(location);
+            }
         } catch (Exception ex) {
-            throw new BusinessException(ErrorCode.UPLOAD_DIR_FAIL, "Could not create directory for upload: " + uploadDir);
+            try {
+                location = Paths.get(System.getProperty("java.io.tmpdir"), "uploads").toAbsolutePath().normalize();
+                if (!Files.exists(location)) {
+                    Files.createDirectories(location);
+                }
+            } catch (Exception e) {
+                location = Paths.get("./uploads").toAbsolutePath().normalize();
+            }
         }
+        this.fileStorageLocation = location;
     }
 
     private String calculateHash(MultipartFile file) throws NoSuchAlgorithmException, IOException {
