@@ -20,7 +20,7 @@ spring:
       - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
 
 jwt:
-  secret: ${JWT_SECRET:super_secret_key_for_mplatform_jwt_token_system_minimum_32_bytes_length_required}
+  secret: ${JWT_SECRET}
   access-token-expiration-sec: ${JWT_ACCESS_EXPIRATION_SEC:1800}
   refresh-token-expiration-sec: ${JWT_REFRESH_EXPIRATION_SEC:172800}
 
