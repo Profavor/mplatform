@@ -20,9 +20,9 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
 
-# Copy built server output from builder
-COPY --from=builder /app/.output ./.output
+# Copy full built output bundle to absolute working directory
+COPY --from=builder /app/.output /app/.output
 
 EXPOSE 3000
 
-CMD ["node", ".output/server/index.mjs"]
+CMD ["node", "/app/.output/server/index.mjs"]
