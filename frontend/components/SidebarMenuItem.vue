@@ -4,7 +4,7 @@
                    :active="$route.path === menu.path" 
                    :to="menu.path"
                    class="sidebar-item"
-                   :style="{ paddingLeft: `${depth * 1.5 + 1}rem !important` }">
+                   :style="{ paddingLeft: `${depth * 0.8 + 0.8}rem !important` }">
     <va-sidebar-item-content>
       <va-icon :name="menu.icon || 'circle'" :size="depth > 0 ? 'small' : 'medium'" />
       <va-sidebar-item-title style="margin-left: 0.5rem;">
@@ -19,7 +19,7 @@
       <template #header>
         <va-sidebar-item>
           <va-sidebar-item-content style="display: flex; justify-content: space-between; align-items: center; width: 100%;"
-                                   :style="{ paddingLeft: `${depth * 1.5 + 1}rem !important` }">
+                                   :style="{ paddingLeft: `${depth * 0.8 + 0.8}rem !important` }">
             <div style="display: flex; align-items: center;">
               <va-icon :name="menu.icon || 'folder'" :size="depth > 0 ? 'small' : 'medium'" />
               <va-sidebar-item-title style="margin-left: 0.5rem;">

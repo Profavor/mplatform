@@ -143,7 +143,7 @@
       </template>
       
       <template #left>
-        <va-sidebar v-model="showSidebar" :minimized="false" class="responsive-sidebar" :class="{ 'dark-theme-sidebar': isDark }">
+        <va-sidebar v-model="showSidebar" width="18.5rem" :minimized="false" class="responsive-sidebar" :class="{ 'dark-theme-sidebar': isDark }">
           <SidebarMenuItem v-for="menu in filteredMenus" :key="menu.id" :menu="menu" />
         </va-sidebar>
       </template>
@@ -556,8 +556,17 @@ body {
 .short-title { display: none; }
 
 /* Minimalist Flat Sidebar Navigation UI */
+.responsive-sidebar,
 .va-sidebar {
   border-right: 1px solid var(--va-background-border);
+  width: 18.5rem !important;
+  min-width: 18.5rem !important;
+  overflow-x: hidden !important;
+}
+.va-sidebar-item-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .va-sidebar-item {
   margin: 0 !important;
