@@ -23,9 +23,9 @@ services:
       - key: DB_PASSWORD
         sync: false
       - key: JWT_SECRET
-        generateValue: true
+        sync: false
       - key: ENCRYPTION_SECRET_KEY
-        generateValue: true
+        sync: false
 
   # Frontend Web Service (Nuxt 3 Node 24 SSR Docker)
   - type: web
