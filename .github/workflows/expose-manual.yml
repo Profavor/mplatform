@@ -1,0 +1,59 @@
+name: Expose servers for manual testing
+
+on:
+  workflow_dispatch:
+
+jobs:
+  expose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v3
+
+      # 빌드/서버 준비 (예시: mvnw로 스프링 부트 실행)
+      - name: Make mvnw executable
+        run: chmod +x backend/mvnw
+
+      - name: Start backend
+        run: |
+          cd backend
+          ./mvnw -DskipTests spring-boot:run > server.log 2>&1 & echo $! > ../backend.pid
+        shell: bash
+
+      # (선택) 프론트도 빌드/스타트
+      - name: Start frontend
+        run: |
+          cd frontend
+          npm ci
+          # 프론트가 dev 서버를 3000 포트로 바인딩한다고 가정
+          npm run start > frontend.log 2>&1 & echo $! > ../frontend.pid
+        shell: bash
+
+      # ngrok 설치 및 인증
+      - name: Install ngrok
+        run: |
+          curl -sLo ngrok.zip https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip
+          unzip ngrok.zip
+          sudo mv ngrok /usr/local/bin/ngrok
+      - name: Authenticate ngrok
+        env:
+          NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
+        run: |
+          ngrok authtoken "$NGROK_TOKEN"
+
+      # ngrok 터널 시작 (백엔드 8080)
+      - name: Start ngrok for backend
+        run: |
+          ngrok http 8080 --log=stdout > ngrok-backend.log 2>&1 &
+          # 대기 후 터널 정보 조회
+          sleep 3
+          curl --silent http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[0].public_url' > backend-url.txt
+          echo "BACKEND_URL=$(cat backend-url.txt)"
+      - name: Show backend URL
+        run: cat backend-url.txt
+
+      # 대기: 테스트할 시간(예: 30분). 테스트 끝나면 workflow를 취소하세요.
+      - name: Keep job alive for manual testing
+        run: |
+          echo "Job will sleep for 30 minutes so you can test the site via the public URL above."
+          sleep 1800
