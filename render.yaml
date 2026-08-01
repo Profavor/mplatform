@@ -14,6 +14,8 @@ services:
         value: "-Xms128m -Xmx512m -XX:MaxMetaspaceSize=128m -XX:+UseSerialGC"
       - key: SPRING_PROFILES_ACTIVE
         value: prod
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://mplatform-frontend.onrender.com,http://localhost:3000"
       - key: DB_HOST
         sync: false
       - key: DB_PORT
@@ -43,8 +45,11 @@ services:
       - key: HOST
         value: 0.0.0.0
       - key: API_BASE_URL
-        sync: false
+        value: https://mplatform-backend.onrender.com
       - key: NUXT_PUBLIC_API_BASE
-        sync: false
+        value: https://mplatform-backend.onrender.com
+      - key: NUXT_PUBLIC_API_BASE_URL
+        value: https://mplatform-backend.onrender.com
       - key: NUXT_SESSION_PASSWORD
         sync: false
+

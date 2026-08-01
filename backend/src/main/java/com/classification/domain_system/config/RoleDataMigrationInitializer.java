@@ -46,13 +46,6 @@ public class RoleDataMigrationInitializer implements CommandLineRunner {
                 log.info("Migrated {} role(s) name from 'ADMIN' to 'ROLE_ADMIN'.", updatedRoles);
             }
 
-            // 4. menu 테이블의 required_role 'ADMIN' -> 'ROLE_ADMIN'
-            int updatedMenus = jdbcTemplate.update(
-                    "UPDATE menu SET required_role = 'ROLE_ADMIN' WHERE required_role = 'ADMIN'"
-            );
-            if (updatedMenus > 0) {
-                log.info("Migrated {} menu(s) required_role from 'ADMIN' to 'ROLE_ADMIN'.", updatedMenus);
-            }
 
             // 4-1. INTGRATION / INTGRATION_MANAGER -> INTEGRATION 오타 DB 통합 마이그레이션
             jdbcTemplate.update("DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM role WHERE name IN ('INTGRATION', 'INTEGRATION_MANAGER') AND organization_id IN (SELECT organization_id FROM role WHERE name = 'INTEGRATION'))");
@@ -81,13 +74,6 @@ public class RoleDataMigrationInitializer implements CommandLineRunner {
                 log.info("Migrated {} department_roles row(s) from 'ADMIN' to 'ROLE_ADMIN'.", updatedDeptRoles);
             }
 
-            // 7. department 레거시 role 컬럼: 'ADMIN' -> 'ROLE_ADMIN'
-            int updatedDeptLegacy = jdbcTemplate.update(
-                    "UPDATE department SET role = 'ROLE_ADMIN' WHERE role = 'ADMIN'"
-            );
-            if (updatedDeptLegacy > 0) {
-                log.info("Migrated {} department(s) legacy role from 'ADMIN' to 'ROLE_ADMIN'.", updatedDeptLegacy);
-            }
 
             // 8. menu_roles 1NF 테이블: 'ADMIN' -> 'ROLE_ADMIN'
             int updatedMenuRoles = jdbcTemplate.update(
