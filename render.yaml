@@ -10,6 +10,8 @@ services:
     envVars:
       - key: PORT
         value: 8080
+      - key: JAVA_OPTS
+        value: "-Xms128m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:+UseSerialGC"
       - key: SPRING_PROFILES_ACTIVE
         value: prod
       - key: DB_HOST
