@@ -28,8 +28,10 @@ public class ClassificationNodeController {
     
     @GetMapping("/tree")
     @PreAuthorize("hasPermission(null, 'node:read')")
-    public ResponseEntity<List<ClassificationNode>> getTree(@PathVariable UUID domainId) {
-        return ResponseEntity.ok(nodeService.getTree(domainId));
+    public ResponseEntity<List<ClassificationNode>> getTree(
+            @PathVariable UUID domainId,
+            @RequestParam(required = false) UUID axisId) {
+        return ResponseEntity.ok(nodeService.getTree(domainId, axisId));
     }
     
     @PutMapping("/{nodeId}")
@@ -39,5 +41,14 @@ public class ClassificationNodeController {
             @PathVariable UUID nodeId,
             @RequestBody ClassificationNodeRequest request) {
         return ResponseEntity.ok(nodeService.updateNode(domainId, nodeId, request));
+    }
+
+    @DeleteMapping("/{nodeId}")
+    @PreAuthorize("hasPermission(null, 'node:write')")
+    public ResponseEntity<Void> deleteNode(
+            @PathVariable UUID domainId,
+            @PathVariable UUID nodeId) {
+        nodeService.deleteNode(domainId, nodeId);
+        return ResponseEntity.noContent().build();
     }
 }

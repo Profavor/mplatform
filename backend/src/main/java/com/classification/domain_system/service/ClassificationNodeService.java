@@ -21,6 +21,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import lombok.RequiredArgsConstructor;
 
+import com.classification.domain_system.repository.ClassificationAxisRepository;
+import com.classification.domain_system.entity.ClassificationAxis;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -30,6 +33,7 @@ public class ClassificationNodeService {
     
     private final ClassificationNodeRepository nodeRepository;
     private final DomainRepository domainRepository;
+    private final ClassificationAxisRepository axisRepository;
 
     @Autowired(required = false)
     private WorkflowConfigRepository workflowConfigRepository;
@@ -95,6 +99,13 @@ public class ClassificationNodeService {
         node.setOrder(request.getOrder() != null ? request.getOrder() : 0);
         node.setIcon(request.getIcon());
         node.setIsDeleted(false);
+
+        if (request.getAxisId() != null) {
+            ClassificationAxis axis = axisRepository.findById(request.getAxisId()).orElse(null);
+            node.setAxis(axis);
+        } else if (parent != null && parent.getAxis() != null) {
+            node.setAxis(parent.getAxis());
+        }
         
         ClassificationNode savedNode = nodeRepository.save(node);
         recordSchemaChange(domainId, "NODE", savedNode.getId(), "CREATE", null, savedNode);
@@ -106,7 +117,7 @@ public class ClassificationNodeService {
         Domain domain = domainRepository.findById(domainId)
                 .orElseThrow(() -> new ResourceNotFoundException("Domain not found with id: " + domainId));
 
-        if (hasSchemaApproval(domainId)) {
+        if (request.getAxisId() == null && hasSchemaApproval(domainId)) {
             try {
                 java.util.Map<String, Object> changesMap = new java.util.HashMap<>();
                 changesMap.put("domainId", domainId);
@@ -123,8 +134,30 @@ public class ClassificationNodeService {
     }
     
     @Transactional(readOnly = true)
+    public List<ClassificationNode> getTree(UUID domainId, UUID axisId) {
+        List<ClassificationNode> roots;
+        if (axisId != null) {
+            roots = nodeRepository.findByDomain_IdAndAxis_IdAndParentIsNullAndIsDeletedFalseOrderByOrderAsc(domainId, axisId);
+        } else {
+            roots = nodeRepository.findByDomain_IdAndAxisIsNullAndParentIsNullAndIsDeletedFalseOrderByOrderAsc(domainId);
+        }
+        initializeChildrenRecursively(roots);
+        return roots;
+    }
+
+    private void initializeChildrenRecursively(List<ClassificationNode> nodes) {
+        if (nodes == null || nodes.isEmpty()) return;
+        for (ClassificationNode node : nodes) {
+            if (node.getChildren() != null) {
+                org.hibernate.Hibernate.initialize(node.getChildren());
+                initializeChildrenRecursively(node.getChildren());
+            }
+        }
+    }
+
+    @Transactional(readOnly = true)
     public List<ClassificationNode> getTree(UUID domainId) {
-        return nodeRepository.findByDomain_IdAndParentIsNullAndIsDeletedFalseOrderByOrderAsc(domainId);
+        return getTree(domainId, null);
     }
     
     @Transactional
@@ -159,7 +192,7 @@ public class ClassificationNodeService {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "Node does not belong to specified domain");
         }
 
-        if (hasSchemaApproval(domainId)) {
+        if (node.getAxis() == null && hasSchemaApproval(domainId)) {
             try {
                 java.util.Map<String, Object> changesMap = new java.util.HashMap<>();
                 changesMap.put("domainId", domainId);
@@ -172,5 +205,27 @@ public class ClassificationNodeService {
         }
 
         return updateNodeDirect(domainId, nodeId, request);
+    }
+
+    @Transactional
+    public void deleteNode(UUID domainId, UUID nodeId) {
+        ClassificationNode node = nodeRepository.findById(nodeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Node not found with id: " + nodeId));
+
+        if (!node.getDomain().getId().equals(domainId)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "Node does not belong to specified domain");
+        }
+
+        ClassificationNode beforeState = new ClassificationNode();
+        beforeState.setId(node.getId());
+        beforeState.setName(node.getName());
+        beforeState.setPath(node.getPath());
+        beforeState.setIsDeleted(false);
+
+        node.setIsDeleted(true);
+        node.setDeletedAt(java.time.LocalDateTime.now());
+        ClassificationNode savedNode = nodeRepository.save(node);
+
+        recordSchemaChange(domainId, "NODE", nodeId, "DELETE", beforeState, savedNode);
     }
 }

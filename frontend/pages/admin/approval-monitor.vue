@@ -1,14 +1,26 @@
 <template>
-  <div class="admin-container" style="display: flex; flex-direction: column; height: calc(100vh - 120px); padding-bottom: 2rem;">
-    <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 1.5rem;">{{ t('title') }}</h1>
+  <div class="admin-container" style="display: flex; flex-direction: column; gap: 1.25rem; height: calc(100vh - 120px); padding-bottom: 2rem;">
+    <!-- Top Action Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <va-icon name="fact_check" size="large" color="primary" />
+        <div>
+          <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+            {{ t('title') || '결재 진행 모니터링' }}
+            <va-badge text="Workflow" color="primary" size="small" />
+          </h2>
+          <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
+            {{ t('subtitle') || '모든 워크플로우 결재 건의 진행 상태, 단계별 승인 현황 및 이력을 통합 관리합니다.' }}
+          </span>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <va-button preset="outline" color="primary" icon="refresh" size="small" @click="refreshGrid">{{ t('refresh') || '새로고침' }}</va-button>
+      </div>
+    </div>
     
     <va-card style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
-      <va-card-title style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
-        <div>{{ t('subtitle') }}</div>
-        <div style="display: flex; align-items: center; gap: 1rem;">
-          <va-button preset="secondary" icon="refresh" size="small" @click="refreshGrid">{{ t('refresh') }}</va-button>
-        </div>
-      </va-card-title>
       
       <va-card-content style="flex: 1; display: flex; flex-direction: column; padding: 0; min-height: 0;">
         <div style="flex: 1; width: 100%; height: 100%;">

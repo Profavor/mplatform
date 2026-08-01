@@ -1,35 +1,31 @@
 <template>
-  <div class="survivorship-page p-4">
-    <!-- Top Banner Card -->
-    <va-card class="mb-4 header-card">
-      <va-card-content>
-        <div class="header-flex">
-          <div class="header-title-box">
-            <div class="icon-avatar">
-              <va-icon name="alt_route" color="primary" size="28px" />
-            </div>
-            <div>
-              <h1 class="page-title">
-                {{ $t('survivorship.title') || '서바이버십 규칙 관리' }}
-                <va-badge text="Admin" color="primary" class="ml-2" />
-              </h1>
-              <p class="page-subtitle">
-                {{ $t('survivorship.description') || '중복 레코드 병합 시 골든 레코드를 생성하기 위한 필드별 생존 우선순위 및 충돌 해결 전략을 설정합니다.' }}
-              </p>
-            </div>
-          </div>
+  <div style="display: flex; flex-direction: column; gap: 1.25rem; padding-bottom: 2rem; width: 100%;">
+    <!-- Top Action Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <va-icon name="published_with_changes" size="large" color="primary" />
+        <div>
+          <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+            {{ $t('survivorship.title') || '서바이버십 규칙 관리' }}
+            <va-badge text="Golden Record" color="primary" size="small" />
+          </h2>
+          <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
+            {{ $t('survivorship.description') || '중복 레코드 병합 시 골든 레코드를 생성하기 위한 필드별 생존 우선순위 및 충돌 해결 전략을 설정합니다.' }}
+          </span>
+        </div>
+      </div>
 
-          <!-- Controls Box -->
-          <div class="header-controls">
-            <va-select
-              v-model="selectedDomainId"
-              :options="domainOptions"
-              value-by="value"
-              text-by="text"
-              :placeholder="$t('survivorship.select_domain_placeholder') || '도메인을 선택하세요'"
-              class="domain-select"
-              @update:modelValue="onDomainChange"
-            />
+      <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <va-select
+          v-model="selectedDomainId"
+          :options="domainOptions"
+          value-by="value"
+          text-by="text"
+          :placeholder="$t('survivorship.select_domain_placeholder') || '도메인을 선택하세요'"
+          style="min-width: 220px;"
+          dense
+          @update:modelValue="onDomainChange"
+        />
             <va-button
               color="success"
               icon="add"
@@ -47,13 +43,11 @@
             >
               {{ $t('survivorship.save_settings') || '설정 저장' }}
             </va-button>
-          </div>
-        </div>
-      </va-card-content>
-    </va-card>
+      </div>
+    </div>
 
     <!-- Stats & Tip Banner (Shown when domain selected) -->
-    <div v-if="selectedDomainId" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+    <div v-if="selectedDomainId" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
       <va-card class="stat-card">
         <va-card-content class="stat-content">
           <va-icon name="rule" color="primary" size="32px" />
@@ -86,7 +80,7 @@
     </div>
 
     <!-- Info Guidance Banner -->
-    <va-alert color="info" outline class="mb-4">
+    <va-alert color="info" outline>
       <template #icon>
         <va-icon name="info" />
       </template>
@@ -97,7 +91,7 @@
     </va-alert>
 
     <!-- Rules Table Card -->
-    <va-card>
+    <va-card style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
       <va-card-title class="flex justify-between items-center">
         <div class="flex items-center gap-2 font-bold text-lg">
           <va-icon name="list_alt" color="primary" />
@@ -109,13 +103,14 @@
         </va-button>
       </va-card-title>
 
-      <va-card-content>
+      <va-card-content style="padding: 0;">
         <va-data-table
           :items="rules"
           :columns="columns"
           striped
           hoverable
           class="rules-table"
+          style="width: 100%;"
         >
           <!-- Priority Rank Badge -->
           <template #cell(priority)="{ rowData, rowIndex }">
@@ -353,8 +348,13 @@ onMounted(() => {
 
 <style scoped>
 .survivorship-page {
-  max-width: 1280px;
-  margin: 0 auto;
+  width: 100%;
+  height: 100%;
+  padding: 1.25rem 1.5rem;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .header-card {

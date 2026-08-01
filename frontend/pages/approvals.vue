@@ -1,8 +1,23 @@
 <template>
-  <div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-      <h1 style="font-size: 2rem; font-weight: bold;">{{ t('title') }}</h1>
-      <va-button preset="secondary" icon="refresh" @click="loadRequests">{{ t('refresh') }}</va-button>
+  <div style="display: flex; flex-direction: column; gap: 1.25rem; padding-bottom: 2rem;">
+    <!-- Top Action Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <va-icon name="assignment_turned_in" size="large" color="primary" />
+        <div>
+          <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+            {{ t('title') || '내 결재 요청 및 승인함' }}
+            <va-badge text="Approval Inbox" color="primary" size="small" />
+          </h2>
+          <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
+            {{ t('subtitle') || '본인이 제출한 결재 요청 목록 및 승인 대기 중인 결재 건을 확인하고 일괄 처리합니다.' }}
+          </span>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <va-button preset="outline" color="primary" icon="refresh" size="small" @click="loadRequests">{{ t('refresh') || '새로고침' }}</va-button>
+      </div>
     </div>
     
     <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
@@ -169,7 +184,8 @@ const isDark = computed(() => colors.currentPresetName.value === 'dark')
 
 const messages = {
   ko: {
-    title: '결재함',
+    title: '내 결재 요청 및 승인함',
+    subtitle: '본인이 제출한 결재 요청 목록 및 승인 대기 중인 결재 건을 확인하고 일괄 처리합니다.',
     refresh: '새로고침',
     allDone: '모든 결재/합의가 완료되었습니다.',
     noRequests: '현재 대기 중인 요청이 없습니다.',
@@ -237,6 +253,7 @@ const messages = {
   },
   en: {
     title: 'My Pending Approvals',
+    subtitle: 'View and batch process your submitted approval requests and pending approval items.',
     refresh: 'Refresh',
     allDone: 'All approvals/consensus are completed.',
     noRequests: 'There are no pending requests.',

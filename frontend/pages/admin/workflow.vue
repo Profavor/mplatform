@@ -60,7 +60,7 @@
             <va-icon name="search" size="small" color="secondary" />
           </template>
         </va-input>
-        <va-button preset="secondary" color="primary" icon="refresh" size="small" @click="fetchWorkflows">
+        <va-button preset="outline" color="primary" icon="refresh" size="small" @click="fetchWorkflows">
           {{ $t('refresh') || '새로고침' }}
         </va-button>
       </div>

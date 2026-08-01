@@ -1,7 +1,24 @@
 <template>
-  <div class="menu-logs-container">
-    <!-- Tab Navigation -->
-    <va-tabs v-model="activeTab" class="mb-4" style="border-bottom: 1px solid var(--va-background-border);">
+  <div style="display: flex; flex-direction: column; gap: 1.25rem; padding-bottom: 2rem;">
+    <!-- Top Action Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <va-icon name="terminal" size="large" color="primary" />
+        <div>
+          <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+            {{ $t('system_logs_title') || '시스템 감사 및 모니터링 로그' }}
+            <va-badge text="Audit & Logs" color="primary" size="small" />
+          </h2>
+          <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
+            {{ $t('system_logs_desc') || '메뉴 접근 이력, 로그인 로그, 시스템 에러 스택 트레이스 및 연계 채널 모니터링 현황을 감시합니다.' }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="menu-logs-container">
+      <!-- Tab Navigation -->
+      <va-tabs v-model="activeTab" class="mb-4" style="border-bottom: 1px solid var(--va-background-border);">
       <template #tabs>
         <va-tab name="access">Menu Access Logs</va-tab>
         <va-tab name="login">Login Logs</va-tab>
@@ -162,74 +179,101 @@
     <!-- 4. Integration Logs Tab -->
     <div v-if="activeTab === 'integration'">
       <va-card>
-        <va-card-title>
-          <div class="flex justify-between items-center w-full">
-            <h2 style="text-transform: none; font-size: 1.2rem; margin: 0; color: var(--va-dark);">Integration Monitoring Logs</h2>
-            <div class="flex items-center" style="gap: 1rem;">
-              <va-switch
-                v-model="isDlqOnly"
-                label="DLQ(Dead-Letter)만 보기"
-                color="danger"
-                size="small"
-                @update:modelValue="fetchIntegrationLogs(1)"
-              />
-              <va-button
-                v-if="isDlqOnly"
-                color="danger"
-                icon="refresh"
-                size="small"
-                :loading="isBulkRetrying"
-                @click="retryAllDlq"
-              >
-                DLQ 전체 재시도 (Retry All)
-              </va-button>
+        <!-- 프리미엄 헤더 영역 -->
+        <div class="integration-header">
+          <div class="integration-header-left">
+            <div class="integration-header-icon">
+              <va-icon name="hub" size="22px" color="primary" />
+            </div>
+            <div>
+              <div class="integration-header-title">Integration Monitoring Logs</div>
+              <div class="integration-header-sub">채널별 인테그레이션 이력 및 DLQ 재시도 현황</div>
+            </div>
+          </div>
+
+          <!-- 필터 컨트롤 그룹 -->
+          <div class="integration-toolbar">
+            <!-- 채널 필터 -->
+            <div class="toolbar-group">
+              <span class="toolbar-label">
+                <va-icon name="cable" size="14px" />
+                채널
+              </span>
               <va-select
                 v-model="selectedChannelId"
                 :options="channelOptions"
                 value-by="id"
                 text-by="name"
-                placeholder="모든 채널 (All Channels)"
+                placeholder="All Channels"
                 clearable
-                style="width: 220px"
+                size="small"
+                class="channel-select"
                 @update:modelValue="fetchIntegrationLogs(1)"
               />
-              <va-button icon="refresh" preset="secondary" @click="fetchIntegrationLogs(integrationCurrentPage)">Refresh</va-button>
             </div>
-          </div>
-        </va-card-title>
-        <va-card-content>
-          <va-data-table
-            :items="integrationLogs"
-            :columns="integrationColumns"
-            :loading="isIntegrationLoading"
-            striped
-            hoverable
-          >
-            <template #cell(direction)="{ rowData }">
-              <va-badge
-                :text="rowData.direction === 'INBOUND' ? ($t('integration.channels.inbound') || 'Inbound') : ($t('integration.channels.outbound') || 'Outbound')"
-                :color="rowData.direction === 'INBOUND' ? 'warning' : 'info'"
+
+            <!-- 구분선 -->
+            <div class="toolbar-divider" />
+
+            <!-- DLQ 토글 그룹 -->
+            <div class="toolbar-group dlq-group" :class="{ 'dlq-active': isDlqOnly }">
+              <va-icon name="warning_amber" size="16px" :color="isDlqOnly ? 'danger' : 'secondary'" />
+              <span class="toolbar-label" :style="isDlqOnly ? 'color: var(--va-danger);' : ''">DLQ Only</span>
+              <va-switch
+                v-model="isDlqOnly"
+                color="danger"
+                size="small"
+                @update:modelValue="fetchIntegrationLogs(1)"
               />
-            </template>
-            <template #cell(status)="{ rowData }">
-              <va-badge
-                :text="rowData.status"
-                :color="rowData.status === 'SUCCESS' ? 'success' : 'danger'"
-              />
-            </template>
-            <template #cell(actions)="{ rowData }">
-              <va-button preset="plain" icon="visibility" @click="viewIntegrationDetails(rowData)" />
-            </template>
-          </va-data-table>
-          
-          <!-- Pagination -->
-          <div class="flex justify-center mt-4" v-if="integrationTotalPages > 0">
-            <va-pagination
-              v-model="integrationCurrentPage"
-              :pages="integrationTotalPages"
-              :visible-pages="5"
-              @update:modelValue="onIntegrationPageChange"
+            </div>
+
+            <!-- DLQ 전체 재시도 버튼 (조건부) -->
+            <transition name="slide-fade">
+              <va-button
+                v-if="isDlqOnly"
+                color="danger"
+                icon="replay"
+                size="small"
+                :loading="isBulkRetrying"
+                class="retry-all-btn"
+                @click="retryAllDlq"
+              >
+                Retry All
+              </va-button>
+            </transition>
+
+            <!-- 구분선 -->
+            <div class="toolbar-divider" />
+
+            <!-- 새로고침 -->
+            <va-button
+              preset="secondary"
+              icon="refresh"
+              size="small"
+              class="refresh-btn"
+              title="새로고침"
+              @click="fetchIntegrationLogs(integrationCurrentPage)"
             />
+          </div>
+        </div>
+
+        <va-card-content style="padding: 0;">
+          <div style="height: 560px; width: 100%;">
+            <client-only>
+              <ag-grid-vue
+                v-if="isMounted"
+                style="width: 100%; height: 100%;"
+                :theme="gridTheme"
+                :columnDefs="integrationColumnDefs"
+                :rowModelType="'serverSide'"
+                :serverSideDatasource="integrationDatasource"
+                :pagination="true"
+                :paginationPageSize="20"
+                :cacheBlockSize="20"
+                @grid-ready="onIntegrationGridReady"
+                @row-double-clicked="onIntegrationRowDoubleClicked"
+              />
+            </client-only>
           </div>
         </va-card-content>
       </va-card>
@@ -396,6 +440,7 @@
       </div>
     </va-modal>
   </div>
+</div>
 </template>
 
 <script setup>
@@ -822,31 +867,165 @@ const onRowDoubleClicked = (event) => {
 }
 
 // ----------------------------------------------------
-// 4. Integration Logs Data & Setup
+// 4. Integration Logs Data & Setup (AG-Grid Server-Side)
 // ----------------------------------------------------
-const integrationLogs = ref([])
+const integrationGridApi = ref(null)
 const channelOptions = ref([])
 const selectedChannelId = ref(null)
-const isIntegrationLoading = ref(false)
-const integrationCurrentPage = ref(1)
-const integrationTotalPages = ref(0)
 const isDlqOnly = ref(false)
 const isBulkRetrying = ref(false)
-
 const showIntegrationDetailsModal = ref(false)
 const selectedIntegrationLog = ref(null)
-
-const integrationColumns = [
-  { key: 'channelName', label: 'Channel', sortable: false },
-  { key: 'direction', label: 'Direction', sortable: false },
-  { key: 'eventType', label: 'Event', sortable: false },
-  { key: 'status', label: 'Status', sortable: false },
-  { key: 'retryCount', label: 'Retry Count', sortable: false },
-  { key: 'createdAt', label: 'Logged At', sortable: false },
-  { key: 'actions', label: 'Details', width: '100px' }
-]
-
 const rawChannels = ref([])
+
+// 더블클릭 → 상세 모달
+const onIntegrationRowDoubleClicked = (event) => {
+  if (event.data) {
+    selectedIntegrationLog.value = event.data
+    showIntegrationDetailsModal.value = true
+  }
+}
+
+const viewIntegrationDetails = (log) => {
+  selectedIntegrationLog.value = log
+  showIntegrationDetailsModal.value = true
+}
+
+const onIntegrationGridReady = (params) => {
+  integrationGridApi.value = params.api
+}
+
+// AG-Grid 컬럼 정의
+const integrationColumnDefs = ref([
+  {
+    headerName: 'Channel',
+    field: 'channelName',
+    flex: 1.2,
+    valueGetter: (params) => {
+      if (!params.data) return ''
+      const channel = rawChannels.value.find(c => c.id === params.data.channelId)
+      return channel ? getMultilingualText(channel.name, locale.value) : 'Unknown'
+    }
+  },
+  {
+    headerName: 'Direction',
+    field: 'direction',
+    width: 110,
+    valueGetter: (params) => {
+      if (!params.data) return ''
+      const channel = rawChannels.value.find(c => c.id === params.data.channelId)
+      return channel?.direction || params.data.direction || 'OUTBOUND'
+    },
+    cellRenderer: (params) => {
+      if (!params.value) return ''
+      const isInbound = params.value === 'INBOUND'
+      const color = isInbound ? '#f59e0b' : '#3b82f6'
+      const label = isInbound ? 'Inbound' : 'Outbound'
+      return `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:600;background:${color}22;color:${color};border:1px solid ${color}44">${label}</span>`
+    }
+  },
+  { headerName: 'Event Type', field: 'eventType', flex: 1 },
+  {
+    headerName: 'Status',
+    field: 'status',
+    width: 110,
+    cellRenderer: (params) => {
+      if (!params.value) return ''
+      const isSuccess = params.value === 'SUCCESS'
+      const color = isSuccess ? '#22c55e' : '#ef4444'
+      return `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:600;background:${color}22;color:${color};border:1px solid ${color}44">${params.value}</span>`
+    }
+  },
+  { headerName: 'Retry', field: 'retryCount', width: 80 },
+  {
+    headerName: 'Logged At',
+    field: 'createdAt',
+    flex: 1.2,
+    valueFormatter: (params) => {
+      if (!params.value) return ''
+      return new Date(params.value).toLocaleString(locale.value === 'ko' ? 'ko-KR' : 'en-US')
+    }
+  },
+  {
+    headerName: 'Details',
+    field: 'id',
+    width: 90,
+    sortable: false,
+    cellRenderer: () => `<button style="background:none;border:none;cursor:pointer;color:var(--va-primary)" title="상세보기"><span class="material-icons" style="font-size:18px;vertical-align:middle">visibility</span></button>`,
+    onCellClicked: (params) => {
+      if (params.data) viewIntegrationDetails(params.data)
+    }
+  }
+])
+
+// AG-Grid 서버 사이드 데이터소스
+const integrationDatasource = {
+  getRows: async (params) => {
+    try {
+      const page = Math.floor(params.request.startRow / 20)
+      const query = new URLSearchParams({ page: String(page), size: '20' })
+      if (selectedChannelId.value) query.append('channelId', selectedChannelId.value)
+
+      const endpoint = isDlqOnly.value
+        ? `/api/admin/integration/logs/dead-letter?${query}`
+        : `/api/admin/integration/logs?${query}`
+
+      const data = await $fetch(endpoint, {
+        headers: { Authorization: `Bearer ${token.value}` }
+      })
+
+      const content = data.content || data || []
+      let lastRow = -1
+      if (content.length < 20) {
+        lastRow = params.request.startRow + content.length
+      } else if (data.totalElements) {
+        lastRow = data.totalElements
+      }
+
+      params.success({ rowData: content, rowCount: lastRow })
+    } catch (e) {
+      console.error('Failed to load integration logs:', e)
+      params.fail()
+    }
+  }
+}
+
+// 필터 변경 시 그리드 새로고침
+const fetchIntegrationLogs = (_page) => {
+  if (integrationGridApi.value) {
+    integrationGridApi.value.refreshServerSide({ purge: true })
+  }
+}
+
+const retryAllDlq = async () => {
+  isBulkRetrying.value = true
+  try {
+    const count = await $fetch('/api/admin/integration/logs/dead-letter/retry-all', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    init({ message: `DLQ 총 ${count || 0}건의 재시도가 상신되었습니다.`, color: 'success' })
+    fetchIntegrationLogs()
+  } catch (e) {
+    init({ message: 'DLQ 일괄 재시도 실패', color: 'danger' })
+  } finally {
+    isBulkRetrying.value = false
+  }
+}
+
+const retryIntegrationLog = async (logId) => {
+  try {
+    await $fetch(`/api/admin/integration/logs/${logId}/retry`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    init({ message: '재전송 요청이 완료되었습니다.', color: 'success' })
+    showIntegrationDetailsModal.value = false
+    fetchIntegrationLogs()
+  } catch (e) {
+    init({ message: '재전송 요청 중 오류가 발생했습니다.', color: 'danger' })
+  }
+}
 
 const fetchChannels = async () => {
   try {
@@ -863,92 +1042,12 @@ const fetchChannels = async () => {
   }
 }
 
-const fetchIntegrationLogs = async (pageIndex) => {
-  isIntegrationLoading.value = true
-  try {
-    const query = new URLSearchParams({
-      page: pageIndex > 0 ? pageIndex - 1 : 0,
-      size: 20
-    })
-    if (selectedChannelId.value) {
-      query.append('channelId', selectedChannelId.value)
-    }
-    
-    const endpoint = isDlqOnly.value
-      ? `/api/admin/integration/logs/dead-letter?${query.toString()}`
-      : `/api/admin/integration/logs?${query.toString()}`
-
-    const data = await $fetch(endpoint, {
-      headers: { Authorization: `Bearer ${token.value}` }
-    })
-    
-    const content = data.content || data || []
-    integrationLogs.value = content.map(log => {
-      const channel = rawChannels.value.find(c => c.id === log.channelId)
-      const rawName = channel ? channel.name : null
-      const direction = channel ? (channel.direction || 'OUTBOUND') : 'OUTBOUND'
-      return {
-        ...log,
-        direction,
-        channelName: rawName ? getMultilingualText(rawName, locale.value) : 'Unknown',
-        createdAt: new Date(log.createdAt).toLocaleString(locale.value === 'ko' ? 'ko-KR' : 'en-US')
-      }
-    })
-    integrationTotalPages.value = data.totalPages || 1
-    integrationCurrentPage.value = (data.number != null ? data.number + 1 : 1)
-  } catch (e) {
-    console.error('Failed to load integration logs:', e)
-  } finally {
-    isIntegrationLoading.value = false
-  }
-}
-
-const retryAllDlq = async () => {
-  isBulkRetrying.value = true
-  try {
-    const count = await $fetch('/api/admin/integration/logs/dead-letter/retry-all', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token.value}` }
-    })
-    init({ message: `DLQ 총 ${count || 0}건의 재시도가 상신되었습니다.`, color: 'success' })
-    fetchIntegrationLogs(1)
-  } catch (e) {
-    init({ message: 'DLQ 일괄 재시도 실패', color: 'danger' })
-  } finally {
-    isBulkRetrying.value = false
-  }
-}
-
-const onIntegrationPageChange = (page) => {
-  fetchIntegrationLogs(page)
-}
-
-const viewIntegrationDetails = (log) => {
-  selectedIntegrationLog.value = log
-  showIntegrationDetailsModal.value = true
-}
-
 const formatJson = (str) => {
   if (!str) return 'N/A'
   try {
     return JSON.stringify(JSON.parse(str), null, 2)
   } catch {
     return str
-  }
-}
-
-const retryIntegrationLog = async (logId) => {
-  try {
-    await $fetch(`/api/admin/integration/logs/${logId}/retry`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token.value}` }
-    })
-    init({ message: '재전송 요청이 완료되었습니다.', color: 'success' })
-    showIntegrationDetailsModal.value = false
-    fetchIntegrationLogs(integrationCurrentPage.value)
-  } catch (e) {
-    console.error('Failed to retry integration log:', e)
-    init({ message: '재전송 요청 중 오류가 발생했습니다.', color: 'danger' })
   }
 }
 
@@ -1251,5 +1350,127 @@ onMounted(async () => {
   padding: 1rem 1.75rem;
   background: var(--va-background-element, rgba(249, 250, 251, 0.5));
   border-top: 1px solid var(--va-background-border, #e5e7eb);
+}
+
+/* ───── Integration Logs 프리미엄 헤더 ───── */
+.integration-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem 1.25rem 0.85rem;
+  border-bottom: 1px solid var(--va-background-border);
+}
+
+.integration-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.integration-header-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(21, 78, 193, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.integration-header-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--va-text-primary);
+  line-height: 1.2;
+}
+
+.integration-header-sub {
+  font-size: 0.78rem;
+  color: var(--va-text-secondary);
+  margin-top: 2px;
+}
+
+/* ── 툴바 컨트롤 그룹 ── */
+.integration-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--va-background-element);
+  border: 1px solid var(--va-background-border);
+  border-radius: 10px;
+  padding: 0.4rem 0.75rem;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.toolbar-label {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--va-text-secondary);
+  white-space: nowrap;
+  transition: color 0.2s;
+}
+
+.channel-select {
+  width: 200px;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 22px;
+  background: var(--va-background-border);
+  margin: 0 0.25rem;
+}
+
+/* DLQ 활성화 상태 시각 피드백 */
+.dlq-group {
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  transition: background 0.25s, box-shadow 0.25s;
+}
+
+.dlq-group.dlq-active {
+  background: rgba(var(--va-danger-rgb, 229, 57, 53), 0.08);
+  box-shadow: 0 0 0 1px rgba(var(--va-danger-rgb, 229, 57, 53), 0.25);
+}
+
+.retry-all-btn {
+  animation: pop-in 0.2s ease;
+}
+
+.refresh-btn {
+  transition: transform 0.2s ease;
+}
+
+.refresh-btn:hover {
+  transform: rotate(45deg);
+}
+
+/* 슬라이드 인/아웃 애니메이션 */
+.slide-fade-enter-active {
+  transition: all 0.2s ease;
+}
+.slide-fade-leave-active {
+  transition: all 0.15s ease;
+}
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  opacity: 0;
+  transform: translateX(-6px);
+}
+
+@keyframes pop-in {
+  from { transform: scale(0.85); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
 }
 </style>

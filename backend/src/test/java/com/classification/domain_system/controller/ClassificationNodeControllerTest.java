@@ -22,6 +22,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -91,7 +92,7 @@ class ClassificationNodeControllerTest {
         node2.setName(Map.of("ko", "루트2"));
         node2.setDepth(1);
 
-        when(nodeService.getTree(domainId)).thenReturn(List.of(node1, node2));
+        when(nodeService.getTree(eq(domainId), any())).thenReturn(List.of(node1, node2));
 
         mockMvc.perform(get("/api/domains/{domainId}/nodes/tree", domainId))
                 .andExpect(status().isOk())
@@ -119,5 +120,16 @@ class ClassificationNodeControllerTest {
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name.ko").value("수정된 노드"));
+    }
+
+    @Test
+    @DisplayName("노드 삭제 성공 (DELETE API)")
+    void deleteNode_Success() throws Exception {
+        UUID nodeId = UUID.randomUUID();
+
+        doNothing().when(nodeService).deleteNode(domainId, nodeId);
+
+        mockMvc.perform(delete("/api/domains/{domainId}/nodes/{nodeId}", domainId, nodeId))
+                .andExpect(status().isNoContent());
     }
 }

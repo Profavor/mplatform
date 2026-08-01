@@ -1,10 +1,28 @@
 <template>
-  <div class="page-container">
-    <div class="page-header">
-      <h1 class="page-title">{{ $t('integration.channels.title') }}</h1>
-      <va-button color="primary" @click="openCreateModal">
-        <va-icon name="add" class="mr-2" /> {{ $t('integration.channels.add') }}
-      </va-button>
+  <div style="display: flex; flex-direction: column; gap: 1.25rem; padding-bottom: 2rem;">
+    <!-- Top Action Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <va-icon name="hub" size="large" color="primary" />
+        <div>
+          <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+            {{ $t('integration.channels.title') || '연계 채널 관리' }}
+            <va-badge text="Integration" color="primary" size="small" />
+          </h2>
+          <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
+            {{ $t('integration.channels.desc') || '외부 시스템과의 데이터 연동 파이프라인 및 인터페이스 채널 설정을 관리합니다.' }}
+          </span>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <va-button color="primary" icon="add" size="small" @click="openCreateModal">
+          {{ $t('integration.channels.add') || '신규 채널 등록' }}
+        </va-button>
+        <va-button preset="outline" color="primary" icon="refresh" size="small" @click="fetchChannels">
+          {{ $t('refresh') || '새로고침' }}
+        </va-button>
+      </div>
     </div>
 
     <!-- Channels Table -->

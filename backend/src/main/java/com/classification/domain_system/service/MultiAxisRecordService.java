@@ -8,6 +8,7 @@ import com.classification.domain_system.exception.ResourceNotFoundException;
 import com.classification.domain_system.repository.ClassificationNodeRepository;
 import com.classification.domain_system.repository.RecordRepository;
 import com.classification.domain_system.repository.RecordSecondaryNodeRepository;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ public class MultiAxisRecordService {
     private final RecordRepository recordRepository;
     private final ClassificationNodeRepository nodeRepository;
     private final RecordSecondaryNodeRepository secondaryNodeRepository;
+    private final EntityManager entityManager;
 
     @Transactional(readOnly = true)
     public List<RecordSecondaryNodeResponse> getSecondaryNodes(UUID recordId) {
@@ -45,8 +47,9 @@ public class MultiAxisRecordService {
         Record record = recordRepository.findById(recordId)
                 .orElseThrow(() -> new ResourceNotFoundException("Record not found with id: " + recordId));
 
-        // 기존 매핑 삭제
+        // 기존 매핑 삭제 후 즉시 flush → Unique Constraint(record_id, axis_id) 위반 방지
         secondaryNodeRepository.deleteByRecordId(recordId);
+        entityManager.flush();
 
         if (nodeIds == null || nodeIds.isEmpty()) {
             return List.of();

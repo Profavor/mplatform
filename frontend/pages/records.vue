@@ -1,5 +1,22 @@
 <template>
-  <div class="records-container records-layout">
+  <div style="display: flex; flex-direction: column; gap: 1rem; height: 100%; min-height: 0;">
+    <!-- Top Action Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 0.85rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04); flex: 0 0 auto;">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <va-icon name="dataset" size="large" color="primary" />
+        <div>
+          <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+            {{ $t('records_management') || '마스터 데이터 레코드 관리' }}
+            <va-badge text="Master Data" color="primary" size="small" />
+          </h2>
+          <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
+            {{ $t('records_management_desc') || '도메인별 마스터 데이터 레코드를 조회, 신규 생성, 일괄 변경 및 서바이버십 병합을 진행합니다.' }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="records-container records-layout" style="flex: 1; min-height: 0;">
     <!-- Left Column: Classification Tree -->
     <div class="left-tree records-tree-column">
       <h3 style="padding: 0.5rem; margin: 0; border-bottom: 1px solid #ddd; font-size: 1rem; font-weight: bold; color: #555; text-transform: uppercase;">
@@ -264,6 +281,7 @@
       @viewSnapshot="viewSnapshot"
       @viewApprovalHistory="viewApprovalHistory"
       @viewIntegrationHistory="viewIntegrationHistory"
+      @secondaryNodesUpdated="fetchRecords"
     />
 
     <!-- Dedicated Snapshot Modal -->
@@ -614,6 +632,7 @@
       </div>
     </va-modal>
   </div>
+</div>
 </template>
 
 <script setup>
@@ -1105,8 +1124,19 @@ const openRecordDetailModal = async (record) => {
 
   const data = processRecordDataWithFields(record.data, nodeFields.value)
 
-  selectedRecordData.value = data
-  originalRecordData.value = JSON.parse(JSON.stringify(data))
+  // 메타 필드(id, domainId, status 등)를 필드 데이터와 함께 병합
+  selectedRecordData.value = {
+    ...data,
+    id: record.id,
+    domainId: record.domainId,
+    status: record.status,
+    code: record.code,
+    node: record.node,
+    sourceSystem: record.sourceSystem,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt
+  }
+  originalRecordData.value = JSON.parse(JSON.stringify(selectedRecordData.value))
   isEditingRecord.value = false
   isSnapshotMode.value = false
   hasPendingUpdate.value = record.status === 'PENDING_APPROVAL' || false
@@ -2030,7 +2060,12 @@ const onRowDoubleClicked = (params) => {
 }
 
 const formatDataForSave = (dataObj) => {
-  const formatted = { ...dataObj }
+  // 메타 필드는 data 페이로드에서 제외
+  const META_FIELDS = new Set(['id', 'domainId', 'status', 'code', 'node', 'sourceSystem', 'createdAt', 'updatedAt'])
+  const formatted = {}
+  Object.keys(dataObj || {}).forEach(k => {
+    if (!META_FIELDS.has(k)) formatted[k] = dataObj[k]
+  })
   nodeFields.value?.forEach(field => {
     const val = formatted[field.key]
     if (val !== undefined && val !== null && val !== '') {

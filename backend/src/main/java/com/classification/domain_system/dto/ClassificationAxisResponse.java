@@ -1,6 +1,7 @@
 package com.classification.domain_system.dto;
 
 import com.classification.domain_system.entity.ClassificationAxis;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -19,6 +20,11 @@ public class ClassificationAxisResponse {
     private final Boolean isDefault;
     private final Integer sortOrder;
     private final LocalDateTime createdAt;
+
+    @JsonProperty("code")
+    public String getCode() {
+        return axisCode;
+    }
 
     public static ClassificationAxisResponse fromEntity(ClassificationAxis axis) {
         if (axis == null) return null;

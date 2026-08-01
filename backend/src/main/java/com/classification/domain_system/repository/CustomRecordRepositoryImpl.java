@@ -57,21 +57,28 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
             return new PageImpl<>(Collections.emptyList(), pageable != null ? pageable : Pageable.unpaged(), 0);
         }
 
-        StringBuilder nodeInClause = new StringBuilder("r.node_id IN (");
+        StringBuilder nodeInClause = new StringBuilder();
         for (int i = 0; i < nodeIds.size(); i++) {
             if (i > 0) nodeInClause.append(", ");
             nodeInClause.append(":nodeId_").append(i);
         }
-        nodeInClause.append(") ");
+
+        StringBuilder secondaryInClause = new StringBuilder();
+        for (int i = 0; i < nodeIds.size(); i++) {
+            if (i > 0) secondaryInClause.append(", ");
+            secondaryInClause.append(":secNodeId_").append(i);
+        }
+
+        String nodeWhereClause = "( r.node_id IN (" + nodeInClause + ") OR EXISTS (SELECT 1 FROM record_secondary_node rsn WHERE rsn.record_id = r.id AND rsn.node_id IN (" + secondaryInClause + ")) ) ";
 
         StringBuilder sql = new StringBuilder(
             "SELECT r.* FROM record r " +
-            "WHERE " + nodeInClause +
+            "WHERE " + nodeWhereClause +
             "AND r.status NOT IN ('REJECTED', 'MISMATCHED') "
         );
         StringBuilder countSql = new StringBuilder(
             "SELECT COUNT(*) FROM record r " +
-            "WHERE " + nodeInClause +
+            "WHERE " + nodeWhereClause +
             "AND r.status NOT IN ('REJECTED', 'MISMATCHED') "
         );
 
@@ -160,6 +167,8 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
         for (int i = 0; i < nodeIds.size(); i++) {
             query.setParameter("nodeId_" + i, nodeIds.get(i));
             countQuery.setParameter("nodeId_" + i, nodeIds.get(i));
+            query.setParameter("secNodeId_" + i, nodeIds.get(i));
+            countQuery.setParameter("secNodeId_" + i, nodeIds.get(i));
         }
 
         if (status != null && !status.isEmpty()) {

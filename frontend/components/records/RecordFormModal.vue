@@ -222,7 +222,8 @@
                   text-by="label"
                   multiple
                   searchable
-                  placeholder="노드 선택 (Select nodes)"
+                  :placeholder="getNodesForAxis(axis.id).length > 0 ? '노드 선택 (Select nodes)' : '등록된 축 노드 없음 (No nodes registered)'"
+                  :disabled="getNodesForAxis(axis.id).length === 0"
                 />
               </div>
             </div>
@@ -534,27 +535,40 @@ const evaluateConditionExpression = (expr, formData) => {
   }
 }
 
-// Fetch Axes and Nodes
+// Fetch Axes and Nodes (Per-axis independent trees)
 const fetchAxesAndNodes = async () => {
   if (!props.selectedDomainInfo?.id) return
   try {
     const domainId = props.selectedDomainInfo.id
-    const [axesRes, nodesRes] = await Promise.all([
-      $fetch(`/api/domains/${domainId}/axes`),
-      $fetch(`/api/domains/${domainId}/nodes/tree`)
-    ])
+    const axesRes = await $fetch(`/api/domains/${domainId}/axes`)
     axesList.value = axesRes || []
     
-    // Flatten tree
     const flat = []
-    const flatten = (nodes) => {
+    const flattenTree = (nodes, depth = 0) => {
       if (!nodes) return
       nodes.forEach(n => {
-        flat.push(n)
-        if (n.children && n.children.length > 0) flatten(n.children)
+        const indent = depth > 0 ? '└ '.repeat(depth) : ''
+        const nameStr = typeof n.name === 'object' && n.name !== null ? (n.name.ko || n.name.en || Object.values(n.name)[0] || 'Unnamed') : (n.name || 'Unnamed')
+        flat.push({
+          id: n.id,
+          axisId: n.axisId,
+          depth,
+          rawName: nameStr,
+          label: `${indent}${nameStr}`
+        })
+        if (n.children && n.children.length > 0) {
+          flattenTree(n.children, depth + 1)
+        }
       })
     }
-    flatten(nodesRes)
+
+    // Fetch tree for primary domain nodes + each secondary axis
+    const treePromises = [
+      $fetch(`/api/domains/${domainId}/nodes/tree`),
+      ...axesList.value.map(a => $fetch(`/api/domains/${domainId}/nodes/tree?axisId=${a.id}`))
+    ]
+    const treeResults = await Promise.all(treePromises)
+    treeResults.forEach(tree => flattenTree(tree))
     allNodes.value = flat
 
     // Initialize selections if editing
@@ -579,7 +593,7 @@ const getNodesForAxis = (axisId) => {
     .filter(n => n.axisId === axisId)
     .map(n => ({
       id: n.id,
-      label: n.name?.ko || n.name?.en || n.name || 'Unnamed'
+      label: n.label
     }))
 }
 

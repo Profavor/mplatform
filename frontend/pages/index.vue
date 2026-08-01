@@ -1,16 +1,17 @@
 <template>
-  <div class="dashboard-container">
-    <!-- Header Banner -->
-    <div class="dashboard-header-card">
-      <div class="header-content">
-        <div class="header-title-group">
-          <div class="header-icon-wrapper">
-            <va-icon name="dashboard" size="2rem" color="primary" />
-          </div>
-          <div>
-            <h1 class="header-title">{{ t('dashboard') }}</h1>
-            <p class="header-subtitle">{{ t('dashboard_subtitle') }}</p>
-          </div>
+  <div style="display: flex; flex-direction: column; gap: 1.25rem; padding-bottom: 2rem;">
+    <!-- Top Action Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <va-icon name="dashboard" size="large" color="primary" />
+        <div>
+          <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+            {{ t('dashboard') || '통합 대시보드' }}
+            <va-badge text="Overview" color="primary" size="small" />
+          </h2>
+          <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
+            {{ t('dashboard_subtitle') || '마스터 데이터 거버넌스 종합 현황, 품질 진단 지표 및 핵심 연계 상태를 관제합니다.' }}
+          </span>
         </div>
       </div>
     </div>

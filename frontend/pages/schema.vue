@@ -1,6 +1,20 @@
 <template>
-  <div style="display: flex; flex-direction: column; height: 100%; min-height: 0;">
-    <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 1.5rem; flex: 0 0 auto;">{{ $t('domain_schema_title') || 'Domain Schema Management' }}</h1>
+  <div style="display: flex; flex-direction: column; gap: 1.25rem; height: 100%; min-height: 0;">
+    <!-- Top Action Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04); flex: 0 0 auto;">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <va-icon name="schema" size="large" color="primary" />
+        <div>
+          <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+            {{ $t('domain_schema_title') || '도메인 스키마 관리' }}
+            <va-badge text="Governance" color="primary" size="small" />
+          </h2>
+          <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
+            {{ $t('domain_schema_desc') || '분류체계 트리 구조 기반으로 도메인 모델, 속성(Attribute) 및 데이터 타입을 정의합니다.' }}
+          </span>
+        </div>
+      </div>
+    </div>
     
     <div class="schema-layout" style="flex: 1; min-height: 0;">
       <!-- Tree Column -->
@@ -431,18 +445,6 @@
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- Submission Reason (Comment) Input -->
-      <div style="margin-top: 1rem;">
-        <va-textarea
-          v-model="newField.reason"
-          :label="$t('schema_reason') || '상신 사유 (의견)'"
-          :placeholder="$t('schema_reason_placeholder') || '스키마 변경 사유를 상세히 작성해 주세요.'"
-          class="w-full"
-          rows="2"
-          :disabled="hasPendingSchemaApproval"
-        />
       </div>
 
       <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">

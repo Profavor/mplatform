@@ -1,39 +1,33 @@
 <template>
-  <div class="dq-dashboard-container">
-    <!-- Header Banner -->
-    <div class="dashboard-header-card">
-      <div class="header-content">
-        <div class="header-title-group">
-          <div class="header-icon-wrapper">
-            <va-icon name="analytics" size="2rem" color="primary" />
-          </div>
-          <div>
-            <h1 class="header-title">{{ $t('dq_dashboard_title') || 'Data Quality Dashboard' }}</h1>
-            <p class="header-subtitle">{{ $t('dq_dashboard_subtitle') || 'Real-time Master Data Governance & Integrity Monitoring' }}</p>
-          </div>
+  <div style="display: flex; flex-direction: column; gap: 1.25rem; padding-bottom: 2rem;">
+    <!-- Top Action Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <va-icon name="dashboard" size="large" color="primary" />
+        <div>
+          <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+            {{ $t('dq_dashboard_title') || '데이터 품질 진단 대시보드' }}
+            <va-badge text="Analytics" color="primary" size="small" />
+          </h2>
+          <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
+            {{ $t('dq_dashboard_subtitle') || '실시간 마스터 데이터 정합성, 오류율 및 품질 진단 지표를 모니터링합니다.' }}
+          </span>
         </div>
+      </div>
 
-        <div class="header-actions">
-          <va-select
-            v-model="selectedDomainId"
-            :options="domains"
-            label="Select Domain"
-            text-by="label"
-            value-by="value"
-            class="domain-select"
-            placeholder="도메인을 선택하세요"
-          />
-          <va-button
-            v-if="selectedDomainId"
-            icon="autorenew"
-            color="primary"
-            class="scan-btn"
-            :loading="scanning"
-            @click="triggerScan"
-          >
-            {{ $t('run_dq_scan') || 'Run DQ Scan' }}
-          </va-button>
-        </div>
+      <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <va-select
+          v-model="selectedDomainId"
+          :options="domains"
+          text-by="label"
+          value-by="value"
+          style="min-width: 220px;"
+          dense
+          placeholder="도메인을 선택하세요"
+        />
+        <va-button preset="outline" color="primary" icon="refresh" size="small" :loading="loading" @click="fetchDashboardData">
+          {{ $t('refresh') || '새로고침' }}
+        </va-button>
       </div>
     </div>
 
@@ -680,6 +674,34 @@ watch(selectedDomainId, async (val) => {
     loading.value = false
   }
 })
+
+const fetchDashboardData = async () => {
+  if (!selectedDomainId.value) return
+  const domainId = typeof selectedDomainId.value === 'object' && selectedDomainId.value !== null
+    ? (selectedDomainId.value.value || selectedDomainId.value.id)
+    : selectedDomainId.value
+  if (!domainId) return
+
+  loading.value = true
+  try {
+    const headers = getHeaders()
+    await fetchDomainFields(domainId)
+    const [score, rules] = await Promise.all([
+      $fetch(`/api/domains/${domainId}/dq-score`, { headers }),
+      $fetch(`/api/domains/${domainId}/dq-rules-count`, { headers }).catch((e) => {
+        console.error('Failed to fetch dq-rules-count:', e)
+        return { count: 0 }
+      })
+    ])
+    scoreData.value = score
+    ruleCount.value = rules?.count ?? 0
+    await Promise.all([fetchViolations(), fetchRecentSnapshots(domainId)])
+  } catch (e) {
+    console.error('Failed to refresh DQ score:', e)
+  } finally {
+    loading.value = false
+  }
+}
 
 watch([violationPage, filterSeverity, filterFieldKey], () => {
   fetchViolations()

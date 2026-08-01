@@ -1,12 +1,20 @@
 <template>
-  <div style="display: flex; flex-direction: column; height: 100%; min-height: 0;">
-    <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem; flex: 0 0 auto; display: flex; align-items: center; gap: 0.75rem;">
-      <va-icon name="rule" color="primary" size="32px" />
-      {{ $t('dq_rules_management') || 'Data Quality Rules Management' }}
-    </h1>
-    <p style="color: var(--va-text-secondary); margin-bottom: 1.5rem; flex: 0 0 auto;">
-      {{ $t('dq_rules_desc') || 'Configure data quality rules applied to each field.' }}
-    </p>
+  <div style="display: flex; flex-direction: column; gap: 1.25rem; height: 100%; min-height: 0;">
+    <!-- Top Action Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04); flex: 0 0 auto;">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <va-icon name="gavel" size="large" color="primary" />
+        <div>
+          <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+            {{ $t('dq_rules_management') || '데이터 품질 검칙 관리' }}
+            <va-badge text="Quality" color="primary" size="small" />
+          </h2>
+          <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
+            {{ $t('dq_rules_desc') || '도메인 필드별 데이터 품질 검증 규칙 및 검사 파라미터를 설정합니다.' }}
+          </span>
+        </div>
+      </div>
+    </div>
 
     <div class="dq-rules-layout" style="flex: 1; min-height: 0; display: flex; gap: 1.5rem;">
       <!-- Tree Column -->

@@ -1,29 +1,31 @@
 <template>
-  <div style="display: flex; flex-direction: column; padding-bottom: 2rem; width: 100%;">
-    <!-- Header -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-      <div>
-        <h1 style="font-size: 1.8rem; font-weight: 800; color: var(--va-text-primary); margin: 0; display: flex; align-items: center; gap: 0.5rem;">
-          <va-icon name="corporate_fare" color="primary" size="2rem" />
-          {{ t('org_tenant_management') }}
-        </h1>
-        <p style="font-size: 0.88rem; color: var(--va-text-secondary); margin: 0.25rem 0 0 0;">
-          {{ t('org_management_desc') }}
-        </p>
+  <div style="display: flex; flex-direction: column; gap: 1.25rem; padding-bottom: 2rem; width: 100%;">
+    <!-- Top Action Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <va-icon name="corporate_fare" size="large" color="primary" />
+        <div>
+          <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+            {{ t('org_tenant_management') }}
+            <va-badge text="Tenant" color="primary" size="small" />
+          </h2>
+          <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
+            {{ t('org_management_desc') }}
+          </span>
+        </div>
       </div>
+
       <div style="display: flex; gap: 0.5rem; align-items: center;">
-        <va-button preset="secondary" icon="published_with_changes" color="warning" :loading="isSyncingRoles" @click="handleSyncDefaultRoles">
+        <va-button preset="outline" icon="published_with_changes" color="warning" size="small" :loading="isSyncingRoles" @click="handleSyncDefaultRoles">
           {{ $t('sync_default_roles') }}
         </va-button>
-        <va-button preset="secondary" icon="admin_panel_settings" @click="showPermMasterModal = true">
+        <va-button preset="outline" icon="admin_panel_settings" color="primary" size="small" @click="showPermMasterModal = true">
           {{ $t('perm_master_management') }}
         </va-button>
-        <va-button color="primary" icon="add" @click="openCreateOrgModal">
+        <va-button color="primary" icon="add" size="small" @click="openCreateOrgModal">
           {{ $t('create_organization') }}
         </va-button>
       </div>
-
-
     </div>
 
     <!-- Main Layout -->

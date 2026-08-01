@@ -1,12 +1,29 @@
 <template>
-  <div class="menus-admin-container">
-    <va-card>
-      <va-card-title>
-        <div class="d-flex justify-space-between align-center w-100">
-          <h2>{{ $t('menu_management') || '메뉴 관리' }}</h2>
-          <va-button icon="add" @click="openAddModal(null)">{{ $t('add_root_menu') || '+ Add Root Menu' }}</va-button>
+  <div style="display: flex; flex-direction: column; gap: 1.25rem; padding-bottom: 2rem;">
+    <!-- Top Action Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <va-icon name="menu_book" size="large" color="primary" />
+        <div>
+          <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+            {{ $t('menu_management') || '메뉴 관리' }}
+            <va-badge text="System" color="primary" size="small" />
+          </h2>
+          <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
+            {{ $t('menu_management_desc') || '시스템 전체 트리 메뉴 구조 및 권한별 접근 노드를 관리합니다.' }}
+          </span>
         </div>
-      </va-card-title>
+      </div>
+
+      <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <va-button icon="add" size="small" @click="openAddModal(null)">{{ $t('add_root_menu') || '+ 루트 메뉴 추가' }}</va-button>
+        <va-button preset="outline" color="primary" icon="refresh" size="small" @click="fetchMenus">
+          {{ $t('refresh') || '새로고침' }}
+        </va-button>
+      </div>
+    </div>
+
+    <va-card>
       <va-card-content>
         <div class="d-flex" style="gap: 2rem;">
           <!-- Menu Tree -->

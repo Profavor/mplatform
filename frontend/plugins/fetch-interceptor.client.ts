@@ -1,5 +1,5 @@
 import { translateBackendError } from '~/utils/errorTranslator'
-import { ofetch } from 'ofetch'
+import { ofetch, type FetchOptions } from 'ofetch'
 
 let isRefreshing = false
 let refreshPromise: Promise<string | null> | null = null
@@ -9,7 +9,7 @@ export default defineNuxtPlugin((nuxtApp) => {
   const accessMaxAge = Number(config.public.accessTokenExpirationSec || 1800)
   const refreshMaxAge = Number(config.public.refreshTokenExpirationSec || 172800)
 
-  const getCookieValue = (name: string) => {
+  const getCookieValue = (name: string): string | null => {
     if (!process.client) return null
     const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'))
     return match ? decodeURIComponent(match[2]) : null
@@ -23,8 +23,8 @@ export default defineNuxtPlugin((nuxtApp) => {
     }
   }
 
-  // Native pure fetch for refreshing tokens without any interceptor interference or Authorization headers
   const performTokenRefresh = async (refreshToken: string): Promise<string | null> => {
+    // 이미 리프레시 중이면 기존 프로미스 재사용 (중복 방지)
     if (isRefreshing && refreshPromise) {
       return await refreshPromise
     }
@@ -34,9 +34,7 @@ export default defineNuxtPlugin((nuxtApp) => {
       try {
         const response = await window.fetch('/api/auth/refresh', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refreshToken })
         })
 
@@ -46,15 +44,14 @@ export default defineNuxtPlugin((nuxtApp) => {
         }
 
         const res = await response.json()
-        if (res && res.token) {
+        if (res?.token) {
           setAuthCookies(res.token, res.refreshToken)
           return res.token
         }
         clearAuthCookies()
         return null
-      } catch (err) {
+      } catch {
         clearAuthCookies()
-        return null
         return null
       } finally {
         isRefreshing = false
@@ -65,93 +62,103 @@ export default defineNuxtPlugin((nuxtApp) => {
     return await refreshPromise
   }
 
-  const customFetch = ofetch.create({
-    async onRequest({ request, options }) {
-      if (!process.client) return
-      const reqUrl = request.toString()
+  const applyAuthHeader = (options: FetchOptions, token: string): FetchOptions => {
+    options.headers = options.headers || {}
+    if (options.headers instanceof Headers) {
+      options.headers.set('Authorization', `Bearer ${token}`)
+    } else if (Array.isArray(options.headers)) {
+      options.headers = (options.headers as [string, string][]).filter(([k]) => k.toLowerCase() !== 'authorization')
+      options.headers.push(['Authorization', `Bearer ${token}`])
+    } else {
+      (options.headers as Record<string, string>)['Authorization'] = `Bearer ${token}`
+    }
+    return options
+  }
 
-      if (reqUrl.includes('/api/auth/login') || reqUrl.includes('/api/auth/refresh')) {
-        return
+  // 재시도 가능한 fetch 래퍼: 401 발생 시 토큰 갱신 후 1회 재시도
+  const fetchWithRetry = async (request: any, options: FetchOptions = {}): Promise<any> => {
+    const reqUrl = typeof request === 'string' ? request : request?.toString?.() || ''
+    const isAuthUrl = reqUrl.includes('/api/auth/login') || reqUrl.includes('/api/auth/refresh')
+
+    // 최초 요청 시 현재 토큰 헤더 주입
+    if (!isAuthUrl && process.client) {
+      const token = getCookieValue('auth_token')
+      if (token) applyAuthHeader(options, token)
+    }
+
+    try {
+      return await baseFetch(request, options)
+    } catch (err: any) {
+      const status = err?.response?.status ?? err?.status
+
+      // 401이 아니거나 auth 경로면 그대로 throw
+      if (status !== 401 || isAuthUrl) {
+        translateError(err)
+        throw err
       }
 
-      let authToken = getCookieValue('auth_token')
-
-      if (authToken) {
-        options.headers = options.headers || {}
-        if (options.headers instanceof Headers) {
-          options.headers.set('Authorization', `Bearer ${authToken}`)
-        } else if (Array.isArray(options.headers)) {
-          options.headers = options.headers.filter(([k]) => k.toLowerCase() !== 'authorization')
-          options.headers.push(['Authorization', `Bearer ${authToken}`])
-        } else {
-          (options.headers as Record<string, string>)['Authorization'] = `Bearer ${authToken}`
-        }
-      }
-    },
-
-    async onResponseError({ request, response, options }) {
-      if (response.status === 401 && process.client) {
-        const reqUrl = request.toString()
-        if (reqUrl.includes('/api/auth/login') || reqUrl.includes('/api/auth/refresh')) {
-          if (reqUrl.includes('/api/auth/refresh')) {
-            clearAuthCookies()
-          }
-          return
-        }
-
-        const respBody = typeof response._data === 'string' ? response._data : JSON.stringify(response._data || '')
-        if (respBody.includes('another device') || respBody.includes('Session expired')) {
-          clearAuthCookies()
-          if (window.location.pathname !== '/login') {
-            window.location.href = '/login'
-          }
-          return
-        }
-
-        const refreshToken = getCookieValue('refresh_token')
-        if (!refreshToken) {
-          clearAuthCookies()
-          if (window.location.pathname !== '/login') {
-            window.location.href = '/login'
-          }
-          return
-        }
-
-        // Try token refresh via native fetch
-        const newToken = await performTokenRefresh(refreshToken)
-        if (newToken) {
-          // Update headers with new token
-          options.headers = options.headers || {}
-          if (options.headers instanceof Headers) {
-            options.headers.set('Authorization', `Bearer ${newToken}`)
-          } else if (Array.isArray(options.headers)) {
-            options.headers = options.headers.filter(([k]) => k.toLowerCase() !== 'authorization')
-            options.headers.push(['Authorization', `Bearer ${newToken}`])
-          } else {
-            (options.headers as Record<string, string>)['Authorization'] = `Bearer ${newToken}`
-          }
-          // Retry original request with new token
-          return customFetch(request, options)
-        } else {
-          clearAuthCookies()
-          if (window.location.pathname !== '/login') {
-            window.location.href = '/login'
-          }
-          return
-        }
+      // 세션 만료 / 다른 기기 로그인 메시지 체크
+      const body = JSON.stringify(err?.response?._data || err?.data || '')
+      if (body.includes('another device') || body.includes('Session expired')) {
+        clearAuthCookies()
+        if (process.client && window.location.pathname !== '/login') window.location.href = '/login'
+        throw err
       }
 
-      // Universal Error Interceptor for message translation
+      // refresh_token 없으면 로그인 이동
+      const refreshToken = getCookieValue('refresh_token')
+      if (!refreshToken) {
+        clearAuthCookies()
+        if (process.client && window.location.pathname !== '/login') window.location.href = '/login'
+        throw err
+      }
+
+      // 토큰 갱신 시도
+      const newToken = await performTokenRefresh(refreshToken)
+      if (!newToken) {
+        clearAuthCookies()
+        if (process.client && window.location.pathname !== '/login') window.location.href = '/login'
+        throw err
+      }
+
+      // 새 토큰으로 원래 요청 재시도 (1회)
+      console.info('[Auth] Token refreshed. Retrying request:', reqUrl)
+      applyAuthHeader(options, newToken)
+      return await baseFetch(request, options)
+    }
+  }
+
+  const translateError = (err: any) => {
+    try {
+      const i18n = nuxtApp.vueApp.config.globalProperties.$i18n
+      if (!i18n?.t) return
+      const t = (key: string, params?: any) => i18n.t(key, params)
+      const data = err?.response?._data
+      if (!data) return
+      if (typeof data === 'object' && data.errorCode) {
+        data.translatedMessage = translateBackendError(data, t)
+      } else if (typeof data === 'string') {
+        err.response._data = translateBackendError(data, t)
+      }
+    } catch (e) {
+      console.warn('Global error translation failed', e)
+    }
+  }
+
+  // 인터셉터 없는 순수 ofetch (실제 네트워크 요청용)
+  const baseFetch = ofetch.create({
+    async onResponseError({ response }) {
+      // 에러 번역만 담당 (401 재시도는 fetchWithRetry에서 처리)
+      if (response.status === 401) return
       try {
         const i18n = nuxtApp.vueApp.config.globalProperties.$i18n
-        if (i18n && i18n.t) {
-          const t = (key: string, params?: any) => i18n.t(key, params)
-          if (response._data) {
-            if (typeof response._data === 'object' && response._data.errorCode) {
-              response._data.translatedMessage = translateBackendError(response._data, t)
-            } else if (typeof response._data === 'string') {
-              response._data = translateBackendError(response._data, t)
-            }
+        if (!i18n?.t) return
+        const t = (key: string, params?: any) => i18n.t(key, params)
+        if (response._data) {
+          if (typeof response._data === 'object' && response._data.errorCode) {
+            response._data.translatedMessage = translateBackendError(response._data, t)
+          } else if (typeof response._data === 'string') {
+            response._data = translateBackendError(response._data, t)
           }
         }
       } catch (e) {
@@ -160,14 +167,15 @@ export default defineNuxtPlugin((nuxtApp) => {
     }
   })
 
-  globalThis.$fetch = customFetch
+  // 전역 $fetch 교체
+  globalThis.$fetch = fetchWithRetry as any
   if (process.client) {
-    (window as any).$fetch = customFetch
+    (window as any).$fetch = fetchWithRetry
   }
 
   return {
     provide: {
-      fetch: customFetch
+      fetch: fetchWithRetry
     }
   }
 })

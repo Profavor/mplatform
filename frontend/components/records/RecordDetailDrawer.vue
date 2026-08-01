@@ -278,26 +278,38 @@
 
       <!-- Secondary Nodes Tab Content -->
       <div v-show="activeMainTab === 'secondary'" style="flex: 1; overflow-y: auto; padding: 0.5rem;">
-        <div style="margin-bottom: 1rem;">
-          <h4 style="font-weight: 700; font-size: 1rem; color: var(--va-text-primary); margin: 0 0 0.25rem 0;">
-            레코드 보조 분류 노드 매핑 (Secondary Classification Nodes)
-          </h4>
-          <p style="font-size: 0.85rem; color: var(--va-text-secondary); margin: 0;">
-            주 분류 노드 이외에 레코드가 속한 보조 분류 노드 할당 정보를 확인합니다.
-          </p>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+          <div>
+            <h4 style="font-weight: 700; font-size: 1rem; color: var(--va-text-primary); margin: 0 0 0.25rem 0;">
+              {{ $t('axis.secondary_mapping_title') }}
+            </h4>
+            <p style="font-size: 0.85rem; color: var(--va-text-secondary); margin: 0;">
+              {{ $t('axis.secondary_mapping_desc') }}
+            </p>
+          </div>
+
+          <va-button
+            v-if="canWrite"
+            icon="edit"
+            color="primary"
+            size="small"
+            @click="openSecondaryNodeAssignModal"
+          >
+            {{ $t('axis.assign_secondary_nodes') }}
+          </va-button>
         </div>
 
         <div v-if="loadingSecondaryNodes" style="text-align: center; padding: 2rem;">
           <va-progress-circle indeterminate color="primary" />
         </div>
-        <div v-else-if="secondaryNodes.length === 0" style="padding: 1.5rem; text-align: center; color: var(--va-text-secondary); background: var(--va-background-element); border-radius: 6px;">
-          할당된 보조 분류 노드가 없습니다.
+        <div v-else-if="secondaryNodes.length === 0" style="padding: 2rem; text-align: center; color: var(--va-text-secondary); background: var(--va-background-element); border-radius: 6px;">
+          {{ $t('axis.no_secondary_nodes') }}
         </div>
         <div v-else style="display: flex; flex-direction: column; gap: 0.5rem;">
           <div v-for="sec in secondaryNodes" :key="sec.nodeId" style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; border: 1px solid var(--va-background-border); border-radius: 6px; background: var(--va-background-primary);">
             <div>
-              <div style="font-weight: 700; font-size: 0.95rem;">{{ sec.nodeName || sec.nodeCode }}</div>
-              <div style="font-size: 0.8rem; color: var(--va-text-secondary);">축(Axis): {{ sec.axisName || sec.axisCode || '-' }}</div>
+              <div style="font-weight: 700; font-size: 0.95rem;">{{ parseMultilingualName(sec.nodeName) || sec.nodeCode }}</div>
+              <div style="font-size: 0.8rem; color: var(--va-text-secondary);">{{ $t('axis.axis_label') }}: {{ parseMultilingualName(sec.axisName) || sec.axisCode || '-' }}</div>
             </div>
             <va-chip color="info" size="small" outline>{{ sec.nodeCode || sec.nodeId }}</va-chip>
           </div>
@@ -325,7 +337,7 @@
                   v-if="log.changedByName"
                   style="font-size: 0.8rem; font-weight: 700; color: var(--va-text-primary); display: inline-flex; align-items: center; gap: 0.3rem; cursor: pointer; transition: all 0.2s ease-in-out; padding: 0.15rem 0.45rem; border-radius: 6px; background: var(--va-background-element); border: 1px solid var(--va-background-border);"
                   class="user-profile-trigger"
-                  :title="t('view_user_profile') || '사용자 프로필 보기'"
+                  :title="t('view_user_profile')"
                   @click="openUserProfileModal(log)"
                 >
                   <va-icon name="account_circle" size="small" color="primary" />
@@ -446,11 +458,52 @@
     v-model="showUserProfileModal"
     :user-profile="selectedUserProfile"
   />
+
+  <!-- Modal: Assign Secondary Classification Nodes -->
+  <va-modal
+    v-model="showAssignSecondaryModal"
+    :title="$t('axis.assign_modal_title')"
+    size="small"
+    hide-default-actions
+    no-outside-dismiss
+  >
+    <div style="padding: 0.5rem 0;">
+      <div v-if="loadingAssignAxes" style="text-align: center; padding: 2rem;">
+        <va-progress-circle indeterminate color="primary" />
+      </div>
+      <div v-else-if="assignAxesList.length === 0" style="text-align: center; padding: 1.5rem; color: var(--va-text-secondary);">
+        {{ $t('axis.no_axes') }}
+      </div>
+      <div v-else style="display: flex; flex-direction: column; gap: 1rem;">
+        <div v-for="axis in assignAxesList" :key="axis.id">
+          <label style="font-weight: 700; font-size: 0.85rem; color: var(--va-text-secondary); display: block; margin-bottom: 0.5rem;">
+            {{ formatAxisName(axis.name) }} ({{ axis.axisCode || axis.code }})
+          </label>
+          <va-select
+            v-model="selectedSecondaryNodesMap[axis.id]"
+            :options="getNodesForAssignAxis(axis.id)"
+            value-by="id"
+            text-by="text"
+            searchable
+            clearable
+            :placeholder="getNodesForAssignAxis(axis.id).length > 0 ? $t('axis.select_nodes_placeholder') : $t('axis.no_nodes_registered')"
+            :disabled="getNodesForAssignAxis(axis.id).length === 0"
+          />
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
+        <va-button preset="secondary" type="button" @click="showAssignSecondaryModal = false">{{ $t('btn_cancel') }}</va-button>
+        <va-button color="primary" type="button" :loading="savingSecondaryNodes" @click="saveSecondaryNodesAssignment">{{ $t('vuestic.save') }}</va-button>
+      </div>
+    </div>
+  </va-modal>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { AgGridVue } from 'ag-grid-vue3'
+import { useToast } from 'vuestic-ui'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
 
 const { gridTheme } = useAgGridTheme()
@@ -702,6 +755,7 @@ const emit = defineEmits([
   'viewSnapshot',
   'viewApprovalHistory',
   'viewIntegrationHistory',
+  'secondaryNodesUpdated',
   'update:show'
 ])
 
@@ -746,6 +800,129 @@ const loadSecondaryNodes = async () => {
     secondaryNodes.value = []
   } finally {
     loadingSecondaryNodes.value = false
+  }
+}
+
+// Assignment Modal Logic
+const showAssignSecondaryModal = ref(false)
+const loadingAssignAxes = ref(false)
+const savingSecondaryNodes = ref(false)
+const assignAxesList = ref([])
+const assignAxisNodesMap = ref({})
+const selectedSecondaryNodesMap = ref({})
+
+const formatAxisName = (name) => {
+  if (!name) return ''
+  if (typeof name === 'string') {
+    try {
+      const parsed = JSON.parse(name)
+      if (parsed && typeof parsed === 'object') return parsed[locale.value] || parsed.ko || parsed.en || Object.values(parsed)[0] || ''
+    } catch {}
+    return name
+  }
+  if (typeof name === 'object') return name[locale.value] || name.ko || name.en || Object.values(name)[0] || ''
+  return String(name)
+}
+
+// nodeName, axisName 등 다국어 JSON 문자열 또는 객체를 현재 로케일로 파싱
+const parseMultilingualName = (name) => {
+  return formatAxisName(name)
+}
+
+const openSecondaryNodeAssignModal = async () => {
+  const domainId = props.selectedDomainInfo?.id || localRecord.value?.domainId || props.record?.domainId
+  if (!domainId) return
+
+  showAssignSecondaryModal.value = true
+  loadingAssignAxes.value = true
+
+  try {
+    const token = useCookie('auth_token').value
+    const axes = await $fetch(`/api/domains/${domainId}/axes`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    assignAxesList.value = axes || []
+
+    const nodesMap = {}
+    const selectionsMap = {}
+
+    const assignedIds = (secondaryNodes.value || []).map(n => n.nodeId)
+
+    for (const axis of assignAxesList.value) {
+      const tree = await $fetch(`/api/domains/${domainId}/nodes/tree?axisId=${axis.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      const flatList = []
+      const flattenTree = (nodes) => {
+        if (!Array.isArray(nodes)) return
+        nodes.forEach(n => {
+          const nameObj = typeof n.name === 'object' ? n.name : { ko: String(n.name || '') }
+          const label = nameObj[locale.value] || nameObj.ko || nameObj.en || 'Unknown'
+          flatList.push({ id: n.id, text: label })
+          if (n.children && n.children.length > 0) flattenTree(n.children)
+        })
+      }
+      flattenTree(tree || [])
+      nodesMap[axis.id] = flatList
+
+      // 단일 선택: 이미 할당된 노드 중 이 축에 해당하는 첫 번째 nodeId 사용
+      const alreadyAssigned = flatList.find(n => assignedIds.includes(n.id))
+      selectionsMap[axis.id] = alreadyAssigned ? alreadyAssigned.id : null
+    }
+
+    assignAxisNodesMap.value = nodesMap
+    selectedSecondaryNodesMap.value = selectionsMap
+  } catch (e) {
+    console.error('Failed to load axes for record assignment', e)
+  } finally {
+    loadingAssignAxes.value = false
+  }
+}
+
+const getNodesForAssignAxis = (axisId) => {
+  return assignAxisNodesMap.value[axisId] || []
+}
+
+const saveSecondaryNodesAssignment = async () => {
+  const recId = props.record?.id || localRecord.value?.id
+  if (!recId) {
+    useToast().init({ message: t('axis.secondary_nodes_save_failed') + ': Record ID missing', color: 'danger' })
+    return
+  }
+
+  if (!props.canWrite) {
+    useToast().init({ message: t('no_permission'), color: 'warning' })
+    return
+  }
+
+  savingSecondaryNodes.value = true
+  try {
+    const token = useCookie('auth_token').value
+    const allNodeIds = []
+    Object.values(selectedSecondaryNodesMap.value).forEach(val => {
+      if (val && typeof val === 'string') allNodeIds.push(val)
+    })
+
+    console.log('[SecondaryNode] Saving nodeIds:', allNodeIds, 'for record:', recId)
+
+    await $fetch(`/api/records/${recId}/secondary-nodes`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: { nodeIds: [...new Set(allNodeIds)].filter(id => id && typeof id === 'string') }
+    })
+
+    useToast().init({ message: t('axis.secondary_nodes_saved'), color: 'success' })
+    showAssignSecondaryModal.value = false
+    await loadSecondaryNodes()
+    emit('secondaryNodesUpdated')
+  } catch (e) {
+    console.error('Failed to save secondary nodes assignment', e)
+    useToast().init({ message: t('axis.secondary_nodes_save_failed') + ': ' + (e?.data?.message || e?.message || String(e)), color: 'danger' })
+  } finally {
+    savingSecondaryNodes.value = false
   }
 }
 

@@ -1,15 +1,18 @@
 <template>
-  <div class="matching-rules-container p-4">
-    <!-- Header -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-      <div>
-        <h1 style="font-size: 1.75rem; font-weight: 800; color: var(--va-text-primary); margin: 0; display: flex; align-items: center; gap: 0.5rem;">
-          <va-icon name="rule" color="primary" size="32px" />
-          <span>{{ t('matching_rules.title') || '매칭 규칙 관리 (Matching Rules)' }}</span>
-        </h1>
-        <p style="color: var(--va-text-secondary); margin: 0.25rem 0 0 0; font-size: 0.9rem;">
-          도메인별 중복 레코드 판별을 위한 EXACT / FUZZY 매칭 규칙과 정탐률/오탐률 기반 임계값 튜닝 지표를 제공합니다.
-        </p>
+  <div style="display: flex; flex-direction: column; gap: 1.25rem; padding-bottom: 2rem;">
+    <!-- Top Action Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <va-icon name="compare" size="large" color="primary" />
+        <div>
+          <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+            {{ t('matching_rules.title') || '매칭 규칙 관리' }}
+            <va-badge text="Deduplication" color="primary" size="small" />
+          </h2>
+          <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
+            도메인별 중복 레코드 판별을 위한 EXACT / FUZZY 매칭 규칙 및 유사도 임계값을 설정합니다.
+          </span>
+        </div>
       </div>
 
       <div style="display: flex; gap: 0.75rem; align-items: center;">
@@ -20,6 +23,7 @@
           text-by="text"
           placeholder="도메인 선택"
           style="min-width: 220px;"
+          dense
           @update:modelValue="onDomainChange"
         />
         <va-button

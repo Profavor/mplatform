@@ -1,17 +1,23 @@
 <template>
-  <div style="padding: 1.5rem;">
-    <!-- Top Header -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-      <div>
-        <h1 style="font-size: 1.8rem; font-weight: bold; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
-          <va-icon name="find_in_page" color="primary" size="medium" />
-          {{ t('title') }}
-        </h1>
-        <p style="color: var(--va-text-secondary); margin-top: 0.25rem; font-size: 0.95rem;">
-          {{ t('subtitle') }}
-        </p>
+  <div style="display: flex; flex-direction: column; gap: 1.25rem; padding-bottom: 2rem;">
+    <!-- Top Action Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <va-icon name="find_in_page" size="large" color="primary" />
+        <div>
+          <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+            {{ t('title') || '데이터 매칭 후보 목록' }}
+            <va-badge text="Deduplication" color="primary" size="small" />
+          </h2>
+          <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
+            {{ t('subtitle') || '유사도가 높은 매칭 데이터 후보 및 중복 의심 데이터를 조회합니다.' }}
+          </span>
+        </div>
       </div>
-      <va-button preset="secondary" icon="refresh" @click="loadCandidates">{{ t('refresh') }}</va-button>
+
+      <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <va-button preset="secondary" color="primary" icon="refresh" size="small" @click="loadCandidates">{{ t('refresh') || '새로고침' }}</va-button>
+      </div>
     </div>
 
     <!-- Filter & Stats Bar -->

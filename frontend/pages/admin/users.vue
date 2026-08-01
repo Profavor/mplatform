@@ -1,8 +1,26 @@
 <template>
-  <div style="display: flex; flex-direction: column; padding-bottom: 2rem;">
-    <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 1.5rem; color: var(--va-text-primary);">
-      {{ $t('user_management') }}
-    </h1>
+  <div style="display: flex; flex-direction: column; gap: 1.25rem; padding-bottom: 2rem;">
+    <!-- Top Action Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <va-icon name="manage_accounts" size="large" color="primary" />
+        <div>
+          <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+            {{ $t('user_management') || '사용자 및 권한 관리' }}
+            <va-badge text="RBAC" color="primary" size="small" />
+          </h2>
+          <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
+            {{ $t('user_management_desc') || '사용자 계정 정보, 소속 조직/부서 및 시스템 역할 및 도메인 접근 권한을 관리합니다.' }}
+          </span>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <va-button preset="outline" color="primary" icon="refresh" size="small" @click="fetchUsers">
+          {{ $t('refresh') || '새로고침' }}
+        </va-button>
+      </div>
+    </div>
 
     <div style="display: flex; gap: 1.5rem; align-items: flex-start; flex-wrap: wrap;">
       <!-- User List -->
