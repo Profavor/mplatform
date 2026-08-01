@@ -5,6 +5,7 @@ import com.classification.domain_system.entity.MenuAccessLog;
 import com.classification.domain_system.repository.MenuAccessLogRepository;
 import com.classification.domain_system.repository.MenuRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -18,6 +19,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MenuService {
 
     private final MenuRepository menuRepository;
@@ -151,14 +153,23 @@ public class MenuService {
 
     @Transactional
     public void logAccess(Long menuId, String menuPath, String userId, String userAgent, String clientIp) {
-        MenuAccessLog log = MenuAccessLog.builder()
-                .menuId(menuId)
-                .menuPath(menuPath)
-                .userId(userId)
-                .userAgent(userAgent)
-                .clientIp(clientIp)
-                .build();
-        menuAccessLogRepository.save(log);
+        try {
+            String safePath = menuPath != null && menuPath.length() > 255 ? menuPath.substring(0, 255) : menuPath;
+            String safeUser = userId != null && userId.length() > 50 ? userId.substring(0, 50) : userId;
+            String safeAgent = userAgent != null && userAgent.length() > 500 ? userAgent.substring(0, 500) : userAgent;
+            String safeIp = clientIp != null && clientIp.length() > 45 ? clientIp.substring(0, 45) : clientIp;
+
+            MenuAccessLog logEntity = MenuAccessLog.builder()
+                    .menuId(menuId)
+                    .menuPath(safePath)
+                    .userId(safeUser)
+                    .userAgent(safeAgent)
+                    .clientIp(safeIp)
+                    .build();
+            menuAccessLogRepository.save(logEntity);
+        } catch (Exception e) {
+            log.warn("Failed to save menu access log safely: {}", e.getMessage());
+        }
     }
 
     @Transactional(readOnly = true)
