@@ -1,8 +1,12 @@
 import { useRoleStore } from '~/stores/useRoleStore'
 
 export default defineNuxtPlugin(async () => {
+  const tokenCookie = useCookie('auth_token').value || useCookie('token').value
+  if (!tokenCookie || (typeof tokenCookie === 'string' && !tokenCookie.trim())) {
+    return
+  }
+
   const roleStore = useRoleStore()
-  // Automatically dispatch fetchRoles when application mounts or page refreshes
   try {
     await roleStore.dispatch('fetchRoles')
   } catch (e) {
