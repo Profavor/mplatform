@@ -42,4 +42,4 @@ services:
         fromService:
           type: web
           name: mplatform-backend
-          property: url
+          property: host
