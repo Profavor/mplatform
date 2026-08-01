@@ -36,6 +36,15 @@ public class RoleInitializer {
     public void createDefaultRolesForOrg(UUID orgId) {
         if (orgId == null) return;
 
+        // DB 내 INTGRATION 오타 레코드 자동 마이그레이션
+        roleRepository.findByOrganizationId(orgId).forEach(role -> {
+            if ("INTGRATION".equalsIgnoreCase(role.getName()) || "ROLE_INTGRATION".equalsIgnoreCase(role.getName())) {
+                role.setName("INTEGRATION");
+                roleRepository.save(role);
+                log.info("Migrated role name from INTGRATION to INTEGRATION for org {}", orgId);
+            }
+        });
+
         createSystemRole(orgId, "ROLE_ADMIN", "{\"ko\":\"시스템 관리자\",\"en\":\"System Admin\"}", "{\"ko\":\"시스템 전체 관리 권한\",\"en\":\"Full system administration access\"}",
                 Set.of("*", "admin:read", "admin:write"));
 
@@ -51,7 +60,7 @@ public class RoleInitializer {
         createSystemRole(orgId, "DQ_MANAGER", "{\"ko\":\"데이터 품질 관리자\",\"en\":\"DQ Manager\"}", "{\"ko\":\"품질 규칙 및 검사 결과 관리\",\"en\":\"Manage DQ rules and scan results\"}",
                 Set.of("dq:read", "dq:write", "dq_rule:*", "dq_scan:*"));
 
-        createSystemRole(orgId, "INTEGRATION_MANAGER", "{\"ko\":\"연계 관리자\",\"en\":\"Integration Manager\"}", "{\"ko\":\"외부 시스템 연동 및 채널 관리 권한\",\"en\":\"External system integration and channel management\"}",
+        createSystemRole(orgId, "INTEGRATION", "{\"ko\":\"연계 관리자\",\"en\":\"Integration Manager\"}", "{\"ko\":\"외부 시스템 연동 및 채널 관리 권한\",\"en\":\"External system integration and channel management\"}",
                 Set.of("integration:*", "channel:*", "org:read", "domain:read", "node:read", "field:read", "user:read"));
 
         createSystemRole(orgId, "VIEWER", "{\"ko\":\"조회자\",\"en\":\"Viewer\"}", "{\"ko\":\"도메인, 노드, 필드, 레코드 및 품질 정보 읽기 전용\",\"en\":\"Read-only access to domains, nodes, fields, records and DQ\"}",

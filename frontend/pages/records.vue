@@ -6,7 +6,7 @@
         <va-icon name="dataset" size="large" color="primary" />
         <div>
           <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-            {{ $t('records_management') || '마스터 데이터 레코드 관리' }}
+            {{ pageTitle }}
             <va-badge text="Master Data" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
@@ -194,7 +194,7 @@
       <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
         <va-card v-if="selectedNode" style="width: 100%; flex: 1; display: flex; flex-direction: column; min-height: 0;">
           <va-card-content style="padding: 0; flex: 1; display: flex; flex-direction: column; min-height: 0;">
-            <div class="records-grid-wrapper">
+            <div class="records-grid-wrapper" :class="{ 'ag-theme-quartz-dark': isDark }">
               <ag-grid-vue
                 style="width: 100%; height: 100%;"
                 :theme="gridTheme"
@@ -614,7 +614,7 @@
         <div style="margin-bottom: 1rem; color: #666; font-size: 0.9rem;">
           원하시는 레코드를 목록에서 더블 클릭하여 선택해 주세요.
         </div>
-        <div style="flex: 1; width: 100%;">
+        <div :class="{ 'ag-theme-quartz-dark': isDark }" style="flex: 1; width: 100%;">
           <AgGridVue
             style="width: 100%; height: 100%;"
             :theme="gridTheme"
@@ -637,6 +637,9 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { usePageTitle } from '~/composables/usePageTitle'
+
+const { pageTitle } = usePageTitle('records_management', '마스터 데이터 레코드 관리')
 import { useCookie } from '#app'
 import { AgGridVue } from 'ag-grid-vue3'
 import ExcelUploader from '~/components/ExcelUploader.vue'

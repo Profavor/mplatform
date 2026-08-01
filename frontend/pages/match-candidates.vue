@@ -6,7 +6,7 @@
         <va-icon name="find_replace" size="large" color="primary" />
         <div>
           <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-            {{ $t('deduplication.title') }}
+            {{ pageTitle }}
             <va-badge text="Deduplication" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
@@ -191,7 +191,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { usePageTitle } from '~/composables/usePageTitle'
 
+const { pageTitle } = usePageTitle('deduplication.title', '중복 후보 검토 큐')
 const { t } = useI18n()
 
 const loading = ref(false)

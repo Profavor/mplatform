@@ -6,7 +6,7 @@
         <va-icon name="terminal" size="large" color="primary" />
         <div>
           <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-            {{ $t('system_logs_title') || '시스템 감사 및 모니터링 로그' }}
+            {{ pageTitle }}
             <va-badge text="Audit & Logs" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
@@ -63,7 +63,7 @@
           </div>
         </va-card-title>
         <va-card-content>
-          <div style="height: 500px; width: 100%;">
+          <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 500px; width: 100%;">
             <client-only>
               <ag-grid-vue
                 v-if="isMounted"
@@ -120,7 +120,7 @@
           </div>
         </va-card-title>
         <va-card-content>
-          <div style="height: 500px; width: 100%;">
+          <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 500px; width: 100%;">
             <client-only>
               <ag-grid-vue
                 v-if="isMounted"
@@ -154,7 +154,7 @@
           <div class="mb-2" style="font-size: 0.85rem; color: var(--va-text-secondary);">
             * Double click on any row to view full stack trace details.
           </div>
-          <div style="height: 600px; width: 100%;">
+          <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 600px; width: 100%;">
             <client-only>
               <ag-grid-vue
                 v-if="isMounted"
@@ -258,7 +258,7 @@
         </div>
 
         <va-card-content style="padding: 0;">
-          <div style="height: 560px; width: 100%;">
+          <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 560px; width: 100%;">
             <client-only>
               <ag-grid-vue
                 v-if="isMounted"
@@ -445,6 +445,9 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { usePageTitle } from '~/composables/usePageTitle'
+
+const { pageTitle } = usePageTitle('system_logs_title', '시스템 로그 및 연계 관제')
 import { AgGridVue } from 'ag-grid-vue3'
 if (process.client) {
   import('ag-grid-enterprise')
@@ -466,7 +469,7 @@ if (process.client) {
 }
 
 const { locale } = useI18n()
-const { gridTheme, autoSizeStrategy } = useAgGridTheme()
+const { gridTheme, autoSizeStrategy, isDark } = useAgGridTheme()
 const token = useCookie('auth_token')
 const { init } = useToast()
 const activeTab = ref('access')

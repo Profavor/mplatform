@@ -6,7 +6,7 @@
         <va-icon name="dashboard" size="large" color="primary" />
         <div>
           <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-            {{ t('dashboard') || '통합 대시보드' }}
+            {{ pageTitle }}
             <va-badge text="Overview" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
@@ -234,7 +234,9 @@
 
 <script setup>
 import { useI18n } from 'vue-i18n'
+import { usePageTitle } from '~/composables/usePageTitle'
 const { t } = useI18n()
+const { pageTitle } = usePageTitle('dashboard', '홈')
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useColors } from 'vuestic-ui'

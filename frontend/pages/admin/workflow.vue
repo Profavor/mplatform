@@ -7,7 +7,7 @@
         <va-icon name="account_tree" size="large" color="primary" />
         <div>
           <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-            {{ $t('workflow_center_title') }}
+            {{ pageTitle }}
             <va-badge :text="$t('ag_grid_unified_list')" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
@@ -68,7 +68,7 @@
 
     <!-- AG-Grid Table Container -->
     <va-card style="flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; padding: 0.5rem;">
-      <div style="width: 100%; height: 100%; flex: 1;">
+      <div :class="{ 'ag-theme-quartz-dark': isDark }" style="width: 100%; height: 100%; flex: 1;">
         <ag-grid-vue
           style="width: 100%; height: 100%;"
           :theme="gridTheme"
@@ -389,13 +389,16 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { usePageTitle } from '~/composables/usePageTitle'
+
+const { pageTitle } = usePageTitle('workflow_center_title', '워크플로우 관리')
 import { AgGridVue } from 'ag-grid-vue3'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { useRoleStore } from '~/stores/useRoleStore'
 
 const { customFetch } = useCustomFetch()
-const { gridTheme, autoSizeStrategy } = useAgGridTheme()
+const { gridTheme, autoSizeStrategy, isDark } = useAgGridTheme()
 const { t, locale } = useI18n()
 
 // Multilingual helper to resolve name objects / JSON / fallback strings according to active locale
@@ -529,10 +532,14 @@ const onGridReady = (params: any) => {
   setTimeout(() => {
     if (params.api && !params.api.isDestroyed()) {
       try {
-        params.api.sizeColumnsToFit()
+        const gridDiv = params.api.getGridOption ? params.api.getGridOption('eGridDiv') : null
+        const width = gridDiv ? gridDiv.clientWidth : 0
+        if (width > 0) {
+          params.api.sizeColumnsToFit()
+        }
       } catch (e) {}
     }
-  }, 100)
+  }, 250)
 }
 
 // AG-Grid Column Definitions

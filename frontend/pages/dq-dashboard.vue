@@ -6,7 +6,7 @@
         <va-icon name="dashboard" size="large" color="primary" />
         <div>
           <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-            {{ $t('dq_dashboard_title') || '데이터 품질 진단 대시보드' }}
+            {{ pageTitle }}
             <va-badge text="Analytics" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
@@ -23,7 +23,7 @@
           value-by="value"
           style="min-width: 220px;"
           dense
-          placeholder="도메인을 선택하세요"
+          :placeholder="$t('dq_dashboard.select_domain_placeholder') || '도메인을 선택하세요'"
         />
         <va-button preset="outline" color="primary" icon="refresh" size="small" :loading="loading" @click="fetchDashboardData">
           {{ $t('refresh') || '새로고침' }}
@@ -66,7 +66,7 @@
         <!-- Total Records Card -->
         <div class="kpi-card metric-card records-kpi">
           <div class="kpi-card-header">
-            <span class="kpi-title">Total Records</span>
+            <span class="kpi-title">{{ $t('dq_dashboard.total_records') }}</span>
             <div class="kpi-icon-pill blue-pill">
               <va-icon name="dataset" size="medium" />
             </div>
@@ -75,14 +75,14 @@
             <div class="metric-value blue-text">
               {{ scoreData.totalRecords?.toLocaleString() ?? 0 }}
             </div>
-            <div class="metric-subtext">Monitored Entities in Domain</div>
+            <div class="metric-subtext">{{ $t('dq_dashboard.total_records_sub') }}</div>
           </div>
         </div>
 
         <!-- Total Violations Card -->
         <div class="kpi-card metric-card violations-kpi">
           <div class="kpi-card-header">
-            <span class="kpi-title">Total Violations</span>
+            <span class="kpi-title">{{ $t('dq_dashboard.total_violations') }}</span>
             <div class="kpi-icon-pill red-pill">
               <va-icon name="warning" size="medium" />
             </div>
@@ -92,7 +92,7 @@
               {{ scoreData.totalViolations?.toLocaleString() ?? 0 }}
             </div>
             <div class="metric-subtext" :class="{ 'has-violations': scoreData.totalViolations > 0 }">
-              {{ scoreData.totalViolations > 0 ? '⚠️ Action Required' : '✅ All Records Passed' }}
+              {{ scoreData.totalViolations > 0 ? $t('dq_dashboard.action_required') : $t('dq_dashboard.all_passed') }}
             </div>
           </div>
         </div>
@@ -100,7 +100,7 @@
         <!-- Active Rules Card -->
         <div class="kpi-card metric-card rules-kpi">
           <div class="kpi-card-header">
-            <span class="kpi-title">Active DQ Rules</span>
+            <span class="kpi-title">{{ $t('dq_dashboard.active_dq_rules') }}</span>
             <div class="kpi-icon-pill gold-pill">
               <va-icon name="verified_user" size="medium" />
             </div>
@@ -109,63 +109,138 @@
             <div class="metric-value gold-text">
               {{ ruleCount }}
             </div>
-            <div class="metric-subtext">Automated Inspection Rules</div>
+            <div class="metric-subtext">{{ $t('dq_dashboard.active_rules_sub') }}</div>
           </div>
         </div>
       </div>
 
       <!-- DQ Score Trend Card -->
-      <va-card class="trend-card mb-6">
-        <va-card-title class="card-header-title flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <va-icon name="show_chart" size="small" color="primary" />
-            <span>DQ 품질 점수 트렌드 히스토리 (DQ Score Trend)</span>
+      <va-card style="border-radius: 12px; border: 1px solid var(--va-background-border); overflow: hidden; background: var(--va-background-primary);">
+        <div style="padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--va-background-border); display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); flex-wrap: wrap; gap: 0.75rem;">
+          <div style="display: flex; align-items: center; gap: 0.6rem;">
+            <va-icon name="show_chart" color="primary" />
+            <span style="font-size: 1.05rem; font-weight: 700; color: var(--va-text-primary); font-family: 'Pretendard', 'Inter', sans-serif;">
+              {{ $t('dq_dashboard.score_trend_title') }}
+            </span>
+            <va-chip v-if="recentSnapshots.length > 0" size="small" color="primary" style="font-weight: 600;">
+              {{ $t('dq_dashboard.snapshot_count', { count: recentSnapshots.length }) }}
+            </va-chip>
           </div>
-          <div class="flex items-center gap-2">
-            <va-button-toggle
-              v-model="trendPeriod"
-              preset="secondary"
-              border-color="primary"
+
+          <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+            <div style="display: flex; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 8px; padding: 2px;">
+              <button
+                v-for="opt in [
+                  { label: $t('dq_dashboard.recent_7_days'), value: 7 },
+                  { label: $t('dq_dashboard.recent_30_days'), value: 30 },
+                  { label: $t('dq_dashboard.recent_90_days'), value: 90 },
+                  { label: $t('dq_dashboard.recent_all'), value: 0 }
+                ]"
+                :key="opt.value"
+                type="button"
+                @click="trendPeriod = opt.value; onTrendPeriodChange()"
+                :style="{
+                  padding: '4px 10px',
+                  fontSize: '0.78rem',
+                  fontWeight: trendPeriod === opt.value ? '700' : '500',
+                  borderRadius: '6px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  background: trendPeriod === opt.value ? 'var(--va-primary)' : 'transparent',
+                  color: trendPeriod === opt.value ? '#ffffff' : 'var(--va-text-secondary)'
+                }"
+              >
+                {{ opt.label }}
+              </button>
+            </div>
+            <va-button
               size="small"
-              :options="[
-                { label: '최근 7일', value: 7 },
-                { label: '최근 30일', value: 30 },
-                { label: '최근 90일', value: 90 },
-                { label: '전체 (Recent)', value: 0 }
-              ]"
-              @update:modelValue="onTrendPeriodChange"
-            />
-            <span class="text-xs text-gray-400 font-normal">조회 {{ recentSnapshots.length }}건</span>
+              color="primary"
+              icon="bolt"
+              :loading="scanning"
+              @click="triggerScan"
+            >
+              {{ $t('dq_dashboard.run_scan') }}
+            </va-button>
           </div>
-        </va-card-title>
-        <va-card-content>
-          <div v-if="recentSnapshots.length === 0" class="text-sm text-gray-400 py-6 text-center">
-            아직 기록된 DQ 스냅샷이 없습니다. "Run DQ Scan" 버튼을 클릭해 스캔을 실행하세요.
+        </div>
+
+        <va-card-content style="padding: 1.25rem; background: var(--va-background-primary);">
+          <!-- Empty State -->
+          <div v-if="recentSnapshots.length === 0" style="padding: 2.5rem 1rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; text-align: center;">
+            <div style="width: 54px; height: 54px; border-radius: 16px; background: rgba(25, 118, 210, 0.12); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(25, 118, 210, 0.2);">
+              <va-icon name="insights" size="large" color="primary" />
+            </div>
+            <div style="font-size: 1.05rem; font-weight: 700; color: var(--va-text-primary); font-family: 'Pretendard', 'Inter', sans-serif;">
+              {{ $t('dq_dashboard.no_snapshots') }}
+            </div>
+            <div style="font-size: 0.85rem; color: var(--va-text-secondary); max-width: 440px; line-height: 1.5;">
+              {{ $t('dq_dashboard.no_snapshots_desc') }}
+            </div>
+            <va-button size="small" color="primary" icon="bolt" :loading="scanning" @click="triggerScan" style="margin-top: 0.5rem;">
+              {{ $t('dq_dashboard.start_scan_now') }}
+            </va-button>
           </div>
-          <div v-else class="space-y-3">
-            <!-- Trend Bar Sparkline / Points -->
-            <div class="flex items-end gap-2 h-28 pt-4 pb-1 px-2 border-b border-gray-100 dark:border-gray-800 overflow-x-auto">
+
+          <!-- Trend Data State -->
+          <div v-else style="display: flex; flex-direction: column; gap: 1.25rem;">
+            <!-- Summary Stats Pill Banner -->
+            <div style="display: flex; gap: 1.5rem; padding: 0.75rem 1.25rem; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 10px; align-items: center; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 0.8rem; color: var(--va-text-secondary); font-weight: 600;">{{ $t('dq_dashboard.avg_score') }}</span>
+                <span style="font-size: 1rem; font-weight: 800; color: var(--va-primary);">{{ avgTrendScore }}점</span>
+              </div>
+              <div style="height: 14px; width: 1px; background: var(--va-background-border);"></div>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 0.8rem; color: var(--va-text-secondary); font-weight: 600;">{{ $t('dq_dashboard.max_score') }}</span>
+                <span style="font-size: 1rem; font-weight: 800; color: var(--va-success);">{{ maxTrendScore }}점</span>
+              </div>
+              <div style="height: 14px; width: 1px; background: var(--va-background-border);"></div>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 0.8rem; color: var(--va-text-secondary); font-weight: 600;">{{ $t('dq_dashboard.latest_snapshot') }}</span>
+                <span style="font-size: 0.85rem; font-weight: 700; color: var(--va-text-primary); font-family: monospace;">
+                  {{ formatDate(recentSnapshots[0]?.recordedAt) }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Sparkline Bars -->
+            <div style="display: flex; align-items: flex-end; gap: 0.6rem; height: 130px; padding: 0.75rem 0.5rem 0.5rem 0.5rem; border-bottom: 1px solid var(--va-background-border); overflow-x: auto;">
               <div
                 v-for="(snap, idx) in recentSnapshots"
                 :key="snap.id || idx"
-                class="flex-1 min-w-[36px] flex flex-col items-center gap-1 group relative cursor-pointer"
+                style="flex: 1; min-width: 42px; display: flex; flex-direction: column; align-items: center; gap: 0.35rem; position: relative;"
+                class="group cursor-pointer"
               >
-                <!-- Tooltip -->
-                <div class="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center bg-gray-900 text-white text-xs rounded px-2 py-1 z-20 whitespace-nowrap shadow-lg">
-                  <span class="font-bold">{{ snap.score }}점</span>
-                  <span class="text-[10px] text-gray-300">{{ formatDate(snap.recordedAt) }} ({{ snap.scanType }})</span>
-                  <span class="text-[10px] text-gray-400">위반 {{ snap.totalViolations }}건 / 전체 {{ snap.totalRecords }}행</span>
+                <!-- Modern Glassmorphism Tooltip -->
+                <div 
+                  class="hidden group-hover:flex" 
+                  style="position: absolute; bottom: 100%; margin-bottom: 8px; flex-direction: column; align-items: center; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.15); color: #ffffff; padding: 6px 10px; border-radius: 8px; z-index: 30; white-space: nowrap; box-shadow: 0 10px 25px rgba(0,0,0,0.5);"
+                >
+                  <span style="font-weight: 800; font-size: 0.85rem; color: var(--va-primary);">{{ snap.score }}점</span>
+                  <span style="font-size: 0.72rem; color: #94a3b8; font-family: monospace;">{{ formatDate(snap.recordedAt) }} ({{ snap.scanType }})</span>
+                  <span style="font-size: 0.72rem; color: #cbd5e1;">{{ $t('dq_dashboard.tooltip_info', { violations: snap.totalViolations, total: snap.totalRecords }) }}</span>
                 </div>
-                <!-- Bar height based on score % -->
-                <span class="text-[10px] font-semibold text-gray-500 group-hover:text-blue-600 dark:text-gray-400">{{ Math.round(snap.score) }}%</span>
-                <div class="w-full bg-gray-100 dark:bg-gray-800 rounded-t h-20 flex items-end overflow-hidden">
+
+                <!-- Score Percent text -->
+                <span style="font-size: 0.75rem; font-weight: 700; color: var(--va-text-secondary);" class="group-hover:text-primary">
+                  {{ Math.round(snap.score) }}%
+                </span>
+
+                <!-- Bar Background Track -->
+                <div style="width: 100%; background: var(--va-background-element); border-radius: 6px 6px 0 0; height: 80px; display: flex; align-items: flex-end; overflow: hidden; border: 1px solid var(--va-background-border);">
                   <div
-                    class="w-full rounded-t transition-all duration-300"
-                    :class="snap.score >= 90 ? 'bg-emerald-500' : snap.score >= 70 ? 'bg-amber-500' : 'bg-rose-500'"
-                    :style="{ height: `${Math.max(snap.score, 5)}%` }"
+                    style="width: 100%; border-radius: 4px 4px 0 0; transition: all 0.3s ease;"
+                    :style="{
+                      height: `${Math.max(snap.score, 6)}%`,
+                      background: snap.score >= 90 ? 'linear-gradient(180deg, #34d399 0%, #059669 100%)' : (snap.score >= 70 ? 'linear-gradient(180deg, #fbbf24 0%, #d97706 100%)' : 'linear-gradient(180deg, #f87171 0%, #dc2626 100%)')
+                    }"
                   ></div>
                 </div>
-                <span class="text-[9px] text-gray-400 font-mono truncate w-full text-center">
+
+                <!-- Date Label -->
+                <span style="font-size: 0.7rem; color: var(--va-text-secondary); font-family: monospace; text-align: center; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   {{ formatDateShort(snap.recordedAt) }}
                 </span>
               </div>
@@ -180,12 +255,12 @@
         <va-card class="analytics-card">
           <va-card-title class="card-header-title">
             <va-icon name="pie_chart" size="small" color="primary" />
-            Violations by Severity
+            {{ $t('dq_dashboard.violations_by_severity') }}
           </va-card-title>
           <va-card-content>
             <div v-if="Object.keys(scoreData.violationsBySeverity || {}).length === 0" class="empty-state">
               <span class="empty-icon">🎉</span>
-              <p>No violations detected! Perfect data quality.</p>
+              <p>{{ $t('dq_dashboard.no_violations_detected') }}</p>
             </div>
             <div v-else class="severity-list">
               <div
@@ -217,12 +292,12 @@
         <va-card class="analytics-card">
           <va-card-title class="card-header-title">
             <va-icon name="bar_chart" size="small" color="primary" />
-            Violations by Field
+            {{ $t('dq_dashboard.violations_by_field') }}
           </va-card-title>
           <va-card-content>
             <div v-if="Object.keys(scoreData.violationsByField || {}).length === 0" class="empty-state">
               <span class="empty-icon">🎉</span>
-              <p>No field violations detected!</p>
+              <p>{{ $t('dq_dashboard.no_field_violations') }}</p>
             </div>
             <div v-else class="field-list">
               <div
@@ -256,8 +331,8 @@
               <va-icon name="report_problem" color="danger" size="medium" />
             </div>
             <div>
-              <div class="table-main-title">DQ 위반 상세 레코드 목록</div>
-              <div class="table-sub-title">Detailed Violation Records List</div>
+              <div class="table-main-title">{{ $t('dq_dashboard.violation_table_title') }}</div>
+              <div class="table-sub-title">{{ $t('dq_dashboard.violation_table_sub') }}</div>
             </div>
           </div>
 
@@ -268,18 +343,16 @@
               :options="severityOptions"
               text-by="label"
               value-by="value"
-              placeholder="심각도 전체"
+              :label="$t('dq_dashboard.severity')"
               class="filter-select"
-              clearable
             />
             <va-select
               v-model="filterFieldKey"
               :options="availableFieldFilterOptions"
               text-by="label"
               value-by="value"
-              placeholder="필드 전체"
+              :label="$t('dq_dashboard.field')"
               class="filter-select-wide"
-              clearable
             />
             <va-button
               v-if="filterSeverity || filterFieldKey"
@@ -288,7 +361,7 @@
               icon="clear"
               @click="resetViolationFilters"
             >
-              초기화
+              {{ $t('reset') || '초기화' }}
             </va-button>
           </div>
         </va-card-title>
@@ -296,12 +369,12 @@
         <va-card-content class="table-content">
           <div v-if="loadingViolations" class="table-loading">
             <va-progress-circle indeterminate size="2rem" />
-            <span>위반 레코드 조회 중...</span>
+            <span>{{ $t('dq_dashboard.loading_violations') }}</span>
           </div>
 
           <div v-else-if="!violationList || violationList.length === 0" class="empty-state">
             <span class="empty-icon">🎉</span>
-            <p>선택한 조건의 품질 위반 레코드가 없습니다.</p>
+            <p>{{ $t('dq_dashboard.no_violations_found') }}</p>
           </div>
 
           <template v-else>
@@ -309,14 +382,14 @@
               <table class="custom-dq-table">
                 <thead>
                   <tr>
-                    <th>레코드 식별자</th>
-                    <th>분류 노드</th>
-                    <th>위반 필드</th>
-                    <th>심각도</th>
-                    <th>위반 사유</th>
-                    <th>입력된 값</th>
-                    <th>검증 시각</th>
-                    <th class="text-center">이동</th>
+                    <th>{{ $t('dq_dashboard.record_id') }}</th>
+                    <th>{{ $t('classification_node') || '분류 노드' }}</th>
+                    <th>{{ $t('dq_dashboard.violated_field') }}</th>
+                    <th>{{ $t('dq_dashboard.severity') }}</th>
+                    <th>{{ $t('dq_dashboard.rule_name') }}</th>
+                    <th>{{ $t('dq_dashboard.violation_message') }}</th>
+                    <th>{{ $t('createdAt') || '생성일시' }}</th>
+                    <th class="text-center">{{ $t('action') || '작업' }}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -361,7 +434,7 @@
                         class="goto-btn"
                         @click="goToRecord(v.recordId)"
                       >
-                        상세
+                        {{ $t('details') || '상세' }}
                       </va-button>
                     </td>
                   </tr>
@@ -411,6 +484,9 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { usePageTitle } from '~/composables/usePageTitle'
+
+const { pageTitle } = usePageTitle('dq_dashboard_title', '데이터 품질 진단 대시보드')
 
 const domains = ref([])
 const selectedDomainId = ref(null)
@@ -591,6 +667,17 @@ function onTrendPeriodChange() {
   }
 }
 
+const avgTrendScore = computed(() => {
+  if (!recentSnapshots.value || recentSnapshots.value.length === 0) return 0
+  const sum = recentSnapshots.value.reduce((acc, curr) => acc + (curr.score || 0), 0)
+  return Math.round(sum / recentSnapshots.value.length)
+})
+
+const maxTrendScore = computed(() => {
+  if (!recentSnapshots.value || recentSnapshots.value.length === 0) return 0
+  return Math.max(...recentSnapshots.value.map(s => s.score || 0))
+})
+
 async function triggerScan() {
   const val = selectedDomainId.value
   const domainId = typeof val === 'object' && val !== null ? (val.value || val.id) : val
@@ -634,6 +721,10 @@ onMounted(async () => {
         value: d.id
       }
     })
+
+    if (domains.value.length > 0 && !selectedDomainId.value) {
+      selectedDomainId.value = domains.value[0].value
+    }
   } catch (e) {
     console.error('Failed to fetch domains:', e)
   }
@@ -861,8 +952,8 @@ function getScoreClass(score) {
 }
 
 .kpi-card {
-  background: var(--va-background-card, #ffffff);
-  border: 1px solid var(--va-background-element, #e2e8f0);
+  background: var(--va-background-primary);
+  border: 1px solid var(--va-background-border);
   border-radius: 18px;
   padding: 1.5rem 1.75rem;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
@@ -981,7 +1072,7 @@ function getScoreClass(score) {
 
 .analytics-card {
   border-radius: 16px;
-  border: 1px solid var(--va-background-element, #e2e8f0);
+  border: 1px solid var(--va-background-border);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
 }
 
@@ -1016,13 +1107,30 @@ function getScoreClass(score) {
   padding: 0.5rem 0;
 }
 
+:deep(.va-card),
+.kpi-card,
+.analytics-card,
+.table-card,
+.trend-card {
+  background: var(--va-background-primary) !important;
+  border: 1px solid var(--va-background-border) !important;
+  border-radius: 12px !important;
+}
+
+:deep(.va-card-title),
+:deep(.va-card-content),
+.card-header-title,
+.table-card-title {
+  background: var(--va-background-primary) !important;
+}
+
 .severity-item, .field-item {
   padding: 0.75rem 1rem;
-  background: var(--va-background-element, #f8fafc);
+  background: var(--va-background-primary);
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
-  border: 2px solid transparent;
+  border: 1px solid var(--va-background-border);
 }
 
 .severity-item:hover, .field-item:hover {
@@ -1092,7 +1200,7 @@ function getScoreClass(score) {
 /* Violation Details Table Section */
 .table-card {
   border-radius: 16px;
-  border: 1px solid var(--va-background-element, #e2e8f0);
+  border: 1px solid var(--va-background-border);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
 }
 
@@ -1103,7 +1211,7 @@ function getScoreClass(score) {
   flex-wrap: wrap;
   gap: 1rem;
   padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid var(--va-background-element, #e2e8f0);
+  border-bottom: 1px solid var(--va-background-border);
 }
 
 .table-title-group {
@@ -1161,7 +1269,7 @@ function getScoreClass(score) {
 .table-responsive {
   overflow-x: auto;
   border-radius: 10px;
-  border: 1px solid var(--va-background-element, #e2e8f0);
+  border: 1px solid var(--va-background-border);
 }
 
 .custom-dq-table {
@@ -1171,7 +1279,7 @@ function getScoreClass(score) {
 }
 
 .custom-dq-table th {
-  background: var(--va-background-element, #f8fafc);
+  background: var(--va-background-element);
   color: var(--va-text-secondary);
   font-weight: 700;
   text-transform: uppercase;
@@ -1179,12 +1287,12 @@ function getScoreClass(score) {
   letter-spacing: 0.5px;
   padding: 0.9rem 1rem;
   text-align: left;
-  border-bottom: 2px solid var(--va-background-element, #e2e8f0);
+  border-bottom: 2px solid var(--va-background-border);
 }
 
 .custom-dq-table td {
   padding: 0.85rem 1rem;
-  border-bottom: 1px solid var(--va-background-element, #f1f5f9);
+  border-bottom: 1px solid var(--va-background-border);
   vertical-align: middle;
 }
 

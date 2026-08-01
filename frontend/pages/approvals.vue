@@ -6,7 +6,7 @@
         <va-icon name="assignment_turned_in" size="large" color="primary" />
         <div>
           <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-            {{ t('title') || '내 결재 요청 및 승인함' }}
+            {{ pageTitle }}
             <va-badge text="Approval Inbox" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
@@ -20,27 +20,39 @@
       </div>
     </div>
     
-    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
-      <va-button preset="primary" icon="check_circle" @click="bulkApprove" :disabled="!pendingSelectedRows.length">
-        {{ t('bulk_approve', { count: pendingSelectedRows.length }) }}
-      </va-button>
-      <va-button preset="primary" color="danger" icon="cancel" @click="bulkReject" :disabled="!pendingSelectedRows.length">
-        {{ t('bulk_reject', { count: pendingSelectedRows.length }) }}
-      </va-button>
-    </div>
+    <!-- Card 1: Pending Approvals -->
+    <va-card style="border-radius: 12px; border: 1px solid var(--va-background-border); overflow: hidden;">
+      <div style="padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--va-background-border); display: flex; justify-content: space-between; align-items: center; background: var(--va-background-element);">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <va-icon name="how_to_reg" color="primary" />
+          <span style="font-size: 1.05rem; font-weight: 700; color: var(--va-text-primary); font-family: 'Pretendard', 'Inter', sans-serif;">
+            {{ t('pending_approvals') || '승인 대기 결재 목록' }}
+          </span>
+          <va-chip size="small" color="warning" style="font-weight: 600;">{{ pendingSteps.length }}건 대기</va-chip>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <va-button size="small" preset="primary" icon="check_circle" @click="bulkApprove" :disabled="!pendingSelectedRows.length">
+            {{ t('bulk_approve', { count: pendingSelectedRows.length }) }}
+          </va-button>
+          <va-button size="small" preset="primary" color="danger" icon="cancel" @click="bulkReject" :disabled="!pendingSelectedRows.length">
+            {{ t('bulk_reject', { count: pendingSelectedRows.length }) }}
+          </va-button>
+        </div>
+      </div>
 
-    <div style="height: 400px; width: 100%; margin-bottom: 2rem;">
-      <AgGridVue
-        key="pending-grid"
-        id="pending-grid"
-        style="width: 100%; height: 100%;"
-        :theme="gridTheme"
-        :autoSizeStrategy="autoSizeStrategy"
-        :gridOptions="pendingGridOptions"
-        @grid-ready="onPendingGridReady"
-        :overlayNoRowsTemplate="`<span style='padding: 10px; border: 2px solid #444; background: lightgoldenrodyellow;'>${t('noRequests')}</span>`"
-      />
-    </div>
+      <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 320px; width: 100%;">
+        <AgGridVue
+          key="pending-grid"
+          id="pending-grid"
+          style="width: 100%; height: 100%;"
+          :theme="gridTheme"
+          :autoSizeStrategy="autoSizeStrategy"
+          :gridOptions="pendingGridOptions"
+          @grid-ready="onPendingGridReady"
+          :overlayNoRowsTemplate="`<span style='padding: 8px 16px; border: 1px solid var(--va-background-border); background: var(--va-background-element); color: var(--va-text-secondary); border-radius: 6px; font-size: 0.85rem;'>${t('noRequests')}</span>`"
+        />
+      </div>
+    </va-card>
 
     <!-- Action Modal for Pending Step -->
     <va-modal v-model="showActionModal" size="large" close-button hide-default-actions>
@@ -101,20 +113,31 @@
       </div>
     </va-modal>
 
-    <!-- My Submitted Requests Section -->
-    <h2 style="font-size: 1.5rem; font-weight: bold; margin-top: 3rem; margin-bottom: 1.5rem; color: var(--va-text-primary);">{{ t('mySubmitted') }}</h2>
-    <div style="height: 400px; width: 100%;">
-      <AgGridVue
-        key="my-requests-grid"
-        id="my-requests-grid"
-        style="width: 100%; height: 100%;"
-        :theme="gridTheme"
-        :autoSizeStrategy="autoSizeStrategy"
-        :gridOptions="myRequestsGridOptions"
-        @grid-ready="onMyRequestsGridReady"
-        :overlayNoRowsTemplate="`<span style='padding: 10px; border: 2px solid #444; background: lightgoldenrodyellow;'>${t('noSubmitted')}</span>`"
-      />
-    </div>
+    <!-- Card 2: My Submitted Requests -->
+    <va-card style="border-radius: 12px; border: 1px solid var(--va-background-border); overflow: hidden;">
+      <div style="padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--va-background-border); display: flex; justify-content: space-between; align-items: center; background: var(--va-background-element);">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <va-icon name="outbox" color="primary" />
+          <span style="font-size: 1.05rem; font-weight: 700; color: var(--va-text-primary); font-family: 'Pretendard', 'Inter', sans-serif;">
+            {{ t('mySubmitted') || '내가 올린 결재 상신 내역' }}
+          </span>
+          <va-chip size="small" color="primary" style="font-weight: 600;">{{ myRequests.length }}건</va-chip>
+        </div>
+      </div>
+
+      <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 320px; width: 100%;">
+        <AgGridVue
+          key="my-requests-grid"
+          id="my-requests-grid"
+          style="width: 100%; height: 100%;"
+          :theme="gridTheme"
+          :autoSizeStrategy="autoSizeStrategy"
+          :gridOptions="myRequestsGridOptions"
+          @grid-ready="onMyRequestsGridReady"
+          :overlayNoRowsTemplate="`<span style='padding: 8px 16px; border: 1px solid var(--va-background-border); background: var(--va-background-element); color: var(--va-text-secondary); border-radius: 6px; font-size: 0.85rem;'>${t('noSubmitted')}</span>`"
+        />
+      </div>
+    </va-card>
 
     <!-- Details Modal -->
     <va-modal v-model="showDetailsModal" size="large" close-button hide-default-actions>
@@ -171,6 +194,9 @@
 <script setup>
 import { useColors } from 'vuestic-ui'
 import { useI18n } from 'vue-i18n'
+import { usePageTitle } from '~/composables/usePageTitle'
+
+const { pageTitle } = usePageTitle('approvals_title', '결재 및 승인 관리')
 import { useApprovalEnricher } from '~/composables/useApprovalEnricher'
 import ApprovalDetailsViewer from '~/components/ApprovalDetailsViewer.vue'
 import { usePermission } from '~/composables/usePermission'
@@ -185,6 +211,7 @@ const isDark = computed(() => colors.currentPresetName.value === 'dark')
 const messages = {
   ko: {
     title: '내 결재 요청 및 승인함',
+    pending_approvals: '승인 대기 결재 목록',
     subtitle: '본인이 제출한 결재 요청 목록 및 승인 대기 중인 결재 건을 확인하고 일괄 처리합니다.',
     refresh: '새로고침',
     allDone: '모든 결재/합의가 완료되었습니다.',
@@ -253,6 +280,7 @@ const messages = {
   },
   en: {
     title: 'My Pending Approvals',
+    pending_approvals: 'Pending Approvals',
     subtitle: 'View and batch process your submitted approval requests and pending approval items.',
     refresh: 'Refresh',
     allDone: 'All approvals/consensus are completed.',

@@ -33,7 +33,7 @@ const props = defineProps({
   }
 })
 
-const { fetchRolesForOrg, formatRoleText, getUserOrgId } = useRoles()
+const { fetchRolesForOrg, formatRoleText, getRoleColor, getUserOrgId } = useRoles()
 
 onMounted(() => {
   fetchRolesForOrg(props.orgId || getUserOrgId())
@@ -49,18 +49,4 @@ const roleListInput = computed(() => {
   }
   return []
 })
-
-const getRoleColor = (code) => {
-  const norm = code ? code.replace('ROLE_', '').toUpperCase() : ''
-  switch (norm) {
-    case 'ADMIN': return 'danger'
-    case 'ORG_ADMIN': return 'warning'
-    case 'DATA_STEWARD': return 'primary'
-    case 'DOMAIN_EDITOR': return 'info'
-    case 'DQ_MANAGER': return 'success'
-    case 'VIEWER': return 'secondary'
-    case 'USER': return 'info'
-    default: return 'primary'
-  }
-}
 </script>

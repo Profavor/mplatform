@@ -7,7 +7,7 @@
         <va-icon name="fact_check" size="large" color="primary" />
         <div>
           <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-            {{ $t('match_review.title') || '매칭 후보 검토' }}
+            {{ pageTitle }}
             <va-badge text="Queue" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
@@ -78,7 +78,7 @@
 
       <!-- AG-Grid -->
       <va-card style="flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; padding: 0.5rem;">
-        <div style="width: 100%; height: 100%; flex: 1;">
+        <div :class="{ 'ag-theme-quartz-dark': isDark }" style="width: 100%; height: 100%; flex: 1;">
           <client-only>
             <ag-grid-vue
               v-if="isMounted"
@@ -189,6 +189,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { usePageTitle } from '~/composables/usePageTitle'
+
+const { pageTitle } = usePageTitle('match_review.title', '매칭 검토')
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vuestic-ui'
 import { AgGridVue } from 'ag-grid-vue3'
@@ -203,7 +206,7 @@ const { init } = useToast()
 const { customFetch } = useCustomFetch()
 const { formatWithTimezone } = useTimezoneDate()
 const { hasPermission } = usePermission()
-const { gridTheme, autoSizeStrategy } = useAgGridTheme()
+const { gridTheme, autoSizeStrategy, isDark } = useAgGridTheme()
 
 const isMounted = ref(false)
 const domainStore = useDomain()

@@ -6,7 +6,7 @@
         <va-icon name="corporate_fare" size="large" color="primary" />
         <div>
           <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-            {{ t('org_tenant_management') }}
+            {{ pageTitle }}
             <va-badge text="Tenant" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
@@ -545,7 +545,7 @@
           </va-input>
         </div>
 
-        <div style="width: 100%; height: 380px; border: 1px solid var(--va-background-border); border-radius: 8px; overflow: hidden;">
+        <div :class="{ 'ag-theme-quartz-dark': isDark }" style="width: 100%; height: 380px; border: 1px solid var(--va-background-border); border-radius: 8px; overflow: hidden;">
           <client-only>
             <ag-grid-vue
               v-if="isMounted"
@@ -690,6 +690,9 @@
 <script setup>
 import OrgTreeSidebar from '~/components/org/OrgTreeSidebar.vue'
 import OrgDetailForm from '~/components/org/OrgDetailForm.vue'
+import { usePageTitle } from '~/composables/usePageTitle'
+
+const { pageTitle } = usePageTitle('org_tenant_management', '조직 및 부서 관리')
 import { ref, onMounted, computed } from 'vue'
 import { useCookie } from '#app'
 import { AgGridVue } from 'ag-grid-vue3'
@@ -698,7 +701,7 @@ import PermissionMatrix from '~/components/PermissionMatrix.vue'
 import UserRoleSelect from '~/components/UserRoleSelect.vue'
 import { useRoleStore } from '~/stores/useRoleStore'
 
-const { gridTheme } = useAgGridTheme()
+const { gridTheme, isDark } = useAgGridTheme()
 const isMounted = ref(false)
 const roleStore = useRoleStore()
 const isSyncingRoles = ref(false)

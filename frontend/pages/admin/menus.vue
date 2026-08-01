@@ -6,7 +6,7 @@
         <va-icon name="menu_book" size="large" color="primary" />
         <div>
           <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-            {{ $t('menu_management') || '메뉴 관리' }}
+            {{ pageTitle }}
             <va-badge text="System" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
@@ -145,10 +145,13 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useMenu } from '~/composables/useMenu'
+import { usePageTitle } from '~/composables/usePageTitle'
+
+const { pageTitle } = usePageTitle('menu_management', '메뉴 관리')
 import { useToast } from 'vuestic-ui'
 
 const { t, te, locale } = useI18n()
-const { menus, fetchMenus } = useMenu()
+const { menus, fetchMenus, refreshMenus } = useMenu()
 const { init } = useToast()
 
 const token = useCookie('auth_token')
@@ -304,8 +307,8 @@ const addMenu = async () => {
       body: payload
     })
     init({ message: t('creation_success') || 'Menu added successfully', color: 'success' })
+    await refreshMenus()
     await loadAdminMenus()
-    await fetchMenus(true)
   } catch (error) {
     init({ message: 'Failed to add menu', color: 'danger' })
   }
@@ -327,8 +330,8 @@ const saveMenu = async () => {
       body: payload
     })
     init({ message: t('update_success') || 'Menu updated successfully', color: 'success' })
+    await refreshMenus()
     await loadAdminMenus()
-    await fetchMenus(true)
     
     selectedMenu.value.name = payload.name
   } catch (error) {
@@ -346,8 +349,8 @@ const deleteMenu = async (id) => {
     if (selectedMenu.value && selectedMenu.value.id === id) {
       selectedMenu.value = null
     }
+    await refreshMenus()
     await loadAdminMenus()
-    await fetchMenus(true)
   } catch (error) {
     init({ message: 'Failed to delete menu', color: 'danger' })
   }

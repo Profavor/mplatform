@@ -6,7 +6,7 @@
         <va-icon name="manage_accounts" size="large" color="primary" />
         <div>
           <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-            {{ $t('user_management') || '사용자 및 권한 관리' }}
+            {{ pageTitle }}
             <va-badge text="RBAC" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
@@ -320,6 +320,9 @@
 
 <script setup>
 import { usePermission } from '~/composables/usePermission'
+import { usePageTitle } from '~/composables/usePageTitle'
+
+const { pageTitle } = usePageTitle('user_management', '사용자 및 권한 관리')
 
 const { t, locale } = useI18n()
 const { hasPermission } = usePermission()

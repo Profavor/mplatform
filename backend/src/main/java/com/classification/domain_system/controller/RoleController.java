@@ -51,6 +51,9 @@ public class RoleController {
     public ResponseEntity<Role> updateRole(@PathVariable UUID id, @RequestBody Role updated) {
         return roleRepository.findById(id)
                 .map(existing -> {
+                    if (updated.getName() != null && !updated.getName().isBlank()) {
+                        existing.setName(updated.getName().trim());
+                    }
                     existing.setDisplayName(updated.getDisplayName());
                     existing.setDescription(updated.getDescription());
                     existing.setPermissions(updated.getPermissions());

@@ -87,7 +87,7 @@ const getLabel = (key, fallback) => {
   return (!res || res === key) ? fallback : res
 }
 
-const { fetchRolesForOrg, formatRoleText, getUserOrgId, initGlobalRoles } = useRoles()
+const { fetchRolesForOrg, formatRoleText, getRoleColor, getUserOrgId, initGlobalRoles } = useRoles()
 
 const localRoleList = ref([])
 const tempSelectedRole = ref(null)
@@ -177,18 +177,5 @@ const removeRole = (roleCodeToRemove) => {
   const finalVal = Array.isArray(props.modelValue) ? newList : newList.join(', ')
   emit('update:modelValue', finalVal)
   emit('change', finalVal)
-}
-
-const getRoleColor = (code) => {
-  const norm = code ? code.replace('ROLE_', '') : ''
-  switch (norm) {
-    case 'ADMIN': return 'danger'
-    case 'ORG_ADMIN': return 'warning'
-    case 'DATA_STEWARD': return 'primary'
-    case 'DOMAIN_EDITOR': return 'info'
-    case 'DQ_MANAGER': return 'success'
-    case 'VIEWER': return 'secondary'
-    default: return 'primary'
-  }
 }
 </script>

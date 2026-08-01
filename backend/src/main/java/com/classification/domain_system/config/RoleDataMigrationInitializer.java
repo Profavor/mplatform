@@ -54,16 +54,24 @@ public class RoleDataMigrationInitializer implements CommandLineRunner {
                 log.info("Migrated {} menu(s) required_role from 'ADMIN' to 'ROLE_ADMIN'.", updatedMenus);
             }
 
+            // 4-1. INTGRATION / INTGRATION_MANAGER -> INTEGRATION 오타 DB 통합 마이그레이션
+            jdbcTemplate.update("DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM role WHERE name IN ('INTGRATION', 'INTEGRATION_MANAGER') AND organization_id IN (SELECT organization_id FROM role WHERE name = 'INTEGRATION'))");
+            jdbcTemplate.update("DELETE FROM role WHERE name IN ('INTGRATION', 'INTEGRATION_MANAGER') AND organization_id IN (SELECT organization_id FROM role WHERE name = 'INTEGRATION')");
+            jdbcTemplate.update("UPDATE role SET name = 'INTEGRATION' WHERE name IN ('INTGRATION', 'INTEGRATION_MANAGER')");
+            jdbcTemplate.update("UPDATE users SET role = 'INTEGRATION' WHERE role IN ('INTGRATION', 'INTEGRATION_MANAGER')");
+            jdbcTemplate.update("UPDATE department_roles SET role_name = 'INTEGRATION' WHERE role_name IN ('INTGRATION', 'INTEGRATION_MANAGER')");
+            jdbcTemplate.update("UPDATE menu_roles SET role_name = 'INTEGRATION' WHERE role_name IN ('INTGRATION', 'INTEGRATION_MANAGER')");
+
             // 5. 기본 시스템 역할들의 is_system_role 및 display_name 보정
-            jdbcTemplate.update("UPDATE role SET is_system_role = true WHERE name IN ('ADMIN', 'ROLE_ADMIN', 'ORG_ADMIN', 'DATA_STEWARD', 'DOMAIN_EDITOR', 'DQ_MANAGER', 'INTEGRATION_MANAGER', 'VIEWER', 'USER', 'ROLE_USER')");
+            jdbcTemplate.update("UPDATE role SET is_system_role = true WHERE name IN ('ADMIN', 'ROLE_ADMIN', 'ORG_ADMIN', 'DATA_STEWARD', 'DOMAIN_EDITOR', 'DQ_MANAGER', 'INTEGRATION', 'INTEGRATION_MANAGER', 'WORKFLOW', 'VIEWER', 'USER', 'ROLE_USER')");
             jdbcTemplate.update("UPDATE role SET display_name = '{\"ko\":\"시스템 관리자\",\"en\":\"System Admin\"}' WHERE name IN ('ADMIN', 'ROLE_ADMIN') AND (display_name IS NULL OR display_name = '')");
             jdbcTemplate.update("UPDATE role SET display_name = '{\"ko\":\"조직 관리자\",\"en\":\"Organization Admin\"}' WHERE name = 'ORG_ADMIN' AND (display_name IS NULL OR display_name = '')");
-            jdbcTemplate.update("UPDATE role SET display_name = '{\"ko\":\"연계 관리자\",\"en\":\"Integration Manager\"}' WHERE name = 'INTEGRATION_MANAGER' AND (display_name IS NULL OR display_name = '')");
+            jdbcTemplate.update("UPDATE role SET display_name = '{\"ko\":\"연계 관리자\",\"en\":\"Integration Manager\"}' WHERE name IN ('INTEGRATION', 'INTEGRATION_MANAGER') AND (display_name IS NULL OR display_name = '')");
 
-            // 5-1. INTEGRATION_MANAGER 역할 퍼미션 (org:read, field:read, user:read) 보정
-            jdbcTemplate.update("INSERT INTO role_permissions (role_id, permission) SELECT id, 'org:read' FROM role WHERE name = 'INTEGRATION_MANAGER' AND NOT EXISTS (SELECT 1 FROM role_permissions rp WHERE rp.role_id = role.id AND rp.permission = 'org:read')");
-            jdbcTemplate.update("INSERT INTO role_permissions (role_id, permission) SELECT id, 'field:read' FROM role WHERE name = 'INTEGRATION_MANAGER' AND NOT EXISTS (SELECT 1 FROM role_permissions rp WHERE rp.role_id = role.id AND rp.permission = 'field:read')");
-            jdbcTemplate.update("INSERT INTO role_permissions (role_id, permission) SELECT id, 'user:read' FROM role WHERE name = 'INTEGRATION_MANAGER' AND NOT EXISTS (SELECT 1 FROM role_permissions rp WHERE rp.role_id = role.id AND rp.permission = 'user:read')");
+            // 5-1. INTEGRATION 역할 퍼미션 (org:read, field:read, user:read, integration:*) 보정
+            jdbcTemplate.update("INSERT INTO role_permissions (role_id, permission) SELECT id, 'org:read' FROM role WHERE name = 'INTEGRATION' AND NOT EXISTS (SELECT 1 FROM role_permissions rp WHERE rp.role_id = role.id AND rp.permission = 'org:read')");
+            jdbcTemplate.update("INSERT INTO role_permissions (role_id, permission) SELECT id, 'field:read' FROM role WHERE name = 'INTEGRATION' AND NOT EXISTS (SELECT 1 FROM role_permissions rp WHERE rp.role_id = role.id AND rp.permission = 'field:read')");
+            jdbcTemplate.update("INSERT INTO role_permissions (role_id, permission) SELECT id, 'user:read' FROM role WHERE name = 'INTEGRATION' AND NOT EXISTS (SELECT 1 FROM role_permissions rp WHERE rp.role_id = role.id AND rp.permission = 'user:read')");
 
             // 6. department_roles 1NF 테이블: 'ADMIN' -> 'ROLE_ADMIN'
             int updatedDeptRoles = jdbcTemplate.update(

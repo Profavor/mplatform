@@ -6,7 +6,7 @@
         <va-icon name="schema" size="large" color="primary" />
         <div>
           <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-            {{ $t('domain_schema_title') || '도메인 스키마 관리' }}
+            {{ pageTitle }}
             <va-badge text="Governance" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
@@ -69,7 +69,7 @@
                 <span style="font-weight: bold;">{{ $t('schema_approval_in_progress') || '결재 진행 중' }}:</span>
                 {{ $t('pending_schema_approval_exists') || '현재 진행 중인 스키마 결재 건이 있습니다. 결재 완료 전까지 수정할 수 없습니다.' }}
               </va-alert>
-              <div class="schema-grid-wrapper">
+              <div class="schema-grid-wrapper" :class="{ 'ag-theme-quartz-dark': isDark }">
                 <ag-grid-vue
                   style="width: 100%; height: 100%;"
                   :theme="gridTheme"
@@ -250,16 +250,18 @@
           <va-button size="small" icon="remove" color="danger" @click="removeSelectedGridOption" :outline="isDark">{{ t('remove_selected') }}</va-button>
         </div>
         
-        <ag-grid-vue
-          style="width: 100%; height: 250px;"
-          :theme="gridTheme"
-          :autoSizeStrategy="autoSizeStrategy"
-          :columnDefs="optionsColumnDefs"
-          :rowData="newFieldOptionsList"
-          :defaultColDef="optionsDefaultColDef"
-          :rowSelection="{ mode: 'singleRow' }"
-          @grid-ready="onOptionsGridReady"
-        />
+        <div :class="{ 'ag-theme-quartz-dark': isDark }" style="width: 100%; height: 250px;">
+          <ag-grid-vue
+            style="width: 100%; height: 100%;"
+            :theme="gridTheme"
+            :autoSizeStrategy="autoSizeStrategy"
+            :columnDefs="optionsColumnDefs"
+            :rowData="newFieldOptionsList"
+            :defaultColDef="optionsDefaultColDef"
+            :rowSelection="{ mode: 'singleRow' }"
+            @grid-ready="onOptionsGridReady"
+          />
+        </div>
       </div>
       
       <div v-else-if="newField.type === 'CALCULATED'" class="mb-4 w-full" style="border: 1px solid #ccc; padding: 1rem; border-radius: 8px;">
@@ -473,7 +475,7 @@
               <va-button size="small" color="danger" icon="delete" @click="deleteSelectedSector" :outline="isDark">선택 삭제</va-button>
             </div>
           </div>
-          <div style="flex: 1; width: 100%;">
+          <div :class="{ 'ag-theme-quartz-dark': isDark }" style="flex: 1; width: 100%;">
             <AgGridVue
               style="width: 100%; height: 100%;"
               :theme="gridTheme"
@@ -498,7 +500,7 @@
               <va-button size="small" color="danger" icon="delete" @click="deleteSelectedGroup" :outline="isDark">선택 삭제</va-button>
             </div>
           </div>
-          <div style="flex: 1; width: 100%;">
+          <div :class="{ 'ag-theme-quartz-dark': isDark }" style="flex: 1; width: 100%;">
             <AgGridVue
               style="width: 100%; height: 100%;"
               :theme="gridTheme"
@@ -605,6 +607,9 @@
 </template>
 
 <script setup>
+import { usePageTitle } from '~/composables/usePageTitle'
+
+const { pageTitle } = usePageTitle('domain_schema_title', '도메인 스키마 관리')
 const colors = useColors()
 const isDark = computed(() => colors.currentPresetName.value === 'dark')
 import { usePermission } from '~/composables/usePermission'
@@ -1911,7 +1916,7 @@ const deleteGroup = async (id) => {
   padding: 0.45rem 0.65rem;
   border: 1px solid var(--va-background-border);
   border-radius: 8px;
-  background: var(--va-background-card, #ffffff);
+  background: var(--va-background-element);
   cursor: pointer;
   user-select: none;
   transition: all 0.2s ease;

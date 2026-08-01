@@ -6,7 +6,7 @@
         <va-icon name="fact_check" size="large" color="primary" />
         <div>
           <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-            {{ t('title') || '결재 진행 모니터링' }}
+            {{ pageTitle }}
             <va-badge text="Workflow" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
@@ -23,7 +23,7 @@
     <va-card style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
       
       <va-card-content style="flex: 1; display: flex; flex-direction: column; padding: 0; min-height: 0;">
-        <div style="flex: 1; width: 100%; height: 100%;">
+        <div :class="{ 'ag-theme-quartz-dark': isDark }" style="flex: 1; width: 100%; height: 100%;">
           <ag-grid-vue
             style="width: 100%; height: 100%;"
             :theme="gridTheme"
@@ -111,6 +111,9 @@
 
 <script setup>
 import { ref, onMounted, computed, h } from 'vue'
+import { usePageTitle } from '~/composables/usePageTitle'
+
+const { pageTitle } = usePageTitle('approval_monitor_title', '결재 진행 모니터링')
 import { useCookie } from '#app'
 import { AgGridVue } from 'ag-grid-vue3'
 import { useI18n } from 'vue-i18n'
@@ -226,7 +229,7 @@ const vaAlert = (message) => {
   })
 }
 
-const { gridTheme, autoSizeStrategy } = useAgGridTheme()
+const { gridTheme, autoSizeStrategy, isDark } = useAgGridTheme()
 
 const { loadMetadata, enrichRequest, domains, nodes } = useApprovalEnricher()
 

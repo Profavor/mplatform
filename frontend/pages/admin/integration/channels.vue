@@ -6,7 +6,7 @@
         <va-icon name="hub" size="large" color="primary" />
         <div>
           <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-            {{ $t('integration.channels.title') || '연계 채널 관리' }}
+            {{ pageTitle }}
             <va-badge text="Integration" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
@@ -25,87 +25,59 @@
       </div>
     </div>
 
-    <!-- Channels Table -->
-    <va-card class="mb-4">
-      <va-card-content>
-        <va-data-table
-          :items="channels"
-          :columns="columns"
-          :loading="isLoading"
-          striped
-        >
-          <template #cell(name)="{ rowData }">
-            <span style="font-weight: 700; color: var(--va-text-primary);">
-              {{ parseI18nName(rowData.name) }}
-            </span>
-          </template>
-          <template #cell(direction)="{ rowData }">
-            <va-badge
-              :text="rowData.direction === 'INBOUND' ? $t('integration.channels.inbound') : $t('integration.channels.outbound')"
-              :color="rowData.direction === 'INBOUND' ? 'warning' : 'info'"
-            />
-          </template>
-          <template #cell(isActive)="{ rowData }">
-            <va-badge
-              :text="rowData.isActive ? 'Active' : 'Inactive'"
-              :color="rowData.isActive ? 'success' : 'danger'"
-            />
-          </template>
-          <template #cell(createdAt)="{ rowData }">
-            {{ formatDate(rowData.createdAt) }}
-          </template>
-          <template #cell(actions)="{ rowData }">
-            <div class="action-buttons">
-              <va-button preset="plain" color="primary" @click="openEditModal(rowData)">
-                <va-icon name="edit" />
-              </va-button>
-              <va-button preset="plain" color="danger" @click="confirmDelete(rowData.id)">
-                <va-icon name="delete" />
-              </va-button>
-            </div>
-          </template>
-        </va-data-table>
+    <!-- Channels Table Card -->
+    <va-card style="flex: 1; display: flex; flex-direction: column; overflow: hidden; border-radius: 12px; border: 1px solid var(--va-background-border); margin-bottom: 1.25rem;">
+      <va-card-title class="flex justify-between items-center" style="padding: 1rem 1.25rem;">
+        <div class="flex items-center gap-2 font-bold text-lg">
+          <va-icon name="hub" color="primary" />
+          <span style="color: var(--va-text-primary);">{{ $t('integration.channels.title') || '연동 채널 목록' }}</span>
+          <va-chip size="small" color="primary">{{ channels.length }}개 항목</va-chip>
+        </div>
+      </va-card-title>
+
+      <va-card-content style="padding: 0 1.25rem 1.25rem 1.25rem;">
+        <div :class="{ 'ag-theme-quartz-dark': isDark }" style="width: 100%; min-height: 320px;">
+          <AgGridVue
+            style="width: 100%; height: 350px;"
+            :theme="gridTheme"
+            :column-defs="channelColumnDefs"
+            :row-data="channels"
+            :default-col-def="{ sortable: true, resizable: true }"
+            :animate-rows="true"
+            :row-height="54"
+            :header-height="46"
+            :suppress-cell-focus="true"
+          />
+        </div>
       </va-card-content>
     </va-card>
 
     <!-- Recent Integration Logs Dashboard -->
-    <va-card class="mb-4">
-      <va-card-title>
-        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-          <span style="font-size: 1.1rem; color: var(--va-text-primary);">
-            <va-icon name="monitor_heart" class="mr-2" color="primary" />
-            최근 연동 로그 모니터링 (Recent Integration Logs)
-          </span>
-          <va-button preset="secondary" icon="refresh" size="small" @click="fetchRecentLogs">새로고침</va-button>
+    <va-card style="flex: 1; display: flex; flex-direction: column; overflow: hidden; border-radius: 12px; border: 1px solid var(--va-background-border);">
+      <va-card-title class="flex justify-between items-center" style="padding: 1rem 1.25rem;">
+        <div class="flex items-center gap-2 font-bold text-lg">
+          <va-icon name="monitor_heart" color="primary" />
+          <span style="color: var(--va-text-primary);">최근 연동 로그 모니터링 (Recent Integration Logs)</span>
         </div>
+        <va-button preset="secondary" icon="refresh" size="small" @click="fetchRecentLogs">
+          {{ $t('refresh') || '새로고침' }}
+        </va-button>
       </va-card-title>
-      <va-card-content>
-        <va-data-table
-          :items="recentLogs"
-          :columns="logColumns"
-          :loading="isLogsLoading"
-          striped
-          hoverable
-        >
-          <template #cell(direction)="{ rowData }">
-            <va-badge
-              :text="rowData.direction === 'INBOUND' ? 'Inbound' : 'Outbound'"
-              :color="rowData.direction === 'INBOUND' ? 'warning' : 'info'"
-            />
-          </template>
-          <template #cell(status)="{ rowData }">
-            <va-badge
-              :text="rowData.status"
-              :color="rowData.status === 'SUCCESS' ? 'success' : 'danger'"
-            />
-          </template>
-          <template #cell(channelName)="{ rowData }">
-            {{ getChannelNameById(rowData.channelId) }}
-          </template>
-          <template #cell(createdAt)="{ rowData }">
-            {{ formatDate(rowData.createdAt) }}
-          </template>
-        </va-data-table>
+
+      <va-card-content style="padding: 0 1.25rem 1.25rem 1.25rem;">
+        <div :class="{ 'ag-theme-quartz-dark': isDark }" style="width: 100%; min-height: 280px;">
+          <AgGridVue
+            style="width: 100%; height: 300px;"
+            :theme="gridTheme"
+            :column-defs="recentLogColumnDefs"
+            :row-data="recentLogs"
+            :default-col-def="{ sortable: true, resizable: true }"
+            :animate-rows="true"
+            :row-height="50"
+            :header-height="46"
+            :suppress-cell-focus="true"
+          />
+        </div>
       </va-card-content>
     </va-card>
 
@@ -190,30 +162,30 @@
                 </div>
               </div>
 
-              <!-- Webhook Guide Card (Premium Modern Light Theme) -->
-              <div style="background: linear-gradient(135deg, rgba(238,242,255,0.8), rgba(243,244,256,0.5)); border-radius: 12px; padding: 1.25rem; border: 1px solid rgba(199,210,254,0.8); display: flex; flex-direction: column; gap: 0.75rem;">
-                <div style="font-weight: 700; font-size: 0.9rem; color: #4338ca; display: flex; align-items: center; justify-content: space-between;">
+              <!-- Webhook Guide Card (Dynamic Theme Compatible) -->
+              <div style="background: var(--va-background-element); border-radius: 12px; padding: 1.25rem; border: 1px solid var(--va-background-border); display: flex; flex-direction: column; gap: 0.75rem;">
+                <div style="font-weight: 700; font-size: 0.9rem; color: var(--va-primary); display: flex; align-items: center; justify-content: space-between;">
                   <span style="display: flex; align-items: center; gap: 0.4rem;">
-                    <va-icon name="link" size="small" color="#4338ca" /> {{ $t('integration.channels.webhook_url') || '수신 Webhook URL 가이드' }}
+                    <va-icon name="link" size="small" color="primary" /> {{ $t('integration.channels.webhook_url') || '수신 Webhook URL 가이드' }}
                   </span>
                   <va-button size="small" color="primary" icon="content_copy" @click="copyWebhookUrl">
                     {{ $t('integration.channels.webhook_copy') || 'URL 복사' }}
                   </va-button>
                 </div>
-                <div style="font-size: 0.83rem; color: #374151; line-height: 1.4;">
+                <div style="font-size: 0.83rem; color: var(--va-text-secondary); line-height: 1.4;">
                   {{ $t('integration.channels.inbound_notice') || '외부 시스템에서 아래 Webhook URL로 JSON Payload를 POST 요청하면 설정된 매핑 규칙에 따라 데이터가 연동 처리됩니다.' }}
                 </div>
                 <va-input :model-value="getWebhookUrl()" readonly style="font-family: monospace; font-size: 0.85rem;" />
-                <div v-if="uiConfig.inboundAuthType !== 'NONE'" style="font-size: 0.8rem; background: rgba(255,255,255,0.95); padding: 0.6rem 0.85rem; border-radius: 8px; border: 1px solid #c7d2fe; color: #1e1b4b; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <div v-if="uiConfig.inboundAuthType !== 'NONE'" style="font-size: 0.8rem; background: var(--va-background-primary); padding: 0.6rem 0.85rem; border-radius: 8px; border: 1px solid var(--va-background-border); color: var(--va-text-primary); display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                   <div style="display: flex; align-items: center; gap: 0.6rem;">
                     <va-chip size="small" color="primary" outline style="font-weight: 700;">
                       Header
                     </va-chip>
                     <div style="display: flex; align-items: center; gap: 0.4rem; font-family: monospace;">
-                      <span style="font-weight: 700; color: #3730a3;">
+                      <span style="font-weight: 700; color: var(--va-text-primary);">
                         {{ uiConfig.inboundAuthType === 'BEARER_TOKEN' ? 'Authorization' : 'X-API-KEY' }}:
                       </span>
-                      <code style="color: #4338ca; font-weight: bold; background: #eef2ff; padding: 2px 6px; border-radius: 4px;">
+                      <code style="color: var(--va-primary); font-weight: bold; background: var(--va-background-element); border: 1px solid var(--va-background-border); padding: 2px 6px; border-radius: 4px;">
                         {{ uiConfig.inboundAuthType === 'BEARER_TOKEN' ? `Bearer ${uiConfig.inboundSecretToken || 'secretToken'}` : (uiConfig.inboundSecretToken || 'secretToken') }}
                       </code>
                     </div>
@@ -224,10 +196,10 @@
                 </div>
 
                 <!-- Real-time JSON Payload Sample Box -->
-                <div style="font-size: 0.8rem; background: rgba(255,255,255,0.95); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid #c7d2fe; color: #1e1b4b; display: flex; flex-direction: column; gap: 0.6rem;">
+                <div style="font-size: 0.8rem; background: var(--va-background-primary); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--va-background-border); color: var(--va-text-primary); display: flex; flex-direction: column; gap: 0.6rem;">
                   <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-                    <strong style="display: flex; align-items: center; gap: 0.35rem; color: #3730a3;">
-                      <va-icon name="code" size="small" color="#4338ca" />
+                    <strong style="display: flex; align-items: center; gap: 0.35rem; color: var(--va-text-primary);">
+                      <va-icon name="code" size="small" color="primary" />
                       {{ $t('integration.channels.sample_payload_title') || '요청 JSON Payload 샘플 (실시간 매핑 반영)' }}
                     </strong>
                     <div style="display: flex; gap: 0.4rem;">
@@ -240,8 +212,8 @@
                     </div>
                   </div>
                   <pre style="margin: 0; font-family: 'Fira Code', 'Consolas', 'Courier New', monospace; font-size: 0.82rem; background: #0f172a; color: #38bdf8; padding: 0.75rem 1rem; border-radius: 6px; overflow-x: auto; max-height: 220px; line-height: 1.45; border: 1px solid #1e293b;">{{ sampleJsonPayload }}</pre>
-                  <div style="font-size: 0.75rem; color: #64748b; display: flex; align-items: center; gap: 0.3rem;">
-                    <va-icon name="info" size="extra-small" color="#64748b" />
+                  <div style="font-size: 0.75rem; color: var(--va-text-secondary); display: flex; align-items: center; gap: 0.3rem;">
+                    <va-icon name="info" size="extra-small" color="secondary" />
                     <span>{{ $t('integration.channels.sample_payload_notice') || '매핑 탭에서 구성한 소스 표현식과 Root Path 정보가 실시간으로 반영된 요청 Payload 예시입니다.' }}</span>
                   </div>
                 </div>
@@ -334,9 +306,14 @@
                   * {{ formData.direction === 'INBOUND' ? $t('integration.channels.mapping_desc_inbound') : $t('integration.channels.mapping_desc') }}
                 </p>
               </div>
-              <va-button size="small" color="primary" icon="add" @click="addMapping">
-                + {{ $t('integration.channels.add_field') || '필드 추가' }}
-              </va-button>
+              <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <va-button preset="secondary" size="small" icon="auto_awesome" :disabled="!selectedDomainId && rawFields.length === 0" @click="autoGenerateMappings">
+                  ⚡ {{ $t('integration.channels.auto_map_fields') || '도메인 필드 자동 매핑' }}
+                </va-button>
+                <va-button size="small" color="primary" icon="add" @click="addMapping">
+                  + {{ $t('integration.channels.add_field') || '필드 추가' }}
+                </va-button>
+              </div>
             </div>
 
             <va-input 
@@ -347,7 +324,7 @@
               clearable 
             />
 
-            <div style="height: 360px; width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid var(--va-background-border);">
+            <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 360px; width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid var(--va-background-border);">
               <client-only>
                 <ag-grid-vue
                   v-if="showModal"
@@ -355,7 +332,6 @@
                   :theme="gridTheme"
                   :columnDefs="mappingColumnDefs"
                   :rowData="uiMappings"
-                  :autoSizeStrategy="{ type: 'fitGridWidth' }"
                   @grid-ready="onMappingGridReady"
                   @cell-value-changed="onMappingCellValueChanged"
                 >
@@ -380,8 +356,11 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { usePageTitle } from '~/composables/usePageTitle'
+
+const { pageTitle } = usePageTitle('integration.channels.title', '외부 연동 채널 관리')
 import { useCookie } from '#app'
 import { useToast } from 'vuestic-ui'
 import { AgGridVue } from 'ag-grid-vue3'
@@ -390,7 +369,7 @@ import { useI18n } from 'vue-i18n'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 
 const { t, locale } = useI18n()
-const { gridTheme } = useAgGridTheme()
+const { gridTheme, isDark } = useAgGridTheme()
 const { init } = useToast()
 const { customFetch } = useCustomFetch()
 const token = useCookie('auth_token')
@@ -811,10 +790,14 @@ const onMappingGridReady = (params) => {
   setTimeout(() => {
     if (params.api && !params.api.isDestroyed()) {
       try {
-        params.api.sizeColumnsToFit()
+        const gridDiv = params.api.getGridOption ? params.api.getGridOption('eGridDiv') : null
+        const width = gridDiv ? gridDiv.clientWidth : 0
+        if (width > 0) {
+          params.api.sizeColumnsToFit()
+        }
       } catch (e) {}
     }
-  }, 100)
+  }, 250)
 }
 
 const validateSpelExpression = (expr) => {
@@ -907,15 +890,30 @@ const onMappingCellValueChanged = (event) => {
     if (formData.value.direction === 'INBOUND') {
       // Inbound: 외부(소스) -> 내부(타겟). 도메인 필드를 선택하면 타겟 필드(내부 필드)로 자동 지정
       event.node.setDataValue('targetField', event.newValue)
-      if (!event.node.data.sourceExpression) {
-        event.node.setDataValue('sourceExpression', `payload['${event.newValue}']`)
-      }
-    } else {
-      // Outbound: 내부(소스) -> 외부(타겟). 도메인 필드를 선택하면 소스 표현식으로 자동 지정
-      event.node.setDataValue('sourceExpression', `payload['${event.newValue}']`)
     }
+    event.node.setDataValue('sourceExpression', `payload['${event.newValue}']`)
   }
   syncUiMappingsFromGrid()
+}
+
+const autoGenerateMappings = () => {
+  if (!rawFields.value || rawFields.value.length === 0) {
+    init({ message: '매핑할 도메인 필드가 없습니다. 상단 기본 정보 탭에서 도메인을 먼저 선택해 주세요.', color: 'warning' })
+    return
+  }
+
+  const newRows = rawFields.value.map(f => ({
+    targetField: f.key,
+    selectedField: f.key,
+    sourceExpression: `payload['${f.key}']`
+  }))
+
+  uiMappings.value = newRows
+  if (mappingGridApi) {
+    mappingGridApi.setGridOption('rowData', newRows)
+  }
+  syncUiMappingsFromGrid()
+  init({ message: `${newRows.length}개 도메인 필드 매핑이 자동 세팅되었습니다.`, color: 'success' })
 }
 
 const addMapping = () => {
@@ -1059,6 +1057,172 @@ const getChannelNameById = (id) => {
   if (ch) return parseI18nName(ch.name)
   return id
 }
+
+// AG-Grid Column Definitions for Channels
+const channelColumnDefs = computed(() => [
+  {
+    field: 'name',
+    headerName: t('integration.channels.channel_name') || '채널명',
+    flex: 1.2,
+    cellRenderer: (params) => {
+      const div = document.createElement('div')
+      div.style.cssText = 'display: flex; align-items: center; height: 100%; font-weight: 700; color: var(--va-text-primary); font-family: inherit;'
+      div.textContent = parseI18nName(params.value) || '-'
+      return div
+    }
+  },
+  {
+    field: 'channelCode',
+    headerName: t('integration.channels.channel_code') || '채널 코드',
+    width: 140,
+    cellRenderer: (params) => {
+      const div = document.createElement('div')
+      div.style.cssText = 'display: flex; align-items: center; height: 100%;'
+      const chip = document.createElement('span')
+      chip.style.cssText = 'padding: 2px 8px; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 4px; font-family: monospace; font-size: 0.8rem; font-weight: 600;'
+      chip.textContent = params.value || '-'
+      div.appendChild(chip)
+      return div
+    }
+  },
+  {
+    field: 'direction',
+    headerName: t('integration.channels.direction') || '연동 방향',
+    width: 130,
+    cellRenderer: (params) => {
+      const div = document.createElement('div')
+      div.style.cssText = 'display: flex; align-items: center; height: 100%;'
+      const isInbound = params.value === 'INBOUND'
+      const pill = document.createElement('span')
+      pill.style.cssText = `padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 0.75rem; font-family: inherit; ${
+        isInbound
+          ? 'background: rgba(237, 108, 2, 0.12); color: var(--va-warning); border: 1px solid rgba(237, 108, 2, 0.3);'
+          : 'background: rgba(25, 118, 210, 0.12); color: var(--va-primary); border: 1px solid rgba(25, 118, 210, 0.3);'
+      }`
+      pill.textContent = isInbound ? (t('integration.channels.inbound') || 'Inbound') : (t('integration.channels.outbound') || 'Outbound')
+      div.appendChild(pill)
+      return div
+    }
+  },
+  {
+    field: 'isActive',
+    headerName: t('integration.channels.status') || '상태',
+    width: 120,
+    cellRenderer: (params) => {
+      const div = document.createElement('div')
+      div.style.cssText = 'display: flex; align-items: center; height: 100%;'
+      const isActive = Boolean(params.value)
+      const pill = document.createElement('span')
+      pill.style.cssText = `padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 0.75rem; font-family: inherit; ${
+        isActive
+          ? 'background: rgba(46, 125, 50, 0.12); color: var(--va-success); border: 1px solid rgba(46, 125, 50, 0.3);'
+          : 'background: rgba(229, 57, 53, 0.12); color: var(--va-danger); border: 1px solid rgba(229, 57, 53, 0.3);'
+      }`
+      pill.textContent = isActive ? 'Active' : 'Inactive'
+      div.appendChild(pill)
+      return div
+    }
+  },
+  {
+    field: 'createdAt',
+    headerName: t('createdAt') || '생성일시',
+    width: 170,
+    cellRenderer: (params) => {
+      const div = document.createElement('div')
+      div.style.cssText = 'display: flex; align-items: center; height: 100%; font-size: 0.85rem; color: var(--va-text-secondary);'
+      div.textContent = formatDate(params.value)
+      return div
+    }
+  },
+  {
+    field: 'actions',
+    headerName: t('actions') || '작업',
+    width: 100,
+    sortable: false,
+    cellRenderer: (params) => {
+      const div = document.createElement('div')
+      div.style.cssText = 'display: flex; align-items: center; justify-content: center; gap: 0.35rem; height: 100%;'
+
+      const editBtn = document.createElement('button')
+      editBtn.style.cssText = 'border: none; background: rgba(25, 118, 210, 0.1); color: var(--va-primary); border-radius: 6px; padding: 4px 8px; cursor: pointer; display: flex; align-items: center; font-weight: 600; font-size: 0.78rem;'
+      editBtn.innerHTML = `<span class="material-icons" style="font-size: 16px;">edit</span>`
+      editBtn.addEventListener('click', () => openEditModal(params.data))
+
+      const deleteBtn = document.createElement('button')
+      deleteBtn.style.cssText = 'border: none; background: rgba(229, 57, 53, 0.1); color: var(--va-danger); border-radius: 6px; padding: 4px 8px; cursor: pointer; display: flex; align-items: center; font-weight: 600; font-size: 0.78rem;'
+      deleteBtn.innerHTML = `<span class="material-icons" style="font-size: 16px;">delete</span>`
+      deleteBtn.addEventListener('click', () => confirmDelete(params.data.id))
+
+      div.appendChild(editBtn)
+      div.appendChild(deleteBtn)
+      return div
+    }
+  }
+])
+
+// AG-Grid Column Definitions for Recent Logs
+const recentLogColumnDefs = computed(() => [
+  {
+    field: 'channelId',
+    headerName: t('integration.channels.channel_name') || '연동 채널',
+    flex: 1.2,
+    cellRenderer: (params) => {
+      const div = document.createElement('div')
+      div.style.cssText = 'display: flex; align-items: center; height: 100%; font-weight: 600; font-family: inherit;'
+      div.textContent = getChannelNameById(params.value)
+      return div
+    }
+  },
+  {
+    field: 'direction',
+    headerName: t('integration.channels.direction') || '방향',
+    width: 130,
+    cellRenderer: (params) => {
+      const div = document.createElement('div')
+      div.style.cssText = 'display: flex; align-items: center; height: 100%;'
+      const isInbound = params.value === 'INBOUND'
+      const pill = document.createElement('span')
+      pill.style.cssText = `padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 0.75rem; font-family: inherit; ${
+        isInbound
+          ? 'background: rgba(237, 108, 2, 0.12); color: var(--va-warning); border: 1px solid rgba(237, 108, 2, 0.3);'
+          : 'background: rgba(25, 118, 210, 0.12); color: var(--va-primary); border: 1px solid rgba(25, 118, 210, 0.3);'
+      }`
+      pill.textContent = isInbound ? 'Inbound' : 'Outbound'
+      div.appendChild(pill)
+      return div
+    }
+  },
+  {
+    field: 'status',
+    headerName: t('integration.channels.status') || '상태',
+    width: 120,
+    cellRenderer: (params) => {
+      const div = document.createElement('div')
+      div.style.cssText = 'display: flex; align-items: center; height: 100%;'
+      const isSuccess = params.value === 'SUCCESS'
+      const pill = document.createElement('span')
+      pill.style.cssText = `padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 0.75rem; font-family: inherit; ${
+        isSuccess
+          ? 'background: rgba(46, 125, 50, 0.12); color: var(--va-success); border: 1px solid rgba(46, 125, 50, 0.3);'
+          : 'background: rgba(229, 57, 53, 0.12); color: var(--va-danger); border: 1px solid rgba(229, 57, 53, 0.3);'
+      }`
+      pill.textContent = params.value || 'SUCCESS'
+      div.appendChild(pill)
+      return div
+    }
+  },
+  {
+    field: 'createdAt',
+    headerName: t('createdAt') || '실행 시각',
+    flex: 1,
+    cellRenderer: (params) => {
+      const div = document.createElement('div')
+      div.style.cssText = 'display: flex; align-items: center; height: 100%; font-size: 0.85rem; color: var(--va-text-secondary);'
+      div.textContent = formatDate(params.value)
+      return div
+    }
+  }
+])
 
 const fetchRecentLogs = async () => {
   isLogsLoading.value = true

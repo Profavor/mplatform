@@ -94,6 +94,26 @@
   right: 1.25rem !important;
 }
 
+/* AG-Grid Comprehensive Theme & Dark Mode Integration */
+.ag-root-wrapper {
+  border-radius: 8px !important;
+  font-family: 'Pretendard', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+/* Dark mode overrides for AG-Grid when Vuestic dark mode is active */
+[data-vuestic-preset="dark"] .ag-root-wrapper,
+.va-theme-dark .ag-root-wrapper,
+.ag-theme-quartz-dark {
+  --ag-background-color: var(--va-background-element, #1e293b) !important;
+  --ag-foreground-color: var(--va-text-primary, #f8fafc) !important;
+  --ag-header-background-color: var(--va-background-primary, #0f172a) !important;
+  --ag-header-foreground-color: var(--va-text-primary, #f8fafc) !important;
+  --ag-border-color: var(--va-background-border, #334155) !important;
+  --ag-row-hover-color: rgba(255, 255, 255, 0.06) !important;
+  --ag-selected-row-background-color: rgba(25, 118, 210, 0.25) !important;
+  --ag-odd-row-background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
 
 
 

@@ -194,9 +194,11 @@ import NotificationBell from '~/components/layout/NotificationBell.vue'
 import InAppMessenger from '~/components/chat/InAppMessenger.vue'
 import SystemRadioWidget from '~/components/chat/SystemRadioWidget.vue'
 import AdminMusicControlModal from '~/components/chat/AdminMusicControlModal.vue'
+import { useRoles } from '~/composables/useRoles'
 
 const { t, locale, setLocale } = useI18n()
 const { applyPreset, currentPresetName } = useColors()
+const { getRoleBadgeStyle: getStoreRoleBadgeStyle } = useRoles()
 
 const router = useRouter()
 const tokenCookie = useCookie('auth_token')
@@ -315,41 +317,7 @@ const effectiveRolesDisplay = computed(() => {
 })
 
 const getRoleBadgeStyle = (role) => {
-  const norm = String(role).replace(/^ROLE_/, '')
-  if (isDark.value) {
-    switch (norm) {
-      case 'ADMIN':
-        return 'background: linear-gradient(135deg, #dc2626, #991b1b); color: #fee2e2; box-shadow: 0 0 10px rgba(239,68,68,0.5); border: 1px solid rgba(252,165,165,0.4);'
-      case 'ORG_ADMIN':
-        return 'background: linear-gradient(135deg, #2563eb, #1e40af); color: #dbeafe; box-shadow: 0 0 10px rgba(59,130,246,0.5); border: 1px solid rgba(147,197,253,0.4);'
-      case 'DATA_STEWARD':
-        return 'background: linear-gradient(135deg, #d97706, #92400e); color: #fef3c7; box-shadow: 0 0 10px rgba(245,158,11,0.5); border: 1px solid rgba(252,211,77,0.4);'
-      case 'DOMAIN_EDITOR':
-        return 'background: linear-gradient(135deg, #059669, #065f46); color: #d1fae5; box-shadow: 0 0 10px rgba(16,185,129,0.5); border: 1px solid rgba(110,231,183,0.4);'
-      case 'DQ_MANAGER':
-        return 'background: linear-gradient(135deg, #7c3aed, #5b21b6); color: #ede9fe; box-shadow: 0 0 10px rgba(139,92,246,0.5); border: 1px solid rgba(196,181,253,0.4);'
-      case 'VIEWER':
-        return 'background: linear-gradient(135deg, #4b5563, #1f2937); color: #f3f4f6; box-shadow: 0 0 8px rgba(107,114,128,0.4); border: 1px solid rgba(209,213,219,0.3);'
-      default:
-        return 'background: linear-gradient(135deg, #0284c7, #075985); color: #e0f2fe; box-shadow: 0 0 10px rgba(14,165,233,0.5); border: 1px solid rgba(186,230,253,0.4);'
-    }
-  }
-  switch (norm) {
-    case 'ADMIN':
-      return 'background: linear-gradient(135deg, #ef4444, #dc2626); color: white;'
-    case 'ORG_ADMIN':
-      return 'background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white;'
-    case 'DATA_STEWARD':
-      return 'background: linear-gradient(135deg, #f59e0b, #d97706); color: white;'
-    case 'DOMAIN_EDITOR':
-      return 'background: linear-gradient(135deg, #10b981, #059669); color: white;'
-    case 'DQ_MANAGER':
-      return 'background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: white;'
-    case 'VIEWER':
-      return 'background: linear-gradient(135deg, #6b7280, #4b5563); color: white;'
-    default:
-      return 'background: linear-gradient(135deg, #0284c7, #0369a1); color: white;'
-  }
+  return getStoreRoleBadgeStyle(role, isDark.value)
 }
 
 const filteredMenus = computed(() => {

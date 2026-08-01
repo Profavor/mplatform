@@ -16,8 +16,10 @@ import { useColors } from 'vuestic-ui'
 export function useAgGridTheme() {
   const { currentPresetName } = useColors()
 
+  const isDark = computed(() => currentPresetName.value === 'dark')
+
   const gridTheme = computed(() => {
-    return currentPresetName.value === 'dark'
+    return isDark.value
       ? themeQuartz.withPart(colorSchemeDark)
       : themeQuartz
   })
@@ -25,5 +27,5 @@ export function useAgGridTheme() {
   /** 자동 리사이즈 끄기: 명시적 컬럼 너비(width)와 flex 설정을 존중하고 가로 스크롤을 활성화하기 위해 */
   const autoSizeStrategy = null
 
-  return { gridTheme, autoSizeStrategy }
+  return { gridTheme, autoSizeStrategy, isDark }
 }
