@@ -990,7 +990,28 @@
   "dq_dashboard_desc": "도메인별 데이터 품질 검칙 이행률, 오류 건수 및 필드별 품질 진단 상태를 실시간 모니터링합니다.",
   "dashboard_subtitle": "마스터 데이터 거버넌스 종합 현황, 품질 진단 지표 및 핵심 연계 상태를 관제합니다.",
   "system_logs_title": "시스템 로그 및 연계 관제",
-  "system_logs_desc": "시스템 작업 이력, 사용자 로그인 기록, 예외 에러 및 연계 채널 전송 로그를 실시간 관제합니다."
+  "system_logs_desc": "시스템 작업 이력, 사용자 로그인 기록, 예외 에러 및 연계 채널 전송 로그를 실시간 관제합니다.",
+  "save_role": "역할 저장",
+  "status_filter": "상태 필터",
+  "status_pending": "검토 대기",
+  "status_merged": "병합 완료",
+  "status_ignored": "별도 유지",
+  "deduplication": {
+    "title": "중복 후보 검토 큐 (Data Steward Review Queue)",
+    "subtitle": "퍼지 매칭 및 매칭 룰에 의해 발견된 유사 중복 데이터를 검토하고 병합 또는 분리를 처리합니다.",
+    "pending_count": "검토 대기: {count}건",
+    "no_candidates": "검토할 중복 후보 레코드가 없습니다.",
+    "rule_default": "기본 퍼지 매칭 룰",
+    "similarity": "유사도",
+    "compare_and_action": "비교 및 처리",
+    "target_record": "기준 마스터 레코드",
+    "candidate_record": "중복 후보 레코드",
+    "modal_title": "Side-by-Side 레코드 필드 비교",
+    "master_record": "마스터 레코드 (유지)",
+    "duplicate_candidate": "중복 후보 레코드 (병합 대상)",
+    "keep_separate": "별도 레코드로 유지 (Ignore)",
+    "confirm_merge": "마스터로 병합 승인 (Merge)"
+  }
 }
 
 

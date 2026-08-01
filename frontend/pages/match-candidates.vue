@@ -3,85 +3,129 @@
     <!-- Top Action Bar -->
     <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
       <div style="display: flex; align-items: center; gap: 0.75rem;">
-        <va-icon name="find_in_page" size="large" color="primary" />
+        <va-icon name="find_replace" size="large" color="primary" />
         <div>
           <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-            {{ t('title') || '데이터 매칭 후보 목록' }}
+            {{ $t('deduplication.title') }}
             <va-badge text="Deduplication" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
-            {{ t('subtitle') || '유사도가 높은 매칭 데이터 후보 및 중복 의심 데이터를 조회합니다.' }}
+            {{ $t('deduplication.subtitle') }}
           </span>
         </div>
       </div>
 
       <div style="display: flex; gap: 0.75rem; align-items: center;">
-        <va-button preset="secondary" color="primary" icon="refresh" size="small" @click="loadCandidates">{{ t('refresh') || '새로고침' }}</va-button>
+        <va-button preset="outline" color="primary" icon="refresh" size="small" @click="loadCandidates">{{ $t('refresh') }}</va-button>
       </div>
     </div>
 
-    <!-- Filter & Stats Bar -->
-    <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
-      <va-select
-        v-model="selectedStatus"
-        :options="statusOptions"
-        value-by="value"
-        text-by="text"
-        :label="t('status_filter')"
-        style="width: 200px;"
-        @update:model-value="loadCandidates"
-      />
-      <va-badge text="PENDING" color="warning" style="padding: 0.5rem 0.75rem;">
-        {{ t('pending_count', { count: pendingCount }) }}
-      </va-badge>
+    <!-- Filter & Executive KPI Summary Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); flex-wrap: wrap; gap: 1rem;">
+      <div style="display: flex; align-items: center; gap: 1rem;">
+        <div style="font-size: 0.88rem; font-weight: 700; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.35rem;">
+          <va-icon name="filter_alt" size="small" color="primary" />
+          <span>{{ $t('status_filter') }}</span>
+        </div>
+        <va-select
+          v-model="selectedStatus"
+          :options="statusOptions"
+          value-by="value"
+          text-by="text"
+          style="min-width: 200px;"
+          dense
+          @update:model-value="loadCandidates"
+        />
+      </div>
+
+      <!-- Clean KPI Stat Badges -->
+      <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 0.5rem; background: var(--va-background-element); padding: 0.45rem 0.85rem; border-radius: 8px; border: 1px solid var(--va-background-border);">
+          <va-icon name="hourglass_top" color="warning" size="small" />
+          <span style="font-size: 0.85rem; font-weight: 700; color: var(--va-text-primary);">{{ $t('status_pending') }}</span>
+          <span style="font-size: 0.95rem; font-weight: 800; color: var(--va-warning); background: rgba(245, 158, 11, 0.15); padding: 1px 8px; border-radius: 6px;">
+            {{ candidates.filter(c => c.status === 'PENDING').length }}건
+          </span>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 0.5rem; background: var(--va-background-element); padding: 0.45rem 0.85rem; border-radius: 8px; border: 1px solid var(--va-background-border);">
+          <va-icon name="call_merge" color="success" size="small" />
+          <span style="font-size: 0.85rem; font-weight: 700; color: var(--va-text-primary);">{{ $t('status_merged') }}</span>
+          <span style="font-size: 0.95rem; font-weight: 800; color: var(--va-success); background: rgba(34, 197, 94, 0.15); padding: 1px 8px; border-radius: 6px;">
+            {{ candidates.filter(c => c.status === 'MERGED').length }}건
+          </span>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 0.5rem; background: var(--va-background-element); padding: 0.45rem 0.85rem; border-radius: 8px; border: 1px solid var(--va-background-border);">
+          <va-icon name="block" color="secondary" size="small" />
+          <span style="font-size: 0.85rem; font-weight: 700; color: var(--va-text-primary);">{{ $t('status_ignored') }}</span>
+          <span style="font-size: 0.95rem; font-weight: 800; color: var(--va-text-secondary); background: rgba(148, 163, 184, 0.15); padding: 1px 8px; border-radius: 6px;">
+            {{ candidates.filter(c => c.status === 'IGNORED').length }}건
+          </span>
+        </div>
+      </div>
     </div>
 
     <!-- Candidate List Table / Cards -->
-    <va-card style="margin-bottom: 1.5rem;">
-      <va-card-content>
-        <div v-if="loading" style="display: flex; justify-content: center; padding: 2rem;">
-          <va-progress-circle indeterminate />
+    <va-card>
+      <va-card-content style="padding: 1.25rem;">
+        <div v-if="loading" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3.5rem 1rem;">
+          <va-progress-circle indeterminate color="primary" size="3.5rem" />
+          <span style="margin-top: 1rem; color: var(--va-text-secondary); font-size: 0.9rem;">매칭 후보 데이터를 불러오는 중입니다...</span>
         </div>
-        <div v-else-if="!candidates.length" style="text-align: center; padding: 2rem; color: var(--va-text-secondary);">
-          <va-icon name="check_circle_outline" size="large" color="success" style="margin-bottom: 0.5rem;" />
-          <div>{{ t('no_candidates') }}</div>
+        <div v-else-if="!candidates.length" style="padding: 3.5rem 1rem; text-align: center; background: var(--va-background-element); border: 1px dashed var(--va-background-border); border-radius: 12px; color: var(--va-text-secondary);">
+          <va-icon name="task_alt" color="success" size="4rem" style="margin-bottom: 0.75rem; display: block;" />
+          <div style="font-size: 1.15rem; font-weight: 800; color: var(--va-text-primary); margin-bottom: 0.35rem;">{{ $t('deduplication.no_candidates') }}</div>
+          <div style="font-size: 0.85rem; color: var(--va-text-secondary);">현재 상태 조건에 해당하는 중복 레코드 검토 후보가 없습니다.</div>
         </div>
         <div v-else style="display: flex; flex-direction: column; gap: 1rem;">
           <div
             v-for="item in candidates"
             :key="item.id"
-            style="border: 1px solid var(--va-background-element); border-radius: 8px; padding: 1rem; background: var(--va-background-primary);"
+            style="border: 1px solid var(--va-background-border); border-radius: 12px; padding: 1.25rem; background: var(--va-background-element); box-shadow: 0 2px 8px rgba(0,0,0,0.02);"
           >
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
               <div style="display: flex; align-items: center; gap: 0.75rem;">
                 <va-badge
                   :text="item.status"
                   :color="item.status === 'PENDING' ? 'warning' : item.status === 'MERGED' ? 'success' : 'secondary'"
+                  style="font-weight: 800;"
                 />
-                <span style="font-weight: bold; font-size: 1.05rem;">
-                  {{ item.ruleName || t('rule_default') }}
+                <span style="font-weight: 800; font-size: 1.1rem; color: var(--va-text-primary);">
+                  {{ item.ruleName || $t('deduplication.rule_default') }}
                 </span>
-                <va-chip size="small" color="info" outline>
-                  {{ t('similarity') }}: {{ (item.similarityScore * 100).toFixed(1) }}%
+                <va-chip size="small" color="primary" style="font-weight: 700;">
+                  <va-icon name="auto_awesome" size="small" style="margin-right: 4px;" />
+                  {{ $t('deduplication.similarity') }}: {{ (item.similarityScore * 100).toFixed(1) }}%
                 </va-chip>
               </div>
 
               <div style="display: flex; gap: 0.5rem;">
-                <va-button preset="primary" icon="compare_arrows" size="small" @click="openDiffModal(item)">
-                  {{ t('compare_and_action') }}
+                <va-button color="primary" icon="compare_arrows" size="small" style="font-weight: 700;" @click="openDiffModal(item)">
+                  {{ $t('deduplication.compare_and_action') }}
                 </va-button>
               </div>
             </div>
 
-            <!-- Summary Info -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; background: var(--va-background-element); padding: 0.75rem; border-radius: 6px;">
-              <div>
-                <div style="font-size: 0.8rem; color: var(--va-text-secondary);">{{ t('target_record') }} (Survivor)</div>
-                <div style="font-weight: 600;">ID: {{ item.sourceRecordId }}</div>
+            <!-- Summary Comparison Info -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; background: var(--va-background-primary); padding: 1rem; border-radius: 10px; border: 1px solid var(--va-background-border);">
+              <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <va-avatar color="primary" size="medium" style="font-weight: 800;">
+                  M
+                </va-avatar>
+                <div>
+                  <div style="font-size: 0.8rem; color: var(--va-text-secondary); font-weight: 600;">{{ $t('deduplication.target_record') }} (Survivor)</div>
+                  <div style="font-weight: 800; font-size: 0.95rem; color: var(--va-text-primary); font-family: monospace;">ID: {{ item.sourceRecordId }}</div>
+                </div>
               </div>
-              <div>
-                <div style="font-size: 0.8rem; color: var(--va-text-secondary);">{{ t('candidate_record') }} (Merged candidate)</div>
-                <div style="font-weight: 600;">ID: {{ item.candidateRecordId }}</div>
+              <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <va-avatar color="warning" size="medium" style="font-weight: 800;">
+                  C
+                </va-avatar>
+                <div>
+                  <div style="font-size: 0.8rem; color: var(--va-text-secondary); font-weight: 600;">{{ $t('deduplication.candidate_record') }} (Candidate)</div>
+                  <div style="font-weight: 800; font-size: 0.95rem; color: var(--va-text-primary); font-family: monospace;">ID: {{ item.candidateRecordId }}</div>
+                </div>
               </div>
             </div>
           </div>
@@ -92,34 +136,38 @@
     <!-- Side-by-Side Diff Modal -->
     <va-modal v-model="showDiffModal" size="large" close-button hide-default-actions>
       <template #header>
-        <h3 style="margin: 0; font-size: 1.25rem; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;">
-          <va-icon name="compare" color="primary" />
-          {{ t('modal_title') }}
-        </h3>
+        <div style="display: flex; align-items: center; gap: 0.65rem; width: 100%; padding-right: 2rem;">
+          <va-icon name="compare" color="primary" size="large" />
+          <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--va-text-primary);">
+            {{ $t('deduplication.modal_title') }}
+          </h3>
+        </div>
       </template>
 
-      <div v-if="selectedCandidate" style="padding: 1rem 0;">
+      <div v-if="selectedCandidate" style="padding: 1rem 0 0 0;">
         <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
-          <div style="flex: 1; border: 1px solid var(--va-primary); padding: 1rem; border-radius: 8px;">
-            <h4 style="margin-top: 0; font-weight: bold; color: var(--va-primary);">
-              {{ t('master_record') }} (Survivor Target)
+          <div style="flex: 1; border: 1px solid var(--va-primary); padding: 1rem; border-radius: 10px; background: var(--va-background-element);">
+            <h4 style="margin-top: 0; margin-bottom: 0.5rem; font-weight: 800; color: var(--va-primary); font-size: 1.05rem; display: flex; align-items: center; gap: 0.35rem;">
+              <va-icon name="verified" size="small" />
+              {{ $t('deduplication.master_record') }}
             </h4>
-            <div style="font-size: 0.85rem; color: var(--va-text-secondary); margin-bottom: 0.5rem;">
+            <div style="font-size: 0.85rem; color: var(--va-text-secondary); margin-bottom: 0.75rem; font-weight: 600; font-family: monospace;">
               ID: {{ selectedCandidate.sourceRecordId }}
             </div>
-            <pre style="background: var(--va-background-element); padding: 0.75rem; border-radius: 4px; font-size: 0.85rem; overflow-x: auto;">
+            <pre style="background: var(--va-background-primary); padding: 0.85rem; border-radius: 8px; font-size: 0.85rem; overflow-x: auto; color: var(--va-text-primary); border: 1px solid var(--va-background-border);">
 {{ formatJson(selectedCandidate.sourceData) }}
             </pre>
           </div>
 
-          <div style="flex: 1; border: 1px solid var(--va-warning); padding: 1rem; border-radius: 8px;">
-            <h4 style="margin-top: 0; font-weight: bold; color: var(--va-warning);">
-              {{ t('duplicate_candidate') }}
+          <div style="flex: 1; border: 1px solid var(--va-warning); padding: 1rem; border-radius: 10px; background: var(--va-background-element);">
+            <h4 style="margin-top: 0; margin-bottom: 0.5rem; font-weight: 800; color: var(--va-warning); font-size: 1.05rem; display: flex; align-items: center; gap: 0.35rem;">
+              <va-icon name="control_point_duplicate" size="small" />
+              {{ $t('deduplication.duplicate_candidate') }}
             </h4>
-            <div style="font-size: 0.85rem; color: var(--va-text-secondary); margin-bottom: 0.5rem;">
+            <div style="font-size: 0.85rem; color: var(--va-text-secondary); margin-bottom: 0.75rem; font-weight: 600; font-family: monospace;">
               ID: {{ selectedCandidate.candidateRecordId }}
             </div>
-            <pre style="background: var(--va-background-element); padding: 0.75rem; border-radius: 4px; font-size: 0.85rem; overflow-x: auto;">
+            <pre style="background: var(--va-background-primary); padding: 0.85rem; border-radius: 8px; font-size: 0.85rem; overflow-x: auto; color: var(--va-text-primary); border: 1px solid var(--va-background-border);">
 {{ formatJson(selectedCandidate.candidateData) }}
             </pre>
           </div>
@@ -127,13 +175,13 @@
       </div>
 
       <template #footer>
-        <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
-          <va-button preset="secondary" @click="showDiffModal = false">{{ t('cancel') }}</va-button>
-          <va-button preset="primary" color="warning" icon="block" @click="ignoreCandidate">
-            {{ t('keep_separate') }}
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid var(--va-background-border);">
+          <va-button preset="outline" @click="showDiffModal = false">{{ $t('cancel') }}</va-button>
+          <va-button preset="outline" color="warning" icon="block" @click="ignoreCandidate" style="font-weight: 700;">
+            {{ $t('deduplication.keep_separate') }}
           </va-button>
-          <va-button preset="primary" color="success" icon="call_merge" @click="mergeCandidate">
-            {{ t('confirm_merge') }}
+          <va-button color="success" icon="call_merge" @click="mergeCandidate" style="font-weight: 700;">
+            {{ $t('deduplication.confirm_merge') }}
           </va-button>
         </div>
       </template>
@@ -144,58 +192,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 
-const { locale } = useI18n()
-
-const t = (key: string, params?: Record<string, any>) => {
-  const messages: Record<string, Record<string, string>> = {
-    ko: {
-      title: '중복 후보 검토 큐 (Data Steward Review Queue)',
-      subtitle: '퍼지 매칭 및 매칭 룰에 의해 발견된 유사 중복 데이터를 검토하고 병합 또는 분리를 처리합니다.',
-      refresh: '새로고침',
-      status_filter: '상태 필터',
-      pending_count: '검토 대기: {count}건',
-      no_candidates: '검토할 중복 후보 레코드가 없습니다.',
-      rule_default: '기본 퍼지 매칭 룰',
-      similarity: '유사도',
-      compare_and_action: '비교 및 처리',
-      target_record: '기준 마스터 레코드',
-      candidate_record: '중복 후보 레코드',
-      modal_title: 'Side-by-Side 레코드 필드 비교',
-      master_record: '마스터 레코드 (유지)',
-      duplicate_candidate: '중복 후보 레코드 (병합 대상)',
-      cancel: '취소',
-      keep_separate: '별도 레코드로 유지 (Ignore)',
-      confirm_merge: '마스터로 병합 승인 (Merge)'
-    },
-    en: {
-      title: 'Match Candidate Review Queue (Data Steward)',
-      subtitle: 'Review potential duplicate records found by fuzzy matching and approve merge or separation.',
-      refresh: 'Refresh',
-      status_filter: 'Status Filter',
-      pending_count: 'Pending: {count}',
-      no_candidates: 'No candidate records to review.',
-      rule_default: 'Fuzzy Match Rule',
-      similarity: 'Similarity',
-      compare_and_action: 'Compare & Act',
-      target_record: 'Target Master Record',
-      candidate_record: 'Candidate Record',
-      modal_title: 'Side-by-Side Field Comparison',
-      master_record: 'Master Record (Survivor)',
-      duplicate_candidate: 'Candidate Record (To Merge)',
-      cancel: 'Cancel',
-      keep_separate: 'Keep Separate',
-      confirm_merge: 'Approve Merge'
-    }
-  }
-  const lang = locale.value === 'en' ? 'en' : 'ko'
-  let text = messages[lang]?.[key] || key
-  if (params) {
-    Object.keys(params).forEach(p => {
-      text = text.replace(`{${p}}`, params[p])
-    })
-  }
-  return text
-}
+const { t } = useI18n()
 
 const loading = ref(false)
 const selectedStatus = ref('PENDING')
@@ -203,17 +200,13 @@ const candidates = ref<any[]>([])
 const showDiffModal = ref(false)
 const selectedCandidate = ref<any>(null)
 
-const statusOptions = [
-  { value: 'PENDING', text: 'PENDING (대기)' },
-  { value: 'MERGED', text: 'MERGED (병합완료)' },
-  { value: 'IGNORED', text: 'IGNORED (별도유지)' }
-]
+const statusOptions = computed(() => [
+  { value: 'PENDING', text: `PENDING (${t('status_pending')})` },
+  { value: 'MERGED', text: `MERGED (${t('status_merged')})` },
+  { value: 'IGNORED', text: `IGNORED (${t('status_ignored')})` }
+])
 
 const token = useCookie('auth_token')
-
-const pendingCount = computed(() => {
-  return candidates.value.filter(c => c.status === 'PENDING').length
-})
 
 const loadCandidates = async () => {
   loading.value = true

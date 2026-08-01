@@ -992,7 +992,28 @@
   "dq_dashboard_desc": "Real-time monitoring of data quality rule compliance, error counts, and field diagnosis status by domain.",
   "dashboard_subtitle": "Monitor master data governance overview, quality diagnostic metrics, and key integration statuses.",
   "system_logs_title": "System Logs & Integration Monitoring",
-  "system_logs_desc": "Real-time monitoring of system operation history, user logins, exception errors, and integration channel logs."
+  "system_logs_desc": "Real-time monitoring of system operation history, user logins, exception errors, and integration channel logs.",
+  "save_role": "Save Role",
+  "status_filter": "Status Filter",
+  "status_pending": "Pending Review",
+  "status_merged": "Merged",
+  "status_ignored": "Keep Separate",
+  "deduplication": {
+    "title": "Match Candidate Review Queue (Data Steward)",
+    "subtitle": "Review potential duplicate records found by fuzzy matching and approve merge or separation.",
+    "pending_count": "Pending: {count}",
+    "no_candidates": "No candidate records to review.",
+    "rule_default": "Fuzzy Match Rule",
+    "similarity": "Similarity",
+    "compare_and_action": "Compare & Act",
+    "target_record": "Target Master Record",
+    "candidate_record": "Candidate Record",
+    "modal_title": "Side-by-Side Field Comparison",
+    "master_record": "Master Record (Survivor)",
+    "duplicate_candidate": "Candidate Record (To Merge)",
+    "keep_separate": "Keep Separate",
+    "confirm_merge": "Approve Merge"
+  }
 }
 
 

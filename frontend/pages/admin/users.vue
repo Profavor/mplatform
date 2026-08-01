@@ -23,30 +23,41 @@
     </div>
 
     <div style="display: flex; gap: 1.5rem; align-items: flex-start; flex-wrap: wrap;">
-      <!-- User List -->
-      <va-card style="flex: 1; min-width: 320px; display: flex; flex-direction: column;">
-        <va-card-title style="display: flex; justify-content: space-between; align-items: center;">
-          <span>{{ $t('user_management') }}</span>
-          <va-input v-model="searchQuery" :placeholder="$t('search') || 'Search'" @keydown="onSearchKeydown" clearable @clear="fetchUsers" style="max-width: 150px;" />
+      <!-- Left Column: User Directory List -->
+      <va-card style="flex: 1; min-width: 340px; display: flex; flex-direction: column;">
+        <va-card-title style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--va-background-border); padding-bottom: 0.85rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--va-text-primary); font-weight: 700; font-size: 1.05rem;">
+            <va-icon name="people" color="primary" />
+            <span>{{ $t('user_management') }}</span>
+            <va-badge :text="String(users.length)" color="primary" size="small" />
+          </div>
+          <va-input v-model="searchQuery" :placeholder="$t('search') || 'Search'" @keydown="onSearchKeydown" clearable @clear="fetchUsers" style="max-width: 140px;" dense />
         </va-card-title>
-        <va-card-content style="flex: 1; display: flex; flex-direction: column;">
-          <va-list style="flex: 1;">
+        <va-card-content style="flex: 1; display: flex; flex-direction: column; padding: 0.75rem;">
+          <va-list style="flex: 1; display: flex; flex-direction: column; gap: 0.35rem;">
             <va-list-item
               v-for="user in users"
               :key="user.id"
               @click="selectUser(user)"
-              style="cursor: pointer; padding: 0.75rem 0.5rem; border-radius: 6px; margin-bottom: 0.25rem;"
+              style="cursor: pointer; padding: 0.85rem; border-radius: 10px; transition: all 0.2s ease; display: flex; align-items: center;"
               :style="{
-                backgroundColor: selectedUser?.id === user.id ? 'var(--va-background-element)' : 'transparent',
-                border: selectedUser?.id === user.id ? '1px solid var(--va-primary)' : '1px solid transparent'
+                backgroundColor: selectedUser?.id === user.id ? 'rgba(37, 99, 235, 0.12)' : 'var(--va-background-element)',
+                borderLeft: selectedUser?.id === user.id ? '4px solid var(--va-primary)' : '4px solid transparent',
+                borderTop: '1px solid var(--va-background-border)',
+                borderRight: '1px solid var(--va-background-border)',
+                borderBottom: '1px solid var(--va-background-border)'
               }"
             >
-              <va-list-item-section avatar>
-                <va-icon name="account_circle" size="large" />
+              <va-list-item-section avatar style="min-width: 44px;">
+                <va-avatar color="primary" size="medium" style="font-weight: 700;">
+                  {{ user.username.charAt(0).toUpperCase() }}
+                </va-avatar>
               </va-list-item-section>
-              <va-list-item-section>
-                <va-list-item-label style="font-weight: bold; font-size: 1rem;">{{ user.username }}</va-list-item-label>
-                <div style="display: flex; gap: 0.35rem; align-items: center; margin-top: 0.2rem; flex-wrap: wrap;">
+              <va-list-item-section style="overflow: hidden;">
+                <div style="font-weight: 800; font-size: 1rem; color: var(--va-text-primary); margin-bottom: 0.25rem;">
+                  {{ user.username }}
+                </div>
+                <div style="display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap;">
                   <RoleBadge :value="user.role" />
                   <va-badge :text="getOrgName(user.organizationId)" color="info" outline size="small" />
                   <va-badge v-if="getDeptName(user.departmentId)" :text="getDeptName(user.departmentId)" color="success" outline size="small" />
@@ -60,61 +71,88 @@
         </va-card-content>
       </va-card>
 
-      <!-- Permissions & Org Assignment -->
-      <va-card v-if="selectedUser" style="flex: 2; min-width: 420px;">
-        <va-card-title style="display: flex; justify-content: space-between; align-items: center;">
-          <span>{{ $t('permissions') }}: {{ selectedUser.username }}</span>
-          <va-badge :text="selectedUser.username" color="success" />
+      <!-- Right Column: User Details, Roles, Permissions & History -->
+      <va-card v-if="selectedUser" style="flex: 2; min-width: 450px;">
+        <va-card-title style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--va-background-border); padding-bottom: 0.85rem;">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <va-avatar color="primary" size="large" style="font-size: 1.25rem; font-weight: 800;">
+              {{ selectedUser.username.charAt(0).toUpperCase() }}
+            </va-avatar>
+            <div>
+              <div style="font-size: 1.2rem; font-weight: 800; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                {{ selectedUser.username }}
+                <va-badge text="Active User" color="success" size="small" />
+              </div>
+              <div style="font-size: 0.82rem; color: var(--va-text-secondary); margin-top: 0.15rem;">
+                {{ getOrgName(selectedUser.organizationId) }} <span v-if="getDeptName(selectedUser.departmentId)">• {{ getDeptName(selectedUser.departmentId) }}</span>
+              </div>
+            </div>
+          </div>
         </va-card-title>
-        <va-card-content>
+
+        <va-card-content style="display: flex; flex-direction: column; gap: 1.5rem; padding-top: 1.25rem;">
           
           <!-- User System Role Setting -->
-          <div style="background: var(--va-background-secondary); border: 1px solid var(--va-background-border); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
-            <h3 style="font-weight: 700; margin-bottom: 0.5rem; color: var(--va-text-primary); font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
-              <va-icon name="manage_accounts" color="primary" />
-              {{ $t('user_role') || '사용자 시스템 권한 역할' }}
-            </h3>
+          <div style="background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem;">
+              <h3 style="font-weight: 800; margin: 0; color: var(--va-text-primary); font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
+                <va-icon name="manage_accounts" color="primary" />
+                <span>{{ $t('user_role') || '사용자 시스템 권한 역할' }}</span>
+              </h3>
+
+              <va-button
+                v-if="hasPermission('admin:write') || hasPermission('admin:*') || hasPermission('org:write') || hasPermission('org:*')"
+                color="primary"
+                icon="save"
+                size="small"
+                @click="updateUserRoleOnly"
+                style="font-weight: 700;"
+              >
+                {{ $t('save_role') || '역할 저장' }}
+              </va-button>
+            </div>
             
-            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; align-items: center; font-size: 0.88rem; color: var(--va-text-secondary); flex-wrap: wrap;">
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.85rem; align-items: center; font-size: 0.88rem; color: var(--va-text-secondary); flex-wrap: wrap;">
               <span>{{ $t('current_affiliation') }}</span>
               <va-badge :text="getOrgName(selectedUser.organizationId)" color="info" outline size="small" />
               <va-badge v-if="getDeptName(selectedUser.departmentId)" :text="getDeptName(selectedUser.departmentId)" color="success" outline size="small" />
-              <span v-else style="font-style: italic; color: #888;">{{ $t('no_dept_assigned_tip') }}</span>
+              <span v-else style="font-style: italic; color: var(--va-text-secondary);">{{ $t('no_dept_assigned_tip') }}</span>
             </div>
 
-            <div style="display: flex; gap: 0.75rem; align-items: flex-end;">
-              <UserRoleSelect
-                v-model="selectedUserRoles"
-                multiple
-                :org-id="selectedUser?.organizationId"
-                :label="getLabel('user_roles', '사용자 시스템 역할 (다중 선택 가능)')"
-                style="flex: 1;"
-              />
-              <va-button v-if="hasPermission('admin:write') || hasPermission('admin:*') || hasPermission('org:write') || hasPermission('org:*')" color="primary" icon="save" @click="updateUserRoleOnly">
-                {{ $t('save_changes') || '역할 저장' }}
-              </va-button>
-            </div>
+            <UserRoleSelect
+              v-model="selectedUserRoles"
+              multiple
+              :org-id="selectedUser?.organizationId"
+              :label="getLabel('user_roles', '사용자 시스템 역할 (다중 선택 가능)')"
+              style="width: 100%;"
+            />
           </div>
 
-          <va-divider style="margin: 1.5rem 0;" />
-
-          <!-- Domain Permissions -->
-          <div style="margin-bottom: 1rem;">
-            <h3 style="font-weight: bold; margin-bottom: 0.5rem; color: var(--va-text-primary);">{{ $t('granted_domains') }}</h3>
-            <div v-if="userPermissions.length === 0" style="color: var(--va-text-secondary); font-size: 0.85rem;">{{ $t('no_specific_domain_permissions') }}</div>
+          <!-- Domain Permissions Section -->
+          <div style="background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
+            <h3 style="font-weight: 800; margin: 0 0 0.75rem 0; color: var(--va-text-primary); font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
+              <va-icon name="verified_user" color="primary" />
+              <span>{{ $t('granted_domains') }}</span>
+            </h3>
+            <div v-if="userPermissions.length === 0" style="padding: 1.25rem; text-align: center; background: var(--va-background-primary); border: 1px dashed var(--va-background-border); border-radius: 8px; color: var(--va-text-secondary); font-size: 0.88rem;">
+              <va-icon name="do_not_disturb_on" color="secondary" size="medium" style="margin-bottom: 0.35rem; display: block;" />
+              <span>{{ $t('no_specific_domain_permissions') }}</span>
+            </div>
             <div v-else style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-              <va-chip v-for="perm in userPermissions" :key="perm.id" color="success" style="margin-bottom: 0.5rem;">
+              <va-chip v-for="perm in userPermissions" :key="perm.id" color="primary" style="font-weight: 700; font-size: 0.85rem; padding: 6px 12px;">
                 {{ getDomainName(perm.domain.name) }}
                 <va-icon v-if="hasPermission('admin:write') || hasPermission('admin:*') || hasPermission('org:write') || hasPermission('org:*')" name="close" size="small" style="margin-left: 0.5rem; cursor: pointer;" @click="revokePermission(perm.domain.id)" />
               </va-chip>
             </div>
           </div>
           
-          <va-divider style="margin: 1.5rem 0;" />
-          
-          <div>
-            <h3 style="font-weight: bold; margin-bottom: 0.5rem; color: var(--va-text-primary);">{{ $t('grant_new_permission') }}</h3>
-            <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
+          <!-- Grant New Permission Section -->
+          <div style="background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
+            <h3 style="font-weight: 800; margin: 0 0 0.75rem 0; color: var(--va-text-primary); font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
+              <va-icon name="add_moderator" color="primary" />
+              <span>{{ $t('grant_new_permission') }}</span>
+            </h3>
+            <div style="display: flex; gap: 0.75rem; align-items: flex-end;">
               <va-select
                 v-model="selectedDomainsToGrant"
                 multiple
@@ -124,36 +162,38 @@
                 :placeholder="$t('select_a_domain') || '도메인을 선택하세요 (다중 선택 가능)'"
                 style="flex: 1;"
               />
-              <va-button v-if="hasPermission('admin:write') || hasPermission('admin:*') || hasPermission('org:write') || hasPermission('org:*')" @click="grantPermissions" :disabled="!selectedDomainsToGrant || selectedDomainsToGrant.length === 0">
+              <va-button v-if="hasPermission('admin:write') || hasPermission('admin:*') || hasPermission('org:write') || hasPermission('org:*')" color="primary" icon="add" @click="grantPermissions" :disabled="!selectedDomainsToGrant || selectedDomainsToGrant.length === 0" style="font-weight: 700;">
                 {{ $t('grant') || '권한 부여' }}
               </va-button>
             </div>
           </div>
 
-          <va-divider style="margin: 1.5rem 0;" />
-
-          <!-- Organization Change History (Admin Only) -->
-          <div>
-            <h3 style="font-weight: bold; margin-bottom: 0.75rem; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.4rem;">
+          <!-- Organization Change History -->
+          <div style="background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
+            <h3 style="font-weight: 800; margin: 0 0 0.75rem 0; color: var(--va-text-primary); font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
               <va-icon name="history" color="primary" />
               <span>{{ $t('org_history_title') }}</span>
             </h3>
-            <div v-if="!userOrgHistory || userOrgHistory.length === 0" style="color: var(--va-text-secondary); font-size: 0.85rem; padding: 0.5rem 0;">
-              {{ $t('no_org_history') }}
+            <div v-if="!userOrgHistory || userOrgHistory.length === 0" style="padding: 1.25rem; text-align: center; background: var(--va-background-primary); border: 1px dashed var(--va-background-border); border-radius: 8px; color: var(--va-text-secondary); font-size: 0.88rem;">
+              <va-icon name="history_toggle_off" color="secondary" size="medium" style="margin-bottom: 0.35rem; display: block;" />
+              <span>{{ $t('no_org_history') }}</span>
             </div>
-            <div v-else style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 220px; overflow-y: auto;">
+            <div v-else style="display: flex; flex-direction: column; gap: 0.65rem; max-height: 240px; overflow-y: auto;">
               <div
                 v-for="h in userOrgHistory"
                 :key="h.id"
-                style="padding: 0.75rem 1rem; background: var(--va-background-element); border-radius: 8px; border: 1px solid var(--va-background-border); font-size: 0.85rem;"
+                style="padding: 0.85rem 1rem; background: var(--va-background-primary); border-radius: 10px; border: 1px solid var(--va-background-border);"
               >
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                  <span style="font-weight: 600; color: var(--va-text-secondary);">📅 {{ formatDate(h.changedAt) }}</span>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                  <span style="font-weight: 700; color: var(--va-text-primary); font-size: 0.88rem; display: flex; align-items: center; gap: 0.35rem;">
+                    <va-icon name="schedule" size="small" color="primary" />
+                    {{ formatDate(h.changedAt) }}
+                  </span>
                   <va-badge size="small" color="info" :text="h.changedBy || 'SYSTEM'" />
                 </div>
-                <div style="display: flex; align-items: center; gap: 0.5rem; font-weight: 700; color: var(--va-text-primary);">
-                  <span>{{ getI18nText(h.prevDepartmentName || h.prevOrganizationName) || '-' }}</span>
-                  <va-icon name="arrow_forward" size="small" color="primary" />
+                <div style="display: flex; align-items: center; gap: 0.5rem; font-weight: 800; font-size: 0.95rem;">
+                  <span style="color: var(--va-text-secondary);">{{ getI18nText(h.prevDepartmentName || h.prevOrganizationName) || '-' }}</span>
+                  <va-icon name="east" size="small" color="primary" />
                   <span style="color: var(--va-primary);">{{ getI18nText(h.newDepartmentName || h.newOrganizationName) || '-' }}</span>
                 </div>
               </div>
@@ -163,20 +203,29 @@
       </va-card>
     </div>
 
-    <!-- Requests -->
-    <va-card style="margin-top: 1.5rem;">
-      <va-card-title>{{ $t('pending_domain_access_requests') }}</va-card-title>
-      <va-card-content>
-        <div v-if="pendingRequests.length === 0" style="color: var(--va-text-secondary); font-size: 0.85rem;">{{ $t('no_pending_requests') }}</div>
+    <!-- Pending Access Requests Bottom Card -->
+    <va-card style="margin-top: 1rem;">
+      <va-card-title style="border-bottom: 1px solid var(--va-background-border); padding-bottom: 0.85rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--va-text-primary); font-weight: 800; font-size: 1.1rem;">
+          <va-icon name="pending_actions" color="warning" />
+          <span>{{ $t('pending_domain_access_requests') }}</span>
+          <va-badge v-if="pendingRequests.length > 0" :text="String(pendingRequests.length)" color="warning" size="small" />
+        </div>
+      </va-card-title>
+      <va-card-content style="padding-top: 1.25rem;">
+        <div v-if="pendingRequests.length === 0" style="padding: 2rem; text-align: center; background: var(--va-background-element); border: 1px dashed var(--va-background-border); border-radius: 12px; color: var(--va-text-secondary); font-size: 0.9rem;">
+          <va-icon name="mark_email_read" color="secondary" size="large" style="margin-bottom: 0.5rem; display: block;" />
+          <span>{{ $t('no_pending_requests') }}</span>
+        </div>
         <div v-else style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
-          <va-card v-for="group in groupedPendingRequests" :key="group.userId" outlined style="transition: transform 0.2s, box-shadow 0.2s; cursor: default; background-color: var(--va-background-primary);" class="hoverable-card">
-            <va-card-content style="display: flex; flex-direction: column; height: 100%; padding: 1.5rem;">
-              <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem;">
-                <va-avatar size="large" color="primary" style="font-size: 1.25rem; font-weight: bold; width: 48px; height: 48px;">
+          <va-card v-for="group in groupedPendingRequests" :key="group.userId" outlined style="background-color: var(--va-background-primary); border-radius: 12px; border: 1px solid var(--va-background-border);" class="hoverable-card">
+            <va-card-content style="display: flex; flex-direction: column; height: 100%; padding: 1.25rem;">
+              <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                <va-avatar size="large" color="primary" style="font-size: 1.25rem; font-weight: bold; width: 44px; height: 44px;">
                   {{ group.username.charAt(0).toUpperCase() }}
                 </va-avatar>
                 <div style="flex: 1; overflow: hidden;">
-                  <div style="font-weight: 700; font-size: 1.15rem; color: var(--va-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                  <div style="font-weight: 800; font-size: 1.1rem; color: var(--va-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                     {{ group.username }}
                   </div>
                   <div style="font-size: 0.8rem; color: var(--va-text-secondary); margin-top: 0.2rem;">
@@ -186,21 +235,21 @@
               </div>
 
               <div style="flex: 1; margin-bottom: 1.25rem;">
-                <div style="font-size: 0.85rem; font-weight: 600; color: var(--va-text-secondary); margin-bottom: 0.5rem;">
+                <div style="font-size: 0.85rem; font-weight: 700; color: var(--va-text-primary); margin-bottom: 0.5rem;">
                   {{ $t('requested_domains') }} ({{ group.domains.length }})
                 </div>
                 <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; max-height: 100px; overflow-y: auto; padding: 0.2rem;">
-                  <va-chip v-for="(dom, idx) in group.domains" :key="idx" size="small" color="primary" outline>
+                  <va-chip v-for="(dom, idx) in group.domains" :key="idx" size="small" color="primary" outline style="font-weight: 700;">
                     {{ dom }}
                   </va-chip>
                 </div>
               </div>
 
-              <div style="display: flex; gap: 0.75rem; justify-content: flex-end; border-top: 1px solid var(--va-background-element); padding-top: 1rem;">
-                <va-button v-if="hasPermission('admin:write') || hasPermission('admin:*') || hasPermission('org:write') || hasPermission('org:*')" color="danger" preset="secondary" size="small" @click="handleBatchReject(group.reqIds)">
+              <div style="display: flex; gap: 0.75rem; justify-content: flex-end; border-top: 1px solid var(--va-background-border); padding-top: 1rem;">
+                <va-button v-if="hasPermission('admin:write') || hasPermission('admin:*') || hasPermission('org:write') || hasPermission('org:*')" color="danger" preset="outline" size="small" @click="handleBatchReject(group.reqIds)" style="font-weight: 700;">
                   {{ $t('reject') }}
                 </va-button>
-                <va-button v-if="hasPermission('admin:write') || hasPermission('admin:*') || hasPermission('org:write') || hasPermission('org:*')" color="success" size="small" @click="handleBatchApprove(group.reqIds)">
+                <va-button v-if="hasPermission('admin:write') || hasPermission('admin:*') || hasPermission('org:write') || hasPermission('org:*')" color="success" size="small" @click="handleBatchApprove(group.reqIds)" style="font-weight: 700;">
                   {{ $t('approve') }}
                 </va-button>
               </div>
