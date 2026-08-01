@@ -64,8 +64,11 @@ export default defineNuxtConfig({
     }
   },
   routeRules: (() => {
-    const rawUrl = process.env.API_BASE_URL || process.env.NUXT_PUBLIC_API_BASE || process.env.NUXT_PUBLIC_API_BASE_URL || 'http://localhost:8080'
-    const targetUrl = rawUrl.startsWith('http') ? rawUrl : `http://${rawUrl}`
+    let rawUrl = process.env.API_BASE_URL || process.env.NUXT_PUBLIC_API_BASE || process.env.NUXT_PUBLIC_API_BASE_URL || 'http://localhost:8080'
+    if (rawUrl && !rawUrl.startsWith('http://') && !rawUrl.startsWith('https://')) {
+      rawUrl = `https://${rawUrl}`
+    }
+    const targetUrl = rawUrl
     const wsUrl = targetUrl.replace(/^http/, 'ws')
     return {
       '/api/**': { proxy: `${targetUrl.replace(/\/$/, '')}/api/**` },

@@ -43,11 +43,8 @@ services:
       - key: HOST
         value: 0.0.0.0
       - key: API_BASE_URL
-        value: "http://mplatform-backend:8080"
+        sync: false
       - key: NUXT_PUBLIC_API_BASE
-        fromService:
-          type: web
-          name: mplatform-backend
-          property: host
+        sync: false
       - key: NUXT_SESSION_PASSWORD
-        generateValue: true
+        sync: false
