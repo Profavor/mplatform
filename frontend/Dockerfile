@@ -20,8 +20,12 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
 
-# Copy full built output bundle to absolute working directory
+# Copy built output bundle from builder
 COPY --from=builder /app/.output /app/.output
+
+# Fix Nitro static asset resolution in Docker multi-stage (resolve symlink issues)
+RUN mkdir -p /app/.output/server/chunks/public && \
+    cp -rn /app/.output/public/* /app/.output/server/chunks/public/ 2>/dev/null || true
 
 EXPOSE 3000
 
