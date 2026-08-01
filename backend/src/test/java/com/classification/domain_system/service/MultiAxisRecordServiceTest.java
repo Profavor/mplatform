@@ -39,6 +39,9 @@ class MultiAxisRecordServiceTest {
     @Mock
     private RecordSecondaryNodeRepository secondaryNodeRepository;
 
+    @Mock
+    private jakarta.persistence.EntityManager entityManager;
+
     @InjectMocks
     private MultiAxisRecordService multiAxisRecordService;
 

@@ -107,12 +107,12 @@ public class ClassificationNodeServiceTest {
     @Test
     void getTree_Success() {
         ClassificationNode rootNode = new ClassificationNode();
-        when(nodeRepository.findByDomain_IdAndParentIsNullAndIsDeletedFalseOrderByOrderAsc(domainId))
+        when(nodeRepository.findByDomain_IdAndAxisIsNullAndParentIsNullAndIsDeletedFalseOrderByOrderAsc(domainId))
                 .thenReturn(List.of(rootNode));
 
         List<ClassificationNode> tree = classificationNodeService.getTree(domainId);
 
         assertThat(tree).hasSize(1);
-        verify(nodeRepository, times(1)).findByDomain_IdAndParentIsNullAndIsDeletedFalseOrderByOrderAsc(domainId);
+        verify(nodeRepository, times(1)).findByDomain_IdAndAxisIsNullAndParentIsNullAndIsDeletedFalseOrderByOrderAsc(domainId);
     }
 }
