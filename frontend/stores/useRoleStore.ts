@@ -34,6 +34,10 @@ export function useRoleStore() {
   }
 
   const fetchRolesForOrg = async (orgId?: string | null, forceRefresh = false): Promise<RoleInfo[]> => {
+    if (!token.value) {
+      return []
+    }
+
     const targetOrgId = orgId || getUserOrgId()
     const cacheKey = targetOrgId || 'GLOBAL'
 

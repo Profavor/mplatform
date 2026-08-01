@@ -75,8 +75,14 @@ public class MenuController {
         if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
             ip = request.getRemoteAddr();
         }
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
         if ("0:0:0:0:0:0:0:1".equals(ip) || "::1".equals(ip)) {
             ip = "127.0.0.1";
+        }
+        if (ip != null && ip.length() > 45) {
+            ip = ip.substring(0, 45);
         }
         return ip;
     }
