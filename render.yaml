@@ -1,0 +1,63 @@
+services:
+  # Backend Web Service (Spring Boot Docker)
+  - type: web
+    name: mplatform-backend
+    runtime: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: backend
+    region: singapore
+    plan: free
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: DB_HOST
+        fromDatabase:
+          name: mplatform-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: mplatform-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: mplatform-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: mplatform-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: mplatform-db
+          property: password
+      - key: ENCRYPTION_SECRET_KEY
+        generateValue: true
+
+  # Frontend Web Service (Nuxt 3 Node 24 SSR Docker)
+  - type: web
+    name: mplatform-frontend
+    runtime: docker
+    dockerfilePath: frontend/Dockerfile
+    dockerContext: frontend
+    region: singapore
+    plan: free
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: HOST
+        value: 0.0.0.0
+      - key: NUXT_PUBLIC_API_BASE
+        fromService:
+          type: web
+          name: mplatform-backend
+          property: url
+
+databases:
+  # Render Managed PostgreSQL Database
+  - name: mplatform-db
+    databaseName: domain_system
+    user: postgres
+    region: singapore
+    plan: free
