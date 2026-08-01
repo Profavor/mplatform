@@ -50,7 +50,7 @@ class RoleInitializerTest {
         
         List<Role> savedRoles = roleCaptor.getAllValues();
         assertThat(savedRoles).extracting(Role::getName)
-                .containsExactlyInAnyOrder("ROLE_ADMIN", "ORG_ADMIN", "DATA_STEWARD", "DOMAIN_EDITOR", "DQ_MANAGER", "INTEGRATION_MANAGER", "VIEWER", "ROLE_USER");
+                .containsExactlyInAnyOrder("ROLE_ADMIN", "ORG_ADMIN", "DATA_STEWARD", "DOMAIN_EDITOR", "DQ_MANAGER", "INTEGRATION", "VIEWER", "ROLE_USER");
     }
 
     @Test
@@ -75,7 +75,7 @@ class RoleInitializerTest {
         List<Role> savedRoles = roleCaptor.getAllValues();
         // ROLE_USER 외 7개의 미존재 표준 역할이 새로 save 됨
         assertThat(savedRoles).extracting(Role::getName)
-                .contains("ROLE_ADMIN", "ORG_ADMIN", "DATA_STEWARD", "DOMAIN_EDITOR", "DQ_MANAGER", "INTEGRATION_MANAGER", "VIEWER");
+                .contains("ROLE_ADMIN", "ORG_ADMIN", "DATA_STEWARD", "DOMAIN_EDITOR", "DQ_MANAGER", "INTEGRATION", "VIEWER");
     }
 
     @Test
