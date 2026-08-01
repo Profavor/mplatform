@@ -1,4 +1,5 @@
 {
+  "common_loading": "데이터 처리 중입니다...",
   "createdAt": "생성일시",
   "welcome": "환영합니다",
   "failed_load_history": "이력 데이터를 불러오는데 실패했습니다.",

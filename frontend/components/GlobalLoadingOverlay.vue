@@ -1,14 +1,33 @@
 <template>
-  <div v-if="isLoading" class="glass-overlay">
-    <div class="loading-content">
-      <va-progress-circle indeterminate color="primary" size="large" />
-      <span class="loading-text">{{ loadingText }}</span>
-    </div>
-  </div>
+  <Teleport to="body">
+    <Transition name="smooth-fade">
+      <div v-if="isLoading" class="glass-overlay" role="dialog" aria-modal="true" aria-label="Loading">
+        <div class="loading-content">
+          <va-progress-circle indeterminate color="primary" size="large" />
+          <span class="loading-text">{{ displayText }}</span>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup>
+import { computed } from 'vue'
+
 const { isLoading, loadingText } = useLoading()
+
+const displayText = computed(() => {
+  if (loadingText.value) return loadingText.value
+  try {
+    const nuxtApp = useNuxtApp()
+    if (nuxtApp?.$i18n?.t) {
+      return nuxtApp.$i18n.t('common_loading')
+    }
+  } catch {
+    // fallback if Nuxt context is not present
+  }
+  return '데이터 처리 중입니다...'
+})
 </script>
 
 <style scoped>
@@ -18,32 +37,46 @@ const { isLoading, loadingText } = useLoading()
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(8px);
+  background: rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   z-index: 99999;
   display: flex;
   align-items: center;
   justify-content: center;
+  pointer-events: auto;
+  will-change: opacity;
 }
+
 .loading-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.5rem;
-  background: rgba(255, 255, 255, 0.85);
-  padding: 3rem 4rem;
+  gap: 1.25rem;
+  background: rgba(255, 255, 255, 0.94);
+  padding: 2.25rem 3.25rem;
   border-radius: 20px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-  animation: fadeIn 0.3s ease;
-  backdrop-filter: blur(10px);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  transform: translateZ(0);
 }
+
 .loading-text {
-  font-size: 1.2rem;
+  font-size: 1.05rem;
   font-weight: 600;
-  color: #333;
+  color: #1e293b;
+  letter-spacing: -0.01em;
 }
-@keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+
+.smooth-fade-enter-active,
+.smooth-fade-leave-active {
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.smooth-fade-enter-from,
+.smooth-fade-leave-to {
+  opacity: 0;
 }
 </style>

@@ -1,4 +1,5 @@
 {
+  "common_loading": "Processing data...",
   "createdAt": "Created At",
   "welcome": "Welcome",
   "failed_load_history": "Failed to load history data.",

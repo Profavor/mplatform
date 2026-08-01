@@ -79,6 +79,8 @@ export default defineNuxtPlugin((nuxtApp) => {
   const fetchWithRetry = async (request: any, options: FetchOptions = {}): Promise<any> => {
     const reqUrl = typeof request === 'string' ? request : request?.toString?.() || ''
     const isAuthUrl = reqUrl.includes('/api/auth/login') || reqUrl.includes('/api/auth/refresh')
+    const skipLoading = (options as any)?.skipLoading || (options as any)?.headers?.['x-skip-loading'] === 'true'
+    const { showLoading, hideLoading } = useLoading()
 
     // 최초 요청 시 현재 토큰 헤더 주입
     if (!isAuthUrl && process.client) {
@@ -86,45 +88,55 @@ export default defineNuxtPlugin((nuxtApp) => {
       if (token) applyAuthHeader(options, token)
     }
 
+    if (!skipLoading && process.client) {
+      showLoading()
+    }
+
     try {
-      return await baseFetch(request, options)
-    } catch (err: any) {
-      const status = err?.response?.status ?? err?.status
+      try {
+        return await baseFetch(request, options)
+      } catch (err: any) {
+        const status = err?.response?.status ?? err?.status
 
-      // 401이 아니거나 auth 경로면 그대로 throw
-      if (status !== 401 || isAuthUrl) {
-        translateError(err)
-        throw err
+        // 401이 아니거나 auth 경로면 그대로 throw
+        if (status !== 401 || isAuthUrl) {
+          translateError(err)
+          throw err
+        }
+
+        // 세션 만료 / 다른 기기 로그인 메시지 체크
+        const body = JSON.stringify(err?.response?._data || err?.data || '')
+        if (body.includes('another device') || body.includes('Session expired')) {
+          clearAuthCookies()
+          if (process.client && window.location.pathname !== '/login') window.location.href = '/login'
+          throw err
+        }
+
+        // refresh_token 없으면 로그인 이동
+        const refreshToken = getCookieValue('refresh_token')
+        if (!refreshToken) {
+          clearAuthCookies()
+          if (process.client && window.location.pathname !== '/login') window.location.href = '/login'
+          throw err
+        }
+
+        // 토큰 갱신 시도
+        const newToken = await performTokenRefresh(refreshToken)
+        if (!newToken) {
+          clearAuthCookies()
+          if (process.client && window.location.pathname !== '/login') window.location.href = '/login'
+          throw err
+        }
+
+        // 새 토큰으로 원래 요청 재시도 (1회)
+        console.info('[Auth] Token refreshed. Retrying request:', reqUrl)
+        applyAuthHeader(options, newToken)
+        return await baseFetch(request, options)
       }
-
-      // 세션 만료 / 다른 기기 로그인 메시지 체크
-      const body = JSON.stringify(err?.response?._data || err?.data || '')
-      if (body.includes('another device') || body.includes('Session expired')) {
-        clearAuthCookies()
-        if (process.client && window.location.pathname !== '/login') window.location.href = '/login'
-        throw err
+    } finally {
+      if (!skipLoading && process.client) {
+        hideLoading()
       }
-
-      // refresh_token 없으면 로그인 이동
-      const refreshToken = getCookieValue('refresh_token')
-      if (!refreshToken) {
-        clearAuthCookies()
-        if (process.client && window.location.pathname !== '/login') window.location.href = '/login'
-        throw err
-      }
-
-      // 토큰 갱신 시도
-      const newToken = await performTokenRefresh(refreshToken)
-      if (!newToken) {
-        clearAuthCookies()
-        if (process.client && window.location.pathname !== '/login') window.location.href = '/login'
-        throw err
-      }
-
-      // 새 토큰으로 원래 요청 재시도 (1회)
-      console.info('[Auth] Token refreshed. Retrying request:', reqUrl)
-      applyAuthHeader(options, newToken)
-      return await baseFetch(request, options)
     }
   }
 
