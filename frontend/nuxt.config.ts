@@ -57,16 +57,21 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     public: {
-      apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:8080',
+      apiBaseUrl: process.env.API_BASE_URL || process.env.NUXT_PUBLIC_API_BASE_URL || process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8080',
       agGridLicense: process.env.AG_GRID_LICENSE,
       accessTokenExpirationSec: Number(process.env.JWT_ACCESS_EXPIRATION_SEC || 1800),
       refreshTokenExpirationSec: Number(process.env.JWT_REFRESH_EXPIRATION_SEC || 172800)
     }
   },
-  routeRules: {
-    '/api/**': { proxy: process.env.API_BASE_URL ? `${process.env.API_BASE_URL}/api/**` : 'http://localhost:8080/api/**' },
-    '/ws-stomp/**': { proxy: process.env.API_BASE_URL ? `${process.env.API_BASE_URL.replace('http', 'ws')}/ws-stomp/**` : 'ws://localhost:8080/ws-stomp/**' }
-  },
+  routeRules: (() => {
+    const rawUrl = process.env.API_BASE_URL || process.env.NUXT_PUBLIC_API_BASE || process.env.NUXT_PUBLIC_API_BASE_URL || 'http://localhost:8080'
+    const targetUrl = rawUrl.startsWith('http') ? rawUrl : `http://${rawUrl}`
+    const wsUrl = targetUrl.replace(/^http/, 'ws')
+    return {
+      '/api/**': { proxy: `${targetUrl.replace(/\/$/, '')}/api/**` },
+      '/ws-stomp/**': { proxy: `${wsUrl.replace(/\/$/, '')}/ws-stomp/**` }
+    }
+  })(),
   vite: {
     server: {
       allowedHosts: true
