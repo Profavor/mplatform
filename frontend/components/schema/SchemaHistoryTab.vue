@@ -195,17 +195,58 @@ const parseSnapshot = (raw: any): Record<string, any> => {
 const formatDisplayValue = (val: any): string => {
   if (val === null || val === undefined || val === '') return '-'
   if (typeof val === 'boolean') return val ? '예 (True)' : '아니오 (False)'
+
+  // Handle Array (e.g. children nodes or options list)
+  if (Array.isArray(val)) {
+    if (val.length === 0) return '-'
+    const names = val.map(item => {
+      if (!item) return ''
+      if (typeof item === 'object') {
+        const nameVal = item.name || item.title || item.key || item.label
+        if (nameVal) {
+          if (typeof nameVal === 'object') return nameVal.ko || nameVal.en || JSON.stringify(nameVal)
+          if (typeof nameVal === 'string' && nameVal.startsWith('{')) {
+            try {
+              const p = JSON.parse(nameVal)
+              return p.ko || p.en || nameVal
+            } catch {}
+          }
+          return String(nameVal)
+        }
+      }
+      return String(item)
+    }).filter(Boolean)
+    return names.length > 0 ? names.join(', ') : `${val.length}개 항목`
+  }
+
+  // Handle Object (e.g. multilingual name {"ko": "...", "en": "..."})
   if (typeof val === 'object') {
     if (val.ko || val.en) return val.ko ? (val.en ? `${val.ko} (${val.en})` : val.ko) : val.en
     return JSON.stringify(val)
   }
+
   const str = String(val).trim()
-  if (str.startsWith('{') && (str.includes('"ko"') || str.includes('"en"'))) {
+  
+  // Handle JSON Array String (e.g. "[{...}]")
+  if (str.startsWith('[') && str.endsWith(']')) {
     try {
-      const parsed = JSON.parse(str)
-      if (parsed.ko || parsed.en) return parsed.ko ? (parsed.en ? `${parsed.ko} (${parsed.en})` : parsed.ko) : parsed.en
+      const parsedArr = JSON.parse(str)
+      if (Array.isArray(parsedArr)) {
+        return formatDisplayValue(parsedArr)
+      }
     } catch {}
   }
+
+  // Handle JSON Object String (e.g. "{\"ko\":\"...\"}")
+  if (str.startsWith('{') && str.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(str)
+      if (parsed && typeof parsed === 'object') {
+        if (parsed.ko || parsed.en) return parsed.ko ? (parsed.en ? `${parsed.ko} (${parsed.en})` : parsed.ko) : parsed.en
+      }
+    } catch {}
+  }
+
   return str
 }
 
@@ -217,7 +258,7 @@ const getDiffItems = (row: any) => {
   const hasAfter = Object.keys(afterObj).length > 0
   
   const allKeys = Array.from(new Set([...Object.keys(beforeObj), ...Object.keys(afterObj)]))
-  const filterKeys = ['id', 'definedAtNode', 'domain']
+  const filterKeys = ['id', 'definedAtNode', 'domain', 'domainId', 'axisId', 'createdNodeId']
   
   const displayKeys = allKeys.filter(k => !filterKeys.includes(k))
   

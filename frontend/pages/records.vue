@@ -39,9 +39,17 @@
 
     <!-- Right Column: Record List & Data Grid -->
     <div class="right-content records-detail-column">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-        <div style="flex: 1; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-          <va-button v-if="searchableFields.length > 0" preset="secondary" icon="filter_list" @click="showAdvancedSearch = !showAdvancedSearch">
+      <!-- Grid Title & Action Bar -->
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.85rem; margin-bottom: 0; background: var(--va-background-element, #f4f6f9); border: 1px solid var(--va-background-border); border-bottom: none; border-top-left-radius: 8px; border-top-right-radius: 8px;">
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <va-icon name="table_chart" color="primary" size="1.1rem" />
+          <span style="font-weight: 700; font-size: 0.95rem; color: var(--va-text-primary);">
+            {{ selectedNode ? getTranslatedName(selectedNode.name) : '마스터 데이터 레코드 목록' }}
+          </span>
+          <va-chip v-if="selectedNode" size="small" color="primary" style="font-weight: 600;">
+            {{ selectedNode.isDomain ? 'Domain' : 'Node' }}
+          </va-chip>
+          <va-button v-if="searchableFields.length > 0" preset="secondary" size="small" icon="filter_list" @click="showAdvancedSearch = !showAdvancedSearch">
             상세 검색
           </va-button>
           <va-chip
@@ -67,24 +75,34 @@
             size="small"
             color="danger"
             icon="clear_all"
-            style="margin-left: 0.25rem;"
             @click="clearFilters"
           >
             전체 초기화
           </va-button>
         </div>
-        <template v-if="selectedNode && !selectedNode.isDomain">
-          <va-button v-if="hasPermission('record:write') || hasPermission('workflow:request')" color="primary" @click="openCreateModal">
-            <va-icon name="add" class="mr-2"/> {{ hasCreateWorkflow ? '신규 등록 요청' : 'Create Record' }}
-          </va-button>
-          <va-button v-if="hasPermission('record:write') || hasPermission('workflow:request')" color="success" outline @click="showExcelUploader = true" class="ml-2">
-            <va-icon name="upload" class="mr-2"/> Bulk Upload
-          </va-button>
-        </template>
 
-        <va-button color="warning" outline :disabled="(selectedRecordRows?.length || 0) < 2" @click="showCompareModal = true" class="ml-2">
-          <va-icon name="scale" class="mr-2"/> {{ $t('compare_records') || '레코드 비교' }} ({{ selectedRecordRows?.length || 0 }})
-        </va-button>
+        <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+          <template v-if="selectedNode && !selectedNode.isDomain">
+            <va-button v-if="hasPermission('record:write') || hasPermission('workflow:request')" size="small" color="primary" @click="openCreateModal">
+              <va-icon name="add" class="mr-1"/> {{ hasCreateWorkflow ? '신규 등록 요청' : 'Create Record' }}
+            </va-button>
+            <va-button v-if="hasPermission('record:write') || hasPermission('workflow:request')" size="small" color="success" outline @click="showExcelUploader = true">
+              <va-icon name="upload" class="mr-1"/> Bulk Upload
+            </va-button>
+          </template>
+          <va-button size="small" color="info" outline :disabled="!selectedRecordId" @click="showLineageModal = true">
+            <va-icon name="account_tree" class="mr-1"/> {{ $t('data_lineage') || '데이터 계보' }}
+          </va-button>
+          <va-button size="small" color="warning" outline :disabled="(selectedRecordRows?.length || 0) < 2" @click="showCompareModal = true">
+            <va-icon name="scale" class="mr-1"/> {{ $t('compare_records') || '레코드 비교' }} ({{ selectedRecordRows?.length || 0 }})
+          </va-button>
+          <va-button size="small" color="warning" outline @click="showAsyncExportModal = true">
+            <va-icon name="cloud_download" class="mr-1"/> {{ $t('async_export') || '대용량 Export' }}
+          </va-button>
+          <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshRecords">
+            {{ $t('refresh') || '새로고침' }}
+          </va-button>
+        </div>
       </div>
 
       <!-- Advanced Search Panel -->
@@ -631,6 +649,19 @@
         <va-button @click="showDomainRefModal = false">Cancel</va-button>
       </div>
     </va-modal>
+    <!-- Record Lineage Modal -->
+    <RecordLineageModal
+      v-model="showLineageModal"
+      :recordId="selectedRecordId"
+      :fields="nodeFields"
+    />
+
+    <!-- Async Export Modal -->
+    <AsyncBatchExportModal
+      v-model="showAsyncExportModal"
+      :domainId="selectedDomainId"
+      :gridApi="gridApi"
+    />
   </div>
 </div>
 </template>
@@ -646,6 +677,8 @@ import ExcelUploader from '~/components/ExcelUploader.vue'
 import RecordFormModal from '~/components/records/RecordFormModal.vue'
 import RecordDetailDrawer from '~/components/records/RecordDetailDrawer.vue'
 import RecordCompareModal from '~/components/records/RecordCompareModal.vue'
+import RecordLineageModal from '~/components/RecordLineageModal.vue'
+import AsyncBatchExportModal from '~/components/AsyncBatchExportModal.vue'
 
 import { useColors, useModal, useToast } from 'vuestic-ui'
 import { useI18n } from 'vue-i18n'
@@ -665,12 +698,21 @@ const currentLocale = useCookie('locale', { default: () => 'ko' })
 const token = useCookie('auth_token', { default: () => '' })
 
 const showCompareModal = ref(false)
+const showLineageModal = ref(false)
+const showAsyncExportModal = ref(false)
 const selectedRecordRows = ref([])
+
+const selectedDomainId = computed(() => {
+  return selectedNode.value?.domainId || selectedNode.value?.id || null
+})
 
 const onSelectionChanged = (event) => {
   if (!event || !event.api) return
   const rows = event.api.getSelectedRows() || []
   selectedRecordRows.value = rows
+  if (rows.length > 0) {
+    selectedRecordId.value = rows[0].id || rows[0].recordId || null
+  }
 }
 
 
@@ -1250,9 +1292,25 @@ watch(currentLocale, () => {
   }
 })
 
+const refreshRecords = () => {
+  if (gridApi.value) {
+    gridApi.value.refreshInfiniteCache()
+    gridApi.value.purgeInfiniteCache()
+  }
+}
+
 onMounted(async () => {
   await loadTree()
   await handleInitialRouteParams()
+  if (process.client) {
+    window.addEventListener('approval-updated', refreshRecords)
+  }
+})
+
+onUnmounted(() => {
+  if (process.client) {
+    window.removeEventListener('approval-updated', refreshRecords)
+  }
 })
 
 const selectNode = async (node) => {

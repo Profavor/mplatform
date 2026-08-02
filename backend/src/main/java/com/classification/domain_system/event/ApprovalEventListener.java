@@ -38,6 +38,7 @@ public class ApprovalEventListener {
     private final RecordHistoryWriter recordHistoryWriter;
     private final com.classification.domain_system.service.NotificationService notificationService;
     private final com.classification.domain_system.repository.UserRepository userRepository;
+    private final com.classification.domain_system.repository.DomainRepository domainRepository;
     private final com.classification.domain_system.websocket.WebSocketPublisher webSocketPublisher;
     
     @org.springframework.beans.factory.annotation.Autowired
@@ -78,7 +79,7 @@ public class ApprovalEventListener {
 
             approval.getSteps().stream()
                     .filter(s -> s.getStepOrder().equals(approval.getCurrentStepOrder()))
-                    .forEach(s -> sendPendingStepNotification(s, actionLabel, requesterName, domainName, classificationName, summary, approval.getId()));
+                    .forEach(s -> sendPendingStepNotification(s, actionLabel, requesterName, domainName, classificationName, summary, approval.getId(), approval.getTargetType()));
         }
 
         broadcastApprovalStatusChange(approval, "CREATED");
@@ -121,7 +122,7 @@ public class ApprovalEventListener {
                             notificationService.createNotification(
                                     approval.getRequesterId(),
                                     "@i18n:notifications.approval_step_approved",
-                                    buildStepApprovedMessage(actionLabel, approvedStep.getStepOrder(), domainName, classificationName),
+                                    buildStepApprovedMessage(actionLabel, approvedStep.getStepOrder(), domainName, classificationName, approval.getTargetType()),
                                     "APPROVAL",
                                     "/approvals?requestId=" + approval.getId()
                             );
@@ -147,7 +148,7 @@ public class ApprovalEventListener {
 
                         approval.getSteps().stream()
                                 .filter(s -> s.getStepOrder().equals(approval.getCurrentStepOrder()))
-                                .forEach(s -> sendPendingStepNotification(s, nextActionLabel, nextRequesterName, nextDomainName, nextClassificationName, nextSummary, approval.getId()));
+                                .forEach(s -> sendPendingStepNotification(s, nextActionLabel, nextRequesterName, nextDomainName, nextClassificationName, nextSummary, approval.getId(), approval.getTargetType()));
                     }
                 } else {
                     approval.setStatus("APPROVED");
@@ -162,7 +163,7 @@ public class ApprovalEventListener {
                             notificationService.createNotification(
                                     approval.getRequesterId(),
                                     "@i18n:notifications.approval_finalized",
-                                    buildFinalizedMessage(finalActionLabel, finalDomainName, finalClassificationName),
+                                    buildFinalizedMessage(finalActionLabel, finalDomainName, finalClassificationName, approval.getTargetType()),
                                     "APPROVAL",
                                     "/approvals?requestId=" + approval.getId()
                             );
@@ -315,6 +316,11 @@ public class ApprovalEventListener {
                     } else if (changes.has("domainId")) {
                         fieldDefinitionService.updateDomainFieldDirect(UUID.fromString(changes.get("domainId").asText()), fieldId, request);
                     }
+                } else if ("SCHEMA_FIELD_DELETE".equals(approval.getTargetType())) {
+                    UUID fieldId = UUID.fromString(changes.get("fieldId").asText());
+                    UUID domainId = changes.has("domainId") ? UUID.fromString(changes.get("domainId").asText()) : null;
+                    String requester = resolveRequesterName(approval);
+                    fieldDefinitionService.deleteDomainFieldDirect(domainId, fieldId, requester);
                 } else if ("SCHEMA_NODE_CREATE".equals(approval.getTargetType())) {
                     com.classification.domain_system.dto.ClassificationNodeRequest request = mapper.treeToValue(changes.get("request"), com.classification.domain_system.dto.ClassificationNodeRequest.class);
                     classificationNodeService.createNodeDirect(UUID.fromString(changes.get("domainId").asText()), request);
@@ -375,6 +381,24 @@ public class ApprovalEventListener {
             if (nameMap != null && nameMap.containsKey("ko")) return nameMap.get("ko");
             if (nameMap != null && !nameMap.isEmpty()) return nameMap.values().iterator().next();
         }
+        if (approval.getChanges() != null && !approval.getChanges().isBlank()) {
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode root = mapper.readTree(approval.getChanges());
+                if (root.has("domainName") && root.get("domainName").isValueNode()) {
+                    return root.get("domainName").asText();
+                }
+                if (root.has("domainId") && root.get("domainId").isValueNode()) {
+                    UUID domainId = UUID.fromString(root.get("domainId").asText());
+                    var dOpt = domainRepository.findById(domainId);
+                    if (dOpt.isPresent() && dOpt.get().getName() != null) {
+                        Map<String, String> dNameMap = dOpt.get().getName();
+                        if (dNameMap.containsKey("ko")) return dNameMap.get("ko");
+                        if (!dNameMap.isEmpty()) return dNameMap.values().iterator().next();
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
         return "도메인";
     }
 
@@ -384,7 +408,34 @@ public class ApprovalEventListener {
             if (nameMap != null && nameMap.containsKey("ko")) return nameMap.get("ko");
             if (nameMap != null && !nameMap.isEmpty()) return nameMap.values().iterator().next();
         }
+        if (approval.getChanges() != null && !approval.getChanges().isBlank()) {
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode root = mapper.readTree(approval.getChanges());
+                if (root.has("classificationName") && root.get("classificationName").isValueNode()) {
+                    return root.get("classificationName").asText();
+                }
+                if (root.has("nodeName") && root.get("nodeName").isValueNode()) {
+                    return root.get("nodeName").asText();
+                }
+            } catch (Exception ignored) {}
+        }
         return "분류";
+    }
+
+    private String formatFieldKey(String key) {
+        if (key == null) return "";
+        return switch (key) {
+            case "key" -> "key";
+            case "type" -> "type";
+            case "name" -> "name";
+            case "code" -> "code";
+            case "title" -> "title";
+            case "description" -> "description";
+            case "dataType" -> "dataType";
+            case "required" -> "required";
+            default -> key;
+        };
     }
 
     private String extractChangeSummary(ApprovalRequest approval) {
@@ -394,43 +445,72 @@ public class ApprovalEventListener {
             JsonNode root = mapper.readTree(approval.getChanges());
             List<String> summaryParts = new ArrayList<>();
 
-            // 1. 레코드 수정 (before & after 비교)
+            // 0. Include domainName if available
+            if (approval.getTargetType() != null && approval.getTargetType().startsWith("SCHEMA_")) {
+                String domainName = resolveDomainName(approval);
+                if (domainName != null && !domainName.isBlank() && !"도메인".equals(domainName)) {
+                    summaryParts.add("도메인: " + domainName);
+                }
+            }
+
+            // Explicitly handle fieldName and fieldKey for schema changes
+            if (root.has("fieldName")) {
+                JsonNode fNameNode = root.get("fieldName");
+                String fNameStr = fNameNode.isObject() 
+                    ? (fNameNode.has("ko") ? fNameNode.get("ko").asText() : (fNameNode.elements().hasNext() ? fNameNode.elements().next().asText() : fNameNode.asText()))
+                    : fNameNode.asText();
+                if (!fNameStr.isBlank()) {
+                    summaryParts.add("필드명: " + fNameStr);
+                }
+            }
+            if (root.has("fieldKey") && !root.get("fieldKey").asText().isBlank()) {
+                summaryParts.add("필드키: " + root.get("fieldKey").asText());
+            }
+
+            // If DELETE action with before object, extract field info if not present
+            if ("SCHEMA_FIELD_DELETE".equals(approval.getTargetType()) && root.has("before")) {
+                JsonNode beforeNode = root.get("before");
+                if (!root.has("fieldName") && beforeNode.has("name")) {
+                    JsonNode nVal = beforeNode.get("name");
+                    String fNameStr = nVal.isObject() 
+                        ? (nVal.has("ko") ? nVal.get("ko").asText() : (nVal.elements().hasNext() ? nVal.elements().next().asText() : nVal.asText()))
+                        : nVal.asText();
+                    if (!fNameStr.isBlank()) summaryParts.add("필드명: " + fNameStr);
+                }
+                if (!root.has("fieldKey") && beforeNode.has("key")) {
+                    summaryParts.add("필드키: " + beforeNode.get("key").asText());
+                }
+            }
+
+            // Ignore raw technical IDs
+            List<String> ignoreKeys = List.of("id", "fieldId", "version", "fieldGroupId", "domainId", "nodeId", "requesterId", "domainName", "classificationName", "fieldName", "fieldKey");
+
+            // 1. Record updates (before & after comparison)
             if (root.has("before") && root.has("after")) {
                 JsonNode beforeNode = root.get("before");
                 JsonNode afterNode = root.get("after");
                 afterNode.fieldNames().forEachRemaining(key -> {
-                    if (summaryParts.size() < 3 && !key.startsWith("_") && !key.equals("id") && !key.equals("version")) {
+                    if (summaryParts.size() < 4 && !key.startsWith("_") && !ignoreKeys.contains(key)) {
                         String bVal = beforeNode.has(key) && beforeNode.get(key).isValueNode() ? beforeNode.get(key).asText() : "";
                         String aVal = afterNode.has(key) && afterNode.get(key).isValueNode() ? afterNode.get(key).asText() : "";
                         if (!bVal.equals(aVal)) {
-                            summaryParts.add(key + ": " + (bVal.isBlank() ? "없음" : bVal) + " ➔ " + (aVal.isBlank() ? "없음" : aVal));
+                            summaryParts.add(formatFieldKey(key) + ": " + (bVal.isBlank() ? "N/A" : bVal) + " ➔ " + (aVal.isBlank() ? "N/A" : aVal));
                         }
                     }
                 });
-            } else {
-                // 2. 레코드 생성 또는 일반 요청 데이터
+            } else if (summaryParts.size() <= 1) {
+                // 2. Record creation or general schema change request
                 JsonNode dataNode = root;
                 if (dataNode.has("after")) dataNode = dataNode.get("after");
                 if (dataNode.has("request")) dataNode = dataNode.get("request");
                 
                 final JsonNode targetNode = dataNode;
-                // 'name', 'code', 'title', 'empNo' 등 대표 식별 속성 우선 탐색
-                List<String> priorityKeys = List.of("name", "code", "title", "empNo", "userName", "idAttr");
+                List<String> priorityKeys = List.of("name", "key", "code", "title", "type", "empNo", "userName");
                 for (String pKey : priorityKeys) {
                     if (targetNode.has(pKey) && targetNode.get(pKey).isValueNode()) {
-                        summaryParts.add(pKey + ": " + targetNode.get(pKey).asText());
+                        summaryParts.add(formatFieldKey(pKey) + ": " + targetNode.get(pKey).asText());
                     }
                 }
-
-                // 나머지 일반 필드 채우기 (최대 3개까지)
-                targetNode.fieldNames().forEachRemaining(key -> {
-                    if (summaryParts.size() < 3 && !priorityKeys.contains(key) && !key.startsWith("_") && !key.equals("id") && !key.equals("version")) {
-                        JsonNode val = targetNode.get(key);
-                        if (val.isValueNode()) {
-                            summaryParts.add(key + ": " + val.asText());
-                        }
-                    }
-                });
             }
             return String.join(", ", summaryParts);
         } catch (Exception e) {
@@ -438,25 +518,55 @@ public class ApprovalEventListener {
         }
     }
 
-    private String buildNotificationMessage(String actionLabel, String requesterName, String domainName, String classificationName, String summary) {
+    private String resolveSchemaActionLabel(String targetType) {
+        if (targetType == null) return "스키마 변경";
+        return switch (targetType) {
+            case "SCHEMA_FIELD_DELETE" -> "스키마 필드 삭제";
+            case "SCHEMA_FIELD_ADD" -> "스키마 필드 추가";
+            case "SCHEMA_FIELD_UPDATE" -> "스키마 필드 변경";
+            case "SCHEMA_NODE_CREATE" -> "분류 노드 생성";
+            case "SCHEMA_NODE_UPDATE" -> "분류 노드 변경";
+            case "SCHEMA_NODE_MOVE" -> "분류 노드 이동";
+            default -> "스키마 변경";
+        };
+    }
+
+    private String resolveRequesterName(ApprovalRequest approval) {
+        if (approval == null) return null;
+        if (approval.getRequesterId() != null && !approval.getRequesterId().isBlank()) {
+            return approval.getRequesterId();
+        }
+        if (approval.getRequesterName() != null && !approval.getRequesterName().isBlank()) {
+            return approval.getRequesterName();
+        }
+        return null;
+    }
+
+    private String buildNotificationMessage(String actionLabel, String requesterName, String domainName, String classificationName, String summary, String targetType) {
         StringBuilder sb = new StringBuilder();
-        sb.append("[").append(domainName).append(" > ").append(classificationName).append("] ");
-        sb.append(requesterName).append("님의 ").append(actionLabel).append(" 요청");
+        if (targetType != null && targetType.startsWith("SCHEMA_")) {
+            sb.append("[").append(resolveSchemaActionLabel(targetType)).append("] ");
+        } else {
+            sb.append("[").append(domainName).append(" > ").append(classificationName).append("] ");
+        }
+        sb.append(requesterName).append(" | ").append(resolveSchemaActionLabel(targetType));
         if (!summary.isBlank()) {
             sb.append(" (").append(summary).append(")");
         }
         return sb.toString();
     }
 
-    private String buildStepApprovedMessage(String actionLabel, Integer stepOrder, String domainName, String classificationName) {
-        return "[" + domainName + " > " + classificationName + "] " + actionLabel + " 요청의 " + stepOrder + "단계 결재가 승인되었습니다.";
+    private String buildStepApprovedMessage(String actionLabel, Integer stepOrder, String domainName, String classificationName, String targetType) {
+        String tag = (targetType != null && targetType.startsWith("SCHEMA_")) ? "[스키마 변경]" : "[" + domainName + " > " + classificationName + "]";
+        return tag + " " + actionLabel + " Step " + stepOrder + " Approved";
     }
 
-    private String buildFinalizedMessage(String actionLabel, String domainName, String classificationName) {
-        return "[" + domainName + " > " + classificationName + "] " + actionLabel + " 요청이 최종 승인되었습니다.";
+    private String buildFinalizedMessage(String actionLabel, String domainName, String classificationName, String targetType) {
+        String tag = (targetType != null && targetType.startsWith("SCHEMA_")) ? "[스키마 변경]" : "[" + domainName + " > " + classificationName + "]";
+        return tag + " " + actionLabel + " Final Approved";
     }
 
-    private void sendPendingStepNotification(ApprovalStep step, String actionLabel, String requesterName, String domainName, String classificationName, String summary, UUID approvalId) {
+    private void sendPendingStepNotification(ApprovalStep step, String actionLabel, String requesterName, String domainName, String classificationName, String summary, UUID approvalId, String targetType) {
         if (step == null || notificationService == null) return;
         List<String> targetUserIds = new ArrayList<>();
         if (step.getAssigneeId() != null && !step.getAssigneeId().isBlank()) {
@@ -477,7 +587,7 @@ public class ApprovalEventListener {
                 notificationService.createNotification(
                         targetUserId,
                         "@i18n:notifications.approval_pending",
-                        buildNotificationMessage(actionLabel, requesterName, domainName, classificationName, summary),
+                        buildNotificationMessage(actionLabel, requesterName, domainName, classificationName, summary, targetType),
                         "APPROVAL",
                         "/approvals?requestId=" + approvalId
                 );
