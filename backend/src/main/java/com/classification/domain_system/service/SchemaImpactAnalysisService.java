@@ -131,7 +131,7 @@ public class SchemaImpactAnalysisService {
 
         // If targetFieldKey matching count is 0, check if total active records exist in domain
         long totalActiveDomainRecords = recordRepository.countByNodeDomainIdAndStatus(domainId, "ACTIVE");
-        long effectiveAffectedRecords = (actualAffectedCount > 0) ? actualAffectedCount : 0;
+        long effectiveAffectedRecords = (actualAffectedCount > 0) ? actualAffectedCount : totalActiveDomainRecords;
         
         response.setTotalAffectedRecords(effectiveAffectedRecords);
         response.setSampleAffectedRecords(samples);
@@ -162,9 +162,15 @@ public class SchemaImpactAnalysisService {
         if ("DELETE_FIELD".equalsIgnoreCase(changeType)) {
             response.setRiskLevel(effectiveAffectedRecords > 50 ? "HIGH" : (effectiveAffectedRecords > 0 ? "MEDIUM" : "LOW"));
             response.setExpectedDqViolations(0);
+            if (effectiveAffectedRecords > 0) {
+                response.getWarnings().add(targetFieldName + " (" + effectiveAffectedRecords + ")");
+            }
         } else if ("MODIFY_FIELD_TYPE".equalsIgnoreCase(changeType) || "MODIFY_FIELD".equalsIgnoreCase(changeType)) {
             response.setRiskLevel(effectiveAffectedRecords > 100 ? "HIGH" : "LOW");
             response.setExpectedDqViolations(Math.max(0, Math.round(effectiveAffectedRecords * 0.05f)));
+            if (effectiveAffectedRecords > 0) {
+                response.getWarnings().add(targetFieldName + " (" + effectiveAffectedRecords + ")");
+            }
         } else {
             response.setRiskLevel("LOW");
         }

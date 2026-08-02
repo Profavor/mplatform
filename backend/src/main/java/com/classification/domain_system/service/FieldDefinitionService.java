@@ -87,11 +87,18 @@ public class FieldDefinitionService {
         }
         if (SecurityContextHolder.getContext().getAuthentication() != null && SecurityContextHolder.getContext().getAuthentication().getName() != null) {
             String name = SecurityContextHolder.getContext().getAuthentication().getName();
-            if (name != null && !name.isBlank() && !"anonymousUser".equals(name)) {
+            if (name != null && !name.isBlank() && !"anonymousUser".equalsIgnoreCase(name)) {
                 return name;
             }
         }
-        return getCurrentUser();
+        String user = getCurrentUser();
+        if (user != null && !user.isBlank()) {
+            return user;
+        }
+        throw new com.classification.domain_system.exception.BusinessException(
+            com.classification.domain_system.exception.ErrorCode.ACCESS_DENIED,
+            "인증된 사용자 정보가 존재하지 않습니다."
+        );
     }
 
     public boolean hasPendingSchemaApproval(UUID domainId, UUID nodeId) {
