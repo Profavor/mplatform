@@ -28,6 +28,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import com.classification.domain_system.exception.ResourceNotFoundException;
 import java.util.List;
 import java.util.UUID;
 
@@ -68,10 +69,16 @@ public class FieldDefinitionService {
     private com.classification.domain_system.repository.UserRepository userRepository;
 
     private String getCurrentUser() {
-        if (SecurityContextHolder.getContext().getAuthentication() != null && SecurityContextHolder.getContext().getAuthentication().getName() != null) {
-            return SecurityContextHolder.getContext().getAuthentication().getName();
+        if (authContext != null && authContext.getUserId() != null && !authContext.getUserId().isBlank()) {
+            return authContext.getUserId();
         }
-        return "system";
+        if (SecurityContextHolder.getContext().getAuthentication() != null && SecurityContextHolder.getContext().getAuthentication().getName() != null) {
+            String name = SecurityContextHolder.getContext().getAuthentication().getName();
+            if (name != null && !name.isBlank() && !"anonymousUser".equalsIgnoreCase(name)) {
+                return name;
+            }
+        }
+        return null;
     }
 
     private String getCurrentUserId() {
@@ -181,6 +188,15 @@ public class FieldDefinitionService {
         
         if (config != null) {
             approvalService.buildDynamicSteps(approval, config);
+        } else {
+            // Default 1-step System Approval Workflow fallback
+            ApprovalStep defaultStep = new ApprovalStep();
+            defaultStep.setApprovalRequest(approval);
+            defaultStep.setStepOrder(1);
+            defaultStep.setStepType("APPROVAL");
+            defaultStep.setAssigneeRole("SYSTEM_ADMIN");
+            defaultStep.setStatus("PENDING");
+            approval.getSteps().add(defaultStep);
         }
         
         // Add Requester's DRAFT Step (stepOrder = 0)
@@ -291,8 +307,13 @@ public class FieldDefinitionService {
     }
 
     private void recordSchemaChange(UUID domainId, String targetType, UUID targetId, String action, Object beforeData, Object afterData) {
+        recordSchemaChange(domainId, targetType, targetId, action, beforeData, afterData, getCurrentUser());
+    }
+
+    private void recordSchemaChange(UUID domainId, String targetType, UUID targetId, String action, Object beforeData, Object afterData, String changedBy) {
         if (schemaHistoryService != null && domainId != null) {
-            schemaHistoryService.recordChange(domainId, targetType, targetId, action, beforeData, afterData, getCurrentUser());
+            String operator = (changedBy != null && !changedBy.isBlank()) ? changedBy : getCurrentUser();
+            schemaHistoryService.recordChange(domainId, targetType, targetId, action, beforeData, afterData, operator);
         }
     }
 
@@ -586,6 +607,69 @@ public class FieldDefinitionService {
         
         recordSchemaChange(domainId, "FIELD", fieldId, "UPDATE", beforeState, toStateMap(savedField));
         return savedField;
+    }
+
+    @org.springframework.cache.annotation.CacheEvict(value = "effectiveFields", allEntries = true)
+    @Transactional
+    public void deleteDomainField(UUID domainId, UUID fieldId) {
+        deleteDomainField(domainId, fieldId, false, null);
+    }
+
+    @org.springframework.cache.annotation.CacheEvict(value = "effectiveFields", allEntries = true)
+    @Transactional
+    public void deleteDomainField(UUID domainId, UUID fieldId, boolean bypassApproval, String reason) {
+        deleteDomainField(domainId, fieldId, bypassApproval, reason, null);
+    }
+
+    @org.springframework.cache.annotation.CacheEvict(value = "effectiveFields", allEntries = true)
+    @Transactional
+    public void deleteDomainField(UUID domainId, UUID fieldId, boolean bypassApproval, String reason, String changedBy) {
+        FieldDefinition field = fieldRepository.findById(fieldId)
+                .orElseThrow(() -> new ResourceNotFoundException("Field not found: " + fieldId));
+
+        Domain domain = field.getDomain() != null ? field.getDomain() : (field.getDefinedAtNode() != null ? field.getDefinedAtNode().getDomain() : null);
+        UUID actualDomainId = domain != null ? domain.getId() : domainId;
+
+        if (!bypassApproval && hasSchemaApproval(actualDomainId)) {
+            validateNoPendingFieldApproval(fieldId);
+            try {
+                java.util.Map<String, Object> changesMap = new java.util.HashMap<>();
+                changesMap.put("domainId", actualDomainId);
+                changesMap.put("fieldId", fieldId);
+                changesMap.put("fieldKey", field.getKey());
+                changesMap.put("fieldName", field.getName());
+                changesMap.put("before", toStateMap(field));
+                if (reason != null) changesMap.put("reason", reason);
+                createSchemaApprovalRequest(domain != null ? domain : domainRepository.findById(domainId).orElse(null), field.getDefinedAtNode(), "SCHEMA_FIELD_DELETE", changesMap, reason);
+                return;
+            } catch (Exception e) {
+                log.error("Failed to create schema approval request for field deletion:", e);
+                if (e instanceof com.classification.domain_system.exception.BusinessException) throw e;
+                throw new RuntimeException("Failed to create schema approval request for field deletion", e);
+            }
+        }
+
+        field.setIsRemoved(true);
+        fieldRepository.saveAndFlush(field);
+        recordSchemaChange(actualDomainId, "FIELD", fieldId, "DELETE", toStateMap(field), null, changedBy);
+    }
+
+    @org.springframework.cache.annotation.CacheEvict(value = "effectiveFields", allEntries = true)
+    @Transactional
+    public void deleteField(UUID nodeId, UUID fieldId) {
+        deleteDomainField(null, fieldId, false, null);
+    }
+
+    @org.springframework.cache.annotation.CacheEvict(value = "effectiveFields", allEntries = true)
+    @Transactional
+    public void deleteDomainFieldDirect(UUID domainId, UUID fieldId) {
+        deleteDomainFieldDirect(domainId, fieldId, null);
+    }
+
+    @org.springframework.cache.annotation.CacheEvict(value = "effectiveFields", allEntries = true)
+    @Transactional
+    public void deleteDomainFieldDirect(UUID domainId, UUID fieldId, String changedBy) {
+        deleteDomainField(domainId, fieldId, true, "Final approval passed", changedBy);
     }
     
     @org.springframework.cache.annotation.Cacheable(value = "effectiveFields", key = "#nodeId", unless = "#result == null")

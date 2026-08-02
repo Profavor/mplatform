@@ -30,7 +30,7 @@
                 :selectedNode="selectedNode"
                 :showEdit="true"
                 :hideAxisSelect="true"
-                emptyMessage="분류체계 트리가 없습니다. 하단의 Domain 버튼을 눌러 새 도메인을 생성해주세요."
+                :emptyMessage="$t('tree_empty_message') || '분류체계 트리가 없습니다. 하단의 Domain 버튼을 눌러 새 도메인을 생성해주세요.'"
                 @select="onNodeSelected"
                 @edit="handleNodeEdit"
                 @loaded="onTreeLoaded"
@@ -39,9 +39,6 @@
             <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; padding: 0 0.5rem; flex-wrap: wrap;">
               <va-button v-if="hasPermission('domain:write') || hasPermission('domain:*')" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="create_new_folder" @click="openDomainModal()" color="primary">Domain</va-button>
               <va-button v-if="hasPermission('node:write') || hasPermission('node:*')" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="note_add" @click="openNodeModal()" :disabled="!selectedNode" color="primary" :preset="selectedNode ? 'primary' : 'secondary'">Node</va-button>
-              <va-button color="info" outline icon="analytics" style="width: 100%; border-radius: 8px;" @click="showImpactModal = true" :disabled="!selectedNode">
-                {{ $t('impact_analysis_preview') || '사전 영향도 시뮬레이션' }}
-              </va-button>
             </div>
             <div style="margin-top: 0.75rem; padding: 0 0.5rem;">
               <va-button preset="secondary" style="width: 100%;" @click="showRequestAccessModal = true">Request Domain Access</va-button>
@@ -533,6 +530,15 @@
       </div>
     </va-modal>
 
+    <!-- Pre-change Impact Review Modal -->
+    <SchemaImpactReportModal
+      v-model="showImpactModal"
+      :domainId="selectedDomainId"
+      :changeRequest="impactChangeRequest"
+      :isSubmitMode="true"
+      @confirm-submit="confirmImpactAnalysisAction"
+    />
+
     <!-- Request Access Modal -->
     <DomainAccessRequestModal v-model="showRequestAccessModal" />
 
@@ -601,7 +607,7 @@
     <SubmissionCommentModal
       v-model="showFieldCommentModal"
       v-model:comment="draftFieldCommentText"
-      @submit="executePendingFieldSave"
+      @submit="handleSubmissionCommentSubmit"
     />
 
     <!-- Schema Impact Analysis Modal -->
@@ -642,33 +648,84 @@ const impactChangeRequest = ref({
 
 const pendingFieldAction = ref(null)
 
-const triggerDeleteFieldWithImpactAnalysis = (fieldData) => {
-  if (!fieldData) return
+const triggerSaveFieldWithImpactAnalysis = () => {
+  const fName = typeof newField.value.name === 'object' 
+    ? (newField.value.name.ko || newField.value.name.en || newField.value.key) 
+    : (newField.value.name || newField.value.key)
+
   impactChangeRequest.value = {
-    changeType: 'DELETE_FIELD',
-    fieldDefinitionId: fieldData.id
+    changeType: isEditMode.value ? 'MODIFY_FIELD' : 'ADD_FIELD',
+    fieldDefinitionId: isEditMode.value ? editingId.value : null,
+    fieldKey: newField.value.key,
+    fieldName: fName,
+    newFieldType: newField.value.type
   }
-  pendingFieldAction.value = () => executeDeleteField(fieldData)
+  pendingFieldAction.value = () => executePendingFieldSave()
   showImpactModal.value = true
 }
 
-const executeDeleteField = async (fieldData) => {
+const pendingDeleteTargetField = ref(null)
+
+const triggerDeleteFieldWithImpactAnalysis = (fieldData) => {
+  if (!fieldData) return
+  const fName = typeof fieldData.name === 'object'
+    ? (fieldData.name.ko || fieldData.name.en || fieldData.key)
+    : (fieldData.name || fieldData.key)
+
+  impactChangeRequest.value = {
+    changeType: 'DELETE_FIELD',
+    fieldDefinitionId: fieldData.id,
+    fieldKey: fieldData.key,
+    fieldName: fName
+  }
+  pendingDeleteTargetField.value = fieldData
+  pendingFieldAction.value = () => {
+    draftFieldCommentText.value = ''
+    showFieldCommentModal.value = true
+  }
+  showImpactModal.value = true
+}
+
+const confirmImpactAnalysisAction = async () => {
+  showImpactModal.value = false
+  if (pendingFieldAction.value) {
+    const action = pendingFieldAction.value
+    pendingFieldAction.value = null
+    await action()
+  }
+}
+
+const handleSubmissionCommentSubmit = async () => {
+  showFieldCommentModal.value = false
+  if (impactChangeRequest.value?.changeType === 'DELETE_FIELD' && pendingDeleteTargetField.value) {
+    await executeDeleteField(pendingDeleteTargetField.value, draftFieldCommentText.value)
+    pendingDeleteTargetField.value = null
+  } else {
+    await executePendingFieldSave()
+  }
+}
+
+const executeDeleteField = async (fieldData, reasonText = '') => {
   if (!fieldData || !fieldData.id) return
   try {
     const dId = selectedNode.value?.domainId || selectedNode.value?.id
-    const deleteUrl = selectedNode.value?.isDomain
+    let deleteUrl = selectedNode.value?.isDomain
       ? `/api/domains/${dId}/fields/${fieldData.id}`
       : `/api/nodes/${selectedNode.value?.id}/fields/${fieldData.id}`
+
+    if (reasonText && reasonText.trim()) {
+      deleteUrl += `?reason=${encodeURIComponent(reasonText.trim())}`
+    }
 
     await $fetch(deleteUrl, {
       method: 'DELETE',
       headers: getAuthHeaders()
     })
-    showCustomAlert(t('field_deleted_successfully') || '필드가 성공적으로 삭제되었습니다.', '삭제 완료', 'Success', 'success')
+    showCustomAlert(t('field_delete_approval_submitted'), t('approval_submitted_title'), 'Success', 'success')
     await onNodeSelected(selectedNode.value)
   } catch (e) {
     console.error('Failed to delete field:', e)
-    showCustomAlert('필드 삭제 중 오류가 발생했습니다.', '삭제 오류', 'Error', 'error')
+    showCustomAlert(t('field_delete_failed'), t('delete_error_title'), 'Error', 'error')
   }
 }
 
@@ -1772,8 +1829,7 @@ const saveField = async () => {
 
   newField.value.options = JSON.stringify(existingOptsObj)
   
-  draftFieldCommentText.value = newField.value.reason || ''
-  showFieldCommentModal.value = true
+  triggerSaveFieldWithImpactAnalysis()
 }
 
 const executePendingFieldSave = async () => {

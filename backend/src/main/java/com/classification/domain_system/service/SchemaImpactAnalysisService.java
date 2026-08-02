@@ -2,11 +2,13 @@ package com.classification.domain_system.service;
 
 import com.classification.domain_system.dto.SchemaImpactAnalysisDto;
 import com.classification.domain_system.entity.Domain;
+import com.classification.domain_system.entity.DqRule;
 import com.classification.domain_system.entity.FieldDefinition;
 import com.classification.domain_system.entity.IntegrationChannel;
 import com.classification.domain_system.entity.Record;
 import com.classification.domain_system.exception.ResourceNotFoundException;
 import com.classification.domain_system.repository.DomainRepository;
+import com.classification.domain_system.repository.DqRuleRepository;
 import com.classification.domain_system.repository.FieldDefinitionRepository;
 import com.classification.domain_system.repository.IntegrationChannelRepository;
 import com.classification.domain_system.repository.RecordRepository;
@@ -29,103 +31,183 @@ public class SchemaImpactAnalysisService {
     private final RecordRepository recordRepository;
     private final FieldDefinitionRepository fieldDefinitionRepository;
     private final IntegrationChannelRepository integrationChannelRepository;
+    private final DqRuleRepository dqRuleRepository;
 
     public SchemaImpactAnalysisService(DomainRepository domainRepository,
                                        RecordRepository recordRepository,
                                        FieldDefinitionRepository fieldDefinitionRepository,
-                                       IntegrationChannelRepository integrationChannelRepository) {
+                                       IntegrationChannelRepository integrationChannelRepository,
+                                       DqRuleRepository dqRuleRepository) {
         this.domainRepository = domainRepository;
         this.recordRepository = recordRepository;
         this.fieldDefinitionRepository = fieldDefinitionRepository;
         this.integrationChannelRepository = integrationChannelRepository;
+        this.dqRuleRepository = dqRuleRepository;
     }
 
     public SchemaImpactAnalysisDto.ImpactAnalysisResponse analyzeImpact(UUID domainId, SchemaImpactAnalysisDto.ImpactAnalysisRequest request) {
         Domain domain = domainRepository.findById(domainId)
                 .orElseThrow(() -> new ResourceNotFoundException("Domain not found: " + domainId));
 
-        long totalRecords = recordRepository.countByNodeDomainIdAndStatus(domainId, "ACTIVE");
         List<IntegrationChannel> channels = integrationChannelRepository.findByIsActiveTrue();
         List<Record> dbRecords = recordRepository.findAllByDomainId(domainId);
 
         SchemaImpactAnalysisDto.ImpactAnalysisResponse response = new SchemaImpactAnalysisDto.ImpactAnalysisResponse();
         response.setDomainId(domainId);
-        response.setTotalAffectedRecords(totalRecords);
 
-        // Extract target field information if provided
-        String targetFieldKey = "EMP_NO";
-        String targetFieldName = "사번 (Employee ID)";
+        // 1. Target Field Identification (Dynamic from DB / Request)
+        UUID targetFieldId = request != null ? request.getFieldDefinitionId() : null;
+        String targetFieldKey = null;
+        String targetFieldName = null;
 
-        if (request != null && request.getFieldDefinitionId() != null) {
-            Optional<FieldDefinition> fdOpt = fieldDefinitionRepository.findById(request.getFieldDefinitionId());
+        if (targetFieldId != null) {
+            Optional<FieldDefinition> fdOpt = fieldDefinitionRepository.findById(targetFieldId);
             if (fdOpt.isPresent()) {
                 FieldDefinition fd = fdOpt.get();
-                targetFieldKey = fd.getKey() != null ? fd.getKey() : targetFieldKey;
+                targetFieldKey = fd.getKey();
                 targetFieldName = extractName(fd.getName(), targetFieldKey);
             }
         }
+        if (targetFieldKey == null && request != null) {
+            targetFieldKey = request.getFieldKey() != null ? request.getFieldKey() : "";
+            targetFieldName = request.getFieldName() != null ? request.getFieldName() : targetFieldKey;
+        }
+        if (targetFieldName == null || targetFieldName.isBlank()) {
+            targetFieldName = targetFieldKey != null ? targetFieldKey : "";
+        }
+
         response.setAffectedFieldKey(targetFieldKey);
         response.setAffectedFieldName(targetFieldName);
 
-        // Integration channels
-        for (IntegrationChannel channel : channels) {
-            response.getAffectedIntegrationChannels().add(channel.getName() != null ? channel.getName() : "Channel-" + channel.getId());
-        }
-        if (response.getAffectedIntegrationChannels().isEmpty()) {
-            response.getAffectedIntegrationChannels().addAll(List.of("ERP-HR Inbound Interface", "Legacy Master Sync API", "BI Data Pipeline"));
+        // Dynamic Header Identification strictly from DB Schema Field Definitions (100% DB driven, NO hardcoding)
+        List<FieldDefinition> domainFields = fieldDefinitionRepository.findDomainFieldsWithSort(domainId);
+        Object idHeaderName = null;
+        Object nameHeaderName = null;
+
+        if (domainFields != null && !domainFields.isEmpty()) {
+            // First Priority: Find Highlighted Key or ID/CODE key field from DB
+            for (FieldDefinition fd : domainFields) {
+                String k = fd.getKey() != null ? fd.getKey().toUpperCase() : "";
+                if (idHeaderName == null && (Boolean.TRUE.equals(fd.getIsHighlighted()) || k.contains("ID") || k.contains("CODE") || k.contains("NO") || k.contains("KEY"))) {
+                    idHeaderName = fd.getName();
+                }
+                if (nameHeaderName == null && (k.contains("NAME") || k.contains("TITLE") || k.contains("LABEL") || k.contains("NM"))) {
+                    nameHeaderName = fd.getName();
+                }
+            }
+
+            // Fallback to first & second fields defined in DB schema if specific key match is not found
+            if (idHeaderName == null && domainFields.size() > 0) {
+                idHeaderName = domainFields.get(0).getName();
+            }
+            if (nameHeaderName == null && domainFields.size() > 1) {
+                nameHeaderName = domainFields.get(1).getName();
+            }
         }
 
-        // DQ Rules
-        response.getAffectedDqRules().addAll(List.of(
-                "DQ-RULE-01: " + targetFieldKey + " 필수값 및 Format 검칙",
-                "DQ-RULE-03: " + targetFieldKey + " 도메인 유효 범위 및 중복 검증"
-        ));
+        response.setIdFieldHeaderName(idHeaderName);
+        response.setNameFieldHeaderName(nameHeaderName);
 
-        // Sample Affected Records Extraction from Real DB Records
+        // 2. Real DB Affected Records Calculation & Samples
         List<SchemaImpactAnalysisDto.AffectedRecordSample> samples = new ArrayList<>();
-        int limit = Math.min(dbRecords.size(), 5);
-        for (int i = 0; i < limit; i++) {
-            Record rec = dbRecords.get(i);
-            String recCode = (rec.getId() != null) ? "REC-" + rec.getId().toString().substring(0, 8) : "REC-00000001";
-            String nodeName = (rec.getNode() != null && rec.getNode().getName() != null) ? extractName(rec.getNode().getName(), "General") : "General";
-            String valStr = extractValueFromJson(rec.getData(), targetFieldKey);
-            String timeStr = (rec.getUpdatedAt() != null) ? rec.getUpdatedAt().format(DATE_FORMATTER) : "2026-07-31 01:13:43";
+        long actualAffectedCount = 0;
 
-            samples.add(new SchemaImpactAnalysisDto.AffectedRecordSample(recCode, nodeName, valStr, timeStr));
+        if (targetFieldKey != null && !targetFieldKey.isBlank()) {
+            for (Record rec : dbRecords) {
+                String valStr = extractValueFromJson(rec.getData(), targetFieldKey);
+                if (!"-".equals(valStr) && !valStr.isBlank()) {
+                    actualAffectedCount++;
+                    if (samples.size() < 5) {
+                        String recCode = (rec.getId() != null) ? "REC-" + rec.getId().toString().substring(0, 8) : "REC-UNKNOWN";
+                        String idAttr = extractIdAttributeValue(rec.getData(), recCode);
+                        String nameAttr = extractNameAttributeValue(rec.getData());
+                        String nodeName = (rec.getNode() != null && rec.getNode().getName() != null) ? extractName(rec.getNode().getName(), "일반 노드") : "일반 노드";
+                        String timeStr = (rec.getUpdatedAt() != null) ? rec.getUpdatedAt().format(DATE_FORMATTER) : "";
+                        samples.add(new SchemaImpactAnalysisDto.AffectedRecordSample(recCode, idAttr, nameAttr, nodeName, valStr, timeStr));
+                    }
+                }
+            }
         }
 
-        // Fallback sample if DB has no record
-        if (samples.isEmpty()) {
-            samples.add(new SchemaImpactAnalysisDto.AffectedRecordSample("REC-340a0917", "정규직 (General)", "0000001", "2026-07-31 01:13:43"));
-        }
+        // If targetFieldKey matching count is 0, check if total active records exist in domain
+        long totalActiveDomainRecords = recordRepository.countByNodeDomainIdAndStatus(domainId, "ACTIVE");
+        long effectiveAffectedRecords = (actualAffectedCount > 0) ? actualAffectedCount : 0;
+        
+        response.setTotalAffectedRecords(effectiveAffectedRecords);
         response.setSampleAffectedRecords(samples);
 
-        // Warning and Risk Calculation
-        String changeType = (request != null && request.getChangeType() != null) ? request.getChangeType() : "DELETE_FIELD";
+        // 3. Real Active Integration Channels (From DB only, NO hardcoding)
+        if (channels != null) {
+            for (IntegrationChannel channel : channels) {
+                if (channel.getName() != null && !channel.getName().isBlank()) {
+                    response.getAffectedIntegrationChannels().add(channel.getName());
+                }
+            }
+        }
+
+        // 4. Real DB DQ Rules matching ONLY target field (From DB only, NO hardcoding)
+        List<DqRule> matchedRules = new ArrayList<>();
+        if (targetFieldId != null) {
+            matchedRules = dqRuleRepository.findByFieldDefinition_IdAndIsActiveTrueOrderBySortOrderAsc(targetFieldId);
+        }
+
+        for (DqRule rule : matchedRules) {
+            String rName = rule.getRuleType() != null ? rule.getRuleType().name() : ("DQ-RULE-" + rule.getId().toString().substring(0, 8));
+            response.getAffectedDqRules().add(rName);
+        }
+
+        // 5. Impact Summary & Warnings based strictly on Real DB Findings
+        String changeType = (request != null && request.getChangeType() != null) ? request.getChangeType() : "MODIFY_FIELD";
 
         if ("DELETE_FIELD".equalsIgnoreCase(changeType)) {
-            response.setRiskLevel(totalRecords > 100 ? "HIGH" : "MEDIUM");
+            response.setRiskLevel(effectiveAffectedRecords > 50 ? "HIGH" : (effectiveAffectedRecords > 0 ? "MEDIUM" : "LOW"));
             response.setExpectedDqViolations(0);
-            response.setImpactSummary("선택한 '" + targetFieldName + "' 속성 필드를 삭제할 경우, 기존 " + totalRecords + "건의 마스터 레코드 내 필드 값이 영구 손실되며 복구 불가능 상태가 됩니다.");
-            response.getWarnings().add("필드 삭제 시 기존 " + totalRecords + "개 활성 레코드의 해당 필드 데이터가 영구 삭제되거나 조회 불가능해집니다.");
-            response.getWarnings().add(response.getAffectedIntegrationChannels().size() + "개 인터페이스 연동 시스템에서 데이터 매핑 오프셋 미스매치로 인한 파싱 에러가 발생할 수 있습니다.");
-            response.getWarnings().add("연관 데이터 품질(DQ) 검칙 " + response.getAffectedDqRules().size() + "건이 비활성화되거나 오류 상태로 전환됩니다.");
-        } else if ("MODIFY_FIELD_TYPE".equalsIgnoreCase(changeType)) {
-            response.setRiskLevel("CRITICAL");
-            response.setExpectedDqViolations(Math.max(1, Math.round(totalRecords * 0.15)));
-            response.setImpactSummary("'" + targetFieldName + "' 필드 타입을 [" + request.getNewFieldType() + "]로 변경할 경우 역직렬화 손실 및 형변환 예외가 유발됩니다.");
-            response.getWarnings().add("데이터 타입 변경 시 기존 데이터 직렬화 실패 및 약 " + response.getExpectedDqViolations() + "건의 타입 불일치 위반이 예상됩니다.");
+        } else if ("MODIFY_FIELD_TYPE".equalsIgnoreCase(changeType) || "MODIFY_FIELD".equalsIgnoreCase(changeType)) {
+            response.setRiskLevel(effectiveAffectedRecords > 100 ? "HIGH" : "LOW");
+            response.setExpectedDqViolations(Math.max(0, Math.round(effectiveAffectedRecords * 0.05f)));
         } else {
             response.setRiskLevel("LOW");
-            response.setImpactSummary("스키마 구조 변경 사항에 대한 안전성 사전 검증이 완료되었습니다.");
-            response.getWarnings().add("규칙 및 스키마 변경 사항 사전 검증 완료. 심각한 파급 효과가 감지되지 않았습니다.");
         }
 
         return response;
     }
 
-    private String extractValueFromJson(String jsonStr, String fieldKey) {
+    private String extractIdAttributeValue(String jsonStr, String recCodeFallback) {
+        if (jsonStr == null || jsonStr.isBlank()) return recCodeFallback;
+        try {
+            JsonNode root = objectMapper.readTree(jsonStr);
+            for (String key : List.of("EMP_NO", "ID", "CODE", "KEY", "RECORD_ID", "record_id", "emp_no", "id", "code")) {
+                if (root.has(key) && !root.get(key).isNull()) {
+                    String val = root.get(key).asText();
+                    if (!val.isBlank()) return val;
+                }
+            }
+        } catch (Exception ignored) {}
+        return recCodeFallback;
+    }
+
+    private String extractNameAttributeValue(String jsonStr) {
         if (jsonStr == null || jsonStr.isBlank()) return "-";
+        try {
+            JsonNode root = objectMapper.readTree(jsonStr);
+            for (String key : List.of("NAME", "TITLE", "LABEL", "EMP_NAME", "name", "title", "label", "emp_name")) {
+                if (root.has(key) && !root.get(key).isNull()) {
+                    JsonNode v = root.get(key);
+                    if (v.isObject() && (v.has("ko") || v.has("en"))) {
+                        String ko = v.has("ko") ? v.get("ko").asText() : "";
+                        String en = v.has("en") ? v.get("en").asText() : "";
+                        return !ko.isEmpty() ? (en.isEmpty() ? ko : ko + " (" + en + ")") : en;
+                    }
+                    String val = v.asText();
+                    if (!val.isBlank()) return val;
+                }
+            }
+        } catch (Exception ignored) {}
+        return "-";
+    }
+
+    private String extractValueFromJson(String jsonStr, String fieldKey) {
+        if (jsonStr == null || jsonStr.isBlank() || fieldKey == null || fieldKey.isBlank()) return "-";
         try {
             JsonNode root = objectMapper.readTree(jsonStr);
             if (root.has(fieldKey)) {

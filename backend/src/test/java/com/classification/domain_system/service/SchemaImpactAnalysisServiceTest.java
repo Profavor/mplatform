@@ -36,6 +36,9 @@ class SchemaImpactAnalysisServiceTest {
     @Mock
     private com.classification.domain_system.repository.FieldDefinitionRepository fieldDefinitionRepository;
 
+    @Mock
+    private com.classification.domain_system.repository.DqRuleRepository dqRuleRepository;
+
     @InjectMocks
     private SchemaImpactAnalysisService schemaImpactAnalysisService;
 

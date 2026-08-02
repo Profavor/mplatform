@@ -316,6 +316,11 @@ public class ApprovalEventListener {
                     } else if (changes.has("domainId")) {
                         fieldDefinitionService.updateDomainFieldDirect(UUID.fromString(changes.get("domainId").asText()), fieldId, request);
                     }
+                } else if ("SCHEMA_FIELD_DELETE".equals(approval.getTargetType())) {
+                    UUID fieldId = UUID.fromString(changes.get("fieldId").asText());
+                    UUID domainId = changes.has("domainId") ? UUID.fromString(changes.get("domainId").asText()) : null;
+                    String requester = resolveRequesterName(approval);
+                    fieldDefinitionService.deleteDomainFieldDirect(domainId, fieldId, requester);
                 } else if ("SCHEMA_NODE_CREATE".equals(approval.getTargetType())) {
                     com.classification.domain_system.dto.ClassificationNodeRequest request = mapper.treeToValue(changes.get("request"), com.classification.domain_system.dto.ClassificationNodeRequest.class);
                     classificationNodeService.createNodeDirect(UUID.fromString(changes.get("domainId").asText()), request);
@@ -444,12 +449,41 @@ public class ApprovalEventListener {
             if (approval.getTargetType() != null && approval.getTargetType().startsWith("SCHEMA_")) {
                 String domainName = resolveDomainName(approval);
                 if (domainName != null && !domainName.isBlank() && !"도메인".equals(domainName)) {
-                    summaryParts.add("domainName: " + domainName);
+                    summaryParts.add("도메인: " + domainName);
+                }
+            }
+
+            // Explicitly handle fieldName and fieldKey for schema changes
+            if (root.has("fieldName")) {
+                JsonNode fNameNode = root.get("fieldName");
+                String fNameStr = fNameNode.isObject() 
+                    ? (fNameNode.has("ko") ? fNameNode.get("ko").asText() : (fNameNode.elements().hasNext() ? fNameNode.elements().next().asText() : fNameNode.asText()))
+                    : fNameNode.asText();
+                if (!fNameStr.isBlank()) {
+                    summaryParts.add("필드명: " + fNameStr);
+                }
+            }
+            if (root.has("fieldKey") && !root.get("fieldKey").asText().isBlank()) {
+                summaryParts.add("필드키: " + root.get("fieldKey").asText());
+            }
+
+            // If DELETE action with before object, extract field info if not present
+            if ("SCHEMA_FIELD_DELETE".equals(approval.getTargetType()) && root.has("before")) {
+                JsonNode beforeNode = root.get("before");
+                if (!root.has("fieldName") && beforeNode.has("name")) {
+                    JsonNode nVal = beforeNode.get("name");
+                    String fNameStr = nVal.isObject() 
+                        ? (nVal.has("ko") ? nVal.get("ko").asText() : (nVal.elements().hasNext() ? nVal.elements().next().asText() : nVal.asText()))
+                        : nVal.asText();
+                    if (!fNameStr.isBlank()) summaryParts.add("필드명: " + fNameStr);
+                }
+                if (!root.has("fieldKey") && beforeNode.has("key")) {
+                    summaryParts.add("필드키: " + beforeNode.get("key").asText());
                 }
             }
 
             // Ignore raw technical IDs
-            List<String> ignoreKeys = List.of("id", "version", "fieldGroupId", "domainId", "nodeId", "requesterId", "domainName", "classificationName");
+            List<String> ignoreKeys = List.of("id", "fieldId", "version", "fieldGroupId", "domainId", "nodeId", "requesterId", "domainName", "classificationName", "fieldName", "fieldKey");
 
             // 1. Record updates (before & after comparison)
             if (root.has("before") && root.has("after")) {
@@ -464,28 +498,19 @@ public class ApprovalEventListener {
                         }
                     }
                 });
-            } else {
+            } else if (summaryParts.size() <= 1) {
                 // 2. Record creation or general schema change request
                 JsonNode dataNode = root;
                 if (dataNode.has("after")) dataNode = dataNode.get("after");
                 if (dataNode.has("request")) dataNode = dataNode.get("request");
                 
                 final JsonNode targetNode = dataNode;
-                List<String> priorityKeys = List.of("name", "key", "code", "title", "empNo", "userName");
+                List<String> priorityKeys = List.of("name", "key", "code", "title", "type", "empNo", "userName");
                 for (String pKey : priorityKeys) {
                     if (targetNode.has(pKey) && targetNode.get(pKey).isValueNode()) {
                         summaryParts.add(formatFieldKey(pKey) + ": " + targetNode.get(pKey).asText());
                     }
                 }
-
-                targetNode.fieldNames().forEachRemaining(key -> {
-                    if (summaryParts.size() < 4 && !priorityKeys.contains(key) && !key.startsWith("_") && !ignoreKeys.contains(key)) {
-                        JsonNode val = targetNode.get(key);
-                        if (val.isValueNode()) {
-                            summaryParts.add(formatFieldKey(key) + ": " + val.asText());
-                        }
-                    }
-                });
             }
             return String.join(", ", summaryParts);
         } catch (Exception e) {
@@ -493,14 +518,38 @@ public class ApprovalEventListener {
         }
     }
 
+    private String resolveSchemaActionLabel(String targetType) {
+        if (targetType == null) return "스키마 변경";
+        return switch (targetType) {
+            case "SCHEMA_FIELD_DELETE" -> "스키마 필드 삭제";
+            case "SCHEMA_FIELD_ADD" -> "스키마 필드 추가";
+            case "SCHEMA_FIELD_UPDATE" -> "스키마 필드 변경";
+            case "SCHEMA_NODE_CREATE" -> "분류 노드 생성";
+            case "SCHEMA_NODE_UPDATE" -> "분류 노드 변경";
+            case "SCHEMA_NODE_MOVE" -> "분류 노드 이동";
+            default -> "스키마 변경";
+        };
+    }
+
+    private String resolveRequesterName(ApprovalRequest approval) {
+        if (approval == null) return null;
+        if (approval.getRequesterId() != null && !approval.getRequesterId().isBlank()) {
+            return approval.getRequesterId();
+        }
+        if (approval.getRequesterName() != null && !approval.getRequesterName().isBlank()) {
+            return approval.getRequesterName();
+        }
+        return null;
+    }
+
     private String buildNotificationMessage(String actionLabel, String requesterName, String domainName, String classificationName, String summary, String targetType) {
         StringBuilder sb = new StringBuilder();
         if (targetType != null && targetType.startsWith("SCHEMA_")) {
-            sb.append("[스키마 변경] ");
+            sb.append("[").append(resolveSchemaActionLabel(targetType)).append("] ");
         } else {
             sb.append("[").append(domainName).append(" > ").append(classificationName).append("] ");
         }
-        sb.append(requesterName).append(" | ").append(actionLabel);
+        sb.append(requesterName).append(" | ").append(resolveSchemaActionLabel(targetType));
         if (!summary.isBlank()) {
             sb.append(" (").append(summary).append(")");
         }

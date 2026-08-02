@@ -1201,10 +1201,14 @@ const getClassificationName = (node, field) => {
 }
 
 const getRequestTypeLabel = (type) => {
-  if (type === 'RECORD_CREATE') return t('record_create');
-  if (type === 'RECORD_UPDATE') return t('record_update');
-  if (type === 'RECORD_DELETE') return t('record_delete');
-  if (type === 'DOMAIN_RECORD_CREATE') return t('domain_record_create');
+  if (!type) return t('other_request') || '기타 요청';
+  const i18nKey = `target_type_${type}`;
+  const translated = t(i18nKey);
+  if (translated && translated !== i18nKey) return translated;
+  if (type === 'RECORD_CREATE') return t('record_create') || '마스터 레코드 신규 등록';
+  if (type === 'RECORD_UPDATE') return t('record_update') || '마스터 레코드 수정';
+  if (type === 'RECORD_DELETE') return t('record_delete') || '마스터 레코드 삭제';
+  if (type === 'DOMAIN_RECORD_CREATE') return t('domain_record_create') || '도메인 레코드 등록';
   return type || t('other_request');
 }
 

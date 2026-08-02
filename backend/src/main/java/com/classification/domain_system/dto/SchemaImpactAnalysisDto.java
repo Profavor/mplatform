@@ -7,8 +7,10 @@ import java.util.UUID;
 public class SchemaImpactAnalysisDto {
 
     public static class ImpactAnalysisRequest {
-        private String changeType; // DELETE_FIELD, MODIFY_FIELD_TYPE, CHANGE_DQ_RULE
+        private String changeType; // DELETE_FIELD, MODIFY_FIELD_TYPE, ADD_FIELD, MODIFY_FIELD
         private UUID fieldDefinitionId;
+        private String fieldKey;
+        private String fieldName;
         private UUID dqRuleId;
         private String newFieldType;
 
@@ -17,6 +19,12 @@ public class SchemaImpactAnalysisDto {
 
         public UUID getFieldDefinitionId() { return fieldDefinitionId; }
         public void setFieldDefinitionId(UUID fieldDefinitionId) { this.fieldDefinitionId = fieldDefinitionId; }
+
+        public String getFieldKey() { return fieldKey; }
+        public void setFieldKey(String fieldKey) { this.fieldKey = fieldKey; }
+
+        public String getFieldName() { return fieldName; }
+        public void setFieldName(String fieldName) { this.fieldName = fieldName; }
 
         public UUID getDqRuleId() { return dqRuleId; }
         public void setDqRuleId(UUID dqRuleId) { this.dqRuleId = dqRuleId; }
@@ -27,13 +35,17 @@ public class SchemaImpactAnalysisDto {
 
     public static class AffectedRecordSample {
         private String recordCode;
+        private String idAttributeValue;
+        private String nameAttributeValue;
         private String nodeName;
         private String fieldValue;
         private String updatedAt;
 
         public AffectedRecordSample() {}
-        public AffectedRecordSample(String recordCode, String nodeName, String fieldValue, String updatedAt) {
+        public AffectedRecordSample(String recordCode, String idAttributeValue, String nameAttributeValue, String nodeName, String fieldValue, String updatedAt) {
             this.recordCode = recordCode;
+            this.idAttributeValue = idAttributeValue;
+            this.nameAttributeValue = nameAttributeValue;
             this.nodeName = nodeName;
             this.fieldValue = fieldValue;
             this.updatedAt = updatedAt;
@@ -41,6 +53,12 @@ public class SchemaImpactAnalysisDto {
 
         public String getRecordCode() { return recordCode; }
         public void setRecordCode(String recordCode) { this.recordCode = recordCode; }
+
+        public String getIdAttributeValue() { return idAttributeValue; }
+        public void setIdAttributeValue(String idAttributeValue) { this.idAttributeValue = idAttributeValue; }
+
+        public String getNameAttributeValue() { return nameAttributeValue; }
+        public void setNameAttributeValue(String nameAttributeValue) { this.nameAttributeValue = nameAttributeValue; }
 
         public String getNodeName() { return nodeName; }
         public void setNodeName(String nodeName) { this.nodeName = nodeName; }
@@ -59,6 +77,8 @@ public class SchemaImpactAnalysisDto {
         private long expectedDqViolations;
         private String affectedFieldKey;
         private String affectedFieldName;
+        private Object idFieldHeaderName;
+        private Object nameFieldHeaderName;
         private String impactSummary;
         private List<String> affectedIntegrationChannels = new ArrayList<>();
         private List<String> warnings = new ArrayList<>();
@@ -82,6 +102,12 @@ public class SchemaImpactAnalysisDto {
 
         public String getAffectedFieldName() { return affectedFieldName; }
         public void setAffectedFieldName(String affectedFieldName) { this.affectedFieldName = affectedFieldName; }
+
+        public Object getIdFieldHeaderName() { return idFieldHeaderName; }
+        public void setIdFieldHeaderName(Object idFieldHeaderName) { this.idFieldHeaderName = idFieldHeaderName; }
+
+        public Object getNameFieldHeaderName() { return nameFieldHeaderName; }
+        public void setNameFieldHeaderName(Object nameFieldHeaderName) { this.nameFieldHeaderName = nameFieldHeaderName; }
 
         public String getImpactSummary() { return impactSummary; }
         public void setImpactSummary(String impactSummary) { this.impactSummary = impactSummary; }

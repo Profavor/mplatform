@@ -96,6 +96,15 @@ public class DomainController {
         return ResponseEntity.ok(fieldService.updateDomainField(domainId, fieldId, request));
     }
 
+    @DeleteMapping("/{domainId}/fields/{fieldId}")
+    public ResponseEntity<Void> deleteDomainField(
+            @PathVariable UUID domainId,
+            @PathVariable UUID fieldId,
+            @RequestParam(required = false) String reason) {
+        fieldService.deleteDomainField(domainId, fieldId, false, reason);
+        return ResponseEntity.noContent().build();
+    }
+
     // Sectors
     @GetMapping("/{domainId}/sectors")
     public ResponseEntity<List<Sector>> getSectors(@PathVariable UUID domainId) {

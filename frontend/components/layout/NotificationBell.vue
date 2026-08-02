@@ -560,6 +560,7 @@ const buildCleanToastMessage = (rawTitle, rawMessage) => {
   let cleanMsg = formatMessage(rawMessage)
 
   if (cleanMsg) {
+    cleanMsg = cleanMsg.replace(/\s*\([^)]*fieldId[^)]*\)/gi, '')
     cleanMsg = cleanMsg.replace(/\s*\([^)]*fieldGroupId[^)]*\)/gi, '')
     cleanMsg = cleanMsg.replace(/\s*\([^)]*key:[^)]*\)/gi, '')
     cleanMsg = cleanMsg.replace(/:\s*[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g, '')
@@ -614,9 +615,13 @@ const formatMessage = (msg) => {
   result = result.replace(/:\s*[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g, '')
   
   // Clean technical JSON parameter strings & translate labels dynamically via vue-i18n locale
+  result = result.replace(/fieldId,\s*/gi, '')
+  result = result.replace(/fieldId:\s*[^,)]+,\s*/gi, '')
   result = result.replace(/fieldGroupId,\s*/gi, '')
   result = result.replace(/fieldGroupId:\s*[^,)]+,\s*/gi, '')
   result = result.replace(/\bdomainName:\s*/gi, isEn ? 'Domain: ' : '도메인: ')
+  result = result.replace(/\bfieldName:\s*/gi, isEn ? 'Field Name: ' : '필드명: ')
+  result = result.replace(/\bfieldKey:\s*/gi, isEn ? 'Field Key: ' : '필드키: ')
   result = result.replace(/\bkey:\s*/gi, isEn ? 'Field: ' : '항목: ')
   result = result.replace(/\btype:\s*/gi, isEn ? 'Type: ' : '유형: ')
   result = result.replace(/\bname:\s*/gi, isEn ? 'Name: ' : '이름: ')
