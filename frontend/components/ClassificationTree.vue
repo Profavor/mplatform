@@ -1,7 +1,7 @@
 <template>
   <div class="schema-tree-wrapper" style="display: flex; flex-direction: column; height: 100%;">
     <!-- Axis Selection Dropdown Header -->
-    <div style="padding: 0.5rem; border-bottom: 1px solid var(--va-background-border); background: var(--va-background-element);">
+    <div v-if="!hideAxisSelect" style="padding: 0.5rem; border-bottom: 1px solid var(--va-background-border); background: var(--va-background-element);">
       <va-select
         v-model="selectedAxisId"
         :options="axisOptions"
@@ -54,6 +54,10 @@ const props = defineProps({
   emptyMessage: {
     type: String,
     default: ''
+  },
+  hideAxisSelect: {
+    type: Boolean,
+    default: false
   }
 })
 

@@ -29,6 +29,7 @@
                 ref="treeRef"
                 :selectedNode="selectedNode"
                 :showEdit="true"
+                :hideAxisSelect="true"
                 emptyMessage="분류체계 트리가 없습니다. 하단의 Domain 버튼을 눌러 새 도메인을 생성해주세요."
                 @select="onNodeSelected"
                 @edit="handleNodeEdit"
@@ -39,7 +40,7 @@
               <va-button v-if="hasPermission('domain:write') || hasPermission('domain:*')" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="create_new_folder" @click="openDomainModal()" color="primary">Domain</va-button>
               <va-button v-if="hasPermission('node:write') || hasPermission('node:*')" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="note_add" @click="openNodeModal()" :disabled="!selectedNode" color="primary" :preset="selectedNode ? 'primary' : 'secondary'">Node</va-button>
               <va-button color="info" outline icon="analytics" style="width: 100%; border-radius: 8px;" @click="showImpactModal = true" :disabled="!selectedNode">
-                {{ $t('impact_analysis') || '영향도 사전 분석' }}
+                {{ $t('impact_analysis_preview') || '사전 영향도 시뮬레이션' }}
               </va-button>
             </div>
             <div style="margin-top: 0.75rem; padding: 0 0.5rem;">
@@ -59,7 +60,6 @@
             <va-tabs v-model="activeTab" style="width: 100%;">
               <template #tabs>
                 <va-tab>{{ $t('tab_fields') || 'Fields' }}</va-tab>
-                <va-tab>{{ $t('tab_workflows') || 'Workflows' }}</va-tab>
                 <va-tab>{{ $t('schema_history.title') || 'Schema History' }}</va-tab>
                 <va-tab>Classification Axes (분류 축)</va-tab>
               </template>
@@ -68,10 +68,22 @@
           <va-card-content style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 0;">
             <!-- Fields Tab -->
             <div v-show="activeTab === 0" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 1rem;">
-              <va-alert v-if="hasPendingSchemaApproval" color="warning" icon="lock" style="margin-bottom: 0.75rem;">
-                <span style="font-weight: bold;">{{ $t('schema_approval_in_progress') || '결재 진행 중' }}:</span>
-                {{ $t('pending_schema_approval_exists') || '현재 진행 중인 스키마 결재 건이 있습니다. 결재 완료 전까지 수정할 수 없습니다.' }}
-              </va-alert>
+              <!-- Grid Title & Action Bar -->
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.85rem; margin-bottom: 0; background: var(--va-background-element, #f4f6f9); border: 1px solid var(--va-background-border); border-bottom: none; border-top-left-radius: 8px; border-top-right-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <va-icon name="list_alt" color="primary" size="1.1rem" />
+                  <span style="font-weight: 700; font-size: 0.95rem; color: var(--va-text-primary);">
+                    {{ selectedNode ? getTranslatedName(selectedNode.name) + ' ' + ($t('tab_fields') || '필드 목록') : ($t('tab_fields') || '필드 목록') }}
+                  </span>
+                  <va-chip size="small" color="primary" style="font-weight: 600;">{{ fields.length }}건</va-chip>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                  <va-button v-if="hasPermission('field:write') || hasPermission('field:*')" size="small" icon="add" @click="openFieldModal(null)">Add Field</va-button>
+                  <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshSchemaData">{{ $t('refresh') || '새로고침' }}</va-button>
+                </div>
+              </div>
+
               <div class="schema-grid-wrapper" :class="{ 'ag-theme-quartz-dark': isDark }">
                 <ag-grid-vue
                   style="width: 100%; height: 100%;"
@@ -90,33 +102,15 @@
                   @rowDoubleClicked="onRowDoubleClicked"
                 />
               </div>
-              
-              <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
-                <va-button v-if="hasPermission('field:write') || hasPermission('field:*')" icon="add" @click="openFieldModal(null)">Add Field</va-button>
-              </div>
-            </div>
-
-            <!-- Workflows Tab -->
-            <div v-show="activeTab === 1" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem; text-align: center;">
-              <va-icon name="account_tree" size="large" color="primary" class="mb-3" />
-              <h3 style="font-size: 1.2rem; font-weight: 700; color: var(--va-text-primary); margin-bottom: 0.5rem;">
-                중앙 워크플로우 & 거버넌스 관리
-              </h3>
-              <p style="font-size: 0.9rem; color: var(--va-text-secondary); max-width: 520px; margin-bottom: 1.5rem;">
-                모든 결재선(신규 등록, 정보 변경, 삭제/폐기, 스키마 구조 변경), 신청 자격 및 필드 권한 제어 규칙은 [관리자 > 워크플로우 관리] 메뉴에서 중앙 집중식으로 설정 및 관리됩니다.
-              </p>
-              <va-button color="primary" icon="open_in_new" @click="$router.push('/admin/workflow')" style="font-weight: 700;">
-                워크플로우 관리 센터로 이동
-              </va-button>
             </div>
 
             <!-- Schema History Tab -->
-            <div v-show="activeTab === 2" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 1rem; overflow-y: auto;">
+            <div v-show="activeTab === 1" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 1rem; overflow-y: auto;">
               <SchemaHistoryTab :domain-id="selectedNode?.domainId || selectedNode?.id || (selectedNode?.type === 'domain' ? selectedNode?.id : null)" />
             </div>
 
             <!-- Classification Axes Tab -->
-            <div v-show="activeTab === 3" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+            <div v-show="activeTab === 2" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
               <ClassificationAxisTab :domain-id="selectedNode?.domainId || selectedNode?.id || (selectedNode?.type === 'domain' ? selectedNode?.id : '')" />
             </div>
           </va-card-content>
@@ -203,6 +197,9 @@
 
     <!-- Field Modal -->
     <va-modal v-model="showFieldModal" :title="isEditMode ? `Edit Field` : `Add Field to ${selectedNode?.label}`" hide-default-actions size="large">
+      <va-alert v-if="isCurrentFieldPendingApproval" color="warning" class="mb-4">
+        ⚠️ {{ $t('pending_field_approval_warning') || '해당 필드는 현재 변경 결재 진행 중이므로 결재 완료 시까지 수정할 수 없습니다.' }}
+      </va-alert>
       <div style="display: flex; gap: 1rem;">
         <va-input v-model="newField.name.ko" label="Field Name (KO)" class="mb-4" style="flex: 1; min-width: 0;" />
         <va-input v-model="newField.name.en" label="Field Name (EN)" class="mb-4" style="flex: 1; min-width: 0;" />
@@ -454,7 +451,7 @@
 
       <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
         <va-button preset="secondary" @click="showFieldModal = false">Cancel</va-button>
-        <va-button v-if="hasPermission('field:write') || hasPermission('field:*')" :disabled="hasPendingSchemaApproval" @click="saveField">{{ isEditMode ? 'Save' : 'Create' }}</va-button>
+        <va-button v-if="hasPermission('field:write') || hasPermission('field:*')" :disabled="isCurrentFieldPendingApproval" @click="saveField">{{ isEditMode ? 'Save' : 'Create' }}</va-button>
       </div>
     </va-modal>
 
@@ -612,6 +609,7 @@
       v-model="showImpactModal"
       :domainId="selectedDomainId"
       :changeRequest="impactChangeRequest"
+      @confirm="handleImpactAnalysisConfirm"
     />
   </div>
 </template>
@@ -641,6 +639,54 @@ const impactChangeRequest = ref({
   changeType: 'DELETE_FIELD',
   fieldDefinitionId: null
 })
+
+const pendingFieldAction = ref(null)
+
+const triggerDeleteFieldWithImpactAnalysis = (fieldData) => {
+  if (!fieldData) return
+  impactChangeRequest.value = {
+    changeType: 'DELETE_FIELD',
+    fieldDefinitionId: fieldData.id
+  }
+  pendingFieldAction.value = () => executeDeleteField(fieldData)
+  showImpactModal.value = true
+}
+
+const executeDeleteField = async (fieldData) => {
+  if (!fieldData || !fieldData.id) return
+  try {
+    const dId = selectedNode.value?.domainId || selectedNode.value?.id
+    const deleteUrl = selectedNode.value?.isDomain
+      ? `/api/domains/${dId}/fields/${fieldData.id}`
+      : `/api/nodes/${selectedNode.value?.id}/fields/${fieldData.id}`
+
+    await $fetch(deleteUrl, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    })
+    showCustomAlert(t('field_deleted_successfully') || '필드가 성공적으로 삭제되었습니다.', '삭제 완료', 'Success', 'success')
+    await onNodeSelected(selectedNode.value)
+  } catch (e) {
+    console.error('Failed to delete field:', e)
+    showCustomAlert('필드 삭제 중 오류가 발생했습니다.', '삭제 오류', 'Error', 'error')
+  }
+}
+
+const handleImpactAnalysisConfirm = () => {
+  showImpactModal.value = false
+  if (typeof pendingFieldAction.value === 'function') {
+    const action = pendingFieldAction.value
+    pendingFieldAction.value = null
+    action()
+  } else {
+    showCustomAlert(
+      t('schema_impact_confirmed_msg'),
+      t('schema_impact_confirmed_title'),
+      t('schema_impact_confirmed_title'),
+      'success'
+    )
+  }
+}
 
 const selectedDomainId = computed(() => {
   return selectedNode.value?.domainId || selectedNode.value?.id || null
@@ -991,12 +1037,34 @@ const onIsDomainFieldChecked = (val) => {
 
 const columnDefs = computed(() => [
   { 
+    headerName: 'Status', 
+    field: 'approvalStatus', 
+    sortable: true,
+    width: 150,
+    cellRenderer: (params) => {
+      if (!params || !params.data) return '';
+      const isPending = pendingFieldIds.value.includes(params.data.id) || params.data.approvalStatus === 'PENDING_APPROVAL' || params.data.isPendingApproval;
+      const statusText = isPending ? 'PENDING_APPROVAL' : (params.data.approvalStatus || 'ACTIVE');
+      const color = isPending ? '#e6a23c' : (statusText === 'ACTIVE' ? '#2c82e0' : '#f56c6c');
+      
+      const span = document.createElement('span');
+      span.style.padding = '2px 8px';
+      span.style.borderRadius = '4px';
+      span.style.background = color;
+      span.style.color = 'white';
+      span.style.fontSize = '12px';
+      span.style.fontWeight = 'bold';
+      span.innerText = statusText;
+      return span;
+    }
+  },
+  { 
     headerName: 'Name', 
     field: 'name', 
     sortable: true,
     flex: 1,
     valueGetter: (params) => {
-      if (!params.data) return '';
+      if (!params || !params.data) return '';
       const pName = typeof params.data.name === 'string' ? JSON.parse(params.data.name || '{}') : params.data.name;
       return pName?.[currentLocale.value] || pName?.ko || pName?.en || 'Unknown';
     }
@@ -1032,7 +1100,7 @@ const columnDefs = computed(() => [
     headerName: 'Required', 
     field: 'required', 
     sortable: true,
-    width: 120,
+    width: 110,
     cellRenderer: (params) => {
       if (!params || params.value === undefined) return '';
       const span = document.createElement('span');
@@ -1054,8 +1122,8 @@ const columnDefs = computed(() => [
   { 
     headerName: 'Actions', 
     field: 'id',
-    width: 180,
-    minWidth: 180,
+    width: 190,
+    minWidth: 190,
     cellRenderer: (params) => {
       if (!params || !params.data) return '';
       const container = document.createElement('div');
@@ -1064,7 +1132,17 @@ const columnDefs = computed(() => [
       container.style.alignItems = 'center';
       container.style.height = '100%';
 
-      if (params.data.domainId && !selectedNode.value.isDomain) {
+      const isPending = pendingFieldIds.value.includes(params.data.id) || params.data.approvalStatus === 'PENDING_APPROVAL' || params.data.isPendingApproval;
+
+      if (isPending) {
+        const lockSpan = document.createElement('span');
+        lockSpan.style.color = '#e6a23c';
+        lockSpan.style.fontWeight = '600';
+        lockSpan.style.fontSize = '12px';
+        lockSpan.title = '해당 필드는 현재 결재 심사 진행 중이므로 수정을 할 수 없습니다.';
+        lockSpan.innerText = '🔒 결재 심사 중';
+        container.appendChild(lockSpan);
+      } else if (params.data.domainId && !selectedNode.value.isDomain) {
         const span = document.createElement('span');
         span.style.color = '#666';
         span.style.fontStyle = 'italic';
@@ -1086,6 +1164,22 @@ const columnDefs = computed(() => [
         editBtn.innerText = 'Edit';
         editBtn.addEventListener('click', () => openFieldModal(params.data));
         container.appendChild(editBtn);
+
+        const deleteBtn = document.createElement('span');
+        deleteBtn.style.cursor = 'pointer';
+        deleteBtn.style.color = '#f56c6c';
+        deleteBtn.style.fontWeight = '600';
+        deleteBtn.style.fontSize = '12px';
+        deleteBtn.style.lineHeight = '1';
+        deleteBtn.style.padding = '3px 8px';
+        deleteBtn.style.borderRadius = '4px';
+        deleteBtn.style.border = '1px solid #f56c6c';
+        deleteBtn.style.display = 'inline-flex';
+        deleteBtn.style.alignItems = 'center';
+        deleteBtn.style.boxSizing = 'border-box';
+        deleteBtn.innerText = 'Delete';
+        deleteBtn.addEventListener('click', () => triggerDeleteFieldWithImpactAnalysis(params.data));
+        container.appendChild(deleteBtn);
       }
 
       // DQ Rules button — always visible
@@ -1115,12 +1209,17 @@ const onRowDoubleClicked = (params) => {
   openFieldModal(params.data)
 }
 
-const { saveState: saveSchemaGridState, restoreState: restoreSchemaGridState } = useGridState('schema_fields_grid')
+const { saveState: saveSchemaGridState, restoreState: restoreSchemaGridState } = useGridState('schema_fields_grid_v2')
 
 const onGridReady = (params) => {
   fieldsGridApi.value = params.api
   gridApi.value = params.api
   restoreSchemaGridState(params.api)
+  if (params.api && params.api.moveColumn) {
+    try {
+      params.api.moveColumn('approvalStatus', 0)
+    } catch (ignored) {}
+  }
   fetchFields()
 }
 
@@ -1337,11 +1436,28 @@ const onNodeSelected = async (nodes) => {
   await checkPendingSchemaStatus();
 }
 
+const refreshSchemaData = async () => {
+  if (fieldsGridApi.value) {
+    fieldsGridApi.value.refreshInfiniteCache()
+    fieldsGridApi.value.purgeInfiniteCache()
+  } else {
+    fetchFields()
+  }
+  await checkPendingSchemaStatus()
+}
+
 const hasPendingSchemaApproval = ref(false)
+const pendingFieldIds = ref([])
+
+const isCurrentFieldPendingApproval = computed(() => {
+  if (!isEditMode.value || !editingId.value) return false
+  return pendingFieldIds.value.includes(editingId.value)
+})
 
 const checkPendingSchemaStatus = async () => {
   if (!selectedNode.value) {
     hasPendingSchemaApproval.value = false;
+    pendingFieldIds.value = [];
     return;
   }
   const domainId = selectedNode.value.isDomain ? selectedNode.value.id : selectedNode.value.domainId;
@@ -1349,8 +1465,10 @@ const checkPendingSchemaStatus = async () => {
   try {
     const res = await $fetch(`/api/approval-requests/pending-schema-status?domainId=${domainId || ''}&nodeId=${nodeId || ''}`, { headers: getAuthHeaders() });
     hasPendingSchemaApproval.value = Boolean(res?.hasPendingApproval);
+    pendingFieldIds.value = Array.isArray(res?.pendingFieldIds) ? res.pendingFieldIds : [];
   } catch (e) {
     hasPendingSchemaApproval.value = false;
+    pendingFieldIds.value = [];
   }
 }
 
@@ -1864,6 +1982,18 @@ const deleteGroup = async (id) => {
     cancelEditGroup()
   } catch (e) { showCustomAlert('Error deleting group.', 'Delete Error', 'Error', 'error') }
 }
+
+onMounted(() => {
+  if (process.client) {
+    window.addEventListener('approval-updated', refreshSchemaData)
+  }
+})
+
+onUnmounted(() => {
+  if (process.client) {
+    window.removeEventListener('approval-updated', refreshSchemaData)
+  }
+})
 </script>
 
 <style scoped>

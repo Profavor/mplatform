@@ -90,17 +90,30 @@
 
               <div class="item-body">
                 <div class="item-top">
-                  <va-badge
-                    :color="item.message && item.message.includes('[처리 완료]') ? 'secondary' : getTypeBadgeColor(item.type)"
-                    size="small"
-                    class="type-badge"
-                  >
-                    {{ item.message && item.message.includes('[처리 완료]') ? '처리 완료' : getTypeLabel(item.type) }}
-                  </va-badge>
+                  <div style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
+                    <va-badge
+                      :color="item.message && item.message.includes('[처리 완료]') ? 'secondary' : getTypeBadgeColor(item.type)"
+                      size="small"
+                      class="type-badge"
+                    >
+                      {{ item.message && item.message.includes('[처리 완료]') ? '처리 완료' : getTypeLabel(item.type) }}
+                    </va-badge>
+                    <span v-if="parseNotificationContent(item).location" class="location-tag">
+                      {{ parseNotificationContent(item).location }}
+                    </span>
+                  </div>
                   <span class="item-time">{{ formatTime(item.createdAt) }}</span>
                 </div>
                 <div class="item-title" :style="{ opacity: item.message && item.message.includes('[처리 완료]') ? 0.7 : 1 }">{{ formatTitle(item.title) }}</div>
-                <div v-if="item.message" class="item-message" :style="{ color: item.message && item.message.includes('[처리 완료]') ? 'var(--va-text-secondary)' : 'inherit', fontWeight: item.message && item.message.includes('[처리 완료]') ? '600' : 'normal' }">{{ formatMessage(item.message) }}</div>
+                
+                <div v-if="parseNotificationContent(item).mainText" class="item-main-text">
+                  {{ parseNotificationContent(item).mainText }}
+                </div>
+                
+                <div v-if="parseNotificationContent(item).detailText" class="item-detail-box">
+                  <va-icon name="info" size="12px" color="primary" style="margin-right: 4px;" />
+                  <span>{{ parseNotificationContent(item).detailText }}</span>
+                </div>
               </div>
 
               <va-button
@@ -181,7 +194,8 @@ import { useApprovalEnricher } from '~/composables/useApprovalEnricher'
 import ApprovalDetailsViewer from '~/components/ApprovalDetailsViewer.vue'
 
 const router = useRouter()
-const { t, te } = useI18n()
+const { t, te, locale } = useI18n()
+const currentLocale = computed(() => locale.value)
 const { formatWithTimezone } = useTimezoneDate()
 const { init: notifyToast } = useToast()
 const { currentPresetName } = useColors()
@@ -579,21 +593,64 @@ const formatTitle = (title) => {
 const formatMessage = (msg) => {
   if (!msg) return ''
   let result = msg
+  const isEn = currentLocale.value === 'en'
+
   if (result.includes('New approval request received:')) {
-    return '새로운 결재 요청이 수신되었습니다.'
+    return t('notifications.approval_pending')
   }
   if (result.includes('New approval request step received:')) {
-    return '새로운 결재 단계 요청이 수신되었습니다.'
+    return t('notifications.approval_step_approved')
   }
   if (result.includes('completed for request:')) {
     const match = result.match(/Approval step (\d+)/)
     const stepNum = match ? match[1] : ''
-    return stepNum ? `결재 ${stepNum}단계 승인이 완료되었습니다.` : '결재 단계 승인이 완료되었습니다.'
+    return stepNum ? (isEn ? `Step ${stepNum} approval completed.` : `결재 ${stepNum}단계 승인이 완료되었습니다.`) : (isEn ? 'Step approval completed.' : '결재 단계 승인이 완료되었습니다.')
   }
   if (result.includes('has been fully approved.')) {
-    return '요청하신 결재가 최종 승인되었습니다.'
+    return isEn ? 'Request has been fully approved.' : '요청하신 결재가 최종 승인되었습니다.'
   }
-  return result.replace(/:\s*[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g, '').trim()
+
+  // Filter out raw UUID patterns
+  result = result.replace(/:\s*[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g, '')
+  
+  // Clean technical JSON parameter strings & translate labels dynamically via vue-i18n locale
+  result = result.replace(/fieldGroupId,\s*/gi, '')
+  result = result.replace(/fieldGroupId:\s*[^,)]+,\s*/gi, '')
+  result = result.replace(/\bdomainName:\s*/gi, isEn ? 'Domain: ' : '도메인: ')
+  result = result.replace(/\bkey:\s*/gi, isEn ? 'Field: ' : '항목: ')
+  result = result.replace(/\btype:\s*/gi, isEn ? 'Type: ' : '유형: ')
+  result = result.replace(/\bname:\s*/gi, isEn ? 'Name: ' : '이름: ')
+  result = result.replace(/\bcode:\s*/gi, isEn ? 'Code: ' : '코드: ')
+
+  return result.trim()
+}
+
+const parseNotificationContent = (item) => {
+  const rawMessage = formatMessage(item.message || '')
+  if (!rawMessage) return { location: '', mainText: '', detailText: '' }
+
+  let location = ''
+  let mainText = rawMessage
+  let detailText = ''
+
+  // 1. [Location > Category] Parsing
+  const locMatch = mainText.match(/^\[(.*?)\]\s*/)
+  if (locMatch) {
+    location = locMatch[1]
+    if (location === '도메인 > 분류' || location.includes('SCHEMA') || location.includes('스키마')) {
+      location = currentLocale.value === 'en' ? 'Schema Change' : '스키마 변경'
+    }
+    mainText = mainText.replace(/^\[(.*?)\]\s*/, '')
+  }
+
+  // 2. (Detail Box Info) Parsing
+  const detailMatch = mainText.match(/\((.*?)\)$/)
+  if (detailMatch) {
+    detailText = detailMatch[1]
+    mainText = mainText.replace(/\s*\((.*?)\)$/, '')
+  }
+
+  return { location, mainText, detailText }
 }
 
 const formatTime = (dateInput) => {
@@ -736,14 +793,35 @@ onUnmounted(() => {
   line-height: 1.3;
 }
 
-.item-message {
-  font-size: 0.8rem;
+.location-tag {
+  font-size: 0.68rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--va-background-element);
   color: var(--va-text-secondary);
+  border: 1px solid var(--va-background-border);
+  font-weight: 600;
+}
+
+.item-main-text {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--va-text-primary);
   line-height: 1.35;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  margin-top: 2px;
+}
+
+.item-detail-box {
+  margin-top: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(59, 130, 246, 0.08);
+  font-size: 0.75rem;
+  color: var(--va-primary);
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  word-break: break-all;
 }
 
 .unread-indicator {

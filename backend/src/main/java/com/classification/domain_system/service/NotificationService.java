@@ -151,36 +151,43 @@ public class NotificationService {
         String message = notification.getMessage();
         String linkUrl = notification.getLinkUrl();
 
-        if (message != null && (message.contains("received:") || message.contains("completed for request") || message.contains("fully approved") || (linkUrl != null && linkUrl.startsWith("/approvals/")))) {
-            UUID approvalId = null;
-            if (linkUrl != null && linkUrl.startsWith("/approvals/")) {
+        UUID approvalId = null;
+        if (linkUrl != null && linkUrl.contains("requestId=")) {
+            try {
+                String reqIdStr = linkUrl.split("requestId=")[1].split("&")[0];
+                approvalId = UUID.fromString(reqIdStr);
+            } catch (Exception ignored) {}
+        } else if (linkUrl != null && linkUrl.startsWith("/approvals/")) {
+            try {
+                approvalId = UUID.fromString(linkUrl.substring("/approvals/".length()));
+            } catch (Exception ignored) {}
+        }
+
+        if (approvalId == null && message != null && message.contains(":")) {
+            String[] parts = message.split(":");
+            if (parts.length > 1) {
                 try {
-                    approvalId = UUID.fromString(linkUrl.substring("/approvals/".length()));
+                    approvalId = UUID.fromString(parts[1].trim());
                 } catch (Exception ignored) {}
             }
-            if (approvalId == null && message.contains(":")) {
-                String[] parts = message.split(":");
-                if (parts.length > 1) {
-                    try {
-                        approvalId = UUID.fromString(parts[1].trim());
-                    } catch (Exception ignored) {}
-                }
-            }
+        }
 
-            if (approvalId != null) {
-                final UUID targetApprovalId = approvalId;
-                approvalRepository.findById(targetApprovalId).ifPresent(approval -> {
-                    String actionLabel = resolveActionLabel(approval.getTargetType());
-                    String requesterName = resolveUserName(approval.getRequesterId());
-                    String domainName = resolveDomainName(approval);
-                    String classificationName = resolveClassificationName(approval);
-                    String summary = extractChangeSummary(approval);
+        if (approvalId != null) {
+            final UUID targetApprovalId = approvalId;
+            approvalRepository.findById(targetApprovalId).ifPresent(approval -> {
+                String actionLabel = resolveActionLabel(approval.getTargetType());
+                String requesterName = resolveUserName(approval.getRequesterId());
+                String domainName = resolveDomainName(approval);
+                String classificationName = resolveClassificationName(approval);
+                String summary = extractChangeSummary(approval);
 
-                    notification.setTitle("@i18n:notifications.approval_pending");
-                    notification.setMessage(buildNotificationMessage(actionLabel, requesterName, domainName, classificationName, summary));
-                    notification.setLinkUrl("/approvals?requestId=" + targetApprovalId);
-                });
-            }
+                boolean isProcessed = notification.getMessage() != null && notification.getMessage().contains("[처리 완료]");
+                String prefix = isProcessed ? "[처리 완료] " : "";
+
+                notification.setTitle("@i18n:notifications.approval_pending");
+                notification.setMessage(prefix + buildNotificationMessage(actionLabel, requesterName, domainName, classificationName, summary, approval.getTargetType()));
+                notification.setLinkUrl("/approvals?requestId=" + targetApprovalId);
+            });
         }
     }
 
@@ -209,6 +216,15 @@ public class NotificationService {
             if (nameMap != null && nameMap.containsKey("ko")) return nameMap.get("ko");
             if (nameMap != null && !nameMap.isEmpty()) return nameMap.values().iterator().next();
         }
+        if (approval.getChanges() != null && !approval.getChanges().isBlank()) {
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode root = mapper.readTree(approval.getChanges());
+                if (root.has("domainName") && root.get("domainName").isValueNode()) {
+                    return root.get("domainName").asText();
+                }
+            } catch (Exception ignored) {}
+        }
         return "도메인";
     }
 
@@ -228,15 +244,25 @@ public class NotificationService {
             JsonNode root = mapper.readTree(approval.getChanges());
             List<String> summaryParts = new ArrayList<>();
 
+            // 0. Include domainName for schema changes
+            if (approval.getTargetType() != null && approval.getTargetType().startsWith("SCHEMA_")) {
+                String domainName = resolveDomainName(approval);
+                if (domainName != null && !domainName.isBlank() && !"도메인".equals(domainName)) {
+                    summaryParts.add("domainName: " + domainName);
+                }
+            }
+
+            List<String> ignoreKeys = List.of("id", "version", "fieldGroupId", "domainId", "nodeId", "requesterId", "domainName", "classificationName");
+
             if (root.has("before") && root.has("after")) {
                 JsonNode beforeNode = root.get("before");
                 JsonNode afterNode = root.get("after");
                 afterNode.fieldNames().forEachRemaining(key -> {
-                    if (summaryParts.size() < 3 && !key.startsWith("_") && !key.equals("id") && !key.equals("version")) {
+                    if (summaryParts.size() < 4 && !key.startsWith("_") && !ignoreKeys.contains(key)) {
                         String bVal = beforeNode.has(key) && beforeNode.get(key).isValueNode() ? beforeNode.get(key).asText() : "";
                         String aVal = afterNode.has(key) && afterNode.get(key).isValueNode() ? afterNode.get(key).asText() : "";
                         if (!bVal.equals(aVal)) {
-                            summaryParts.add(key + ": " + (bVal.isBlank() ? "없음" : bVal) + " ➔ " + (aVal.isBlank() ? "없음" : aVal));
+                            summaryParts.add(key + ": " + (bVal.isBlank() ? "N/A" : bVal) + " ➔ " + (aVal.isBlank() ? "N/A" : aVal));
                         }
                     }
                 });
@@ -246,7 +272,7 @@ public class NotificationService {
                 if (dataNode.has("request")) dataNode = dataNode.get("request");
                 
                 final JsonNode targetNode = dataNode;
-                List<String> priorityKeys = List.of("name", "code", "title", "empNo", "userName", "idAttr");
+                List<String> priorityKeys = List.of("name", "key", "code", "title", "empNo", "userName", "idAttr");
                 for (String pKey : priorityKeys) {
                     if (targetNode.has(pKey) && targetNode.get(pKey).isValueNode()) {
                         summaryParts.add(pKey + ": " + targetNode.get(pKey).asText());
@@ -254,7 +280,7 @@ public class NotificationService {
                 }
 
                 targetNode.fieldNames().forEachRemaining(key -> {
-                    if (summaryParts.size() < 3 && !priorityKeys.contains(key) && !key.startsWith("_") && !key.equals("id") && !key.equals("version")) {
+                    if (summaryParts.size() < 4 && !priorityKeys.contains(key) && !key.startsWith("_") && !ignoreKeys.contains(key)) {
                         JsonNode val = targetNode.get(key);
                         if (val.isValueNode()) {
                             summaryParts.add(key + ": " + val.asText());
@@ -268,10 +294,14 @@ public class NotificationService {
         }
     }
 
-    private String buildNotificationMessage(String actionLabel, String requesterName, String domainName, String classificationName, String summary) {
+    private String buildNotificationMessage(String actionLabel, String requesterName, String domainName, String classificationName, String summary, String targetType) {
         StringBuilder sb = new StringBuilder();
-        sb.append("[").append(domainName).append(" > ").append(classificationName).append("] ");
-        sb.append(requesterName).append("님의 ").append(actionLabel).append(" 요청");
+        if (targetType != null && targetType.startsWith("SCHEMA_")) {
+            sb.append("[스키마 변경] ");
+        } else {
+            sb.append("[").append(domainName).append(" > ").append(classificationName).append("] ");
+        }
+        sb.append(requesterName).append(" | ").append(actionLabel);
         if (!summary.isBlank()) {
             sb.append(" (").append(summary).append(")");
         }

@@ -191,7 +191,7 @@ const startPolling = (taskId: string) => {
     } catch (e) {
       stopPolling()
     }
-  }, 1000)
+  }, 300)
 }
 
 const stopPolling = () => {

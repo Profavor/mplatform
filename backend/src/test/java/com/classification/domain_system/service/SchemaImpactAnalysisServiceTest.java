@@ -33,6 +33,9 @@ class SchemaImpactAnalysisServiceTest {
     @Mock
     private IntegrationChannelRepository integrationChannelRepository;
 
+    @Mock
+    private com.classification.domain_system.repository.FieldDefinitionRepository fieldDefinitionRepository;
+
     @InjectMocks
     private SchemaImpactAnalysisService schemaImpactAnalysisService;
 

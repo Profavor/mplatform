@@ -123,4 +123,29 @@ public class FieldDefinition {
     public UUID getDefinedAtNodeId() {
         return definedAtNode != null ? definedAtNode.getId() : null;
     }
+
+    @Transient
+    private String approvalStatus = "ACTIVE";
+
+    @Transient
+    private Boolean isPendingApproval = false;
+
+    public String getApprovalStatus() {
+        return approvalStatus;
+    }
+
+    public void setApprovalStatus(String approvalStatus) {
+        this.approvalStatus = approvalStatus;
+        if ("PENDING_APPROVAL".equalsIgnoreCase(approvalStatus) || "PENDING".equalsIgnoreCase(approvalStatus)) {
+            this.isPendingApproval = true;
+        }
+    }
+
+    public Boolean getIsPendingApproval() {
+        return isPendingApproval;
+    }
+
+    public void setIsPendingApproval(Boolean pendingApproval) {
+        isPendingApproval = pendingApproval;
+    }
 }

@@ -15,12 +15,12 @@
         </div>
       </div>
 
-      <div style="display: flex; gap: 0.75rem; align-items: center;">
-        <va-button preset="outline" color="primary" icon="refresh" size="small" @click="refreshGrid">{{ t('refresh') || '새로고침' }}</va-button>
-      </div>
     </div>
     
     <va-card style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+      <div style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--va-background-border); display: flex; justify-content: flex-end; align-items: center; background: var(--va-background-element);">
+        <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshGrid">{{ t('refresh') || '새로고침' }}</va-button>
+      </div>
       
       <va-card-content style="flex: 1; display: flex; flex-direction: column; padding: 0; min-height: 0;">
         <div :class="{ 'ag-theme-quartz-dark': isDark }" style="flex: 1; width: 100%; height: 100%;">

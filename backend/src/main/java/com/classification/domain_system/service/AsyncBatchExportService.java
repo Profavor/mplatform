@@ -70,7 +70,7 @@ public class AsyncBatchExportService {
 
         try {
             for (int i = 1; i <= 10; i++) {
-                Thread.sleep(30);
+                Thread.sleep(150);
                 long processed = totalCount > 0 ? (totalCount * i) / 10 : 0;
                 int percent = i * 10;
                 task.setProcessedCount(processed);
