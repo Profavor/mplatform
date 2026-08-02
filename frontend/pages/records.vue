@@ -82,6 +82,13 @@
           </va-button>
         </template>
 
+        <va-button color="info" outline :disabled="!selectedRecordId" @click="showLineageModal = true" class="ml-2">
+          <va-icon name="account_tree" class="mr-2"/> {{ $t('data_lineage') || '데이터 계보' }}
+        </va-button>
+        <va-button color="warning" outline @click="showAsyncExportModal = true" class="ml-2">
+          <va-icon name="cloud_download" class="mr-2"/> {{ $t('async_export') || '대용량 Export' }}
+        </va-button>
+
         <va-button color="warning" outline :disabled="(selectedRecordRows?.length || 0) < 2" @click="showCompareModal = true" class="ml-2">
           <va-icon name="scale" class="mr-2"/> {{ $t('compare_records') || '레코드 비교' }} ({{ selectedRecordRows?.length || 0 }})
         </va-button>
@@ -631,6 +638,19 @@
         <va-button @click="showDomainRefModal = false">Cancel</va-button>
       </div>
     </va-modal>
+    <!-- Record Lineage Modal -->
+    <RecordLineageModal
+      v-model="showLineageModal"
+      :recordId="selectedRecordId"
+      :fields="nodeFields"
+    />
+
+    <!-- Async Export Modal -->
+    <AsyncBatchExportModal
+      v-model="showAsyncExportModal"
+      :domainId="selectedDomainId"
+      :gridApi="gridApi"
+    />
   </div>
 </div>
 </template>
@@ -646,6 +666,8 @@ import ExcelUploader from '~/components/ExcelUploader.vue'
 import RecordFormModal from '~/components/records/RecordFormModal.vue'
 import RecordDetailDrawer from '~/components/records/RecordDetailDrawer.vue'
 import RecordCompareModal from '~/components/records/RecordCompareModal.vue'
+import RecordLineageModal from '~/components/RecordLineageModal.vue'
+import AsyncBatchExportModal from '~/components/AsyncBatchExportModal.vue'
 
 import { useColors, useModal, useToast } from 'vuestic-ui'
 import { useI18n } from 'vue-i18n'
@@ -665,12 +687,21 @@ const currentLocale = useCookie('locale', { default: () => 'ko' })
 const token = useCookie('auth_token', { default: () => '' })
 
 const showCompareModal = ref(false)
+const showLineageModal = ref(false)
+const showAsyncExportModal = ref(false)
 const selectedRecordRows = ref([])
+
+const selectedDomainId = computed(() => {
+  return selectedNode.value?.domainId || selectedNode.value?.id || null
+})
 
 const onSelectionChanged = (event) => {
   if (!event || !event.api) return
   const rows = event.api.getSelectedRows() || []
   selectedRecordRows.value = rows
+  if (rows.length > 0) {
+    selectedRecordId.value = rows[0].id || rows[0].recordId || null
+  }
 }
 
 

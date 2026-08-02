@@ -35,9 +35,12 @@
                 @loaded="onTreeLoaded"
               />
             </div>
-            <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; padding: 0 0.5rem;">
+            <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; padding: 0 0.5rem; flex-wrap: wrap;">
               <va-button v-if="hasPermission('domain:write') || hasPermission('domain:*')" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="create_new_folder" @click="openDomainModal()" color="primary">Domain</va-button>
               <va-button v-if="hasPermission('node:write') || hasPermission('node:*')" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="note_add" @click="openNodeModal()" :disabled="!selectedNode" color="primary" :preset="selectedNode ? 'primary' : 'secondary'">Node</va-button>
+              <va-button color="info" outline icon="analytics" style="width: 100%; border-radius: 8px;" @click="showImpactModal = true" :disabled="!selectedNode">
+                {{ $t('impact_analysis') || '영향도 사전 분석' }}
+              </va-button>
             </div>
             <div style="margin-top: 0.75rem; padding: 0 0.5rem;">
               <va-button preset="secondary" style="width: 100%;" @click="showRequestAccessModal = true">Request Domain Access</va-button>
@@ -603,11 +606,19 @@
       v-model:comment="draftFieldCommentText"
       @submit="executePendingFieldSave"
     />
+
+    <!-- Schema Impact Analysis Modal -->
+    <SchemaImpactReportModal
+      v-model="showImpactModal"
+      :domainId="selectedDomainId"
+      :changeRequest="impactChangeRequest"
+    />
   </div>
 </template>
 
 <script setup>
 import { usePageTitle } from '~/composables/usePageTitle'
+import SchemaImpactReportModal from '~/components/SchemaImpactReportModal.vue'
 
 const { pageTitle } = usePageTitle('domain_schema_title', '도메인 스키마 관리')
 const colors = useColors()
@@ -624,6 +635,16 @@ import { AgGridVue } from 'ag-grid-vue3'
 import SchemaHistoryTab from '~/components/schema/SchemaHistoryTab.vue'
 import WorkflowConfigTab from '~/components/schema/WorkflowConfigTab.vue'
 import ClassificationAxisTab from '~/components/schema/ClassificationAxisTab.vue'
+
+const showImpactModal = ref(false)
+const impactChangeRequest = ref({
+  changeType: 'DELETE_FIELD',
+  fieldDefinitionId: null
+})
+
+const selectedDomainId = computed(() => {
+  return selectedNode.value?.domainId || selectedNode.value?.id || null
+})
 
 const { gridTheme, autoSizeStrategy } = useAgGridTheme()
 
