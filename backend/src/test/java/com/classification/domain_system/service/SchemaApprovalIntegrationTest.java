@@ -52,6 +52,10 @@ public class SchemaApprovalIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+            new org.springframework.security.authentication.UsernamePasswordAuthenticationToken("test-user", null, java.util.Collections.emptyList())
+        );
+
         testDomain = new Domain();
         testDomain.setName(Map.of("en", "Test Domain"));
         testDomain = domainRepository.save(testDomain);
@@ -60,6 +64,11 @@ public class SchemaApprovalIntegrationTest {
         nodeReq.setName(Map.of("en", "Test Node"));
         testNode = classificationNodeService.createNode(testDomain.getId(), nodeReq);
         schemaHistoryRepository.deleteAll();
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
     }
 
     @Test

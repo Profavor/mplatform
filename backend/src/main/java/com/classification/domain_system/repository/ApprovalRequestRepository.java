@@ -19,6 +19,7 @@ import java.util.Optional;
 @Repository
 public interface ApprovalRequestRepository extends JpaRepository<ApprovalRequest, UUID>, JpaSpecificationExecutor<ApprovalRequest> {
     Page<ApprovalRequest> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);
+    List<ApprovalRequest> findByStatus(String status);
     Page<ApprovalRequest> findByRequesterIdOrderByCreatedAtDesc(String requesterId, Pageable pageable);
 
     @Query("SELECT r FROM ApprovalRequest r WHERE (r.requesterId = :requesterId OR r.requesterId = :username OR r.requesterId NOT IN (SELECT u.id FROM User u)) ORDER BY r.createdAt DESC")

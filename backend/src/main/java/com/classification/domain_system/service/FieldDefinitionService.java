@@ -21,10 +21,14 @@ import com.classification.domain_system.repository.WorkflowConfigRepository;
 import com.classification.domain_system.repository.ApprovalRequestRepository;
 import com.classification.domain_system.event.ApprovalRequestCreatedEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import java.util.Set;
+import java.util.HashSet;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import com.classification.domain_system.exception.ResourceNotFoundException;
 import java.util.List;
 import java.util.UUID;
 
@@ -65,10 +69,16 @@ public class FieldDefinitionService {
     private com.classification.domain_system.repository.UserRepository userRepository;
 
     private String getCurrentUser() {
-        if (SecurityContextHolder.getContext().getAuthentication() != null && SecurityContextHolder.getContext().getAuthentication().getName() != null) {
-            return SecurityContextHolder.getContext().getAuthentication().getName();
+        if (authContext != null && authContext.getUserId() != null && !authContext.getUserId().isBlank()) {
+            return authContext.getUserId();
         }
-        return "system";
+        if (SecurityContextHolder.getContext().getAuthentication() != null && SecurityContextHolder.getContext().getAuthentication().getName() != null) {
+            String name = SecurityContextHolder.getContext().getAuthentication().getName();
+            if (name != null && !name.isBlank() && !"anonymousUser".equalsIgnoreCase(name)) {
+                return name;
+            }
+        }
+        return null;
     }
 
     private String getCurrentUserId() {
@@ -77,11 +87,18 @@ public class FieldDefinitionService {
         }
         if (SecurityContextHolder.getContext().getAuthentication() != null && SecurityContextHolder.getContext().getAuthentication().getName() != null) {
             String name = SecurityContextHolder.getContext().getAuthentication().getName();
-            if (name != null && !name.isBlank() && !"anonymousUser".equals(name)) {
+            if (name != null && !name.isBlank() && !"anonymousUser".equalsIgnoreCase(name)) {
                 return name;
             }
         }
-        return getCurrentUser();
+        String user = getCurrentUser();
+        if (user != null && !user.isBlank()) {
+            return user;
+        }
+        throw new com.classification.domain_system.exception.BusinessException(
+            com.classification.domain_system.exception.ErrorCode.ACCESS_DENIED,
+            "인증된 사용자 정보가 존재하지 않습니다."
+        );
     }
 
     public boolean hasPendingSchemaApproval(UUID domainId, UUID nodeId) {
@@ -96,11 +113,51 @@ public class FieldDefinitionService {
         return list.stream().anyMatch(r -> r.getTargetType() != null && r.getTargetType().startsWith("SCHEMA_"));
     }
 
-    private void validateNoPendingSchemaApproval(UUID domainId, UUID nodeId) {
-        if (hasPendingSchemaApproval(domainId, nodeId)) {
+    public List<UUID> getPendingFieldIds(UUID domainId, UUID nodeId) {
+        if (approvalRequestRepository == null) return java.util.Collections.emptyList();
+        List<ApprovalRequest> list = new java.util.ArrayList<>();
+        if (domainId != null) {
+            list.addAll(approvalRequestRepository.findByTargetIdAndStatus(domainId, "PENDING"));
+        }
+        if (nodeId != null) {
+            list.addAll(approvalRequestRepository.findByTargetIdAndStatus(nodeId, "PENDING"));
+        }
+        List<UUID> pendingFieldIds = new java.util.ArrayList<>();
+        for (ApprovalRequest r : list) {
+            if (r.getTargetType() != null && r.getTargetType().startsWith("SCHEMA_")) {
+                if (r.getChanges() != null && !r.getChanges().isBlank()) {
+                    try {
+                        JsonNode root = objectMapper.readTree(r.getChanges());
+                        if (root.has("fieldId")) {
+                            pendingFieldIds.add(UUID.fromString(root.get("fieldId").asText()));
+                        }
+                    } catch (Exception ignored) {}
+                }
+            }
+        }
+        return pendingFieldIds;
+    }
+
+    private void validateNoPendingFieldApproval(UUID fieldId) {
+        if (fieldId == null || approvalRequestRepository == null) return;
+        List<ApprovalRequest> pendingRequests = approvalRequestRepository.findAll().stream()
+                .filter(r -> "PENDING".equalsIgnoreCase(r.getStatus()) && r.getTargetType() != null && r.getTargetType().startsWith("SCHEMA_"))
+                .filter(r -> {
+                    if (r.getChanges() == null || r.getChanges().isBlank()) return false;
+                    try {
+                        JsonNode root = objectMapper.readTree(r.getChanges());
+                        if (root.has("fieldId") && fieldId.toString().equalsIgnoreCase(root.get("fieldId").asText())) {
+                            return true;
+                        }
+                    } catch (Exception ignored) {}
+                    return false;
+                })
+                .toList();
+
+        if (!pendingRequests.isEmpty()) {
             throw new com.classification.domain_system.exception.BusinessException(
                 com.classification.domain_system.exception.ErrorCode.INVALID_INPUT,
-                "현재 진행 중인 스키마 결재 건이 있습니다. 결재 완료 전까지 수정할 수 없습니다."
+                "해당 필드에 대해 이미 진행 중인 결재 요청이 존재합니다. 기존 결재 완료 후 다시 시도해주세요."
             );
         }
     }
@@ -112,6 +169,13 @@ public class FieldDefinitionService {
         approval.setClassificationNode(node);
         approval.setRequesterId(getCurrentUserId());
         approval.setStatus("PENDING");
+        if (domain != null && changesMap != null) {
+            changesMap.put("domainId", domain.getId());
+            if (domain.getName() != null && !domain.getName().isEmpty()) {
+                String dName = domain.getName().containsKey("ko") ? domain.getName().get("ko") : domain.getName().values().iterator().next();
+                changesMap.put("domainName", dName);
+            }
+        }
         try {
             approval.setChanges(objectMapper.writeValueAsString(changesMap));
         } catch (Exception e) {
@@ -131,6 +195,15 @@ public class FieldDefinitionService {
         
         if (config != null) {
             approvalService.buildDynamicSteps(approval, config);
+        } else {
+            // Default 1-step System Approval Workflow fallback
+            ApprovalStep defaultStep = new ApprovalStep();
+            defaultStep.setApprovalRequest(approval);
+            defaultStep.setStepOrder(1);
+            defaultStep.setStepType("APPROVAL");
+            defaultStep.setAssigneeRole("SYSTEM_ADMIN");
+            defaultStep.setStatus("PENDING");
+            approval.getSteps().add(defaultStep);
         }
         
         // Add Requester's DRAFT Step (stepOrder = 0)
@@ -241,8 +314,13 @@ public class FieldDefinitionService {
     }
 
     private void recordSchemaChange(UUID domainId, String targetType, UUID targetId, String action, Object beforeData, Object afterData) {
+        recordSchemaChange(domainId, targetType, targetId, action, beforeData, afterData, getCurrentUser());
+    }
+
+    private void recordSchemaChange(UUID domainId, String targetType, UUID targetId, String action, Object beforeData, Object afterData, String changedBy) {
         if (schemaHistoryService != null && domainId != null) {
-            schemaHistoryService.recordChange(domainId, targetType, targetId, action, beforeData, afterData, getCurrentUser());
+            String operator = (changedBy != null && !changedBy.isBlank()) ? changedBy : getCurrentUser();
+            schemaHistoryService.recordChange(domainId, targetType, targetId, action, beforeData, afterData, operator);
         }
     }
 
@@ -328,7 +406,6 @@ public class FieldDefinitionService {
         Domain domain = node.getDomain();
 
         if (!bypassApproval && hasSchemaApproval(domain.getId())) {
-            validateNoPendingSchemaApproval(domain.getId(), nodeId);
             try {
                 String reason = request.getReason() != null ? request.getReason() : request.getComment();
                 java.util.Map<String, Object> changesMap = new java.util.HashMap<>();
@@ -371,7 +448,6 @@ public class FieldDefinitionService {
                 .orElseThrow(() -> new RuntimeException("Domain not found"));
                 
         if (!bypassApproval && hasSchemaApproval(domain.getId())) {
-            validateNoPendingSchemaApproval(domainId, null);
             try {
                 String reason = request.getReason() != null ? request.getReason() : request.getComment();
                 java.util.Map<String, Object> changesMap = new java.util.HashMap<>();
@@ -429,11 +505,12 @@ public class FieldDefinitionService {
         return map;
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = "effectiveFields", allEntries = true)
     @Transactional
     public FieldDefinition updateField(UUID nodeId, UUID fieldId, FieldDefinitionRequest request, boolean bypassApproval) {
         FieldDefinition field = fieldRepository.findById(fieldId)
                 .orElseThrow(() -> new RuntimeException("Field not found"));
-                
+
         if (nodeId != null && field.getDefinedAtNode() != null && !field.getDefinedAtNode().getId().equals(nodeId)) {
             throw new RuntimeException("Field does not belong to the specified node");
         }
@@ -442,7 +519,7 @@ public class FieldDefinitionService {
         Domain domain = node.getDomain();
 
         if (!bypassApproval && hasSchemaApproval(domain.getId())) {
-            validateNoPendingSchemaApproval(domain.getId(), nodeId);
+            validateNoPendingFieldApproval(fieldId);
             try {
                 String reason = request.getReason() != null ? request.getReason() : request.getComment();
                 java.util.Map<String, Object> changesMap = new java.util.HashMap<>();
@@ -496,7 +573,7 @@ public class FieldDefinitionService {
         }
         
         if (!bypassApproval && hasSchemaApproval(domainId)) {
-            validateNoPendingSchemaApproval(domainId, null);
+            validateNoPendingFieldApproval(fieldId);
             try {
                 String reason = request.getReason() != null ? request.getReason() : request.getComment();
                 java.util.Map<String, Object> changesMap = new java.util.HashMap<>();
@@ -537,6 +614,69 @@ public class FieldDefinitionService {
         
         recordSchemaChange(domainId, "FIELD", fieldId, "UPDATE", beforeState, toStateMap(savedField));
         return savedField;
+    }
+
+    @org.springframework.cache.annotation.CacheEvict(value = "effectiveFields", allEntries = true)
+    @Transactional
+    public void deleteDomainField(UUID domainId, UUID fieldId) {
+        deleteDomainField(domainId, fieldId, false, null);
+    }
+
+    @org.springframework.cache.annotation.CacheEvict(value = "effectiveFields", allEntries = true)
+    @Transactional
+    public void deleteDomainField(UUID domainId, UUID fieldId, boolean bypassApproval, String reason) {
+        deleteDomainField(domainId, fieldId, bypassApproval, reason, null);
+    }
+
+    @org.springframework.cache.annotation.CacheEvict(value = "effectiveFields", allEntries = true)
+    @Transactional
+    public void deleteDomainField(UUID domainId, UUID fieldId, boolean bypassApproval, String reason, String changedBy) {
+        FieldDefinition field = fieldRepository.findById(fieldId)
+                .orElseThrow(() -> new ResourceNotFoundException("Field not found: " + fieldId));
+
+        Domain domain = field.getDomain() != null ? field.getDomain() : (field.getDefinedAtNode() != null ? field.getDefinedAtNode().getDomain() : null);
+        UUID actualDomainId = domain != null ? domain.getId() : domainId;
+
+        if (!bypassApproval && hasSchemaApproval(actualDomainId)) {
+            validateNoPendingFieldApproval(fieldId);
+            try {
+                java.util.Map<String, Object> changesMap = new java.util.HashMap<>();
+                changesMap.put("domainId", actualDomainId);
+                changesMap.put("fieldId", fieldId);
+                changesMap.put("fieldKey", field.getKey());
+                changesMap.put("fieldName", field.getName());
+                changesMap.put("before", toStateMap(field));
+                if (reason != null) changesMap.put("reason", reason);
+                createSchemaApprovalRequest(domain != null ? domain : domainRepository.findById(domainId).orElse(null), field.getDefinedAtNode(), "SCHEMA_FIELD_DELETE", changesMap, reason);
+                return;
+            } catch (Exception e) {
+                log.error("Failed to create schema approval request for field deletion:", e);
+                if (e instanceof com.classification.domain_system.exception.BusinessException) throw e;
+                throw new RuntimeException("Failed to create schema approval request for field deletion", e);
+            }
+        }
+
+        field.setIsRemoved(true);
+        fieldRepository.saveAndFlush(field);
+        recordSchemaChange(actualDomainId, "FIELD", fieldId, "DELETE", toStateMap(field), null, changedBy);
+    }
+
+    @org.springframework.cache.annotation.CacheEvict(value = "effectiveFields", allEntries = true)
+    @Transactional
+    public void deleteField(UUID nodeId, UUID fieldId) {
+        deleteDomainField(null, fieldId, false, null);
+    }
+
+    @org.springframework.cache.annotation.CacheEvict(value = "effectiveFields", allEntries = true)
+    @Transactional
+    public void deleteDomainFieldDirect(UUID domainId, UUID fieldId) {
+        deleteDomainFieldDirect(domainId, fieldId, null);
+    }
+
+    @org.springframework.cache.annotation.CacheEvict(value = "effectiveFields", allEntries = true)
+    @Transactional
+    public void deleteDomainFieldDirect(UUID domainId, UUID fieldId, String changedBy) {
+        deleteDomainField(domainId, fieldId, true, "Final approval passed", changedBy);
     }
     
     @org.springframework.cache.annotation.Cacheable(value = "effectiveFields", key = "#nodeId", unless = "#result == null")
@@ -586,6 +726,7 @@ public class FieldDefinitionService {
             return Integer.compare(o1, o2);
         });
 
+        populatePendingApprovalStatus(node.getDomain().getId(), effectiveFields);
         return effectiveFields;
     }
 
@@ -593,12 +734,53 @@ public class FieldDefinitionService {
     public Page<FieldDefinition> getEffectiveFieldsPage(UUID nodeId, Pageable pageable) {
         ClassificationNode node = nodeRepository.findById(nodeId)
                 .orElseThrow(() -> new RuntimeException("Node not found"));
-        return fieldRepository.findEffectiveFieldsWithPagination(nodeId, node.getDomain().getId(), pageable);
+        Page<FieldDefinition> page = fieldRepository.findEffectiveFieldsWithPagination(nodeId, node.getDomain().getId(), pageable);
+        populatePendingApprovalStatus(node.getDomain().getId(), page.getContent());
+        return page;
     }
     
     @Transactional(readOnly = true)
     public List<FieldDefinition> getDomainFields(UUID domainId) {
-        return fieldRepository.findDomainFieldsWithSort(domainId);
+        List<FieldDefinition> list = fieldRepository.findDomainFieldsWithSort(domainId);
+        populatePendingApprovalStatus(domainId, list);
+        return list;
+    }
+
+    private void populatePendingApprovalStatus(UUID domainId, List<FieldDefinition> fields) {
+        if (fields == null || fields.isEmpty() || approvalRequestRepository == null) return;
+        List<ApprovalRequest> pendingRequests = approvalRequestRepository.findByStatus("PENDING");
+        if (pendingRequests == null || pendingRequests.isEmpty()) return;
+
+        Set<String> pendingFieldKeys = new HashSet<>();
+        Set<UUID> pendingFieldIds = new HashSet<>();
+
+        for (ApprovalRequest req : pendingRequests) {
+            if (req.getTargetId() != null) {
+                pendingFieldIds.add(req.getTargetId());
+            }
+            if (req.getChanges() != null && !req.getChanges().isBlank()) {
+                try {
+                    JsonNode json = objectMapper.readTree(req.getChanges());
+                    if (json.has("fieldId")) {
+                        try { pendingFieldIds.add(UUID.fromString(json.get("fieldId").asText())); } catch (Exception ignored) {}
+                    }
+                    if (json.has("fieldKey")) {
+                        pendingFieldKeys.add(json.get("fieldKey").asText());
+                    }
+                    if (json.has("key")) {
+                        pendingFieldKeys.add(json.get("key").asText());
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+
+        for (FieldDefinition f : fields) {
+            if ((f.getId() != null && pendingFieldIds.contains(f.getId())) ||
+                (f.getKey() != null && pendingFieldKeys.contains(f.getKey()))) {
+                f.setApprovalStatus("PENDING_APPROVAL");
+                f.setIsPendingApproval(true);
+            }
+        }
     }
     
     private String normalizeJsonStr(String val) {

@@ -68,6 +68,16 @@ public class FieldDefinitionController {
         return ResponseEntity.ok(fieldService.updateField(nodeId, fieldId, request));
     }
 
+    @DeleteMapping("/{fieldId}")
+    @PreAuthorize("hasPermission(null, 'field:write')")
+    public ResponseEntity<Void> deleteField(
+            @PathVariable UUID nodeId,
+            @PathVariable UUID fieldId,
+            @RequestParam(required = false) String reason) {
+        fieldService.deleteDomainField(null, fieldId, false, reason);
+        return ResponseEntity.noContent().build();
+    }
+
     private java.time.LocalDateTime parseDateTime(String asOfStr) {
         if (asOfStr == null || asOfStr.isBlank()) {
             return java.time.LocalDateTime.now();

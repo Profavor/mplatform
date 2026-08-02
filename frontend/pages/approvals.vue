@@ -15,9 +15,6 @@
         </div>
       </div>
 
-      <div style="display: flex; gap: 0.75rem; align-items: center;">
-        <va-button preset="outline" color="primary" icon="refresh" size="small" @click="loadRequests">{{ t('refresh') || '새로고침' }}</va-button>
-      </div>
     </div>
     
     <!-- Card 1: Pending Approvals -->
@@ -37,6 +34,7 @@
           <va-button size="small" preset="primary" color="danger" icon="cancel" @click="bulkReject" :disabled="!pendingSelectedRows.length">
             {{ t('bulk_reject', { count: pendingSelectedRows.length }) }}
           </va-button>
+          <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshPendingRequests">{{ t('refresh') || '새로고침' }}</va-button>
         </div>
       </div>
 
@@ -122,6 +120,9 @@
             {{ t('mySubmitted') || '내가 올린 결재 상신 내역' }}
           </span>
           <va-chip size="small" color="primary" style="font-weight: 600;">{{ myRequests.length }}건</va-chip>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshMyRequests">{{ t('refresh') || '새로고침' }}</va-button>
         </div>
       </div>
 
@@ -488,12 +489,12 @@ watch(() => route.query.requestId, () => {
 
 const onPendingGridReady = (params) => {
   pendingGridApi.value = params.api
-  loadRequests()
+  refreshPendingRequests()
 }
 
 const onMyRequestsGridReady = (params) => {
   myRequestsGridApi.value = params.api
-  // loadRequests loads both
+  refreshMyRequests()
 }
 
 const pendingGridOptions = ref({
@@ -1200,10 +1201,14 @@ const getClassificationName = (node, field) => {
 }
 
 const getRequestTypeLabel = (type) => {
-  if (type === 'RECORD_CREATE') return t('record_create');
-  if (type === 'RECORD_UPDATE') return t('record_update');
-  if (type === 'RECORD_DELETE') return t('record_delete');
-  if (type === 'DOMAIN_RECORD_CREATE') return t('domain_record_create');
+  if (!type) return t('other_request') || '기타 요청';
+  const i18nKey = `target_type_${type}`;
+  const translated = t(i18nKey);
+  if (translated && translated !== i18nKey) return translated;
+  if (type === 'RECORD_CREATE') return t('record_create') || '마스터 레코드 신규 등록';
+  if (type === 'RECORD_UPDATE') return t('record_update') || '마스터 레코드 수정';
+  if (type === 'RECORD_DELETE') return t('record_delete') || '마스터 레코드 삭제';
+  if (type === 'DOMAIN_RECORD_CREATE') return t('domain_record_create') || '도메인 레코드 등록';
   return type || t('other_request');
 }
 
@@ -1252,6 +1257,7 @@ const createPendingDatasource = () => {
             }
           }
           
+          pendingSteps.value = pageData.content;
           for (const step of pageData.content) {
              if (step.approvalRequest) {
                step.approvalRequest = await enrichRequest(step.approvalRequest)
@@ -1287,6 +1293,7 @@ const createMyRequestsDatasource = () => {
         });
         
         if (pageData && pageData.content) {
+          myRequests.value = pageData.content;
           pageData.content = await Promise.all(pageData.content.map(req => enrichRequest(req)));
           for (const req of pageData.content) {
             if (['RECORD', 'RECORD_UPDATE', 'RECORD_DELETE'].includes(req.targetType) && req.targetId) {
@@ -1305,13 +1312,23 @@ const createMyRequestsDatasource = () => {
   };
 };
 
-const loadRequests = async () => {
+const refreshPendingRequests = async () => {
   if (pendingGridApi.value) {
     pendingGridApi.value.setGridOption('datasource', createPendingDatasource());
   }
+}
+
+const refreshMyRequests = async () => {
   if (myRequestsGridApi.value) {
     myRequestsGridApi.value.setGridOption('datasource', createMyRequestsDatasource());
   }
+}
+
+const loadRequests = async () => {
+  await Promise.all([
+    refreshPendingRequests(),
+    refreshMyRequests()
+  ])
 }
 const handleAction = async (stepId, action, isBulk = false) => {
   const comment = commentData.value[stepId] || ''
@@ -1383,6 +1400,15 @@ onMounted(async () => {
       selectedPendingStep.value = stepToOpen
       showActionModal.value = true
     }
+  }
+  if (process.client) {
+    window.addEventListener('approval-updated', loadRequests)
+  }
+})
+
+onUnmounted(() => {
+  if (process.client) {
+    window.removeEventListener('approval-updated', loadRequests)
   }
 })
 </script>

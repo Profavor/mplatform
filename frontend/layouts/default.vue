@@ -5,7 +5,9 @@
         <va-navbar :color="isDark ? '#1F2937' : 'primary'">
           <template #left>
             <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <va-icon name="menu" @click="showSidebar = !showSidebar" class="mobile-menu-btn" style="cursor: pointer; font-size: 28px;" />
+              <va-button preset="plain" style="color: white !important; padding: 0;" @click="showSidebar = !showSidebar">
+                <va-icon name="menu" class="mobile-menu-btn" style="cursor: pointer; font-size: 28px; color: white;" />
+              </va-button>
               <va-navbar-item class="font-bold text-lg text-white title-text" style="padding: 0;">
                 <span class="full-title">Domain Governance System</span>
                 <span class="short-title">Domain System</span>
@@ -143,7 +145,7 @@
       </template>
       
       <template #left>
-        <va-sidebar v-model="showSidebar" width="18.5rem" :minimized="false" class="responsive-sidebar" :class="{ 'dark-theme-sidebar': isDark }">
+        <va-sidebar v-show="showSidebar" v-model="showSidebar" width="18.5rem" :minimized="false" class="responsive-sidebar" :class="{ 'dark-theme-sidebar': isDark }">
           <SidebarMenuItem v-for="menu in filteredMenus" :key="menu.id" :menu="menu" />
         </va-sidebar>
       </template>
@@ -559,9 +561,11 @@ body {
 .responsive-sidebar,
 .va-sidebar {
   border-right: 1px solid var(--va-background-border);
-  width: 18.5rem !important;
-  min-width: 18.5rem !important;
   overflow-x: hidden !important;
+  transition: all 0.2s ease;
+}
+.responsive-sidebar:not(.va-sidebar--hidden) {
+  width: 18.5rem;
 }
 .va-sidebar-item-title {
   white-space: nowrap;

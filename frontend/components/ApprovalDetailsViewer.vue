@@ -306,7 +306,7 @@
               <div v-if="s.comment" style="color: var(--va-text-primary); background: var(--va-background-secondary); padding: 6px 10px; border-radius: 4px; border-left: 3px solid var(--va-primary); font-style: italic; white-space: pre-wrap; word-break: break-word; line-height: 1.5;">
                 "{{ s.comment }}"
               </div>
-              <div v-else style="color: var(--va-text-secondary); font-style: italic;">
+              <div v-else-if="s.status !== 'PENDING' && s.status !== 'WAITING'" style="color: var(--va-text-secondary); font-style: italic;">
                 {{ t('noComment') }}
               </div>
             </div>
@@ -403,9 +403,12 @@ const schemaSubmissionReason = computed(() => {
 
 const schemaActionLabel = computed(() => {
   const act = props.request?.targetType
-  if (act === 'SCHEMA_FIELD_ADD') return currentLocale.value === 'en' ? '+ Add New Field' : '+ 신규 필드 추가'
-  if (act === 'SCHEMA_FIELD_UPDATE') return currentLocale.value === 'en' ? '✏️ Update Field' : '✏️ 필드 속성 변경'
-  if (act === 'SCHEMA_FIELD_DELETE') return currentLocale.value === 'en' ? '🗑️ Delete Field' : '🗑️ 필드 삭제'
+  if (act === 'SCHEMA_FIELD_ADD') return currentLocale.value === 'en' ? '➕ Schema Field Addition' : '➕ 스키마 필드 추가'
+  if (act === 'SCHEMA_FIELD_UPDATE') return currentLocale.value === 'en' ? '✏️ Schema Field Modification' : '✏️ 스키마 필드 변경'
+  if (act === 'SCHEMA_FIELD_DELETE') return currentLocale.value === 'en' ? '🗑️ Schema Field Deletion' : '🗑️ 스키마 필드 삭제'
+  const i18nKey = `target_type_${act}`
+  const translated = t(i18nKey)
+  if (translated && translated !== i18nKey) return translated
   return act || 'SCHEMA_CHANGE'
 })
 
@@ -418,8 +421,9 @@ const schemaActionBadgeColor = computed(() => {
 })
 
 const schemaFieldName = computed(() => {
-  const reqObj = schemaDetails.value?.request || schemaDetails.value?.before || {}
-  const nameVal = reqObj.name
+  const parsed = schemaDetails.value || {}
+  const reqObj = parsed.request || parsed.before || schemaExistingField.value || {}
+  const nameVal = reqObj.name || parsed.fieldName
   if (!nameVal) return props.request?.targetType || 'Schema Change'
   if (typeof nameVal === 'string') {
     try {
@@ -435,8 +439,9 @@ const schemaFieldName = computed(() => {
 })
 
 const schemaFieldKey = computed(() => {
-  const reqObj = schemaDetails.value?.request || schemaDetails.value?.before || {}
-  return reqObj.key || ''
+  const parsed = schemaDetails.value || {}
+  const reqObj = parsed.request || parsed.before || schemaExistingField.value || {}
+  return reqObj.key || parsed.fieldKey || ''
 })
 
 const safeFetch = async (url, opts) => {
@@ -522,25 +527,29 @@ const schemaPropertyDiffs = computed(() => {
   const reqObj = parsed.request || {}
   const beforeObj = parsed.before || schemaExistingField.value || {}
 
-  const formatName = (val) => {
+  const formatLocalizedText = (val) => {
     if (!val) return '-'
     if (typeof val === 'string') {
-      try {
-        const p = JSON.parse(val)
-        if (typeof p === 'object' && p !== null) {
-          return p[currentLocale.value] || p.ko || p.en || val
-        }
-      } catch (e) {}
+      const trimmed = val.trim()
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        try {
+          const p = JSON.parse(trimmed)
+          if (typeof p === 'object' && p !== null) {
+            return p[currentLocale.value] || p.ko || p.en || val
+          }
+        } catch (e) {}
+      }
       return val
     }
     if (typeof val === 'object') {
-      return val[currentLocale.value] || val.ko || val.en || JSON.stringify(val)
+      return val[currentLocale.value] || val.ko || val.en || '-'
     }
     return String(val)
   }
 
+  const formatName = (val) => formatLocalizedText(val)
   const formatBool = (val) => (val === true || val === 'true') ? (currentLocale.value === 'en' ? 'Yes' : '예') : (currentLocale.value === 'en' ? 'No' : '아니오')
-  const formatGroup = (groupId) => schemaGroupNameMap.value[groupId] || groupId || '-'
+  const formatGroup = (groupId) => formatLocalizedText(schemaGroupNameMap.value[groupId] || groupId)
 
   const diffs = [
     {
@@ -607,32 +616,43 @@ const schemaPropertyDiffs = computed(() => {
 
 const schemaNewFieldProps = computed(() => {
   if (!isSchemaApproval.value || !schemaDetails.value) return []
-  const reqObj = schemaDetails.value.request || {}
-  const formatName = (val) => {
+  const parsed = schemaDetails.value
+  const reqObj = (parsed.action === 'SCHEMA_FIELD_DELETE' || !parsed.request)
+    ? (parsed.before || schemaExistingField.value || {})
+    : (parsed.request || {})
+  const formatLocalizedText = (val) => {
     if (!val) return '-'
     if (typeof val === 'string') {
-      try {
-        const p = JSON.parse(val)
-        if (typeof p === 'object' && p !== null) {
-          return p[currentLocale.value] || p.ko || p.en || val
-        }
-      } catch (e) {}
+      const trimmed = val.trim()
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        try {
+          const p = JSON.parse(trimmed)
+          if (typeof p === 'object' && p !== null) {
+            return p[currentLocale.value] || p.ko || p.en || val
+          }
+        } catch (e) {}
+      }
       return val
     }
     if (typeof val === 'object') {
-      return val[currentLocale.value] || val.ko || val.en || JSON.stringify(val)
+      return val[currentLocale.value] || val.ko || val.en || '-'
     }
     return String(val)
   }
+
+  const formatName = (val) => formatLocalizedText(val || parsed.fieldName)
   const formatBool = (val) => (val === true || val === 'true') ? (currentLocale.value === 'en' ? 'Yes' : '예') : (currentLocale.value === 'en' ? 'No' : '아니오')
-  const formatGroup = (groupId) => schemaGroupNameMap.value[groupId] || groupId || '-'
+  const formatGroup = (groupVal) => {
+    const target = schemaGroupNameMap.value[groupVal] || groupVal || reqObj.group || '-'
+    return formatLocalizedText(target)
+  }
 
   return [
     { key: 'name', label: currentLocale.value === 'en' ? 'Field Name' : '필드명', val: formatName(reqObj.name) },
-    { key: 'key', label: currentLocale.value === 'en' ? 'Field Key' : '필드 키', val: reqObj.key || '-' },
-    { key: 'type', label: currentLocale.value === 'en' ? 'Data Type' : '데이터 타입', val: reqObj.type || '-' },
+    { key: 'key', label: currentLocale.value === 'en' ? 'Field Key' : '필드 키', val: reqObj.key || parsed.fieldKey || '-' },
+    { key: 'type', label: currentLocale.value === 'en' ? 'Data Type' : '데이터 타입', val: reqObj.type || parsed.newFieldType || '-' },
     { key: 'required', label: currentLocale.value === 'en' ? 'Required' : '필수 입력 여부', val: formatBool(reqObj.required) },
-    { key: 'group', label: currentLocale.value === 'en' ? 'Field Group' : '필드 그룹', val: formatGroup(reqObj.fieldGroupId) },
+    { key: 'group', label: currentLocale.value === 'en' ? 'Field Group' : '필드 그룹', val: formatGroup(reqObj.fieldGroupId || reqObj.fieldGroup) },
     { key: 'order', label: currentLocale.value === 'en' ? 'Display Order' : '표시 순서', val: reqObj.order ?? '-' },
     { key: 'searchable', label: currentLocale.value === 'en' ? 'Searchable' : '검색 가능 여부', val: formatBool(reqObj.isSearchable) },
     { key: 'multiValue', label: currentLocale.value === 'en' ? 'Allow Multi-Value' : '다중값 허용', val: formatBool(reqObj.isMultiValue) }

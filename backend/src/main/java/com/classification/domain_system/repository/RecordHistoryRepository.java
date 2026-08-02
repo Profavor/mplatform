@@ -10,4 +10,5 @@ import java.util.UUID;
 @Repository
 public interface RecordHistoryRepository extends JpaRepository<RecordHistory, UUID> {
     List<RecordHistory> findByRecordIdOrderByChangedAtDesc(UUID recordId);
+    List<RecordHistory> findByRecordIdOrderByVersionAsc(UUID recordId);
 }

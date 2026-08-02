@@ -87,11 +87,14 @@ public class ApprovalController {
             @RequestParam(required = false) UUID domainId,
             @RequestParam(required = false) UUID nodeId) {
         boolean hasPending = false;
+        List<UUID> pendingFieldIds = java.util.Collections.emptyList();
         if (fieldDefinitionService != null) {
             hasPending = fieldDefinitionService.hasPendingSchemaApproval(domainId, nodeId);
+            pendingFieldIds = fieldDefinitionService.getPendingFieldIds(domainId, nodeId);
         }
         Map<String, Object> map = new java.util.HashMap<>();
         map.put("hasPendingApproval", hasPending);
+        map.put("pendingFieldIds", pendingFieldIds);
         return ResponseEntity.ok(map);
     }
 

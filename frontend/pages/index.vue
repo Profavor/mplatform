@@ -442,14 +442,18 @@ const distributionChartOption = computed(() => {
 
   const chartData = (rawDistribution.value || []).map(d => {
     let name = d.domainName
-    if (typeof name === 'string' && name.startsWith('{')) {
-      try {
-        const parsed = JSON.parse(name)
-        name = parsed[currentLocale.value] || parsed['ko'] || parsed['en'] || name
-      } catch(e) {}
+    if (typeof name === 'object' && name !== null) {
+      name = name[currentLocale.value] || name['ko'] || name['en'] || Object.values(name)[0] || ''
+    } else if (typeof name === 'string') {
+      if (name.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(name)
+          name = parsed[currentLocale.value] || parsed['ko'] || parsed['en'] || name
+        } catch(e) {}
+      }
     }
     return {
-      name: name || 'Domain',
+      name: String(name || 'Domain'),
       value: d.recordCount || 0
     }
   })
