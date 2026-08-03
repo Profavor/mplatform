@@ -24,7 +24,7 @@
         <va-tab name="login">Login Logs</va-tab>
         <va-tab name="error">Error Logs</va-tab>
         <va-tab name="integration">Integration Logs</va-tab>
-        <va-tab name="sensitive">{{ $t('sensitive_access_logs') || '민감정보 열람 이력' }}</va-tab>
+        <va-tab name="sensitive">{{ $t('sensitive_access_logs') || 'Decryption Logs' }}</va-tab>
       </template>
     </va-tabs>
 
@@ -57,12 +57,9 @@
       </va-card>
 
       <va-card>
-        <va-card-title>
-          <div class="flex justify-between items-center w-full">
-            <h2 style="text-transform: none; font-size: 1.2rem; margin: 0; color: var(--va-dark);">{{ $t('menu_access_logs') || 'Menu Access Logs' }}</h2>
-            <va-button icon="refresh" preset="secondary" @click="refreshGrid">Refresh</va-button>
-          </div>
-        </va-card-title>
+        <div style="background-color: var(--va-background-element); padding: 0.6rem 1rem; border-top-left-radius: 8px; border-top-right-radius: 8px; display: flex; justify-content: flex-end; align-items: center;">
+          <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshGrid">{{ $t('refresh') || '새로고침' }}</va-button>
+        </div>
         <va-card-content>
           <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 500px; width: 100%;">
             <client-only>
@@ -114,12 +111,9 @@
       </va-card>
 
       <va-card>
-        <va-card-title>
-          <div class="flex justify-between items-center w-full">
-            <h2 style="text-transform: none; font-size: 1.2rem; margin: 0; color: var(--va-dark);">{{ $t('user_login_logs') || 'Login History Logs' }}</h2>
-            <va-button icon="refresh" preset="secondary" @click="refreshLoginGrid">Refresh</va-button>
-          </div>
-        </va-card-title>
+        <div style="background-color: var(--va-background-element); padding: 0.6rem 1rem; border-top-left-radius: 8px; border-top-right-radius: 8px; display: flex; justify-content: flex-end; align-items: center;">
+          <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshLoginGrid">{{ $t('refresh') || '새로고침' }}</va-button>
+        </div>
         <va-card-content>
           <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 500px; width: 100%;">
             <client-only>
@@ -145,12 +139,9 @@
     <!-- 3. Error Logs Tab -->
     <div v-if="activeTab === 'error'">
       <va-card>
-        <va-card-title>
-          <div class="flex justify-between items-center w-full">
-            <h2 style="text-transform: none; font-size: 1.2rem; margin: 0; color: var(--va-dark);">System Error Logs</h2>
-            <va-button icon="refresh" preset="secondary" @click="refreshErrorGrid">Refresh</va-button>
-          </div>
-        </va-card-title>
+        <div style="background-color: var(--va-background-element); padding: 0.6rem 1rem; border-top-left-radius: 8px; border-top-right-radius: 8px; display: flex; justify-content: flex-end; align-items: center;">
+          <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshErrorGrid">{{ $t('refresh') || '새로고침' }}</va-button>
+        </div>
         <va-card-content>
           <div class="mb-2" style="font-size: 0.85rem; color: var(--va-text-secondary);">
             * Double click on any row to view full stack trace details.
@@ -442,20 +433,35 @@
     </va-modal>
     <!-- 5. Sensitive Access Logs Tab -->
     <div v-if="activeTab === 'sensitive'">
+      <!-- Decryption Logs Statistics Charts -->
+      <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+        <va-card style="flex: 1;">
+          <va-card-title>{{ $t('Decryption Trend (Last 7 Days)') || 'Decryption Trend' }}</va-card-title>
+          <va-card-content>
+            <v-chart class="chart" :option="decryptionDailyChartOption" autoresize style="height: 300px; width: 100%;" />
+          </va-card-content>
+        </va-card>
+        <va-card style="flex: 1;">
+          <va-card-title>{{ $t('Type Ratios') || 'Type Ratios' }}</va-card-title>
+          <va-card-content>
+            <v-chart class="chart" :option="decryptionTypeChartOption" autoresize style="height: 300px; width: 100%;" />
+          </va-card-content>
+        </va-card>
+        <va-card style="flex: 1;">
+          <va-card-title>{{ $t('Top Users') || 'Top Users' }}</va-card-title>
+          <va-card-content>
+            <v-chart class="chart" :option="decryptionUserChartOption" autoresize style="height: 300px; width: 100%;" />
+          </va-card-content>
+        </va-card>
+      </div>
+
       <va-card>
-        <va-card-title>
-          <div class="flex justify-between items-center w-full">
-            <h2 style="text-transform: none; font-size: 1.2rem; margin: 0; color: var(--va-dark);">
-              {{ $t('sensitive_access_logs') || '민감정보 열람 이력' }}
-            </h2>
-            <va-button preset="secondary" icon="refresh" size="small" @click="fetchSensitiveAccessLogs(1)">
-              {{ $t('refresh') || '새로고침' }}
-            </va-button>
-          </div>
-        </va-card-title>
+        <div style="background-color: var(--va-background-element); padding: 0.6rem 1rem; border-top-left-radius: 8px; border-top-right-radius: 8px; display: flex; justify-content: flex-end; align-items: center;">
+          <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="fetchSensitiveAccessLogs(1)">{{ $t('refresh') || '새로고침' }}</va-button>
+        </div>
         <va-card-content>
           <div style="height: 500px; width: 100%;">
-            <ag-grid-vue
+              <ag-grid-vue
               style="width: 100%; height: 100%;"
               class="ag-theme-alpine"
               :columnDefs="sensitiveLogColDefs"
@@ -463,6 +469,7 @@
               :loading="sensitiveLogLoading"
               :pagination="true"
               :paginationPageSize="20"
+              @grid-ready="onSensitiveGridReady"
             />
           </div>
         </va-card-content>
@@ -483,8 +490,8 @@ if (process.client) {
 }
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
-import { BarChart, LineChart } from 'echarts/charts'
-import { TitleComponent, TooltipComponent, GridComponent } from 'echarts/components'
+import { BarChart, LineChart, PieChart } from 'echarts/charts'
+import { TitleComponent, TooltipComponent, GridComponent, LegendComponent } from 'echarts/components'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vuestic-ui'
@@ -494,7 +501,7 @@ import { getMultilingualText } from '~/utils/multilingual'
 const { hasPermission } = usePermission()
 
 if (process.client) {
-  use([CanvasRenderer, BarChart, LineChart, TitleComponent, TooltipComponent, GridComponent])
+  use([CanvasRenderer, BarChart, LineChart, PieChart, TitleComponent, TooltipComponent, GridComponent, LegendComponent])
 }
 
 const { t, locale } = useI18n()
@@ -507,22 +514,28 @@ const isMounted = ref(false)
 const sensitiveLogs = ref([])
 const sensitiveLogLoading = ref(false)
 
+const sensitiveGridApi = ref(null)
+
+const onSensitiveGridReady = (params) => {
+  sensitiveGridApi.value = params.api
+}
+
 const sensitiveLogColDefs = computed(() => [
   {
-    headerName: t('access_log_time') || '열람 시각',
+    headerValueGetter: () => t('access_log_time') || '열람 시각',
     field: 'accessedAt',
     valueFormatter: params => params.value ? new Date(params.value).toLocaleString() : '',
     sortable: true,
     width: 180
   },
   {
-    headerName: t('access_log_viewer') || '열람자',
+    headerValueGetter: () => t('access_log_viewer') || '열람자',
     field: 'userDisplayName',
     valueGetter: params => params.data?.userDisplayName || params.data?.userId || '',
     width: 180
   },
   {
-    headerName: t('access_log_target_type') || '대상 유형',
+    headerValueGetter: () => t('access_log_target_type') || '대상 유형',
     field: 'targetType',
     valueFormatter: params => {
       if (!params.value) return '-'
@@ -533,7 +546,7 @@ const sensitiveLogColDefs = computed(() => [
     width: 160
   },
   {
-    headerName: t('access_log_target_id') || '대상 ID',
+    headerValueGetter: () => t('access_log_target_id') || '대상 ID',
     field: 'formattedTargetId',
     valueGetter: params => {
       if (params.data?.formattedTargetId) return params.data.formattedTargetId
@@ -544,37 +557,37 @@ const sensitiveLogColDefs = computed(() => [
     width: 160
   },
   {
-    headerName: t('domain_name') || '도메인명',
+    headerValueGetter: () => t('domain_name') || '도메인명',
     field: 'domainName',
     valueGetter: params => params.data?.domainName || '-',
     width: 150
   },
   {
-    headerName: t('classification_name') || '분류명',
+    headerValueGetter: () => t('classification_name') || '분류명',
     field: 'classificationName',
     valueGetter: params => params.data?.classificationName || '-',
     width: 150
   },
   {
-    headerName: t('id_attribute') || 'ID속성',
+    headerValueGetter: () => t('id_attribute') || 'ID속성',
     field: 'idAttribute',
     valueGetter: params => params.data?.idAttribute || '-',
     width: 150
   },
   {
-    headerName: t('name_attribute') || '이름속성',
+    headerValueGetter: () => t('name_attribute') || '이름속성',
     field: 'nameAttribute',
     valueGetter: params => params.data?.nameAttribute || '-',
     width: 150
   },
   {
-    headerName: t('access_log_fields') || '열람 필드',
+    headerValueGetter: () => t('access_log_fields') || '열람 필드',
     field: 'formattedFieldLabels',
     valueGetter: params => params.data?.formattedFieldLabels || params.data?.fieldKeys || '-',
     flex: 1
   },
   {
-    headerName: t('access_log_ip') || 'IP 주소',
+    headerValueGetter: () => t('access_log_ip') || 'IP 주소',
     field: 'ipAddress',
     valueFormatter: params => {
       const val = params.value
@@ -585,8 +598,70 @@ const sensitiveLogColDefs = computed(() => [
   }
 ])
 
+const decryptionDailyChartOption = ref({})
+const decryptionTypeChartOption = ref({})
+const decryptionUserChartOption = ref({})
+
+const fetchDecryptionStats = async () => {
+  try {
+    const res = await $fetch('/api/sensitive-data/statistics', {
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    const stats = res || {}
+
+    // 1. Daily Trends
+    const dates = Object.keys(stats.dailyTrends || {}).sort()
+    const counts = dates.map(date => stats.dailyTrends[date])
+
+    decryptionDailyChartOption.value = {
+      tooltip: { trigger: 'axis' },
+      xAxis: { type: 'category', data: dates },
+      yAxis: { type: 'value' },
+      series: [{ data: counts, type: 'bar', smooth: true, itemStyle: { color: '#5470C6' } }]
+    }
+
+    // 2. Type Ratios
+    const typeKeys = Object.keys(stats.targetTypeRatios || {})
+    const typeData = typeKeys.map(key => ({ name: t(key), value: stats.targetTypeRatios[key] }))
+    
+    decryptionTypeChartOption.value = {
+      tooltip: { trigger: 'item' },
+      legend: { bottom: 0 },
+      series: [{
+        name: 'Type',
+        type: 'pie',
+        radius: ['40%', '70%'],
+        avoidLabelOverlap: false,
+        label: { show: false, position: 'center' },
+        emphasis: { label: { show: true, fontSize: 16, fontWeight: 'bold' } },
+        labelLine: { show: false },
+        data: typeData
+      }]
+    }
+
+    // 3. Top Users
+    const userKeys = Object.keys(stats.topUsers || {})
+    const userCounts = userKeys.map(key => stats.topUsers[key])
+    
+    decryptionUserChartOption.value = {
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+      xAxis: { type: 'value' },
+      yAxis: { type: 'category', data: userKeys, inverse: true },
+      series: [{
+        type: 'bar',
+        data: userCounts,
+        itemStyle: { color: '#91CC75' }
+      }]
+    }
+  } catch (err) {
+    console.error('Failed to fetch decryption stats:', err)
+  }
+}
+
 const fetchSensitiveAccessLogs = async (page = 1) => {
   sensitiveLogLoading.value = true
+  fetchDecryptionStats()
   try {
     const res = await $fetch(`/api/sensitive-data/access-logs?page=${page - 1}&size=100`, {
       headers: { Authorization: `Bearer ${token.value}` }
@@ -602,6 +677,32 @@ const fetchSensitiveAccessLogs = async (page = 1) => {
 watch(activeTab, (newTab) => {
   if (newTab === 'sensitive' && sensitiveLogs.value.length === 0) {
     fetchSensitiveAccessLogs(1)
+  }
+})
+
+watch(locale, () => {
+  // Update header text immediately without full unmount
+  setTimeout(() => {
+    if (gridApi.value) {
+      gridApi.value.refreshHeader()
+      gridApi.value.refreshServerSide({ purge: true })
+    }
+    // Refresh Server-Side grids
+    if (typeof loginGridApi !== 'undefined' && loginGridApi.value) loginGridApi.value.refreshServerSide({ purge: true })
+    if (typeof errorGridApi !== 'undefined' && errorGridApi.value) errorGridApi.value.refreshServerSide({ purge: true })
+    if (typeof integrationGridApi !== 'undefined' && integrationGridApi.value) integrationGridApi.value.refreshServerSide({ purge: true })
+
+    if (typeof sensitiveGridApi !== 'undefined' && sensitiveGridApi.value) {
+      sensitiveGridApi.value.refreshHeader()
+    }
+  }, 50)
+
+  // Refetch sensitive logs data dynamically
+  if (activeTab.value === 'sensitive') {
+    fetchSensitiveAccessLogs(1)
+  } else {
+    // Clear data so it fetches anew when the tab is visited next time
+    sensitiveLogs.value = []
   }
 })
 
@@ -761,6 +862,7 @@ const datasource = {
 const updateChart = async () => {
   try {
      await loadDbMenuMap()
+     fetchDecryptionStats()
      const response = await $fetch('/api/menus/logs', {
         headers: token.value ? { Authorization: `Bearer ${token.value}` } : {},
         params: { page: 0, size: 200, sort: 'accessedAt,desc' }
@@ -796,6 +898,7 @@ const updateChart = async () => {
      
      chartOption.value.xAxis[0].data = sortedPaths
      chartOption.value.series[0].data = counts
+     chartOption.value.series[0].name = t('Access Count') || 'Access Count'
   } catch (error) {
      console.error('Failed to update chart:', error)
   }
@@ -919,6 +1022,7 @@ const updateLoginChart = async () => {
      
      loginChartOption.value.xAxis[0].data = sortedKeys
      loginChartOption.value.series[0].data = counts
+     loginChartOption.value.series[0].name = t('Login Count') || 'Login Count'
   } catch (error) {
      console.error('Failed to update login chart:', error)
   }
@@ -1202,6 +1306,7 @@ const copyPayload = async (payloadStr, type = 'original') => {
 // Watch language change to dynamically translate chart labels
 watch(locale, () => {
   updateChart()
+  updateLoginChart()
   if (gridApi.value) {
     gridApi.value.refreshCells({ force: true })
   }
@@ -1211,9 +1316,7 @@ watch(locale, () => {
       name: getMultilingualText(c.name, locale.value)
     }))
   }
-  if (integrationLogs.value && integrationLogs.value.length > 0) {
-    fetchIntegrationLogs(integrationCurrentPage.value)
-  }
+  fetchIntegrationLogs()
 })
 
 onMounted(async () => {

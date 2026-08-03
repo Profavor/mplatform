@@ -1,6 +1,7 @@
 package com.classification.domain_system.controller;
 
 import com.classification.domain_system.dto.SensitiveDataAccessLogDto;
+import com.classification.domain_system.dto.SensitiveDataStatsDto;
 import com.classification.domain_system.service.SensitiveDataService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.Data;
@@ -53,6 +54,11 @@ public class SensitiveDataController {
             @RequestParam(required = false) UUID targetId,
             Pageable pageable) {
         return ResponseEntity.ok(sensitiveDataService.getAccessLogs(userId, targetId, pageable));
+    }
+
+    @GetMapping("/statistics")
+    public ResponseEntity<SensitiveDataStatsDto> getStatistics() {
+        return ResponseEntity.ok(sensitiveDataService.getStatistics());
     }
 
     private String getClientIp(HttpServletRequest request) {

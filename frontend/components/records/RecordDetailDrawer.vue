@@ -51,14 +51,15 @@
 
 
           <!-- 상태 뱃지 -->
-          <va-badge
+          <va-chip
             v-if="recordStatus"
             :color="recordStatus === 'ACTIVE' ? 'success' : (recordStatus === 'PENDING_APPROVAL' ? 'warning' : 'danger')"
             size="small"
-            style="font-size: 0.75rem; font-weight: 800;"
+            square
+            style="font-weight: 800; margin-top: 4px;"
           >
-            {{ recordStatus }}
-          </va-badge>
+            {{ recordStatus === 'PENDING_APPROVAL' ? (t('pending_approval') || '결재 진행중') : (recordStatus === 'ACTIVE' ? (t('active') || '정상') : (t('deleted') || '삭제됨')) }}
+          </va-chip>
         </div>
       </div>
     </template>
@@ -153,11 +154,15 @@
                         <span :style="{ fontSize: '0.75rem', color: evalConditionRule(field, localRecord).highlight ? 'var(--va-primary)' : 'var(--va-text-secondary)', fontWeight: evalConditionRule(field, localRecord).highlight ? '800' : '600', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px', minHeight: '18px', lineHeight: '18px' }">
                           <va-icon v-if="evalConditionRule(field, localRecord).highlight" name="star" size="small" color="primary" />
                           {{ getTranslatedName(field.name) }}{{ evalConditionRule(field, localRecord).required ? ' *' : '' }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}
+                          <va-popover v-if="hasHint(field.hint)" :message="getTranslatedName(field.hint)" trigger="hover" placement="top">
+                            <va-icon name="info" size="small" color="info" style="cursor: help; margin-left: 2px;" />
+                          </va-popover>
                         </span>
 
                         <va-input
                           v-if="['TEXT', 'NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER', 'DATE'].includes(field.type)"
-                          v-model="localRecord[field.key]"
+                          :model-value="localRecord[field.key]"
+                          @update:model-value="(val) => handleMaskedInput(field, val)"
                           :type="field.type === 'DATE' ? (focusedDateFields['edit_' + field.key] || localRecord[field.key] ? 'date' : 'text') : (['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type) ? 'number' : 'text')"
                           class="w-full"
                           :readonly="!isEditing || evalConditionRule(field, localRecord).readOnly"
@@ -783,6 +788,13 @@ const activeSectorTab = ref(0)
 const focusedDateFields = ref({})
 const localRecord = ref({})
 
+const handleMaskedInput = (field, val) => {
+  localRecord.value[field.key] = val
+  nextTick(() => {
+    localRecord.value[field.key] = formatMaskedInput(val, field.maskingPattern)
+  })
+}
+
 const secondaryNodes = ref([])
 const loadingSecondaryNodes = ref(false)
 
@@ -1115,6 +1127,11 @@ const parseName = (nameObj) => {
 const getTranslatedName = (nameObj) => {
   const pName = parseName(nameObj)
   return pName?.[locale.value] || pName?.ko || pName?.en || ''
+}
+
+const hasHint = (hintObj) => {
+  const parsed = parseName(hintObj)
+  return !!(parsed && (parsed.ko || parsed.en))
 }
 
 const groupedFieldsArray = computed(() => {

@@ -8,6 +8,7 @@ import java.util.Map;
 @Data
 public class FieldDefinitionRequest {
     private Map<String, String> name;
+    private Map<String, String> hint;
     private UUID fieldGroupId;
     private String key;
     private String type;

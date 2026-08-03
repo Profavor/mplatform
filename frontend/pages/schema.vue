@@ -201,6 +201,10 @@
         <va-input v-model="newField.name.ko" label="Field Name (KO)" class="mb-4" style="flex: 1; min-width: 0;" />
         <va-input v-model="newField.name.en" label="Field Name (EN)" class="mb-4" style="flex: 1; min-width: 0;" />
       </div>
+      <div style="display: flex; gap: 1rem;">
+        <va-input v-model="newField.hint.ko" label="Field Hint / Tooltip (KO)" class="mb-4" style="flex: 1; min-width: 0;" />
+        <va-input v-model="newField.hint.en" label="Field Hint / Tooltip (EN)" class="mb-4" style="flex: 1; min-width: 0;" />
+      </div>
       
       <div style="display: flex; gap: 1rem; align-items: center;" class="mb-4">
         <va-select 
@@ -955,7 +959,9 @@ const mappingError = ref({ id: false, name: false })
 
 const newNode = ref({ name: { ko: '', en: '' }, order: 1, icon: '' })
 const newField = ref({ 
-  name: { ko: '', en: '' }, 
+  id: null,
+  name: { ko: '', en: '' },
+  hint: { ko: '', en: '' },
   fieldGroupId: null,
   key: '', 
   type: 'TEXT', 
@@ -1741,6 +1747,7 @@ const openFieldModal = async (rowData = null) => {
     newField.value = { 
       ...rowData, 
       name: { ...rowData.name }, 
+      hint: rowData.hint ? { ...rowData.hint } : { ko: '', en: '' }, 
       type: (rowData.type === 'STRING' || !rowData.type) ? 'TEXT' : rowData.type,
       formula: rowData.formula || '', 
       unit: rowData.unit || '',
@@ -1791,7 +1798,7 @@ const openFieldModal = async (rowData = null) => {
     const initialTargetId = isDomain ? (currentDomainId ? `domain_${currentDomainId}` : null) : selectedNode.value?.id
 
     newField.value = { 
-      name: {ko:'', en:''}, key: '', type: 'TEXT', required: false, order: 0, 
+      name: {ko:'', en:''}, hint: {ko:'', en:''}, key: '', type: 'TEXT', required: false, order: 0, 
       fieldGroupId: null, targetDomainId: null, isMultiValue: false, isSearchable: true, 
       isEncrypted: false, isReadOnly: false, isImmutable: false, isHidden: false, isHighlighted: false, 
       formula: '', unit: '', gridWidth: null, tableColumnWidth: null,
@@ -1959,6 +1966,7 @@ const executePendingFieldSave = async () => {
 
     const payload = {
       name: newField.value.name,
+      hint: newField.value.hint,
       fieldGroupId: newField.value.fieldGroupId || newField.value.fieldGroup?.id || null,
       targetNodeId: finalTargetNodeId,
       isDomainField: finalIsDomainField,
@@ -1990,6 +1998,7 @@ const executePendingFieldSave = async () => {
     })
     newField.value = { 
       name: { ko: '', en: '' }, 
+      hint: { ko: '', en: '' },
       fieldGroupId: null,
       key: '', type: 'TEXT', options: '', required: false, isMultiValue: false, isSearchable: true, isEncrypted: false, isReadOnly: false, isImmutable: false, isHidden: false, isHighlighted: false, order: 0, reason: ''
     }

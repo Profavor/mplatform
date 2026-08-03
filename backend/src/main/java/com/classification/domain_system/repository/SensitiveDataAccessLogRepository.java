@@ -19,4 +19,6 @@ public interface SensitiveDataAccessLogRepository extends JpaRepository<Sensitiv
     Page<SensitiveDataAccessLog> findByTargetIdOrderByAccessedAtDesc(UUID targetId, Pageable pageable);
 
     List<SensitiveDataAccessLog> findByTargetIdAndTargetType(UUID targetId, String targetType);
+
+    List<SensitiveDataAccessLog> findByAccessedAtAfter(java.time.LocalDateTime startDate);
 }

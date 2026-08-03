@@ -32,8 +32,12 @@ public class FieldDefinition {
     private Domain domain;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(nullable = false)
+    @Column(columnDefinition = "jsonb")
     private Map<String, String> name = new HashMap<>();
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private Map<String, String> hint = new HashMap<>();
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "field_group_id", nullable = true)

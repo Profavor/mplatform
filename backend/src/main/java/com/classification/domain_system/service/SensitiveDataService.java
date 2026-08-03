@@ -25,7 +25,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
-
+import java.util.stream.Collectors;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import com.classification.domain_system.dto.SensitiveDataStatsDto;
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -42,6 +45,60 @@ public class SensitiveDataService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'log:read')")
+    public SensitiveDataStatsDto getStatistics() {
+        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+        List<SensitiveDataAccessLog> logs = accessLogRepository.findByAccessedAtAfter(sevenDaysAgo);
+
+        // 1. Daily Trends
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        Map<String, Long> dailyTrends = logs.stream()
+                .collect(Collectors.groupingBy(
+                        log -> log.getAccessedAt().format(formatter),
+                        Collectors.counting()
+                ));
+
+        // 2. Target Type Ratios
+        Map<String, Long> targetTypeRatios = logs.stream()
+                .collect(Collectors.groupingBy(
+                        SensitiveDataAccessLog::getTargetType,
+                        Collectors.counting()
+                ));
+
+        // 3. Top Users
+        Map<String, Long> topUsers = logs.stream()
+                .filter(log -> log.getUserId() != null && !log.getUserId().isEmpty())
+                .collect(Collectors.groupingBy(
+                        log -> {
+                            if (log.getUsername() != null && !log.getUsername().isEmpty()) {
+                                return log.getUsername();
+                            }
+                            if (userRepository != null) {
+                                return userRepository.findById(log.getUserId())
+                                        .map(u -> u.getUsername() != null ? u.getUsername() : log.getUserId())
+                                        .orElse(log.getUserId());
+                            }
+                            return log.getUserId();
+                        },
+                        Collectors.counting()
+                ))
+                .entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .limit(5)
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (e1, e2) -> e1,
+                        java.util.LinkedHashMap::new
+                ));
+
+        return SensitiveDataStatsDto.builder()
+                .dailyTrends(dailyTrends)
+                .targetTypeRatios(targetTypeRatios)
+                .topUsers(topUsers)
+                .build();
+    }
+
     public Page<SensitiveDataAccessLogDto> getAccessLogs(String userId, UUID targetId, Pageable pageable) {
         Page<SensitiveDataAccessLog> logs;
         if (userId != null && !userId.isBlank()) {
@@ -121,12 +178,6 @@ public class SensitiveDataService {
 
                     if (idKey != null) idAttribute = extractJsonValue(jsonPayload, idKey);
                     if (nameKey != null) nameAttribute = extractJsonValue(jsonPayload, nameKey);
-                    
-                    // 디버깅을 위해 로깅 추가
-                    if (nameKey != null) {
-                        log.info("DEBUG_LOG: TargetId={}, nameKey={}, nameAttribute={}, JSON={}", 
-                            logEntity.getTargetId(), nameKey, nameAttribute, jsonPayload);
-                    }
                 }
             }
         }
@@ -140,8 +191,10 @@ public class SensitiveDataService {
                 List<FieldDefinition> matched = fieldDefinitionRepository.findByKey(trimmed);
                 String label = trimmed;
                 if (!matched.isEmpty() && matched.get(0).getName() != null) {
-                    Map<String, String> nameMap = matched.get(0).getName();
-                    label = nameMap.get("ko") != null ? nameMap.get("ko") : nameMap.getOrDefault("en", trimmed);
+                    String extracted = extractMapName(matched.get(0).getName());
+                    if (extracted != null) {
+                        label = extracted;
+                    }
                 }
                 labels.add(label);
             }
@@ -168,6 +221,10 @@ public class SensitiveDataService {
 
     private String extractMapName(Map<String, String> nameMap) {
         if (nameMap == null || nameMap.isEmpty()) return null;
+        String locale = org.springframework.context.i18n.LocaleContextHolder.getLocale().getLanguage();
+        if (locale != null && !locale.isEmpty() && nameMap.containsKey(locale) && nameMap.get(locale) != null) {
+            return nameMap.get(locale);
+        }
         if (nameMap.containsKey("ko") && nameMap.get("ko") != null) return nameMap.get("ko");
         if (nameMap.containsKey("en") && nameMap.get("en") != null) return nameMap.get("en");
         return nameMap.values().iterator().next();
@@ -183,16 +240,63 @@ public class SensitiveDataService {
         return null;
     }
 
-    private String findValueIgnoreCase(com.fasterxml.jackson.databind.JsonNode node, String key) {
-        if (node == null || !node.isObject() || key == null) return null;
-        if (node.has(key) && !node.get(key).isNull()) {
-            return node.get(key).asText();
+    private String extractStringOrI18nValue(com.fasterxml.jackson.databind.JsonNode node) {
+        if (node == null || node.isNull()) return null;
+        if (node.isValueNode()) {
+            return node.asText().trim();
         }
-        java.util.Iterator<Map.Entry<String, com.fasterxml.jackson.databind.JsonNode>> fields = node.fields();
-        while (fields.hasNext()) {
-            Map.Entry<String, com.fasterxml.jackson.databind.JsonNode> entry = fields.next();
-            if (entry.getKey().equalsIgnoreCase(key) && !entry.getValue().isNull()) {
-                return entry.getValue().asText();
+        if (node.isObject()) {
+            String locale = org.springframework.context.i18n.LocaleContextHolder.getLocale().getLanguage();
+            if (locale != null && !locale.isEmpty() && node.has(locale) && !node.get(locale).isNull()) {
+                return node.get(locale).asText().trim();
+            }
+            if (node.has("ko") && !node.get("ko").isNull()) return node.get("ko").asText().trim();
+            if (node.has("en") && !node.get("en").isNull()) return node.get("en").asText().trim();
+            java.util.Iterator<Map.Entry<String, com.fasterxml.jackson.databind.JsonNode>> it = node.fields();
+            if (it.hasNext()) {
+                com.fasterxml.jackson.databind.JsonNode valNode = it.next().getValue();
+                return valNode != null && valNode.isValueNode() ? valNode.asText().trim() : null;
+            }
+        }
+        return null;
+    }
+
+    private String findValueIgnoreCaseDeep(com.fasterxml.jackson.databind.JsonNode node, String key) {
+        if (node == null || key == null) return null;
+
+        if (node.isObject()) {
+            // 현재 레벨 검색
+            if (node.has(key) && !node.get(key).isNull()) {
+                String val = extractStringOrI18nValue(node.get(key));
+                if (val != null && !val.isEmpty() && !val.equalsIgnoreCase("null")) {
+                    return val;
+                }
+            }
+            java.util.Iterator<Map.Entry<String, com.fasterxml.jackson.databind.JsonNode>> fields = node.fields();
+            while (fields.hasNext()) {
+                Map.Entry<String, com.fasterxml.jackson.databind.JsonNode> entry = fields.next();
+                if (entry.getKey().equalsIgnoreCase(key) && !entry.getValue().isNull()) {
+                    String val = extractStringOrI18nValue(entry.getValue());
+                    if (val != null && !val.isEmpty() && !val.equalsIgnoreCase("null")) {
+                        return val;
+                    }
+                }
+            }
+            // 자식 노드 재귀 검색
+            fields = node.fields();
+            while (fields.hasNext()) {
+                com.fasterxml.jackson.databind.JsonNode child = fields.next().getValue();
+                if (child != null && (child.isObject() || child.isArray())) {
+                    String val = findValueIgnoreCaseDeep(child, key);
+                    if (val != null) return val;
+                }
+            }
+        } else if (node.isArray()) {
+            for (com.fasterxml.jackson.databind.JsonNode child : node) {
+                if (child != null && (child.isObject() || child.isArray())) {
+                    String val = findValueIgnoreCaseDeep(child, key);
+                    if (val != null) return val;
+                }
             }
         }
         return null;
@@ -200,19 +304,24 @@ public class SensitiveDataService {
 
     private String extractJsonValueFromNode(com.fasterxml.jackson.databind.JsonNode root, String key) {
         if (root == null || key == null) return null;
-        String val = findValueIgnoreCase(root, key);
-        if (val != null) return val;
-
+        
+        // 우선순위 1: after 속성 내부 깊은 탐색
         if (root.has("after")) {
-            val = findValueIgnoreCase(root.get("after"), key);
+            String val = findValueIgnoreCaseDeep(root.get("after"), key);
             if (val != null) return val;
         }
+        // 우선순위 2: data 속성 내부 깊은 탐색
         if (root.has("data")) {
-            val = findValueIgnoreCase(root.get("data"), key);
+            String val = findValueIgnoreCaseDeep(root.get("data"), key);
             if (val != null) return val;
         }
+        // 우선순위 3: 루트 레벨 깊은 탐색
+        String val = findValueIgnoreCaseDeep(root, key);
+        if (val != null) return val;
+        
+        // 우선순위 4: before 속성 (최후의 수단)
         if (root.has("before")) {
-            val = findValueIgnoreCase(root.get("before"), key);
+            val = findValueIgnoreCaseDeep(root.get("before"), key);
             if (val != null) return val;
         }
         return null;
@@ -329,7 +438,13 @@ public class SensitiveDataService {
     private void saveAccessLog(String targetType, UUID targetId, List<String> fieldKeys, String ipAddress) {
         try {
             SensitiveDataAccessLog accessLog = new SensitiveDataAccessLog();
-            accessLog.setUserId(authContext != null && authContext.getUserId() != null ? authContext.getUserId() : "SYSTEM");
+            String userId = authContext != null && authContext.getUserId() != null ? authContext.getUserId() : "SYSTEM";
+            accessLog.setUserId(userId);
+            
+            if (userRepository != null && !"SYSTEM".equals(userId)) {
+                userRepository.findById(userId).ifPresent(u -> accessLog.setUsername(u.getUsername()));
+            }
+            
             accessLog.setTargetType(targetType);
             accessLog.setTargetId(targetId);
             accessLog.setFieldKeys(String.join(",", fieldKeys));

@@ -133,4 +133,38 @@ class SensitiveDataServiceTest {
         assertThatThrownBy(() -> sensitiveDataService.decryptApprovalFields(approvalId, null, "127.0.0.1"))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
+    @Test
+    @DisplayName("getStatistics - 최근 7일 통계, 타입별 비율, Top 5 유저 집계 검증")
+    void getStatistics_Success() {
+        SensitiveDataAccessLog log1 = new SensitiveDataAccessLog();
+        log1.setAccessedAt(java.time.LocalDateTime.now());
+        log1.setTargetType("APPROVAL_REQUEST");
+        log1.setUserId("admin");
+        log1.setUsername("admin");
+
+        SensitiveDataAccessLog log2 = new SensitiveDataAccessLog();
+        log2.setAccessedAt(java.time.LocalDateTime.now().minusDays(1));
+        log2.setTargetType("APPROVAL_REQUEST");
+        log2.setUserId("admin");
+        log2.setUsername("admin");
+
+        SensitiveDataAccessLog log3 = new SensitiveDataAccessLog();
+        log3.setAccessedAt(java.time.LocalDateTime.now().minusDays(2));
+        log3.setTargetType("RECORD");
+        log3.setUserId("user1");
+        log3.setUsername("user1");
+
+        when(accessLogRepository.findByAccessedAtAfter(any(java.time.LocalDateTime.class)))
+                .thenReturn(List.of(log1, log2, log3));
+
+        com.classification.domain_system.dto.SensitiveDataStatsDto stats = sensitiveDataService.getStatistics();
+
+        assertThat(stats.getTargetTypeRatios()).containsEntry("APPROVAL_REQUEST", 2L);
+        assertThat(stats.getTargetTypeRatios()).containsEntry("RECORD", 1L);
+
+        assertThat(stats.getTopUsers()).containsEntry("admin", 2L);
+        assertThat(stats.getTopUsers()).containsEntry("user1", 1L);
+        
+        assertThat(stats.getDailyTrends()).isNotEmpty();
+    }
 }

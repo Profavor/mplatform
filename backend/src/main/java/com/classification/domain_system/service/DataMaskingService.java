@@ -41,10 +41,16 @@ public class DataMaskingService {
 
     public String maskRrn(String rrn) {
         if (rrn == null || rrn.isBlank()) return rrn;
-        Pattern pattern = Pattern.compile("^(\\d{6})[-.]?(\\d{1})(\\d{6})$");
-        Matcher matcher = pattern.matcher(rrn.trim());
+        String trimmed = rrn.trim();
+        Pattern pattern = Pattern.compile("^(\\d{6})[-.]?([\\d*]{1})([\\d*]*)$");
+        Matcher matcher = pattern.matcher(trimmed);
         if (matcher.matches()) {
             return matcher.group(1) + "-" + matcher.group(2) + "******";
+        }
+        
+        String clean = trimmed.replaceAll("[^\\d*]", "");
+        if (clean.length() >= 7) {
+            return clean.substring(0, 6) + "-" + clean.substring(6, 7) + "******";
         }
         return maskGeneric(rrn);
     }
@@ -161,13 +167,13 @@ public class DataMaskingService {
             return maskEmail(value);
         } else if (fieldType.contains("PHONE") || fieldKey.contains("phone") || fieldKey.contains("mobile")) {
             return maskPhone(value);
-        } else if (fieldType.contains("RRN") || fieldKey.contains("rrn") || fieldKey.contains("ssn") || fieldKey.contains("jumin") || fieldKey.contains("resident")) {
+        } else if (fieldType.contains("RRN") || fieldKey.contains("rrn") || fieldKey.contains("ssn") || fieldKey.contains("jumin") || fieldKey.contains("resident") || fieldKey.contains("주민")) {
             return maskRrn(value);
         }
 
         // Auto-detect value format if pattern is GENERIC or unspecified
         String trimmedVal = value.trim();
-        if (Pattern.matches("^(\\d{6})[-.]?(\\d{1})(\\d{6})$", trimmedVal)) {
+        if (Pattern.matches("^(\\d{6})[-.]?([\\d*]{1})([\\d*]{6})$", trimmedVal)) {
             return maskRrn(trimmedVal);
         }
         if (Pattern.matches("^(\\d{2,3})[-.]?(\\d{3,4})[-.]?(\\d{4})$", trimmedVal)) {

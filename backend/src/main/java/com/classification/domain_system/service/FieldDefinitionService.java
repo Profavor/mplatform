@@ -255,6 +255,9 @@ public class FieldDefinitionService {
     
     private void populateFieldProperties(FieldDefinition field, FieldDefinitionRequest request, boolean isUpdate) {
         field.setName(request.getName());
+        if (request.getHint() != null) {
+            field.setHint(request.getHint());
+        }
         
         if (request.getFieldGroupId() != null) {
             field.setFieldGroup(fieldGroupRepository.findById(request.getFieldGroupId())
@@ -491,6 +494,7 @@ public class FieldDefinitionService {
         java.util.Map<String, Object> map = new java.util.HashMap<>();
         map.put("id", field.getId());
         map.put("name", field.getName());
+        map.put("hint", field.getHint());
         map.put("key", field.getKey());
         map.put("type", field.getType());
         map.put("required", field.getRequired());
@@ -509,6 +513,7 @@ public class FieldDefinitionService {
         }
         map.put("order", field.getOrder());
         if (field.getFieldGroup() != null) {
+            map.put("fieldGroupId", field.getFieldGroup().getId());
             map.put("group", field.getFieldGroup().getName());
         }
         return map;
@@ -601,11 +606,7 @@ public class FieldDefinitionService {
 
         }
 
-        java.util.Map<String, Object> beforeState = new java.util.HashMap<>();
-        beforeState.put("id", field.getId());
-        beforeState.put("name", field.getName());
-        beforeState.put("key", field.getKey());
-        beforeState.put("type", field.getType());
+        java.util.Map<String, Object> beforeState = toStateMap(field);
 
         populateFieldProperties(field, request, true);
         

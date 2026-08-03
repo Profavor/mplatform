@@ -11,6 +11,7 @@ public class FieldDefinitionDto {
     private UUID domainId;
     private UUID definedAtNodeId;
     private Map<String, String> name;
+    private Map<String, String> hint;
     private FieldGroupDto fieldGroup;
     private String key;
     private String type;

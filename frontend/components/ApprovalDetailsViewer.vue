@@ -549,6 +549,12 @@ const schemaPropertyDiffs = computed(() => {
       afterVal: formatName(reqObj.name),
     },
     {
+      key: 'hint',
+      label: currentLocale.value === 'en' ? 'Hint / Tooltip' : '힌트 / 툴팁',
+      beforeVal: formatName(beforeObj.hint),
+      afterVal: formatName(reqObj.hint),
+    },
+    {
       key: 'key',
       label: currentLocale.value === 'en' ? 'Field Key' : '필드 키',
       beforeVal: beforeObj.key || '-',
@@ -645,6 +651,7 @@ const schemaNewFieldProps = computed(() => {
 
   return [
     { key: 'name', label: currentLocale.value === 'en' ? 'Field Name' : '필드명', val: formatName(reqObj.name) },
+    { key: 'hint', label: currentLocale.value === 'en' ? 'Hint / Tooltip' : '힌트 / 툴팁', val: formatName(reqObj.hint) },
     { key: 'key', label: currentLocale.value === 'en' ? 'Field Key' : '필드 키', val: reqObj.key || parsed.fieldKey || '-' },
     { key: 'type', label: currentLocale.value === 'en' ? 'Data Type' : '데이터 타입', val: reqObj.type || parsed.newFieldType || '-' },
     { key: 'required', label: currentLocale.value === 'en' ? 'Required' : '필수 입력 여부', val: formatBool(reqObj.required) },

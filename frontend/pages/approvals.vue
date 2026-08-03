@@ -1336,7 +1336,22 @@ const handleAction = async (stepId, action, isBulk = false) => {
   
   showLoading(`${actionName} 처리 중입니다...`)
   try {
-    await $fetch(`/api/approval-requests/steps/${stepId}/${action}?approverId=${myUuid.value}`, {
+    let url = `/api/approval-requests/steps/${stepId}/${action}?approverId=${myUuid.value}`
+    if (hasPermission('admin:write')) {
+      const step = pendingSelectedRows.value.find(r => r.id === stepId) || selectedPendingStep.value;
+      if (step) {
+        const isAssignee = step.assigneeId === myUuid.value;
+        const userObj = userCookie.value ? (typeof userCookie.value === 'object' ? userCookie.value : JSON.parse(userCookie.value)) : null;
+        const myUserRoles = Array.isArray(userObj?.roles) ? userObj.roles : (userObj?.role ? [userObj.role] : []);
+        const hasRole = step.assigneeRole && myUserRoles.some(r => String(r).toUpperCase() === String(step.assigneeRole).toUpperCase());
+        
+        if (!isAssignee && !hasRole) {
+          url = `/api/approval-requests/steps/${stepId}/admin-${action}?adminId=${myUuid.value}`
+        }
+      }
+    }
+
+    await $fetch(url, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token.value}` },
       body: { comment }
