@@ -57,6 +57,7 @@ class RecordServiceTest {
         field.setIsEncrypted(true);
 
         when(fieldDefinitionService.getEffectiveFields(nodeId)).thenReturn(List.of(field));
+        when(fieldEncryptionService.decrypt("user@example.com")).thenReturn("user@example.com");
         when(fieldEncryptionService.encrypt("user@example.com")).thenReturn("ENCRYPTED_STRING");
         when(fieldEncryptionService.generateBlindIndex("user@example.com")).thenReturn("BLIND_INDEX_HASH");
 
