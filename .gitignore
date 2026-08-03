@@ -13,4 +13,4 @@ run_server.bat
 *.bat
 backend/data/
 .idea/
-backend/upload/
+backend/uploads/
