@@ -17,9 +17,16 @@ import java.util.Optional;
 @Component
 public class UniqueEvaluator implements RuleEvaluator {
     private final JdbcTemplate jdbcTemplate;
+    private final org.springframework.core.env.Environment env;
 
-    public UniqueEvaluator(JdbcTemplate jdbcTemplate) {
+    public UniqueEvaluator(JdbcTemplate jdbcTemplate, org.springframework.core.env.Environment env) {
         this.jdbcTemplate = jdbcTemplate;
+        this.env = env;
+    }
+
+    private boolean isH2Database() {
+        String url = env.getProperty("spring.datasource.url");
+        return url != null && url.startsWith("jdbc:h2:");
     }
 
     @Override
@@ -42,20 +49,27 @@ public class UniqueEvaluator implements RuleEvaluator {
         
         String sql;
         Integer count;
+        
+        // Use LIKE for H2 (since JSON_VALUE is often missing or broken in older H2 versions), ->> for PostgreSQL
+        boolean isH2 = isH2Database();
+        
+        String jsonCondition = isH2 ? "r.data LIKE ?" : "r.data->>'" + fieldKey + "' = ?";
+        String paramValue = isH2 ? "%\"" + fieldKey + "\":\"" + textValue + "\"%" : textValue;
+
         if (context.getRecordId() != null) {
             sql = "SELECT COUNT(*) FROM record r " +
                   "JOIN classification_node cn ON r.node_id = cn.id " +
-                  "WHERE cn.domain_id = ? AND r.data->>? = ? " +
+                  "WHERE cn.domain_id = ? AND " + jsonCondition + " " +
                   "AND r.status NOT IN ('REJECTED','MISMATCHED') AND r.id <> ?";
             count = jdbcTemplate.queryForObject(sql, Integer.class,
-                    context.getDomainId(), fieldKey, textValue, context.getRecordId());
+                    context.getDomainId(), paramValue, context.getRecordId());
         } else {
             sql = "SELECT COUNT(*) FROM record r " +
                   "JOIN classification_node cn ON r.node_id = cn.id " +
-                  "WHERE cn.domain_id = ? AND r.data->>? = ? " +
+                  "WHERE cn.domain_id = ? AND " + jsonCondition + " " +
                   "AND r.status NOT IN ('REJECTED','MISMATCHED')";
             count = jdbcTemplate.queryForObject(sql, Integer.class,
-                    context.getDomainId(), fieldKey, textValue);
+                    context.getDomainId(), paramValue);
         }
 
         if (count != null && count > 0) {

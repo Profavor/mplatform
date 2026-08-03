@@ -201,6 +201,10 @@
         <va-input v-model="newField.name.ko" label="Field Name (KO)" class="mb-4" style="flex: 1; min-width: 0;" />
         <va-input v-model="newField.name.en" label="Field Name (EN)" class="mb-4" style="flex: 1; min-width: 0;" />
       </div>
+      <div style="display: flex; gap: 1rem;">
+        <va-input v-model="newField.hint.ko" label="Field Hint / Tooltip (KO)" class="mb-4" style="flex: 1; min-width: 0;" />
+        <va-input v-model="newField.hint.en" label="Field Hint / Tooltip (EN)" class="mb-4" style="flex: 1; min-width: 0;" />
+      </div>
       
       <div style="display: flex; gap: 1rem; align-items: center;" class="mb-4">
         <va-select 
@@ -229,6 +233,15 @@
       </div>
       
       <va-select v-model="newField.type" :options="fieldTypes" label="Field Type" class="mb-4 w-full" />
+
+      <va-select
+        v-if="newField.isEncrypted"
+        v-model="newField.maskingPattern"
+        :options="maskingPatternOptions"
+        value-by="value"
+        :label="t('masking_pattern')"
+        class="mb-4 w-full"
+      />
         
         <va-select 
           v-if="newField.type === 'DOMAIN_REFERENCE'" 
@@ -617,12 +630,73 @@
       :changeRequest="impactChangeRequest"
       @confirm="handleImpactAnalysisConfirm"
     />
+
+    <!-- Approval Details Viewer Modal -->
+    <va-modal
+      v-model="showApprovalViewer"
+      size="large"
+      close-button
+      hide-default-actions
+    >
+      <template #header>
+        <div v-if="selectedApprovalRequest" style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%; padding-right: 2.5rem;">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.65rem;">
+              <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                <va-icon name="rate_review" color="primary" />
+                {{ $t('approval_history') || '결재 내역 확인' }}
+              </h3>
+              <va-badge 
+                v-if="selectedApprovalRequest?.targetType"
+                :text="selectedApprovalRequest.targetType.startsWith('SCHEMA_') ? ($t('schema_change') || '스키마 변경') : selectedApprovalRequest.targetType" 
+                color="primary" 
+              />
+            </div>
+
+            <div style="font-size: 0.85rem; color: var(--va-text-secondary); display: flex; align-items: center; gap: 0.75rem;">
+              <span>
+                <va-icon name="person" size="small" style="margin-right: 2px;" />
+                {{ t('requester') || '기안자' }}: <strong>{{ selectedApprovalRequest?.requesterName || selectedApprovalRequest?.requesterId || 'Unknown' }}</strong>
+              </span>
+              <span>
+                <va-icon name="schedule" size="small" style="margin-right: 2px;" />
+                {{ selectedApprovalRequest?.createdAt ? new Date(selectedApprovalRequest.createdAt).toLocaleString() : '' }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <div style="padding: 1rem 0 0 0;">
+        <ApprovalDetailsViewer
+          v-if="selectedApprovalRequest"
+          :request="selectedApprovalRequest"
+          @close="showApprovalViewer = false"
+        />
+      </div>
+    </va-modal>
   </div>
 </template>
 
 <script setup>
 import { usePageTitle } from '~/composables/usePageTitle'
 import SchemaImpactReportModal from '~/components/SchemaImpactReportModal.vue'
+import ApprovalDetailsViewer from '~/components/ApprovalDetailsViewer.vue'
+
+const showApprovalViewer = ref(false)
+const selectedApprovalRequest = ref(null)
+
+const openApprovalViewer = async (requestId) => {
+  if (!requestId) return
+  try {
+    const data = await $fetch(`/api/approval-requests/${requestId}`, { headers: getAuthHeaders() })
+    selectedApprovalRequest.value = data
+    showApprovalViewer.value = true
+  } catch (e) {
+    console.error('Failed to load approval request:', e)
+    showCustomAlert(e.data?.message || '결재 내역을 불러오는데 실패했습니다.', 'Error', 'Error', 'danger')
+  }
+}
 
 const { pageTitle } = usePageTitle('domain_schema_title', '도메인 스키마 관리')
 const colors = useColors()
@@ -885,7 +959,9 @@ const mappingError = ref({ id: false, name: false })
 
 const newNode = ref({ name: { ko: '', en: '' }, order: 1, icon: '' })
 const newField = ref({ 
-  name: { ko: '', en: '' }, 
+  id: null,
+  name: { ko: '', en: '' },
+  hint: { ko: '', en: '' },
   fieldGroupId: null,
   key: '', 
   type: 'TEXT', 
@@ -1032,6 +1108,14 @@ const groupOptions = computed(() => {
 })
 
 const fieldTypes = ['TEXT', 'NUMBER', 'DATE', 'BOOLEAN', 'SELECT', 'DECIMAL', 'FLOAT', 'INTEGER', 'DOMAIN_REFERENCE', 'MULTI_SELECT', 'TIME', 'HTML_TEXT', 'CHECKBOX', 'CALCULATED', 'MULTILINGUAL', 'FILE']
+
+const maskingPatternOptions = computed(() => [
+  { value: 'GENERIC', text: t('masking_pattern_generic') },
+  { value: 'CARD', text: t('masking_pattern_card') },
+  { value: 'RRN', text: t('masking_pattern_rrn') },
+  { value: 'PHONE', text: t('masking_pattern_phone') },
+  { value: 'EMAIL', text: t('masking_pattern_email') }
+])
 
 const domainOptions = computed(() => {
   return treeNodes.value.filter(n => n.isDomain).map(d => ({
@@ -1192,13 +1276,31 @@ const columnDefs = computed(() => [
       const isPending = pendingFieldIds.value.includes(params.data.id) || params.data.approvalStatus === 'PENDING_APPROVAL' || params.data.isPendingApproval;
 
       if (isPending) {
-        const lockSpan = document.createElement('span');
-        lockSpan.style.color = '#e6a23c';
-        lockSpan.style.fontWeight = '600';
-        lockSpan.style.fontSize = '12px';
-        lockSpan.title = '해당 필드는 현재 결재 심사 진행 중이므로 수정을 할 수 없습니다.';
-        lockSpan.innerText = '🔒 결재 심사 중';
-        container.appendChild(lockSpan);
+        const lockBtn = document.createElement('span');
+        lockBtn.style.cursor = 'pointer';
+        lockBtn.style.color = '#e6a23c';
+        lockBtn.style.fontWeight = '600';
+        lockBtn.style.fontSize = '12px';
+        lockBtn.style.lineHeight = '1';
+        lockBtn.style.padding = '0 8px';
+        lockBtn.style.height = '24px';
+        lockBtn.style.borderRadius = '4px';
+        lockBtn.style.border = '1px solid #e6a23c';
+        lockBtn.style.display = 'inline-flex';
+        lockBtn.style.alignItems = 'center';
+        lockBtn.style.justifyContent = 'center';
+        lockBtn.style.boxSizing = 'border-box';
+        lockBtn.style.gap = '2px';
+        lockBtn.title = '클릭하여 결재 진행 및 상세 이력 확인';
+        lockBtn.innerText = '🔍 결재 이력';
+        lockBtn.addEventListener('click', () => {
+          if (params.data.approvalRequestId) {
+            openApprovalViewer(params.data.approvalRequestId);
+          } else {
+            navigateTo('/approvals');
+          }
+        });
+        container.appendChild(lockBtn);
       } else if (params.data.domainId && !selectedNode.value.isDomain) {
         const span = document.createElement('span');
         span.style.color = '#666';
@@ -1212,11 +1314,13 @@ const columnDefs = computed(() => [
         editBtn.style.fontWeight = '600';
         editBtn.style.fontSize = '12px';
         editBtn.style.lineHeight = '1';
-        editBtn.style.padding = '3px 8px';
+        editBtn.style.padding = '0 8px';
+        editBtn.style.height = '24px';
         editBtn.style.borderRadius = '4px';
         editBtn.style.border = '1px solid #2c82e0';
         editBtn.style.display = 'inline-flex';
         editBtn.style.alignItems = 'center';
+        editBtn.style.justifyContent = 'center';
         editBtn.style.boxSizing = 'border-box';
         editBtn.innerText = 'Edit';
         editBtn.addEventListener('click', () => openFieldModal(params.data));
@@ -1228,11 +1332,13 @@ const columnDefs = computed(() => [
         deleteBtn.style.fontWeight = '600';
         deleteBtn.style.fontSize = '12px';
         deleteBtn.style.lineHeight = '1';
-        deleteBtn.style.padding = '3px 8px';
+        deleteBtn.style.padding = '0 8px';
+        deleteBtn.style.height = '24px';
         deleteBtn.style.borderRadius = '4px';
         deleteBtn.style.border = '1px solid #f56c6c';
         deleteBtn.style.display = 'inline-flex';
         deleteBtn.style.alignItems = 'center';
+        deleteBtn.style.justifyContent = 'center';
         deleteBtn.style.boxSizing = 'border-box';
         deleteBtn.innerText = 'Delete';
         deleteBtn.addEventListener('click', () => triggerDeleteFieldWithImpactAnalysis(params.data));
@@ -1246,11 +1352,13 @@ const columnDefs = computed(() => [
       dqBtn.style.fontWeight = '600';
       dqBtn.style.fontSize = '12px';
       dqBtn.style.lineHeight = '1';
-      dqBtn.style.padding = '3px 6px';
+      dqBtn.style.padding = '0 8px';
+      dqBtn.style.height = '24px';
       dqBtn.style.borderRadius = '4px';
       dqBtn.style.border = '1px solid #e88b24';
       dqBtn.style.display = 'inline-flex';
       dqBtn.style.alignItems = 'center';
+      dqBtn.style.justifyContent = 'center';
       dqBtn.style.boxSizing = 'border-box';
       dqBtn.innerText = 'DQ';
       dqBtn.addEventListener('click', () => openDqRuleEditor(params.data));
@@ -1263,6 +1371,10 @@ const columnDefs = computed(() => [
 
 const onRowDoubleClicked = (params) => {
   if (params.data.domainId && !selectedNode.value.isDomain) return;
+  
+  const isPending = pendingFieldIds.value.includes(params.data.id) || params.data.approvalStatus === 'PENDING_APPROVAL' || params.data.isPendingApproval;
+  if (isPending) return;
+
   openFieldModal(params.data)
 }
 
@@ -1635,6 +1747,7 @@ const openFieldModal = async (rowData = null) => {
     newField.value = { 
       ...rowData, 
       name: { ...rowData.name }, 
+      hint: rowData.hint ? { ...rowData.hint } : { ko: '', en: '' }, 
       type: (rowData.type === 'STRING' || !rowData.type) ? 'TEXT' : rowData.type,
       formula: rowData.formula || '', 
       unit: rowData.unit || '',
@@ -1685,7 +1798,7 @@ const openFieldModal = async (rowData = null) => {
     const initialTargetId = isDomain ? (currentDomainId ? `domain_${currentDomainId}` : null) : selectedNode.value?.id
 
     newField.value = { 
-      name: {ko:'', en:''}, key: '', type: 'TEXT', required: false, order: 0, 
+      name: {ko:'', en:''}, hint: {ko:'', en:''}, key: '', type: 'TEXT', required: false, order: 0, 
       fieldGroupId: null, targetDomainId: null, isMultiValue: false, isSearchable: true, 
       isEncrypted: false, isReadOnly: false, isImmutable: false, isHidden: false, isHighlighted: false, 
       formula: '', unit: '', gridWidth: null, tableColumnWidth: null,
@@ -1853,6 +1966,7 @@ const executePendingFieldSave = async () => {
 
     const payload = {
       name: newField.value.name,
+      hint: newField.value.hint,
       fieldGroupId: newField.value.fieldGroupId || newField.value.fieldGroup?.id || null,
       targetNodeId: finalTargetNodeId,
       isDomainField: finalIsDomainField,
@@ -1868,6 +1982,7 @@ const executePendingFieldSave = async () => {
       isMultiValue: newField.value.isMultiValue,
       isTable: newField.value.isTable,
       isEncrypted: newField.value.isEncrypted,
+      maskingPattern: newField.value.maskingPattern || 'GENERIC',
       isSearchable: newField.value.isSearchable,
       isReadOnly: newField.value.isReadOnly,
       isImmutable: newField.value.isImmutable,
@@ -1883,6 +1998,7 @@ const executePendingFieldSave = async () => {
     })
     newField.value = { 
       name: { ko: '', en: '' }, 
+      hint: { ko: '', en: '' },
       fieldGroupId: null,
       key: '', type: 'TEXT', options: '', required: false, isMultiValue: false, isSearchable: true, isEncrypted: false, isReadOnly: false, isImmutable: false, isHidden: false, isHighlighted: false, order: 0, reason: ''
     }

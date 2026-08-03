@@ -62,18 +62,31 @@ export default defineNuxtPlugin((nuxtApp) => {
     return await refreshPromise
   }
 
-  const applyAuthHeader = (options: FetchOptions, token: string): FetchOptions => {
-    options.headers = options.headers || {}
-    if (options.headers instanceof Headers) {
-      options.headers.set('Authorization', `Bearer ${token}`)
-    } else if (Array.isArray(options.headers)) {
-      options.headers = (options.headers as [string, string][]).filter(([k]) => k.toLowerCase() !== 'authorization')
-      options.headers.push(['Authorization', `Bearer ${token}`])
-    } else {
-      (options.headers as Record<string, string>)['Authorization'] = `Bearer ${token}`
+    const applyAuthHeader = (options: FetchOptions, token: string): FetchOptions => {
+      options.headers = options.headers || {}
+      if (options.headers instanceof Headers) {
+        options.headers.set('Authorization', `Bearer ${token}`)
+      } else if (Array.isArray(options.headers)) {
+        options.headers = (options.headers as [string, string][]).filter(([k]) => k.toLowerCase() !== 'authorization')
+        options.headers.push(['Authorization', `Bearer ${token}`])
+      } else {
+        (options.headers as Record<string, string>)['Authorization'] = `Bearer ${token}`
+      }
+      return options
     }
-    return options
-  }
+
+    const applyLocaleHeader = (options: FetchOptions, locale: string): FetchOptions => {
+      options.headers = options.headers || {}
+      if (options.headers instanceof Headers) {
+        options.headers.set('Accept-Language', locale)
+      } else if (Array.isArray(options.headers)) {
+        options.headers = (options.headers as [string, string][]).filter(([k]) => k.toLowerCase() !== 'accept-language')
+        options.headers.push(['Accept-Language', locale])
+      } else {
+        (options.headers as Record<string, string>)['Accept-Language'] = locale
+      }
+      return options
+    }
 
   // 재시도 가능한 fetch 래퍼: 401 발생 시 토큰 갱신 후 1회 재시도
   const fetchWithRetry = async (request: any, options: FetchOptions = {}): Promise<any> => {
@@ -86,6 +99,23 @@ export default defineNuxtPlugin((nuxtApp) => {
     if (!isAuthUrl && process.client) {
       const token = getCookieValue('auth_token')
       if (token) applyAuthHeader(options, token)
+    }
+
+    // 다국어 Accept-Language 헤더 주입
+    if (process.client) {
+      try {
+        let localeStr = null
+        const i18n = nuxtApp.vueApp.config.globalProperties.$i18n
+        if (i18n && i18n.locale) {
+          localeStr = typeof i18n.locale === 'string' ? i18n.locale : (i18n.locale.value || null)
+        }
+        if (!localeStr) {
+          localeStr = getCookieValue('i18n_redirected')
+        }
+        if (localeStr) applyLocaleHeader(options, localeStr)
+      } catch (e) {
+        console.warn('Failed to inject Accept-Language header', e)
+      }
     }
 
     if (!skipLoading && process.client) {

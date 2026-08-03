@@ -97,12 +97,16 @@
                       <span :style="{ fontSize: '0.75rem', color: evalConditionRule(field, localRecord).highlight ? 'var(--va-primary)' : 'var(--va-text-secondary)', fontWeight: evalConditionRule(field, localRecord).highlight ? '800' : '600', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px', minHeight: '18px', lineHeight: '18px' }">
                         <va-icon v-if="evalConditionRule(field, localRecord).highlight" name="star" size="small" color="primary" />
                         {{ getTranslatedName(field.name) }}{{ evalConditionRule(field, localRecord).required ? ' *' : '' }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}
+                        <va-popover v-if="hasHint(field.hint)" :message="getTranslatedName(field.hint)" trigger="hover" placement="top">
+                          <va-icon name="info" size="small" color="info" style="cursor: help; margin-left: 2px;" />
+                        </va-popover>
                       </span>
 
                       <!-- Text / Number / Date -->
                       <va-input
                         v-if="['TEXT', 'NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER', 'DATE'].includes(field.type)"
-                        v-model="localRecord[field.key]"
+                        :model-value="localRecord[field.key]"
+                        @update:model-value="(val) => handleMaskedInput(field, val)"
                         :type="field.type === 'DATE' ? (focusedDateFields[field.key] || localRecord[field.key] ? 'date' : 'text') : (['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type) ? 'number' : 'text')"
                         :readonly="evalConditionRule(field, localRecord).readOnly"
                         :disabled="isAutoNumberingField(field) || evalConditionRule(field, localRecord).disabled"
@@ -350,6 +354,13 @@ const activeSectorTab = ref(0)
 const focusedDateFields = ref({})
 const localRecord = ref({})
 
+const handleMaskedInput = (field, val) => {
+  localRecord.value[field.key] = val
+  nextTick(() => {
+    localRecord.value[field.key] = formatMaskedInput(val, field.maskingPattern)
+  })
+}
+
 watch(
   () => props.record,
   (newVal) => {
@@ -413,6 +424,11 @@ const parseName = (nameObj) => {
 const getTranslatedName = (nameObj) => {
   const pName = parseName(nameObj)
   return pName?.[locale.value] || pName?.ko || pName?.en || ''
+}
+
+const hasHint = (hintObj) => {
+  const parsed = parseName(hintObj)
+  return !!(parsed && (parsed.ko || parsed.en))
 }
 
 const groupedFieldsArray = computed(() => {

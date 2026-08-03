@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 
+import com.classification.domain_system.context.AuthContext;
 import java.util.List;
 import java.util.UUID;
 import java.util.ArrayList;
@@ -31,6 +32,10 @@ import org.springframework.data.domain.Pageable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import com.classification.domain_system.entity.FieldDefinition;
+
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.GrantedAuthority;
 
 import org.springframework.context.ApplicationEventPublisher;
 import com.classification.domain_system.event.ApprovalRequestCreatedEvent;
@@ -61,6 +66,8 @@ public class ApprovalService {
     private final com.classification.domain_system.websocket.WebSocketPublisher webSocketPublisher;
     private final RecordHistoryWriter recordHistoryWriter;
     private final com.classification.domain_system.repository.RoleRepository roleRepository;
+    private final DataMaskingService dataMaskingService;
+    private final AuthContext authContext;
 
     public String resolveRoleDisplayName(String roleCode) {
         if (roleCode == null || roleCode.isBlank()) return "";
@@ -802,11 +809,29 @@ public class ApprovalService {
         eventPublisher.publishEvent(new ApprovalRequestCreatedEvent(saved));
         return saved;
     }
-        private boolean isStepAssigneeOrRoleMatch(ApprovalStep step, String approverId) {
+        
+    private boolean isStepAssigneeOrRoleMatch(ApprovalStep step, String approverId) {
         if (step == null || approverId == null) return false;
+
+        // 1. Check if user has Admin Permission (Allows Admin Proxy Approval)
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getAuthorities() != null) {
+            boolean hasAdminPerm = auth.getAuthorities().stream()
+                    .anyMatch(a -> {
+                        String authStr = a.getAuthority();
+                        return "admin:write".equalsIgnoreCase(authStr) || "*".equals(authStr) || "*:*".equalsIgnoreCase(authStr);
+                    });
+            if (hasAdminPerm) {
+                return true;
+            }
+        }
+
+        // 2. Check explicit Assignee ID Match
         if (approverId.equals(step.getAssigneeId())) {
             return true;
         }
+
+        // 3. Check Assignee Role Match
         if (step.getAssigneeRole() != null && !step.getAssigneeRole().isBlank()) {
             User user = userRepository.findById(approverId).orElse(null);
             if (user != null && step.getAssigneeRole().equalsIgnoreCase(user.getRole())) {
@@ -1240,9 +1265,44 @@ public class ApprovalService {
         return approvalRepository.findMyRequestsForUser(requesterId, username, pageable);
     }
 
+    public ApprovalRequest maskChangesForRead(ApprovalRequest approval) {
+        if (approval == null || approval.getChanges() == null || approval.getChanges().isBlank() || dataMaskingService == null) {
+            return approval;
+        }
+        ClassificationNode node = approval.getClassificationNode();
+        if (node == null && approval.getTargetId() != null && recordRepository != null) {
+            node = recordRepository.findById(approval.getTargetId()).map(Record::getNode).orElse(null);
+        }
+        if (node == null && approval.getChanges() != null && nodeRepository != null) {
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                com.fasterxml.jackson.databind.JsonNode parsed = mapper.readTree(approval.getChanges());
+                if (parsed.has("nodeId") && !parsed.get("nodeId").isNull()) {
+                    String nodeIdStr = parsed.get("nodeId").asText();
+                    if (!nodeIdStr.isBlank()) {
+                        node = nodeRepository.findById(java.util.UUID.fromString(nodeIdStr)).orElse(null);
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+        List<FieldDefinition> fields;
+        if (node != null && fieldDefinitionService != null) {
+            fields = fieldDefinitionService.getEffectiveFields(node.getId());
+        } else if (fieldDefinitionRepository != null) {
+            fields = fieldDefinitionRepository.findAll();
+        } else {
+            fields = java.util.Collections.emptyList();
+        }
+        boolean canUnmask = false;
+        String maskedChanges = dataMaskingService.maskChangesJson(approval.getChanges(), fields, canUnmask);
+        approval.setChanges(maskedChanges);
+        return approval;
+    }
+
     @Transactional(readOnly = true)
     public ApprovalRequest getRequestById(UUID id) {
-        return approvalRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("ApprovalRequest not found"));
+        ApprovalRequest req = approvalRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("ApprovalRequest not found"));
+        return maskChangesForRead(req);
     }
 
     @Transactional

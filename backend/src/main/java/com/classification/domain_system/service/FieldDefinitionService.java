@@ -31,6 +31,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import com.classification.domain_system.exception.ResourceNotFoundException;
 import java.util.List;
 import java.util.UUID;
+import java.util.Map;
+import java.util.HashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -253,6 +255,9 @@ public class FieldDefinitionService {
     
     private void populateFieldProperties(FieldDefinition field, FieldDefinitionRequest request, boolean isUpdate) {
         field.setName(request.getName());
+        if (request.getHint() != null) {
+            field.setHint(request.getHint());
+        }
         
         if (request.getFieldGroupId() != null) {
             field.setFieldGroup(fieldGroupRepository.findById(request.getFieldGroupId())
@@ -287,6 +292,7 @@ public class FieldDefinitionService {
         field.setIsReadOnly(request.getIsReadOnly() != null ? request.getIsReadOnly() : (isUpdate && field.getIsReadOnly() != null ? field.getIsReadOnly() : false));
         field.setIsImmutable(request.getIsImmutable() != null ? request.getIsImmutable() : (isUpdate && field.getIsImmutable() != null ? field.getIsImmutable() : false));
         field.setIsHidden(request.getIsHidden() != null ? request.getIsHidden() : (isUpdate && field.getIsHidden() != null ? field.getIsHidden() : false));
+        field.setMaskingPattern(request.getMaskingPattern() != null ? request.getMaskingPattern() : (isUpdate && field.getMaskingPattern() != null ? field.getMaskingPattern() : "GENERIC"));
 
         // Node Transfer Logic: Allow moving or specifying field to another Classification Node or Domain Level
         if (Boolean.TRUE.equals(request.getIsDomainField())) {
@@ -488,6 +494,7 @@ public class FieldDefinitionService {
         java.util.Map<String, Object> map = new java.util.HashMap<>();
         map.put("id", field.getId());
         map.put("name", field.getName());
+        map.put("hint", field.getHint());
         map.put("key", field.getKey());
         map.put("type", field.getType());
         map.put("required", field.getRequired());
@@ -497,9 +504,16 @@ public class FieldDefinitionService {
         map.put("isEncrypted", field.getIsEncrypted());
         map.put("isReadOnly", field.getIsReadOnly());
         map.put("isHidden", field.getIsHidden());
+        map.put("maskingPattern", field.getMaskingPattern() != null ? field.getMaskingPattern() : "GENERIC");
         map.put("isImmutable", field.getIsImmutable());
+        map.put("approvalStatus", field.getApprovalStatus() != null ? field.getApprovalStatus() : "ACTIVE");
+        map.put("isPendingApproval", Boolean.TRUE.equals(field.getIsPendingApproval()));
+        if (field.getApprovalRequestId() != null) {
+            map.put("approvalRequestId", field.getApprovalRequestId());
+        }
         map.put("order", field.getOrder());
         if (field.getFieldGroup() != null) {
+            map.put("fieldGroupId", field.getFieldGroup().getId());
             map.put("group", field.getFieldGroup().getName());
         }
         return map;
@@ -592,11 +606,7 @@ public class FieldDefinitionService {
 
         }
 
-        java.util.Map<String, Object> beforeState = new java.util.HashMap<>();
-        beforeState.put("id", field.getId());
-        beforeState.put("name", field.getName());
-        beforeState.put("key", field.getKey());
-        beforeState.put("type", field.getType());
+        java.util.Map<String, Object> beforeState = toStateMap(field);
 
         populateFieldProperties(field, request, true);
         
@@ -726,7 +736,18 @@ public class FieldDefinitionService {
             return Integer.compare(o1, o2);
         });
 
-        populatePendingApprovalStatus(node.getDomain().getId(), effectiveFields);
+        UUID domainId = null;
+        if (node != null && node.getDomain() != null) {
+            domainId = node.getDomain().getId();
+        } else {
+            Domain domain = domainRepository.findById(nodeId).orElse(null);
+            if (domain != null) {
+                domainId = domain.getId();
+            }
+        }
+        if (domainId != null) {
+            populatePendingApprovalStatus(domainId, effectiveFields);
+        }
         return effectiveFields;
     }
 
@@ -734,51 +755,62 @@ public class FieldDefinitionService {
     public Page<FieldDefinition> getEffectiveFieldsPage(UUID nodeId, Pageable pageable) {
         ClassificationNode node = nodeRepository.findById(nodeId)
                 .orElseThrow(() -> new RuntimeException("Node not found"));
-        Page<FieldDefinition> page = fieldRepository.findEffectiveFieldsWithPagination(nodeId, node.getDomain().getId(), pageable);
-        populatePendingApprovalStatus(node.getDomain().getId(), page.getContent());
-        return page;
+        List<FieldDefinition> allFields = getEffectiveFields(nodeId);
+        int page = pageable.getPageNumber();
+        int size = pageable.getPageSize();
+        int start = Math.min(page * size, allFields.size());
+        int end = Math.min((page + 1) * size, allFields.size());
+        List<FieldDefinition> content = allFields.subList(start, end);
+        return new org.springframework.data.domain.PageImpl<>(content, pageable, allFields.size());
     }
     
     @Transactional(readOnly = true)
     public List<FieldDefinition> getDomainFields(UUID domainId) {
-        List<FieldDefinition> list = fieldRepository.findDomainFieldsWithSort(domainId);
+        List<FieldDefinition> dbList = fieldRepository.findDomainFieldsWithSort(domainId);
+        List<FieldDefinition> list = new java.util.ArrayList<>(dbList);
         populatePendingApprovalStatus(domainId, list);
         return list;
     }
 
     private void populatePendingApprovalStatus(UUID domainId, List<FieldDefinition> fields) {
-        if (fields == null || fields.isEmpty() || approvalRequestRepository == null) return;
+        if (fields == null || approvalRequestRepository == null) return;
         List<ApprovalRequest> pendingRequests = approvalRequestRepository.findByStatus("PENDING");
         if (pendingRequests == null || pendingRequests.isEmpty()) return;
 
-        Set<String> pendingFieldKeys = new HashSet<>();
-        Set<UUID> pendingFieldIds = new HashSet<>();
+        Map<UUID, UUID> fieldIdToReqId = new HashMap<>();
+        Map<String, UUID> keyToReqId = new HashMap<>();
 
         for (ApprovalRequest req : pendingRequests) {
-            if (req.getTargetId() != null) {
-                pendingFieldIds.add(req.getTargetId());
-            }
             if (req.getChanges() != null && !req.getChanges().isBlank()) {
                 try {
                     JsonNode json = objectMapper.readTree(req.getChanges());
+                    
                     if (json.has("fieldId")) {
-                        try { pendingFieldIds.add(UUID.fromString(json.get("fieldId").asText())); } catch (Exception ignored) {}
+                        try {
+                            UUID fId = UUID.fromString(json.get("fieldId").asText());
+                            fieldIdToReqId.put(fId, req.getId());
+                        } catch (Exception ignored) {}
                     }
-                    if (json.has("fieldKey")) {
-                        pendingFieldKeys.add(json.get("fieldKey").asText());
-                    }
-                    if (json.has("key")) {
-                        pendingFieldKeys.add(json.get("key").asText());
+
+                    String key = json.has("key") ? json.get("key").asText() : (json.has("fieldKey") ? json.get("fieldKey").asText() : null);
+                    if (key != null) {
+                        keyToReqId.put(key, req.getId());
                     }
                 } catch (Exception ignored) {}
             }
         }
 
         for (FieldDefinition f : fields) {
-            if ((f.getId() != null && pendingFieldIds.contains(f.getId())) ||
-                (f.getKey() != null && pendingFieldKeys.contains(f.getKey()))) {
+            UUID reqId = null;
+            if (f.getId() != null && fieldIdToReqId.containsKey(f.getId())) {
+                reqId = fieldIdToReqId.get(f.getId());
+            } else if (f.getKey() != null && keyToReqId.containsKey(f.getKey())) {
+                reqId = keyToReqId.get(f.getKey());
+            }
+            if (reqId != null) {
                 f.setApprovalStatus("PENDING_APPROVAL");
                 f.setIsPendingApproval(true);
+                f.setApprovalRequestId(reqId);
             }
         }
     }

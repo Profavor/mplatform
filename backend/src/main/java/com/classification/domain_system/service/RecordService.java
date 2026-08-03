@@ -39,14 +39,35 @@ public class RecordService {
             boolean modified = false;
 
             for (FieldDefinition field : fields) {
-                if (Boolean.TRUE.equals(field.getIsEncrypted()) && dataMap.containsKey(field.getKey())) {
-                    Object rawValObj = dataMap.get(field.getKey());
-                    if (rawValObj instanceof String rawVal && !rawVal.isBlank()) {
-                        String encrypted = fieldEncryptionService.encrypt(rawVal);
-                        String blindIndex = fieldEncryptionService.generateBlindIndex(rawVal);
-                        dataMap.put(field.getKey(), encrypted);
-                        dataMap.put("_idx_" + field.getKey(), blindIndex);
-                        modified = true;
+                if (Boolean.TRUE.equals(field.getIsEncrypted()) && field.getKey() != null) {
+                    String matchedKey = null;
+                    for (String k : dataMap.keySet()) {
+                        if (k.equalsIgnoreCase(field.getKey())) {
+                            matchedKey = k;
+                            break;
+                        }
+                    }
+                    if (matchedKey != null) {
+                        Object rawValObj = dataMap.get(matchedKey);
+                        if (rawValObj instanceof String rawVal && !rawVal.isBlank()) {
+                            // 1. If rawVal contains masking asterisks '*', do not re-encrypt masked string
+                            if (rawVal.contains("*")) {
+                                continue;
+                            }
+                            // 2. If rawVal is ALREADY valid ciphertext, do not double encrypt
+                            String testDecrypt = fieldEncryptionService.decrypt(rawVal);
+                            if (!testDecrypt.equals(rawVal)) {
+                                String blindIndex = fieldEncryptionService.generateBlindIndex(testDecrypt);
+                                dataMap.put("_idx_" + field.getKey(), blindIndex);
+                                continue;
+                            }
+                            // 3. rawVal is new PLAINTEXT typed by user -> encrypt it!
+                            String encrypted = fieldEncryptionService.encrypt(rawVal);
+                            String blindIndex = fieldEncryptionService.generateBlindIndex(rawVal);
+                            dataMap.put(matchedKey, encrypted);
+                            dataMap.put("_idx_" + field.getKey(), blindIndex);
+                            modified = true;
+                        }
                     }
                 }
             }

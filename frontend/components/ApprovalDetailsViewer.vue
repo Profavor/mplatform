@@ -133,8 +133,30 @@
                         <template v-for="f in group.fields" :key="f.key">
                           <div v-if="request.targetType !== 'RECORD_UPDATE' || (f.val.isChanged || (f.val.before !== f.val.after))" :style="{ gridColumn: 'span ' + (f.gridWidth || 12), border: '1px solid var(--va-background-border)', borderRadius: '8px', overflow: 'hidden', background: 'var(--va-background-element)', boxShadow: 'var(--va-box-shadow)' }">
                             <div style="background: var(--va-background-secondary); padding: 0.75rem 1rem; border-bottom: 1px solid var(--va-background-border); font-weight: 600; font-size: 0.85rem; color: var(--va-text-primary); display: flex; justify-content: space-between; align-items: center;">
-                              {{ f.label }}
-                              <va-badge v-if="request.targetType === 'RECORD_UPDATE' && f.val.isChanged" color="warning" size="small">{{ t('modified') }}</va-badge>
+                              <span>
+                                {{ f.label }}
+                                <va-icon v-if="f.isEncrypted" name="lock" size="small" color="warning" style="margin-left: 4px;" :title="t('encrypted_field') || '암호화 필드'" />
+                              </span>
+                              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <va-button
+                                  v-if="f.isEncrypted && hasPermission('record:unmask') && !decryptedValues[f.key]"
+                                  size="small"
+                                  preset="plain"
+                                  icon="visibility"
+                                  color="warning"
+                                  :loading="decryptingFields[f.key]"
+                                  @click="requestDecryptApprovalField(f.key)"
+                                >{{ t('view_original') || '원본 보기' }}</va-button>
+                                <va-button
+                                  v-if="f.isEncrypted && decryptedValues[f.key]"
+                                  size="small"
+                                  preset="plain"
+                                  icon="visibility_off"
+                                  color="secondary"
+                                  @click="hideDecryptedField(f.key)"
+                                >{{ t('hide_original') || '원본 숨기기' }}</va-button>
+                                <va-badge v-if="request.targetType === 'RECORD_UPDATE' && f.val.isChanged" color="warning" size="small">{{ t('modified') }}</va-badge>
+                              </div>
                             </div>
                             <div style="padding: 0;">
                               <template v-if="request.targetType === 'RECORD_UPDATE'">
@@ -149,7 +171,7 @@
                                           </a>
                                         </div>
                                       </template>
-                                       <template v-else>{{ formatValue(f.val.before) }}</template>
+                                      <template v-else>{{ formatValue(f.val.before, f.isEncrypted) }}</template>
                                     </div>
                                   </div>
                                   <div style="background-color: rgba(67, 160, 71, 0.1); padding: 0.75rem 1rem; font-size: 0.85rem; display: flex; align-items: flex-start; gap: 0.5rem;">
@@ -162,7 +184,7 @@
                                           </a>
                                         </div>
                                       </template>
-                                      <template v-else>{{ formatValue(f.val.after) }}</template>
+                                      <template v-else>{{ decryptedValues[f.key] || formatValue(f.val.after, f.isEncrypted) }}</template>
                                     </div>
                                   </div>
                                 </div>
@@ -174,7 +196,7 @@
                                       </a>
                                     </div>
                                   </template>
-                                  <template v-else>{{ formatValue(f.val.before) }}</template>
+                                  <template v-else>{{ decryptedValues[f.key] || formatValue(f.val.before, f.isEncrypted) }}</template>
                                 </div>
                               </template>
                               <template v-else>
@@ -186,7 +208,7 @@
                                       </a>
                                     </div>
                                   </template>
-                                  <template v-else>{{ formatValue(f.val) }}</template>
+                                  <template v-else>{{ decryptedValues[f.key] || formatValue(f.val) }}</template>
                                 </div>
                               </template>
                             </div>
@@ -290,40 +312,7 @@
       <!-- Approval Line Status -->
       <div v-if="request?.steps && request.steps.length > 0" style="margin-bottom: 1.5rem; padding-top: 0.5rem; border-top: 1px solid var(--va-background-border);">
         <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem; color: var(--va-text-primary);">{{ t('approvalLineStatus') }}</div>
-        <div v-for="group in getGroupedSteps(request)" :key="group.order" style="margin-bottom: 0.25rem;">
-          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-            <div v-for="s in group.steps" :key="s.id" style="flex: 1; min-width: 200px; background: var(--va-background-element); padding: 0.5rem; border-radius: 4px; font-size: 0.85rem; border: 1px solid var(--va-background-border);">
-              <div style="display: flex; justify-content: space-between; margin-bottom: 4px; align-items: center;">
-                <span style="font-weight: bold; color: var(--va-primary); display: flex; align-items: center;">
-                  <span style="display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; background-color:var(--va-primary); color:white; border-radius:50%; font-size:0.75rem; margin-right:6px; font-weight:bold;">{{ s.stepOrder }}</span>
-                  {{ getStepTypeLabel(s) }} - {{ formatStepAssignee(s, request) }}
-                </span>
-                <va-badge :color="s.stepType === 'DRAFT' ? 'info' : (s.status === 'APPROVED' ? 'success' : (s.status === 'REJECTED' ? 'danger' : 'warning'))" size="small">{{ getStepStatusLabel(s) }}</va-badge>
-              </div>
-              <div v-if="s.status === 'APPROVED' || s.status === 'REJECTED' || s.stepType === 'DRAFT'" style="font-size: 0.75rem; color: var(--va-text-secondary); margin-bottom: 4px; text-align: right;">
-                {{ formatDate(s.updatedAt) }} {{ t('processed') }}
-              </div>
-              <div v-if="s.comment" style="color: var(--va-text-primary); background: var(--va-background-secondary); padding: 6px 10px; border-radius: 4px; border-left: 3px solid var(--va-primary); font-style: italic; white-space: pre-wrap; word-break: break-word; line-height: 1.5;">
-                "{{ s.comment }}"
-              </div>
-              <div v-else-if="s.status !== 'PENDING' && s.status !== 'WAITING'" style="color: var(--va-text-secondary); font-style: italic;">
-                {{ t('noComment') }}
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div v-if="(request?.observerNames && request.observerNames.length > 0) || getObserversList(request?.observerIds).length > 0" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed var(--va-background-border);">
-          <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--va-text-secondary);">{{ t('observers') }}</div>
-          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-            <template v-if="request?.observerNames && request.observerNames.length > 0">
-              <va-badge v-for="(obsName, idx) in request.observerNames" :key="idx" color="info" preset="secondary">{{ obsName }}</va-badge>
-            </template>
-            <template v-else>
-              <va-badge v-for="obsId in getObserversList(request?.observerIds)" :key="obsId" color="info" preset="secondary">{{ getUserName(obsId) }}</va-badge>
-            </template>
-          </div>
-        </div>
+        <ApprovalSteps :request="request" />
       </div>
     </template>
   </div>
@@ -333,6 +322,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useCookie } from '#app'
 import { useI18n } from 'vue-i18n'
+import ApprovalSteps from './ApprovalSteps.vue'
 const { t } = useI18n()
 
 const isRequestedDataExpanded = ref(true)
@@ -559,6 +549,12 @@ const schemaPropertyDiffs = computed(() => {
       afterVal: formatName(reqObj.name),
     },
     {
+      key: 'hint',
+      label: currentLocale.value === 'en' ? 'Hint / Tooltip' : '힌트 / 툴팁',
+      beforeVal: formatName(beforeObj.hint),
+      afterVal: formatName(reqObj.hint),
+    },
+    {
       key: 'key',
       label: currentLocale.value === 'en' ? 'Field Key' : '필드 키',
       beforeVal: beforeObj.key || '-',
@@ -602,9 +598,15 @@ const schemaPropertyDiffs = computed(() => {
     },
     {
       key: 'isEncrypted',
-      label: currentLocale.value === 'en' ? 'Encrypted' : '암호화 여부',
+      label: t('encrypted') || (currentLocale.value === 'en' ? 'Encrypted' : '암호화 여부'),
       beforeVal: formatBool(beforeObj.isEncrypted),
       afterVal: formatBool(reqObj.isEncrypted),
+    },
+    {
+      key: 'maskingPattern',
+      label: t('masking_pattern'),
+      beforeVal: beforeObj.maskingPattern ? t(`masking_pattern_${beforeObj.maskingPattern.toLowerCase()}`) : '-',
+      afterVal: reqObj.maskingPattern ? t(`masking_pattern_${reqObj.maskingPattern.toLowerCase()}`) : '-',
     }
   ]
 
@@ -649,21 +651,61 @@ const schemaNewFieldProps = computed(() => {
 
   return [
     { key: 'name', label: currentLocale.value === 'en' ? 'Field Name' : '필드명', val: formatName(reqObj.name) },
+    { key: 'hint', label: currentLocale.value === 'en' ? 'Hint / Tooltip' : '힌트 / 툴팁', val: formatName(reqObj.hint) },
     { key: 'key', label: currentLocale.value === 'en' ? 'Field Key' : '필드 키', val: reqObj.key || parsed.fieldKey || '-' },
     { key: 'type', label: currentLocale.value === 'en' ? 'Data Type' : '데이터 타입', val: reqObj.type || parsed.newFieldType || '-' },
     { key: 'required', label: currentLocale.value === 'en' ? 'Required' : '필수 입력 여부', val: formatBool(reqObj.required) },
     { key: 'group', label: currentLocale.value === 'en' ? 'Field Group' : '필드 그룹', val: formatGroup(reqObj.fieldGroupId || reqObj.fieldGroup) },
     { key: 'order', label: currentLocale.value === 'en' ? 'Display Order' : '표시 순서', val: reqObj.order ?? '-' },
     { key: 'searchable', label: currentLocale.value === 'en' ? 'Searchable' : '검색 가능 여부', val: formatBool(reqObj.isSearchable) },
-    { key: 'multiValue', label: currentLocale.value === 'en' ? 'Allow Multi-Value' : '다중값 허용', val: formatBool(reqObj.isMultiValue) }
+    { key: 'multiValue', label: currentLocale.value === 'en' ? 'Allow Multi-Value' : '다중값 허용', val: formatBool(reqObj.isMultiValue) },
+    { key: 'maskingPattern', label: t('masking_pattern'), val: reqObj.maskingPattern || '-' }
   ]
 })
 
 import { useRoleStore } from '~/stores/useRoleStore'
 import { useUserStore } from '~/stores/useUserStore'
+import { usePermission } from '~/composables/usePermission'
 
 const roleStore = useRoleStore()
 const userStore = useUserStore()
+const { hasPermission } = usePermission()
+
+const decryptedValues = ref({})
+const decryptingFields = ref({})
+const decryptTimers = ref({})
+
+const requestDecryptApprovalField = async (fieldKey) => {
+  if (!props.request || !props.request.id) return
+  decryptingFields.value[fieldKey] = true
+  try {
+    const res = await $fetch(`/api/sensitive-data/approval/${props.request.id}/decrypt`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token.value}` },
+      body: { fieldKeys: [fieldKey] }
+    })
+    if (res && res[fieldKey]) {
+      decryptedValues.value[fieldKey] = res[fieldKey]
+      if (decryptTimers.value[fieldKey]) clearTimeout(decryptTimers.value[fieldKey])
+      decryptTimers.value[fieldKey] = setTimeout(() => {
+        hideDecryptedField(fieldKey)
+      }, 30000)
+    }
+  } catch (e) {
+    console.error('Failed to decrypt field:', e)
+    init({ message: t('decrypt_failed') || '복호화 실패', color: 'danger' })
+  } finally {
+    decryptingFields.value[fieldKey] = false
+  }
+}
+
+const hideDecryptedField = (fieldKey) => {
+  if (decryptTimers.value[fieldKey]) {
+    clearTimeout(decryptTimers.value[fieldKey])
+    delete decryptTimers.value[fieldKey]
+  }
+  delete decryptedValues.value[fieldKey]
+}
 
 const loadRoleMap = async () => {
   await roleStore.dispatch('fetchRoles')
@@ -884,12 +926,13 @@ const getFilesList = (v) => {
   return []
 }
 
-const formatValue = (val) => {
+const formatValue = (val, isEncrypted) => {
   if (val === null || val === undefined || val === '') return '-';
   let obj = val;
   if (typeof val === 'string') {
-    if (val.trim().startsWith('{')) {
-      try { obj = JSON.parse(val); } catch (e) { return val; }
+    const trimmed = val.trim();
+    if (trimmed.startsWith('{')) {
+      try { obj = JSON.parse(trimmed); } catch (e) { return val; }
     } else {
       return val;
     }
@@ -935,6 +978,7 @@ const getGroupedChangesList = (changesString, targetType) => {
   const normalizeData = (dataObj) => {
     const normalized = {};
     Object.keys(dataObj).forEach(k => {
+      if (k.toLowerCase().startsWith('_idx_')) return;
       normalized[k.toUpperCase()] = dataObj[k];
     });
     Object.values(fieldNameMap.value || {}).forEach(f => {
@@ -968,6 +1012,7 @@ const getGroupedChangesList = (changesString, targetType) => {
   } else {
     keysToProcess = Object.keys(parsed)
   }
+  keysToProcess = keysToProcess.filter(k => !k.toLowerCase().startsWith('_idx_'))
   
   keysToProcess.forEach(key => {
     let valBefore = null
@@ -1141,32 +1186,16 @@ const getGroupedChangesList = (changesString, targetType) => {
 
       if (strBefore !== strAfter) {
         if (f.type === 'FILE') {
-          // 파일 타입 필드는 after에 유효한 파일 정보가 있으면 변경으로 판단
           if (strAfter !== '' && strAfter !== '-') {
             isActuallyChanged = true;
           }
         } else {
-          // 일반 텍스트/다국어 필드는 before 객체에 키가 실제로 존재하고 strBefore가 유효할 때만 변경으로 판단
-          const uKey = String(key).toUpperCase();
-          const fKey = f && f.key ? String(f.key).toUpperCase() : uKey;
-          const bObj = parsed.before || {};
-          const bKeys = Object.keys(bObj);
-          const hasKeyInBefore = bKeys.some(bk => {
-            const uppercaseBk = String(bk).toUpperCase();
-            return uppercaseBk === uKey || uppercaseBk === fKey;
-          });
-
-          if (hasKeyInBefore && strBefore !== '') {
-            const multiBefore = parseMultilingual(valBefore);
-            const multiAfter = parseMultilingual(valAfter);
-            if (multiBefore && multiAfter && String(multiBefore).trim() === String(multiAfter).trim()) {
-              isActuallyChanged = false;
-            } else {
-              isActuallyChanged = true;
-            }
-          } else {
-            // before 객체에 없었던 텍스트 필드는 수정한 대상이 아님!
+          const multiBefore = parseMultilingual(valBefore);
+          const multiAfter = parseMultilingual(valAfter);
+          if (multiBefore && multiAfter && String(multiBefore).trim() === String(multiAfter).trim()) {
             isActuallyChanged = false;
+          } else {
+            isActuallyChanged = true;
           }
         }
       }
@@ -1180,7 +1209,7 @@ const getGroupedChangesList = (changesString, targetType) => {
       finalVal = displayValAfter || '-'
     }
     
-    sectorObj.groups.get(gKey).fields.push({ key, label: translate(f.name, key, key), val: finalVal, gridWidth: f.gridWidth, type: f.type, order: f.order || 0 })
+    sectorObj.groups.get(gKey).fields.push({ key: f.key || key, label: translate(f.name, key, key), val: finalVal, gridWidth: f.gridWidth, type: f.type, isEncrypted: Boolean(f.isEncrypted), order: f.order || 0 })
   })
   
   const sectorsArray = Array.from(map.values())

@@ -15,7 +15,7 @@ class FieldEncryptionServiceTest {
     void setUp() {
         String secretKey = "12345678901234567890123456789012";
         fieldEncryptionService = new FieldEncryptionService(secretKey);
-        dataMaskingService = new DataMaskingService();
+        dataMaskingService = new DataMaskingService(fieldEncryptionService);
     }
 
     @Test
@@ -26,6 +26,8 @@ class FieldEncryptionServiceTest {
 
         assertThat(encrypted).isNotNull();
         assertThat(encrypted).isNotEqualTo(originalText);
+        assertThat(fieldEncryptionService.isEncrypted(encrypted)).isTrue();
+        assertThat(fieldEncryptionService.isEncrypted(originalText)).isFalse();
 
         String decrypted = fieldEncryptionService.decrypt(encrypted);
         assertThat(decrypted).isEqualTo(originalText);
@@ -68,5 +70,24 @@ class FieldEncryptionServiceTest {
         String masked = dataMaskingService.maskGeneric(text);
 
         assertThat(masked).isEqualTo("12******");
+    }
+
+    @Test
+    @DisplayName("testDataMasking_Card: 1234-5678-9012-3456 -> 1234-****-****-3456")
+    void testDataMasking_Card() {
+        String cardNo = "1234-5678-9012-3456";
+        String masked = dataMaskingService.maskCard(cardNo);
+
+        assertThat(masked).isEqualTo("1234-****-****-3456");
+    }
+
+    @Test
+    @DisplayName("testDecrypt_PlaintextWithHyphenDoesNotThrowIllegalArgumentException")
+    void testDecrypt_PlaintextWithHyphenDoesNotThrowIllegalArgumentException() {
+        String plainRrn = "900101-1234567-900101-1234567";
+        assertThat(fieldEncryptionService.isEncrypted(plainRrn)).isFalse();
+
+        String result = fieldEncryptionService.decrypt(plainRrn);
+        assertThat(result).isEqualTo(plainRrn);
     }
 }

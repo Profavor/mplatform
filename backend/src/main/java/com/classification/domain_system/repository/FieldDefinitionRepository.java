@@ -20,6 +20,8 @@ public interface FieldDefinitionRepository extends JpaRepository<FieldDefinition
 
     List<FieldDefinition> findByType(String type);
 
+    List<FieldDefinition> findByKey(String key);
+
     @org.springframework.data.jpa.repository.Query(value = "SELECT f FROM FieldDefinition f LEFT JOIN f.fieldGroup fg LEFT JOIN fg.sector s WHERE (f.definedAtNode.id = :nodeId OR f.domain.id = :domainId) AND (f.isRemoved = false OR f.isRemoved IS NULL) ORDER BY CASE WHEN f.domain IS NOT NULL THEN 0 ELSE 1 END ASC, COALESCE(s.sortOrder, 9999) ASC, COALESCE(fg.sortOrder, 9999) ASC, f.order ASC",
             countQuery = "SELECT count(f) FROM FieldDefinition f WHERE (f.definedAtNode.id = :nodeId OR f.domain.id = :domainId) AND (f.isRemoved = false OR f.isRemoved IS NULL)")
     org.springframework.data.domain.Page<FieldDefinition> findEffectiveFieldsWithPagination(@org.springframework.data.repository.query.Param("nodeId") UUID nodeId, @org.springframework.data.repository.query.Param("domainId") UUID domainId, org.springframework.data.domain.Pageable pageable);

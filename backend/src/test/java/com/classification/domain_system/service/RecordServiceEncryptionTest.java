@@ -46,6 +46,7 @@ class RecordServiceEncryptionTest {
         field.setIsEncrypted(true);
 
         when(fieldDefinitionService.getEffectiveFields(nodeId)).thenReturn(List.of(field));
+        when(fieldEncryptionService.decrypt(anyString())).thenAnswer(invocation -> invocation.getArgument(0)); // return plaintext
         when(fieldEncryptionService.encrypt(anyString())).thenThrow(new RuntimeException("Encryption error"));
 
         assertThrows(RuntimeException.class, () -> {

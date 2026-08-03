@@ -8,6 +8,7 @@ import java.util.Map;
 @Data
 public class FieldDefinitionRequest {
     private Map<String, String> name;
+    private Map<String, String> hint;
     private UUID fieldGroupId;
     private String key;
     private String type;
@@ -26,6 +27,7 @@ public class FieldDefinitionRequest {
     private Boolean isReadOnly;
     private Boolean isImmutable;
     private Boolean isHidden;
+    private String maskingPattern;
     private UUID targetNodeId;
     private Boolean isDomainField;
     private String reason;
