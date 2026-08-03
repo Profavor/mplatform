@@ -63,6 +63,7 @@
 | id | UUID/PK | 필드 ID |
 | defined_at_node_id | UUID/FK | 이 필드를 최초로 정의한 노드 |
 | name | JSONB | 필드명 다국어 맵 |
+| hint | JSONB | 필드 툴팁/도움말 다국어 맵 |
 | key | string | 시스템용 식별자 (snake_case) |
 | type | enum | 필드 타입 (`TEXT`, `NUMBER`, `DATE`, `TIME`, `I18N`, `RICH_TEXT`, `SELECT`, `MULTI_SELECT`, `TABLE`, `FILE`, `REFERENCE`) |
 | options | JSON, nullable | 타입별 세부 설정 |
@@ -75,6 +76,7 @@
 | is_encrypted | boolean, default false | 암호화 저장 여부 |
 | is_searchable | boolean, default false | 검색 대상 지정 여부 |
 | is_highlighted | boolean, default false | 강조 표시 여부 |
+| masking_pattern | string(50), nullable | 개인정보 마스킹 정규식 패턴 (예: `RRN`, `PHONE`, `CARD`) |
 | created_at / updated_at | datetime | |
 
 ### 3.4 record — 레코드 본체
@@ -126,3 +128,18 @@
 | retry_count | int, default 0 | 현재까지 재시도 횟수 |
 | next_retry_at | datetime, nullable | 지수 백오프 적용 다음 재시도 예정 시각 |
 | created_at | datetime | 생성 일시 |
+
+### 3.7 sensitive_data_access_log *(개인정보 열람 감사 로그)*
+마스킹된 개인정보 필드의 원본 데이터를 조회/열람할 때마다 기록되는 시스템 감사(Audit) 로그.
+
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | UUID/PK | 로그 ID |
+| user_id | string(100) | 열람자 ID |
+| username | string(100) | 열람자 이름 |
+| target_type | string(50) | 열람 대상 유형 (예: `RECORD`) |
+| target_id | UUID | 열람 대상 레코드 ID |
+| field_keys | string(500) | 열람한 민감 데이터 필드 키 목록 |
+| access_reason | string(500) | 필수 열람 사유 |
+| ip_address | string(50) | 열람자 IP 주소 |
+| accessed_at | datetime | 열람 일시 |

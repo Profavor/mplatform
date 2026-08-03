@@ -44,7 +44,7 @@ graph TD
   - **Language**: TypeScript (^5.9.3)
   - **UI Library**: Vuestic UI (^1.10.3), TailwindCSS
   - **Data Grid & Chart**: AG Grid Vue3 / Enterprise (^34.3.1), Apache ECharts (^5.6.0)
-  - **i18n**: @nuxtjs/i18n (한국어 기본, 영어 지원)
+  - **i18n**: @nuxtjs/i18n (한국어 기본, 영어 지원) 및 서버/클라이언트 `Accept-Language` 자동 주입
 - **Backend**
   - **Framework**: Spring Boot 4.1.0
   - **Language**: Java 17
@@ -99,9 +99,10 @@ npm run dev
 - **Excel 대량 업로드 사전 검증 리포트**: Excel 파일 업로드 시 `POST /records/batch-validate` 사전 검증을 거쳐, 행별 위반 필드·사유·입력값을 표로 리포팅하고 유효한 행만 선택하여 결재 상신 가능 (`ExcelUploader.vue`).
 - **Matching / 중복 검사 & 피드백 루프**: 정확(EXACT) 및 퍼지(FUZZY) 매칭. 스튜어드의 매칭 검토 이력(`CONFIRMED_MERGE`, `REJECTED`)을 통계 분석하여 `similarityThreshold` 권장 조정을 제공하는 피드백 루프 API 구현 (`MatchFeedbackService`).
 - **Golden Record 병합 & Un-merge (병합 해제)**: 소스 시스템 우선순위(`SourcePriority`) 기반 필드 단위 서바이버십 병합 및 출처 기록(`RecordFieldSource`). 잘못 병합된 레코드를 복원하는 **Un-merge API**(`POST /api/records/{id}/unmerge`) 및 UI 버튼 지원.
+- **개인정보 마스킹 및 보안(Sensitive Data Governance)**: 주민등록번호(RRN/SSN), 전화번호, 카드번호 등 정규식 기반 마스킹 패턴 지원 및 마스킹 해제(원본 열람) 시 필수 접근 사유 입력과 **감사 로그(SensitiveDataAccessLog)** 기록 체계 구현.
 - **연계(Integration) 지수 백오프 & Dead-Letter Queue (DLQ)**: 연계 실패 시 지수 백오프($2^{retryCount}$)에 따른 자동 재시도 시각 계산, 1분 주기 스케줄러 자동 재시도(`IntegrationRetryScheduler`), 최대 재시도 초과 건 `DEAD_LETTER` 격리 큐 전환 및 수동/일괄 재시도 API 제공.
 - **EffectiveFields 캐싱 & 스키마 무효화**: `@Cacheable` 기반 유효 필드 수집 결과 캐싱 및 스키마 변경 시 `@CacheEvict` 자동 무효화. Redis 부재 시 In-Memory 로컬 캐시 자동 작동.
-- **Record 승인 워크플로우 & 감사(Audit)**: 레코드 다단계 결재(DRAFT, PENDING_APPROVAL, APPROVED, REJECTED), `RecordHistory` 버전 관리 및 `SchemaHistory` 스냅샷 이력.
+- **Record 승인 워크플로우 & 감사(Audit)**: 레코드 다단계 결재(DRAFT, PENDING_APPROVAL, APPROVED, REJECTED), 관리자(Admin) 개입 결재 승인/반려 로직, `RecordHistory` 버전 관리 및 `SchemaHistory` 스냅샷 이력.
 
 ## 🧪 Testing
 백엔드는 JUnit 5 기반으로 서비스, 컨트롤러, 엔티티 단위 테스트(47개 이상 클래스)가 완벽하게 구축되어 있습니다.

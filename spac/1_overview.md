@@ -30,3 +30,4 @@
 | **EffectiveField** | 특정 노드 기준으로 자신 + 상위 조상 노드들로부터 상속받은 최종 유효 필드 집합. (Redis/Local In-Memory 캐싱 적용) |
 | **DqScoreSnapshot** | DQ 스캔(크론/수동) 실행 시점의 도메인 품질 점수 및 위반 건수 시계열 기록. |
 | **Dead-Letter Queue (DLQ)** | 연계(Integration) 실패 시 지수 백오프 재시도 후 최대 횟수를 초과한 실패 건을 격리 관리하는 큐. |
+| **Sensitive Data Governance** | 개인정보 마스킹(RRN, 전화번호, 카드번호 등) 및 원본 열람 시 **SensitiveDataAccessLog**를 통한 접근 감사(Audit) 기록 체계. |

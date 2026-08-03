@@ -42,3 +42,20 @@
 - **자동 & 수동 재시도 (IntegrationRetryScheduler):**
   - `IntegrationRetryScheduler`가 1분 간격으로 `nextRetryAt`이 지난 `FAIL` 건을 자동 재시도한다.
   - 관리자 전용 API(`GET /dead-letter`, `POST /{logId}/retry`, `POST /dead-letter/retry-all`)를 통해 수동 개별/일괄 재시도를 지원한다.
+
+---
+
+## 4.5 개인정보 마스킹 및 접근 권한 관리
+- **정규식 기반 마스킹 (Masking Policy):**
+  - 주민등록번호(RRN/SSN), 전화번호(PHONE), 카드번호(CARD) 등 주요 민감 정보에 대해 동적 마스킹을 적용한다.
+  - `maskingFormatter.ts`를 통해 클라이언트 및 서버 단에서 원본 데이터를 안전하게 치환(예: `123456-*******`)하여 화면에 노출한다.
+- **민감 데이터 원본 열람 및 감사 로그 (Audit Log):**
+  - 업무상 반드시 원본 데이터 확인이 필요한 경우, `access_reason`(접근 사유)을 필수 입력받아 `SensitiveDataAccessLog`에 기록한다.
+  - 열람자 정보, 대상 레코드, 열람한 필드, 접속 IP 등을 감사(Audit) 기록으로 남겨 보안 컴플라이언스를 준수한다.
+
+---
+
+## 4.6 결재(Approval) 워크플로우 관리자 개입
+- **관리자(Admin) 개입 로직:**
+  - 결재 단계(`ApprovalStep`)에 지정된 담당자(`isAssignee` 또는 `hasRole`)가 부재 중이거나 시스템적 처리가 필요한 경우, 최고 관리자(Admin) 권한을 가진 사용자가 결재를 강제 승인(`admin-approve`) 하거나 반려(`admin-reject`)할 수 있다.
+  - 해당 내역은 이력에 별도로 기록되어 추적 가능하다.
