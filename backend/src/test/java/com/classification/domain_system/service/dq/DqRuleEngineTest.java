@@ -12,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.core.env.Environment;
 
 import java.util.*;
 
@@ -27,6 +28,7 @@ class DqRuleEngineTest {
     @Mock private DqViolationRepository violationRepository;
     @Mock private RecordRepository recordRepository;
     @Mock private JdbcTemplate jdbcTemplate;
+    @Mock private Environment environment;
 
     private DqRuleEngine engine;
     private UUID nodeId;
@@ -47,7 +49,7 @@ class DqRuleEngineTest {
                 new LengthEvaluator(),
                 new EnumEvaluator(),
                 new DateRangeEvaluator(),
-                new UniqueEvaluator(jdbcTemplate),
+                new UniqueEvaluator(jdbcTemplate, environment),
                 new CrossFieldEvaluator(),
                 new SpelEvaluator()
         );
@@ -578,7 +580,7 @@ class DqRuleEngineTest {
             DqRule rule = makeRule(DqRuleType.UNIQUE, DqSeverity.ERROR, null);
             setupFieldAndRule(field, rule);
 
-            when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), any(), any(), any(), eq(currentRecordId)))
+            when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), any(), any(), eq(currentRecordId)))
                     .thenReturn(0);
 
             DqEvaluationResult result = engine.evaluate(nodeId, "{\"emp_id\":\"TEST\"}", currentRecordId);

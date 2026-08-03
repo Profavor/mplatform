@@ -160,7 +160,11 @@ public class ApprovalController {
     public ResponseEntity<PageResponse<ApprovalRequest>> getPendingRequests(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
-        return ResponseEntity.ok(PageResponse.of(approvalService.getPendingRequests(PageRequest.of(page, size))));
+        var pageRes = approvalService.getPendingRequests(PageRequest.of(page, size));
+        if (pageRes.getContent() != null) {
+            pageRes.getContent().forEach(approvalService::maskChangesForRead);
+        }
+        return ResponseEntity.ok(PageResponse.of(pageRes));
     }
 
     @GetMapping("/all")
@@ -193,6 +197,9 @@ public class ApprovalController {
         }
         
         var resultPage = approvalService.getAllRequests(search, status, filterModel, PageRequest.of(page, size, sortObj));
+        if (resultPage.getContent() != null) {
+            resultPage.getContent().forEach(approvalService::maskChangesForRead);
+        }
         approvalService.enrichUserNames(resultPage.getContent());
         return ResponseEntity.ok(PageResponse.of(resultPage));
     }
@@ -216,6 +223,7 @@ public class ApprovalController {
         if (todoPage.getContent() != null) {
             todoPage.getContent().forEach(s -> {
                 if (s.getApprovalRequest() != null) {
+                    approvalService.maskChangesForRead(s.getApprovalRequest());
                     approvalService.enrichUserNames(s.getApprovalRequest());
                 }
             });
@@ -233,6 +241,9 @@ public class ApprovalController {
         String username = user != null ? user.getUsername() : requesterId;
 
         var myReqPage = approvalService.getMyRequests(targetRequesterId, username, PageRequest.of(page, size));
+        if (myReqPage.getContent() != null) {
+            myReqPage.getContent().forEach(approvalService::maskChangesForRead);
+        }
         approvalService.enrichUserNames(myReqPage.getContent());
         return ResponseEntity.ok(PageResponse.of(myReqPage));
     }
@@ -240,7 +251,10 @@ public class ApprovalController {
     @GetMapping("/{id}")
     public ResponseEntity<ApprovalRequest> getRequestById(@PathVariable UUID id) {
         var req = approvalService.getRequestById(id);
-        approvalService.enrichUserNames(req);
+        if (req != null) {
+            approvalService.maskChangesForRead(req);
+            approvalService.enrichUserNames(req);
+        }
         return ResponseEntity.ok(req);
     }
     

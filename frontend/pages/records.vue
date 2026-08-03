@@ -724,6 +724,28 @@ const currentUser = computed(() => {
   return null
 })
 
+const parseJwtUserId = (tStr) => {
+  if (!tStr) return null
+  try {
+    const base64Url = tStr.split('.')[1]
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''))
+    const parsed = JSON.parse(jsonPayload)
+    return parsed.userId || parsed.uuid || parsed.username || parsed.sub || null
+  } catch {
+    return null
+  }
+}
+
+const myUuid = computed(() => {
+  const u = currentUser.value
+  let uid = u?.id || u?.userId || u?.uuid || u?.username
+  if (!uid) {
+     uid = parseJwtUserId(token.value) || ''
+  }
+  return uid
+})
+
 const userList = ref([])
 
 const getUserName = (uuid, nameFallback) => {
@@ -2224,7 +2246,7 @@ const evalConditionRule = (field, formData) => {
 
 const saveEditedRecord = async () => {
   try {
-    let reqId = currentUser.value?.uuid
+    const reqId = myUuid.value
     const dataToSave = { ...selectedRecordData.value }
     for (const field of nodeFields.value) {
       if (field.type === 'FILE') {
@@ -2305,7 +2327,7 @@ const saveEditedRecord = async () => {
 
 const requestDeleteRecord = async () => {
   try {
-    let reqId = currentUser.value?.uuid
+    const reqId = myUuid.value
     const payload = { requesterId: reqId, data: "{}" }
     await $fetch(`/api/records/${selectedRecordId.value}/delete-request`, {
       method: 'POST',
@@ -2651,10 +2673,7 @@ const executePendingSave = async () => {
 const saveRecord = async () => {
   if (!selectedNode.value) return
   try {
-    let reqId = currentUser.value?.uuid
-    if (!reqId || reqId === 'test-admin-uuid') {
-       reqId = '123e4567-e89b-12d3-a456-426614174000' 
-    }
+    const reqId = myUuid.value
 
     const dataToSave = { ...recordFormData.value }
     for (const field of nodeFields.value) {

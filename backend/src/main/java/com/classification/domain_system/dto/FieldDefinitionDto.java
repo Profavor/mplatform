@@ -29,6 +29,7 @@ public class FieldDefinitionDto {
     private Boolean isReadOnly;
     private Boolean isImmutable;
     private Boolean isHidden;
+    private String maskingPattern;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

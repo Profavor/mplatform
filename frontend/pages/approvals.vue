@@ -445,11 +445,11 @@ const checkQueryForModal = async () => {
     const currentPendingStep = (enriched.steps || []).find(s => {
       if (s.status !== 'PENDING') return false
       if (myUuid.value && s.assigneeId && String(s.assigneeId) === String(myUuid.value)) return true
+      if (hasPermission('admin:write')) return true // Admin can proxy approve any pending step
       if (s.assigneeRole) {
         const stepRole = String(s.assigneeRole).toUpperCase()
         if (myUserRoles.some(r => String(r).toUpperCase() === stepRole)) return true
       }
-      if (enriched.status === 'PENDING' && s.stepOrder === enriched.currentStepOrder) return true
       return false
     })
 

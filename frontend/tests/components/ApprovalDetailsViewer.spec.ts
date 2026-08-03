@@ -113,4 +113,26 @@ describe('ApprovalDetailsViewer Component - RECORD_UPDATE Filtering Test', () =>
     expect(text).toContain('JOIN_DATE')
     expect(text).toContain('schema_change_comparison')
   })
+
+  it('마스킹된 주민등록번호(860104-1******)가 정상적으로 표출되어야 함', () => {
+    const mockMaskedRequest = {
+      id: 'req-masked-1',
+      targetType: 'RECORD_UPDATE',
+      changes: JSON.stringify({
+        before: { jumin: '-' },
+        after: { jumin: '860104-1******' }
+      }),
+      steps: []
+    }
+
+    const wrapper = mount(ApprovalDetailsViewer, {
+      props: { request: mockMaskedRequest },
+      global: {
+        mocks: { $t: (key: string) => key },
+        stubs: { VaIcon: true, VaBadge: true, VaButton: true, VaChip: true, ApprovalSteps: true }
+      }
+    })
+
+    expect(wrapper.text()).toContain('860104-1******')
+  })
 })

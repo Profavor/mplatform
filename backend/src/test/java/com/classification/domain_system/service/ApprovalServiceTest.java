@@ -650,6 +650,45 @@ class ApprovalServiceTest extends BaseServiceTest {
         }
 
         @Test
+        @DisplayName("성공 - 관리자 권한(admin:write)이 있으면 담당자나 역할에 관계없이 대리 승인할 수 있다")
+        void approveStep_AdminProxy_Success() {
+            UUID stepId = UUID.randomUUID();
+            String adminId = UUID.randomUUID().toString();
+            String originalAssigneeId = UUID.randomUUID().toString();
+
+            ApprovalRequest approval = new ApprovalRequest();
+            approval.setId(UUID.randomUUID());
+            approval.setStatus("PENDING");
+
+            ApprovalStep step = new ApprovalStep();
+            step.setId(stepId);
+            step.setApprovalRequest(approval);
+            step.setStepOrder(1);
+            step.setStatus("PENDING");
+            step.setAssigneeId(originalAssigneeId);
+
+            given(stepRepository.findById(stepId)).willReturn(Optional.of(step));
+
+            // Set up SecurityContext with admin:write permission
+            org.springframework.security.core.Authentication auth = org.mockito.Mockito.mock(org.springframework.security.core.Authentication.class);
+            org.springframework.security.core.context.SecurityContext secContext = org.mockito.Mockito.mock(org.springframework.security.core.context.SecurityContext.class);
+            org.springframework.security.core.GrantedAuthority authority = new org.springframework.security.core.authority.SimpleGrantedAuthority("admin:write");
+            org.mockito.Mockito.when(auth.getAuthorities()).thenAnswer(invocation -> java.util.Collections.singleton(authority));
+            org.mockito.Mockito.when(secContext.getAuthentication()).thenReturn(auth);
+            org.springframework.security.core.context.SecurityContextHolder.setContext(secContext);
+
+            try {
+                ApprovalRequest result = approvalService.approveStep(stepId, adminId, "관리자 대리 승인");
+                
+                assertThat(result).isNotNull();
+                assertThat(step.getStatus()).isEqualTo("APPROVED");
+                verify(stepRepository).saveAndFlush(step);
+            } finally {
+                org.springframework.security.core.context.SecurityContextHolder.clearContext();
+            }
+        }
+
+        @Test
         @DisplayName("성공 - role로 구성된 stepsConfig에서 assigneeRole이 올바르게 추출되어 ApprovalStep에 설정된다")
         void buildDynamicSteps_ParsesAssigneeRole() {
             ApprovalRequest approval = new ApprovalRequest();

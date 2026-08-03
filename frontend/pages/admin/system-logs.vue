@@ -24,6 +24,7 @@
         <va-tab name="login">Login Logs</va-tab>
         <va-tab name="error">Error Logs</va-tab>
         <va-tab name="integration">Integration Logs</va-tab>
+        <va-tab name="sensitive">{{ $t('sensitive_access_logs') || '민감정보 열람 이력' }}</va-tab>
       </template>
     </va-tabs>
 
@@ -439,12 +440,40 @@
         </div>
       </div>
     </va-modal>
+    <!-- 5. Sensitive Access Logs Tab -->
+    <div v-if="activeTab === 'sensitive'">
+      <va-card>
+        <va-card-title>
+          <div class="flex justify-between items-center w-full">
+            <h2 style="text-transform: none; font-size: 1.2rem; margin: 0; color: var(--va-dark);">
+              {{ $t('sensitive_access_logs') || '민감정보 열람 이력' }}
+            </h2>
+            <va-button preset="secondary" icon="refresh" size="small" @click="fetchSensitiveAccessLogs(1)">
+              {{ $t('refresh') || '새로고침' }}
+            </va-button>
+          </div>
+        </va-card-title>
+        <va-card-content>
+          <div style="height: 500px; width: 100%;">
+            <ag-grid-vue
+              style="width: 100%; height: 100%;"
+              class="ag-theme-alpine"
+              :columnDefs="sensitiveLogColDefs"
+              :rowData="sensitiveLogs"
+              :loading="sensitiveLogLoading"
+              :pagination="true"
+              :paginationPageSize="20"
+            />
+          </div>
+        </va-card-content>
+      </va-card>
+    </div>
   </div>
 </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { usePageTitle } from '~/composables/usePageTitle'
 
 const { pageTitle } = usePageTitle('system_logs_title', '시스템 로그 및 연계 관제')
@@ -468,12 +497,113 @@ if (process.client) {
   use([CanvasRenderer, BarChart, LineChart, TitleComponent, TooltipComponent, GridComponent])
 }
 
-const { locale } = useI18n()
+const { t, locale } = useI18n()
 const { gridTheme, autoSizeStrategy, isDark } = useAgGridTheme()
 const token = useCookie('auth_token')
 const { init } = useToast()
 const activeTab = ref('access')
 const isMounted = ref(false)
+
+const sensitiveLogs = ref([])
+const sensitiveLogLoading = ref(false)
+
+const sensitiveLogColDefs = computed(() => [
+  {
+    headerName: t('access_log_time') || '열람 시각',
+    field: 'accessedAt',
+    valueFormatter: params => params.value ? new Date(params.value).toLocaleString() : '',
+    sortable: true,
+    width: 180
+  },
+  {
+    headerName: t('access_log_viewer') || '열람자',
+    field: 'userDisplayName',
+    valueGetter: params => params.data?.userDisplayName || params.data?.userId || '',
+    width: 180
+  },
+  {
+    headerName: t('access_log_target_type') || '대상 유형',
+    field: 'targetType',
+    valueFormatter: params => {
+      if (!params.value) return '-'
+      if (params.value === 'APPROVAL_REQUEST') return t('target_type_approval_request') || '결재 요청'
+      if (params.value === 'RECORD') return t('target_type_record') || '마스터 레코드'
+      return params.value
+    },
+    width: 160
+  },
+  {
+    headerName: t('access_log_target_id') || '대상 ID',
+    field: 'formattedTargetId',
+    valueGetter: params => {
+      if (params.data?.formattedTargetId) return params.data.formattedTargetId
+      if (!params.data?.targetId) return '-'
+      const prefix = params.data?.targetType === 'APPROVAL_REQUEST' ? 'REQ-' : 'REC-'
+      return prefix + String(params.data.targetId).substring(0, 8)
+    },
+    width: 160
+  },
+  {
+    headerName: t('domain_name') || '도메인명',
+    field: 'domainName',
+    valueGetter: params => params.data?.domainName || '-',
+    width: 150
+  },
+  {
+    headerName: t('classification_name') || '분류명',
+    field: 'classificationName',
+    valueGetter: params => params.data?.classificationName || '-',
+    width: 150
+  },
+  {
+    headerName: t('id_attribute') || 'ID속성',
+    field: 'idAttribute',
+    valueGetter: params => params.data?.idAttribute || '-',
+    width: 150
+  },
+  {
+    headerName: t('name_attribute') || '이름속성',
+    field: 'nameAttribute',
+    valueGetter: params => params.data?.nameAttribute || '-',
+    width: 150
+  },
+  {
+    headerName: t('access_log_fields') || '열람 필드',
+    field: 'formattedFieldLabels',
+    valueGetter: params => params.data?.formattedFieldLabels || params.data?.fieldKeys || '-',
+    flex: 1
+  },
+  {
+    headerName: t('access_log_ip') || 'IP 주소',
+    field: 'ipAddress',
+    valueFormatter: params => {
+      const val = params.value
+      if (val === '::1' || val === '0:0:0:0:0:0:0:1') return '127.0.0.1'
+      return val || '-'
+    },
+    width: 140
+  }
+])
+
+const fetchSensitiveAccessLogs = async (page = 1) => {
+  sensitiveLogLoading.value = true
+  try {
+    const res = await $fetch(`/api/sensitive-data/access-logs?page=${page - 1}&size=100`, {
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    sensitiveLogs.value = res?.content || []
+  } catch (e) {
+    console.error('Failed to fetch sensitive access logs:', e)
+  } finally {
+    sensitiveLogLoading.value = false
+  }
+}
+
+watch(activeTab, (newTab) => {
+  if (newTab === 'sensitive' && sensitiveLogs.value.length === 0) {
+    fetchSensitiveAccessLogs(1)
+  }
+})
 
 const { fetchMenuTree } = useMenu()
 const dbMenuMap = ref(new Map())

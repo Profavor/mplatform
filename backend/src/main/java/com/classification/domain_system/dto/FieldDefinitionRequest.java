@@ -26,6 +26,7 @@ public class FieldDefinitionRequest {
     private Boolean isReadOnly;
     private Boolean isImmutable;
     private Boolean isHidden;
+    private String maskingPattern;
     private UUID targetNodeId;
     private Boolean isDomainField;
     private String reason;

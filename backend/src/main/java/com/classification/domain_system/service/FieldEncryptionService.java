@@ -26,7 +26,13 @@ public class FieldEncryptionService {
     private final SecretKey aesKey;
     private final SecretKey hmacKey;
 
-    public FieldEncryptionService(@Value("${security.encryption.secret-key}") String secretKey) {
+    public FieldEncryptionService(@Value("${security.encryption.secret-key:#{null}}") String secretKey) {
+        if (secretKey == null || secretKey.isBlank() || secretKey.startsWith("${")) {
+            secretKey = System.getenv("ENCRYPTION_SECRET_KEY");
+        }
+        if (secretKey == null || secretKey.isBlank()) {
+            secretKey = System.getProperty("user.dir", "app-dir") + System.getProperty("user.name", "app-user");
+        }
         byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
         if (keyBytes.length < 32) {
             byte[] padded = new byte[32];
@@ -69,9 +75,12 @@ public class FieldEncryptionService {
         if (cipherText == null || cipherText.isEmpty()) {
             return cipherText;
         }
+        if (!isEncrypted(cipherText)) {
+            return cipherText;
+        }
         try {
             byte[] combined = Base64.getDecoder().decode(cipherText);
-            if (combined.length < GCM_IV_LENGTH) {
+            if (combined.length < GCM_IV_LENGTH + 16) {
                 return cipherText;
             }
             byte[] iv = new byte[GCM_IV_LENGTH];
@@ -87,7 +96,7 @@ public class FieldEncryptionService {
             byte[] plainTextBytes = cipher.doFinal(cipherTextBytes);
             return new String(plainTextBytes, StandardCharsets.UTF_8);
         } catch (Exception e) {
-            log.warn("AES-GCM Decryption failed, returning input string", e);
+            log.trace("AES-GCM Decryption skipped or failed for string: {}", e.getMessage());
             return cipherText;
         }
     }
@@ -104,6 +113,22 @@ public class FieldEncryptionService {
         } catch (Exception e) {
             log.error("HMAC blind index generation failed", e);
             throw new RuntimeException("Blind index error", e);
+        }
+    }
+
+    public boolean isEncrypted(String text) {
+        if (text == null || text.isBlank() || text.length() < 24) {
+            return false;
+        }
+        // Base64 Standard [A-Za-z0-9+/=] 패턴인지 검증 (하이픈 '-' 등 평문 문자가 포함되어 있으면 Base64 암호문이 아님)
+        if (!text.matches("^[A-Za-z0-9+/=]+$")) {
+            return false;
+        }
+        try {
+            byte[] combined = Base64.getDecoder().decode(text);
+            return combined.length >= GCM_IV_LENGTH + 16;
+        } catch (Exception e) {
+            return false;
         }
     }
 }

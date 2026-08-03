@@ -95,6 +95,9 @@ public class FieldDefinition {
     @Column(name = "is_hidden", columnDefinition = "boolean default false")
     private Boolean isHidden = false;
 
+    @Column(name = "masking_pattern", length = 50)
+    private String maskingPattern;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
@@ -125,10 +128,16 @@ public class FieldDefinition {
     }
 
     @Transient
+    @com.fasterxml.jackson.annotation.JsonProperty("approvalStatus")
     private String approvalStatus = "ACTIVE";
 
     @Transient
+    @com.fasterxml.jackson.annotation.JsonProperty("isPendingApproval")
     private Boolean isPendingApproval = false;
+
+    @Transient
+    @com.fasterxml.jackson.annotation.JsonProperty("approvalRequestId")
+    private UUID approvalRequestId;
 
     public String getApprovalStatus() {
         return approvalStatus;
@@ -147,5 +156,13 @@ public class FieldDefinition {
 
     public void setIsPendingApproval(Boolean pendingApproval) {
         isPendingApproval = pendingApproval;
+    }
+
+    public UUID getApprovalRequestId() {
+        return approvalRequestId;
+    }
+
+    public void setApprovalRequestId(UUID approvalRequestId) {
+        this.approvalRequestId = approvalRequestId;
     }
 }
