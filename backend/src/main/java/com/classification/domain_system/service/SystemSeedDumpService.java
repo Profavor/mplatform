@@ -3,8 +3,11 @@ package com.classification.domain_system.service;
 import com.classification.domain_system.dto.RoleSeedDto;
 import com.classification.domain_system.dto.PermissionGroupSeedDto;
 import com.classification.domain_system.dto.PermissionItemSeedDto;
+import com.classification.domain_system.dto.MenuSeedDto;
+import com.classification.domain_system.entity.Menu;
 import com.classification.domain_system.entity.PermissionGroup;
 import com.classification.domain_system.entity.Role;
+import com.classification.domain_system.repository.MenuRepository;
 import com.classification.domain_system.repository.PermissionGroupRepository;
 import com.classification.domain_system.repository.RoleRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.File;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -26,7 +30,44 @@ public class SystemSeedDumpService {
 
     private final RoleRepository roleRepository;
     private final PermissionGroupRepository groupRepository;
+    private final MenuRepository menuRepository;
     private final ObjectMapper objectMapper;
+
+    @Transactional(readOnly = true)
+    public void dumpMenuStateToSeedFiles() {
+        try {
+            String userDir = System.getProperty("user.dir");
+            File resourcesDir = Paths.get(userDir, "src", "main", "resources").toFile();
+            if (!resourcesDir.exists()) {
+                log.warn("Cannot dump seed files: src/main/resources not found.");
+                return;
+            }
+
+            List<Menu> allMenus = menuRepository.findAll();
+            List<MenuSeedDto> menuDtos = allMenus.stream()
+                    .map(m -> {
+                        MenuSeedDto dto = new MenuSeedDto();
+                        dto.setId(m.getId());
+                        dto.setName(m.getName());
+                        dto.setPath(m.getPath());
+                        dto.setIcon(m.getIcon());
+                        dto.setParentId(m.getParentId());
+                        dto.setSortOrder(m.getSortOrder());
+                        dto.setIsActive(m.getIsActive());
+                        dto.setRequiredRoles(new ArrayList<>(m.getRequiredRoles()));
+                        return dto;
+                    })
+                    .collect(Collectors.toList());
+
+            File menusFile = new File(resourcesDir, "default_menus.json");
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(menusFile, menuDtos);
+            log.info("Dumped menus to {}", menusFile.getAbsolutePath());
+
+        } catch (Exception e) {
+            log.error("Failed to dump menu seed files", e);
+            throw new RuntimeException("Failed to dump menu seed files", e);
+        }
+    }
 
     @Transactional(readOnly = true)
     public void dumpCurrentStateToSeedFiles(UUID orgId) {

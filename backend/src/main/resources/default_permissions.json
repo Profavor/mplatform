@@ -1,12 +1,4 @@
 [ {
-  "TITLE_EN" : "System Admin Permissions",
-  "CODE" : "admin",
-  "CHIP_CLASS" : "red",
-  "COLOR" : "#ef4444",
-  "SORT_ORDER" : 1,
-  "ID" : "admin",
-  "TITLE_KO" : "전역 시스템 관리 권한",
-  "ICON" : "\uD83D\uDEE1️",
   "items" : [ {
     "LABEL_KO" : "전역 모든 권한 (*)",
     "LABEL_EN" : "System Super All (*)",
@@ -22,16 +14,16 @@
     "LABEL_EN" : "System Admin Write",
     "PERM_VALUE" : "admin:write",
     "SORT_ORDER" : 3
-  } ]
+  } ],
+  "ID" : "admin",
+  "CODE" : "admin",
+  "TITLE_KO" : "전역 시스템 관리 권한",
+  "TITLE_EN" : "System Admin Permissions",
+  "ICON" : "\uD83D\uDEE1️",
+  "COLOR" : "#ef4444",
+  "CHIP_CLASS" : "red",
+  "SORT_ORDER" : 1
 }, {
-  "TITLE_EN" : "Domain Schema Permissions",
-  "CODE" : "domain",
-  "CHIP_CLASS" : "blue",
-  "COLOR" : "#3b82f6",
-  "SORT_ORDER" : 2,
-  "ID" : "domain",
-  "TITLE_KO" : "도메인 스키마 권한",
-  "ICON" : "\uD83C\uDF10",
   "items" : [ {
     "LABEL_KO" : "도메인 전체 (*)",
     "LABEL_EN" : "Domain All (*)",
@@ -47,16 +39,16 @@
     "LABEL_EN" : "Domain Write",
     "PERM_VALUE" : "domain:write",
     "SORT_ORDER" : 3
-  } ]
+  } ],
+  "ID" : "domain",
+  "CODE" : "domain",
+  "TITLE_KO" : "도메인 스키마 권한",
+  "TITLE_EN" : "Domain Schema Permissions",
+  "ICON" : "\uD83C\uDF10",
+  "COLOR" : "#3b82f6",
+  "CHIP_CLASS" : "blue",
+  "SORT_ORDER" : 2
 }, {
-  "TITLE_EN" : "Category Node Permissions",
-  "CODE" : "node",
-  "CHIP_CLASS" : "green",
-  "COLOR" : "#10b981",
-  "SORT_ORDER" : 3,
-  "ID" : "node",
-  "TITLE_KO" : "분류 노드 권한",
-  "ICON" : "\uD83D\uDCC1",
   "items" : [ {
     "LABEL_KO" : "노드 전체 (*)",
     "LABEL_EN" : "Node All (*)",
@@ -72,16 +64,16 @@
     "LABEL_EN" : "Node Write",
     "PERM_VALUE" : "node:write",
     "SORT_ORDER" : 3
-  } ]
+  } ],
+  "ID" : "node",
+  "CODE" : "node",
+  "TITLE_KO" : "분류 노드 권한",
+  "TITLE_EN" : "Category Node Permissions",
+  "ICON" : "\uD83D\uDCC1",
+  "COLOR" : "#10b981",
+  "CHIP_CLASS" : "green",
+  "SORT_ORDER" : 3
 }, {
-  "TITLE_EN" : "Field Permissions",
-  "CODE" : "field",
-  "CHIP_CLASS" : "amber",
-  "COLOR" : "#f59e0b",
-  "SORT_ORDER" : 4,
-  "ID" : "field",
-  "TITLE_KO" : "속성 필드 권한",
-  "ICON" : "\uD83D\uDCCC",
   "items" : [ {
     "LABEL_KO" : "필드 전체 (*)",
     "LABEL_EN" : "Field All (*)",
@@ -97,16 +89,16 @@
     "LABEL_EN" : "Field Write",
     "PERM_VALUE" : "field:write",
     "SORT_ORDER" : 3
-  } ]
+  } ],
+  "ID" : "field",
+  "CODE" : "field",
+  "TITLE_KO" : "속성 필드 권한",
+  "TITLE_EN" : "Field Permissions",
+  "ICON" : "\uD83D\uDCCC",
+  "COLOR" : "#f59e0b",
+  "CHIP_CLASS" : "amber",
+  "SORT_ORDER" : 4
 }, {
-  "TITLE_EN" : "Master Record Permissions",
-  "CODE" : "record",
-  "CHIP_CLASS" : "purple",
-  "COLOR" : "#8b5cf6",
-  "SORT_ORDER" : 5,
-  "ID" : "record",
-  "TITLE_KO" : "마스터 데이터 레코드 권한",
-  "ICON" : "\uD83D\uDCC4",
   "items" : [ {
     "LABEL_KO" : "복호화 (unmask)",
     "LABEL_EN" : "Unmask (unmask)",
@@ -132,16 +124,16 @@
     "LABEL_EN" : "Record Export",
     "PERM_VALUE" : "record:export",
     "SORT_ORDER" : 4
-  } ]
+  } ],
+  "ID" : "record",
+  "CODE" : "record",
+  "TITLE_KO" : "마스터 데이터 레코드 권한",
+  "TITLE_EN" : "Master Record Permissions",
+  "ICON" : "\uD83D\uDCC4",
+  "COLOR" : "#8b5cf6",
+  "CHIP_CLASS" : "purple",
+  "SORT_ORDER" : 5
 }, {
-  "TITLE_EN" : "DQ Permissions",
-  "CODE" : "dq",
-  "CHIP_CLASS" : "pink",
-  "COLOR" : "#ec4899",
-  "SORT_ORDER" : 6,
-  "ID" : "dq",
-  "TITLE_KO" : "데이터 품질 관리 권한 (DQ)",
-  "ICON" : "⚡",
   "items" : [ {
     "LABEL_KO" : "품질 관리 전체 (*)",
     "LABEL_EN" : "DQ All (*)",
@@ -167,16 +159,16 @@
     "LABEL_EN" : "DQ Scan All",
     "PERM_VALUE" : "dq_scan:*",
     "SORT_ORDER" : 5
-  } ]
+  } ],
+  "ID" : "dq",
+  "CODE" : "dq",
+  "TITLE_KO" : "데이터 품질 관리 권한 (DQ)",
+  "TITLE_EN" : "DQ Permissions",
+  "ICON" : "⚡",
+  "COLOR" : "#ec4899",
+  "CHIP_CLASS" : "pink",
+  "SORT_ORDER" : 6
 }, {
-  "TITLE_EN" : "Organization Permissions",
-  "CODE" : "org",
-  "CHIP_CLASS" : "cyan",
-  "COLOR" : "#06b6d4",
-  "SORT_ORDER" : 7,
-  "ID" : "org",
-  "TITLE_KO" : "조직 및 부서 권한 (ORG)",
-  "ICON" : "\uD83C\uDFE2",
   "items" : [ {
     "LABEL_KO" : "조직 권한 전체 (*)",
     "LABEL_EN" : "Org All (*)",
@@ -192,16 +184,16 @@
     "LABEL_EN" : "Org Write",
     "PERM_VALUE" : "org:write",
     "SORT_ORDER" : 3
-  } ]
+  } ],
+  "ID" : "org",
+  "CODE" : "org",
+  "TITLE_KO" : "조직 및 부서 권한 (ORG)",
+  "TITLE_EN" : "Organization Permissions",
+  "ICON" : "\uD83C\uDFE2",
+  "COLOR" : "#06b6d4",
+  "CHIP_CLASS" : "cyan",
+  "SORT_ORDER" : 7
 }, {
-  "TITLE_EN" : "User Management Permissions",
-  "CODE" : "user",
-  "CHIP_CLASS" : "indigo",
-  "COLOR" : "#6366f1",
-  "SORT_ORDER" : 8,
-  "ID" : "user",
-  "TITLE_KO" : "사용자 관리 권한",
-  "ICON" : "\uD83D\uDC64",
   "items" : [ {
     "LABEL_KO" : "사용자 전체 (*)",
     "LABEL_EN" : "User All (*)",
@@ -217,16 +209,16 @@
     "LABEL_EN" : "User Write",
     "PERM_VALUE" : "user:write",
     "SORT_ORDER" : 3
-  } ]
+  } ],
+  "ID" : "user",
+  "CODE" : "user",
+  "TITLE_KO" : "사용자 관리 권한",
+  "TITLE_EN" : "User Management Permissions",
+  "ICON" : "\uD83D\uDC64",
+  "COLOR" : "#6366f1",
+  "CHIP_CLASS" : "indigo",
+  "SORT_ORDER" : 8
 }, {
-  "TITLE_EN" : "Role & Permission Management",
-  "CODE" : "role",
-  "CHIP_CLASS" : "teal",
-  "COLOR" : "#14b8a6",
-  "SORT_ORDER" : 9,
-  "ID" : "role",
-  "TITLE_KO" : "역할 및 세부 권한 관리",
-  "ICON" : "\uD83D\uDD11",
   "items" : [ {
     "LABEL_KO" : "역할 전체 (*)",
     "LABEL_EN" : "Role All (*)",
@@ -242,16 +234,16 @@
     "LABEL_EN" : "Role Write",
     "PERM_VALUE" : "role:write",
     "SORT_ORDER" : 3
-  } ]
+  } ],
+  "ID" : "role",
+  "CODE" : "role",
+  "TITLE_KO" : "역할 및 세부 권한 관리",
+  "TITLE_EN" : "Role & Permission Management",
+  "ICON" : "\uD83D\uDD11",
+  "COLOR" : "#14b8a6",
+  "CHIP_CLASS" : "teal",
+  "SORT_ORDER" : 9
 }, {
-  "TITLE_EN" : "Workflow & Approval Permissions",
-  "CODE" : "workflow",
-  "CHIP_CLASS" : "lime",
-  "COLOR" : "#84cc16",
-  "SORT_ORDER" : 10,
-  "ID" : "workflow",
-  "TITLE_KO" : "워크플로우 및 결재 권한",
-  "ICON" : "\uD83C\uDF3F",
   "items" : [ {
     "LABEL_KO" : "워크플로우 전체 (*)",
     "LABEL_EN" : "Workflow All (*)",
@@ -277,16 +269,16 @@
     "LABEL_EN" : "Workflow Approve",
     "PERM_VALUE" : "workflow:approve",
     "SORT_ORDER" : 5
-  } ]
+  } ],
+  "ID" : "workflow",
+  "CODE" : "workflow",
+  "TITLE_KO" : "워크플로우 및 결재 권한",
+  "TITLE_EN" : "Workflow & Approval Permissions",
+  "ICON" : "\uD83C\uDF3F",
+  "COLOR" : "#84cc16",
+  "CHIP_CLASS" : "lime",
+  "SORT_ORDER" : 10
 }, {
-  "TITLE_EN" : "System Audit Log Permissions",
-  "CODE" : "log",
-  "CHIP_CLASS" : "slate",
-  "COLOR" : "#64748b",
-  "SORT_ORDER" : 11,
-  "ID" : "log",
-  "TITLE_KO" : "시스템 로그 및 감사 권한",
-  "ICON" : "\uD83D\uDCDC",
   "items" : [ {
     "LABEL_KO" : "로그 전체 (*)",
     "LABEL_EN" : "Log All (*)",
@@ -302,16 +294,16 @@
     "LABEL_EN" : "System Log Read",
     "PERM_VALUE" : "system_log:read",
     "SORT_ORDER" : 3
-  } ]
+  } ],
+  "ID" : "log",
+  "CODE" : "log",
+  "TITLE_KO" : "시스템 로그 및 감사 권한",
+  "TITLE_EN" : "System Audit Log Permissions",
+  "ICON" : "\uD83D\uDCDC",
+  "COLOR" : "#64748b",
+  "CHIP_CLASS" : "slate",
+  "SORT_ORDER" : 11
 }, {
-  "TITLE_EN" : "Data Match Review Permissions",
-  "CODE" : "match",
-  "CHIP_CLASS" : "amber",
-  "COLOR" : "#d97706",
-  "SORT_ORDER" : 12,
-  "ID" : "match",
-  "TITLE_KO" : "데이터 매칭 검토 권한",
-  "ICON" : "\uD83D\uDD0D",
   "items" : [ {
     "LABEL_KO" : "매칭 전체 (*)",
     "LABEL_EN" : "Match All (*)",
@@ -327,16 +319,16 @@
     "LABEL_EN" : "Match Write",
     "PERM_VALUE" : "match:write",
     "SORT_ORDER" : 3
-  } ]
+  } ],
+  "ID" : "match",
+  "CODE" : "match",
+  "TITLE_KO" : "데이터 매칭 검토 권한",
+  "TITLE_EN" : "Data Match Review Permissions",
+  "ICON" : "\uD83D\uDD0D",
+  "COLOR" : "#d97706",
+  "CHIP_CLASS" : "amber",
+  "SORT_ORDER" : 12
 }, {
-  "TITLE_EN" : "Integration Channel Permissions",
-  "CODE" : "integration",
-  "CHIP_CLASS" : "sky",
-  "COLOR" : "#0284c7",
-  "SORT_ORDER" : 13,
-  "ID" : "integration",
-  "TITLE_KO" : "외부 연동 채널 권한",
-  "ICON" : "\uD83D\uDD17",
   "items" : [ {
     "LABEL_KO" : "외부 연동 전체 (*)",
     "LABEL_EN" : "Integration All (*)",
@@ -352,5 +344,13 @@
     "LABEL_EN" : "Integration Write",
     "PERM_VALUE" : "integration:write",
     "SORT_ORDER" : 3
-  } ]
+  } ],
+  "ID" : "integration",
+  "CODE" : "integration",
+  "TITLE_KO" : "외부 연동 채널 권한",
+  "TITLE_EN" : "Integration Channel Permissions",
+  "ICON" : "\uD83D\uDD17",
+  "COLOR" : "#0284c7",
+  "CHIP_CLASS" : "sky",
+  "SORT_ORDER" : 13
 } ]
