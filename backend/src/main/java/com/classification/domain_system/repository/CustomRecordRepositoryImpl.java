@@ -99,21 +99,23 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                 if ("EQ".equals(op) || "CONTAINS".equals(op) || "STARTS_WITH".equals(op) || "ENDS_WITH".equals(op)) {
                     String cond;
                     if (isH2) {
-                        cond = " AND (CAST(r.data AS VARCHAR) LIKE :searchValLike" + paramIndex + ") ";
+                        cond = " AND (CAST(COALESCE(r.searchable_data, r.data) AS VARCHAR) LIKE '%\"" + safeKey + "\":\"' || :searchValLike" + paramIndex + " || '\"%' " +
+                               " OR CAST(COALESCE(r.searchable_data, r.data) AS VARCHAR) LIKE '%\"" + safeKey + "\":' || :searchValLike" + paramIndex + " || ',%' " +
+                               " OR CAST(COALESCE(r.searchable_data, r.data) AS VARCHAR) LIKE '%\"" + safeKey + "\":' || :searchValLike" + paramIndex + " || '}%' ) ";
                     } else {
                         String pgPrefix = 
-                            "CAST(r.data AS jsonb) @> CAST(:searchValStr" + paramIndex + " AS jsonb) " +
-                            " OR CAST(r.data AS jsonb) @> CAST(:searchValStrLower" + paramIndex + " AS jsonb) " +
-                            " OR CAST(r.data AS jsonb) @> CAST(:searchValNum" + paramIndex + " AS jsonb) " +
-                            " OR CAST(r.data AS jsonb) @> CAST(:searchValNumLower" + paramIndex + " AS jsonb) OR ";
+                            "CAST(COALESCE(r.searchable_data, r.data) AS jsonb) @> CAST(:searchValStr" + paramIndex + " AS jsonb) " +
+                            " OR CAST(COALESCE(r.searchable_data, r.data) AS jsonb) @> CAST(:searchValStrLower" + paramIndex + " AS jsonb) " +
+                            " OR CAST(COALESCE(r.searchable_data, r.data) AS jsonb) @> CAST(:searchValNum" + paramIndex + " AS jsonb) " +
+                            " OR CAST(COALESCE(r.searchable_data, r.data) AS jsonb) @> CAST(:searchValNumLower" + paramIndex + " AS jsonb) OR ";
 
                         cond = " AND (" + pgPrefix +
-                               " (NULLIF(CAST(r.data AS jsonb)->>'" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ") " +
-                               " OR (NULLIF(CAST(r.data AS jsonb)->>'" + safeKey.toLowerCase() + "', '') ILIKE :searchValLike" + paramIndex + ") " +
-                               " OR (NULLIF(CAST(r.data AS jsonb)->'" + safeKey + "'->>'ko', '') ILIKE :searchValLike" + paramIndex + ") " +
-                               " OR (NULLIF(CAST(r.data AS jsonb)->'" + safeKey + "'->>'en', '') ILIKE :searchValLike" + paramIndex + ") " +
-                               " OR (NULLIF(CAST(r.data AS jsonb)->'" + safeKey.toLowerCase() + "'->>'ko', '') ILIKE :searchValLike" + paramIndex + ") " +
-                               " OR (NULLIF(CAST(r.data AS jsonb)->'" + safeKey.toLowerCase() + "'->>'en', '') ILIKE :searchValLike" + paramIndex + ")) ";
+                               " (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ") " +
+                               " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'" + safeKey.toLowerCase() + "', '') ILIKE :searchValLike" + paramIndex + ") " +
+                               " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->'" + safeKey + "'->>'ko', '') ILIKE :searchValLike" + paramIndex + ") " +
+                               " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->'" + safeKey + "'->>'en', '') ILIKE :searchValLike" + paramIndex + ") " +
+                               " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->'" + safeKey.toLowerCase() + "'->>'ko', '') ILIKE :searchValLike" + paramIndex + ") " +
+                               " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->'" + safeKey.toLowerCase() + "'->>'en', '') ILIKE :searchValLike" + paramIndex + ")) ";
                     }
                     sql.append(cond);
                     countSql.append(cond);
@@ -121,12 +123,14 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                 } else if ("BETWEEN".equals(op)) {
                     String cond;
                     if (isH2) {
-                        cond = " AND (CAST(r.data AS VARCHAR) LIKE :searchValLike" + paramIndex + ") ";
+                        String h2NumStr = "REGEXP_REPLACE(REGEXP_SUBSTR(CAST(COALESCE(r.searchable_data, r.data) AS VARCHAR), '\"' || '" + safeKey + "' || '\"\\s*:\\s*-?[0-9]+(\\.[0-9]+)?'), '^\"' || '" + safeKey + "' || '\"\\s*:\\s*', '')";
+                        String h2Num = "CAST(NULLIF(" + h2NumStr + ", '') AS NUMERIC)";
+                        cond = " AND (" + h2Num + " BETWEEN :searchValMin" + paramIndex + " AND :searchValMax" + paramIndex + ") ";
                     } else {
-                        cond = " AND ( (NULLIF(CAST(r.data AS jsonb)->>'" + safeKey + "', '') ~ '^[0-9]+(\\.[0-9]+)?$' " +
-                               " AND CAST(NULLIF(CAST(r.data AS jsonb)->>'" + safeKey + "', '') AS NUMERIC) BETWEEN :searchValMin" + paramIndex + " AND :searchValMax" + paramIndex + ") " +
-                               " OR (NULLIF(CAST(r.data AS jsonb)->>'" + safeKey.toLowerCase() + "', '') ~ '^[0-9]+(\\.[0-9]+)?$' " +
-                               " AND CAST(NULLIF(CAST(r.data AS jsonb)->>'" + safeKey.toLowerCase() + "', '') AS NUMERIC) BETWEEN :searchValMin" + paramIndex + " AND :searchValMax" + paramIndex + ") ) ";
+                        cond = " AND ( (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'" + safeKey + "', '') ~ '^[0-9]+(\\.[0-9]+)?$' " +
+                               " AND CAST(NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'" + safeKey + "', '') AS NUMERIC) BETWEEN :searchValMin" + paramIndex + " AND :searchValMax" + paramIndex + ") " +
+                               " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'" + safeKey.toLowerCase() + "', '') ~ '^[0-9]+(\\.[0-9]+)?$' " +
+                               " AND CAST(NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'" + safeKey.toLowerCase() + "', '') AS NUMERIC) BETWEEN :searchValMin" + paramIndex + " AND :searchValMax" + paramIndex + ") ) ";
                     }
                     sql.append(cond);
                     countSql.append(cond);
@@ -141,12 +145,14 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                     };
                     String cond;
                     if (isH2) {
-                        cond = " AND (CAST(r.data AS VARCHAR) LIKE :searchValLike" + paramIndex + ") ";
+                        String h2NumStr = "REGEXP_REPLACE(REGEXP_SUBSTR(CAST(COALESCE(r.searchable_data, r.data) AS VARCHAR), '\"' || '" + safeKey + "' || '\"\\s*:\\s*-?[0-9]+(\\.[0-9]+)?'), '^\"' || '" + safeKey + "' || '\"\\s*:\\s*', '')";
+                        String h2Num = "CAST(NULLIF(" + h2NumStr + ", '') AS NUMERIC)";
+                        cond = " AND (" + h2Num + " " + sqlOp + " :searchVal" + paramIndex + ") ";
                     } else {
-                        cond = " AND ( (NULLIF(CAST(r.data AS jsonb)->>'" + safeKey + "', '') ~ '^[0-9]+(\\.[0-9]+)?$' " +
-                               " AND CAST(NULLIF(CAST(r.data AS jsonb)->>'" + safeKey + "', '') AS NUMERIC) " + sqlOp + " :searchVal" + paramIndex + ") " +
-                               " OR (NULLIF(CAST(r.data AS jsonb)->>'" + safeKey.toLowerCase() + "', '') ~ '^[0-9]+(\\.[0-9]+)?$' " +
-                               " AND CAST(NULLIF(CAST(r.data AS jsonb)->>'" + safeKey.toLowerCase() + "', '') AS NUMERIC) " + sqlOp + " :searchVal" + paramIndex + ") ) ";
+                        cond = " AND ( (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'" + safeKey + "', '') ~ '^[0-9]+(\\.[0-9]+)?$' " +
+                               " AND CAST(NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'" + safeKey + "', '') AS NUMERIC) " + sqlOp + " :searchVal" + paramIndex + ") " +
+                               " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'" + safeKey.toLowerCase() + "', '') ~ '^[0-9]+(\\.[0-9]+)?$' " +
+                               " AND CAST(NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'" + safeKey.toLowerCase() + "', '') AS NUMERIC) " + sqlOp + " :searchVal" + paramIndex + ") ) ";
                     }
                     sql.append(cond);
                     countSql.append(cond);
@@ -194,7 +200,7 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                         countQuery.setParameter("searchValStrLower" + paramIndex, strValLower);
                     }
                     String likeVal = switch (op) {
-                        case "EQ" -> isH2 ? "%" + val + "%" : val;
+                        case "EQ" -> val;
                         case "STARTS_WITH" -> val + "%";
                         case "ENDS_WITH" -> "%" + val;
                         default -> "%" + val + "%";
@@ -226,27 +232,17 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                         }
                     }
                 } else if ("BETWEEN".equals(op)) {
-                    if (isH2) {
-                        query.setParameter("searchValLike" + paramIndex, "%" + val + "%");
-                        countQuery.setParameter("searchValLike" + paramIndex, "%" + val + "%");
-                    } else {
-                        String maxVal = searchParams.get(key + "_max");
-                        double vMin = Double.parseDouble(val);
-                        double vMax = Double.parseDouble(maxVal != null && !maxVal.isEmpty() ? maxVal : val);
-                        query.setParameter("searchValMin" + paramIndex, vMin);
-                        countQuery.setParameter("searchValMin" + paramIndex, vMin);
-                        query.setParameter("searchValMax" + paramIndex, vMax);
-                        countQuery.setParameter("searchValMax" + paramIndex, vMax);
-                    }
+                    String maxVal = searchParams.get(key + "_max");
+                    double vMin = Double.parseDouble(val);
+                    double vMax = Double.parseDouble(maxVal != null && !maxVal.isEmpty() ? maxVal : val);
+                    query.setParameter("searchValMin" + paramIndex, vMin);
+                    countQuery.setParameter("searchValMin" + paramIndex, vMin);
+                    query.setParameter("searchValMax" + paramIndex, vMax);
+                    countQuery.setParameter("searchValMax" + paramIndex, vMax);
                 } else {
-                    if (isH2) {
-                        query.setParameter("searchValLike" + paramIndex, "%" + val + "%");
-                        countQuery.setParameter("searchValLike" + paramIndex, "%" + val + "%");
-                    } else {
-                        double sVal = Double.parseDouble(val);
-                        query.setParameter("searchVal" + paramIndex, sVal);
-                        countQuery.setParameter("searchVal" + paramIndex, sVal);
-                    }
+                    double sVal = Double.parseDouble(val);
+                    query.setParameter("searchVal" + paramIndex, sVal);
+                    countQuery.setParameter("searchVal" + paramIndex, sVal);
                 }
                 paramIndex++;
             }
@@ -291,21 +287,23 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                 if ("EQ".equals(op) || "CONTAINS".equals(op) || "STARTS_WITH".equals(op) || "ENDS_WITH".equals(op)) {
                     String cond;
                     if (isH2) {
-                        cond = " AND (CAST(r.data AS VARCHAR) LIKE :searchValLike" + paramIndex + ") ";
+                        cond = " AND (CAST(COALESCE(r.searchable_data, r.data) AS VARCHAR) LIKE '%\"" + safeKey + "\":\"' || :searchValLike" + paramIndex + " || '\"%' " +
+                               " OR CAST(COALESCE(r.searchable_data, r.data) AS VARCHAR) LIKE '%\"" + safeKey + "\":' || :searchValLike" + paramIndex + " || ',%' " +
+                               " OR CAST(COALESCE(r.searchable_data, r.data) AS VARCHAR) LIKE '%\"" + safeKey + "\":' || :searchValLike" + paramIndex + " || '}%' ) ";
                     } else {
                         String pgPrefix = 
-                            "CAST(r.data AS jsonb) @> CAST(:searchValStr" + paramIndex + " AS jsonb) " +
-                            " OR CAST(r.data AS jsonb) @> CAST(:searchValStrLower" + paramIndex + " AS jsonb) " +
-                            " OR CAST(r.data AS jsonb) @> CAST(:searchValNum" + paramIndex + " AS jsonb) " +
-                            " OR CAST(r.data AS jsonb) @> CAST(:searchValNumLower" + paramIndex + " AS jsonb) OR ";
+                            "CAST(COALESCE(r.searchable_data, r.data) AS jsonb) @> CAST(:searchValStr" + paramIndex + " AS jsonb) " +
+                            " OR CAST(COALESCE(r.searchable_data, r.data) AS jsonb) @> CAST(:searchValStrLower" + paramIndex + " AS jsonb) " +
+                            " OR CAST(COALESCE(r.searchable_data, r.data) AS jsonb) @> CAST(:searchValNum" + paramIndex + " AS jsonb) " +
+                            " OR CAST(COALESCE(r.searchable_data, r.data) AS jsonb) @> CAST(:searchValNumLower" + paramIndex + " AS jsonb) OR ";
 
                         cond = " AND (" + pgPrefix +
-                               " (NULLIF(CAST(r.data AS jsonb)->>'" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ") " +
-                               " OR (NULLIF(CAST(r.data AS jsonb)->>'" + safeKey.toLowerCase() + "', '') ILIKE :searchValLike" + paramIndex + ") " +
-                               " OR (NULLIF(CAST(r.data AS jsonb)->'" + safeKey + "'->>'ko', '') ILIKE :searchValLike" + paramIndex + ") " +
-                               " OR (NULLIF(CAST(r.data AS jsonb)->'" + safeKey + "'->>'en', '') ILIKE :searchValLike" + paramIndex + ") " +
-                               " OR (NULLIF(CAST(r.data AS jsonb)->'" + safeKey.toLowerCase() + "'->>'ko', '') ILIKE :searchValLike" + paramIndex + ") " +
-                               " OR (NULLIF(CAST(r.data AS jsonb)->'" + safeKey.toLowerCase() + "'->>'en', '') ILIKE :searchValLike" + paramIndex + ")) ";
+                               " (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ") " +
+                               " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'" + safeKey.toLowerCase() + "', '') ILIKE :searchValLike" + paramIndex + ") " +
+                               " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->'" + safeKey + "'->>'ko', '') ILIKE :searchValLike" + paramIndex + ") " +
+                               " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->'" + safeKey + "'->>'en', '') ILIKE :searchValLike" + paramIndex + ") " +
+                               " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->'" + safeKey.toLowerCase() + "'->>'ko', '') ILIKE :searchValLike" + paramIndex + ") " +
+                               " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->'" + safeKey.toLowerCase() + "'->>'en', '') ILIKE :searchValLike" + paramIndex + ")) ";
                     }
                     sql.append(cond);
                     countSql.append(cond);
@@ -313,12 +311,14 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                 } else if ("BETWEEN".equals(op)) {
                     String cond;
                     if (isH2) {
-                        cond = " AND (CAST(r.data AS VARCHAR) LIKE :searchValLike" + paramIndex + ") ";
+                        String h2NumStr = "REGEXP_REPLACE(REGEXP_SUBSTR(CAST(COALESCE(r.searchable_data, r.data) AS VARCHAR), '\"' || '" + safeKey + "' || '\"\\s*:\\s*-?[0-9]+(\\.[0-9]+)?'), '^\"' || '" + safeKey + "' || '\"\\s*:\\s*', '')";
+                        String h2Num = "CAST(NULLIF(" + h2NumStr + ", '') AS NUMERIC)";
+                        cond = " AND (" + h2Num + " BETWEEN :searchValMin" + paramIndex + " AND :searchValMax" + paramIndex + ") ";
                     } else {
-                        cond = " AND ( (NULLIF(CAST(r.data AS jsonb)->>'" + safeKey + "', '') ~ '^[0-9]+(\\.[0-9]+)?$' " +
-                               " AND CAST(NULLIF(CAST(r.data AS jsonb)->>'" + safeKey + "', '') AS NUMERIC) BETWEEN :searchValMin" + paramIndex + " AND :searchValMax" + paramIndex + ") " +
-                               " OR (NULLIF(CAST(r.data AS jsonb)->>'" + safeKey.toLowerCase() + "', '') ~ '^[0-9]+(\\.[0-9]+)?$' " +
-                               " AND CAST(NULLIF(CAST(r.data AS jsonb)->>'" + safeKey.toLowerCase() + "', '') AS NUMERIC) BETWEEN :searchValMin" + paramIndex + " AND :searchValMax" + paramIndex + ") ) ";
+                        cond = " AND ( (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'" + safeKey + "', '') ~ '^[0-9]+(\\.[0-9]+)?$' " +
+                               " AND CAST(NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'" + safeKey + "', '') AS NUMERIC) BETWEEN :searchValMin" + paramIndex + " AND :searchValMax" + paramIndex + ") " +
+                               " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'" + safeKey.toLowerCase() + "', '') ~ '^[0-9]+(\\.[0-9]+)?$' " +
+                               " AND CAST(NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'" + safeKey.toLowerCase() + "', '') AS NUMERIC) BETWEEN :searchValMin" + paramIndex + " AND :searchValMax" + paramIndex + ") ) ";
                     }
                     sql.append(cond);
                     countSql.append(cond);
@@ -333,12 +333,14 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                     };
                     String cond;
                     if (isH2) {
-                        cond = " AND (CAST(r.data AS VARCHAR) LIKE :searchValLike" + paramIndex + ") ";
+                        String h2NumStr = "REGEXP_REPLACE(REGEXP_SUBSTR(CAST(COALESCE(r.searchable_data, r.data) AS VARCHAR), '\"' || '" + safeKey + "' || '\"\\s*:\\s*-?[0-9]+(\\.[0-9]+)?'), '^\"' || '" + safeKey + "' || '\"\\s*:\\s*', '')";
+                        String h2Num = "CAST(NULLIF(" + h2NumStr + ", '') AS NUMERIC)";
+                        cond = " AND (" + h2Num + " " + sqlOp + " :searchVal" + paramIndex + ") ";
                     } else {
-                        cond = " AND ( (NULLIF(CAST(r.data AS jsonb)->>'" + safeKey + "', '') ~ '^[0-9]+(\\.[0-9]+)?$' " +
-                               " AND CAST(NULLIF(CAST(r.data AS jsonb)->>'" + safeKey + "', '') AS NUMERIC) " + sqlOp + " :searchVal" + paramIndex + ") " +
-                               " OR (NULLIF(CAST(r.data AS jsonb)->>'" + safeKey.toLowerCase() + "', '') ~ '^[0-9]+(\\.[0-9]+)?$' " +
-                               " AND CAST(NULLIF(CAST(r.data AS jsonb)->>'" + safeKey.toLowerCase() + "', '') AS NUMERIC) " + sqlOp + " :searchVal" + paramIndex + ") ) ";
+                        cond = " AND ( (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'" + safeKey + "', '') ~ '^[0-9]+(\\.[0-9]+)?$' " +
+                               " AND CAST(NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'" + safeKey + "', '') AS NUMERIC) " + sqlOp + " :searchVal" + paramIndex + ") " +
+                               " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'" + safeKey.toLowerCase() + "', '') ~ '^[0-9]+(\\.[0-9]+)?$' " +
+                               " AND CAST(NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'" + safeKey.toLowerCase() + "', '') AS NUMERIC) " + sqlOp + " :searchVal" + paramIndex + ") ) ";
                     }
                     sql.append(cond);
                     countSql.append(cond);
@@ -377,7 +379,7 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                         countQuery.setParameter("searchValStrLower" + paramIndex, strValLower);
                     }
                     String likeVal = switch (op) {
-                        case "EQ" -> isH2 ? "%" + val + "%" : val;
+                        case "EQ" -> val;
                         case "STARTS_WITH" -> val + "%";
                         case "ENDS_WITH" -> "%" + val;
                         default -> "%" + val + "%";
@@ -409,27 +411,17 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                         }
                     }
                 } else if ("BETWEEN".equals(op)) {
-                    if (isH2) {
-                        query.setParameter("searchValLike" + paramIndex, "%" + val + "%");
-                        countQuery.setParameter("searchValLike" + paramIndex, "%" + val + "%");
-                    } else {
-                        String maxVal = searchParams.get(key + "_max");
-                        double vMin = Double.parseDouble(val);
-                        double vMax = Double.parseDouble(maxVal != null && !maxVal.isEmpty() ? maxVal : val);
-                        query.setParameter("searchValMin" + paramIndex, vMin);
-                        countQuery.setParameter("searchValMin" + paramIndex, vMin);
-                        query.setParameter("searchValMax" + paramIndex, vMax);
-                        countQuery.setParameter("searchValMax" + paramIndex, vMax);
-                    }
+                    String maxVal = searchParams.get(key + "_max");
+                    double vMin = Double.parseDouble(val);
+                    double vMax = Double.parseDouble(maxVal != null && !maxVal.isEmpty() ? maxVal : val);
+                    query.setParameter("searchValMin" + paramIndex, vMin);
+                    countQuery.setParameter("searchValMin" + paramIndex, vMin);
+                    query.setParameter("searchValMax" + paramIndex, vMax);
+                    countQuery.setParameter("searchValMax" + paramIndex, vMax);
                 } else {
-                    if (isH2) {
-                        query.setParameter("searchValLike" + paramIndex, "%" + val + "%");
-                        countQuery.setParameter("searchValLike" + paramIndex, "%" + val + "%");
-                    } else {
-                        double sVal = Double.parseDouble(val);
-                        query.setParameter("searchVal" + paramIndex, sVal);
-                        countQuery.setParameter("searchVal" + paramIndex, sVal);
-                    }
+                    double sVal = Double.parseDouble(val);
+                    query.setParameter("searchVal" + paramIndex, sVal);
+                    countQuery.setParameter("searchVal" + paramIndex, sVal);
                 }
                 paramIndex++;
             }
@@ -469,17 +461,19 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                     sql.append("r.node_id ").append(dir);
                 } else {
                     boolean isH2 = isH2Database();
+                    String safeProp = prop.replaceAll("[^a-zA-Z0-9_]", "_");
+                    String lowerProp = safeProp.toLowerCase();
                     if (isH2) {
-                        sql.append("r.created_at ").append(dir);
+                        String h2ValStr = "REGEXP_REPLACE(REGEXP_SUBSTR(CAST(COALESCE(r.searchable_data, r.data) AS VARCHAR), '\"' || '" + safeProp + "' || '\"\\s*:\\s*\"?[^\",}]+\"?'), '^\"' || '" + safeProp + "' || '\"\\s*:\\s*\"?', '')";
+                        String h2CleanStr = "REGEXP_REPLACE(" + h2ValStr + ", '\"$', '')";
+                        sql.append(h2CleanStr).append(" ").append(dir).append(" NULLS LAST");
                     } else {
-                        String safeProp = prop.replaceAll("[^a-zA-Z0-9_]", "_");
-                        String lowerProp = safeProp.toLowerCase();
-                        sql.append("CASE WHEN NULLIF(CAST(r.data AS jsonb)->>'").append(safeProp).append("', '') ~ '^-?[0-9]+(\\\\.[0-9]+)?$' ")
-                           .append("THEN CAST(NULLIF(CAST(r.data AS jsonb)->>'").append(safeProp).append("', '') AS NUMERIC) ")
-                           .append("WHEN NULLIF(CAST(r.data AS jsonb)->>'").append(lowerProp).append("', '') ~ '^-?[0-9]+(\\\\.[0-9]+)?$' ")
-                           .append("THEN CAST(NULLIF(CAST(r.data AS jsonb)->>'").append(lowerProp).append("', '') AS NUMERIC) ")
+                        sql.append("CASE WHEN NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'").append(safeProp).append("', '') ~ '^-?[0-9]+(\\\\.[0-9]+)?$' ")
+                           .append("THEN CAST(NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'").append(safeProp).append("', '') AS NUMERIC) ")
+                           .append("WHEN NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'").append(lowerProp).append("', '') ~ '^-?[0-9]+(\\\\.[0-9]+)?$' ")
+                           .append("THEN CAST(NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'").append(lowerProp).append("', '') AS NUMERIC) ")
                            .append("ELSE NULL END ").append(dir).append(" NULLS LAST, ");
-                        sql.append("COALESCE(NULLIF(CAST(r.data AS jsonb)->>'").append(safeProp).append("', ''), NULLIF(CAST(r.data AS jsonb)->>'")
+                        sql.append("COALESCE(NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'").append(safeProp).append("', ''), NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'")
                            .append(lowerProp).append("', '')) ").append(dir).append(" NULLS LAST");
                     }
                 }

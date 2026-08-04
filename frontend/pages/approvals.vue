@@ -53,63 +53,13 @@
     </va-card>
 
     <!-- Action Modal for Pending Step -->
-    <va-modal v-model="showActionModal" size="large" close-button hide-default-actions>
-      <template #header>
-        <div v-if="selectedPendingStep?.approvalRequest" style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%; padding-right: 2.5rem;">
-          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-            <div style="display: flex; align-items: center; gap: 0.65rem;">
-              <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-                <va-icon name="rate_review" color="primary" />
-                {{ $t('approval_review') || '결재 요청 검토' }}
-              </h3>
-              <va-badge :text="getRequestTypeLabel(selectedPendingStep.approvalRequest?.targetType)" :color="getRequestTypeColor(selectedPendingStep.approvalRequest?.targetType)" />
-            </div>
-
-            <div style="font-size: 0.85rem; color: var(--va-text-secondary); display: flex; align-items: center; gap: 0.75rem;">
-              <span v-if="selectedPendingStep.approvalRequest">
-                <va-icon name="person" size="small" style="margin-right: 2px;" />
-                {{ t('requester') || '기안자' }}: <strong>{{ getRequesterName(selectedPendingStep.approvalRequest) }}</strong>
-              </span>
-              <span>
-                <va-icon name="schedule" size="small" style="margin-right: 2px;" />
-                {{ formatDate(selectedPendingStep.approvalRequest?.createdAt) }}
-              </span>
-            </div>
-          </div>
-
-          <div v-if="selectedPendingStep.approvalRequest?.classificationNode" style="display: flex; align-items: center; margin-top: 0.25rem;">
-            <span style="font-size: 0.88rem; font-weight: 700; display: inline-flex; align-items: center; padding: 3px 12px; background: rgba(37, 99, 235, 0.08); border-radius: 16px; border: 1px solid rgba(37, 99, 235, 0.15);">
-              <span style="color: var(--va-primary);">
-                {{ getClassificationName(selectedPendingStep.approvalRequest.classificationNode, 'domainName') }}
-              </span>
-              <va-icon name="chevron_right" size="small" style="margin: 0 4px; color: var(--va-primary); font-size: 1rem;" />
-              <span style="color: var(--va-text-primary);">
-                {{ getClassificationName(selectedPendingStep.approvalRequest.classificationNode, 'name') }}
-              </span>
-            </span>
-          </div>
-        </div>
-      </template>
-
-      <div v-if="selectedPendingStep" style="padding: 1rem 0 0 0;">
-        <!-- Shared Approval Details Viewer (Collapsible requestedData Accordion) -->
-        <ApprovalDetailsViewer v-if="selectedPendingStep.approvalRequest" :request="selectedPendingStep.approvalRequest" />
-
-        <div style="width: 100%; margin-top: 1rem; margin-bottom: 1rem; display: block;">
-          <textarea
-            v-model="commentData[selectedPendingStep.id]" 
-            :placeholder="t('addComment')" 
-            style="width: 100%; box-sizing: border-box; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 8px; padding: 0.75rem 1rem; color: var(--va-text-primary); resize: vertical; min-height: 80px; font-family: inherit; font-size: 0.9rem;"
-          ></textarea>
-        </div>
-
-        <!-- Actions -->
-        <div style="display: flex; gap: 1rem;">
-          <va-button color="success" icon="check" style="flex: 1;" @click="handleSingleAction(selectedPendingStep.id, 'approve')" :outline="isDark">{{ t('approve') }}</va-button>
-          <va-button color="danger" icon="close" preset="secondary" style="flex: 1;" @click="handleSingleAction(selectedPendingStep.id, 'reject')">{{ t('reject') }}</va-button>
-        </div>
-      </div>
-    </va-modal>
+    <ApprovalsApprovalActionModal
+      v-model="showActionModal"
+      :selected-pending-step="selectedPendingStep"
+      :comment-data="commentData"
+      :is-dark="isDark"
+      @single-action="handleSingleAction"
+    />
 
     <!-- Card 2: My Submitted Requests -->
     <va-card style="border-radius: 12px; border: 1px solid var(--va-background-border); overflow: hidden;">
@@ -140,55 +90,10 @@
       </div>
     </va-card>
 
-    <!-- Details Modal -->
-    <va-modal v-model="showDetailsModal" size="large" close-button hide-default-actions>
-      <template #header>
-        <div v-if="selectedRequest" style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%; padding-right: 2.5rem;">
-          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-            <div style="display: flex; align-items: center; gap: 0.65rem;">
-              <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-                <va-icon name="verified_user" color="primary" />
-                {{ t('details') || '결재 상세 정보' }}
-              </h3>
-              <va-badge :text="getRequestTypeLabel(selectedRequest.targetType)" :color="getRequestTypeColor(selectedRequest.targetType)" />
-              <va-badge :text="selectedRequest.status" :color="selectedRequest.status === 'PENDING' ? 'warning' : (selectedRequest.status === 'APPROVED' ? 'success' : 'danger')" />
-            </div>
-
-            <div style="font-size: 0.85rem; color: var(--va-text-secondary); display: flex; align-items: center; gap: 0.75rem;">
-              <span v-if="selectedRequest">
-                <va-icon name="person" size="small" style="margin-right: 2px;" />
-                {{ t('requester') || '기안자' }}: <strong>{{ getRequesterName(selectedRequest) }}</strong>
-              </span>
-              <span>
-                <va-icon name="schedule" size="small" style="margin-right: 2px;" />
-                {{ formatDate(selectedRequest.createdAt) }}
-              </span>
-            </div>
-          </div>
-
-          <div v-if="selectedRequest.classificationNode" style="display: flex; align-items: center; margin-top: 0.25rem;">
-            <span style="font-size: 0.88rem; font-weight: 700; display: inline-flex; align-items: center; padding: 3px 12px; background: rgba(37, 99, 235, 0.08); border-radius: 16px; border: 1px solid rgba(37, 99, 235, 0.15);">
-              <span style="color: var(--va-primary);">
-                {{ getClassificationName(selectedRequest.classificationNode, 'domainName') }}
-              </span>
-              <va-icon name="chevron_right" size="small" style="margin: 0 4px; color: var(--va-primary); font-size: 1rem;" />
-              <span style="color: var(--va-text-primary);">
-                {{ getClassificationName(selectedRequest.classificationNode, 'name') }}
-              </span>
-            </span>
-          </div>
-        </div>
-      </template>
-
-      <div v-if="selectedRequest" style="padding: 1rem 0 0 0;">
-        <!-- Shared Approval Details Viewer (Collapsible requestedData Accordion & Approval Steps Timeline) -->
-        <ApprovalDetailsViewer v-if="selectedRequest" :request="selectedRequest" />
-      </div>
-
-      <template #footer>
-        <va-button preset="secondary" @click="showDetailsModal = false">{{ t('close') || '닫기' }}</va-button>
-      </template>
-    </va-modal>
+    <ApprovalsApprovalDetailsModal
+      v-model="showDetailsModal"
+      :selected-request="selectedRequest"
+    />
   </div>
 </template>
 

@@ -47,6 +47,18 @@ public class SensitiveDataController {
         return ResponseEntity.ok(decrypted);
     }
 
+    @PostMapping("/history/{historyId}/decrypt")
+    @PreAuthorize("hasPermission(null, 'record:unmask')")
+    public ResponseEntity<Map<String, String>> decryptHistoryFields(
+            @PathVariable UUID historyId,
+            @RequestBody(required = false) DecryptRequest request,
+            HttpServletRequest httpRequest) {
+        List<String> fieldKeys = request != null ? request.getFieldKeys() : null;
+        String ip = getClientIp(httpRequest);
+        Map<String, String> decrypted = sensitiveDataService.decryptHistoryFields(historyId, fieldKeys, ip);
+        return ResponseEntity.ok(decrypted);
+    }
+
     @GetMapping("/access-logs")
     @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'log:read')")
     public ResponseEntity<Page<SensitiveDataAccessLogDto>> getAccessLogs(

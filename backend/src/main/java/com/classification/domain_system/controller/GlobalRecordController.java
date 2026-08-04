@@ -113,4 +113,11 @@ public class GlobalRecordController {
         java.util.List<UUID> nodeIds = request != null ? request.getNodeIds() : java.util.Collections.emptyList();
         return ResponseEntity.ok(multiAxisRecordService.setSecondaryNodes(id, nodeIds));
     }
+
+    @PostMapping("/admin/migrate-searchable-data")
+    @PreAuthorize("hasRole('ADMIN') or hasPermission(null, 'admin:write')")
+    public ResponseEntity<String> migrateSearchableData() {
+        int count = recordService.migrateSearchableData();
+        return ResponseEntity.ok("Successfully migrated " + count + " records.");
+    }
 }

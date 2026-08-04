@@ -58,7 +58,7 @@
             square
             style="font-weight: 800; margin-top: 4px;"
           >
-            {{ recordStatus === 'PENDING_APPROVAL' ? (t('pending_approval') || '결재 진행중') : (recordStatus === 'ACTIVE' ? (t('active') || '정상') : (t('deleted') || '삭제됨')) }}
+            {{ recordStatus === 'PENDING_APPROVAL' ? (t('pending_approval') || '결재 진행중') : (recordStatus === 'ACTIVE' ? (t('active_status') || '정상') : (t('deleted_status') || '삭제됨')) }}
           </va-chip>
         </div>
       </div>
@@ -157,11 +157,29 @@
                           <va-popover v-if="hasHint(field.hint)" :message="getTranslatedName(field.hint)" trigger="hover" placement="top">
                             <va-icon name="info" size="small" color="info" style="cursor: help; margin-left: 2px;" />
                           </va-popover>
+                          <!-- Decrypt Button for Details -->
+                          <span v-if="field.isEncrypted && (!isEditing || isSnapshotMode)" style="margin-left:auto; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; color:#888;">
+                            <va-icon name="lock" size="small" />
+                            <template v-if="!decryptedValues[field.key]">
+                              <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary);" @click.stop="requestDecryptRecordField(field.key)">
+                                {{ t('view_original') || '원본 보기' }}
+                              </span>
+                            </template>
+                            <template v-else>
+                              <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary);" @click.stop="hideDecryptedField(field.key)">
+                                {{ t('hide_original') || '원본 숨기기' }}
+                              </span>
+                              <span v-if="decryptRemainingTime[field.key]" style="margin-left:4px; font-variant-numeric: tabular-nums;">
+                                (00:{{ String(decryptRemainingTime[field.key]).padStart(2, '0') }})
+                              </span>
+                            </template>
+                            <va-icon v-if="decryptingFields[field.key]" name="sync" size="small" spin />
+                          </span>
                         </span>
 
                         <va-input
                           v-if="['TEXT', 'NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER', 'DATE'].includes(field.type)"
-                          :model-value="localRecord[field.key]"
+                          :model-value="decryptedValues[field.key] || localRecord[field.key]"
                           @update:model-value="(val) => handleMaskedInput(field, val)"
                           :type="field.type === 'DATE' ? (focusedDateFields['edit_' + field.key] || localRecord[field.key] ? 'date' : 'text') : (['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type) ? 'number' : 'text')"
                           class="w-full"
@@ -266,7 +284,8 @@
                         </div>
                         <va-input
                           v-else
-                          v-model="localRecord[field.key]"
+                          :model-value="decryptedValues[field.key] || localRecord[field.key]"
+                          @update:model-value="(val) => { localRecord[field.key] = val }"
                           type="text"
                           class="w-full"
                           :readonly="!isEditing"
@@ -394,11 +413,29 @@
                         </span>
                         <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1; flex-wrap: wrap;">
                           <span style="text-decoration: line-through; color: var(--va-danger); background: rgba(229, 57, 53, 0.1); padding: 0.1rem 0.4rem; border-radius: 4px;">
-                            {{ formatDiffValue(fieldKey, safeParseJson(log.previousData)[fieldKey]) }}
+                            {{ decryptedValues[log.id + '_' + fieldKey] || formatDiffValue(fieldKey, safeParseJson(log.previousData)[fieldKey]) }}
                           </span>
                           <va-icon name="arrow_forward" size="small" color="secondary" />
                           <span style="color: var(--va-success); background: rgba(30, 203, 114, 0.1); padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 600;">
-                            {{ formatDiffValue(fieldKey, safeParseJson(log.newData)[fieldKey]) }}
+                            {{ decryptedValues[log.id + '_' + fieldKey] || formatDiffValue(fieldKey, safeParseJson(log.newData)[fieldKey]) }}
+                          </span>
+                          <!-- Decrypt Button for History -->
+                          <span v-if="getFieldByKey(fieldKey)?.isEncrypted" style="margin-left:8px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; color:#888;">
+                            <va-icon name="lock" size="small" />
+                            <template v-if="!decryptedValues[log.id + '_' + fieldKey]">
+                              <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary);" @click.stop="requestDecryptHistoryField(log.id, fieldKey)">
+                                {{ t('view_original') || '원본 보기' }}
+                              </span>
+                            </template>
+                            <template v-else>
+                              <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary);" @click.stop="hideDecryptedField(log.id + '_' + fieldKey)">
+                                {{ t('hide_original') || '원본 숨기기' }}
+                              </span>
+                              <span v-if="decryptRemainingTime[log.id + '_' + fieldKey]" style="margin-left:4px; font-variant-numeric: tabular-nums;">
+                                (00:{{ String(decryptRemainingTime[log.id + '_' + fieldKey]).padStart(2, '0') }})
+                              </span>
+                            </template>
+                            <va-icon v-if="decryptingFields[log.id + '_' + fieldKey]" name="sync" size="small" spin />
                           </span>
                         </div>
                       </div>
@@ -583,6 +620,7 @@ const getChangedKeys = (prev, curr) => {
   const changed = [];
   for (const k of keys) {
     if (k === 'id' || k === 'createdAt' || k === 'updatedAt' || k === 'createdBy' || k === 'updatedBy' || k === 'domainId' || k === 'status') continue;
+    if (k.startsWith('_idx_')) continue;
     if (JSON.stringify(prevObj[k]) !== JSON.stringify(currObj[k])) {
       changed.push(k);
     }
@@ -618,6 +656,11 @@ const getFieldLabelByKey = (key) => {
   if (!key) return '';
   const f = props.fields?.find(f => f.key === key || String(f.id) === String(key) || (f.key && String(f.key).toLowerCase() === String(key).toLowerCase()));
   return f ? getTranslatedName(f.name) : key;
+};
+
+const getFieldByKey = (key) => {
+  if (!key) return null;
+  return props.fields?.find(f => f.key === key || String(f.id) === String(key) || (f.key && String(f.key).toLowerCase() === String(key).toLowerCase()));
 };
 
 const historyGridColumnDefs = computed(() => {
@@ -793,6 +836,98 @@ const handleMaskedInput = (field, val) => {
   nextTick(() => {
     localRecord.value[field.key] = formatMaskedInput(val, field.maskingPattern)
   })
+}
+
+const decryptedValues = ref({})
+const decryptingFields = ref({})
+const decryptTimers = ref({})
+const decryptRemainingTime = ref({})
+const decryptIntervals = ref({})
+
+const requestDecryptRecordField = async (fieldKey) => {
+  const recId = props.record?.id || localRecord.value?.id
+  if (!recId) return
+  decryptingFields.value[fieldKey] = true
+  try {
+    const token = useCookie('auth_token').value
+    const res = await $fetch(`/api/sensitive-data/record/${recId}/decrypt`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: { fieldKeys: [fieldKey] }
+    })
+    if (res && res[fieldKey]) {
+      decryptedValues.value[fieldKey] = res[fieldKey]
+      
+      if (decryptTimers.value[fieldKey]) clearTimeout(decryptTimers.value[fieldKey])
+      if (decryptIntervals.value[fieldKey]) clearInterval(decryptIntervals.value[fieldKey])
+      
+      decryptRemainingTime.value[fieldKey] = 30
+      
+      decryptIntervals.value[fieldKey] = setInterval(() => {
+        if (decryptRemainingTime.value[fieldKey] > 0) {
+          decryptRemainingTime.value[fieldKey]--
+        }
+      }, 1000)
+
+      decryptTimers.value[fieldKey] = setTimeout(() => {
+        hideDecryptedField(fieldKey)
+      }, 30000)
+    }
+  } catch (e) {
+    console.error('Failed to decrypt field:', e)
+    useToast().init({ message: t('decrypt_failed') || '복호화 실패', color: 'danger' })
+  } finally {
+    decryptingFields.value[fieldKey] = false
+  }
+}
+
+const requestDecryptHistoryField = async (historyId, fieldKey) => {
+  const key = `${historyId}_${fieldKey}`
+  decryptingFields.value[key] = true
+  try {
+    const token = useCookie('auth_token').value
+    const res = await $fetch(`/api/sensitive-data/history/${historyId}/decrypt`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: { fieldKeys: [fieldKey] }
+    })
+    if (res && res[fieldKey]) {
+      decryptedValues.value[key] = res[fieldKey]
+      
+      if (decryptTimers.value[key]) clearTimeout(decryptTimers.value[key])
+      if (decryptIntervals.value[key]) clearInterval(decryptIntervals.value[key])
+      
+      decryptRemainingTime.value[key] = 30
+      
+      decryptIntervals.value[key] = setInterval(() => {
+        if (decryptRemainingTime.value[key] > 0) {
+          decryptRemainingTime.value[key]--
+        }
+      }, 1000)
+
+      decryptTimers.value[key] = setTimeout(() => {
+        hideDecryptedField(key)
+      }, 30000)
+    }
+  } catch (e) {
+    console.error('Failed to decrypt history field:', e)
+    useToast().init({ message: t('decrypt_failed') || '복호화 실패', color: 'danger' })
+  } finally {
+    decryptingFields.value[key] = false
+  }
+}
+
+const hideDecryptedField = (key) => {
+  if (decryptTimers.value[key]) {
+    clearTimeout(decryptTimers.value[key])
+    delete decryptTimers.value[key]
+  }
+  if (decryptIntervals.value[key]) {
+    clearInterval(decryptIntervals.value[key])
+    delete decryptIntervals.value[key]
+  }
+  delete decryptRemainingTime.value[key]
+  delete decryptedValues.value[key]
 }
 
 const secondaryNodes = ref([])

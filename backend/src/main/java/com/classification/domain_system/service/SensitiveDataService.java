@@ -37,6 +37,7 @@ public class SensitiveDataService {
     private final FieldEncryptionService encryptionService;
     private final FieldDefinitionService fieldDefinitionService;
     private final RecordRepository recordRepository;
+    private final com.classification.domain_system.repository.RecordHistoryRepository recordHistoryRepository;
     private final ApprovalRequestRepository approvalRepository;
     private final SensitiveDataAccessLogRepository accessLogRepository;
     private final FieldDefinitionRepository fieldDefinitionRepository;
@@ -366,6 +367,45 @@ public class SensitiveDataService {
 
         if (!decryptedMap.isEmpty()) {
             saveAccessLog("RECORD", recordId, new ArrayList<>(decryptedMap.keySet()), ipAddress);
+        }
+
+        return decryptedMap;
+    }
+
+    @Transactional
+    @PreAuthorize("hasPermission(null, 'record:unmask')")
+    public Map<String, String> decryptHistoryFields(UUID historyId, List<String> fieldKeys, String ipAddress) {
+        com.classification.domain_system.entity.RecordHistory history = 
+            recordHistoryRepository.findById(historyId)
+                .orElseThrow(() -> new ResourceNotFoundException("History not found"));
+
+        if (history.getRecord() == null || history.getRecord().getNode() == null) {
+            return Collections.emptyMap();
+        }
+
+        List<FieldDefinition> fields = fieldDefinitionService.getEffectiveFields(history.getRecord().getNode().getId());
+        
+        // combine previousData and newData to decrypt both
+        Map<String, Object> combined = new HashMap<>();
+        try {
+            if (history.getPreviousData() != null) {
+                combined.put("before", objectMapper.readValue(history.getPreviousData(), new TypeReference<Map<String, Object>>() {}));
+            }
+            if (history.getNewData() != null) {
+                combined.put("after", objectMapper.readValue(history.getNewData(), new TypeReference<Map<String, Object>>() {}));
+            }
+        } catch (Exception e) {
+            log.error("Failed to parse history data", e);
+        }
+
+        Map<String, String> decryptedMap = new HashMap<>();
+        try {
+            String combinedJson = objectMapper.writeValueAsString(combined);
+            decryptedMap = decryptFromDataJson(combinedJson, fields, fieldKeys);
+        } catch (Exception e) {}
+
+        if (!decryptedMap.isEmpty()) {
+            saveAccessLog("RECORD_HISTORY", historyId, new ArrayList<>(decryptedMap.keySet()), ipAddress);
         }
 
         return decryptedMap;

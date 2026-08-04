@@ -61,6 +61,9 @@ class RecordHistoryControllerTest {
     @MockitoBean
     private com.classification.domain_system.context.AuthContext authContext;
 
+    @MockitoBean
+    private com.classification.domain_system.service.RecordService recordService;
+
     @Test
     @DisplayName("getRecordHistory - 히스토리 조회 시 changedBy ID가 사용자 이름(changedByName)으로 매핑된다")
     void getRecordHistory_ResolvesChangedByName() throws Exception {

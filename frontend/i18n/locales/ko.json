@@ -1,4 +1,9 @@
 {
+  "font_size_setting": "글자 크기 설정",
+  "font_size_small": "작게",
+  "font_size_medium": "보통",
+  "font_size_large": "크게",
+  "font_size_xlarge": "아주 크게",
   "masking_pattern": "마스킹 포맷 (Masking Pattern)",
   "encrypted_field": "암호화 필드",
   "view_original": "원본 보기",
@@ -911,7 +916,7 @@
   "permissions": "권한",
   "permissions_matrix_title": "부여할 세부 권한 그룹 목록 (Permissions Matrix)",
   "permissions_rules_title": "신청 자격 및 필드 권한 제어 규칙",
-  "personal_settings": "개인 설정 (타임존)",
+  "personal_settings": "개인 설정",
   "placeholder_confirm_password": "비밀번호를 다시 입력하세요",
   "placeholder_password": "비밀번호를 입력하세요",
   "placeholder_timezone": "타임존을 선택하세요",
