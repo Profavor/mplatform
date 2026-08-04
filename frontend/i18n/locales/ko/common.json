@@ -673,5 +673,7 @@
   "workflow_center_title": "워크플로우 & 권한 관리 센터",
   "workflow_management": "워크플로우 관리",
   "workflow_management_desc": "워크플로우 서식을 AG-Grid 테이블로 빠르게 탐색하고, 전용 모달 대화상자에서 손쉽게 생성 및 편집합니다.",
-  "workflow_name_col": "서식 명칭"
+  "workflow_name_col": "서식 명칭",
+  "add_row": "+ 행 추가",
+  "save_changes_hint": "* 셀 수정 후 상단 또는 하단의 '저장' 버튼을 클릭하여 변경사항을 반영하세요."
 }

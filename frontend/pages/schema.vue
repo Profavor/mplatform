@@ -790,7 +790,7 @@ const availableClassificationNodes = computed(() => {
       if (node.isDomain && node.id) {
         const dName = node.label || node.name || 'Domain'
         options.push({
-          text: `🌐 [도메인] ${dName} (${currentLocale.value === 'ko' ? '도메인 공통' : 'Domain Level'})`,
+          text: `🌐 ${t('domain_bracket')} ${dName} (${t('domain_level')})`,
           value: `domain_${node.id}`,
           isDomain: true,
           domainId: node.id

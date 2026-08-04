@@ -674,5 +674,7 @@
   "workflow_center_title": "Workflow & Permission Management Center",
   "workflow_management": "Workflow Management",
   "workflow_management_desc": "Easily explore workflow templates with AG-Grid and manage or edit them using the dedicated modal dialog.",
-  "workflow_name_col": "Form Name"
+  "workflow_name_col": "Form Name",
+  "add_row": "+ Add Row",
+  "save_changes_hint": "* Click the 'Save' button at the top or bottom after editing cells to apply changes."
 }
