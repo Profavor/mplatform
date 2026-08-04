@@ -16,6 +16,9 @@
       </div>
 
       <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <va-button v-if="hasPermission('admin:write')" preset="primary" color="primary" icon="save_alt" size="small" @click="dumpMenuSeed">
+          {{ $t('backup_menu_seed') || '기본 시드(Seed) 파일로 현재 상태 백업' }}
+        </va-button>
         <va-button icon="add" size="small" @click="openAddModal(null)">{{ $t('add_root_menu') || '+ 루트 메뉴 추가' }}</va-button>
         <va-button preset="outline" color="primary" icon="refresh" size="small" @click="fetchMenus">
           {{ $t('refresh') || '새로고침' }}
@@ -146,13 +149,30 @@
 import { ref, computed, onMounted } from 'vue'
 import { useMenu } from '~/composables/useMenu'
 import { usePageTitle } from '~/composables/usePageTitle'
+import { usePermission } from '~/composables/usePermission'
 
 const { pageTitle } = usePageTitle('menu_management', '메뉴 관리')
 import { useToast } from 'vuestic-ui'
 
 const { t, te, locale } = useI18n()
 const { menus, fetchMenus, refreshMenus } = useMenu()
+const { hasPermission } = usePermission()
 const { init } = useToast()
+
+const dumpMenuSeed = async () => {
+  if (!window.confirm('현재 메뉴 설정(순서, 활성화 여부, 필요 권한 등)을 기본 시드 파일로 백업하시겠습니까? (이 기능은 관리자 전용입니다)')) return
+  try {
+    const token = useCookie('auth_token')
+    await $fetch('/api/menus/dump-seed', {
+      method: 'POST',
+      headers: token.value ? { Authorization: `Bearer ${token.value}` } : {}
+    })
+    init({ message: '메뉴 시드 파일 백업이 완료되었습니다.', color: 'success' })
+  } catch (error) {
+    init({ message: '메뉴 시드 파일 백업에 실패했습니다.', color: 'danger' })
+    console.error(error)
+  }
+}
 
 const token = useCookie('auth_token')
 const userCookie = useCookie('user_data')
