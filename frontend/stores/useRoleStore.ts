@@ -143,11 +143,12 @@ export function useRoleStore() {
     }
   }
 
-  const dumpSeedFiles = async (): Promise<boolean> => {
+  const dumpSeedFiles = async (orgId?: string | null): Promise<boolean> => {
     try {
       isLoading.value = true
       const headers = token.value ? { Authorization: `Bearer ${token.value}` } : {}
-      await $fetch('/api/roles/dump-seed', { method: 'POST', headers })
+      const url = orgId ? `/api/roles/dump-seed?orgId=${orgId}` : '/api/roles/dump-seed'
+      await $fetch(url, { method: 'POST', headers })
       return true
     } catch (e) {
       console.error('Failed to dump seed files:', e)

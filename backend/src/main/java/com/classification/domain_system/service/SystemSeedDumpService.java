@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.File;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,7 +29,7 @@ public class SystemSeedDumpService {
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
-    public void dumpCurrentStateToSeedFiles() {
+    public void dumpCurrentStateToSeedFiles(UUID orgId) {
         try {
             // Find src/main/resources path
             String userDir = System.getProperty("user.dir");
@@ -39,7 +40,12 @@ public class SystemSeedDumpService {
             }
 
             // Dump Roles
-            List<Role> allRoles = roleRepository.findAll();
+            List<Role> allRoles;
+            if (orgId != null) {
+                allRoles = roleRepository.findByOrganizationId(orgId);
+            } else {
+                allRoles = roleRepository.findAll();
+            }
             // Since roles might have many duplicates per organization, we should probably only dump distinct roles by name.
             // But since this is a global dump, let's assume we take the first organization's roles (or roles where org is null if applicable).
             // Actually, in our initial DB, we had 8 roles. Let's just group by name and take one of each.

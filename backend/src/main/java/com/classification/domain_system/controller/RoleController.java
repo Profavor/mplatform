@@ -93,8 +93,8 @@ public class RoleController {
 
     @PostMapping("/dump-seed")
     @PreAuthorize("hasPermission(null, 'admin:write')")
-    public ResponseEntity<Void> dumpSeedFiles() {
-        systemSeedDumpService.dumpCurrentStateToSeedFiles();
+    public ResponseEntity<Void> dumpSeedFiles(@RequestParam(required = false) UUID orgId) {
+        systemSeedDumpService.dumpCurrentStateToSeedFiles(orgId);
         return ResponseEntity.ok().build();
     }
 }

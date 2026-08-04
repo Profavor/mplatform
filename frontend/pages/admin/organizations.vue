@@ -770,11 +770,17 @@ const handleSyncDefaultRoles = async () => {
 }
 
 const handleDumpSeedFiles = async () => {
-  if (!confirm('현재 DB에 저장된 모든 역할 및 권한 상태를 시스템 기본값(Seed) JSON 파일로 덮어쓰시겠습니까?\n(이 작업은 소스코드 디렉토리 내의 파일을 직접 수정합니다)')) return
+  const targetOrgId = selectedOrg.value?.id
+  const targetName = selectedOrg.value ? (getI18nText(selectedOrg.value.displayName) || selectedOrg.value.name) : ''
+  const msg = targetOrgId 
+    ? `현재 '${targetName}' 조직에 셋팅된 모든 역할 상태를 시스템 기본값(Seed) JSON 파일로 백업/덮어쓰시겠습니까?\n(이 작업은 소스코드 디렉토리 내의 파일을 직접 수정합니다)`
+    : '현재 전체 DB에 저장된 모든 역할 상태를 시스템 기본값(Seed) JSON 파일로 백업/덮어쓰시겠습니까?\n(이 작업은 소스코드 디렉토리 내의 파일을 직접 수정합니다)'
+
+  if (!confirm(msg)) return
 
   isSyncingRoles.value = true
   try {
-    const success = await roleStore.dumpSeedFiles()
+    const success = await roleStore.dumpSeedFiles(targetOrgId)
     if (success) {
       if (typeof initToast === 'function') {
         initToast({ message: '기본 시드(Seed) 파일 갱신 완료', color: 'success' })
