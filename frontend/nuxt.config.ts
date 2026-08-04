@@ -31,8 +31,30 @@ export default defineNuxtConfig({
   },
   i18n: {
     locales: [
-      { code: 'ko', file: 'ko.json' },
-      { code: 'en', file: 'en.json' }
+      {
+        code: 'ko',
+        files: [
+          'ko/admin.json',
+          'ko/approval.json',
+          'ko/auth.json',
+          'ko/common.json',
+          'ko/dq.json',
+          'ko/records.json',
+          'ko/schema.json'
+        ]
+      },
+      {
+        code: 'en',
+        files: [
+          'en/admin.json',
+          'en/approval.json',
+          'en/auth.json',
+          'en/common.json',
+          'en/dq.json',
+          'en/records.json',
+          'en/schema.json'
+        ]
+      }
     ],
     defaultLocale: 'ko',
     strategy: 'no_prefix',
