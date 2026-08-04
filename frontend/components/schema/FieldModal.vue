@@ -108,6 +108,19 @@
       </va-alert>
     </div>
 
+    <div v-if="newField.type === 'DATE'" class="mb-4 w-full">
+      <va-select
+        v-model="newField.dateFormat"
+        :options="['YYYY-MM-DD', 'YYYY-MM-DD HH:mm:ss', 'MM/DD/YYYY', 'DD/MM/YYYY']"
+        label="Date Format (형식 지정)"
+        class="w-full"
+        clearable
+        allow-create="unique"
+        :no-options-text="'직접 입력 가능'"
+        placeholder="YYYY-MM-DD"
+      />
+    </div>
+
     <div v-if="['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER', 'CALCULATED'].includes(newField.type)" class="mb-4 w-full">
       <va-select
         v-model="newField.unit"

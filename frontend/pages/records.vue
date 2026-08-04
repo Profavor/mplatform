@@ -1368,9 +1368,29 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
         if (!params.value) return '';
         const date = parseDate(params.value);
         if (!date || isNaN(date.getTime())) return params.value;
+        
+        let formatStr = 'YYYY-MM-DD';
+        try {
+          const opts = typeof f.options === 'string' ? JSON.parse(f.options) : (f.options || {});
+          if (opts.dateFormat) formatStr = opts.dateFormat;
+        } catch(e) {}
+
         const tz = useCookie('timezone', { default: () => 'Asia/Seoul' }).value;
-        const formatted = date.toLocaleString(currentLocale.value === 'ko' ? 'ko-KR' : 'en-US', { timeZone: tz });
-        return formatted.replace(/\s*(GMT|UTC|KST|PST|EST|CET)[-+0-9:]*/gi, '').trim();
+        const tzDate = new Date(date.toLocaleString('en-US', { timeZone: tz }));
+
+        const yy = tzDate.getFullYear();
+        const mm = String(tzDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(tzDate.getDate()).padStart(2, '0');
+        const hh = String(tzDate.getHours()).padStart(2, '0');
+        const min = String(tzDate.getMinutes()).padStart(2, '0');
+        const ss = String(tzDate.getSeconds()).padStart(2, '0');
+        
+        if (formatStr === 'YYYY-MM-DD') return `${yy}-${mm}-${dd}`;
+        if (formatStr === 'YYYY-MM-DD HH:mm:ss') return `${yy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+        if (formatStr === 'MM/DD/YYYY') return `${mm}/${dd}/${yy}`;
+        if (formatStr === 'DD/MM/YYYY') return `${dd}/${mm}/${yy}`;
+
+        return `${yy}-${mm}-${dd}`;
       }
     }
     if (['NUMBER', 'INTEGER', 'DECIMAL'].includes(f.type)) {
