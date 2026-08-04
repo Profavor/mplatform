@@ -59,7 +59,7 @@ public class DataMappingTransformer {
             Map<String, Object> rootContext = new HashMap<>();
             rootContext.put("payload", payload);
             StandardEvaluationContext context = new StandardEvaluationContext(rootContext);
-            context.addPropertyAccessor(new org.springframework.context.expression.MapAccessor());
+            context.addPropertyAccessor(new org.springframework.expression.spel.support.MapAccessor());
 
             // Read mapping config
             JsonNode mappingConfig = mapper.readTree(mappingConfigStr);
@@ -84,7 +84,7 @@ public class DataMappingTransformer {
                         java.util.List<Map<String, Object>> resultList = new java.util.ArrayList<>();
                         for (Object item : (Iterable<?>) rootObj) {
                             StandardEvaluationContext itemContext = new StandardEvaluationContext(item);
-                            itemContext.addPropertyAccessor(new org.springframework.context.expression.MapAccessor());
+                            itemContext.addPropertyAccessor(new org.springframework.expression.spel.support.MapAccessor());
                             itemContext.setVariable("payload", payload);
 
                             Map<String, Object> targetPayload = new HashMap<>();
@@ -108,7 +108,7 @@ public class DataMappingTransformer {
 
                     if (rootObj instanceof Map) {
                         StandardEvaluationContext itemContext = new StandardEvaluationContext(rootObj);
-                        itemContext.addPropertyAccessor(new org.springframework.context.expression.MapAccessor());
+                        itemContext.addPropertyAccessor(new org.springframework.expression.spel.support.MapAccessor());
                         itemContext.setVariable("payload", payload);
 
                         Map<String, Object> targetPayload = new HashMap<>();
