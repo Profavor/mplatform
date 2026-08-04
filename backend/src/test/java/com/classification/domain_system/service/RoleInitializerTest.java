@@ -20,21 +20,31 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+@ExtendWith(MockitoExtension.class)
 class RoleInitializerTest {
 
+    @Mock
     private RoleRepository roleRepository;
+
+    @Mock
     private OrganizationRepository organizationRepository;
+
+    @Mock
+    private ObjectMapper objectMapper;
+
     private RoleInitializer roleInitializer;
 
     @BeforeEach
     void setUp() {
-        roleRepository = mock(RoleRepository.class);
-        organizationRepository = mock(OrganizationRepository.class);
-        roleInitializer = new RoleInitializer(roleRepository, organizationRepository);
+        roleInitializer = new RoleInitializer(roleRepository, organizationRepository, objectMapper);
     }
 
     @Test
