@@ -111,7 +111,7 @@
     <div v-if="newField.type === 'DATE'" class="mb-4 w-full">
       <va-select
         v-model="newField.dateFormat"
-        :options="['YYYY-MM-DD', 'YYYY-MM-DD HH:mm:ss', 'MM/DD/YYYY', 'DD/MM/YYYY']"
+        :options="['YYYY-MM-DD', 'MM/DD/YYYY', 'DD/MM/YYYY']"
         label="Date Format (형식 지정)"
         class="w-full"
         clearable

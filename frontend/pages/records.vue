@@ -1381,12 +1381,8 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
         const yy = tzDate.getFullYear();
         const mm = String(tzDate.getMonth() + 1).padStart(2, '0');
         const dd = String(tzDate.getDate()).padStart(2, '0');
-        const hh = String(tzDate.getHours()).padStart(2, '0');
-        const min = String(tzDate.getMinutes()).padStart(2, '0');
-        const ss = String(tzDate.getSeconds()).padStart(2, '0');
         
         if (formatStr === 'YYYY-MM-DD') return `${yy}-${mm}-${dd}`;
-        if (formatStr === 'YYYY-MM-DD HH:mm:ss') return `${yy}-${mm}-${dd} ${hh}:${min}:${ss}`;
         if (formatStr === 'MM/DD/YYYY') return `${mm}/${dd}/${yy}`;
         if (formatStr === 'DD/MM/YYYY') return `${dd}/${mm}/${yy}`;
 
