@@ -98,6 +98,7 @@
 .ag-root-wrapper {
   border-radius: 8px !important;
   font-family: 'Pretendard', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  --ag-font-size: var(--app-font-size, 14px) !important;
 }
 
 /* Dark mode overrides for AG-Grid when Vuestic dark mode is active */

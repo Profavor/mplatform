@@ -1,4 +1,9 @@
 {
+  "font_size_setting": "Font Size",
+  "font_size_small": "Small",
+  "font_size_medium": "Medium",
+  "font_size_large": "Large",
+  "font_size_xlarge": "X-Large",
   "masking_pattern": "Masking Pattern",
   "encrypted_field": "Encrypted Field",
   "view_original": "View Original",
@@ -913,7 +918,7 @@
   "permissions": "Permissions",
   "permissions_matrix_title": "Permissions Matrix",
   "permissions_rules_title": "Initiator Eligibility & Field Control Rules",
-  "personal_settings": "Personal Settings (Timezone)",
+  "personal_settings": "Personal Settings",
   "placeholder_confirm_password": "Re-enter your password",
   "placeholder_password": "Enter your password",
   "placeholder_timezone": "Select your timezone",

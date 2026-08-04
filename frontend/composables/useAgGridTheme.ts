@@ -3,6 +3,8 @@ import 'ag-grid-enterprise'
 import { themeQuartz, colorSchemeDark } from 'ag-grid-community'
 import { useColors } from 'vuestic-ui'
 
+import { useCookie } from '#app'
+
 /**
  * AG Grid 테마 및 공통 옵션을 중앙에서 관리하는 composable.
  * 
@@ -17,11 +19,19 @@ export function useAgGridTheme() {
   const { currentPresetName } = useColors()
 
   const isDark = computed(() => currentPresetName.value === 'dark')
+  const savedFontSize = useCookie('fontSize', { default: () => '14px' })
 
   const gridTheme = computed(() => {
+    const sizeStr = savedFontSize.value || '14px'
+    const numericSize = parseInt(sizeStr.replace('px', '')) || 14
+    
+    const baseTheme = themeQuartz.withParams({
+      fontSize: numericSize
+    })
+
     return isDark.value
-      ? themeQuartz.withPart(colorSchemeDark)
-      : themeQuartz
+      ? baseTheme.withPart(colorSchemeDark)
+      : baseTheme
   })
 
   /** 자동 리사이즈 끄기: 명시적 컬럼 너비(width)와 flex 설정을 존중하고 가로 스크롤을 활성화하기 위해 */

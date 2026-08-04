@@ -154,7 +154,7 @@
                                   icon="visibility_off"
                                   color="secondary"
                                   @click="hideDecryptedField(f.key)"
-                                >{{ t('hide_original') || '원본 숨기기' }}</va-button>
+                                >{{ t('hide_original') || '원본 숨기기' }} <span v-if="decryptRemainingTime[f.key]" style="margin-left:4px; font-variant-numeric: tabular-nums;">(00:{{ String(decryptRemainingTime[f.key]).padStart(2, '0') }})</span></va-button>
                                 <va-badge v-if="request.targetType === 'RECORD_UPDATE' && f.val.isChanged" color="warning" size="small">{{ t('modified') }}</va-badge>
                               </div>
                             </div>
@@ -674,6 +674,8 @@ const { hasPermission } = usePermission()
 const decryptedValues = ref({})
 const decryptingFields = ref({})
 const decryptTimers = ref({})
+const decryptRemainingTime = ref({})
+const decryptIntervals = ref({})
 
 const requestDecryptApprovalField = async (fieldKey) => {
   if (!props.request || !props.request.id) return
@@ -686,7 +688,18 @@ const requestDecryptApprovalField = async (fieldKey) => {
     })
     if (res && res[fieldKey]) {
       decryptedValues.value[fieldKey] = res[fieldKey]
+      
       if (decryptTimers.value[fieldKey]) clearTimeout(decryptTimers.value[fieldKey])
+      if (decryptIntervals.value[fieldKey]) clearInterval(decryptIntervals.value[fieldKey])
+      
+      decryptRemainingTime.value[fieldKey] = 30
+      
+      decryptIntervals.value[fieldKey] = setInterval(() => {
+        if (decryptRemainingTime.value[fieldKey] > 0) {
+          decryptRemainingTime.value[fieldKey]--
+        }
+      }, 1000)
+
       decryptTimers.value[fieldKey] = setTimeout(() => {
         hideDecryptedField(fieldKey)
       }, 30000)
@@ -704,6 +717,11 @@ const hideDecryptedField = (fieldKey) => {
     clearTimeout(decryptTimers.value[fieldKey])
     delete decryptTimers.value[fieldKey]
   }
+  if (decryptIntervals.value[fieldKey]) {
+    clearInterval(decryptIntervals.value[fieldKey])
+    delete decryptIntervals.value[fieldKey]
+  }
+  delete decryptRemainingTime.value[fieldKey]
   delete decryptedValues.value[fieldKey]
 }
 

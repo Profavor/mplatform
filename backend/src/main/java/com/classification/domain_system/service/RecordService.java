@@ -88,6 +88,14 @@ public class RecordService {
         return dataMaskingService.maskJsonData(dataJson, fields, canUnmask);
     }
 
+    public String generateSearchableData(UUID nodeId, String dataJson) {
+        if (dataJson == null || dataJson.isBlank() || nodeId == null) {
+            return dataJson;
+        }
+        List<FieldDefinition> fields = fieldDefinitionService.getEffectiveFields(nodeId);
+        return dataMaskingService.maskJsonData(dataJson, fields, false);
+    }
+
     public Record prepareRecordForRead(Record record) {
         if (record == null || record.getData() == null || record.getNode() == null) {
             return record;
@@ -101,5 +109,18 @@ public class RecordService {
         if (records == null) return null;
         records.getContent().forEach(this::prepareRecordForRead);
         return records;
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public int migrateSearchableData() {
+        int count = 0;
+        List<Record> allRecords = com.classification.domain_system.context.ApplicationContextProvider.getApplicationContext().getBean(com.classification.domain_system.repository.RecordRepository.class).findAll();
+        for (Record record : allRecords) {
+            if (record.getNode() != null && record.getData() != null) {
+                record.setSearchableData(generateSearchableData(record.getNode().getId(), record.getData()));
+                count++;
+            }
+        }
+        return count;
     }
 }

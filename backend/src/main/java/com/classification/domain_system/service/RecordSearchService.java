@@ -33,9 +33,10 @@ public class RecordSearchService {
             item.setRecordCode("REC-" + record.getId().toString().substring(0, 8));
             item.setRawData(record.getData());
 
-            if (!keyword.isEmpty() && record.getData() != null) {
-                if (record.getData().toLowerCase().contains(keyword.toLowerCase())) {
-                    String highlighted = record.getData().replaceAll("(?i)" + java.util.regex.Pattern.quote(keyword), "<mark>$0</mark>");
+            if (!keyword.isEmpty()) {
+                String searchableText = record.getSearchableData() != null ? record.getSearchableData() : record.getData();
+                if (searchableText != null && searchableText.toLowerCase().contains(keyword.toLowerCase())) {
+                    String highlighted = searchableText.replaceAll("(?i)" + java.util.regex.Pattern.quote(keyword), "<mark>$0</mark>");
                     item.getHighlights().computeIfAbsent("data", k -> new ArrayList<>()).add(highlighted);
                 }
             }

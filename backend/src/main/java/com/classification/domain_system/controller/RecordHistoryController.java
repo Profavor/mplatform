@@ -37,6 +37,9 @@ public class RecordHistoryController {
     @Autowired
     private com.classification.domain_system.repository.TeamRepository teamRepository;
 
+    @Autowired
+    private com.classification.domain_system.service.RecordService recordService;
+
     @GetMapping("/{id}/history")
     @PreAuthorize("hasPermission(null, 'record:read')")
     public ResponseEntity<List<Map<String, Object>>> getRecordHistory(@PathVariable UUID id) {
@@ -81,8 +84,16 @@ public class RecordHistoryController {
             Map<String, Object> prof = userProfileMap.get(h.getChangedBy());
             map.put("changedByName", prof != null && prof.get("username") != null ? prof.get("username") : h.getChangedBy());
             map.put("changedUserProfile", prof);
-            map.put("previousData", h.getPreviousData());
-            map.put("newData", h.getNewData());
+            
+            UUID nodeId = (h.getRecord() != null && h.getRecord().getNode() != null) ? h.getRecord().getNode().getId() : null;
+            if (nodeId != null) {
+                map.put("previousData", recordService.processDataForRead(nodeId, h.getPreviousData()));
+                map.put("newData", recordService.processDataForRead(nodeId, h.getNewData()));
+            } else {
+                map.put("previousData", h.getPreviousData());
+                map.put("newData", h.getNewData());
+            }
+
             map.put("approvalRequestId", h.getApprovalRequestId());
             map.put("version", h.getVersion());
             map.put("sourceSystem", h.getSourceSystem());

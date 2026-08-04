@@ -118,7 +118,7 @@
                             </div>
                           </va-list-item-section>
                           <va-list-item-section style="font-weight: 600; font-size: 0.9rem;">
-                            {{ $t('personal_settings') || 'Personal Settings (타임존 설정)' }}
+                            {{ $t('personal_settings') || 'Personal Settings' }}
                           </va-list-item-section>
                         </va-list-item>
 
@@ -167,6 +167,17 @@
                 :syncWithCookie="true"
               />
             </div>
+            <div class="mb-4" style="display: flex; flex-direction: column; gap: 0.5rem;">
+              <span style="font-size: 0.85rem; color: var(--va-text-secondary); font-weight: 600;">
+                {{ $t('font_size_setting') || 'Font Size' }}
+              </span>
+              <va-select
+                v-model="selectedFontSize"
+                :options="fontSizeOptions"
+                value-by="value"
+                text-by="text"
+              />
+            </div>
             <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
               <va-button preset="secondary" color="secondary" @click="showSettingsModal = false">Cancel</va-button>
               <va-button :loading="isSavingTimezone" @click="handleSaveTimezone">Save</va-button>
@@ -213,6 +224,15 @@ const showRadioDjModal = ref(false)
 const savedTimezone = useCookie('timezone', { default: () => 'Asia/Seoul' })
 const selectedTimezone = ref('')
 const isSavingTimezone = ref(false)
+const savedFontSize = useCookie('fontSize', { default: () => '14px' })
+const selectedFontSize = ref('14px')
+
+const fontSizeOptions = computed(() => [
+  { text: t('font_size_small') || 'Small', value: '12px' },
+  { text: t('font_size_medium') || 'Medium', value: '14px' },
+  { text: t('font_size_large') || 'Large', value: '16px' },
+  { text: t('font_size_xlarge') || 'X-Large', value: '18px' }
+])
 
 const showRequestAccessModal = ref(false)
 
@@ -356,6 +376,7 @@ const filteredMenus = computed(() => {
 watch(showSettingsModal, (isOpen) => {
   if (isOpen) {
     selectedTimezone.value = savedTimezone.value || 'Asia/Seoul'
+    selectedFontSize.value = savedFontSize.value || '14px'
   }
 })
 
@@ -363,6 +384,13 @@ const handleSaveTimezone = async () => {
   isSavingTimezone.value = true
   try {
     savedTimezone.value = selectedTimezone.value
+    savedFontSize.value = selectedFontSize.value
+    
+    if (typeof document !== 'undefined') {
+      document.documentElement.style.fontSize = selectedFontSize.value
+      document.body.style.fontSize = selectedFontSize.value
+      document.documentElement.style.setProperty('--app-font-size', selectedFontSize.value)
+    }
     
     if (userCookie.value) {
       const usr = typeof userCookie.value === 'string' ? JSON.parse(userCookie.value) : userCookie.value
@@ -436,6 +464,11 @@ const syncCurrentUserInfo = async () => {
 onMounted(async () => {
   if (savedTheme.value) {
     applyPreset(savedTheme.value)
+  }
+  if (savedFontSize.value) {
+    document.documentElement.style.fontSize = savedFontSize.value
+    document.body.style.fontSize = savedFontSize.value
+    document.documentElement.style.setProperty('--app-font-size', savedFontSize.value)
   }
   
   await syncCurrentUserInfo()
