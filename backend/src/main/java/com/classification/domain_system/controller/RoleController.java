@@ -20,13 +20,13 @@ public class RoleController {
     private final RoleRepository roleRepository;
     private final UserRoleRepository userRoleRepository;
     private final RoleInitializer roleInitializer;
-    private final com.classification.domain_system.service.RoleService roleService;
+    private final com.classification.domain_system.service.SystemSeedDumpService systemSeedDumpService;
 
-    public RoleController(RoleRepository roleRepository, UserRoleRepository userRoleRepository, RoleInitializer roleInitializer, com.classification.domain_system.service.RoleService roleService) {
+    public RoleController(RoleRepository roleRepository, UserRoleRepository userRoleRepository, RoleInitializer roleInitializer, com.classification.domain_system.service.SystemSeedDumpService systemSeedDumpService) {
         this.roleRepository = roleRepository;
         this.userRoleRepository = userRoleRepository;
         this.roleInitializer = roleInitializer;
-        this.roleService = roleService;
+        this.systemSeedDumpService = systemSeedDumpService;
     }
 
     @GetMapping
@@ -38,7 +38,6 @@ public class RoleController {
     @GetMapping("/org/{orgId}")
     @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'role:read')")
     public ResponseEntity<List<Role>> getRolesByOrg(@PathVariable UUID orgId) {
-        roleInitializer.createDefaultRolesForOrg(orgId);
         return ResponseEntity.ok(roleRepository.findByOrganizationId(orgId));
     }
 
@@ -91,16 +90,10 @@ public class RoleController {
         return ResponseEntity.ok().build();
     }
 
-    @GetMapping("/org/{orgId}/export")
-    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'role:read')")
-    public ResponseEntity<List<com.classification.domain_system.dto.RoleBackupDto>> exportRoles(@PathVariable UUID orgId) {
-        return ResponseEntity.ok(roleService.exportRolesForOrg(orgId));
-    }
-
-    @PostMapping("/org/{orgId}/import")
-    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'role:write')")
-    public ResponseEntity<Void> importRoles(@PathVariable UUID orgId, @RequestBody List<com.classification.domain_system.dto.RoleBackupDto> backups) {
-        roleService.importRolesForOrg(orgId, backups);
+    @PostMapping("/dump-seed")
+    @PreAuthorize("hasPermission(null, 'admin:write')")
+    public ResponseEntity<Void> dumpSeedFiles(@RequestParam(required = false) UUID orgId) {
+        systemSeedDumpService.dumpCurrentStateToSeedFiles(orgId);
         return ResponseEntity.ok().build();
     }
 }

@@ -1,0 +1,356 @@
+[ {
+  "TITLE_EN" : "System Admin Permissions",
+  "CODE" : "admin",
+  "CHIP_CLASS" : "red",
+  "COLOR" : "#ef4444",
+  "SORT_ORDER" : 1,
+  "ID" : "admin",
+  "TITLE_KO" : "전역 시스템 관리 권한",
+  "ICON" : "\uD83D\uDEE1️",
+  "items" : [ {
+    "LABEL_KO" : "전역 모든 권한 (*)",
+    "LABEL_EN" : "System Super All (*)",
+    "PERM_VALUE" : "*",
+    "SORT_ORDER" : 1
+  }, {
+    "LABEL_KO" : "시스템 관리자 조회 (read)",
+    "LABEL_EN" : "System Admin Read",
+    "PERM_VALUE" : "admin:read",
+    "SORT_ORDER" : 2
+  }, {
+    "LABEL_KO" : "시스템 관리자 관리 (write)",
+    "LABEL_EN" : "System Admin Write",
+    "PERM_VALUE" : "admin:write",
+    "SORT_ORDER" : 3
+  } ]
+}, {
+  "TITLE_EN" : "Domain Schema Permissions",
+  "CODE" : "domain",
+  "CHIP_CLASS" : "blue",
+  "COLOR" : "#3b82f6",
+  "SORT_ORDER" : 2,
+  "ID" : "domain",
+  "TITLE_KO" : "도메인 스키마 권한",
+  "ICON" : "\uD83C\uDF10",
+  "items" : [ {
+    "LABEL_KO" : "도메인 전체 (*)",
+    "LABEL_EN" : "Domain All (*)",
+    "PERM_VALUE" : "domain:*",
+    "SORT_ORDER" : 1
+  }, {
+    "LABEL_KO" : "도메인 조회 (read)",
+    "LABEL_EN" : "Domain Read",
+    "PERM_VALUE" : "domain:read",
+    "SORT_ORDER" : 2
+  }, {
+    "LABEL_KO" : "도메인 생성/수정 (write)",
+    "LABEL_EN" : "Domain Write",
+    "PERM_VALUE" : "domain:write",
+    "SORT_ORDER" : 3
+  } ]
+}, {
+  "TITLE_EN" : "Category Node Permissions",
+  "CODE" : "node",
+  "CHIP_CLASS" : "green",
+  "COLOR" : "#10b981",
+  "SORT_ORDER" : 3,
+  "ID" : "node",
+  "TITLE_KO" : "분류 노드 권한",
+  "ICON" : "\uD83D\uDCC1",
+  "items" : [ {
+    "LABEL_KO" : "노드 전체 (*)",
+    "LABEL_EN" : "Node All (*)",
+    "PERM_VALUE" : "node:*",
+    "SORT_ORDER" : 1
+  }, {
+    "LABEL_KO" : "노드 조회 (read)",
+    "LABEL_EN" : "Node Read",
+    "PERM_VALUE" : "node:read",
+    "SORT_ORDER" : 2
+  }, {
+    "LABEL_KO" : "노드 생성/수정 (write)",
+    "LABEL_EN" : "Node Write",
+    "PERM_VALUE" : "node:write",
+    "SORT_ORDER" : 3
+  } ]
+}, {
+  "TITLE_EN" : "Field Permissions",
+  "CODE" : "field",
+  "CHIP_CLASS" : "amber",
+  "COLOR" : "#f59e0b",
+  "SORT_ORDER" : 4,
+  "ID" : "field",
+  "TITLE_KO" : "속성 필드 권한",
+  "ICON" : "\uD83D\uDCCC",
+  "items" : [ {
+    "LABEL_KO" : "필드 전체 (*)",
+    "LABEL_EN" : "Field All (*)",
+    "PERM_VALUE" : "field:*",
+    "SORT_ORDER" : 1
+  }, {
+    "LABEL_KO" : "필드 조회 (read)",
+    "LABEL_EN" : "Field Read",
+    "PERM_VALUE" : "field:read",
+    "SORT_ORDER" : 2
+  }, {
+    "LABEL_KO" : "필드 생성/수정 (write)",
+    "LABEL_EN" : "Field Write",
+    "PERM_VALUE" : "field:write",
+    "SORT_ORDER" : 3
+  } ]
+}, {
+  "TITLE_EN" : "Master Record Permissions",
+  "CODE" : "record",
+  "CHIP_CLASS" : "purple",
+  "COLOR" : "#8b5cf6",
+  "SORT_ORDER" : 5,
+  "ID" : "record",
+  "TITLE_KO" : "마스터 데이터 레코드 권한",
+  "ICON" : "\uD83D\uDCC4",
+  "items" : [ {
+    "LABEL_KO" : "복호화 (unmask)",
+    "LABEL_EN" : "Unmask (unmask)",
+    "PERM_VALUE" : "record:unmask",
+    "SORT_ORDER" : 0
+  }, {
+    "LABEL_KO" : "레코드 전체 (*)",
+    "LABEL_EN" : "Record All (*)",
+    "PERM_VALUE" : "record:*",
+    "SORT_ORDER" : 1
+  }, {
+    "LABEL_KO" : "레코드 조회 (read)",
+    "LABEL_EN" : "Record Read",
+    "PERM_VALUE" : "record:read",
+    "SORT_ORDER" : 2
+  }, {
+    "LABEL_KO" : "레코드 등록/수정 (write)",
+    "LABEL_EN" : "Record Write",
+    "PERM_VALUE" : "record:write",
+    "SORT_ORDER" : 3
+  }, {
+    "LABEL_KO" : "레코드 엑셀/내보내기 (export)",
+    "LABEL_EN" : "Record Export",
+    "PERM_VALUE" : "record:export",
+    "SORT_ORDER" : 4
+  } ]
+}, {
+  "TITLE_EN" : "DQ Permissions",
+  "CODE" : "dq",
+  "CHIP_CLASS" : "pink",
+  "COLOR" : "#ec4899",
+  "SORT_ORDER" : 6,
+  "ID" : "dq",
+  "TITLE_KO" : "데이터 품질 관리 권한 (DQ)",
+  "ICON" : "⚡",
+  "items" : [ {
+    "LABEL_KO" : "품질 관리 전체 (*)",
+    "LABEL_EN" : "DQ All (*)",
+    "PERM_VALUE" : "dq:*",
+    "SORT_ORDER" : 1
+  }, {
+    "LABEL_KO" : "품질 검사/규칙 조회 (read)",
+    "LABEL_EN" : "DQ Read",
+    "PERM_VALUE" : "dq:read",
+    "SORT_ORDER" : 2
+  }, {
+    "LABEL_KO" : "품질 규칙 생성/수정 (write)",
+    "LABEL_EN" : "DQ Write",
+    "PERM_VALUE" : "dq:write",
+    "SORT_ORDER" : 3
+  }, {
+    "LABEL_KO" : "품질 규칙 관리 (dq_rule:*)",
+    "LABEL_EN" : "DQ Rule All",
+    "PERM_VALUE" : "dq_rule:*",
+    "SORT_ORDER" : 4
+  }, {
+    "LABEL_KO" : "품질 정기 검사 관리 (dq_scan:*)",
+    "LABEL_EN" : "DQ Scan All",
+    "PERM_VALUE" : "dq_scan:*",
+    "SORT_ORDER" : 5
+  } ]
+}, {
+  "TITLE_EN" : "Organization Permissions",
+  "CODE" : "org",
+  "CHIP_CLASS" : "cyan",
+  "COLOR" : "#06b6d4",
+  "SORT_ORDER" : 7,
+  "ID" : "org",
+  "TITLE_KO" : "조직 및 부서 권한 (ORG)",
+  "ICON" : "\uD83C\uDFE2",
+  "items" : [ {
+    "LABEL_KO" : "조직 권한 전체 (*)",
+    "LABEL_EN" : "Org All (*)",
+    "PERM_VALUE" : "org:*",
+    "SORT_ORDER" : 1
+  }, {
+    "LABEL_KO" : "조직/부서/팀 조회 (read)",
+    "LABEL_EN" : "Org Read",
+    "PERM_VALUE" : "org:read",
+    "SORT_ORDER" : 2
+  }, {
+    "LABEL_KO" : "조직/부서/팀 생성/수정 (write)",
+    "LABEL_EN" : "Org Write",
+    "PERM_VALUE" : "org:write",
+    "SORT_ORDER" : 3
+  } ]
+}, {
+  "TITLE_EN" : "User Management Permissions",
+  "CODE" : "user",
+  "CHIP_CLASS" : "indigo",
+  "COLOR" : "#6366f1",
+  "SORT_ORDER" : 8,
+  "ID" : "user",
+  "TITLE_KO" : "사용자 관리 권한",
+  "ICON" : "\uD83D\uDC64",
+  "items" : [ {
+    "LABEL_KO" : "사용자 전체 (*)",
+    "LABEL_EN" : "User All (*)",
+    "PERM_VALUE" : "user:*",
+    "SORT_ORDER" : 1
+  }, {
+    "LABEL_KO" : "사용자 목록/정보 조회 (read)",
+    "LABEL_EN" : "User Read",
+    "PERM_VALUE" : "user:read",
+    "SORT_ORDER" : 2
+  }, {
+    "LABEL_KO" : "사용자 생성/수정 (write)",
+    "LABEL_EN" : "User Write",
+    "PERM_VALUE" : "user:write",
+    "SORT_ORDER" : 3
+  } ]
+}, {
+  "TITLE_EN" : "Role & Permission Management",
+  "CODE" : "role",
+  "CHIP_CLASS" : "teal",
+  "COLOR" : "#14b8a6",
+  "SORT_ORDER" : 9,
+  "ID" : "role",
+  "TITLE_KO" : "역할 및 세부 권한 관리",
+  "ICON" : "\uD83D\uDD11",
+  "items" : [ {
+    "LABEL_KO" : "역할 전체 (*)",
+    "LABEL_EN" : "Role All (*)",
+    "PERM_VALUE" : "role:*",
+    "SORT_ORDER" : 1
+  }, {
+    "LABEL_KO" : "역할/권한 조회 (read)",
+    "LABEL_EN" : "Role Read",
+    "PERM_VALUE" : "role:read",
+    "SORT_ORDER" : 2
+  }, {
+    "LABEL_KO" : "역할/권한 설정 (write)",
+    "LABEL_EN" : "Role Write",
+    "PERM_VALUE" : "role:write",
+    "SORT_ORDER" : 3
+  } ]
+}, {
+  "TITLE_EN" : "Workflow & Approval Permissions",
+  "CODE" : "workflow",
+  "CHIP_CLASS" : "lime",
+  "COLOR" : "#84cc16",
+  "SORT_ORDER" : 10,
+  "ID" : "workflow",
+  "TITLE_KO" : "워크플로우 및 결재 권한",
+  "ICON" : "\uD83C\uDF3F",
+  "items" : [ {
+    "LABEL_KO" : "워크플로우 전체 (*)",
+    "LABEL_EN" : "Workflow All (*)",
+    "PERM_VALUE" : "workflow:*",
+    "SORT_ORDER" : 1
+  }, {
+    "LABEL_KO" : "워크플로우/결재선 조회 (read)",
+    "LABEL_EN" : "Workflow Read",
+    "PERM_VALUE" : "workflow:read",
+    "SORT_ORDER" : 2
+  }, {
+    "LABEL_KO" : "결재선 설정/수정 (write)",
+    "LABEL_EN" : "Workflow Write",
+    "PERM_VALUE" : "workflow:write",
+    "SORT_ORDER" : 3
+  }, {
+    "LABEL_KO" : "결재 신청 권한 (request)",
+    "LABEL_EN" : "Workflow Request",
+    "PERM_VALUE" : "workflow:request",
+    "SORT_ORDER" : 4
+  }, {
+    "LABEL_KO" : "결재 승인/반려 (approve)",
+    "LABEL_EN" : "Workflow Approve",
+    "PERM_VALUE" : "workflow:approve",
+    "SORT_ORDER" : 5
+  } ]
+}, {
+  "TITLE_EN" : "System Audit Log Permissions",
+  "CODE" : "log",
+  "CHIP_CLASS" : "slate",
+  "COLOR" : "#64748b",
+  "SORT_ORDER" : 11,
+  "ID" : "log",
+  "TITLE_KO" : "시스템 로그 및 감사 권한",
+  "ICON" : "\uD83D\uDCDC",
+  "items" : [ {
+    "LABEL_KO" : "로그 전체 (*)",
+    "LABEL_EN" : "Log All (*)",
+    "PERM_VALUE" : "log:*",
+    "SORT_ORDER" : 1
+  }, {
+    "LABEL_KO" : "감사 로그 조회 (read)",
+    "LABEL_EN" : "Log Read",
+    "PERM_VALUE" : "log:read",
+    "SORT_ORDER" : 2
+  }, {
+    "LABEL_KO" : "시스템 접근/변경 로그 (system_log:read)",
+    "LABEL_EN" : "System Log Read",
+    "PERM_VALUE" : "system_log:read",
+    "SORT_ORDER" : 3
+  } ]
+}, {
+  "TITLE_EN" : "Data Match Review Permissions",
+  "CODE" : "match",
+  "CHIP_CLASS" : "amber",
+  "COLOR" : "#d97706",
+  "SORT_ORDER" : 12,
+  "ID" : "match",
+  "TITLE_KO" : "데이터 매칭 검토 권한",
+  "ICON" : "\uD83D\uDD0D",
+  "items" : [ {
+    "LABEL_KO" : "매칭 전체 (*)",
+    "LABEL_EN" : "Match All (*)",
+    "PERM_VALUE" : "match:*",
+    "SORT_ORDER" : 1
+  }, {
+    "LABEL_KO" : "매칭 후보 조회 (read)",
+    "LABEL_EN" : "Match Read",
+    "PERM_VALUE" : "match:read",
+    "SORT_ORDER" : 2
+  }, {
+    "LABEL_KO" : "매칭 승인/병합 (write)",
+    "LABEL_EN" : "Match Write",
+    "PERM_VALUE" : "match:write",
+    "SORT_ORDER" : 3
+  } ]
+}, {
+  "TITLE_EN" : "Integration Channel Permissions",
+  "CODE" : "integration",
+  "CHIP_CLASS" : "sky",
+  "COLOR" : "#0284c7",
+  "SORT_ORDER" : 13,
+  "ID" : "integration",
+  "TITLE_KO" : "외부 연동 채널 권한",
+  "ICON" : "\uD83D\uDD17",
+  "items" : [ {
+    "LABEL_KO" : "외부 연동 전체 (*)",
+    "LABEL_EN" : "Integration All (*)",
+    "PERM_VALUE" : "integration:*",
+    "SORT_ORDER" : 1
+  }, {
+    "LABEL_KO" : "연동 채널 조회 (read)",
+    "LABEL_EN" : "Integration Read",
+    "PERM_VALUE" : "integration:read",
+    "SORT_ORDER" : 2
+  }, {
+    "LABEL_KO" : "연동 채널/매핑 설정 (write)",
+    "LABEL_EN" : "Integration Write",
+    "PERM_VALUE" : "integration:write",
+    "SORT_ORDER" : 3
+  } ]
+} ]

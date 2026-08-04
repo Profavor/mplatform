@@ -16,13 +16,16 @@
       </div>
 
       <div style="display: flex; gap: 0.5rem; align-items: center;">
-        <va-button preset="outline" icon="published_with_changes" color="warning" size="small" :loading="isSyncingRoles" @click="handleSyncDefaultRoles">
+        <va-button v-if="hasPermission('admin:write') || hasPermission('org:write')" preset="outline" icon="published_with_changes" color="warning" size="small" :loading="isSyncingRoles" @click="handleSyncDefaultRoles">
           {{ $t('sync_default_roles') }}
         </va-button>
-        <va-button preset="outline" icon="admin_panel_settings" color="primary" size="small" @click="showPermMasterModal = true">
+        <va-button v-if="hasPermission('admin:write')" preset="outline" icon="save_alt" color="info" size="small" :loading="isSyncingRoles" @click="handleDumpSeedFiles">
+          기본 시드(Seed) 파일로 현재 상태 백업
+        </va-button>
+        <va-button v-if="hasPermission('admin:write') || hasPermission('org:write')" preset="outline" icon="admin_panel_settings" color="primary" size="small" @click="showPermMasterModal = true">
           {{ $t('perm_master_management') }}
         </va-button>
-        <va-button color="primary" icon="add" size="small" @click="openCreateOrgModal">
+        <va-button v-if="hasPermission('admin:write') || hasPermission('org:write')" color="primary" icon="add" size="small" @click="openCreateOrgModal">
           {{ $t('create_organization') }}
         </va-button>
       </div>
@@ -703,10 +706,12 @@ import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import PermissionMatrix from '~/components/PermissionMatrix.vue'
 import UserRoleSelect from '~/components/UserRoleSelect.vue'
 import { useRoleStore } from '~/stores/useRoleStore'
+import { usePermission } from '~/composables/usePermission'
 
 const { gridTheme, isDark } = useAgGridTheme()
 const isMounted = ref(false)
 const roleStore = useRoleStore()
+const { hasPermission } = usePermission()
 const isSyncingRoles = ref(false)
 
 const { t, locale } = useI18n()
@@ -769,7 +774,36 @@ const handleSyncDefaultRoles = async () => {
   }
 }
 
+const handleDumpSeedFiles = async () => {
+  const targetOrgId = selectedOrg.value?.id
+  const targetName = selectedOrg.value ? (getI18nText(selectedOrg.value.displayName) || selectedOrg.value.name) : ''
+  const msg = targetOrgId 
+    ? `현재 '${targetName}' 조직에 셋팅된 모든 역할 상태를 시스템 기본값(Seed) JSON 파일로 백업/덮어쓰시겠습니까?\n(이 작업은 소스코드 디렉토리 내의 파일을 직접 수정합니다)`
+    : '현재 전체 DB에 저장된 모든 역할 상태를 시스템 기본값(Seed) JSON 파일로 백업/덮어쓰시겠습니까?\n(이 작업은 소스코드 디렉토리 내의 파일을 직접 수정합니다)'
 
+  if (!confirm(msg)) return
+
+  isSyncingRoles.value = true
+  try {
+    const success = await roleStore.dumpSeedFiles(targetOrgId)
+    if (success) {
+      if (typeof initToast === 'function') {
+        initToast({ message: '기본 시드(Seed) 파일 갱신 완료', color: 'success' })
+      }
+    } else {
+      if (typeof initToast === 'function') {
+        initToast({ message: '기본 시드 파일 갱신 실패', color: 'danger' })
+      }
+    }
+  } catch (e) {
+    console.error(e)
+    if (typeof initToast === 'function') {
+      initToast({ message: '기본 시드 파일 갱신 중 오류 발생', color: 'danger' })
+    }
+  } finally {
+    isSyncingRoles.value = false
+  }
+}
 
 const token = useCookie('auth_token')
 const showErrorAlertModal = ref(false)

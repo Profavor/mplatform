@@ -3,12 +3,18 @@ package com.classification.domain_system.service;
 import com.classification.domain_system.entity.Role;
 import com.classification.domain_system.repository.OrganizationRepository;
 import com.classification.domain_system.repository.RoleRepository;
+import com.classification.domain_system.dto.RoleSeedDto;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.InputStream;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -19,6 +25,7 @@ public class RoleInitializer {
 
     private final RoleRepository roleRepository;
     private final OrganizationRepository organizationRepository;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public void syncDefaultRolesForAllOrganizations() {
@@ -45,32 +52,36 @@ public class RoleInitializer {
             }
         });
 
-        createSystemRole(orgId, "ROLE_ADMIN", "{\"ko\":\"시스템 관리자\",\"en\":\"System Admin\"}", "{\"ko\":\"시스템 전체 관리 권한\",\"en\":\"Full system administration access\"}",
-                Set.of("*", "admin:read", "admin:write"));
+        List<RoleSeedDto> defaultRoles = loadDefaultRoles();
+        if (defaultRoles == null || defaultRoles.isEmpty()) {
+            log.warn("No default roles found in default_roles.json!");
+            return;
+        }
 
-        createSystemRole(orgId, "ORG_ADMIN", "{\"ko\":\"조직 관리자\",\"en\":\"Organization Admin\"}", "{\"ko\":\"조직 내 모든 리소스 제어 권한\",\"en\":\"Full control over organization resources\"}",
-                Set.of("org:*", "domain:*", "node:*", "field:*", "dq:*", "user:*", "role:*", "admin:read", "record:*"));
-
-        createSystemRole(orgId, "DATA_STEWARD", "{\"ko\":\"데이터 스튜어드\",\"en\":\"Data Steward\"}", "{\"ko\":\"데이터 품질 및 모델 관리 권한\",\"en\":\"Data quality and model management\"}",
-                Set.of("domain:read", "domain:write", "node:*", "field:*", "dq:read", "dq:write", "record:read", "record:write"));
-
-        createSystemRole(orgId, "DOMAIN_EDITOR", "{\"ko\":\"도메인 편집자\",\"en\":\"Domain Editor\"}", "{\"ko\":\"도메인 및 필드 생성/편집 권한\",\"en\":\"Create and edit domains and fields\"}",
-                Set.of("domain:read", "domain:write", "node:read", "node:write", "field:read", "field:write", "record:read"));
-
-        createSystemRole(orgId, "DQ_MANAGER", "{\"ko\":\"데이터 품질 관리자\",\"en\":\"DQ Manager\"}", "{\"ko\":\"품질 규칙 및 검사 결과 관리\",\"en\":\"Manage DQ rules and scan results\"}",
-                Set.of("dq:read", "dq:write", "dq_rule:*", "dq_scan:*"));
-
-        createSystemRole(orgId, "INTEGRATION", "{\"ko\":\"연계 관리자\",\"en\":\"Integration Manager\"}", "{\"ko\":\"외부 시스템 연동 및 채널 관리 권한\",\"en\":\"External system integration and channel management\"}",
-                Set.of("integration:*", "channel:*", "org:read", "domain:read", "node:read", "field:read", "user:read"));
-
-        createSystemRole(orgId, "VIEWER", "{\"ko\":\"조회자\",\"en\":\"Viewer\"}", "{\"ko\":\"도메인, 노드, 필드, 레코드 및 품질 정보 읽기 전용\",\"en\":\"Read-only access to domains, nodes, fields, records and DQ\"}",
-                Set.of("domain:read", "node:read", "field:read", "record:read", "dq:read"));
-
-        createSystemRole(orgId, "ROLE_USER", "{\"ko\":\"일반 사용자\",\"en\":\"General User\"}", "{\"ko\":\"기본 사용자 접근 권한\",\"en\":\"Basic user access\"}",
-                Set.of("domain:read", "node:read", "record:read"));
+        for (RoleSeedDto dto : defaultRoles) {
+            createSystemRole(orgId, dto.getName(), dto.getDisplayName(), dto.getDescription(),
+                    dto.getPermissions() != null ? new HashSet<>(dto.getPermissions()) : new HashSet<>(),
+                    dto.getIsSystemRole() != null ? dto.getIsSystemRole() : false);
+        }
     }
 
-    private void createSystemRole(UUID orgId, String name, String displayName, String description, Set<String> permissions) {
+    private List<RoleSeedDto> loadDefaultRoles() {
+        try {
+            ClassPathResource resource = new ClassPathResource("default_roles.json");
+            if (!resource.exists()) {
+                log.warn("default_roles.json not found in resources!");
+                return null;
+            }
+            try (InputStream is = resource.getInputStream()) {
+                return objectMapper.readValue(is, new TypeReference<List<RoleSeedDto>>() {});
+            }
+        } catch (Exception e) {
+            log.error("Failed to load default_roles.json", e);
+            return null;
+        }
+    }
+
+    private void createSystemRole(UUID orgId, String name, String displayName, String description, Set<String> permissions, boolean isSystemRole) {
         String altName = name.equals("ROLE_ADMIN") ? "ADMIN" : (name.equals("ROLE_USER") ? "USER" : (name.equals("ADMIN") ? "ROLE_ADMIN" : (name.equals("USER") ? "ROLE_USER" : name)));
 
         var existingOpt = roleRepository.findByOrganizationIdAndName(orgId, name);
@@ -85,7 +96,7 @@ public class RoleInitializer {
             role.setDisplayName(displayName);
             role.setDescription(description);
             role.setPermissions(new HashSet<>(permissions));
-            role.setIsSystemRole(true);
+            role.setIsSystemRole(isSystemRole);
             roleRepository.save(role);
         } else {
             existingOpt.ifPresent(role -> {
@@ -96,6 +107,10 @@ public class RoleInitializer {
                         updated = true;
                     }
                 }
+                
+                // If it's a new seed update, also update display names or system role flag if needed (optional)
+                // For safety, only update permissions for now.
+                
                 if (updated) {
                     role.setPermissions(curPerms);
                     roleRepository.save(role);
@@ -104,4 +119,3 @@ public class RoleInitializer {
         }
     }
 }
-

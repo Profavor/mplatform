@@ -143,33 +143,15 @@ export function useRoleStore() {
     }
   }
 
-  const exportRolesForOrg = async (orgId: string): Promise<any[]> => {
+  const dumpSeedFiles = async (orgId?: string | null): Promise<boolean> => {
     try {
       isLoading.value = true
       const headers = token.value ? { Authorization: `Bearer ${token.value}` } : {}
-      const data = await $fetch<any[]>(`/api/roles/org/${orgId}/export`, { headers })
-      return data || []
-    } catch (e) {
-      console.error('Failed to export roles:', e)
-      throw e
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  const importRolesForOrg = async (orgId: string, backups: any[]): Promise<boolean> => {
-    try {
-      isLoading.value = true
-      const headers = token.value ? { Authorization: `Bearer ${token.value}` } : {}
-      await $fetch(`/api/roles/org/${orgId}/import`, {
-        method: 'POST',
-        headers,
-        body: backups
-      })
-      await fetchRolesForOrg(orgId, true)
+      const url = orgId ? `/api/roles/dump-seed?orgId=${orgId}` : '/api/roles/dump-seed'
+      await $fetch(url, { method: 'POST', headers })
       return true
     } catch (e) {
-      console.error('Failed to import roles:', e)
+      console.error('Failed to dump seed files:', e)
       return false
     } finally {
       isLoading.value = false
@@ -252,8 +234,7 @@ export function useRoleStore() {
     initGlobalRoles: (force = false) => fetchRolesForOrg(null, force),
     fetchRolesForOrg,
     syncDefaultRoles,
-    exportRolesForOrg,
-    importRolesForOrg,
+    dumpSeedFiles,
     getRoleDisplayName,
     formatRoleText,
     getRoleColor,
