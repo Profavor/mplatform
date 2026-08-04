@@ -1799,7 +1799,7 @@ const confirmDeleteRole = async () => {
 }
 
 // -- Role Template Export & Import --
-const fileInput = ref<HTMLInputElement | null>(null)
+const fileInput = ref(null)
 
 const exportRoles = async () => {
   if (!selectedOrg.value) return
@@ -1827,17 +1827,17 @@ const openImportRolesModal = () => {
   }
 }
 
-const handleImportFile = async (e: Event) => {
-  const target = e.target as HTMLInputElement
+const handleImportFile = async (e) => {
+  const target = e.target
   if (!target.files || target.files.length === 0) return
   
   const file = target.files[0]
   if (!file) return
 
   const reader = new FileReader()
-  reader.onload = async (e) => {
+  reader.onload = async (ev) => {
     try {
-      const content = e.target?.result as string
+      const content = ev.target?.result
       const parsedData = JSON.parse(content)
       
       const confirmed = window.confirm(t('import_roles_confirm'))
