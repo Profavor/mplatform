@@ -143,6 +143,39 @@ export function useRoleStore() {
     }
   }
 
+  const exportRolesForOrg = async (orgId: string): Promise<any[]> => {
+    try {
+      isLoading.value = true
+      const headers = token.value ? { Authorization: `Bearer ${token.value}` } : {}
+      const data = await $fetch<any[]>(`/api/roles/org/${orgId}/export`, { headers })
+      return data || []
+    } catch (e) {
+      console.error('Failed to export roles:', e)
+      throw e
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  const importRolesForOrg = async (orgId: string, backups: any[]): Promise<boolean> => {
+    try {
+      isLoading.value = true
+      const headers = token.value ? { Authorization: `Bearer ${token.value}` } : {}
+      await $fetch(`/api/roles/org/${orgId}/import`, {
+        method: 'POST',
+        headers,
+        body: backups
+      })
+      await fetchRolesForOrg(orgId, true)
+      return true
+    } catch (e) {
+      console.error('Failed to import roles:', e)
+      return false
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   const getRoleColor = (code: string): string => {
     if (!code) return 'secondary'
     const norm = code.replace(/^ROLE_/, '').toUpperCase().trim()
@@ -219,6 +252,8 @@ export function useRoleStore() {
     initGlobalRoles: (force = false) => fetchRolesForOrg(null, force),
     fetchRolesForOrg,
     syncDefaultRoles,
+    exportRolesForOrg,
+    importRolesForOrg,
     getRoleDisplayName,
     formatRoleText,
     getRoleColor,

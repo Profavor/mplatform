@@ -20,11 +20,13 @@ public class RoleController {
     private final RoleRepository roleRepository;
     private final UserRoleRepository userRoleRepository;
     private final RoleInitializer roleInitializer;
+    private final com.classification.domain_system.service.RoleService roleService;
 
-    public RoleController(RoleRepository roleRepository, UserRoleRepository userRoleRepository, RoleInitializer roleInitializer) {
+    public RoleController(RoleRepository roleRepository, UserRoleRepository userRoleRepository, RoleInitializer roleInitializer, com.classification.domain_system.service.RoleService roleService) {
         this.roleRepository = roleRepository;
         this.userRoleRepository = userRoleRepository;
         this.roleInitializer = roleInitializer;
+        this.roleService = roleService;
     }
 
     @GetMapping
@@ -86,6 +88,19 @@ public class RoleController {
     @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'role:write')")
     public ResponseEntity<Void> syncDefaultRolesForOrg(@PathVariable UUID orgId) {
         roleInitializer.createDefaultRolesForOrg(orgId);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/org/{orgId}/export")
+    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'role:read')")
+    public ResponseEntity<List<com.classification.domain_system.dto.RoleBackupDto>> exportRoles(@PathVariable UUID orgId) {
+        return ResponseEntity.ok(roleService.exportRolesForOrg(orgId));
+    }
+
+    @PostMapping("/org/{orgId}/import")
+    @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'role:write')")
+    public ResponseEntity<Void> importRoles(@PathVariable UUID orgId, @RequestBody List<com.classification.domain_system.dto.RoleBackupDto> backups) {
+        roleService.importRolesForOrg(orgId, backups);
         return ResponseEntity.ok().build();
     }
 }

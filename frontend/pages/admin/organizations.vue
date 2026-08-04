@@ -56,6 +56,8 @@
         @add-role="openCreateRoleModal"
         @edit-role="openEditRoleModal"
         @delete-role="openDeleteRoleConfirmModal"
+        @export-roles="exportRoles"
+        @import-roles="openImportRolesModal"
       />
     </div>
 
@@ -684,6 +686,7 @@
         </p>
       </div>
     </va-modal>
+    <input type="file" ref="fileInput" style="display: none" accept=".json" @change="handleImportFile" />
   </div>
 </template>
 
@@ -1793,6 +1796,71 @@ const confirmDeleteRole = async () => {
   } catch (e) {
     showCustomAlert('Failed to delete role: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
   }
+}
+
+// -- Role Template Export & Import --
+const fileInput = ref<HTMLInputElement | null>(null)
+
+const exportRoles = async () => {
+  if (!selectedOrg.value) return
+  try {
+    const rolesData = await roleStore.exportRolesForOrg(selectedOrg.value.id)
+    const jsonStr = JSON.stringify(rolesData, null, 2)
+    const blob = new Blob([jsonStr], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `roles_backup_${selectedOrg.value.name}_${new Date().toISOString().split('T')[0]}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    initToast({ message: t('export_roles_success'), color: 'success' })
+  } catch (e) {
+    initToast({ message: t('export_roles_fail'), color: 'danger' })
+  }
+}
+
+const openImportRolesModal = () => {
+  if (fileInput.value) {
+    fileInput.value.click()
+  }
+}
+
+const handleImportFile = async (e: Event) => {
+  const target = e.target as HTMLInputElement
+  if (!target.files || target.files.length === 0) return
+  
+  const file = target.files[0]
+  if (!file) return
+
+  const reader = new FileReader()
+  reader.onload = async (e) => {
+    try {
+      const content = e.target?.result as string
+      const parsedData = JSON.parse(content)
+      
+      const confirmed = window.confirm(t('import_roles_confirm'))
+      if (!confirmed) {
+        if (fileInput.value) fileInput.value.value = ''
+        return
+      }
+
+      const success = await roleStore.importRolesForOrg(selectedOrg.value.id, parsedData)
+      if (success) {
+        initToast({ message: t('import_roles_success'), color: 'success' })
+        await loadOrgDetails(selectedOrg.value.id)
+      } else {
+        initToast({ message: t('import_roles_fail'), color: 'danger' })
+      }
+    } catch (err) {
+      console.error(err)
+      initToast({ message: t('import_roles_fail'), color: 'danger' })
+    } finally {
+      if (fileInput.value) fileInput.value.value = ''
+    }
+  }
+  reader.readAsText(file)
 }
 
 onMounted(() => {

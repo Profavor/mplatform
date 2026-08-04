@@ -1091,6 +1091,13 @@
     "save_success": "병합 생존 규칙이 저장되었습니다.",
     "save_fail": "생존 규칙 저장 중 오류가 발생했습니다."
   },
+  "export_roles": "역할 템플릿 내보내기",
+  "import_roles": "역할 템플릿 불러오기",
+  "export_roles_success": "역할 템플릿이 성공적으로 다운로드되었습니다.",
+  "export_roles_fail": "역할 템플릿 다운로드에 실패했습니다.",
+  "import_roles_success": "역할 템플릿이 성공적으로 적용되었습니다.",
+  "import_roles_fail": "역할 템플릿 적용에 실패했습니다.",
+  "import_roles_confirm": "업로드한 백업 파일의 역할 및 권한 설정으로 기존 조직의 권한을 덮어쓰시겠습니까?",
   "sync_default_roles": "기본 역할/권한 동기화",
   "sync_default_roles_confirm_all": "전체 조직의 8대 기본 시스템 역할 및 누락된 권한을 표준 명세와 동기화하시겠습니까?",
   "sync_default_roles_confirm_org": "{name} 조직의 8대 기본 시스템 역할 및 누락된 권한을 표준 명세와 동기화하시겠습니까?",
