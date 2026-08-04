@@ -33,6 +33,7 @@ class SensitiveDataServiceTest {
     @Mock private FieldEncryptionService encryptionService;
     @Mock private FieldDefinitionService fieldDefinitionService;
     @Mock private RecordRepository recordRepository;
+    @Mock private com.classification.domain_system.repository.RecordHistoryRepository recordHistoryRepository;
     @Mock private ApprovalRequestRepository approvalRepository;
     @Mock private SensitiveDataAccessLogRepository accessLogRepository;
     @Mock private com.classification.domain_system.repository.FieldDefinitionRepository fieldDefinitionRepository;
@@ -47,6 +48,7 @@ class SensitiveDataServiceTest {
                 encryptionService,
                 fieldDefinitionService,
                 recordRepository,
+                recordHistoryRepository,
                 approvalRepository,
                 accessLogRepository,
                 fieldDefinitionRepository,
