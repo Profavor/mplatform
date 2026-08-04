@@ -138,12 +138,7 @@
             {{ t('system_custom_roles') }}
           </h4>
           <div style="display: flex; gap: 0.5rem; align-items: center;">
-            <va-button size="small" preset="secondary" icon="file_download" @click="$emit('export-roles')">
-              {{ t('export_roles') }}
-            </va-button>
-            <va-button size="small" preset="secondary" icon="file_upload" @click="$emit('import-roles')">
-              {{ t('import_roles') }}
-            </va-button>
+
             <va-button size="small" preset="secondary" icon="add" @click="$emit('add-role')">
               + {{ t('add_role') }}
             </va-button>
