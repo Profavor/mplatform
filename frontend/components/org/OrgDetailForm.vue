@@ -137,9 +137,17 @@
           <h4 style="margin: 0; font-weight: 700; color: var(--va-text-primary);">
             {{ t('system_custom_roles') }}
           </h4>
-          <va-button size="small" preset="secondary" icon="add" @click="$emit('add-role')">
-            + {{ t('add_role') }}
-          </va-button>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <va-button size="small" preset="secondary" icon="file_download" @click="$emit('export-roles')">
+              {{ t('export_roles') }}
+            </va-button>
+            <va-button size="small" preset="secondary" icon="file_upload" @click="$emit('import-roles')">
+              {{ t('import_roles') }}
+            </va-button>
+            <va-button size="small" preset="secondary" icon="add" @click="$emit('add-role')">
+              + {{ t('add_role') }}
+            </va-button>
+          </div>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 0.85rem;">
@@ -191,7 +199,9 @@ const emit = defineEmits([
   'manage-members',
   'add-role',
   'edit-role',
-  'delete-role'
+  'delete-role',
+  'export-roles',
+  'import-roles'
 ])
 
 const { t, locale } = useI18n()

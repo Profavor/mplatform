@@ -1093,6 +1093,13 @@
     "save_success": "Survivorship rules saved successfully.",
     "save_fail": "Error occurred while saving survivorship rules."
   },
+  "export_roles": "Export Role Template",
+  "import_roles": "Import Role Template",
+  "export_roles_success": "Role template exported successfully.",
+  "export_roles_fail": "Failed to export role template.",
+  "import_roles_success": "Role template imported successfully.",
+  "import_roles_fail": "Failed to import role template.",
+  "import_roles_confirm": "Do you want to overwrite existing roles and permissions with the uploaded backup file?",
   "sync_default_roles": "Sync Default Roles & Permissions",
   "sync_default_roles_confirm_all": "Do you want to sync the 8 default system roles and missing permissions for all organizations?",
   "sync_default_roles_confirm_org": "Do you want to sync the 8 default system roles and missing permissions for org '{name}'?",
