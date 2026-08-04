@@ -143,6 +143,20 @@ export function useRoleStore() {
     }
   }
 
+  const dumpSeedFiles = async (): Promise<boolean> => {
+    try {
+      isLoading.value = true
+      const headers = token.value ? { Authorization: `Bearer ${token.value}` } : {}
+      await $fetch('/api/roles/dump-seed', { method: 'POST', headers })
+      return true
+    } catch (e) {
+      console.error('Failed to dump seed files:', e)
+      return false
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   const getRoleColor = (code: string): string => {
     if (!code) return 'secondary'
     const norm = code.replace(/^ROLE_/, '').toUpperCase().trim()
@@ -219,6 +233,7 @@ export function useRoleStore() {
     initGlobalRoles: (force = false) => fetchRolesForOrg(null, force),
     fetchRolesForOrg,
     syncDefaultRoles,
+    dumpSeedFiles,
     getRoleDisplayName,
     formatRoleText,
     getRoleColor,

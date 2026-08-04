@@ -19,6 +19,9 @@
         <va-button preset="outline" icon="published_with_changes" color="warning" size="small" :loading="isSyncingRoles" @click="handleSyncDefaultRoles">
           {{ $t('sync_default_roles') }}
         </va-button>
+        <va-button preset="outline" icon="save_alt" color="info" size="small" :loading="isSyncingRoles" @click="handleDumpSeedFiles">
+          기본 시드(Seed) 파일로 현재 상태 백업
+        </va-button>
         <va-button preset="outline" icon="admin_panel_settings" color="primary" size="small" @click="showPermMasterModal = true">
           {{ $t('perm_master_management') }}
         </va-button>
@@ -766,7 +769,30 @@ const handleSyncDefaultRoles = async () => {
   }
 }
 
+const handleDumpSeedFiles = async () => {
+  if (!confirm('현재 DB에 저장된 모든 역할 및 권한 상태를 시스템 기본값(Seed) JSON 파일로 덮어쓰시겠습니까?\n(이 작업은 소스코드 디렉토리 내의 파일을 직접 수정합니다)')) return
 
+  isSyncingRoles.value = true
+  try {
+    const success = await roleStore.dumpSeedFiles()
+    if (success) {
+      if (typeof initToast === 'function') {
+        initToast({ message: '기본 시드(Seed) 파일 갱신 완료', color: 'success' })
+      }
+    } else {
+      if (typeof initToast === 'function') {
+        initToast({ message: '기본 시드 파일 갱신 실패', color: 'danger' })
+      }
+    }
+  } catch (e) {
+    console.error(e)
+    if (typeof initToast === 'function') {
+      initToast({ message: '기본 시드 파일 갱신 중 오류 발생', color: 'danger' })
+    }
+  } finally {
+    isSyncingRoles.value = false
+  }
+}
 
 const token = useCookie('auth_token')
 const showErrorAlertModal = ref(false)
