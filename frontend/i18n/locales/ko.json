@@ -1,4 +1,6 @@
 {
+  "file_upload_dropzone": "여기로 파일을 드래그 하거나 ",
+  "file_upload_button": "내 PC에서 선택",
   "font_size_setting": "글자 크기 설정",
   "font_size_small": "작게",
   "font_size_medium": "보통",
