@@ -60,6 +60,8 @@
   "record_version_node": "변경 이력",
   "master_record_node": "마스터 레코드",
   "records_count_suffix": "건",
+  "secondary_nodes_tab": "다축/보조 노드",
+  "master_data": "마스터 레코드",
   "lineage_node_master_desc": "마스터 레코드: 여러 이력을 거쳐 최종 통합 관리되고 있는 최신 Golden Record",
   "install_require_pwd_match": "비밀번호가 일치하지 않습니다.",
   "managed_master_records": "관리 중인 마스터 레코드",

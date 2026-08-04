@@ -23,12 +23,12 @@
         v-model="newField.targetNodeId" 
         :options="availableClassificationNodes" 
         value-by="value"
-        label="소속 노드 / 도메인 변경 (Belonging Node / Domain)" 
+        :label="t('belonging_node_domain') || '소속 노드 / 도메인 변경 (Belonging Node / Domain)'" 
         style="flex: 1; min-width: 0;"
         @update:model-value="$emit('target-node-selected', $event)"
       />
       <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 1.2rem;">
-        <va-checkbox v-model="newField.isDomainField" label="도메인 공통 필드" @update:model-value="$emit('is-domain-field-checked', $event)" />
+        <va-checkbox v-model="newField.isDomainField" :label="t('domain_common_field') || '도메인 공통 필드'" @update:model-value="$emit('is-domain-field-checked', $event)" />
       </div>
     </div>
 
@@ -108,6 +108,19 @@
       </va-alert>
     </div>
 
+    <div v-if="newField.type === 'DATE'" class="mb-4 w-full">
+      <va-select
+        v-model="newField.dateFormat"
+        :options="['YYYY-MM-DD', 'MM/DD/YYYY', 'DD/MM/YYYY']"
+        :label="t('date_format') || 'Date Format (형식 지정)'"
+        class="w-full"
+        clearable
+        allow-create="unique"
+        :no-options-text="t('can_input_directly') || '직접 입력 가능'"
+        placeholder="YYYY-MM-DD"
+      />
+    </div>
+
     <div v-if="['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER', 'CALCULATED'].includes(newField.type)" class="mb-4 w-full">
       <va-select
         v-model="newField.unit"
@@ -174,7 +187,7 @@
         <div class="option-pill" :class="{ active: newField.isHighlighted }" @click="newField.isHighlighted = !newField.isHighlighted">
           <va-checkbox v-model="newField.isHighlighted" @click.stop />
           <va-icon name="auto_awesome" size="small" :color="newField.isHighlighted ? 'warning' : 'secondary'" />
-          <span style="flex: 1;">Highlight (강조)</span>
+          <span style="flex: 1;">{{ t('highlight') || 'Highlight (강조)' }}</span>
         </div>
       </div>
     </div>
@@ -184,38 +197,38 @@
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
         <div style="font-size: 0.75rem; font-weight: 700; color: var(--va-primary); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 4px;">
           <va-icon name="bolt" size="small" color="primary" />
-          Conditional Field Control (조건부 연동 설정)
+          {{ t('conditional_field_control') || 'Conditional Field Control (조건부 연동 설정)' }}
         </div>
-        <va-checkbox v-model="newField.conditionEnabled" label="연동 사용 (Enable)" />
+        <va-checkbox v-model="newField.conditionEnabled" :label="t('enable_condition') || '연동 사용 (Enable)'" />
       </div>
 
       <div v-if="newField.conditionEnabled" style="display: flex; flex-direction: column; gap: 0.75rem; padding-top: 0.25rem;">
         <!-- Mode Tabs -->
         <div style="display: flex; gap: 0.5rem; align-items: center; font-size: 0.85rem;">
-          <span style="font-weight: 600; color: var(--va-text-secondary); width: 80px;">설정 방식:</span>
+          <span style="font-weight: 600; color: var(--va-text-secondary); width: 80px;">{{ t('condition_mode') || '설정 방식:' }}</span>
           <va-button-toggle
             v-model="newField.conditionMode"
             size="small"
             :options="[
-              { label: '드롭다운 선택 (GUI)', value: 'GUI' },
-              { label: '표현식 직접 입력 (Expression)', value: 'EXPRESSION' }
+              { label: t('gui_mode') || '드롭다운 선택 (GUI)', value: 'GUI' },
+              { label: t('expression_mode') || '표현식 직접 입력 (Expression)', value: 'EXPRESSION' }
             ]"
           />
         </div>
 
         <!-- Action Selector (Multi-select) -->
         <div style="display: flex; gap: 0.5rem; align-items: center;">
-          <span style="font-weight: 600; font-size: 0.85rem; color: var(--va-text-secondary); width: 80px;">제어 동작:</span>
+          <span style="font-weight: 600; font-size: 0.85rem; color: var(--va-text-secondary); width: 80px;">{{ t('control_action') || '제어 동작:' }}</span>
           <va-select
             v-model="newField.conditionAction"
             style="flex: 1;"
             multiple
             :options="[
-              { label: '👁️ 조건 충족 시만 노출 (SHOW)', value: 'SHOW' },
-              { label: '✨ 조건 충족 시 하이라이트 (HIGHLIGHT)', value: 'HIGHLIGHT' },
-              { label: '🔒 조건 충족 시 필수값 지정 (REQUIRE)', value: 'REQUIRE' },
-              { label: '📖 조건 충족 시 읽기 전용 (READ_ONLY)', value: 'READ_ONLY' },
-              { label: '🚫 조건 충족 시 수정 금지 (DISABLE)', value: 'DISABLE' }
+              { label: t('action_show') || '👁️ 조건 충족 시만 노출 (SHOW)', value: 'SHOW' },
+              { label: t('action_highlight') || '✨ 조건 충족 시 하이라이트 (HIGHLIGHT)', value: 'HIGHLIGHT' },
+              { label: t('action_require') || '🔒 조건 충족 시 필수값 지정 (REQUIRE)', value: 'REQUIRE' },
+              { label: t('action_read_only') || '📖 조건 충족 시 읽기 전용 (READ_ONLY)', value: 'READ_ONLY' },
+              { label: t('action_disable') || '🚫 조건 충족 시 수정 금지 (DISABLE)', value: 'DISABLE' }
             ]"
             value-by="value"
             text-by="label"
@@ -226,7 +239,7 @@
         <div v-if="newField.conditionMode === 'GUI'" style="display: grid; grid-template-columns: 2fr 1.5fr 2fr; gap: 0.5rem; align-items: center;">
           <va-select
             v-model="newField.dependsOnFieldKey"
-            label="기준 필드 (Depends On)"
+            :label="t('depends_on') || '기준 필드 (Depends On)'"
             :options="availableConditionFields"
             value-by="value"
             text-by="text"
@@ -234,7 +247,7 @@
           />
           <va-select
             v-model="newField.conditionOperator"
-            label="연산자"
+            :label="t('operator') || '연산자'"
             :options="[
               { label: '== (일치)', value: 'EQUALS' },
               { label: '!= (불일치)', value: 'NOT_EQUALS' },

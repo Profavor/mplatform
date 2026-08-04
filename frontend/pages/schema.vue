@@ -790,7 +790,7 @@ const availableClassificationNodes = computed(() => {
       if (node.isDomain && node.id) {
         const dName = node.label || node.name || 'Domain'
         options.push({
-          text: `🌐 [도메인] ${dName} (${currentLocale.value === 'ko' ? '도메인 공통' : 'Domain Level'})`,
+          text: `🌐 ${t('domain_bracket')} ${dName} (${t('domain_level')})`,
           value: `domain_${node.id}`,
           isDomain: true,
           domainId: node.id
@@ -1428,6 +1428,7 @@ const openFieldModal = async (rowData = null) => {
         const opts = typeof rowData.options === 'string' ? JSON.parse(rowData.options) : rowData.options
         if (opts.targetDomainId) newField.value.targetDomainId = opts.targetDomainId
         if (opts.formula) newField.value.formula = opts.formula
+        if (opts.dateFormat) newField.value.dateFormat = opts.dateFormat
         if (opts.conditionRule) {
           const cond = opts.conditionRule
           newField.value.conditionEnabled = cond.enabled !== false
@@ -1459,7 +1460,7 @@ const openFieldModal = async (rowData = null) => {
       name: {ko:'', en:''}, hint: {ko:'', en:''}, key: '', type: 'TEXT', required: false, order: 0, 
       fieldGroupId: null, targetDomainId: null, isMultiValue: false, isSearchable: true, 
       isEncrypted: false, isReadOnly: false, isImmutable: false, isHidden: false, isHighlighted: false, 
-      formula: '', unit: '', gridWidth: null, tableColumnWidth: null,
+      formula: '', unit: '', gridWidth: null, tableColumnWidth: null, dateFormat: '',
       targetNodeId: initialTargetId,
       isDomainField: isDomain
     }
@@ -1573,6 +1574,8 @@ const saveField = async () => {
       return
     }
     existingOptsObj = { formula: newField.value.formula.trim() }
+  } else if (newField.value.type === 'DATE') {
+    existingOptsObj = { dateFormat: newField.value.dateFormat || 'YYYY-MM-DD' }
   } else if (newField.value.options) {
     try {
       existingOptsObj = typeof newField.value.options === 'string' ? JSON.parse(newField.value.options) : newField.value.options

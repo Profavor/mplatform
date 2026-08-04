@@ -100,7 +100,7 @@
           <va-button size="small" color="warning" outline @click="showAsyncExportModal = true">
             <va-icon name="cloud_download" class="mr-1"/> {{ $t('async_export') || '대용량 Export' }}
           </va-button>
-          <va-button preset="plain" color="secondary" size="small" @click="resetFilters" icon="restart_alt">
+          <va-button preset="plain" color="secondary" size="small" @click="clearFilters" icon="restart_alt">
             {{ $t('reset') }}
           </va-button>
           <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshRecords">
@@ -1184,7 +1184,7 @@ const formatDate = (dateString) => {
   const date = parseDate(dateString)
   if (!date) return ''
   const tz = useCookie('timezone', { default: () => 'Asia/Seoul' }).value
-  const formatted = date.toLocaleString(undefined, { timeZone: tz })
+  const formatted = date.toLocaleString(currentLocale.value === 'ko' ? 'ko-KR' : 'en-US', { timeZone: tz })
   return formatted.replace(/\s*(GMT|UTC|KST|PST|EST|CET)[-+0-9:]*/gi, '').trim()
 }
 
@@ -1355,10 +1355,8 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
           const dataObj = typeof rawData === 'string' ? JSON.parse(rawData) : rawData
           const result = evaluateFormula(opts.formula, dataObj)
           if (result !== null && !isNaN(result)) {
-            let formatted = Number(result).toLocaleString('ko-KR')
-            if (f.unit) {
-              formatted += ` ${f.unit}`
-            }
+            let formatted = Number(result).toLocaleString(currentLocale.value === 'ko' ? 'ko-KR' : 'en-US')
+            if (f.unit) formatted += ` ${f.unit}`
             return formatted;
           }
           return ''
@@ -1370,19 +1368,35 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
         if (!params.value) return '';
         const date = parseDate(params.value);
         if (!date || isNaN(date.getTime())) return params.value;
+        
+        let formatStr = 'YYYY-MM-DD';
+        try {
+          const opts = typeof f.options === 'string' ? JSON.parse(f.options) : (f.options || {});
+          if (opts.dateFormat) formatStr = opts.dateFormat;
+        } catch(e) {}
+
         const tz = useCookie('timezone', { default: () => 'Asia/Seoul' }).value;
-        const formatted = date.toLocaleString(undefined, { timeZone: tz });
-        return formatted.replace(/\s*(GMT|UTC|KST|PST|EST|CET)[-+0-9:]*/gi, '').trim();
+        const tzDate = new Date(date.toLocaleString('en-US', { timeZone: tz }));
+
+        const yy = tzDate.getFullYear();
+        const mm = String(tzDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(tzDate.getDate()).padStart(2, '0');
+        
+        if (formatStr === 'YYYY-MM-DD') return `${yy}-${mm}-${dd}`;
+        if (formatStr === 'MM/DD/YYYY') return `${mm}/${dd}/${yy}`;
+        if (formatStr === 'DD/MM/YYYY') return `${dd}/${mm}/${yy}`;
+
+        return `${yy}-${mm}-${dd}`;
       }
     }
     if (['NUMBER', 'INTEGER', 'DECIMAL'].includes(f.type)) {
       colDef.valueFormatter = (params) => {
         if (params.value === null || params.value === undefined || params.value === '') return '';
         const num = Number(params.value);
-        if (isNaN(num)) return params.value;
-        let formatted = num.toLocaleString('ko-KR');
-        if (f.unit) {
-          formatted += ` ${f.unit}`;
+        let formatted = String(params.value);
+        if (!isNaN(num)) {
+          formatted = num.toLocaleString(currentLocale.value === 'ko' ? 'ko-KR' : 'en-US');
+          if (f.unit) formatted += ` ${f.unit}`;
         }
         return formatted;
       };
@@ -1782,7 +1796,8 @@ const getParsedDiffs = (prev, next) => {
       if (typeof val === 'object') {
         return Object.entries(val).map(([key, v]) => `${key.toUpperCase()}: ${v}`).join(', ');
       }
-      if (typeof val === 'number') return val.toLocaleString('ko-KR');
+      if (typeof val === 'number') return val.toLocaleString(currentLocale.value === 'ko' ? 'ko-KR' : 'en-US');
+      if (typeof val === 'boolean') return val ? 'Yes' : 'No';
       return String(val);
     };
 

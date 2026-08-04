@@ -37,7 +37,7 @@
                 <va-badge :text="$t('schema_history.' + (row.action || '').toLowerCase())" :color="getActionColor(row.action)" />
               </td>
               <td style="padding: 0.75rem 1rem; font-weight: 600;">
-                {{ row.changedBy || '-' }}
+                {{ userStore.getUserName(row.changedBy) || '-' }}
               </td>
               <td style="padding: 0.75rem 1rem; color: var(--va-text-secondary);">
                 {{ formatWithTimezone(row.changedAt) }}
@@ -126,6 +126,8 @@ import { ref, watch } from 'vue'
 import { useToast } from 'vuestic-ui'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useTimezoneDate } from '~/composables/useTimezoneDate'
+import { useUserStore } from '~/stores/useUserStore'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
   domainId: string | null
@@ -134,6 +136,9 @@ const props = defineProps<{
 const { init } = useToast()
 const { customFetch } = useCustomFetch()
 const { formatWithTimezone } = useTimezoneDate()
+const userStore = useUserStore()
+userStore.fetchUserMap()
+const { t, te, locale } = useI18n()
 
 const isLoading = ref(false)
 const historyList = ref<any[]>([])
@@ -165,22 +170,7 @@ const getActionColor = (action: string) => {
   return 'gray'
 }
 
-const propertyLabels: Record<string, string> = {
-  name: '필드명',
-  key: '필드 키',
-  type: '데이터 타입',
-  required: '필수 여부',
-  isSearchable: '검색 가능 여부',
-  isMultiValue: '다중값 허용',
-  isEncrypted: '암호화 여부',
-  isReadOnly: '읽기 전용',
-  isHidden: '숨김 여부',
-  isImmutable: '수정 불가',
-  order: '정렬 순서',
-  group: '필드 그룹',
-  unit: '단위',
-  id: '식별 ID'
-}
+// propertyLabels removed in favor of i18n schema_prop_* keys
 
 const parseSnapshot = (raw: any): Record<string, any> => {
   if (!raw) return {}
@@ -194,7 +184,7 @@ const parseSnapshot = (raw: any): Record<string, any> => {
 
 const formatDisplayValue = (val: any): string => {
   if (val === null || val === undefined || val === '') return '-'
-  if (typeof val === 'boolean') return val ? '예 (True)' : '아니오 (False)'
+  if (typeof val === 'boolean') return val ? (t('schema_prop_true') || 'True') : (t('schema_prop_false') || 'False')
 
   // Handle Array (e.g. children nodes or options list)
   if (Array.isArray(val)) {
@@ -204,11 +194,13 @@ const formatDisplayValue = (val: any): string => {
       if (typeof item === 'object') {
         const nameVal = item.name || item.title || item.key || item.label
         if (nameVal) {
-          if (typeof nameVal === 'object') return nameVal.ko || nameVal.en || JSON.stringify(nameVal)
+          if (typeof nameVal === 'object') {
+             return locale.value === 'ko' ? (nameVal.ko || nameVal.en || JSON.stringify(nameVal)) : (nameVal.en || nameVal.ko || JSON.stringify(nameVal))
+          }
           if (typeof nameVal === 'string' && nameVal.startsWith('{')) {
             try {
               const p = JSON.parse(nameVal)
-              return p.ko || p.en || nameVal
+              return locale.value === 'ko' ? (p.ko || p.en || nameVal) : (p.en || p.ko || nameVal)
             } catch {}
           }
           return String(nameVal)
@@ -216,12 +208,14 @@ const formatDisplayValue = (val: any): string => {
       }
       return String(item)
     }).filter(Boolean)
-    return names.length > 0 ? names.join(', ') : `${val.length}개 항목`
+    return names.length > 0 ? names.join(', ') : `${val.length}${t('items_count') || ' items'}`
   }
 
   // Handle Object (e.g. multilingual name {"ko": "...", "en": "..."})
   if (typeof val === 'object') {
-    if (val.ko || val.en) return val.ko ? (val.en ? `${val.ko} (${val.en})` : val.ko) : val.en
+    if (val.ko !== undefined || val.en !== undefined) {
+       return locale.value === 'ko' ? (val.ko || val.en || '') : (val.en || val.ko || '')
+    }
     return JSON.stringify(val)
   }
 
@@ -242,7 +236,9 @@ const formatDisplayValue = (val: any): string => {
     try {
       const parsed = JSON.parse(str)
       if (parsed && typeof parsed === 'object') {
-        if (parsed.ko || parsed.en) return parsed.ko ? (parsed.en ? `${parsed.ko} (${parsed.en})` : parsed.ko) : parsed.en
+        if (parsed.ko !== undefined || parsed.en !== undefined) {
+           return locale.value === 'ko' ? (parsed.ko || parsed.en || '') : (parsed.en || parsed.ko || '')
+        }
       }
     } catch {}
   }
@@ -258,7 +254,7 @@ const getDiffItems = (row: any) => {
   const hasAfter = Object.keys(afterObj).length > 0
   
   const allKeys = Array.from(new Set([...Object.keys(beforeObj), ...Object.keys(afterObj)]))
-  const filterKeys = ['id', 'definedAtNode', 'domain', 'domainId', 'axisId', 'createdNodeId']
+  const filterKeys = ['id', 'definedAtNode', 'domain', 'domainId', 'axisId', 'createdNodeId', 'fieldGroupId']
   
   const displayKeys = allKeys.filter(k => !filterKeys.includes(k))
   
@@ -271,7 +267,7 @@ const getDiffItems = (row: any) => {
       aVal = '(이전 버전 데이터 유실)'
     }
     
-    const label = propertyLabels[k] || k
+    const label = te('schema_prop_' + k) ? t('schema_prop_' + k) : k
     const isChanged = bVal !== aVal
     return {
       key: k,
