@@ -1184,7 +1184,7 @@ const formatDate = (dateString) => {
   const date = parseDate(dateString)
   if (!date) return ''
   const tz = useCookie('timezone', { default: () => 'Asia/Seoul' }).value
-  const formatted = date.toLocaleString(undefined, { timeZone: tz })
+  const formatted = date.toLocaleString(currentLocale.value === 'ko' ? 'ko-KR' : 'en-US', { timeZone: tz })
   return formatted.replace(/\s*(GMT|UTC|KST|PST|EST|CET)[-+0-9:]*/gi, '').trim()
 }
 
@@ -1355,10 +1355,8 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
           const dataObj = typeof rawData === 'string' ? JSON.parse(rawData) : rawData
           const result = evaluateFormula(opts.formula, dataObj)
           if (result !== null && !isNaN(result)) {
-            let formatted = Number(result).toLocaleString('ko-KR')
-            if (f.unit) {
-              formatted += ` ${f.unit}`
-            }
+            let formatted = Number(result).toLocaleString(currentLocale.value === 'ko' ? 'ko-KR' : 'en-US')
+            if (f.unit) formatted += ` ${f.unit}`
             return formatted;
           }
           return ''
@@ -1371,7 +1369,7 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
         const date = parseDate(params.value);
         if (!date || isNaN(date.getTime())) return params.value;
         const tz = useCookie('timezone', { default: () => 'Asia/Seoul' }).value;
-        const formatted = date.toLocaleString(undefined, { timeZone: tz });
+        const formatted = date.toLocaleString(currentLocale.value === 'ko' ? 'ko-KR' : 'en-US', { timeZone: tz });
         return formatted.replace(/\s*(GMT|UTC|KST|PST|EST|CET)[-+0-9:]*/gi, '').trim();
       }
     }
@@ -1379,10 +1377,10 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
       colDef.valueFormatter = (params) => {
         if (params.value === null || params.value === undefined || params.value === '') return '';
         const num = Number(params.value);
-        if (isNaN(num)) return params.value;
-        let formatted = num.toLocaleString('ko-KR');
-        if (f.unit) {
-          formatted += ` ${f.unit}`;
+        let formatted = String(params.value);
+        if (!isNaN(num)) {
+          formatted = num.toLocaleString(currentLocale.value === 'ko' ? 'ko-KR' : 'en-US');
+          if (f.unit) formatted += ` ${f.unit}`;
         }
         return formatted;
       };
@@ -1782,7 +1780,8 @@ const getParsedDiffs = (prev, next) => {
       if (typeof val === 'object') {
         return Object.entries(val).map(([key, v]) => `${key.toUpperCase()}: ${v}`).join(', ');
       }
-      if (typeof val === 'number') return val.toLocaleString('ko-KR');
+      if (typeof val === 'number') return val.toLocaleString(currentLocale.value === 'ko' ? 'ko-KR' : 'en-US');
+      if (typeof val === 'boolean') return val ? 'Yes' : 'No';
       return String(val);
     };
 
