@@ -22,8 +22,7 @@ class PermissionMasterInitializerTest {
     @Mock
     private PermissionGroupRepository groupRepository;
 
-    @Mock
-    private ObjectMapper objectMapper;
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     private PermissionMasterInitializer initializer;
 

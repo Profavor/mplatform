@@ -28,6 +28,7 @@ public class User {
     @Column(name = "organization_id")
     private UUID organizationId;
     
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id", insertable = false, updatable = false)
     private Organization organization;
@@ -35,6 +36,7 @@ public class User {
     @Column(name = "department_id")
     private UUID departmentId;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_id", insertable = false, updatable = false)
     private Department department;
@@ -42,6 +44,7 @@ public class User {
     @Column(name = "team_id")
     private UUID teamId;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "team_id", insertable = false, updatable = false)
     private Team team;

@@ -695,6 +695,7 @@
   "menu_access_logs": "Menu Access Logs",
   "menu_access_statistics": "Menu Access Statistics",
   "menu_icon": "Menu Icon",
+  "backup_menu_seed": "Backup Current State",
   "menu_management": "Menu Management",
   "menu_management_desc": "Manage system tree menu structures and role-based access nodes.",
   "merge": {

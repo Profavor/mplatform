@@ -693,6 +693,7 @@
   "menu_access_logs": "메뉴 접근 로그",
   "menu_access_statistics": "메뉴 접근 통계",
   "menu_icon": "메뉴 아이콘",
+  "backup_menu_seed": "현재 상태 백업",
   "menu_management": "메뉴 관리",
   "menu_management_desc": "시스템 전체 트리 메뉴 구조 및 권한별 접근 노드를 관리합니다.",
   "merge": {

@@ -25,19 +25,28 @@ public class OrganizationController {
     private final RoleInitializer roleInitializer;
     private final com.classification.domain_system.repository.RoleRepository roleRepository;
     private final com.classification.domain_system.repository.UserRoleRepository userRoleRepository;
+    private final com.classification.domain_system.repository.UserRepository userRepository;
+    private final com.classification.domain_system.repository.DomainPermissionRepository domainPermissionRepository;
+    private final com.classification.domain_system.repository.DomainAccessRequestRepository domainAccessRequestRepository;
 
     public OrganizationController(OrganizationRepository organizationRepository,
                                   DepartmentRepository departmentRepository,
                                   TeamRepository teamRepository,
                                   RoleInitializer roleInitializer,
                                   com.classification.domain_system.repository.RoleRepository roleRepository,
-                                  com.classification.domain_system.repository.UserRoleRepository userRoleRepository) {
+                                  com.classification.domain_system.repository.UserRoleRepository userRoleRepository,
+                                  com.classification.domain_system.repository.UserRepository userRepository,
+                                  com.classification.domain_system.repository.DomainPermissionRepository domainPermissionRepository,
+                                  com.classification.domain_system.repository.DomainAccessRequestRepository domainAccessRequestRepository) {
         this.organizationRepository = organizationRepository;
         this.departmentRepository = departmentRepository;
         this.teamRepository = teamRepository;
         this.roleInitializer = roleInitializer;
         this.roleRepository = roleRepository;
         this.userRoleRepository = userRoleRepository;
+        this.userRepository = userRepository;
+        this.domainPermissionRepository = domainPermissionRepository;
+        this.domainAccessRequestRepository = domainAccessRequestRepository;
     }
 
     @GetMapping
@@ -97,6 +106,17 @@ public class OrganizationController {
                         }
                         roleRepository.deleteAll(roles);
                     }
+                    // 조직 삭제 전 소속 사용자 삭제
+                    List<com.classification.domain_system.entity.User> users = userRepository.findByOrganizationId(id);
+                    if (users != null && !users.isEmpty()) {
+                        for (com.classification.domain_system.entity.User u : users) {
+                            userRoleRepository.deleteByUserId(u.getId());
+                            domainPermissionRepository.deleteByUserId(u.getId());
+                            domainAccessRequestRepository.deleteByUserId(u.getId());
+                        }
+                        userRepository.deleteAll(users);
+                    }
+                    
                     organizationRepository.delete(org);
                     return ResponseEntity.noContent().<Void>build();
                 })

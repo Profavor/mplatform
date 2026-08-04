@@ -41,6 +41,15 @@ class OrganizationControllerTest {
     @Mock
     private com.classification.domain_system.repository.UserRoleRepository userRoleRepository;
 
+    @Mock
+    private com.classification.domain_system.repository.UserRepository userRepository;
+
+    @Mock
+    private com.classification.domain_system.repository.DomainPermissionRepository domainPermissionRepository;
+
+    @Mock
+    private com.classification.domain_system.repository.DomainAccessRequestRepository domainAccessRequestRepository;
+
     @InjectMocks
     private OrganizationController organizationController;
 

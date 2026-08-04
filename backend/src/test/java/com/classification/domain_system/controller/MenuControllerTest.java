@@ -24,6 +24,9 @@ class MenuControllerTest {
     private MenuService menuService;
 
     @Mock
+    private com.classification.domain_system.service.SystemSeedDumpService systemSeedDumpService;
+
+    @Mock
     private HttpServletRequest request;
 
     @InjectMocks

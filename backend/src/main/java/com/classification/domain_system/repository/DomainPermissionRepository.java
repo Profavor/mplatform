@@ -14,4 +14,5 @@ public interface DomainPermissionRepository extends JpaRepository<DomainPermissi
     List<DomainPermission> findByDomainId(UUID domainId);
     Optional<DomainPermission> findByUserIdAndDomainId(String userId, UUID domainId);
     void deleteByUserIdAndDomainId(String userId, UUID domainId);
+    void deleteByUserId(String userId);
 }
