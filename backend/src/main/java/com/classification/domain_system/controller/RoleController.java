@@ -38,7 +38,6 @@ public class RoleController {
     @GetMapping("/org/{orgId}")
     @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'role:read')")
     public ResponseEntity<List<Role>> getRolesByOrg(@PathVariable UUID orgId) {
-        roleInitializer.createDefaultRolesForOrg(orgId);
         return ResponseEntity.ok(roleRepository.findByOrganizationId(orgId));
     }
 
