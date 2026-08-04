@@ -13,4 +13,5 @@ public interface DomainAccessRequestRepository extends JpaRepository<DomainAcces
     List<DomainAccessRequest> findByUserId(String userId);
     List<DomainAccessRequest> findByStatus(String status);
     Optional<DomainAccessRequest> findByUserIdAndDomainIdAndStatus(String userId, UUID domainId, String status);
+    void deleteByUserId(String userId);
 }

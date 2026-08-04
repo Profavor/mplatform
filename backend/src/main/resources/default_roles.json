@@ -1,0 +1,61 @@
+[ {
+  "displayName" : "{\"ko\":\"데이터 스튜어드\",\"en\":\"Data Steward\"}",
+  "isSystemRole" : null,
+  "permissions" : [ "field:*", "domain:read", "field:read", "workflow:request", "dq:write", "record:read", "dq:read", "match:*", "domain:write", "record:write", "workflow:approve", "node:*", "record:unmask", "node:read", "user:read", "workflow:read", "record:*", "org:read" ],
+  "NAME" : "DATA_STEWARD",
+  "DESCRIPTION" : "{\"ko\":\"데이터 품질 및 모델 관리 권한\",\"en\":\"Data quality and model management\"}"
+}, {
+  "displayName" : "{\"ko\":\"조회자\",\"en\":\"Viewer\"}",
+  "isSystemRole" : null,
+  "permissions" : [ "domain:read", "field:read", "record:read", "node:read", "dq:read" ],
+  "NAME" : "VIEWER",
+  "DESCRIPTION" : "{\"ko\":\"도메인, 노드, 필드, 레코드 및 품질 정보 읽기 전용\",\"en\":\"Read-only access to domains, nodes, fields, records and DQ\"}"
+}, {
+  "displayName" : "{\"ko\":\"연계 관리자\",\"en\":\"Integration Manager\"}",
+  "isSystemRole" : null,
+  "permissions" : [ "domain:read", "field:read", "log:*", "integration:*", "channel:*", "node:read", "user:read", "org:read" ],
+  "NAME" : "INTEGRATION",
+  "DESCRIPTION" : "{\"ko\":\"레거시 시스템간 데이터 통신\",\"en\":\"Legacy system integration\"}"
+}, {
+  "displayName" : "{\"ko\":\"도메인 편집자\",\"en\":\"Domain Editor\"}",
+  "isSystemRole" : null,
+  "permissions" : [ "field:*", "domain:read", "field:read", "dq:write", "record:read", "domain:*", "dq_rule:*", "node:write", "role:read", "dq:read", "domain:write", "node:*", "node:read", "user:read", "workflow:read", "field:write", "org:read" ],
+  "NAME" : "DOMAIN_EDITOR",
+  "DESCRIPTION" : "{\"ko\":\"도메인 및 필드 생성/편집 권한\",\"en\":\"Create and edit domains and fields\"}"
+}, {
+  "displayName" : "{\"ko\":\"일반 사용자\",\"en\":\"General User\"}",
+  "isSystemRole" : null,
+  "permissions" : [ "domain:read", "field:read", "integration:read", "workflow:request", "record:read", "role:read", "match:read", "dq:read", "workflow:approve", "node:read", "user:read", "workflow:read", "org:read" ],
+  "NAME" : "ROLE_USER",
+  "DESCRIPTION" : "{\"ko\":\"기본 사용자 접근 권한\",\"en\":\"Basic user access\"}"
+}, {
+  "displayName" : "{\"ko\":\"데이터 품질 관리자\",\"en\":\"DQ Manager\"}",
+  "isSystemRole" : null,
+  "permissions" : [ "domain:read", "dq_scan:*", "field:read", "dq:*", "dq:write", "record:read", "dq_rule:*", "node:read", "user:read", "dq:read", "org:read" ],
+  "NAME" : "DQ_MANAGER",
+  "DESCRIPTION" : "{\"ko\":\"품질 규칙 및 검사 결과 관리\",\"en\":\"Manage DQ rules and scan results\"}"
+}, {
+  "displayName" : "{\"ko\":\"시스템 관리자\",\"en\":\"System Admin\"}",
+  "isSystemRole" : null,
+  "permissions" : [ "admin:read", "*", "admin:write" ],
+  "NAME" : "ROLE_ADMIN",
+  "DESCRIPTION" : "{\"ko\":\"시스템 전체 관리 권한\",\"en\":\"Full system administration access\"}"
+}, {
+  "displayName" : "{\"ko\":\"암호화 데이터 조회자\",\"en\":\"Cryptographic Data Querier\"}",
+  "isSystemRole" : null,
+  "permissions" : [ "workflow:approve", "domain:read", "field:read", "workflow:request", "record:read", "record:unmask", "node:read", "role:read", "user:read", "workflow:read", "org:read" ],
+  "NAME" : "암호화 데이터 조회자",
+  "DESCRIPTION" : "{\"ko\":\"암호화 데이터 레코드를 볼 권한을 부여\",\"en\":\"Grant permission to view encrypted data records\"}"
+}, {
+  "displayName" : "{\"ko\":\"조직 관리자\",\"en\":\"Organization Admin\"}",
+  "isSystemRole" : null,
+  "permissions" : [ "field:*", "domain:read", "field:read", "domain:*", "org:*", "user:*", "role:*", "dq:*", "node:*", "node:read", "admin:read", "record:*" ],
+  "NAME" : "ORG_ADMIN",
+  "DESCRIPTION" : "{\"ko\":\"조직 내 모든 리소스 제어 권한\",\"en\":\"Full control over organization resources\"}"
+}, {
+  "displayName" : "{\"ko\":\"워크플로우 관리\",\"en\":\"Workflow Manager\"}",
+  "isSystemRole" : null,
+  "permissions" : [ "domain:read", "field:read", "workflow:write", "node:read", "role:read", "user:read", "workflow:read", "org:read" ],
+  "NAME" : "WORKFLOW",
+  "DESCRIPTION" : "{\"ko\":\"워크플로우 관리\",\"en\":\"Workflow Manager\"}"
+} ]

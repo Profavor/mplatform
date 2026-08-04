@@ -20,11 +20,13 @@ public class RoleController {
     private final RoleRepository roleRepository;
     private final UserRoleRepository userRoleRepository;
     private final RoleInitializer roleInitializer;
+    private final com.classification.domain_system.service.SystemSeedDumpService systemSeedDumpService;
 
-    public RoleController(RoleRepository roleRepository, UserRoleRepository userRoleRepository, RoleInitializer roleInitializer) {
+    public RoleController(RoleRepository roleRepository, UserRoleRepository userRoleRepository, RoleInitializer roleInitializer, com.classification.domain_system.service.SystemSeedDumpService systemSeedDumpService) {
         this.roleRepository = roleRepository;
         this.userRoleRepository = userRoleRepository;
         this.roleInitializer = roleInitializer;
+        this.systemSeedDumpService = systemSeedDumpService;
     }
 
     @GetMapping
@@ -36,7 +38,6 @@ public class RoleController {
     @GetMapping("/org/{orgId}")
     @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'role:read')")
     public ResponseEntity<List<Role>> getRolesByOrg(@PathVariable UUID orgId) {
-        roleInitializer.createDefaultRolesForOrg(orgId);
         return ResponseEntity.ok(roleRepository.findByOrganizationId(orgId));
     }
 
@@ -86,6 +87,13 @@ public class RoleController {
     @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'role:write')")
     public ResponseEntity<Void> syncDefaultRolesForOrg(@PathVariable UUID orgId) {
         roleInitializer.createDefaultRolesForOrg(orgId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/dump-seed")
+    @PreAuthorize("hasPermission(null, 'admin:write')")
+    public ResponseEntity<Void> dumpSeedFiles(@RequestParam(required = false) UUID orgId) {
+        systemSeedDumpService.dumpCurrentStateToSeedFiles(orgId);
         return ResponseEntity.ok().build();
     }
 }

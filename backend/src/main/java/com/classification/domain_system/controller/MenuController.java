@@ -3,6 +3,7 @@ package com.classification.domain_system.controller;
 import com.classification.domain_system.entity.Menu;
 import com.classification.domain_system.entity.MenuAccessLog;
 import com.classification.domain_system.service.MenuService;
+import com.classification.domain_system.service.SystemSeedDumpService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -25,6 +26,14 @@ import org.springframework.security.access.prepost.PreAuthorize;
 public class MenuController {
 
     private final MenuService menuService;
+    private final SystemSeedDumpService systemSeedDumpService;
+
+    @PostMapping("/dump-seed")
+    @PreAuthorize("hasPermission(null, 'admin:write')")
+    public ResponseEntity<Void> dumpSeedFiles() {
+        systemSeedDumpService.dumpMenuStateToSeedFiles();
+        return ResponseEntity.ok().build();
+    }
 
     @GetMapping("/tree")
     @PreAuthorize("isAuthenticated()")

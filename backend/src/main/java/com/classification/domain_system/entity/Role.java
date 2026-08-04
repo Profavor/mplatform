@@ -27,6 +27,7 @@ public class Role {
     @Column(name = "organization_id", nullable = false)
     private UUID organizationId;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id", insertable = false, updatable = false)
     private Organization organization;

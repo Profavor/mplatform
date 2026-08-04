@@ -1,0 +1,154 @@
+[ {
+  "id" : 1,
+  "name" : "{\"ko\":\"홈\",\"en\":\"Home\"}",
+  "path" : "/",
+  "icon" : "home",
+  "parentId" : null,
+  "sortOrder" : 1,
+  "isActive" : true,
+  "requiredRoles" : [ "DATA_STEWARD", "INTEGRATION", "DOMAIN_EDITOR", "DQ_MANAGER", "ROLE_USER", "ROLE_ADMIN", "ORG_ADMIN", "WORKFLOW" ]
+}, {
+  "id" : 2,
+  "name" : "{\"ko\":\"도메인 & 스키마 관리\",\"en\":\"Domain & Schema\"}",
+  "path" : "/schema",
+  "icon" : "schema",
+  "parentId" : null,
+  "sortOrder" : 2,
+  "isActive" : true,
+  "requiredRoles" : [ "DATA_STEWARD", "DOMAIN_EDITOR", "ROLE_ADMIN" ]
+}, {
+  "id" : 3,
+  "name" : "{\"ko\":\"마스터 데이터 관리\",\"en\":\"Master Data\"}",
+  "path" : "/records",
+  "icon" : "table_chart",
+  "parentId" : null,
+  "sortOrder" : 3,
+  "isActive" : true,
+  "requiredRoles" : [ "DATA_STEWARD", "ROLE_USER", "ROLE_ADMIN" ]
+}, {
+  "id" : 4,
+  "name" : "{\"ko\":\"데이터 품질 관리\",\"en\":\"Data Quality\"}",
+  "path" : "/dq-dashboard",
+  "icon" : "insights",
+  "parentId" : null,
+  "sortOrder" : 4,
+  "isActive" : true,
+  "requiredRoles" : [ "DQ_MANAGER", "ROLE_ADMIN" ]
+}, {
+  "id" : 5,
+  "name" : "{\"ko\":\"결재 & 승인 관리\",\"en\":\"Approvals & Governance\"}",
+  "path" : "/approvals",
+  "icon" : "fact_check",
+  "parentId" : null,
+  "sortOrder" : 5,
+  "isActive" : true,
+  "requiredRoles" : [ "DATA_STEWARD", "DOMAIN_EDITOR", "ROLE_USER", "ROLE_ADMIN" ]
+}, {
+  "id" : 6,
+  "name" : "{\"ko\":\"데이터 매칭 후보\",\"en\":\"Match Candidates\"}",
+  "path" : "/match-candidates",
+  "icon" : "find_replace",
+  "parentId" : null,
+  "sortOrder" : 6,
+  "isActive" : true,
+  "requiredRoles" : [ "DATA_STEWARD", "ROLE_ADMIN" ]
+}, {
+  "id" : 7,
+  "name" : "{\"ko\":\"시스템 관리\",\"en\":\"System Admin\"}",
+  "path" : "/admin",
+  "icon" : "admin_panel_settings",
+  "parentId" : null,
+  "sortOrder" : 7,
+  "isActive" : true,
+  "requiredRoles" : [ "ROLE_ADMIN" ]
+}, {
+  "id" : 8,
+  "name" : "{\"ko\":\"조직 및 부서 관리\",\"en\":\"Organizations\"}",
+  "path" : "/admin/organizations",
+  "icon" : "corporate_fare",
+  "parentId" : 7,
+  "sortOrder" : 1,
+  "isActive" : true,
+  "requiredRoles" : [ "ROLE_ADMIN", "ORG_ADMIN" ]
+}, {
+  "id" : 9,
+  "name" : "{\"ko\":\"사용자 및 권한 관리\",\"en\":\"Users & Roles\"}",
+  "path" : "/admin/users",
+  "icon" : "group",
+  "parentId" : 7,
+  "sortOrder" : 2,
+  "isActive" : true,
+  "requiredRoles" : [ "ROLE_ADMIN", "ORG_ADMIN" ]
+}, {
+  "id" : 10,
+  "name" : "{\"ko\":\"메뉴 관리\",\"en\":\"Menu Management\"}",
+  "path" : "/admin/menus",
+  "icon" : "menu_book",
+  "parentId" : 7,
+  "sortOrder" : 3,
+  "isActive" : true,
+  "requiredRoles" : [ "ROLE_ADMIN" ]
+}, {
+  "id" : 11,
+  "name" : "{\"ko\":\"시스템 로그\",\"en\":\"System Audit Logs\"}",
+  "path" : "/admin/system-logs",
+  "icon" : "receipt_long",
+  "parentId" : 7,
+  "sortOrder" : 4,
+  "isActive" : true,
+  "requiredRoles" : [ "INTEGRATION", "ROLE_ADMIN" ]
+}, {
+  "id" : 12,
+  "name" : "{\"ko\":\"매칭 검토\",\"en\":\"Match Review\"}",
+  "path" : "/admin/match-review",
+  "icon" : "fact_check",
+  "parentId" : 7,
+  "sortOrder" : 5,
+  "isActive" : true,
+  "requiredRoles" : [ "DATA_STEWARD", "ROLE_ADMIN" ]
+}, {
+  "id" : 13,
+  "name" : "{\"ko\":\"워크플로우 관리\",\"en\":\"Workflow Config\"}",
+  "path" : "/admin/workflow",
+  "icon" : "account_tree",
+  "parentId" : 7,
+  "sortOrder" : 6,
+  "isActive" : true,
+  "requiredRoles" : [ "ROLE_ADMIN", "ORG_ADMIN", "WORKFLOW" ]
+}, {
+  "id" : 14,
+  "name" : "{\"ko\":\"외부 연동 관리\",\"en\":\"Integration Channels\"}",
+  "path" : "/admin/integration/channels",
+  "icon" : "hub",
+  "parentId" : 7,
+  "sortOrder" : 7,
+  "isActive" : true,
+  "requiredRoles" : [ "INTEGRATION", "ROLE_ADMIN" ]
+}, {
+  "id" : 15,
+  "name" : "{\"ko\":\"매칭 규칙 관리\",\"en\":\"Matching Rules\"}",
+  "path" : "/admin/matching-rules",
+  "icon" : "rule",
+  "parentId" : 7,
+  "sortOrder" : 8,
+  "isActive" : true,
+  "requiredRoles" : [ "DATA_STEWARD", "ROLE_ADMIN" ]
+}, {
+  "id" : 17,
+  "name" : "{\"ko\":\"결재 진행 모니터링\",\"en\":\"Approval Monitor\"}",
+  "path" : "/admin/approval-monitor",
+  "icon" : "fact_check",
+  "parentId" : 7,
+  "sortOrder" : 1,
+  "isActive" : true,
+  "requiredRoles" : [ "ROLE_ADMIN" ]
+}, {
+  "id" : 18,
+  "name" : "{\"ko\":\"서바이버쉽 관리\",\"en\":\"Survivorship Rules\"}",
+  "path" : "/admin/survivorship",
+  "icon" : "alt_route",
+  "parentId" : 7,
+  "sortOrder" : 10,
+  "isActive" : true,
+  "requiredRoles" : [ "DATA_STEWARD", "ROLE_ADMIN" ]
+} ]

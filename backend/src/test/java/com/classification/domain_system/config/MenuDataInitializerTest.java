@@ -1,14 +1,24 @@
 package com.classification.domain_system.config;
 
+import com.classification.domain_system.dto.MenuSeedDto;
+import com.classification.domain_system.entity.Menu;
+import com.classification.domain_system.repository.MenuRepository;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.core.io.ClassPathResource;
 
-import static org.mockito.ArgumentMatchers.*;
+import java.io.InputStream;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
@@ -16,49 +26,64 @@ import static org.mockito.Mockito.*;
 class MenuDataInitializerTest {
 
     @Mock
-    private JdbcTemplate jdbcTemplate;
+    private MenuRepository menuRepository;
+
+    @Mock
+    private ObjectMapper objectMapper;
 
     @InjectMocks
     private MenuDataInitializer menuDataInitializer;
 
     @Test
-    @DisplayName("메뉴 데이터가 없을 때 시스템 기본 메뉴 트리를 SQL INSERT로 시딩한다")
-    void initMenus_seedsDefaultMenuTreeWhenEmpty() {
-        // given - menu 테이블이 비어있을 때
-        given(jdbcTemplate.queryForObject(eq("SELECT COUNT(*) FROM menu"), eq(Long.class)))
-                .willReturn(0L);
-        given(jdbcTemplate.queryForObject(eq("SELECT id FROM menu WHERE path = '/admin'"), eq(Long.class)))
-                .willReturn(7L);
-        given(jdbcTemplate.queryForList(eq("SELECT id, path FROM menu")))
-                .willReturn(java.util.List.of());
+    @DisplayName("메뉴 데이터가 없을 때 default_menus.json을 통해 초기화한다")
+    void initMenus_seedsDefaultMenuTreeWhenEmpty() throws Exception {
+        // given
+        given(menuRepository.count()).willReturn(0L);
+        
+        MenuSeedDto dto1 = new MenuSeedDto();
+        dto1.setId(1L);
+        dto1.setName("{\"ko\":\"홈\"}");
+        dto1.setPath("/");
+        
+        MenuSeedDto dto2 = new MenuSeedDto();
+        dto2.setId(2L);
+        dto2.setName("{\"ko\":\"관리자\"}");
+        dto2.setPath("/admin");
+        dto2.setParentId(1L);
+        
+        List<MenuSeedDto> defaultMenus = List.of(dto1, dto2);
+        
+        // Mocking the ObjectMapper to return our test data when reading the input stream
+        given(objectMapper.readValue(any(InputStream.class), any(TypeReference.class)))
+                .willReturn(defaultMenus);
+
+        // Mocking the save behavior
+        Menu savedMenu1 = new Menu();
+        savedMenu1.setId(1L);
+        Menu savedMenu2 = new Menu();
+        savedMenu2.setId(2L);
+        
+        given(menuRepository.save(any(Menu.class)))
+                .willReturn(savedMenu1)
+                .willReturn(savedMenu2);
 
         // when
         menuDataInitializer.initMenus();
 
-        // then - 7 top-level INSERT (no params) + 10 admin sub-menu INSERT (with adminId param)
-        verify(jdbcTemplate, times(7)).update(contains("INSERT INTO menu"));
-        verify(jdbcTemplate, times(10)).update(contains("INSERT INTO menu"), any(Long.class));
+        // then
+        verify(menuRepository, times(2)).save(any(Menu.class));
     }
 
     @Test
-    @DisplayName("메뉴 데이터가 이미 있지만 하위 메뉴가 없을 경우 새로 추가한다")
-    void initMenus_addsApprovalMonitorSubMenuWhenMissing() {
-        // given - menu 테이블에 데이터가 있고, '/admin' parent가 있지만 하위 메뉴가 없을 때
-        given(jdbcTemplate.queryForObject(eq("SELECT COUNT(*) FROM menu"), eq(Long.class)))
-                .willReturn(15L);
-        given(jdbcTemplate.queryForList(eq("SELECT id FROM menu WHERE path = '/admin' AND parent_id IS NULL"), eq(Long.class)))
-                .willReturn(java.util.List.of(7L));
-        given(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), anyString(), eq(7L)))
-                .willReturn(0);
-        given(jdbcTemplate.queryForList(anyString(), eq(Long.class), anyString(), eq(7L)))
-                .willReturn(java.util.List.of(99L));
-        given(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq(99L), anyString()))
-                .willReturn(0);
+    @DisplayName("메뉴 데이터가 이미 존재하면 초기화를 건너뛴다")
+    void initMenus_skipsWhenDataExists() {
+        // given
+        given(menuRepository.count()).willReturn(15L);
 
         // when
         menuDataInitializer.initMenus();
 
-        // then - 10개 하위 메뉴 INSERT 검증
-        verify(jdbcTemplate, atLeastOnce()).update(contains("INSERT INTO menu"), any(), any(), any(), eq(7L), any());
+        // then
+        verify(menuRepository, never()).save(any(Menu.class));
     }
 }
