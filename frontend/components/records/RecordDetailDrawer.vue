@@ -101,7 +101,7 @@
           style="flex: 1; border: none; padding: 8px; cursor: pointer; border-radius: 6px; font-weight: 600; display: flex; align-items: center; justify-content: center; background: transparent; transition: all 0.2s;"
         >
           <span style="margin-right: 6px;">🌿</span>
-          <span>다축/보조 노드</span>
+          <span>{{ t('secondary_nodes_tab') || (i18nLocale === 'en' ? 'Secondary Nodes' : '다축/보조 노드') }}</span>
           <span class="tab-badge" style="margin-left: 6px; background: rgba(0,0,0,0.1); padding: 2px 6px; border-radius: 10px; font-size: 0.75rem;">{{ secondaryNodes?.length || 0 }}</span>
         </button>
         <button
@@ -467,7 +467,7 @@
         icon="call_split"
         @click="$emit('unmerge', localRecord)"
       >
-        Unmerge (언머지)
+        {{ t('unmerge_btn') || 'Unmerge' }}
       </va-button>
       <va-button
         v-if="activeMainTab === 'details' && !isEditing && !isSnapshotMode && canDelete"

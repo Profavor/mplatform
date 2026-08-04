@@ -60,6 +60,8 @@
   "record_version_node": "Version History",
   "master_record_node": "Master Record",
   "records_count_suffix": "records",
+  "secondary_nodes_tab": "Secondary Nodes",
+  "master_data": "Master Data",
   "lineage_node_master_desc": "Master Record: Latest Golden Record under unified management",
   "install_require_pwd_match": "Passwords do not match.",
   "managed_master_records": "Managed Master Records",
