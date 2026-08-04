@@ -16,13 +16,13 @@
       </div>
 
       <div style="display: flex; gap: 0.5rem; align-items: center;">
-        <va-button preset="outline" icon="published_with_changes" color="warning" size="small" :loading="isSyncingRoles" @click="handleSyncDefaultRoles">
+        <va-button v-if="hasPermission('admin:write')" preset="outline" icon="published_with_changes" color="warning" size="small" :loading="isSyncingRoles" @click="handleSyncDefaultRoles">
           {{ $t('sync_default_roles') }}
         </va-button>
-        <va-button preset="outline" icon="save_alt" color="info" size="small" :loading="isSyncingRoles" @click="handleDumpSeedFiles">
+        <va-button v-if="hasPermission('admin:write')" preset="outline" icon="save_alt" color="info" size="small" :loading="isSyncingRoles" @click="handleDumpSeedFiles">
           기본 시드(Seed) 파일로 현재 상태 백업
         </va-button>
-        <va-button preset="outline" icon="admin_panel_settings" color="primary" size="small" @click="showPermMasterModal = true">
+        <va-button v-if="hasPermission('admin:write')" preset="outline" icon="admin_panel_settings" color="primary" size="small" @click="showPermMasterModal = true">
           {{ $t('perm_master_management') }}
         </va-button>
         <va-button color="primary" icon="add" size="small" @click="openCreateOrgModal">
@@ -703,10 +703,12 @@ import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import PermissionMatrix from '~/components/PermissionMatrix.vue'
 import UserRoleSelect from '~/components/UserRoleSelect.vue'
 import { useRoleStore } from '~/stores/useRoleStore'
+import { usePermission } from '~/composables/usePermission'
 
 const { gridTheme, isDark } = useAgGridTheme()
 const isMounted = ref(false)
 const roleStore = useRoleStore()
+const { hasPermission } = usePermission()
 const isSyncingRoles = ref(false)
 
 const { t, locale } = useI18n()
