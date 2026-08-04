@@ -100,7 +100,7 @@
           <va-button size="small" color="warning" outline @click="showAsyncExportModal = true">
             <va-icon name="cloud_download" class="mr-1"/> {{ $t('async_export') || '대용량 Export' }}
           </va-button>
-          <va-button preset="plain" color="secondary" size="small" @click="resetFilters" icon="restart_alt">
+          <va-button preset="plain" color="secondary" size="small" @click="clearFilters" icon="restart_alt">
             {{ $t('reset') }}
           </va-button>
           <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshRecords">
