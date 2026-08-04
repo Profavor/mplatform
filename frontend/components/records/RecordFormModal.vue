@@ -169,8 +169,8 @@
                       <div v-else-if="field.type === 'FILE'" class="w-full">
                         <va-file-upload v-model="localRecord[field.key]" :type="field.isMultiValue ? 'list' : 'single'" dropzone class="w-full file-upload-wrapper">
                           <div style="display: flex; flex-direction: row; align-items: center; gap: 1rem; padding: 0.5rem; justify-content: center; width: 100%;">
-                            <span style="font-size: 0.9rem; color: #666;">여기로 파일을 드래그 하거나</span>
-                            <va-button size="small">내 PC에서 선택</va-button>
+                            <span style="font-size: 0.9rem; color: #666;">{{ $t('file_upload_dropzone') }}</span>
+                            <va-button size="small">{{ $t('file_upload_button') }}</va-button>
                           </div>
                         </va-file-upload>
                         <transition-group name="flip-list" tag="div" v-if="localRecord[field.key] && localRecord[field.key].length > 0" class="custom-file-list" @dragover.prevent>

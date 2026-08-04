@@ -202,7 +202,7 @@ const props = defineProps({
   domainId: { type: String, default: '' }
 })
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { init } = useToast()
 const { confirm } = useModal()
 const { customFetch } = useCustomFetch()
@@ -263,11 +263,17 @@ const columns = computed(() => [
 
 const formatAxisName = (name) => {
   if (!name) return ''
-  if (typeof name === 'string') return name
-  if (typeof name === 'object') {
-    return name.ko || name.en || Object.values(name)[0] || ''
+  let obj = name
+  if (typeof name === 'string') {
+    try {
+      const parsed = JSON.parse(name)
+      if (parsed && typeof parsed === 'object') obj = parsed
+    } catch(e) {}
   }
-  return String(name)
+  if (typeof obj === 'object') {
+    return obj[locale.value] || obj.ko || obj.en || Object.values(obj)[0] || ''
+  }
+  return String(obj)
 }
 
 // Inline Sub-component for Tree Node Row rendering
@@ -279,11 +285,19 @@ const AxisTreeNodeRow = defineComponent({
   },
   emits: ['add-child', 'edit-node', 'delete-node'],
   setup(props, { emit }) {
-    const { t } = useI18n()
+    const { t, locale } = useI18n()
     return () => {
       const n = props.node
       const paddingLeft = `${props.depth * 1.5 + 0.5}rem`
-      const nameStr = typeof n.name === 'object' && n.name !== null ? (n.name.ko || n.name.en || Object.values(n.name)[0]) : (n.name || 'Unnamed')
+      
+      let obj = n.name
+      if (typeof obj === 'string') {
+        try {
+          const parsed = JSON.parse(obj)
+          if (parsed && typeof parsed === 'object') obj = parsed
+        } catch(e) {}
+      }
+      const nameStr = typeof obj === 'object' && obj !== null ? (obj[locale.value] || obj.ko || obj.en || Object.values(obj)[0] || 'Unnamed') : (obj || 'Unnamed')
 
       return h('div', { style: { display: 'flex', flexDirection: 'column', gap: '0.25rem' } }, [
         h('div', {

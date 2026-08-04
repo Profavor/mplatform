@@ -58,7 +58,7 @@
               <template #tabs>
                 <va-tab>{{ $t('tab_fields') || 'Fields' }}</va-tab>
                 <va-tab>{{ $t('schema_history.title') || 'Schema History' }}</va-tab>
-                <va-tab>Classification Axes (분류 축)</va-tab>
+                <va-tab v-if="selectedNode && selectedNode.type === 'domain'">{{ $t('classification_axes') }}</va-tab>
               </template>
             </va-tabs>
           </va-card-title>

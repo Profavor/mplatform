@@ -44,13 +44,14 @@
         <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
           <va-icon name="table_chart" color="primary" size="1.1rem" />
           <span style="font-weight: 700; font-size: 0.95rem; color: var(--va-text-primary);">
-            {{ selectedNode ? getTranslatedName(selectedNode.name) : '마스터 데이터 레코드 목록' }}
+            {{ selectedNode ? getTranslatedName(selectedNode.name) : $t('master_data_record_list') }}
           </span>
           <va-chip v-if="selectedNode" size="small" color="primary" style="font-weight: 600;">
             {{ selectedNode.isDomain ? 'Domain' : 'Node' }}
           </va-chip>
-          <va-button v-if="searchableFields.length > 0" preset="secondary" size="small" icon="filter_list" @click="showAdvancedSearch = !showAdvancedSearch">
-            상세 검색
+          <va-button v-if="searchableFields.length > 0" preset="secondary" size="small" @click="showAdvancedSearch = !showAdvancedSearch">
+            <va-icon :name="showAdvancedSearch ? 'expand_less' : 'expand_more'" size="small" />
+            {{ $t('advanced_search') }}
           </va-button>
           <va-chip
             v-for="(val, key) in activeFilters"
@@ -77,17 +78,17 @@
             icon="clear_all"
             @click="clearFilters"
           >
-            전체 초기화
+            {{ $t('reset_all') }}
           </va-button>
         </div>
 
         <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
           <template v-if="selectedNode && !selectedNode.isDomain">
             <va-button v-if="hasPermission('record:write') || hasPermission('workflow:request')" size="small" color="primary" @click="openCreateModal">
-              <va-icon name="add" class="mr-1"/> {{ hasCreateWorkflow ? '신규 등록 요청' : 'Create Record' }}
+              <va-icon name="add" class="mr-1"/> {{ hasCreateWorkflow ? $t('create_request') : $t('create_record') }}
             </va-button>
             <va-button v-if="hasPermission('record:write') || hasPermission('workflow:request')" size="small" color="success" outline @click="showExcelUploader = true">
-              <va-icon name="upload" class="mr-1"/> Bulk Upload
+              <va-icon name="upload" class="mr-1"/> {{ $t('bulk_upload') }}
             </va-button>
           </template>
           <va-button size="small" color="info" outline :disabled="!selectedRecordId" @click="showLineageModal = true">
@@ -99,6 +100,9 @@
           <va-button size="small" color="warning" outline @click="showAsyncExportModal = true">
             <va-icon name="cloud_download" class="mr-1"/> {{ $t('async_export') || '대용량 Export' }}
           </va-button>
+          <va-button preset="plain" color="secondary" size="small" @click="resetFilters" icon="restart_alt">
+            {{ $t('reset') }}
+          </va-button>
           <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshRecords">
             {{ $t('refresh') || '새로고침' }}
           </va-button>
@@ -109,11 +113,11 @@
       <va-card v-if="showAdvancedSearch" class="mb-4" style="background-color: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 8px;">
         <va-card-content style="padding: 1.25rem;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px dashed var(--va-background-border);">
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
               <va-icon name="tune" color="primary" size="18px" />
-              <span style="font-weight: 700; font-size: 0.9rem; color: var(--va-primary);">상세 검색 조건 (Advanced Search)</span>
+              <span style="font-weight: 700; font-size: 0.9rem; color: var(--va-primary);">{{ $t('advanced_search_condition') }}</span>
             </div>
-            <va-badge v-if="Object.keys(activeFilters).filter(k => activeFilters[k]).length > 0" :text="`적용 필터 ${Object.keys(activeFilters).filter(k => activeFilters[k]).length}개`" color="primary" />
+            <va-badge v-if="Object.keys(activeFilters).filter(k => activeFilters[k]).length > 0" :text="$t('applied_filters_count', { count: Object.keys(activeFilters).filter(k => activeFilters[k]).length })" color="primary" />
           </div>
 
           <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.25rem; align-items: start;">
@@ -202,9 +206,9 @@
               </va-input>
             </div>
           </div>
-          <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.25rem; padding-top: 0.75rem; border-top: 1px dashed var(--va-background-border);">
-            <va-button preset="secondary" icon="restart_alt" @click="clearFilters">초기화</va-button>
-            <va-button color="primary" icon="search" @click="applyFilters">검색</va-button>
+          <div style="display: flex; gap: 0.5rem; align-items: center; justify-content: flex-end; margin-top: 1.25rem; padding-top: 0.75rem; border-top: 1px dashed var(--va-background-border);">
+            <va-button preset="secondary" icon="restart_alt" @click="clearFilters">{{ $t('reset') }}</va-button>
+            <va-button color="primary" icon="search" @click="applyFilters">{{ $t('search') }}</va-button>
           </div>
         </va-card-content>
       </va-card>
