@@ -1,4 +1,12 @@
 {
+  "advanced_search": "Advanced Search",
+  "advanced_search_condition": "Advanced Search",
+  "master_data_record_list": "Master Data Record List",
+  "reset_all": "Reset All",
+  "create_request": "Request Creation",
+  "create_record": "Create Record",
+  "bulk_upload": "Bulk Upload",
+  "applied_filters_count": "Applied Filters: {count}",
   "RECORD": "Record Access",
   "target_type_record": "Master Record",
   "data_lineage": "Data Lineage",

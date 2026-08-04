@@ -1,4 +1,12 @@
 {
+  "advanced_search": "상세 검색",
+  "advanced_search_condition": "상세 검색 조건 (Advanced Search)",
+  "master_data_record_list": "마스터 데이터 레코드 목록",
+  "reset_all": "전체 초기화",
+  "create_request": "신규 등록 요청",
+  "create_record": "레코드 생성",
+  "bulk_upload": "대량 업로드",
+  "applied_filters_count": "적용 필터 {count}개",
   "RECORD": "직접 조회",
   "target_type_record": "마스터 레코드",
   "data_lineage": "데이터 계보",
