@@ -6,8 +6,6 @@ import com.classification.domain_system.entity.Record;
 import com.classification.domain_system.entity.RecordHistory;
 import com.classification.domain_system.entity.User;
 import com.classification.domain_system.exception.ResourceNotFoundException;
-import com.classification.domain_system.entity.FieldDefinition;
-import com.classification.domain_system.repository.FieldDefinitionRepository;
 import com.classification.domain_system.repository.IntegrationLogRepository;
 import com.classification.domain_system.repository.RecordHistoryRepository;
 import com.classification.domain_system.repository.RecordRepository;
