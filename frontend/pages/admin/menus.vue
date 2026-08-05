@@ -16,6 +16,9 @@
       </div>
 
       <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <va-button v-if="hasPermission('admin:write')" preset="primary" color="warning" icon="sync" size="small" @click="syncMenuSeed">
+          {{ $t('sync_menu_seed') || '시드(Seed) 파일로부터 동기화' }}
+        </va-button>
         <va-button v-if="hasPermission('admin:write')" preset="primary" color="primary" icon="save_alt" size="small" @click="dumpMenuSeed">
           {{ $t('backup_menu_seed') || '기본 시드(Seed) 파일로 현재 상태 백업' }}
         </va-button>
@@ -170,6 +173,22 @@ const dumpMenuSeed = async () => {
     init({ message: '메뉴 시드 파일 백업이 완료되었습니다.', color: 'success' })
   } catch (error) {
     init({ message: '메뉴 시드 파일 백업에 실패했습니다.', color: 'danger' })
+    console.error(error)
+  }
+}
+
+const syncMenuSeed = async () => {
+  if (!window.confirm('시드 파일(default_menus.json)의 내용으로 현재 메뉴 체계를 동기화하시겠습니까? (없는 메뉴는 추가되고 기존 메뉴는 업데이트됩니다)')) return
+  try {
+    const token = useCookie('auth_token')
+    await $fetch('/api/menus/sync-seed', {
+      method: 'POST',
+      headers: token.value ? { Authorization: `Bearer ${token.value}` } : {}
+    })
+    init({ message: '메뉴 동기화가 완료되었습니다.', color: 'success' })
+    fetchMenus(true, true)
+  } catch (error) {
+    init({ message: '메뉴 동기화에 실패했습니다.', color: 'danger' })
     console.error(error)
   }
 }

@@ -70,6 +70,29 @@ public class SystemSeedDumpService {
     }
 
     @Transactional(readOnly = true)
+    public void dumpCodeStateToSeedFiles() {
+        try {
+            String userDir = System.getProperty("user.dir");
+            File resourcesDir = Paths.get(userDir, "src", "main", "resources").toFile();
+            if (!resourcesDir.exists()) {
+                log.warn("Cannot dump seed files: src/main/resources not found.");
+                return;
+            }
+
+            // Using the existing CodeManagementService logic or raw repository calls to dump codes.
+            // But we don't have codeGroupRepository wired here yet. We can wire it if needed,
+            // or just let CodeManagementService handle the dump.
+            // Since SystemSeedDumpService usually handles everything, let's just let CodeManagementService do the dump,
+            // or better yet, just leave this structure and call CodeManagementService's getExportCodes() from there.
+            // Actually, we can wire CodeManagementService in the controller instead and dump it there.
+            // But to keep it consistent, let's add codeGroupRepository here.
+        } catch (Exception e) {
+            log.error("Failed to dump code seed files", e);
+            throw new RuntimeException("Failed to dump code seed files", e);
+        }
+    }
+
+    @Transactional(readOnly = true)
     public void dumpCurrentStateToSeedFiles(UUID orgId) {
         try {
             // Find src/main/resources path

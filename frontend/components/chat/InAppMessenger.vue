@@ -376,7 +376,16 @@
               style="flex: 1;"
               @keyup.enter="sendTextMessage"
               @paste="handlePaste"
-            />
+            >
+              <template #appendInner>
+                <va-dropdown :close-on-content-click="false" trigger="click" placement="top-end">
+                  <template #anchor>
+                    <va-icon name="sentiment_satisfied_alt" size="small" style="cursor: pointer" />
+                  </template>
+                  <EmojiPicker :native="true" @select="(e) => inputMsg += e.i" />
+                </va-dropdown>
+              </template>
+            </va-input>
             <va-button preset="primary" @click="sendTextMessage">{{ $t('messenger.sendBtn') }}</va-button>
           </div>
         </div>
@@ -566,6 +575,8 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import ExcelPreviewModal from '~/components/chat/ExcelPreviewModal.vue'
 import TableDataViewerModal from '~/components/chat/TableDataViewerModal.vue'
+import EmojiPicker from 'vue3-emoji-picker'
+import 'vue3-emoji-picker/css'
 
 const { t } = useI18n()
 

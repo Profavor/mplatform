@@ -152,6 +152,26 @@ public class SensitiveDataService {
                     node = app.getClassificationNode();
                     jsonPayload = app.getChanges();
                 }
+            } else if ("RECORD_HISTORY".equalsIgnoreCase(logEntity.getTargetType()) && recordHistoryRepository != null) {
+                var histOpt = recordHistoryRepository.findById(logEntity.getTargetId());
+                if (histOpt.isPresent()) {
+                    var hist = histOpt.get();
+                    if (hist.getRecord() != null) {
+                        node = hist.getRecord().getNode();
+                    }
+                    try {
+                        Map<String, Object> combined = new HashMap<>();
+                        if (hist.getPreviousData() != null) {
+                            combined.put("before", objectMapper.readValue(hist.getPreviousData(), new TypeReference<Map<String, Object>>() {}));
+                        }
+                        if (hist.getNewData() != null) {
+                            combined.put("after", objectMapper.readValue(hist.getNewData(), new TypeReference<Map<String, Object>>() {}));
+                        }
+                        jsonPayload = objectMapper.writeValueAsString(combined);
+                    } catch (Exception e) {
+                        log.error("Failed to parse history data", e);
+                    }
+                }
             } else if (recordRepository != null) {
                 var recOpt = recordRepository.findById(logEntity.getTargetId());
                 if (recOpt.isPresent()) {

@@ -67,13 +67,28 @@ public class RoleInitializer {
 
     private List<RoleSeedDto> loadDefaultRoles() {
         try {
-            ClassPathResource resource = new ClassPathResource("default_roles.json");
-            if (!resource.exists()) {
+            java.io.InputStream is = null;
+            String userDir = System.getProperty("user.dir");
+            java.io.File localFile = java.nio.file.Paths.get(userDir, "src", "main", "resources", "default_roles.json").toFile();
+            
+            if (localFile.exists()) {
+                is = new java.io.FileInputStream(localFile);
+                log.info("Using local filesystem seed: {}", localFile.getAbsolutePath());
+            } else {
+                ClassPathResource resource = new ClassPathResource("default_roles.json");
+                if (resource.exists()) {
+                    is = resource.getInputStream();
+                    log.info("Using classpath seed");
+                }
+            }
+            
+            if (is == null) {
                 log.warn("default_roles.json not found in resources!");
                 return null;
             }
-            try (InputStream is = resource.getInputStream()) {
-                return objectMapper.readValue(is, new TypeReference<List<RoleSeedDto>>() {});
+            
+            try (java.io.InputStream finalIs = is) {
+                return objectMapper.readValue(finalIs, new TypeReference<List<RoleSeedDto>>() {});
             }
         } catch (Exception e) {
             log.error("Failed to load default_roles.json", e);

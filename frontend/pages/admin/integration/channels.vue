@@ -125,7 +125,9 @@
               />
               <va-select
                 v-model="formData.type"
-                :options="['WEB_SERVICE', 'JDBC', 'MESSAGE_QUEUE']"
+                :options="typeOptions"
+                value-by="value"
+                text-by="text"
                 :label="$t('integration.channels.type')"
                 :disabled="formData.direction === 'INBOUND'"
                 required
@@ -235,7 +237,14 @@
 
                 <template v-if="formData.type === 'WEB_SERVICE'">
                   <va-input v-model="uiConfig.wsUrl" :label="$t('integration.channels.ws_url')" placeholder="http://api.example.com/webhook" required class="w-full" />
-                  <va-select v-model="uiConfig.wsMethod" :options="['POST', 'PUT', 'GET']" :label="$t('integration.channels.ws_method')" class="w-full" />
+                  <va-select 
+                    v-model="uiConfig.wsMethod" 
+                    :options="methodOptions" 
+                    value-by="value"
+                    text-by="text"
+                    :label="$t('integration.channels.ws_method')" 
+                    class="w-full" 
+                  />
                   <div style="margin-top: 0.5rem;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                       <span style="font-size: 0.85rem; font-weight: 700;">HTTP Headers</span>
@@ -367,12 +376,14 @@ import { AgGridVue } from 'ag-grid-vue3'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { useI18n } from 'vue-i18n'
 import { useCustomFetch } from '~/composables/useCustomFetch'
+import { useCodeStore } from '~/stores/useCodeStore'
 
 const { t, locale } = useI18n()
 const { gridTheme, isDark } = useAgGridTheme()
 const { init } = useToast()
 const { customFetch } = useCustomFetch()
 const token = useCookie('auth_token')
+const codeStore = useCodeStore()
 
 const channelNameKo = ref('')
 const channelNameEn = ref('')
@@ -429,10 +440,9 @@ const activeModalTab = ref('basic')
 const isEdit = ref(false)
 const form = ref(null)
 
-const directionOptions = computed(() => [
-  { value: 'OUTBOUND', text: t('integration.channels.outbound') },
-  { value: 'INBOUND', text: t('integration.channels.inbound') }
-])
+const directionOptions = computed(() => codeStore.getDropdownOptions('INTEGRATION_DIRECTION'))
+const typeOptions = computed(() => codeStore.getDropdownOptions('INTEGRATION_TYPE'))
+const methodOptions = computed(() => codeStore.getDropdownOptions('HTTP_METHOD'))
 
 const authTypeOptions = computed(() => [
   { value: 'BEARER_TOKEN', text: t('integration.channels.auth_bearer') },
@@ -1336,7 +1346,8 @@ const confirmDelete = async (id) => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await codeStore.preloadGroups(['INTEGRATION_DIRECTION', 'INTEGRATION_TYPE', 'HTTP_METHOD'])
   fetchChannels()
   fetchRecentLogs()
   fetchDomains()

@@ -765,7 +765,7 @@ const groupOptions = computed(() => {
   })
 })
 
-const fieldTypes = ['TEXT', 'NUMBER', 'DATE', 'BOOLEAN', 'SELECT', 'DECIMAL', 'FLOAT', 'INTEGER', 'DOMAIN_REFERENCE', 'MULTI_SELECT', 'TIME', 'HTML_TEXT', 'CHECKBOX', 'CALCULATED', 'MULTILINGUAL', 'FILE']
+const fieldTypes = computed(() => codeStore.getDropdownOptions('FIELD_TYPE'))
 
 const maskingPatternOptions = computed(() => [
   { value: 'GENERIC', text: t('masking_pattern_generic') },

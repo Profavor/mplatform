@@ -132,7 +132,9 @@
 
         <va-select
           v-model="form.matchType"
-          :options="['EXACT', 'FUZZY']"
+          :options="matchTypeOptions"
+          value-by="value"
+          text-by="text"
           label="매칭 방식 (Match Type)"
           class="mb-3"
         />
@@ -191,13 +193,17 @@ import { AgGridVue } from 'ag-grid-vue3'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { usePageTitle } from '~/composables/usePageTitle'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
+import { useCodeStore } from '~/stores/useCodeStore'
+import { useCookie } from '#app'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { pageTitle } = usePageTitle('matching_rules.title', '매칭 규칙 관리')
 const { init } = useToast()
 const { confirm } = useModal()
 const { customFetch } = useCustomFetch()
 const { gridTheme, isDark } = useAgGridTheme()
+const codeStore = useCodeStore()
+const token = useCookie('auth_token')
 
 const domainStore = useDomain()
 const selectedDomainId = ref('')
@@ -212,9 +218,11 @@ const isEditMode = ref(false)
 const isSaving = ref(false)
 const editingRuleId = ref<any>(null)
 
+const matchTypeOptions = computed(() => codeStore.getDropdownOptions('MATCH_TYPE'))
+
 const form = ref({
   ruleName: '',
-  matchType: 'EXACT',
+  matchType: matchTypeOptions.value[0]?.value || 'EXACT',
   selectedFields: [] as string[],
   targetFieldKeysInput: '',
   similarityThreshold: 0.85,
@@ -251,7 +259,10 @@ const MatchTypeCellRenderer = (params: any) => {
       ? 'background: rgba(25, 118, 210, 0.12); color: var(--va-primary); border: 1px solid rgba(25, 118, 210, 0.3);'
       : 'background: rgba(237, 108, 2, 0.12); color: var(--va-warning); border: 1px solid rgba(237, 108, 2, 0.3);'
   }`
-  pill.textContent = params.value || 'EXACT'
+  
+  // Use CodeStore to map the value to name
+  const localizedName = codeStore.getCodeName('MATCH_TYPE', params.value, params.value)
+  pill.textContent = localizedName
 
   div.appendChild(pill)
   return div
@@ -444,7 +455,7 @@ const openCreateModal = () => {
   editingRuleId.value = null
   form.value = {
     ruleName: '',
-    matchType: 'EXACT',
+    matchType: matchTypeOptions.value[0]?.value || 'EXACT',
     selectedFields: [],
     targetFieldKeysInput: '',
     similarityThreshold: 0.85,
@@ -541,7 +552,8 @@ const deleteRule = async (rule: any) => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await codeStore.preloadGroups(['MATCH_TYPE'])
   loadDomains()
 })
 </script>

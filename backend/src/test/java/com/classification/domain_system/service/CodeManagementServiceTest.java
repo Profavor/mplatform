@@ -82,4 +82,19 @@ class CodeManagementServiceTest {
         assertEquals(1, result.size());
         assertEquals(activeValid.getId(), result.get(0).getId());
     }
+
+    @Test
+    void testGetGroupsPaged() {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        List<CodeGroup> groups = Arrays.asList(codeGroup);
+        org.springframework.data.domain.Page<CodeGroup> pagedResponse = new org.springframework.data.domain.PageImpl<>(groups);
+        
+        when(codeGroupRepository.findAll(pageable)).thenReturn(pagedResponse);
+
+        org.springframework.data.domain.Page<CodeGroup> result = codeManagementService.getGroupsPaged(null, pageable);
+        
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        assertEquals(codeGroup.getId(), result.getContent().get(0).getId());
+    }
 }

@@ -127,6 +127,39 @@ class SensitiveDataServiceTest {
     }
 
     @Test
+    @DisplayName("convertToDto - RECORD_HISTORY 도메인 및 분류 추출 검증")
+    void convertToDto_RecordHistory() {
+        UUID targetId = UUID.randomUUID();
+        SensitiveDataAccessLog logEntity = new SensitiveDataAccessLog();
+        logEntity.setId(UUID.randomUUID());
+        logEntity.setTargetType("RECORD_HISTORY");
+        logEntity.setTargetId(targetId);
+
+        com.classification.domain_system.entity.RecordHistory history = new com.classification.domain_system.entity.RecordHistory();
+        history.setId(targetId);
+        
+        com.classification.domain_system.entity.Record record = new com.classification.domain_system.entity.Record();
+        ClassificationNode node = new ClassificationNode();
+        node.setName(Map.of("ko", "테스트분류"));
+        
+        com.classification.domain_system.entity.Domain domain = new com.classification.domain_system.entity.Domain();
+        domain.setName(Map.of("ko", "테스트도메인"));
+        node.setDomain(domain);
+        
+        record.setNode(node);
+        history.setRecord(record);
+        history.setPreviousData("{\"testKey\":\"oldValue\"}");
+        history.setNewData("{\"testKey\":\"newValue\"}");
+
+        when(recordHistoryRepository.findById(targetId)).thenReturn(Optional.of(history));
+
+        var dto = sensitiveDataService.convertToDto(logEntity);
+
+        assertThat(dto.getClassificationName()).isEqualTo("테스트분류");
+        assertThat(dto.getDomainName()).isEqualTo("테스트도메인");
+    }
+
+    @Test
     @DisplayName("decryptApprovalFields - 존재하지 않는 결재 요청 시 예외 발생")
     void decryptApprovalFields_NotFound() {
         UUID approvalId = UUID.randomUUID();

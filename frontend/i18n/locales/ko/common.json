@@ -1,4 +1,12 @@
 {
+  "none": "없음",
+  "unknown": "알 수 없음",
+  "unclassified": "분류 미지정",
+  "other_request": "기타 요청",
+  "record_create": "마스터 레코드 신규 등록",
+  "record_update": "마스터 레코드 수정",
+  "record_delete": "마스터 레코드 삭제",
+  "domain_record_create": "도메인 레코드 등록",
   "file_upload_dropzone": "여기로 파일을 드래그 하거나 ",
   "file_upload_button": "내 PC에서 선택",
   "view_original": "원본 보기",
@@ -371,6 +379,7 @@
   "menu_access_statistics": "메뉴 접근 통계",
   "menu_icon": "메뉴 아이콘",
   "backup_menu_seed": "현재 상태 백업",
+  "sync_menu_seed": "시드 파일로부터 동기화",
   "menu_management": "메뉴 관리",
   "menu_management_desc": "시스템 전체 트리 메뉴 구조 및 권한별 접근 노드를 관리합니다.",
   "merge": {
