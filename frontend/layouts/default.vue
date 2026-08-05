@@ -96,7 +96,7 @@
                             </div>
                           </va-list-item-section>
                           <va-list-item-section style="font-weight: 600; font-size: 0.9rem;">
-                            {{ currentLocale === 'ko' ? 'Switch to English' : '한국어로 변경' }}
+                            {{ currentLocale === 'ko' ? 'Switch to English' : 'Switch to Korean' }}
                           </va-list-item-section>
                         </va-list-item>
 
