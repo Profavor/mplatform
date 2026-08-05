@@ -123,8 +123,15 @@ public class RoleInitializer {
                     }
                 }
                 
-                // If it's a new seed update, also update display names or system role flag if needed (optional)
-                // For safety, only update permissions for now.
+                if (!java.util.Objects.equals(role.getDisplayName(), displayName)) {
+                    role.setDisplayName(displayName);
+                    updated = true;
+                }
+                
+                if (!java.util.Objects.equals(role.getDescription(), description)) {
+                    role.setDescription(description);
+                    updated = true;
+                }
                 
                 if (updated) {
                     role.setPermissions(curPerms);

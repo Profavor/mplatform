@@ -463,7 +463,8 @@
           <div style="height: 500px; width: 100%;">
               <ag-grid-vue
               style="width: 100%; height: 100%;"
-              class="ag-theme-alpine"
+              :class="{ 'ag-theme-quartz-dark': isDark }"
+              :theme="gridTheme"
               :columnDefs="sensitiveLogColDefs"
               :rowData="sensitiveLogs"
               :loading="sensitiveLogLoading"
@@ -497,6 +498,7 @@ import { useI18n } from 'vue-i18n'
 import { useToast } from 'vuestic-ui'
 import { usePermission } from '~/composables/usePermission'
 import { getMultilingualText } from '~/utils/multilingual'
+import { useCodeStore } from '~/stores/useCodeStore'
 
 const { hasPermission } = usePermission()
 
@@ -510,6 +512,7 @@ const token = useCookie('auth_token')
 const { init } = useToast()
 const activeTab = ref('access')
 const isMounted = ref(false)
+const codeStore = useCodeStore()
 
 const sensitiveLogs = ref([])
 const sensitiveLogLoading = ref(false)
@@ -524,7 +527,7 @@ const sensitiveLogColDefs = computed(() => [
   {
     headerValueGetter: () => t('access_log_time') || '열람 시각',
     field: 'accessedAt',
-    valueFormatter: params => params.value ? new Date(params.value).toLocaleString() : '',
+    valueFormatter: params => params.value ? new Date(params.value).toLocaleString(locale.value === 'ko' ? 'ko-KR' : 'en-US') : '',
     sortable: true,
     width: 180
   },
@@ -539,9 +542,7 @@ const sensitiveLogColDefs = computed(() => [
     field: 'targetType',
     valueFormatter: params => {
       if (!params.value) return '-'
-      if (params.value === 'APPROVAL_REQUEST') return t('target_type_approval_request') || '결재 요청'
-      if (params.value === 'RECORD') return t('target_type_record') || '마스터 레코드'
-      return params.value
+      return codeStore.getCodeName('TARGET_TYPE', params.value)
     },
     width: 160
   },
@@ -742,14 +743,14 @@ const getMenuName = (path) => {
   
   if (dbMenuMap.value.has(cleanPath)) {
     const rawName = dbMenuMap.value.get(cleanPath)
-    const text = getMultilingualText(rawName)
+    const text = getMultilingualText(rawName, locale.value)
     if (text) return text
   }
 
   // Exact path or prefix match against DB menu map
   for (const [menuPath, rawName] of dbMenuMap.value.entries()) {
     if (menuPath && (cleanPath === menuPath || cleanPath.startsWith(menuPath) || menuPath.startsWith(cleanPath))) {
-      const text = getMultilingualText(rawName)
+      const text = getMultilingualText(rawName, locale.value)
       if (text) return text
     }
   }
@@ -1321,6 +1322,7 @@ watch(locale, () => {
 
 onMounted(async () => {
   isMounted.value = true
+  await codeStore.loadGroup('TARGET_TYPE')
   await loadDbMenuMap()
   updateChart()
   updateLoginChart()

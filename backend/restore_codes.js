@@ -1,0 +1,304 @@
+const fs = require('fs');
+
+const originalJson = `[
+  {
+    "groupCode": "TARGET_TYPE",
+    "name": { "ko": "접근 대상 유형", "en": "Access Target Type" },
+    "description": { "ko": "시스템 데이터 접근 로그에 기록되는 대상의 유형입니다.", "en": "Type of target recorded in system and data access logs." },
+    "isActive": true,
+    "details": [
+      { "detailCode": "RECORD", "name": { "ko": "직접 조회", "en": "Direct Access" }, "sortOrder": 1, "isActive": true },
+      { "detailCode": "RECORD_HISTORY", "name": { "ko": "변경 이력 조회", "en": "Record History" }, "sortOrder": 2, "isActive": true },
+      { "detailCode": "APPROVAL_REQUEST", "name": { "ko": "결재 요청", "en": "Approval Request" }, "sortOrder": 3, "isActive": true }
+    ]
+  },
+  {
+    "groupCode": "MASKING_PATTERN",
+    "name": { "ko": "마스킹 패턴", "en": "Masking Pattern" },
+    "description": { "ko": "민감 데이터 노출 방지를 위한 데이터 마스킹 패턴 정의", "en": "Data masking patterns to prevent sensitive data exposure" },
+    "isActive": true,
+    "details": [
+      { "detailCode": "GENERIC", "name": { "ko": "일반 마스킹 (GENERIC)", "en": "Generic Masking (GENERIC)" }, "sortOrder": 1, "isActive": true },
+      { "detailCode": "CARD", "name": { "ko": "카드번호 (1234-****-****-5678)", "en": "Card Number (1234-****-****-5678)" }, "sortOrder": 2, "isActive": true },
+      { "detailCode": "RRN", "name": { "ko": "주민등록번호 (900101-1******)", "en": "RRN/SSN (900101-1******)" }, "sortOrder": 3, "isActive": true },
+      { "detailCode": "PHONE", "name": { "ko": "전화번호 (010-****-5678)", "en": "Phone Number (010-****-5678)" }, "sortOrder": 4, "isActive": true },
+      { "detailCode": "EMAIL", "name": { "ko": "이메일 (u***@example.com)", "en": "Email Address (u***@example.com)" }, "sortOrder": 5, "isActive": true }
+    ]
+  },
+  {
+    "groupCode": "DQ_RULE_TYPE",
+    "name": { "ko": "품질 검칙 유형", "en": "DQ Rule Type" },
+    "description": { "ko": "데이터 품질 측정 및 진단을 위한 검칙 유형", "en": "Data Quality rule types for measuring and diagnosing data" },
+    "isActive": true,
+    "details": [
+      { "detailCode": "COMPLETENESS", "name": { "ko": "완전성 (Completeness)", "en": "Completeness" }, "sortOrder": 1, "isActive": true },
+      { "detailCode": "VALIDITY", "name": { "ko": "유효성 (Validity)", "en": "Validity" }, "sortOrder": 2, "isActive": true },
+      { "detailCode": "ACCURACY", "name": { "ko": "정확성 (Accuracy)", "en": "Accuracy" }, "sortOrder": 3, "isActive": true },
+      { "detailCode": "CONSISTENCY", "name": { "ko": "일관성 (Consistency)", "en": "Consistency" }, "sortOrder": 4, "isActive": true },
+      { "detailCode": "UNIQUENESS", "name": { "ko": "유일성 (Uniqueness)", "en": "Uniqueness" }, "sortOrder": 5, "isActive": true }
+    ]
+  },
+  {
+    "groupCode": "DQ_SEVERITY",
+    "name": { "ko": "품질 위반 심각도", "en": "DQ Severity" },
+    "description": { "ko": "데이터 품질 검칙 위반 건의 심각도 등급", "en": "Severity level of Data Quality rule violations" },
+    "isActive": true,
+    "details": [
+      { "detailCode": "CRITICAL", "name": { "ko": "치명적 (Critical)", "en": "Critical" }, "sortOrder": 1, "isActive": true },
+      { "detailCode": "HIGH", "name": { "ko": "높음 (High)", "en": "High" }, "sortOrder": 2, "isActive": true },
+      { "detailCode": "MEDIUM", "name": { "ko": "보통 (Medium)", "en": "Medium" }, "sortOrder": 3, "isActive": true },
+      { "detailCode": "LOW", "name": { "ko": "낮음 (Low)", "en": "Low" }, "sortOrder": 4, "isActive": true }
+    ]
+  },
+  {
+    "groupCode": "APPROVAL_STATUS",
+    "name": { "ko": "결재 상태", "en": "Approval Status" },
+    "description": { "ko": "결재 요청의 현재 진행 상태", "en": "Current progress status of approval requests" },
+    "isActive": true,
+    "details": [
+      { "detailCode": "PENDING", "name": { "ko": "결재 대기", "en": "Pending" }, "sortOrder": 1, "isActive": true },
+      { "detailCode": "IN_PROGRESS", "name": { "ko": "결재 진행중", "en": "In Progress" }, "sortOrder": 2, "isActive": true },
+      { "detailCode": "APPROVED", "name": { "ko": "승인 완료", "en": "Approved" }, "sortOrder": 3, "isActive": true },
+      { "detailCode": "REJECTED", "name": { "ko": "반려됨", "en": "Rejected" }, "sortOrder": 4, "isActive": true },
+      { "detailCode": "CANCELLED", "name": { "ko": "요청 취소", "en": "Cancelled" }, "sortOrder": 5, "isActive": true }
+    ]
+  },
+  {
+    "groupCode": "MATCHING_STATUS",
+    "name": { "ko": "매칭 상태", "en": "Matching Status" },
+    "description": { "ko": "데이터 매칭 및 식별 과정의 상태", "en": "Status of data matching and identification process" },
+    "isActive": true,
+    "details": [
+      { "detailCode": "PENDING", "name": { "ko": "대기중", "en": "Pending" }, "sortOrder": 1, "isActive": true },
+      { "detailCode": "MATCHED", "name": { "ko": "매칭 완료", "en": "Matched" }, "sortOrder": 2, "isActive": true },
+      { "detailCode": "REJECTED", "name": { "ko": "거절됨", "en": "Rejected" }, "sortOrder": 3, "isActive": true }
+    ]
+  },
+  {
+    "groupCode": "BATCH_JOB_STATUS",
+    "name": { "ko": "배치 작업 상태", "en": "Batch Job Status" },
+    "description": { "ko": "배치 작업의 실행 상태", "en": "Execution status of batch jobs" },
+    "isActive": true,
+    "details": [
+      { "detailCode": "QUEUED", "name": { "ko": "대기중", "en": "Queued" }, "sortOrder": 1, "isActive": true },
+      { "detailCode": "RUNNING", "name": { "ko": "실행중", "en": "Running" }, "sortOrder": 2, "isActive": true },
+      { "detailCode": "COMPLETED", "name": { "ko": "완료", "en": "Completed" }, "sortOrder": 3, "isActive": true },
+      { "detailCode": "FAILED", "name": { "ko": "실패", "en": "Failed" }, "sortOrder": 4, "isActive": true }
+    ]
+  },
+  {
+    "groupCode": "FIELD_TYPE",
+    "name": { "ko": "필드 유형", "en": "Field Type" },
+    "description": { "ko": "데이터 필드의 논리적/물리적 데이터 타입", "en": "Logical/physical data type of fields" },
+    "isActive": true,
+    "details": [
+      { "detailCode": "TEXT", "name": { "ko": "텍스트 (문자열)", "en": "Text (String)" }, "sortOrder": 1, "isActive": true },
+      { "detailCode": "NUMBER", "name": { "ko": "숫자", "en": "Number" }, "sortOrder": 2, "isActive": true },
+      { "detailCode": "DATE", "name": { "ko": "날짜", "en": "Date" }, "sortOrder": 3, "isActive": true },
+      { "detailCode": "BOOLEAN", "name": { "ko": "불리언", "en": "Boolean" }, "sortOrder": 4, "isActive": true },
+      { "detailCode": "JSON", "name": { "ko": "JSON 문서", "en": "JSON Document" }, "sortOrder": 5, "isActive": true },
+      { "detailCode": "ENUM", "name": { "ko": "선택형 (Enum)", "en": "Enum" }, "sortOrder": 6, "isActive": true }
+    ]
+  },
+  {
+    "groupCode": "INTEGRATION_TYPE",
+    "name": { "ko": "연동 유형", "en": "Integration Type" },
+    "description": { "ko": "외부 시스템과의 데이터 연동 방식", "en": "Data integration method with external systems" },
+    "isActive": true,
+    "details": [
+      { "detailCode": "WEB_SERVICE", "name": { "ko": "웹 서비스 (REST/SOAP)", "en": "Web Service (REST/SOAP)" }, "sortOrder": 1, "isActive": true },
+      { "detailCode": "JDBC", "name": { "ko": "데이터베이스 (JDBC)", "en": "Database (JDBC)" }, "sortOrder": 2, "isActive": true },
+      { "detailCode": "MESSAGE_QUEUE", "name": { "ko": "메시지 큐", "en": "Message Queue" }, "sortOrder": 3, "isActive": true }
+    ]
+  },
+  {
+    "groupCode": "INTEGRATION_STATUS",
+    "name": { "ko": "연동 상태", "en": "Integration Status" },
+    "description": { "ko": "데이터 송수신 연동 결과 상태", "en": "Data integration result status" },
+    "isActive": true,
+    "details": [
+      { "detailCode": "SUCCESS", "name": { "ko": "성공", "en": "Success" }, "sortOrder": 1, "isActive": true },
+      { "detailCode": "FAIL", "name": { "ko": "실패", "en": "Fail" }, "sortOrder": 2, "isActive": true },
+      { "detailCode": "DEAD_LETTER", "name": { "ko": "데드 레터 (재시도 불가)", "en": "Dead Letter (Unrecoverable)" }, "sortOrder": 3, "isActive": true }
+    ]
+  },
+  {
+    "groupCode": "NOTIFICATION_TYPE",
+    "name": { "ko": "알림 유형", "en": "Notification Type" },
+    "description": { "ko": "시스템 사용자에 대한 알림의 범주", "en": "Category of system notifications" },
+    "isActive": true,
+    "details": [
+      { "detailCode": "INFO", "name": { "ko": "일반 정보", "en": "Information" }, "sortOrder": 1, "isActive": true },
+      { "detailCode": "WARNING", "name": { "ko": "경고", "en": "Warning" }, "sortOrder": 2, "isActive": true },
+      { "detailCode": "APPROVAL", "name": { "ko": "결재 요청", "en": "Approval Request" }, "sortOrder": 3, "isActive": true },
+      { "detailCode": "DQ_VIOLATION", "name": { "ko": "데이터 품질 위반", "en": "DQ Violation" }, "sortOrder": 4, "isActive": true }
+    ]
+  },
+  {
+    "groupCode": "RECORD_STATUS",
+    "name": { "ko": "레코드 상태", "en": "Record Status" },
+    "description": { "ko": "도메인 레코드의 생명주기 상태", "en": "Lifecycle status of domain records" },
+    "isActive": true,
+    "details": [
+      { "detailCode": "DRAFT", "name": { "ko": "초안", "en": "Draft" }, "sortOrder": 1, "isActive": true },
+      { "detailCode": "PENDING_APPROVAL", "name": { "ko": "결재 대기", "en": "Pending Approval" }, "sortOrder": 2, "isActive": true },
+      { "detailCode": "ACTIVE", "name": { "ko": "활성", "en": "Active" }, "sortOrder": 3, "isActive": true },
+      { "detailCode": "INACTIVE", "name": { "ko": "비활성 (사용 중지)", "en": "Inactive" }, "sortOrder": 4, "isActive": true },
+      { "detailCode": "MISMATCHED", "name": { "ko": "불일치", "en": "Mismatched" }, "sortOrder": 5, "isActive": true },
+      { "detailCode": "REJECTED", "name": { "ko": "반려됨", "en": "Rejected" }, "sortOrder": 6, "isActive": true }
+    ]
+  },
+  {
+    "groupCode": "SCHEMA_ACTION",
+    "name": { "ko": "스키마 변경 유형", "en": "Schema Action" },
+    "description": { "ko": "데이터베이스 스키마 이력 변경 유형", "en": "Type of database schema history change" },
+    "isActive": true,
+    "details": [
+      { "detailCode": "CREATE", "name": { "ko": "생성", "en": "Create" }, "sortOrder": 1, "isActive": true },
+      { "detailCode": "UPDATE", "name": { "ko": "수정", "en": "Update" }, "sortOrder": 2, "isActive": true },
+      { "detailCode": "DELETE", "name": { "ko": "삭제", "en": "Delete" }, "sortOrder": 3, "isActive": true }
+    ]
+  },
+  {
+    "groupCode": "STAGING_STATUS",
+    "name": { "ko": "스테이징 상태", "en": "Staging Status" },
+    "description": { "ko": "데이터 스테이징 영역의 처리 상태", "en": "Processing status in data staging area" },
+    "isActive": true,
+    "details": [
+      { "detailCode": "PENDING", "name": { "ko": "대기", "en": "Pending" }, "sortOrder": 1, "isActive": true },
+      { "detailCode": "VALIDATED", "name": { "ko": "검증 완료", "en": "Validated" }, "sortOrder": 2, "isActive": true },
+      { "detailCode": "ERROR", "name": { "ko": "오류 발생", "en": "Error" }, "sortOrder": 3, "isActive": true },
+      { "detailCode": "COMMITTED", "name": { "ko": "본반영 완료", "en": "Committed" }, "sortOrder": 4, "isActive": true }
+    ]
+  },
+  {
+    "groupCode": "USER_ROLE",
+    "name": { "ko": "사용자 권한 (역할)", "en": "User Role" },
+    "description": { "ko": "시스템 사용자의 접근 권한 등급", "en": "Access permission level of system users" },
+    "isActive": true,
+    "details": [
+      { "detailCode": "ROLE_USER", "name": { "ko": "일반 사용자", "en": "User" }, "sortOrder": 1, "isActive": true },
+      { "detailCode": "ROLE_ADMIN", "name": { "ko": "관리자", "en": "Administrator" }, "sortOrder": 2, "isActive": true },
+      { "detailCode": "ROLE_SUPERADMIN", "name": { "ko": "시스템 최고 관리자", "en": "System Administrator" }, "sortOrder": 3, "isActive": true },
+      { "detailCode": "ROLE_DATA_STEWARD", "name": { "ko": "데이터 스튜어드", "en": "Data Steward" }, "sortOrder": 4, "isActive": true },
+      { "detailCode": "ROLE_APPROVER", "name": { "ko": "결재권자", "en": "Approver" }, "sortOrder": 5, "isActive": true }
+    ]
+  },
+  {
+    "groupCode": "WORKFLOW_ACTION",
+    "name": { "ko": "워크플로우 액션", "en": "Workflow Action" },
+    "description": { "ko": "워크플로우의 실행 액션 유형", "en": "Type of execution action in workflow" },
+    "isActive": true,
+    "details": [
+      { "detailCode": "CREATE", "name": { "ko": "🆕 생성", "en": "🆕 Create" }, "sortOrder": 1, "isActive": true },
+      { "detailCode": "UPDATE", "name": { "ko": "🛠️ 수정", "en": "🛠️ Update" }, "sortOrder": 2, "isActive": true },
+      { "detailCode": "DELETE", "name": { "ko": "🗑️ 삭제", "en": "🗑️ Delete" }, "sortOrder": 3, "isActive": true },
+      { "detailCode": "SCHEMA_CHANGE", "name": { "ko": "🏗️ 스키마 변경", "en": "🏗️ Schema Change" }, "sortOrder": 4, "isActive": true },
+      { "detailCode": "MERGE", "name": { "ko": "🔄 데이터 병합", "en": "🔄 Data Merge" }, "sortOrder": 5, "isActive": true }
+    ]
+  },
+  {
+    "groupCode": "INTEGRATION_DIRECTION",
+    "name": { "ko": "연계 방향", "en": "Integration Direction" },
+    "description": { "ko": "데이터 연계의 방향성", "en": "Direction of data integration" },
+    "isActive": true,
+    "details": [
+      { "detailCode": "OUTBOUND", "name": { "ko": "Outbound (발신)", "en": "Outbound" }, "sortOrder": 1, "isActive": true },
+      { "detailCode": "INBOUND", "name": { "ko": "Inbound (수신)", "en": "Inbound" }, "sortOrder": 2, "isActive": true }
+    ]
+  },
+  {
+    "groupCode": "HTTP_METHOD",
+    "name": { "ko": "HTTP 메서드", "en": "HTTP Method" },
+    "description": { "ko": "REST API 연동 시 사용하는 HTTP 메서드", "en": "HTTP method for REST API integration" },
+    "isActive": true,
+    "details": [
+      { "detailCode": "GET", "name": { "ko": "GET", "en": "GET" }, "sortOrder": 1, "isActive": true },
+      { "detailCode": "POST", "name": { "ko": "POST", "en": "POST" }, "sortOrder": 2, "isActive": true },
+      { "detailCode": "PUT", "name": { "ko": "PUT", "en": "PUT" }, "sortOrder": 3, "isActive": true },
+      { "detailCode": "DELETE", "name": { "ko": "DELETE", "en": "DELETE" }, "sortOrder": 4, "isActive": true },
+      { "detailCode": "PATCH", "name": { "ko": "PATCH", "en": "PATCH" }, "sortOrder": 5, "isActive": true }
+    ]
+  },
+  {
+    "groupCode": "SURVIVORSHIP_STRATEGY",
+    "name": { "ko": "생존자 산출 전략", "en": "Survivorship Strategy" },
+    "description": { "ko": "중복 레코드 병합 시 생존 규칙 전략", "en": "Survival rule strategy when merging duplicate records" },
+    "isActive": true,
+    "details": [
+      { "detailCode": "SOURCE_PRIORITY", "name": { "ko": "원천 소스 우선", "en": "Source Priority" }, "sortOrder": 1, "isActive": true },
+      { "detailCode": "MOST_RECENT", "name": { "ko": "최신 수정 시각 기준", "en": "Most Recent" }, "sortOrder": 2, "isActive": true },
+      { "detailCode": "MOST_COMPLETE", "name": { "ko": "최고 완전성 / 장문", "en": "Most Complete" }, "sortOrder": 3, "isActive": true }
+    ]
+  },
+  {
+    "groupCode": "MATCH_TYPE",
+    "name": { "ko": "매칭 방식", "en": "Match Type" },
+    "description": { "ko": "데이터 매칭 알고리즘 유형", "en": "Data matching algorithm type" },
+    "isActive": true,
+    "details": [
+      { "detailCode": "EXACT", "name": { "ko": "정확한 일치 (EXACT)", "en": "Exact Match (EXACT)" }, "sortOrder": 1, "isActive": true },
+      { "detailCode": "FUZZY", "name": { "ko": "유사도 매칭 (FUZZY)", "en": "Fuzzy Match (FUZZY)" }, "sortOrder": 2, "isActive": true }
+    ]
+  }
+]`;
+
+const data = JSON.parse(originalJson);
+
+const emojiMap = {
+  // TARGET_TYPE
+  "RECORD": "🔍", "RECORD_HISTORY": "📜", "APPROVAL_REQUEST": "📝",
+  // MASKING_PATTERN
+  "GENERIC": "🛡️", "CARD": "💳", "RRN": "🆔", "PHONE": "📱", "EMAIL": "✉️",
+  // DQ_RULE_TYPE
+  "COMPLETENESS": "🧩", "VALIDITY": "✅", "ACCURACY": "🎯", "CONSISTENCY": "⚖️", "UNIQUENESS": "💎",
+  // DQ_SEVERITY
+  "CRITICAL": "🚨", "HIGH": "🔴", "MEDIUM": "🟡", "LOW": "🔵",
+  // APPROVAL_STATUS
+  "PENDING": "⏳", "IN_PROGRESS": "🔄", "APPROVED": "✅", "REJECTED": "❌", "CANCELLED": "🚫",
+  // MATCHING_STATUS
+  "MATCHED": "🔗",
+  // BATCH_JOB_STATUS
+  "QUEUED": "📥", "RUNNING": "⚙️", "COMPLETED": "✅", "FAILED": "❌",
+  // FIELD_TYPE
+  "TEXT": "🔤", "NUMBER": "🔢", "DATE": "📅", "BOOLEAN": "🔘", "JSON": "📄", "ENUM": "📋",
+  // INTEGRATION_TYPE
+  "WEB_SERVICE": "🌐", "JDBC": "🗄️", "MESSAGE_QUEUE": "📬",
+  // INTEGRATION_STATUS
+  "SUCCESS": "✅", "FAIL": "❌", "DEAD_LETTER": "☠️",
+  // NOTIFICATION_TYPE
+  "INFO": "ℹ️", "WARNING": "⚠️", "APPROVAL": "📝", "DQ_VIOLATION": "🚨",
+  // RECORD_STATUS
+  "DRAFT": "📝", "PENDING_APPROVAL": "⏳", "ACTIVE": "🟢", "INACTIVE": "🔴", "MISMATCHED": "⚠️", 
+  // SCHEMA_ACTION
+  "CREATE": "🆕", "UPDATE": "🛠️", "DELETE": "🗑️",
+  // STAGING_STATUS
+  "VALIDATED": "✅", "ERROR": "❌", "COMMITTED": "💾",
+  // USER_ROLE
+  "ROLE_USER": "👤", "ROLE_ADMIN": "👨‍💼", "ROLE_SUPERADMIN": "👑", "ROLE_DATA_STEWARD": "🛡️", "ROLE_APPROVER": "✍️",
+  // INTEGRATION_DIRECTION
+  "OUTBOUND": "📤", "INBOUND": "📥",
+  // HTTP_METHOD
+  "GET": "📥", "POST": "📤", "PUT": "🔄", "PATCH": "🩹",
+  // SURVIVORSHIP_STRATEGY
+  "SOURCE_PRIORITY": "🏅", "MOST_RECENT": "🕒", "MOST_COMPLETE": "🧩",
+  // MATCH_TYPE
+  "EXACT": "🎯", "FUZZY": "🔮"
+};
+
+data.forEach(group => {
+  group.details.forEach(detail => {
+    const emoji = emojiMap[detail.detailCode];
+    if (emoji) {
+      if (detail.name.ko && !detail.name.ko.includes(emoji)) {
+        detail.name.ko = `${emoji} ${detail.name.ko}`;
+      }
+      if (detail.name.en && !detail.name.en.includes(emoji)) {
+        detail.name.en = `${emoji} ${detail.name.en}`;
+      }
+    }
+  });
+});
+
+fs.writeFileSync('C:\\dev\\ai\\backend\\src\\main\\resources\\default_codes.json', JSON.stringify(data, null, 2), 'utf8');
+console.log('Restored original code names and appended emojis properly.');

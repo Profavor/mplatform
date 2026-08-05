@@ -53,4 +53,10 @@ public class User {
 
     @Column(name = "active_session_id")
     private String activeSessionId;
+
+    @Column(name = "must_change_password")
+    private Boolean mustChangePassword = false;
+
+    @Column(name = "encrypted_temp_password")
+    private String encryptedTempPassword;
 }

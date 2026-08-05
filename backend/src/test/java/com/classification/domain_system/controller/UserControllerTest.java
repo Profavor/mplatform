@@ -54,6 +54,9 @@ class UserControllerTest {
     private PermissionService permissionService;
 
     @MockitoBean
+    private com.classification.domain_system.service.FieldEncryptionService fieldEncryptionService;
+
+    @MockitoBean
     private com.classification.domain_system.context.AuthContext authContext;
 
     @Test

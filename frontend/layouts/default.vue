@@ -96,7 +96,7 @@
                             </div>
                           </va-list-item-section>
                           <va-list-item-section style="font-weight: 600; font-size: 0.9rem;">
-                            {{ currentLocale === 'ko' ? 'Switch to English' : '한국어로 변경' }}
+                            {{ currentLocale === 'ko' ? 'Switch to English' : 'Switch to Korean' }}
                           </va-list-item-section>
                         </va-list-item>
 
@@ -182,8 +182,31 @@
               <va-button preset="secondary" color="secondary" @click="showSettingsModal = false">Cancel</va-button>
               <va-button :loading="isSavingTimezone" @click="handleSaveTimezone">Save</va-button>
             </div>
+            
+            <va-divider style="margin: 1.5rem 0;" />
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+              <span style="font-size: 0.85rem; color: var(--va-text-secondary); font-weight: 600;">
+                {{ $t('change_password') || 'Change Password' }}
+              </span>
+              <ChangePasswordForm @success="handlePasswordChanged" @cancel="showSettingsModal = false" />
+            </div>
           </div>
         </va-modal>
+
+        <!-- Force Password Change Modal -->
+        <va-modal
+          v-model="showForcePasswordChangeModal"
+          :title="$t('force_password_change') || '비밀번호 변경 필요'"
+          hide-default-actions
+          :prevent-click-outside="true"
+          :no-outside-dismiss="true"
+          :hide-close-button="true"
+        >
+          <div style="padding: 1rem; min-width: 400px;">
+            <ChangePasswordForm :force-mode="true" @success="handleForcePasswordChanged" />
+          </div>
+        </va-modal>
+
         <!-- Request Access Modal -->
         <DomainAccessRequestModal v-model="showRequestAccessModal" />
         <!-- Floating In-App Messenger Widget -->
@@ -207,6 +230,7 @@ import NotificationBell from '~/components/layout/NotificationBell.vue'
 import InAppMessenger from '~/components/chat/InAppMessenger.vue'
 import SystemRadioWidget from '~/components/chat/SystemRadioWidget.vue'
 import AdminMusicControlModal from '~/components/chat/AdminMusicControlModal.vue'
+import ChangePasswordForm from '~/components/auth/ChangePasswordForm.vue'
 import { useRoles } from '~/composables/useRoles'
 
 const { t, locale, setLocale } = useI18n()
@@ -226,6 +250,19 @@ const selectedTimezone = ref('')
 const isSavingTimezone = ref(false)
 const savedFontSize = useCookie('fontSize', { default: () => '14px' })
 const selectedFontSize = ref('14px')
+const showForcePasswordChangeModal = ref(false)
+
+const handlePasswordChanged = () => {
+  showSettingsModal.value = false
+  alert('비밀번호가 성공적으로 변경되었습니다.')
+}
+
+const handleForcePasswordChanged = () => {
+  showForcePasswordChangeModal.value = false
+  if (currentUser.value) {
+    currentUser.value.mustChangePassword = false
+  }
+}
 
 const fontSizeOptions = computed(() => [
   { text: t('font_size_small') || 'Small', value: '12px' },
@@ -458,6 +495,9 @@ const syncCurrentUserInfo = async () => {
   const me = await fetchCurrentUser(true)
   if (me && Array.isArray(me.permissions)) {
     userPermissionsCookie.value = me.permissions
+  }
+  if (me?.mustChangePassword) {
+    showForcePasswordChangeModal.value = true
   }
 }
 

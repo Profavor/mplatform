@@ -306,7 +306,8 @@ const handleLogin = async () => {
       departmentId: response.departmentId,
       timezone: response.timezone,
       serverOffset: response.serverOffset,
-      permissions: response.permissions || []
+      permissions: response.permissions || [],
+      mustChangePassword: response.mustChangePassword || false
     })
     
     const tzCookie = useCookie('timezone', { default: () => 'Asia/Seoul' })

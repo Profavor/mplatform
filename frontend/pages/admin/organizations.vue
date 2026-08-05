@@ -16,11 +16,20 @@
       </div>
 
       <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <va-button 
+          v-if="hasPermission('admin:write')" 
+          preset="outline" 
+          icon="save_alt" 
+          color="danger" 
+          size="small" 
+          :loading="isSyncingRoles" 
+          @click="handleDumpSeedFiles"
+          style="border-width: 2px; font-weight: 800;"
+        >
+          {{ $t('backup_seed_files') || '현재 상태 백업 (Seed)' }}
+        </va-button>
         <va-button v-if="hasPermission('admin:write') || hasPermission('org:write')" preset="outline" icon="published_with_changes" color="warning" size="small" :loading="isSyncingRoles" @click="handleSyncDefaultRoles">
           {{ $t('sync_default_roles') }}
-        </va-button>
-        <va-button v-if="hasPermission('admin:write')" preset="outline" icon="save_alt" color="info" size="small" :loading="isSyncingRoles" @click="handleDumpSeedFiles">
-          기본 시드(Seed) 파일로 현재 상태 백업
         </va-button>
         <va-button v-if="hasPermission('admin:write') || hasPermission('org:write')" preset="outline" icon="admin_panel_settings" color="primary" size="small" @click="showPermMasterModal = true">
           {{ $t('perm_master_management') }}
@@ -751,10 +760,13 @@ const handleSyncDefaultRoles = async () => {
       if (typeof initToast === 'function') {
         initToast({ message: t('sync_default_roles_success'), color: 'success' })
       }
-      if (targetOrgId && typeof loadRoles === 'function') {
-        await loadRoles(targetOrgId)
-      } else if (typeof loadOrganizations === 'function') {
-        await loadOrganizations()
+      if (targetOrgId) {
+        await loadOrgDetails(targetOrgId)
+      } else {
+        await fetchOrganizations()
+        if (selectedOrg.value?.id) {
+          await loadOrgDetails(selectedOrg.value.id)
+        }
       }
     } else {
       if (typeof initToast === 'function') {

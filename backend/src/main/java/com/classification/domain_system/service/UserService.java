@@ -18,11 +18,13 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final com.classification.domain_system.repository.UserOrgHistoryRepository userOrgHistoryRepository;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+    private final com.classification.domain_system.service.FieldEncryptionService fieldEncryptionService;
 
     @Transactional(readOnly = true)
     public List<UserDto> getAllUsers() {
         return userRepository.findAll().stream()
-                .map(u -> new UserDto(u.getId(), u.getUsername(), u.getRole(), u.getOrganizationId(), u.getDepartmentId(), u.getTeamId(), u.getIsActive()))
+                .map(u -> new UserDto(u.getId(), u.getUsername(), u.getRole(), u.getOrganizationId(), u.getDepartmentId(), u.getTeamId(), u.getIsActive(), u.getMustChangePassword()))
                 .collect(Collectors.toList());
     }
 
@@ -134,5 +136,59 @@ public class UserService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
         user.setRole(role);
         userRepository.save(user);
+    }
+
+    @Transactional
+    public String createAdminUser(String username, String role, java.util.UUID organizationId, java.util.UUID departmentId) {
+        if (userRepository.findByUsername(username).isPresent()) {
+            throw new IllegalArgumentException("Username already exists");
+        }
+        
+        // Generate temporary password
+        String tempPassword = java.util.UUID.randomUUID().toString().substring(0, 8);
+        
+        com.classification.domain_system.entity.User user = new com.classification.domain_system.entity.User();
+        user.setUsername(username);
+        user.setPassword(passwordEncoder.encode(tempPassword));
+        user.setEncryptedTempPassword(fieldEncryptionService.encrypt(tempPassword));
+        user.setRole(role != null && !role.trim().isEmpty() ? role : "ROLE_USER");
+        user.setOrganizationId(organizationId);
+        user.setDepartmentId(departmentId);
+        user.setTimezone("Asia/Seoul");
+        user.setMustChangePassword(true);
+        
+        userRepository.save(user);
+        
+        return tempPassword;
+    }
+
+    @Transactional
+    public void changePassword(String username, String oldPassword, String newPassword) {
+        com.classification.domain_system.entity.User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
+                
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw new IllegalArgumentException("Old password does not match");
+        }
+        
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setMustChangePassword(false);
+        user.setEncryptedTempPassword(null);
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public void deleteUser(String userId) {
+        com.classification.domain_system.entity.User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+        
+        // Remove history
+        userOrgHistoryRepository.deleteByUserId(userId);
+        
+        try {
+            userRepository.delete(user);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw new IllegalStateException("해당 사용자가 생성한 레코드나 결재 이력 등 연결된 데이터가 존재하여 삭제할 수 없습니다. (데이터 무결성 보호)", e);
+        }
     }
 }

@@ -10,6 +10,7 @@ export interface AuthUser {
   departmentId?: string
   teamId?: string
   permissions?: string[]
+  mustChangePassword?: boolean
 }
 
 const currentUserState = ref<AuthUser | null>(null)

@@ -16,6 +16,9 @@
       </div>
 
       <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <va-button preset="solid" color="success" icon="person_add" size="small" @click="showCreateUserModal = true" style="font-weight: 700;">
+          {{ $t('create_user') || '사용자 등록' }}
+        </va-button>
         <va-button preset="outline" color="primary" icon="refresh" size="small" @click="fetchUsers">
           {{ $t('refresh') || '새로고침' }}
         </va-button>
@@ -61,6 +64,7 @@
                   <RoleBadge :value="user.role" />
                   <va-badge :text="getOrgName(user.organizationId)" color="info" outline size="small" />
                   <va-badge v-if="getDeptName(user.departmentId)" :text="getDeptName(user.departmentId)" color="success" outline size="small" />
+                  <va-badge v-if="user.mustChangePassword" text="임시비밀번호" color="warning" size="small" />
                 </div>
               </va-list-item-section>
             </va-list-item>
@@ -74,14 +78,22 @@
       <!-- Right Column: User Details, Roles, Permissions & History -->
       <va-card v-if="selectedUser" style="flex: 2; min-width: 450px;">
         <va-card-title style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--va-background-border); padding-bottom: 0.85rem;">
-          <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <div style="display: flex; align-items: center; gap: 0.75rem; width: 100%;">
             <va-avatar color="primary" size="large" style="font-size: 1.25rem; font-weight: 800;">
               {{ selectedUser.username.charAt(0).toUpperCase() }}
             </va-avatar>
-            <div>
-              <div style="font-size: 1.2rem; font-weight: 800; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+            <div style="width: 100%;">
+              <div style="font-size: 1.2rem; font-weight: 800; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem; width: 100%;">
                 {{ selectedUser.username }}
                 <va-badge text="Active User" color="success" size="small" />
+                <div style="margin-left: auto; display: flex; gap: 0.5rem;">
+                  <va-button v-if="selectedUser.mustChangePassword" size="small" color="warning" outline icon="key" @click="viewTempPassword(selectedUser.id)">
+                    {{ $t('view_temp_password') || '임시 비밀번호 확인' }}
+                  </va-button>
+                  <va-button size="small" color="danger" outline icon="delete" @click="confirmDeleteUser(selectedUser)">
+                    {{ $t('delete') || '삭제' }}
+                  </va-button>
+                </div>
               </div>
               <div style="font-size: 0.82rem; color: var(--va-text-secondary); margin-top: 0.15rem;">
                 {{ getOrgName(selectedUser.organizationId) }} <span v-if="getDeptName(selectedUser.departmentId)">• {{ getDeptName(selectedUser.departmentId) }}</span>
@@ -313,6 +325,57 @@
             {{ $t('close') || '확인' }}
           </va-button>
         </div>
+      </div>
+    </va-modal>
+
+    <!-- Create User Modal -->
+    <va-modal v-model="showCreateUserModal" :title="$t('create_user') || '사용자 등록'" hide-default-actions>
+      <div style="padding: 1rem; min-width: 400px; display: flex; flex-direction: column; gap: 1.25rem;">
+        <va-input v-model="newUser.username" :label="$t('label_username') || '아이디 (Username)'" outline @update:modelValue="isUsernameChecked = false" :success="isUsernameChecked && checkedUsername === newUser.username">
+          <template #appendInner>
+            <va-button size="small" color="primary" preset="secondary" @click="checkUsernameDuplicate" :loading="isCheckingUsername" :disabled="!newUser.username || (isUsernameChecked && checkedUsername === newUser.username)" style="white-space: nowrap;">
+              {{ $t('check_duplicate') || '중복 확인' }}
+            </va-button>
+          </template>
+        </va-input>
+        <UserRoleSelect v-model="newUser.role" :label="$t('user_role') || '시스템 역할 (단일/다중)'" />
+        <va-select v-model="newUser.organizationId" :options="organizations" value-by="id" :text-by="o => getI18nText(o.displayName) || o.name" :label="$t('organization') || '소속 조직'" clearable outline />
+        <va-select v-model="newUser.departmentId" :options="departmentsForNewUser" value-by="id" text-by="name" :label="$t('department') || '소속 부서'" clearable outline :disabled="!newUser.organizationId" />
+        
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem;">
+          <va-button preset="secondary" @click="showCreateUserModal = false">{{ $t('cancel') || '취소' }}</va-button>
+          <va-button color="success" @click="createUser" :loading="isCreatingUser">{{ $t('create') || '등록' }}</va-button>
+        </div>
+      </div>
+    </va-modal>
+
+    <!-- Temp Password Alert Modal -->
+    <va-modal v-model="showTempPasswordModal" :title="$t('user_created') || '사용자 등록 완료'" hide-default-actions :prevent-click-outside="true" :no-outside-dismiss="true">
+      <div style="padding: 1.5rem; text-align: center;">
+        <va-icon name="check_circle" color="success" size="3.5rem" style="margin-bottom: 1rem;" />
+        <h3 style="margin-bottom: 1rem; font-weight: 800; font-size: 1.3rem;">{{ $t('temp_password_issued') || '임시 비밀번호가 발급되었습니다.' }}</h3>
+        <p style="color: var(--va-text-secondary); margin-bottom: 1.5rem; font-size: 0.9rem;">
+          {{ $t('temp_password_warning') || '이 비밀번호는 다시 표시되지 않으므로 반드시 사용자에게 안전하게 전달해 주세요.' }}
+        </p>
+        <div style="background: var(--va-background-secondary); padding: 1.25rem; border-radius: 12px; font-size: 1.8rem; font-weight: 800; letter-spacing: 4px; margin-bottom: 1.5rem; border: 1px dashed var(--va-background-border); color: var(--va-primary);">
+          {{ createdTempPassword }}
+        </div>
+        <va-button color="primary" @click="showTempPasswordModal = false; createdTempPassword = '';" size="large">{{ $t('confirm') || '확인했습니다' }}</va-button>
+      </div>
+    </va-modal>
+
+    <!-- View Temp Password Modal -->
+    <va-modal v-model="showViewTempPasswordModal" :title="$t('temp_password') || '임시 비밀번호'" hide-default-actions>
+      <div style="padding: 1.5rem; text-align: center;">
+        <va-icon name="key" color="warning" size="3.5rem" style="margin-bottom: 1rem;" />
+        <h3 style="margin-bottom: 1rem; font-weight: 800; font-size: 1.3rem;">{{ $t('temp_password_check') || '임시 비밀번호 확인' }}</h3>
+        <p style="color: var(--va-text-secondary); margin-bottom: 1.5rem; font-size: 0.9rem;">
+          {{ $t('temp_password_warning') || '이 비밀번호는 사용자가 로그인하여 변경하기 전까지만 유효합니다.' }}
+        </p>
+        <div style="background: var(--va-background-secondary); padding: 1.25rem; border-radius: 12px; font-size: 1.8rem; font-weight: 800; letter-spacing: 4px; margin-bottom: 1.5rem; border: 1px dashed var(--va-background-border); color: var(--va-primary);">
+          {{ fetchedTempPassword }}
+        </div>
+        <va-button color="primary" @click="showViewTempPasswordModal = false; fetchedTempPassword = '';" size="large">{{ $t('close') || '닫기' }}</va-button>
       </div>
     </va-modal>
   </div>
@@ -659,6 +722,124 @@ const fetchPendingRequests = async () => {
     pendingRequests.value = res || []
   } catch (e) {
     console.error('Failed to fetch pending requests:', e)
+  }
+}
+
+const showCreateUserModal = ref(false)
+const showTempPasswordModal = ref(false)
+const isCreatingUser = ref(false)
+const createdTempPassword = ref('')
+const newUser = ref({ username: '', role: '', organizationId: null, departmentId: null })
+const isUsernameChecked = ref(false)
+const isCheckingUsername = ref(false)
+const checkedUsername = ref('')
+const showViewTempPasswordModal = ref(false)
+const fetchedTempPassword = ref('')
+
+const viewTempPassword = async (userId) => {
+  try {
+    const res = await $fetch(`/api/users/${userId}/temp-password`, {
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    if (res && res.tempPassword) {
+      fetchedTempPassword.value = res.tempPassword
+      showViewTempPasswordModal.value = true
+    } else {
+      showCustomAlert('임시 비밀번호를 조회할 수 없습니다.', '오류', '알림', 'error')
+    }
+  } catch (e) {
+    showCustomAlert('조회 실패: 해당 사용자의 임시 비밀번호가 존재하지 않거나 권한이 없습니다.', '오류', '알림', 'error')
+  }
+}
+
+const confirmDeleteUser = async (user) => {
+  if (confirm(`정말로 사용자 '${user.username}'를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`)) {
+    try {
+      await $fetch(`/api/users/${user.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token.value}` }
+      })
+      showCustomAlert('사용자가 성공적으로 삭제되었습니다.', '삭제 완료', '알림', 'success')
+      selectedUser.value = null
+      fetchUsers()
+    } catch (e) {
+      if (e.response?.status === 409) {
+        showCustomAlert('해당 사용자가 생성한 레코드나 결재 이력 등 연결된 데이터가 존재하여 삭제할 수 없습니다.', '삭제 불가', '알림', 'error')
+      } else {
+        showCustomAlert('사용자 삭제 중 오류가 발생했습니다: ' + (e.response?._data || e.message), '오류', '알림', 'error')
+      }
+    }
+  }
+}
+
+const checkUsernameDuplicate = async () => {
+  if (!newUser.value.username) return
+  isCheckingUsername.value = true
+  try {
+    const res = await $fetch(`/api/auth/check-username?username=${encodeURIComponent(newUser.value.username)}`, {
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    if (res && res.available) {
+      isUsernameChecked.value = true
+      checkedUsername.value = newUser.value.username
+      showCustomAlert('사용 가능한 아이디입니다.', '확인 완료', '알림', 'success')
+    } else {
+      isUsernameChecked.value = false
+      checkedUsername.value = ''
+      showCustomAlert('이미 사용 중인 아이디입니다. 다른 아이디를 입력해주세요.', '중복 확인', '알림', 'warning')
+    }
+  } catch (e) {
+    showCustomAlert('중복 확인 중 오류가 발생했습니다.', '오류', '알림', 'error')
+  } finally {
+    isCheckingUsername.value = false
+  }
+}
+
+const departmentsForNewUser = computed(() => {
+  if (!newUser.value.organizationId) return []
+  const depts = []
+  Object.keys(allDepartmentsMap.value).forEach(id => {
+    // We don't have orgId in allDepartmentsMap easily accessible here. 
+    // It's better to fetch dynamically or just show all if we don't have org link.
+    // Wait, allDepartmentsMap is just a flat map.
+    depts.push({ id, name: getI18nText(allDepartmentsMap.value[id]) })
+  })
+  return depts
+})
+
+const createUser = async () => {
+  if (!newUser.value.username) {
+    showCustomAlert('아이디를 입력해주세요.', '입력 오류', '알림', 'warning')
+    return
+  }
+  if (!isUsernameChecked.value || checkedUsername.value !== newUser.value.username) {
+    showCustomAlert('아이디 중복 확인을 먼저 해주세요.', '입력 오류', '알림', 'warning')
+    return
+  }
+  isCreatingUser.value = true
+  try {
+    const roleStr = Array.isArray(newUser.value.role) ? newUser.value.role.join(',') : (newUser.value.role || 'ROLE_USER')
+    const res = await $fetch('/api/users', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token.value}` },
+      body: {
+        username: newUser.value.username,
+        role: roleStr,
+        organizationId: newUser.value.organizationId,
+        departmentId: newUser.value.departmentId
+      }
+    })
+    createdTempPassword.value = res.tempPassword
+    showCreateUserModal.value = false
+    showTempPasswordModal.value = true
+    newUser.value = { username: '', role: '', organizationId: null, departmentId: null }
+    isUsernameChecked.value = false
+    checkedUsername.value = ''
+    await fetchUsers()
+  } catch (e) {
+    showCustomAlert('사용자 등록 실패: ' + (e.response?._data || e.message), '오류', '알림', 'error')
+  } finally {
+    isCreatingUser.value = false
   }
 }
 
