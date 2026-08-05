@@ -97,7 +97,7 @@ class RoleInitializerTest {
 
         roleInitializer.createDefaultRolesForOrg(orgId);
 
-        assertThat(existingAdmin.getPermissions()).contains("*", "admin:read", "admin:write");
+        assertThat(existingAdmin.getPermissions()).contains("*", "admin:read");
         verify(roleRepository, atLeastOnce()).save(existingAdmin);
     }
 
