@@ -366,6 +366,9 @@ const { currentPresetName } = useColors()
 const { hasPermission } = usePermission()
 import { ref, computed, onMounted, watch } from 'vue'
 import { useCookie, useState } from '#app'
+import { useCodeStore } from '~/stores/useCodeStore'
+
+const codeStore = useCodeStore()
 
 import { AgGridVue } from 'ag-grid-vue3'
 import SchemaHistoryTab from '~/components/schema/SchemaHistoryTab.vue'
@@ -1074,6 +1077,7 @@ onMounted(async () => {
     return
   }
   loadTree()
+  await codeStore.loadGroup('FIELD_TYPE')
   try {
     
     unitOptions.value = [
