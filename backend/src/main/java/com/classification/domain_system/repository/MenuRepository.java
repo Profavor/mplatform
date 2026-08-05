@@ -11,4 +11,5 @@ public interface MenuRepository extends JpaRepository<Menu, Long> {
     List<Menu> findAllByIsActiveTrueOrderBySortOrderAsc();
     List<Menu> findAllByOrderBySortOrderAsc();
     List<Menu> findByParentIdAndIsActiveTrueOrderBySortOrderAsc(Long parentId);
+    java.util.Optional<Menu> findByPath(String path);
 }

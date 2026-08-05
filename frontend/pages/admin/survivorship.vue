@@ -61,70 +61,37 @@
         <div v-if="selectedDomainId" class="panel-kpi-group">
           <div class="kpi-chip">
             <va-icon name="rule" size="16px" color="primary" />
-            <span class="kpi-chip-label">규칙:</span>
-            <span class="kpi-chip-value primary-val">{{ rules.length }}건</span>
+            <span class="kpi-chip-label">{{ $t('survivorship.kpi_rules', 'Rules:') }}</span>
+            <span class="kpi-chip-value primary-val">{{ rules.length }}</span>
           </div>
 
           <div class="kpi-chip">
             <va-icon name="category" size="16px" color="info" />
-            <span class="kpi-chip-label">도메인 필드:</span>
-            <span class="kpi-chip-value info-val">{{ domainFields.length }}개</span>
+            <span class="kpi-chip-label">{{ $t('survivorship.kpi_fields', 'Domain Fields:') }}</span>
+            <span class="kpi-chip-value info-val">{{ domainFields.length }}</span>
           </div>
 
           <div class="kpi-chip">
             <va-icon name="verified" size="16px" color="success" />
-            <span class="kpi-chip-label">도메인:</span>
+            <span class="kpi-chip-label">{{ $t('survivorship.kpi_domain', 'Domain:') }}</span>
             <span class="kpi-chip-value success-val">{{ currentDomainName }}</span>
           </div>
         </div>
       </div>
 
-      <!-- 3 Strategy Cards Grid -->
+      <!-- Strategy Cards Grid -->
       <div class="strategy-cards-grid">
-        <!-- Strategy 1: Source Priority -->
-        <div class="strategy-card border-primary">
-          <div class="strategy-icon-box bg-primary-subtle">
-            <va-icon name="hub" color="primary" size="20px" />
+        <div class="strategy-card" :class="'border-' + getStrategyColor(opt.value)" v-for="opt in strategyOptions" :key="opt.value">
+          <div class="strategy-icon-box" :class="'bg-' + getStrategyColor(opt.value) + '-subtle'">
+            <va-icon :name="getStrategyIcon(opt.value)" :color="getStrategyColor(opt.value)" size="20px" />
           </div>
           <div class="strategy-body">
             <div class="strategy-title">
-              <span>SOURCE_PRIORITY</span>
-              <span class="badge-tag tag-primary">원천 소스 우선</span>
+              <span>{{ opt.value }}</span>
+              <span class="badge-tag" :class="'tag-' + getStrategyColor(opt.value)">{{ opt.text }}</span>
             </div>
             <p class="strategy-desc">
-              지정된 원천 소스 시스템(Legacy ERP, CRM 등)의 데이터 필드값을 최우선으로 채택합니다.
-            </p>
-          </div>
-        </div>
-
-        <!-- Strategy 2: Most Recent -->
-        <div class="strategy-card border-warning">
-          <div class="strategy-icon-box bg-warning-subtle">
-            <va-icon name="history" color="warning" size="20px" />
-          </div>
-          <div class="strategy-body">
-            <div class="strategy-title">
-              <span>MOST_RECENT</span>
-              <span class="badge-tag tag-warning">최신 수정 시각</span>
-            </div>
-            <p class="strategy-desc">
-              가장 최근 시점에 생성되거나 수정 업데이트된 레코드의 필드값을 채택합니다.
-            </p>
-          </div>
-        </div>
-
-        <!-- Strategy 3: Most Complete -->
-        <div class="strategy-card border-success">
-          <div class="strategy-icon-box bg-success-subtle">
-            <va-icon name="verified" color="success" size="20px" />
-          </div>
-          <div class="strategy-body">
-            <div class="strategy-title">
-              <span>MOST_COMPLETE</span>
-              <span class="badge-tag tag-success">최고 완전성 / 길이</span>
-            </div>
-            <p class="strategy-desc">
-              Null이 아니며 가장 많은 정보와 긴 데이터 길이를 보유한 유효 필드값을 채택합니다.
+              {{ getStrategyDesc(opt.value) }}
             </p>
           </div>
         </div>
@@ -188,14 +155,18 @@ import { AgGridVue } from 'ag-grid-vue3'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { usePageTitle } from '~/composables/usePageTitle'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
+import { useDomainStore } from '~/stores/useDomainStore'
+import { useCodeStore } from '~/stores/useCodeStore'
+import { useCookie } from '#app'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { pageTitle } = usePageTitle('survivorship.title', '생존 규칙 관리')
 const { init } = useToast()
 const { customFetch } = useCustomFetch()
 const { gridTheme, isDark } = useAgGridTheme()
 
-const domainStore = useDomain()
+const domainStore = useDomainStore()
+const codeStore = useCodeStore()
 const selectedDomainId = ref<string | null>(null)
 const domainOptions = computed(() => domainStore.domainOptions.value)
 
@@ -208,11 +179,34 @@ const currentDomainName = computed(() => {
   return domainStore.getDomainName(selectedDomainId.value) || '-'
 })
 
-const strategyOptions = computed(() => [
-  { text: 'SOURCE_PRIORITY (원천 소스 시스템 우선)', value: 'SOURCE_PRIORITY' },
-  { text: 'MOST_RECENT (최신 수정 시각 기준)', value: 'MOST_RECENT' },
-  { text: 'MOST_COMPLETE (최고 완전성 / 최장 길이)', value: 'MOST_COMPLETE' }
-])
+const strategyOptions = computed(() => codeStore.getDropdownOptions('SURVIVORSHIP_STRATEGY'))
+
+const getStrategyColor = (strategy) => {
+  if (strategy === 'SOURCE_PRIORITY') return 'primary'
+  if (strategy === 'MOST_RECENT') return 'warning'
+  if (strategy === 'MOST_COMPLETE') return 'success'
+  return 'info'
+}
+
+const getStrategyIcon = (strategy) => {
+  if (strategy === 'SOURCE_PRIORITY') return 'hub'
+  if (strategy === 'MOST_RECENT') return 'history'
+  if (strategy === 'MOST_COMPLETE') return 'verified'
+  return 'rule'
+}
+
+const getStrategyDesc = (strategy) => {
+  if (strategy === 'SOURCE_PRIORITY') {
+    return locale.value === 'ko' ? '지정된 원천 소스 시스템(Legacy ERP, CRM 등)의 데이터 필드값을 최우선으로 채택합니다.' : 'Prioritizes data field values from the designated source system (e.g., Legacy ERP, CRM).';
+  }
+  if (strategy === 'MOST_RECENT') {
+    return locale.value === 'ko' ? '가장 최근 시점에 생성되거나 수정 업데이트된 레코드의 필드값을 채택합니다.' : 'Adopts the field value of the record that was most recently created or updated.';
+  }
+  if (strategy === 'MOST_COMPLETE') {
+    return locale.value === 'ko' ? 'Null이 아니며 가장 많은 정보와 긴 데이터 길이를 보유한 유효 필드값을 채택합니다.' : 'Adopts the valid field value with the most information and longest data length, not Null.';
+  }
+  return '';
+}
 
 const fieldOptions = computed(() => {
   return domainFields.value.map((f: any) => {
@@ -411,7 +405,7 @@ const onDomainChange = () => {
 const addRule = () => {
   rules.value.push({
     fieldKey: domainFields.value[0]?.key || '',
-    strategy: 'SOURCE_PRIORITY',
+    strategy: strategyOptions.value[0]?.value || 'SOURCE_PRIORITY',
     priority: rules.value.length + 1
   })
 }
@@ -442,7 +436,8 @@ const saveRules = async () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await codeStore.preloadGroups(['SURVIVORSHIP_STRATEGY'])
   loadDomains()
 })
 </script>

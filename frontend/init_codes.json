@@ -1,0 +1,54 @@
+[
+  {
+    "group": {
+      "groupCode": "TARGET_TYPE",
+      "name": {
+        "ko": "요청 대상 타입",
+        "en": "Target Type"
+      },
+      "description": {
+        "ko": "결재 등 시스템에서 다루는 요청의 대상 유형",
+        "en": "Target types of requests like approvals"
+      },
+      "isActive": true
+    },
+    "details": [
+      {
+        "detailCode": "RECORD_CREATE",
+        "name": {
+          "ko": "마스터 레코드 신규 등록",
+          "en": "New Record Create"
+        },
+        "sortOrder": 1,
+        "isActive": true
+      },
+      {
+        "detailCode": "RECORD_UPDATE",
+        "name": {
+          "ko": "마스터 레코드 수정",
+          "en": "Record Update"
+        },
+        "sortOrder": 2,
+        "isActive": true
+      },
+      {
+        "detailCode": "RECORD_DELETE",
+        "name": {
+          "ko": "마스터 레코드 삭제",
+          "en": "Record Delete"
+        },
+        "sortOrder": 3,
+        "isActive": true
+      },
+      {
+        "detailCode": "DOMAIN_RECORD_CREATE",
+        "name": {
+          "ko": "도메인 레코드 등록",
+          "en": "Domain Record Create"
+        },
+        "sortOrder": 4,
+        "isActive": true
+      }
+    ]
+  }
+]

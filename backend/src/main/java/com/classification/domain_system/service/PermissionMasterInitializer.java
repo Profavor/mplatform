@@ -46,13 +46,28 @@ public class PermissionMasterInitializer implements CommandLineRunner {
 
     private List<PermissionGroupSeedDto> loadDefaultPermissions() {
         try {
-            ClassPathResource resource = new ClassPathResource("default_permissions.json");
-            if (!resource.exists()) {
+            java.io.InputStream is = null;
+            String userDir = System.getProperty("user.dir");
+            java.io.File localFile = java.nio.file.Paths.get(userDir, "src", "main", "resources", "default_permissions.json").toFile();
+            
+            if (localFile.exists()) {
+                is = new java.io.FileInputStream(localFile);
+                log.info("Using local filesystem seed: {}", localFile.getAbsolutePath());
+            } else {
+                ClassPathResource resource = new ClassPathResource("default_permissions.json");
+                if (resource.exists()) {
+                    is = resource.getInputStream();
+                    log.info("Using classpath seed");
+                }
+            }
+            
+            if (is == null) {
                 log.warn("default_permissions.json not found in resources!");
                 return null;
             }
-            try (InputStream is = resource.getInputStream()) {
-                return objectMapper.readValue(is, new TypeReference<List<PermissionGroupSeedDto>>() {});
+            
+            try (java.io.InputStream finalIs = is) {
+                return objectMapper.readValue(finalIs, new TypeReference<List<PermissionGroupSeedDto>>() {});
             }
         } catch (Exception e) {
             log.error("Failed to load default_permissions.json", e);

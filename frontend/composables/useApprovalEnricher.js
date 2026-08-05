@@ -1,8 +1,14 @@
 import { ref } from 'vue'
 import { useCookie } from '#app'
 import { formatMultilingual } from './useMultilingual'
+import { useI18n } from 'vue-i18n'
+import { useUserStore } from '~/stores/useUserStore'
+import { useCodeStore } from '~/stores/useCodeStore'
 
 export const useApprovalEnricher = () => {
+  const { t } = useI18n()
+  const userStore = useUserStore()
+  const codeStore = useCodeStore()
   const token = useCookie('auth_token')
   const localeCookie = useCookie('locale', { default: () => 'ko' })
   const domains = ref({})
@@ -13,6 +19,9 @@ export const useApprovalEnricher = () => {
 
   const loadMetadata = async () => {
     try {
+      // Preload DD codes
+      codeStore.loadGroup('TARGET_TYPE').catch(console.error)
+      
       const domRes = await $fetch('/api/domains', { headers: { Authorization: `Bearer ${token.value}` } })
       
       const dMap = {}
@@ -171,12 +180,13 @@ export const useApprovalEnricher = () => {
               let newVal = recordData[key]
               if (typeof oldVal === 'object' && oldVal !== null) oldVal = getTranslatedName(oldVal)
               if (typeof newVal === 'object' && newVal !== null) newVal = getTranslatedName(newVal)
-              parts.push(`${fName}: ${oldVal || '없음'} -> ${newVal || '없음'}`)
+              const noneLabel = t('none') || 'None'
+              parts.push(`${fName}: ${oldVal || noneLabel} -> ${newVal || noneLabel}`)
             }
           }
           enriched.summary = parts.join(', ')
         } else if (req.targetType === 'RECORD_DELETE') {
-          enriched.summary = '데이터 삭제'
+          enriched.summary = t('record_delete') || 'Data Delete'
         }
 
         // Fallback: If ID or Name is still empty, infer from record data keys (Summary Data)
@@ -218,10 +228,77 @@ export const useApprovalEnricher = () => {
     return enriched
   }
 
+  const getRequesterName = (req) => {
+    if (!req) return t('unknown') || 'Unknown';
+    return userStore.getUserName(req.requesterId, req.requesterName || req.requesterUsername);
+  }
+
+  const getClassificationName = (node, field) => {
+    const unclassified = t('unclassified') || 'Unclassified'
+    if (!node || !node[field]) return unclassified;
+    const nameObj = node[field];
+    if (typeof nameObj === 'string') return nameObj;
+    return nameObj[localeCookie.value || 'ko'] || nameObj['ko'] || nameObj['en'] || unclassified;
+  }
+
+  const getRequestTypeLabel = (type) => {
+    if (!type) return t('other_request') || 'Other Request';
+    const i18nKey = `target_type_${type}`;
+    const translated = t(i18nKey);
+    if (translated && translated !== i18nKey) return translated;
+
+    const codeName = codeStore.getCodeName('TARGET_TYPE', type, null)
+    if (codeName && codeName !== type) return codeName
+
+    if (type === 'RECORD_CREATE') return t('record_create') || 'New Record';
+    if (type === 'RECORD_UPDATE') return t('record_update') || 'Data Update';
+    if (type === 'RECORD_DELETE') return t('record_delete') || 'Data Delete';
+    if (type === 'DOMAIN_RECORD_CREATE') return t('domain_record_create') || 'Domain Record Create';
+    return type || t('other_request') || 'Other Request';
+  }
+
+  const getRequestTypeColor = (type) => {
+    if (type === 'RECORD_CREATE' || type === 'DOMAIN_RECORD_CREATE') return 'success';
+    if (type === 'RECORD_UPDATE') return 'warning';
+    if (type === 'RECORD_DELETE') return 'danger';
+    return 'primary';
+  }
+
+  const parseDate = (dateString) => {
+    if (!dateString) return null
+    let str = String(dateString).trim()
+    if (/^\d+$/.test(str)) {
+      return new Date(parseInt(str, 10))
+    }
+    if (!str.endsWith('Z') && !str.includes('+') && !/[-+]\d{2}:\d{2}$/.test(str)) {
+      if (str.includes(' ') && !str.includes('T')) {
+        str = str.replace(' ', 'T')
+      }
+      const serverOffset = useCookie('server_offset', { default: () => '+09:00' }).value
+      str += serverOffset
+    }
+    const d = new Date(str)
+    return isNaN(d.getTime()) ? new Date(dateString) : d
+  }
+
+  const formatDate = (dateString) => {
+    if (!dateString) return ''
+    const date = parseDate(dateString)
+    if (!date) return ''
+    const tz = useCookie('timezone', { default: () => 'Asia/Seoul' }).value
+    const formatted = date.toLocaleString(undefined, { timeZone: tz })
+    return formatted.replace(/\s*(GMT|UTC|KST|PST|EST|CET)[-+0-9:]*/gi, '').trim()
+  }
+
   return {
     loadMetadata,
     enrichRequest,
     domains,
-    nodes
+    nodes,
+    getRequesterName,
+    getClassificationName,
+    getRequestTypeLabel,
+    getRequestTypeColor,
+    formatDate
   }
 }

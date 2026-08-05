@@ -27,11 +27,19 @@ public class MenuController {
 
     private final MenuService menuService;
     private final SystemSeedDumpService systemSeedDumpService;
+    private final com.classification.domain_system.config.MenuDataInitializer menuDataInitializer;
 
     @PostMapping("/dump-seed")
     @PreAuthorize("hasPermission(null, 'admin:write')")
     public ResponseEntity<Void> dumpSeedFiles() {
         systemSeedDumpService.dumpMenuStateToSeedFiles();
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/sync-seed")
+    @PreAuthorize("hasPermission(null, 'admin:write')")
+    public ResponseEntity<Void> syncSeedFiles() {
+        menuDataInitializer.syncMenus();
         return ResponseEntity.ok().build();
     }
 

@@ -396,10 +396,12 @@ import { AgGridVue } from 'ag-grid-vue3'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { useRoleStore } from '~/stores/useRoleStore'
+import { useCodeStore } from '~/stores/useCodeStore'
 
 const { customFetch } = useCustomFetch()
 const { gridTheme, autoSizeStrategy, isDark } = useAgGridTheme()
 const { t, locale } = useI18n()
+const codeStore = useCodeStore()
 
 // Multilingual helper to resolve name objects / JSON / fallback strings according to active locale
 const getLocalizedName = (nameObj: any) => {
@@ -419,13 +421,9 @@ const getLocalizedName = (nameObj: any) => {
   return String(nameObj)
 }
 
-const actionTypeOptions = computed(() => [
-  { value: 'CREATE', text: `🆕 ${t('action_type_create')}` },
-  { value: 'UPDATE', text: `✏️ ${t('action_type_update')}` },
-  { value: 'DELETE', text: `🗑️ ${t('action_type_delete')}` },
-  { value: 'SCHEMA_CHANGE', text: `⚙️ ${t('action_type_schema_change')}` },
-  { value: 'MERGE', text: `🔀 ${t('action_type_merge')}` }
-])
+const actionTypeOptions = computed(() => {
+  return codeStore.getDropdownOptions('WORKFLOW_ACTION')
+})
 
 const actionFilterTabs = computed(() => [
   { value: 'ALL', text: t('action_type_all') },
@@ -993,6 +991,7 @@ const deleteWorkflow = async (row: any) => {
 }
 
 onMounted(async () => {
+  await codeStore.preloadGroups(['WORKFLOW_ACTION'])
   await fetchRoles()
   await fetchUsers()
   await fetchDomains()

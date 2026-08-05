@@ -44,7 +44,7 @@
       <va-input v-model="newField.order" type="number" label="Sort Order" class="mb-4" style="flex: 1; min-width: 0;" />
     </div>
     
-    <va-select v-model="newField.type" :options="fieldTypes" label="Field Type" class="mb-4 w-full" />
+    <va-select v-model="newField.type" :options="fieldTypes" value-by="value" label="Field Type" class="mb-4 w-full" />
 
     <va-select
       v-if="newField.isEncrypted"

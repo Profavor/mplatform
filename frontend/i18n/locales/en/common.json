@@ -1,4 +1,12 @@
 {
+  "none": "None",
+  "unknown": "Unknown",
+  "unclassified": "Unclassified",
+  "other_request": "Other Request",
+  "record_create": "New Record Create",
+  "record_update": "Record Update",
+  "record_delete": "Record Delete",
+  "domain_record_create": "Domain Record Create",
   "file_upload_dropzone": "Drag and drop files here or ",
   "file_upload_button": "Select from PC",
   "view_original": "View Original",
@@ -373,6 +381,7 @@
   "menu_access_statistics": "Menu Access Statistics",
   "menu_icon": "Menu Icon",
   "backup_menu_seed": "Backup Current State",
+  "sync_menu_seed": "Sync from Seed File",
   "menu_management": "Menu Management",
   "menu_management_desc": "Manage system tree menu structures and role-based access nodes.",
   "merge": {
