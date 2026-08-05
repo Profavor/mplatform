@@ -7,4 +7,5 @@ import java.util.UUID;
 
 public interface UserOrgHistoryRepository extends JpaRepository<UserOrgHistory, UUID> {
     List<UserOrgHistory> findByUserIdOrderByChangedAtDesc(String userId);
+    void deleteByUserId(String userId);
 }

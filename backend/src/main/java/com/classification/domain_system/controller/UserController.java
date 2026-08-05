@@ -20,6 +20,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 
 @RestController
 @RequestMapping("/api/users")
@@ -58,6 +59,28 @@ public class UserController {
         return ResponseEntity.ok(u);
     }
 
+    @PostMapping
+    @PreAuthorize("hasPermission(null, 'user:write')")
+    public ResponseEntity<Map<String, String>> createUser(@RequestBody AdminUserCreateDto createReq) {
+        String tempPassword = userService.createAdminUser(createReq.getUsername(), createReq.getRole(), createReq.getOrganizationId(), createReq.getDepartmentId());
+        Map<String, String> response = new HashMap<>();
+        response.put("username", createReq.getUsername());
+        response.put("tempPassword", tempPassword);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/me/password")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> changeMyPassword(@RequestBody ChangePasswordDto req) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        try {
+            userService.changePassword(username, req.getOldPassword(), req.getNewPassword());
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     @GetMapping("/{id}/org-history")
     @PreAuthorize("hasPermission(null, 'user:read')")
     public ResponseEntity<List<Map<String, Object>>> getUserOrgHistory(@PathVariable String id) {
@@ -89,6 +112,36 @@ public class UserController {
         return ResponseEntity.ok(result);
     }
 
+    @Autowired
+    private com.classification.domain_system.service.FieldEncryptionService fieldEncryptionService;
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'user:write')")
+    public ResponseEntity<Void> deleteUser(@PathVariable String id) {
+        try {
+            userService.deleteUser(id);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.CONFLICT).build();
+        }
+    }
+
+    @Autowired
+    private com.classification.domain_system.repository.UserRepository userRepository;
+
+    @GetMapping("/{id}/temp-password")
+    @PreAuthorize("hasPermission(null, 'user:write')")
+    public ResponseEntity<Map<String, String>> getTempPassword(@PathVariable String id) {
+        User u = userRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("User not found"));
+        if (Boolean.TRUE.equals(u.getMustChangePassword()) && u.getEncryptedTempPassword() != null) {
+            String plainPassword = fieldEncryptionService.decrypt(u.getEncryptedTempPassword());
+            Map<String, String> res = new HashMap<>();
+            res.put("tempPassword", plainPassword);
+            return ResponseEntity.ok(res);
+        }
+        return ResponseEntity.badRequest().build();
+    }
+
     @GetMapping("/map")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<String, String>> getUserMap() {
@@ -109,12 +162,13 @@ public class UserController {
         public java.util.UUID departmentId;
         public java.util.UUID teamId;
         public Boolean isActive;
+        public Boolean mustChangePassword;
         
         public UserDto(String id, String username, String role) {
-            this(id, username, role, null, null, null, true);
+            this(id, username, role, null, null, null, true, false);
         }
 
-        public UserDto(String id, String username, String role, java.util.UUID organizationId, java.util.UUID departmentId, java.util.UUID teamId, Boolean isActive) {
+        public UserDto(String id, String username, String role, java.util.UUID organizationId, java.util.UUID departmentId, java.util.UUID teamId, Boolean isActive, Boolean mustChangePassword) {
             this.id = id;
             this.username = username;
             this.role = role;
@@ -122,9 +176,9 @@ public class UserController {
             this.departmentId = departmentId;
             this.teamId = teamId;
             this.isActive = isActive;
+            this.mustChangePassword = mustChangePassword;
         }
     }
-
     @PostMapping("/timezone")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateTimezone(@RequestBody TimezoneRequest request) {
@@ -137,5 +191,19 @@ public class UserController {
         private String timezone;
         public String getTimezone() { return timezone; }
         public void setTimezone(String timezone) { this.timezone = timezone; }
+    }
+
+    @lombok.Data
+    public static class AdminUserCreateDto {
+        private String username;
+        private String role;
+        private java.util.UUID organizationId;
+        private java.util.UUID departmentId;
+    }
+
+    @lombok.Data
+    public static class ChangePasswordDto {
+        private String oldPassword;
+        private String newPassword;
     }
 }

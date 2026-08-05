@@ -93,24 +93,24 @@ export function useRoleStore() {
     return rolesList.value
   }
 
-  const getRoleDisplayName = (code: string): string => {
+  const getRoleDisplayName = (code: string, locale?: string): string => {
     if (!code) return ''
     const cleanInput = code.trim()
     const cleanCode = cleanInput.startsWith('ROLE_') ? cleanInput.replace('ROLE_', '') : cleanInput
 
     const role = globalRoleLookupMap.value[cleanInput] || globalRoleLookupMap.value[cleanCode]
     if (role && role.displayName) {
-      const text = getMultilingualText(role.displayName)
+      const text = getMultilingualText(role.displayName, locale)
       if (text) return text
     }
     return cleanInput
   }
 
-  const formatRoleText = (code: string, hideCode = false): string => {
+  const formatRoleText = (code: string, hideCode = false, locale?: string): string => {
     if (!code) return ''
     const cleanInput = code.trim()
-    const rawDisp = getRoleDisplayName(cleanInput)
-    const disp = getMultilingualText(rawDisp)
+    const rawDisp = getRoleDisplayName(cleanInput, locale)
+    const disp = getMultilingualText(rawDisp, locale)
     if (hideCode) {
       return disp || cleanInput
     }

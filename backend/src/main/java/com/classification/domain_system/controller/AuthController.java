@@ -32,7 +32,7 @@ public class AuthController {
             .map(a -> a.getAuthority())
             .toList();
         String serverOffset = OffsetDateTime.now().getOffset().getId();
-        return ResponseEntity.ok(new LoginResponse(null, null, user.getUsername(), user.getRole(), user.getId(), user.getId(), user.getOrganizationId(), user.getDepartmentId(), user.getTimezone(), serverOffset, perms));
+        return ResponseEntity.ok(new LoginResponse(null, null, user.getUsername(), user.getRole(), user.getId(), user.getId(), user.getOrganizationId(), user.getDepartmentId(), user.getTimezone(), serverOffset, perms, user.getMustChangePassword() != null ? user.getMustChangePassword() : false));
     }
 
 
@@ -63,7 +63,8 @@ public class AuthController {
                 user.getDepartmentId(),
                 user.getTimezone(),
                 serverOffset,
-                perms
+                perms,
+                user.getMustChangePassword() != null ? user.getMustChangePassword() : false
             ));
         } catch (Exception e) {
             return ResponseEntity.status(401).body(e.getMessage());
@@ -138,5 +139,6 @@ public class AuthController {
         private final String timezone;
         private final String serverOffset;
         private final java.util.List<String> permissions;
+        private final boolean mustChangePassword;
     }
 }

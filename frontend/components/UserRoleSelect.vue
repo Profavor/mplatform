@@ -23,7 +23,7 @@
         :color="getRoleColor(roleCode)"
         style="font-weight: 600; font-size: 0.78rem; padding: 3px 8px; display: inline-flex; align-items: center;"
       >
-        <span>{{ formatRoleText(roleCode) }}</span>
+        <span>{{ formatRoleText(roleCode, false, locale) }}</span>
         <va-icon
           name="close"
           size="14px"
@@ -81,7 +81,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'change'])
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const getLabel = (key, fallback) => {
   const res = t(key)
   return (!res || res === key) ? fallback : res
@@ -117,7 +117,7 @@ const formattedOptions = computed(() => {
     if (!role || !role.name) return
     const code = role.name
     const normCode = code.startsWith('ROLE_') ? code.replace('ROLE_', '') : code
-    const textStr = formatRoleText(code)
+    const textStr = formatRoleText(code, false, locale.value)
 
     if (!seenCodes.has(code) && !seenCodes.has(normCode) && !seenTexts.has(textStr)) {
       seenCodes.add(code)
