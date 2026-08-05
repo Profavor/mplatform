@@ -91,8 +91,9 @@ class CodeManagementServiceTest {
         
         when(codeGroupRepository.findAll(pageable)).thenReturn(pagedResponse);
 
-        org.springframework.data.domain.Page<CodeGroup> result = codeManagementService.getGroupsPaged(pageable);
+        org.springframework.data.domain.Page<CodeGroup> result = codeManagementService.getGroupsPaged(null, pageable);
         
+        assertNotNull(result);
         assertEquals(1, result.getTotalElements());
         assertEquals(codeGroup.getId(), result.getContent().get(0).getId());
     }
