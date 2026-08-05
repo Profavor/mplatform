@@ -155,10 +155,39 @@
                 {{ getFieldLabel(row.key) }}
               </td>
               <td style="padding: 0.6rem 0.8rem; color: #b91c1c; background: rgba(239, 68, 68, 0.04);">
-                {{ row.before }}
+                <template v-if="isFieldEncrypted(row.key)">
+                  <span v-if="row.before === $t('none') || row.before === '(없음)'">{{ row.before }}</span>
+                  <span v-else>{{ decryptedValues[row.key]?.before || row.before }}</span>
+                </template>
+                <template v-else>{{ row.before }}</template>
               </td>
               <td style="padding: 0.6rem 0.8rem; color: #15803d; background: rgba(34, 197, 94, 0.04); font-weight: 600;">
-                {{ row.after }}
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <template v-if="isFieldEncrypted(row.key)">
+                    <span>
+                      <template v-if="row.after === $t('none') || row.after === '(없음)'">{{ row.after }}</template>
+                      <template v-else>{{ decryptedValues[row.key]?.after || row.after }}</template>
+                    </span>
+                    <span v-if="(row.before !== $t('none') && row.before !== '(없음)') || (row.after !== $t('none') && row.after !== '(없음)')" style="margin-left:8px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; color:#888;">
+                      <va-icon name="lock" size="small" />
+                      <template v-if="!decryptedValues[row.key]">
+                        <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary); font-weight:normal;" @click.stop="requestDecrypt(row.key)">
+                          {{ $t('view_original') || '원본 보기' }}
+                        </span>
+                        <va-icon v-if="decryptingFields[row.key]" name="sync" size="small" spin />
+                      </template>
+                      <template v-else>
+                        <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary); font-weight:normal;" @click.stop="hideDecrypt(row.key)">
+                          {{ $t('hide_original') || '원본 숨기기' }}
+                        </span>
+                        <span v-if="decryptRemainingTime[row.key]" style="margin-left:4px; font-variant-numeric: tabular-nums;">
+                          (00:{{ String(decryptRemainingTime[row.key]).padStart(2, '0') }})
+                        </span>
+                      </template>
+                    </span>
+                  </template>
+                  <template v-else>{{ row.after }}</template>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -177,6 +206,7 @@ import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { formatWithTimezone } from '~/composables/useTimezoneDate'
+import { useCookie } from '#app'
 
 const props = defineProps<{
   modelValue: boolean
@@ -261,6 +291,76 @@ const viewMode = ref<'graph' | 'timeline'>('graph')
 
 const showDiffModal = ref(false)
 const selectedNode = ref<any>(null)
+
+const decryptedValues = ref<Record<string, any>>({})
+const decryptingFields = ref<Record<string, boolean>>({})
+const decryptRemainingTime = ref<Record<string, number>>({})
+const decryptTimers = ref<Record<string, any>>({})
+const decryptIntervals = ref<Record<string, any>>({})
+
+const isFieldEncrypted = (key: string) => {
+  const f = props.fields?.find((f: any) => f.key === key || f.id === key)
+  return !!f?.isEncrypted
+}
+
+const requestDecrypt = async (key: string) => {
+  if (!selectedNode.value || !selectedNode.value.id) return
+  decryptingFields.value[key] = true
+  try {
+    const historyId = String(selectedNode.value.id).replace('HIST-', '')
+    const token = useCookie('auth_token').value
+    const res = await $fetch(`/api/sensitive-data/history/${historyId}/decrypt`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: { fieldKeys: [key] }
+    })
+    if (res && res[key]) {
+      decryptedValues.value[key] = { after: res[key], before: res[key] } // Set both before and after if decrypted since backend only returns newData
+      
+      if (decryptTimers.value[key]) clearTimeout(decryptTimers.value[key])
+      if (decryptIntervals.value[key]) clearInterval(decryptIntervals.value[key])
+      
+      decryptRemainingTime.value[key] = 30
+      
+      decryptIntervals.value[key] = setInterval(() => {
+        if (decryptRemainingTime.value[key] > 0) {
+          decryptRemainingTime.value[key]--
+        }
+      }, 1000)
+
+      decryptTimers.value[key] = setTimeout(() => {
+        hideDecrypt(key)
+      }, 30000)
+    }
+  } catch (e) {
+    console.error(e)
+  } finally {
+    decryptingFields.value[key] = false
+  }
+}
+
+const hideDecrypt = (key: string) => {
+  if (decryptTimers.value[key]) {
+    clearTimeout(decryptTimers.value[key])
+    delete decryptTimers.value[key]
+  }
+  if (decryptIntervals.value[key]) {
+    clearInterval(decryptIntervals.value[key])
+    delete decryptIntervals.value[key]
+  }
+  delete decryptRemainingTime.value[key]
+  delete decryptedValues.value[key]
+}
+
+watch(() => showDiffModal.value, (val) => {
+  if (!val) {
+    for (const k of Object.keys(decryptedValues.value)) {
+      hideDecrypt(k)
+    }
+    decryptedValues.value = {}
+    decryptingFields.value = {}
+  }
+})
 
 const graphChartOption = computed(() => {
   if (!lineageData.value || !lineageData.value.nodes) return {}
@@ -557,6 +657,7 @@ const diffRows = computed(() => {
   const next = parseJsonIfNeeded(selectedNode.value.details.newData)
 
   const allKeys = Array.from(new Set([...Object.keys(prev), ...Object.keys(next)]))
+    .filter(k => !k.startsWith('_idx_'))
   const rows: Array<{ key: string; before: string; after: string }> = []
 
   for (const k of allKeys) {

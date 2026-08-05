@@ -32,15 +32,18 @@ public class RecordLineageService {
     private final RecordHistoryRepository recordHistoryRepository;
     private final IntegrationLogRepository integrationLogRepository;
     private final UserRepository userRepository;
+    private final RecordService recordService;
 
     public RecordLineageService(RecordRepository recordRepository,
                                 RecordHistoryRepository recordHistoryRepository,
                                 IntegrationLogRepository integrationLogRepository,
-                                UserRepository userRepository) {
+                                UserRepository userRepository,
+                                RecordService recordService) {
         this.recordRepository = recordRepository;
         this.recordHistoryRepository = recordHistoryRepository;
         this.integrationLogRepository = integrationLogRepository;
         this.userRepository = userRepository;
+        this.recordService = recordService;
     }
 
     public RecordLineageDto.RecordLineageResponse getRecordLineage(UUID recordId) {
@@ -87,11 +90,22 @@ public class RecordLineageService {
             String resolvedUser = resolveUserName(rawUser);
             histNode.getDetails().put("changedBy", resolvedUser);
             histNode.getDetails().put("version", history.getVersion());
+            
+            UUID nodeId = (history.getRecord() != null && history.getRecord().getNode() != null) ? history.getRecord().getNode().getId() : (record.getNode() != null ? record.getNode().getId() : null);
+            
             if (history.getPreviousData() != null) {
-                histNode.getDetails().put("previousData", history.getPreviousData());
+                if (nodeId != null) {
+                    histNode.getDetails().put("previousData", recordService.processDataForRead(nodeId, history.getPreviousData()));
+                } else {
+                    histNode.getDetails().put("previousData", history.getPreviousData());
+                }
             }
             if (history.getNewData() != null) {
-                histNode.getDetails().put("newData", history.getNewData());
+                if (nodeId != null) {
+                    histNode.getDetails().put("newData", recordService.processDataForRead(nodeId, history.getNewData()));
+                } else {
+                    histNode.getDetails().put("newData", history.getNewData());
+                }
             }
             response.getNodes().add(histNode);
             response.getEdges().add(new RecordLineageDto.LineageEdge(lastHistoryNodeId, historyNodeId, "MODIFIED_TO"));
