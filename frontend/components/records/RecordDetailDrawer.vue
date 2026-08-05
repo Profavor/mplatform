@@ -158,7 +158,7 @@
                             <va-icon name="info" size="small" color="info" style="cursor: help; margin-left: 2px;" />
                           </va-popover>
                           <!-- Decrypt Button for Details -->
-                          <span v-if="field.isEncrypted && (!isEditing || isSnapshotMode)" style="margin-left:auto; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; color:#888;">
+                          <span v-if="field.isEncrypted && (!isEditing || isSnapshotMode) && (localRecord[field.key] !== undefined && localRecord[field.key] !== null && localRecord[field.key] !== '')" style="margin-left:auto; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; color:#888;">
                             <va-icon name="lock" size="small" />
                             <template v-if="!decryptedValues[field.key]">
                               <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary);" @click.stop="requestDecryptRecordField(field.key)">
@@ -380,7 +380,7 @@
                         preset="secondary"
                         size="small"
                         icon="history"
-                        @click="$emit('viewSnapshot', log.newData || log.previousData)"
+                        @click="$emit('viewSnapshot', log.newData || log.previousData, log.id)"
                       >
                         {{ t('view_snapshot') || '스냅샷 보기' }}
                       </va-button>
@@ -742,22 +742,22 @@ const historyGridColumnDefs = computed(() => {
         container.style.cssText = 'display: flex; align-items: center; height: 100%; gap: 0.35rem;';
 
         if (row.changeType === 'CREATE') {
-          container.appendChild(createUnifiedBtn(t('view_snapshot') || '스냅샷 보기', '#0284c7', () => emit('viewSnapshot', row.newData)));
+          container.appendChild(createUnifiedBtn(t('view_snapshot') || '스냅샷 보기', '#0284c7', () => emit('viewSnapshot', row.newData, row.id)));
           if (row.approvalRequestId) {
             container.appendChild(createUnifiedBtn(t('approval_history_btn') || '결재 내역', '#6b7280', () => emit('viewApprovalHistory', row)));
           } else if (row.sourceSystem) {
             container.appendChild(createUnifiedBtn(t('integration_history_btn') || '연계 내역', '#0284c7', () => emit('viewIntegrationHistory', row)));
           }
         } else if (row.changeType === 'DELETE') {
-          container.appendChild(createUnifiedBtn(t('last_snapshot') || '마지막 스냅샷', '#d97706', () => emit('viewSnapshot', row.previousData)));
+          container.appendChild(createUnifiedBtn(t('last_snapshot') || '마지막 스냅샷', '#d97706', () => emit('viewSnapshot', row.previousData, row.id)));
           if (row.approvalRequestId) {
             container.appendChild(createUnifiedBtn(t('approval_history_btn') || '결재 내역', '#6b7280', () => emit('viewApprovalHistory', row)));
           } else if (row.sourceSystem) {
             container.appendChild(createUnifiedBtn(t('integration_history_btn') || '연계 내역', '#0284c7', () => emit('viewIntegrationHistory', row)));
           }
         } else if (row.changeType === 'UPDATE') {
-          container.appendChild(createUnifiedBtn(t('prev_snapshot') || '이전 스냅샷', '#d97706', () => emit('viewSnapshot', row.previousData)));
-          container.appendChild(createUnifiedBtn(t('next_snapshot') || '이후 스냅샷', '#0284c7', () => emit('viewSnapshot', row.newData)));
+          container.appendChild(createUnifiedBtn(t('prev_snapshot') || '이전 스냅샷', '#d97706', () => emit('viewSnapshot', row.previousData, row.id)));
+          container.appendChild(createUnifiedBtn(t('next_snapshot') || '이후 스냅샷', '#0284c7', () => emit('viewSnapshot', row.newData, row.id)));
           if (row.approvalRequestId) {
             container.appendChild(createUnifiedBtn(t('approval_history_btn') || '결재 내역', '#6b7280', () => emit('viewApprovalHistory', row)));
           } else if (row.sourceSystem) {
@@ -781,6 +781,7 @@ const props = defineProps({
   history: { type: Array, default: () => [] },
   nodeLabel: { type: String, default: '' },
   isSnapshotMode: { type: Boolean, default: false },
+  snapshotId: { type: String, default: null },
   hasPendingUpdate: { type: Boolean, default: false },
   isEditingRecord: { type: Boolean, default: false },
   hasUpdateWorkflow: { type: Boolean, default: true },
@@ -845,12 +846,23 @@ const decryptRemainingTime = ref({})
 const decryptIntervals = ref({})
 
 const requestDecryptRecordField = async (fieldKey) => {
-  const recId = props.record?.id || localRecord.value?.id
+  let recId = null
+  let endpoint = ''
+  
+  if (props.isSnapshotMode && props.snapshotId) {
+    recId = props.snapshotId
+    endpoint = `/api/sensitive-data/history/${recId}/decrypt`
+  } else {
+    recId = props.record?.id || localRecord.value?.id
+    if (!recId) return
+    endpoint = `/api/sensitive-data/record/${recId}/decrypt`
+  }
   if (!recId) return
+
   decryptingFields.value[fieldKey] = true
   try {
     const token = useCookie('auth_token').value
-    const res = await $fetch(`/api/sensitive-data/record/${recId}/decrypt`, {
+    const res = await $fetch(endpoint, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
       body: { fieldKeys: [fieldKey] }

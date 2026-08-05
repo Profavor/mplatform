@@ -91,7 +91,7 @@
               <va-icon name="upload" class="mr-1"/> {{ $t('bulk_upload') }}
             </va-button>
           </template>
-          <va-button size="small" color="info" outline :disabled="!selectedRecordId" @click="showLineageModal = true">
+          <va-button size="small" color="info" outline :disabled="(selectedRecordRows?.length || 0) !== 1" @click="showLineageModal = true">
             <va-icon name="account_tree" class="mr-1"/> {{ $t('data_lineage') || '데이터 계보' }}
           </va-button>
           <va-button size="small" color="warning" outline :disabled="(selectedRecordRows?.length || 0) < 2" @click="showCompareModal = true">
@@ -206,10 +206,7 @@
               </va-input>
             </div>
           </div>
-          <div style="display: flex; gap: 0.5rem; align-items: center; justify-content: flex-end; margin-top: 1.25rem; padding-top: 0.75rem; border-top: 1px dashed var(--va-background-border);">
-            <va-button preset="secondary" icon="restart_alt" @click="clearFilters">{{ $t('reset') }}</va-button>
-            <va-button color="primary" icon="search" @click="applyFilters">{{ $t('search') }}</va-button>
-          </div>
+
         </va-card-content>
       </va-card>
       
@@ -310,6 +307,7 @@
     <RecordDetailDrawer
       :show="showSnapshotModal"
       :record="snapshotRecordData"
+      :snapshot-id="snapshotHistoryId"
       :fields="nodeFields"
       :history="[]"
       :node-label="selectedNode?.label"
@@ -405,7 +403,7 @@
     <!-- Record Lineage Modal -->
     <RecordLineageModal
       v-model="showLineageModal"
-      :recordId="selectedRecordId"
+      :recordId="selectedRecordRows?.length > 0 ? (selectedRecordRows[0].id || selectedRecordRows[0].recordId) : selectedRecordId"
       :fields="nodeFields"
     />
 
@@ -1708,12 +1706,14 @@ const isSnapshotMode = ref(false)
 
 const showSnapshotModal = ref(false)
 const snapshotRecordData = ref({})
+const snapshotHistoryId = ref(null)
 
-const viewSnapshot = (dataString) => {
+const viewSnapshot = (dataString, logId) => {
   if (!dataString) return
   try {
     const data = processRecordDataWithFields(dataString, nodeFields.value)
     snapshotRecordData.value = data
+    snapshotHistoryId.value = logId
     showSnapshotModal.value = true
   } catch(e) {
     console.error('Failed to view snapshot:', e)
