@@ -31,3 +31,7 @@
 | **DqScoreSnapshot** | DQ 스캔(크론/수동) 실행 시점의 도메인 품질 점수 및 위반 건수 시계열 기록. |
 | **Dead-Letter Queue (DLQ)** | 연계(Integration) 실패 시 지수 백오프 재시도 후 최대 횟수를 초과한 실패 건을 격리 관리하는 큐. |
 | **Sensitive Data Governance** | 개인정보 마스킹(RRN, 전화번호, 카드번호 등) 및 원본 열람 시 **SensitiveDataAccessLog**를 통한 접근 감사(Audit) 기록 체계. |
+| **Blind Indexing & Encryption** | 32바이트 AES 대칭키 복호화 지원 및 SHA-256 HMAC 기반 Blind Index를 분리 생성하여, 원본 데이터 노출 없이 정확 일치 검색을 보장하는 보안 매커니즘. |
+| **Idempotent Data Seeding** | 권한, 메뉴, 공통코드 등 기초 데이터가 서버 재기동이나 `prod` 환경에서도 기존 데이터를 보존(`count() > 0`)하며 멱등적으로 자동 세팅되는 초기화 체계. |
+| **Zero-Fallback i18n** | 하드코딩이나 임의 문자열 폴백 없이, 100% 정교한 사전(`ko.json`, `en.json`) 검증 및 연동을 통해 다국어를 지원하는 프론트엔드 국제화 구조. |
+| **TDD & Static Build Verification** | 프론트엔드 및 백엔드 기능 개발 시 유닛 테스트 통과와 Nuxt 템플릿 정적 구문 컴파일(`npm run build`) 검증을 의무화한 무결성 파이프라인. |

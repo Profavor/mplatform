@@ -40,15 +40,15 @@ graph TD
 
 ## 🛠 Tech Stack 상세
 - **Frontend**
-  - **Framework**: Nuxt 3 (^3.17.7), Vue 3
+  - **Framework**: Nuxt 3 (^3.17.7), Vue 3 (SSR 및 `defineAsyncComponent`/`<ClientOnly>` 기반 브라우저 API 안전 격리)
   - **Language**: TypeScript (^5.9.3)
   - **UI Library**: Vuestic UI (^1.10.3), TailwindCSS
-  - **Data Grid & Chart**: AG Grid Vue3 / Enterprise (^34.3.1), Apache ECharts (^5.6.0)
-  - **i18n**: @nuxtjs/i18n (한국어 기본, 영어 지원) 및 서버/클라이언트 `Accept-Language` 자동 주입
+  - **Data Grid & Chart**: AG Grid Vue3 / Enterprise (^34.3.1, v32+ 현대적 객체 구문 전환 및 서버 사이드 페이징 지원), Apache ECharts (^5.6.0)
+  - **i18n**: `@nuxtjs/i18n` 기반 **Zero-Fallback 다국어 구조** (하드코딩 및 런타임 문자열 폴백 원천 방지, 100% 사전 검증 체계 적용)
 - **Backend**
-  - **Framework**: Spring Boot 4.1.0
+  - **Framework**: Spring Boot 4.1.0 (`prod` 프로필 PostgreSQL `ddl-auto: validate` 및 멱등성 데이터 초기화 보장)
   - **Language**: Java 17
-  - **ORM**: Spring Data JPA, Hibernate, Spring Data Envers
+  - **ORM & Encryption**: Spring Data JPA, Hibernate, Spring Data Envers, **32바이트 AES 하이브리드 암호화 & SHA-256 HMAC Blind Indexing**
   - **Security**: Spring Security, 자체 발급 JWT (jjwt) — 환경변수(`JWT_SECRET`) 필수 참조
   - **Integration**: Spring Integration, Spring Retry, Spring Kafka, Spring AMQP(RabbitMQ) — 아웃바운드 연계 채널용
 - **Database & Infrastructure**
@@ -99,17 +99,29 @@ npm run dev
 - **Excel 대량 업로드 사전 검증 리포트**: Excel 파일 업로드 시 `POST /records/batch-validate` 사전 검증을 거쳐, 행별 위반 필드·사유·입력값을 표로 리포팅하고 유효한 행만 선택하여 결재 상신 가능 (`ExcelUploader.vue`).
 - **Matching / 중복 검사 & 피드백 루프**: 정확(EXACT) 및 퍼지(FUZZY) 매칭. 스튜어드의 매칭 검토 이력(`CONFIRMED_MERGE`, `REJECTED`)을 통계 분석하여 `similarityThreshold` 권장 조정을 제공하는 피드백 루프 API 구현 (`MatchFeedbackService`).
 - **Golden Record 병합 & Un-merge (병합 해제)**: 소스 시스템 우선순위(`SourcePriority`) 기반 필드 단위 서바이버십 병합 및 출처 기록(`RecordFieldSource`). 잘못 병합된 레코드를 복원하는 **Un-merge API**(`POST /api/records/{id}/unmerge`) 및 UI 버튼 지원.
-- **개인정보 마스킹 및 보안(Sensitive Data Governance)**: 주민등록번호(RRN/SSN), 전화번호, 카드번호 등 정규식 기반 마스킹 패턴 지원 및 마스킹 해제(원본 열람) 시 필수 접근 사유 입력과 **감사 로그(SensitiveDataAccessLog)** 기록 체계 구현.
+- **개인정보 마스킹 및 강력한 암호화 (Blind Index & Security Governance)**: 
+  - 주민등록번호(RRN/SSN), 전화번호, 카드번호 등 정규식 기반 마스킹 패턴 지원.
+  - 마스킹 해제(원본 열람) 시 필수 접근 사유 입력과 **감사 로그(SensitiveDataAccessLog)** 기록 체계 구현.
+  - **하이브리드 암호화 아키텍처**: 32바이트 AES 키를 통한 하이 퍼포먼스 암호화 및 역방향 호환성 유지(Golden Sample 검증)와 더불어, 원본 누출 없이 검색을 가능하게 하는 **SHA-256 HMAC 기반 Blind Index** 체계 적용.
 - **연계(Integration) 지수 백오프 & Dead-Letter Queue (DLQ)**: 연계 실패 시 지수 백오프($2^{retryCount}$)에 따른 자동 재시도 시각 계산, 1분 주기 스케줄러 자동 재시도(`IntegrationRetryScheduler`), 최대 재시도 초과 건 `DEAD_LETTER` 격리 큐 전환 및 수동/일괄 재시도 API 제공.
 - **EffectiveFields 캐싱 & 스키마 무효화**: `@Cacheable` 기반 유효 필드 수집 결과 캐싱 및 스키마 변경 시 `@CacheEvict` 자동 무효화. Redis 부재 시 In-Memory 로컬 캐시 자동 작동.
 - **Record 승인 워크플로우 & 감사(Audit)**: 레코드 다단계 결재(DRAFT, PENDING_APPROVAL, APPROVED, REJECTED), 관리자(Admin) 개입 결재 승인/반려 로직, `RecordHistory` 버전 관리 및 `SchemaHistory` 스냅샷 이력.
+- **멱등성(Idempotence) 기반 시드 데이터 초기화**: 서버 시작 시 권한 마스터, 메뉴 트리, 공통 코드 등이 기존 데이터(`count() > 0`)를 보존하며 중복 없이 멱등적으로 초기화되도록 설계되어 프로덕션(`prod`) 배포 시 안정성을 극대화.
+- **인앱 대화형 메신저 및 엑셀 프리뷰어**: 실시간 메시징, 다국어 번역, 8 방향 창 크기 조절 모달, 엑셀 및 데이터 테이블 미리보기(`ExcelPreviewModal`), 실시간 유튜브 DJ 방송 제어판 등 협업 툴킷 제공.
 
-## 🧪 Testing
-백엔드는 JUnit 5 기반으로 서비스, 컨트롤러, 엔티티 단위 테스트(47개 이상 클래스)가 완벽하게 구축되어 있습니다.
-```bash
-cd backend
-./mvnw test
-```
+## 🧪 Testing & CI/CD Validation Pipeline
+사이드 이펙트 원천 방지 및 화면 템플릿의 결함 방지를 위해 **프론트엔드와 백엔드 모두 TDD(Test-Driven Development) 기반으로 설계 및 검증**됩니다.
+
+- **Backend (JUnit 5 & Golden Sample Validation)**: 47개 이상의 단위/통합 테스트 클래스 운영. 특히 `FieldEncryptionServiceTest`는 하드코딩된 Base64 고정 텍스트(Golden Sample) 검증을 통해 향후 리팩토링 및 환경 변화 시에도 기존 DB 암호화 레코드의 복호화 호환성을 100% 보장합니다.
+  ```bash
+  cd backend
+  ./mvnw test
+  ```
+- **Frontend (Vitest & Nuxt Static Build Verification)**: 91개 이상의 컴포넌트 및 단위 테스트 규격을 갖추고 있으며, **`npm test` 실행 시 유닛 테스트 검증과 함께 `npm run build`(Nuxt AST 템플릿 정적 컴파일)를 필수 통과토록 결합**하여 런타임 구문 오류나 다국어/템플릿 누락을 원천 억제합니다.
+  ```bash
+  cd frontend
+  npm test
+  ```
 
 ## 📚 Data Model 개요
 시스템은 동적 도메인 메타데이터 구조를 사용합니다.
