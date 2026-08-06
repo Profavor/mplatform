@@ -10,7 +10,7 @@
             <va-badge text="Audit & Logs" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
-            {{ $t('system_logs_desc') || '메뉴 접근 이력, 로그인 로그, 시스템 에러 스택 트레이스 및 연계 채널 모니터링 현황을 감시합니다.' }}
+            {{ $t('system_logs_desc') }}
           </span>
         </div>
       </div>
@@ -24,7 +24,7 @@
         <va-tab name="login">Login Logs</va-tab>
         <va-tab name="error">Error Logs</va-tab>
         <va-tab name="integration">Integration Logs</va-tab>
-        <va-tab name="sensitive">{{ $t('sensitive_access_logs') || 'Decryption Logs' }}</va-tab>
+        <va-tab name="sensitive">{{ $t('sensitive_access_logs') }}</va-tab>
       </template>
     </va-tabs>
 
@@ -33,7 +33,7 @@
       <va-card class="mb-4">
         <va-card-title>
           <div class="flex justify-between items-center w-full">
-            <h2 style="text-transform: none; font-size: 1.2rem; margin: 0; color: var(--va-dark);">{{ $t('menu_access_statistics') || 'Menu Access Statistics' }}</h2>
+            <h2 style="text-transform: none; font-size: 1.2rem; margin: 0; color: var(--va-dark);">{{ $t('menu_access_statistics') }}</h2>
             <va-button-toggle
               v-model="accessChartPeriod"
               preset="secondary"
@@ -58,7 +58,7 @@
 
       <va-card>
         <div style="background-color: var(--va-background-element); padding: 0.6rem 1rem; border-top-left-radius: 8px; border-top-right-radius: 8px; display: flex; justify-content: flex-end; align-items: center;">
-          <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshGrid">{{ $t('refresh') || '새로고침' }}</va-button>
+          <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshGrid">{{ $t('refresh') }}</va-button>
         </div>
         <va-card-content>
           <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 500px; width: 100%;">
@@ -112,7 +112,7 @@
 
       <va-card>
         <div style="background-color: var(--va-background-element); padding: 0.6rem 1rem; border-top-left-radius: 8px; border-top-right-radius: 8px; display: flex; justify-content: flex-end; align-items: center;">
-          <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshLoginGrid">{{ $t('refresh') || '새로고침' }}</va-button>
+          <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshLoginGrid">{{ $t('refresh') }}</va-button>
         </div>
         <va-card-content>
           <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 500px; width: 100%;">
@@ -140,7 +140,7 @@
     <div v-if="activeTab === 'error'">
       <va-card>
         <div style="background-color: var(--va-background-element); padding: 0.6rem 1rem; border-top-left-radius: 8px; border-top-right-radius: 8px; display: flex; justify-content: flex-end; align-items: center;">
-          <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshErrorGrid">{{ $t('refresh') || '새로고침' }}</va-button>
+          <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshErrorGrid">{{ $t('refresh') }}</va-button>
         </div>
         <va-card-content>
           <div class="mb-2" style="font-size: 0.85rem; color: var(--va-text-secondary);">
@@ -277,7 +277,7 @@
           <div class="modal-header-banner">
             <div class="flex items-center gap-2">
               <va-icon name="hub" size="medium" color="primary" />
-              <h3 class="modal-title-text">{{ $t('integration_log_detail') || 'Integration Monitoring Log Detail' }}</h3>
+              <h3 class="modal-title-text">{{ $t('integration_log_detail') }}</h3>
             </div>
           </div>
 
@@ -296,7 +296,7 @@
                 <span class="metric-label">Direction</span>
                 <div class="metric-value mt-1">
                   <va-badge
-                    :text="selectedIntegrationLog.direction === 'INBOUND' ? ($t('integration.channels.inbound') || 'Inbound') : ($t('integration.channels.outbound') || 'Outbound')"
+                    :text="selectedIntegrationLog.direction === 'INBOUND' ? ($t('integration.channels.inbound')) : ($t('integration.channels.outbound'))"
                     :color="selectedIntegrationLog.direction === 'INBOUND' ? 'warning' : 'info'"
                   />
                 </div>
@@ -358,7 +358,7 @@
                     <span class="dot dot-green"></span>
                   </div>
                   <span class="terminal-title">
-                    {{ selectedIntegrationLog.direction === 'INBOUND' ? ($t('incoming_payload_title') || 'incoming_payload.json') : ($t('outgoing_payload_title') || 'outgoing_payload.json') }}
+                    {{ selectedIntegrationLog.direction === 'INBOUND' ? ($t('incoming_payload_title')) : ($t('outgoing_payload_title')) }}
                   </span>
                   <button class="copy-btn" @click="copyPayload(selectedIntegrationLog.originalPayload, 'original')">
                     <va-icon name="content_copy" size="small" /> {{ copySuccess === 'original' ? 'Copied!' : 'Copy' }}
@@ -378,7 +378,7 @@
                     <span class="dot dot-green"></span>
                   </div>
                   <span class="terminal-title">
-                    {{ selectedIntegrationLog.direction === 'INBOUND' ? ($t('mapped_payload_title') || 'mapped_payload.json') : ($t('response_result_title') || 'response_result.txt') }}
+                    {{ selectedIntegrationLog.direction === 'INBOUND' ? ($t('mapped_payload_title')) : ($t('response_result_title')) }}
                   </span>
                   <button class="copy-btn" @click="copyPayload(selectedIntegrationLog.mappedPayload, 'mapped')">
                     <va-icon name="content_copy" size="small" /> {{ copySuccess === 'mapped' ? 'Copied!' : 'Copy' }}
@@ -400,10 +400,10 @@
               icon="replay"
               @click="retryIntegrationLog(selectedIntegrationLog.id)"
             >
-              {{ $t('retry_integration') || '재전송 (Retry)' }}
+              {{ $t('retry_integration') }}
             </va-button>
             <va-button preset="secondary" border-color="secondary" @click="showIntegrationDetailsModal = false">
-              {{ $t('close') || '닫기 (Close)' }}
+              {{ $t('close') }}
             </va-button>
           </div>
         </div>
@@ -436,19 +436,19 @@
       <!-- Decryption Logs Statistics Charts -->
       <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
         <va-card style="flex: 1;">
-          <va-card-title>{{ $t('Decryption Trend (Last 7 Days)') || 'Decryption Trend' }}</va-card-title>
+          <va-card-title>{{ $t('Decryption Trend (Last 7 Days)') }}</va-card-title>
           <va-card-content>
             <v-chart class="chart" :option="decryptionDailyChartOption" autoresize style="height: 300px; width: 100%;" />
           </va-card-content>
         </va-card>
         <va-card style="flex: 1;">
-          <va-card-title>{{ $t('Type Ratios') || 'Type Ratios' }}</va-card-title>
+          <va-card-title>{{ $t('Type Ratios') }}</va-card-title>
           <va-card-content>
             <v-chart class="chart" :option="decryptionTypeChartOption" autoresize style="height: 300px; width: 100%;" />
           </va-card-content>
         </va-card>
         <va-card style="flex: 1;">
-          <va-card-title>{{ $t('Top Users') || 'Top Users' }}</va-card-title>
+          <va-card-title>{{ $t('Top Users') }}</va-card-title>
           <va-card-content>
             <v-chart class="chart" :option="decryptionUserChartOption" autoresize style="height: 300px; width: 100%;" />
           </va-card-content>
@@ -457,7 +457,7 @@
 
       <va-card>
         <div style="background-color: var(--va-background-element); padding: 0.6rem 1rem; border-top-left-radius: 8px; border-top-right-radius: 8px; display: flex; justify-content: flex-end; align-items: center;">
-          <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="fetchSensitiveAccessLogs(1)">{{ $t('refresh') || '새로고침' }}</va-button>
+          <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="fetchSensitiveAccessLogs(1)">{{ $t('refresh') }}</va-button>
         </div>
         <va-card-content>
           <div style="height: 500px; width: 100%;">
@@ -525,76 +525,65 @@ const onSensitiveGridReady = (params) => {
 
 const sensitiveLogColDefs = computed(() => [
   {
-    headerValueGetter: () => t('access_log_time') || '열람 시각',
+    headerValueGetter: () => t('access_log_time'),
     field: 'accessedAt',
     valueFormatter: params => params.value ? new Date(params.value).toLocaleString(locale.value === 'ko' ? 'ko-KR' : 'en-US') : '',
     sortable: true,
-    width: 180
+    width: 170
   },
   {
-    headerValueGetter: () => t('access_log_viewer') || '열람자',
+    headerValueGetter: () => t('access_log_viewer'),
     field: 'userDisplayName',
     valueGetter: params => params.data?.userDisplayName || params.data?.userId || '',
-    width: 180
+    width: 140
   },
   {
-    headerValueGetter: () => t('access_log_target_type') || '대상 유형',
+    headerValueGetter: () => t('access_log_target_type'),
     field: 'targetType',
     valueFormatter: params => {
       if (!params.value) return '-'
       return codeStore.getCodeName('TARGET_TYPE', params.value)
     },
-    width: 160
+    width: 140
   },
   {
-    headerValueGetter: () => t('access_log_target_id') || '대상 ID',
-    field: 'formattedTargetId',
-    valueGetter: params => {
-      if (params.data?.formattedTargetId) return params.data.formattedTargetId
-      if (!params.data?.targetId) return '-'
-      const prefix = params.data?.targetType === 'APPROVAL_REQUEST' ? 'REQ-' : 'REC-'
-      return prefix + String(params.data.targetId).substring(0, 8)
-    },
-    width: 160
-  },
-  {
-    headerValueGetter: () => t('domain_name') || '도메인명',
+    headerValueGetter: () => t('domain_name'),
     field: 'domainName',
     valueGetter: params => params.data?.domainName || '-',
-    width: 150
+    width: 130
   },
   {
-    headerValueGetter: () => t('classification_name') || '분류명',
+    headerValueGetter: () => t('classification_name'),
     field: 'classificationName',
     valueGetter: params => params.data?.classificationName || '-',
-    width: 150
+    width: 120
   },
   {
-    headerValueGetter: () => t('id_attribute') || 'ID속성',
+    headerValueGetter: () => t('id_attribute'),
     field: 'idAttribute',
     valueGetter: params => params.data?.idAttribute || '-',
-    width: 150
+    width: 130
   },
   {
-    headerValueGetter: () => t('name_attribute') || '이름속성',
+    headerValueGetter: () => t('name_attribute'),
     field: 'nameAttribute',
     valueGetter: params => params.data?.nameAttribute || '-',
-    width: 150
+    width: 130
   },
   {
-    headerValueGetter: () => t('access_log_fields') || '열람 필드',
+    headerValueGetter: () => t('access_log_fields'),
     field: 'formattedFieldLabels',
     valueGetter: params => params.data?.formattedFieldLabels || params.data?.fieldKeys || '-',
-    flex: 1
+    width: 180
   },
   {
-    headerValueGetter: () => t('access_log_reason') || '열람 사유',
+    headerValueGetter: () => t('access_log_reason'),
     field: 'accessReason',
     valueGetter: params => params.data?.accessReason || '-',
-    flex: 1
+    width: 220
   },
   {
-    headerValueGetter: () => t('access_log_ip') || 'IP 주소',
+    headerValueGetter: () => t('access_log_ip'),
     field: 'ipAddress',
     valueFormatter: params => {
       const val = params.value
@@ -905,7 +894,7 @@ const updateChart = async () => {
      
      chartOption.value.xAxis[0].data = sortedPaths
      chartOption.value.series[0].data = counts
-     chartOption.value.series[0].name = t('Access Count') || 'Access Count'
+     chartOption.value.series[0].name = t('Access Count')
   } catch (error) {
      console.error('Failed to update chart:', error)
   }
@@ -1029,7 +1018,7 @@ const updateLoginChart = async () => {
      
      loginChartOption.value.xAxis[0].data = sortedKeys
      loginChartOption.value.series[0].data = counts
-     loginChartOption.value.series[0].name = t('Login Count') || 'Login Count'
+     loginChartOption.value.series[0].name = t('Login Count')
   } catch (error) {
      console.error('Failed to update login chart:', error)
   }

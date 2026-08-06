@@ -1,40 +1,40 @@
 <template>
   <va-modal
     v-model="show"
-    :title="$t('async_export_title') || '대용량 마스터 데이터 비동기 내보내기'"
+    :title="$t('async_export_title')"
     hide-default-actions
   >
     <div style="padding: 0.5rem; display: flex; flex-direction: column; gap: 1.25rem;">
       <div v-if="!taskInfo" style="display: flex; flex-direction: column; gap: 1rem;">
         <p style="font-size: 0.9rem; color: var(--va-text-secondary); margin: 0;">
-          {{ $t('async_export_desc') || '선택한 도메인의 전체 마스터 데이터를 백그라운드 비동기 작업으로 Excel 파일로 내보냅니다.' }}
+          {{ $t('async_export_desc') }}
         </p>
         <va-button color="primary" icon="download" @click="startExport">
-          {{ $t('start_export') || '내보내기 시작' }}
+          {{ $t('start_export') }}
         </va-button>
       </div>
 
       <div v-else style="display: flex; flex-direction: column; gap: 1rem;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-weight: 600; font-size: 0.95rem;">{{ $t('export_progress') || '진행 상태' }}</span>
+          <span style="font-weight: 600; font-size: 0.95rem;">{{ $t('export_progress') }}</span>
           <va-badge :text="taskInfo.status" :color="taskInfo.status === 'COMPLETED' ? 'success' : 'primary'" />
         </div>
 
         <va-progress-bar :model-value="taskInfo.progressPercent" color="primary" animated />
 
         <div style="font-size: 0.85rem; color: var(--va-text-secondary); text-align: center;">
-          {{ taskInfo.processedCount.toLocaleString() }} / {{ taskInfo.totalCount.toLocaleString() }} {{ $t('records_count_suffix') || 'records' }} ({{ taskInfo.progressPercent }}%)
+          {{ taskInfo.processedCount.toLocaleString() }} / {{ taskInfo.totalCount.toLocaleString() }} {{ $t('records_count_suffix') }} ({{ taskInfo.progressPercent }}%)
         </div>
 
         <div v-if="taskInfo.status === 'COMPLETED'" style="margin-top: 0.5rem; text-align: center;">
           <va-button color="success" icon="file_download" :loading="downloading" @click="downloadFile">
-            {{ $t('download_file') || '완료된 파일 다운로드' }}
+            {{ $t('download_file') }}
           </va-button>
         </div>
       </div>
 
       <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
-        <va-button preset="secondary" @click="show = false">{{ $t('close') || '닫기' }}</va-button>
+        <va-button preset="secondary" @click="show = false">{{ $t('close') }}</va-button>
       </div>
     </div>
   </va-modal>

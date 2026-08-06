@@ -2,14 +2,14 @@
   <va-modal
     v-model="show"
     size="small"
-    :title="$t('unmask_reason_title') || '원본 보기 (마스킹 해제) 사유 입력'"
+    :title="$t('unmask_reason_title')"
     hide-default-actions
     @cancel="cancel"
     @click-outside="cancel"
   >
     <div style="padding: 0.5rem 0;">
       <p style="margin-bottom: 1rem; font-size: 0.9rem; color: var(--va-text-secondary);">
-        {{ $t('unmask_reason_desc') || '민감한 개인정보 원본을 열람하기 위해 접근 사유를 입력해 주세요. 입력된 사유는 감사 로그에 안전하게 기록됩니다.' }}
+        {{ $t('unmask_reason_desc') }}
       </p>
 
       <va-input
@@ -18,10 +18,10 @@
         style="width: 100%;"
         :min-rows="3"
         :autosize="true"
-        :label="$t('access_reason') || '접근 사유'"
-        :placeholder="$t('access_reason_placeholder') || '예: 업무 처리, 고객 요청 등'"
+        :label="$t('access_reason')"
+        :placeholder="$t('access_reason_placeholder')"
         required-mark
-        :rules="[(v) => !!v || ($t('access_reason_required') || '접근 사유를 입력해 주세요.')]"
+        :rules="[(v) => !!v || ($t('access_reason_required'))]"
         @keyup.enter="submit"
         autofocus
       />
@@ -30,10 +30,10 @@
     <template #footer>
       <div style="display: flex; justify-content: flex-end; gap: 0.5rem; width: 100%;">
         <va-button preset="secondary" border-color="secondary" @click="cancel">
-          {{ $t('cancel') || '취소' }}
+          {{ $t('cancel') }}
         </va-button>
         <va-button color="primary" @click="submit" :disabled="!reason.trim()">
-          {{ $t('vuestic.confirm') || '확인' }}
+          {{ $t('vuestic.confirm') }}
         </va-button>
       </div>
     </template>

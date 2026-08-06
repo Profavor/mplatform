@@ -1,7 +1,7 @@
 <template>
   <va-modal
     v-model="show"
-    :title="$t('data_lineage_title') || '마스터 데이터 생애주기 & 계보 (Data Lineage)'"
+    :title="$t('data_lineage_title')"
     size="large"
     hide-default-actions
   >
@@ -17,7 +17,7 @@
               {{ formattedRecordTitle }}
             </span>
             <span style="margin-left: 0.5rem; font-size: 0.85rem; color: var(--va-text-secondary);">
-              ({{ $t('total_nodes') || 'Total Lineage Nodes' }}: {{ lineageData.nodes.length }}{{ $t('node_count_suffix') }})
+              ({{ $t('total_nodes') }}: {{ lineageData.nodes.length }}{{ $t('node_count_suffix') }})
             </span>
           </div>
 
@@ -29,14 +29,14 @@
                 :class="['lineage-tab-btn', { active: viewMode === 'graph' }]"
                 @click="viewMode = 'graph'"
               >
-                <span>🕸️</span> {{ $t('visual_graph') || '비주얼 그래프' }}
+                <span>🕸️</span> {{ $t('visual_graph') }}
               </button>
               <button
                 type="button"
                 :class="['lineage-tab-btn', { active: viewMode === 'timeline' }]"
                 @click="viewMode = 'timeline'"
               >
-                <span>📜</span> {{ $t('timeline_list') || '타임라인 리스트' }}
+                <span>📜</span> {{ $t('timeline_list') }}
               </button>
             </div>
             <va-badge text="Data Governance Verified" color="success" size="small" />
@@ -45,18 +45,18 @@
 
         <!-- Node type descriptions guide for Graph View -->
         <va-alert v-if="viewMode === 'graph'" color="info" outline style="width: 100%; box-sizing: border-box; font-size: 0.82rem; line-height: 1.5; margin: 0;">
-          💡 <b>{{ $t('lineage_guide_title') || '데이터 계보(Data Lineage) 시각화 안내' }}</b><br/>
-          • {{ $t('lineage_guide_zoom') || '그래프 노드 줌/드래그: 마우스 휠로 확대/축소 및 노드 클릭 시 변경이력 상세 비교 가능' }}<br/>
-          • {{ $t('lineage_guide_flow') || '파이프라인 흐름: 소스 시스템(파랑) → 변경 이력(주황) → Golden Master Record(보라) → 외부 연계(초록)' }}
+          💡 <b>{{ $t('lineage_guide_title') }}</b><br/>
+          • {{ $t('lineage_guide_zoom') }}<br/>
+          • {{ $t('lineage_guide_flow') }}
         </va-alert>
 
         <!-- Node type descriptions guide for Timeline View -->
         <va-alert v-else-if="viewMode === 'timeline'" color="info" outline style="width: 100%; box-sizing: border-box; font-size: 0.82rem; line-height: 1.5; margin: 0;">
-          💡 <b>{{ $t('lineage_timeline_guide_title') || '데이터 계보(Data Lineage) 노드 구별 안내' }}</b><br/>
-          • {{ $t('lineage_node_source_desc') || '소스 시스템: 최초 데이터가 유입/생성된 원출처 시스템' }}<br/>
-          • {{ $t('lineage_node_history_desc') || '변경 이력: 최초 생성(Version 1)부터 정보 변경(Version 2...)까지의 시간순 이력 현황' }}<br/>
-          • {{ $t('lineage_node_master_desc') || '마스터 레코드: 여러 이력을 거쳐 최종 통합 관리되고 있는 최신 Golden Record' }}<br/>
-          • {{ $t('lineage_node_outbound_desc') || '외부 연계: 해당 마스터 레코드가 외부 타 시스템으로 전파된 연계 이력 현황' }}
+          💡 <b>{{ $t('lineage_timeline_guide_title') }}</b><br/>
+          • {{ $t('lineage_node_source_desc') }}<br/>
+          • {{ $t('lineage_node_history_desc') }}<br/>
+          • {{ $t('lineage_node_master_desc') }}<br/>
+          • {{ $t('lineage_node_outbound_desc') }}
         </va-alert>
 
         <!-- ECharts Visual Graph View -->
@@ -106,7 +106,7 @@
                   icon="compare_arrows"
                   @click="openNodeDiff(node)"
                 >
-                  {{ $t('compare_changes') || '변경 내역 비교' }}
+                  {{ $t('compare_changes') }}
                 </va-button>
                 <va-icon v-else name="account_tree" color="primary" />
               </div>
@@ -116,12 +116,12 @@
       </template>
 
       <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
-        <va-button preset="secondary" @click="show = false">{{ $t('close') || '닫기' }}</va-button>
+        <va-button preset="secondary" @click="show = false">{{ $t('close') }}</va-button>
       </div>
     </div>
 
     <!-- Node Diff Detail Modal (Tabular Diff View) -->
-    <va-modal v-model="showDiffModal" :title="$t('history_version_diff_detail') || '이력 버전 변경 항목 상세 비교'" size="large" hide-default-actions>
+    <va-modal v-model="showDiffModal" :title="$t('history_version_diff_detail')" size="large" hide-default-actions>
       <div style="padding: 0.5rem; max-height: 65vh; overflow-y: auto;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; background: var(--va-background-element); padding: 0.75rem 1rem; border-radius: 8px;">
           <div>
@@ -129,7 +129,7 @@
               {{ selectedNode?.label }}
             </h4>
             <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
-              {{ $t('changed_by') || '작성자/변경자' }}: <b>{{ selectedNode?.details?.changedBy || 'System Admin' }}</b> | {{ $t('date_time') || '일시' }}: {{ formatDate(selectedNode?.timestamp) }}
+              {{ $t('changed_by') }}: <b>{{ selectedNode?.details?.changedBy || 'System Admin' }}</b> | {{ $t('date_time') }}: {{ formatDate(selectedNode?.timestamp) }}
             </span>
           </div>
           <va-badge text="Diff Table" color="info" />
@@ -139,15 +139,15 @@
         <table style="width: 100%; border-collapse: collapse; font-size: 0.88rem; text-align: left;">
           <thead>
             <tr style="background: var(--va-background-element); border-bottom: 2px solid var(--va-background-border);">
-              <th style="padding: 0.6rem 0.8rem; width: 30%;">{{ $t('field_name') || '속성 / 필드명' }}</th>
-              <th style="padding: 0.6rem 0.8rem; width: 35%; color: var(--va-danger);">{{ $t('before_change') || '변경 전 (Previous Value)' }}</th>
-              <th style="padding: 0.6rem 0.8rem; width: 35%; color: var(--va-success);">{{ $t('after_change') || '변경 후 (New Value)' }}</th>
+              <th style="padding: 0.6rem 0.8rem; width: 30%;">{{ $t('field_name') }}</th>
+              <th style="padding: 0.6rem 0.8rem; width: 35%; color: var(--va-danger);">{{ $t('before_change') }}</th>
+              <th style="padding: 0.6rem 0.8rem; width: 35%; color: var(--va-success);">{{ $t('after_change') }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="diffRows.length === 0">
               <td colspan="3" style="text-align: center; padding: 2rem; color: var(--va-text-secondary);">
-                {{ $t('no_diff_or_initial_version') || '변경 사항이 없거나 최초 생성 버전입니다.' }}
+                {{ $t('no_diff_or_initial_version') }}
               </td>
             </tr>
             <tr v-for="row in diffRows" :key="row.key" style="border-bottom: 1px solid var(--va-background-border);">
@@ -172,13 +172,13 @@
                       <va-icon name="lock" size="small" />
                       <template v-if="!decryptedValues[row.key]">
                         <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary); font-weight:normal;" @click.stop="requestDecrypt(row.key)">
-                          {{ $t('view_original') || '원본 보기' }}
+                          {{ $t('view_original') }}
                         </span>
                         <va-icon v-if="decryptingFields[row.key]" name="sync" size="small" spin />
                       </template>
                       <template v-else>
                         <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary); font-weight:normal;" @click.stop="hideDecrypt(row.key)">
-                          {{ $t('hide_original') || '원본 숨기기' }}
+                          {{ $t('hide_original') }}
                         </span>
                         <span v-if="decryptRemainingTime[row.key]" style="margin-left:4px; font-variant-numeric: tabular-nums;">
                           (00:{{ String(decryptRemainingTime[row.key]).padStart(2, '0') }})
@@ -635,9 +635,9 @@ const hasSimpleDetails = (details: any) => {
 
 const getDetailLabel = (key: string) => {
   switch (key) {
-    case 'changedBy': return t('changed_by') || '작성자/변경자'
-    case 'version': return t('version') || '버전'
-    case 'status': return t('status') || '상태'
+    case 'changedBy': return t('changed_by')
+    case 'version': return t('version')
+    case 'status': return t('status')
     default: return getFieldLabel(key)
   }
 }
@@ -658,7 +658,7 @@ const parseJsonIfNeeded = (val: any) => {
 }
 
 const formatDisplayValue = (val: any): string => {
-  if (val === undefined || val === null || val === '') return t('none') || '(없음)'
+  if (val === undefined || val === null || val === '') return t('none')
   if (typeof val === 'object') {
     if (val.ko || val.en) {
       return val.ko ? `${val.ko} (${val.en || ''})` : val.en

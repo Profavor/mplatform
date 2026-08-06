@@ -3,13 +3,13 @@
     v-model="show"
     size="large"
     hide-default-actions
-    :title="`📊 ${$t('excel_viewer_title') || '메신저 엑셀 전용 뷰어'} - ${fileName}`"
+    :title="`📊 ${$t('excel_viewer_title')} - ${fileName}`"
   >
     <div style="padding: 0.5rem; display: flex; flex-direction: column; gap: 1rem; max-height: 75vh; min-height: 480px; width: 100%;">
       <!-- Loading State -->
       <div v-if="loading" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem; gap: 1rem;">
         <va-progress-circle indeterminate size="large" />
-        <span style="font-size: 0.9rem; color: var(--va-text-secondary);">{{ $t('excel_loading') || '엑셀 워크시트 데이터를 로딩 및 파싱 중입니다...' }}</span>
+        <span style="font-size: 0.9rem; color: var(--va-text-secondary);">{{ $t('excel_loading') }}</span>
       </div>
 
       <template v-else>
@@ -43,7 +43,7 @@
                 preset="secondary"
                 @click="copySelectedCell"
               >
-                {{ $t('copy_cell') || '셀 복사' }}
+                {{ $t('copy_cell') }}
               </va-button>
             </div>
 
@@ -51,7 +51,7 @@
             <va-input
               v-model="searchQuery"
               class="excel-search-input"
-              :placeholder="$t('search_in_table') || '시트 내 데이터 검색...'"
+              :placeholder="$t('search_in_table')"
               size="small"
               clearable
               style="width: 180px;"
@@ -110,7 +110,7 @@
 
               <tr v-if="filteredRows.length === 0">
                 <td :colspan="currentHeaders.length + 1" style="text-align: center; padding: 3rem; color: var(--va-text-secondary);">
-                  {{ $t('no_excel_data') || '표시할 엑셀 셀 데이터가 없습니다.' }}
+                  {{ $t('no_excel_data') }}
                 </td>
               </tr>
             </tbody>
@@ -120,7 +120,7 @@
         <!-- Footer / Copy Toast Status & Export Toolbar -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
           <div style="font-size: 0.8rem; color: var(--va-text-secondary); display: flex; align-items: center; gap: 0.5rem;">
-            <span>💡 {{ $t('excel_copy_tip') || '셀 클릭/더블클릭 복사 또는 우측 버튼으로 [엑셀 데이터 표] 형태 그대로 클립보드에 복사하여 활용할 수 있습니다.' }}</span>
+            <span>💡 {{ $t('excel_copy_tip') }}</span>
             <va-badge v-if="copyToast" color="success" size="small">{{ copyToastMessage }}</va-badge>
           </div>
 
@@ -132,7 +132,7 @@
               icon="content_copy"
               @click="copyTableAsTSV"
             >
-              {{ $t('copy_as_excel_text') || '📋 엑셀 텍스트(표)로 복사' }}
+              {{ $t('copy_as_excel_text') }}
             </va-button>
             <va-button
               size="small"
@@ -141,7 +141,7 @@
               icon="table_rows"
               @click="copyTableAsMarkdown"
             >
-              {{ $t('copy_as_markdown') || '📝 마크다운 표로 복사' }}
+              {{ $t('copy_as_markdown') }}
             </va-button>
           </div>
         </div>
@@ -152,7 +152,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 
 const props = defineProps<{
@@ -327,17 +327,38 @@ const loadAndParseExcel = async () => {
     })
 
     const arrayBuffer = await blob.arrayBuffer()
-    const wb = XLSX.read(arrayBuffer, { type: 'array' })
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(arrayBuffer)
 
-    sheetNames.value = wb.SheetNames
+    const names: string[] = []
     const wbMap: Record<string, any[]> = {}
 
-    wb.SheetNames.forEach(sName => {
-      const sheet = wb.Sheets[sName]
-      const json = XLSX.utils.sheet_to_json(sheet, { defval: '' })
-      wbMap[sName] = json as any[]
+    wb.worksheets.forEach(sheet => {
+      const sName = sheet.name
+      names.push(sName)
+
+      const json: any[] = []
+      const headers: string[] = []
+      const firstRow = sheet.getRow(1)
+      firstRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+        headers[colNumber] = cell.value ? String(cell.value) : `Column ${colNumber}`
+      })
+
+      for (let i = 2; i <= sheet.rowCount; i++) {
+        const row = sheet.getRow(i)
+        if (!row.hasValues) continue
+        const rowObj: Record<string, any> = {}
+        headers.forEach((headerName, colIdx) => {
+          if (!headerName) return
+          const cellVal = row.getCell(colIdx).value
+          rowObj[headerName] = cellVal !== null && cellVal !== undefined ? cellVal : ''
+        })
+        json.push(rowObj)
+      }
+      wbMap[sName] = json
     })
 
+    sheetNames.value = names
     workbookData.value = wbMap
     activeSheetIndex.value = 0
   } catch (e) {

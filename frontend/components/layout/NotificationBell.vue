@@ -144,10 +144,10 @@
         <div v-if="activeRequest" style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding-right: 2.5rem;">
           <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
             <va-icon :name="isPendingAssignee ? 'rate_review' : 'verified_user'" color="primary" />
-            {{ isPendingAssignee ? ($t('approval_review') || '결재 요청 심사 및 내역') : ($t('details') || '결재 상세 내역') }}
+            {{ isPendingAssignee ? ($t('approval_review')) : ($t('details')) }}
           </h3>
           <div v-if="activeRequest.requesterName || activeRequest.requesterUsername || activeRequest.requesterId" style="font-size: 0.85rem; color: var(--va-text-secondary);">
-            {{ $t('label_drafter') || '기안자' }}: {{ activeRequest.requesterName || activeRequest.requesterUsername || activeRequest.requesterId }}
+            {{ $t('label_drafter') }}: {{ activeRequest.requesterName || activeRequest.requesterUsername || activeRequest.requesterId }}
           </div>
         </div>
       </template>

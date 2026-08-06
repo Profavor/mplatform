@@ -49,7 +49,7 @@
                   :icon="expandedRowId === (row.id || index) ? 'expand_less' : 'expand_more'"
                   @click="toggleRow(row.id || index)"
                 >
-                  {{ expandedRowId === (row.id || index) ? ($t('vuestic.close') || '닫기') : ($t('schema_history.view_changes') || '변경 사항 보기') }}
+                  {{ expandedRowId === (row.id || index) ? ($t('vuestic.close')) : ($t('schema_history.view_changes')) }}
                 </va-button>
               </td>
             </tr>
@@ -62,8 +62,8 @@
                     <thead>
                       <tr style="background: rgba(0, 0, 0, 0.04); border-bottom: 1px solid var(--va-background-border); text-align: left;">
                         <th style="padding: 0.5rem 0.85rem; font-weight: 700; width: 160px; color: var(--va-text-secondary);">속성 / 항목</th>
-                        <th v-if="row.action === 'UPDATE' || row.action === 'DELETE'" style="padding: 0.5rem 0.85rem; font-weight: 700; color: #dc2626; width: 40%;">{{ $t('schema_history.before') || '변경 전' }}</th>
-                        <th v-if="row.action === 'UPDATE' || row.action === 'CREATE'" style="padding: 0.5rem 0.85rem; font-weight: 700; color: #16a34a; width: 40%;">{{ $t('schema_history.after') || '변경 후' }}</th>
+                        <th v-if="row.action === 'UPDATE' || row.action === 'DELETE'" style="padding: 0.5rem 0.85rem; font-weight: 700; color: #dc2626; width: 40%;">{{ $t('schema_history.before') }}</th>
+                        <th v-if="row.action === 'UPDATE' || row.action === 'CREATE'" style="padding: 0.5rem 0.85rem; font-weight: 700; color: #16a34a; width: 40%;">{{ $t('schema_history.after') }}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -184,7 +184,7 @@ const parseSnapshot = (raw: any): Record<string, any> => {
 
 const formatDisplayValue = (val: any): string => {
   if (val === null || val === undefined || val === '') return '-'
-  if (typeof val === 'boolean') return val ? (t('schema_prop_true') || 'True') : (t('schema_prop_false') || 'False')
+  if (typeof val === 'boolean') return val ? (t('schema_prop_true')) : (t('schema_prop_false'))
 
   // Handle Array (e.g. children nodes or options list)
   if (Array.isArray(val)) {
@@ -208,7 +208,7 @@ const formatDisplayValue = (val: any): string => {
       }
       return String(item)
     }).filter(Boolean)
-    return names.length > 0 ? names.join(', ') : `${val.length}${t('items_count') || ' items'}`
+    return names.length > 0 ? names.join(', ') : `${val.length}${t('items_count')}`
   }
 
   // Handle Object (e.g. multilingual name {"ko": "...", "en": "..."})

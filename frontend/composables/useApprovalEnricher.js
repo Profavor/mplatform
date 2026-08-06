@@ -180,13 +180,13 @@ export const useApprovalEnricher = () => {
               let newVal = recordData[key]
               if (typeof oldVal === 'object' && oldVal !== null) oldVal = getTranslatedName(oldVal)
               if (typeof newVal === 'object' && newVal !== null) newVal = getTranslatedName(newVal)
-              const noneLabel = t('none') || 'None'
+              const noneLabel = t('none')
               parts.push(`${fName}: ${oldVal || noneLabel} -> ${newVal || noneLabel}`)
             }
           }
           enriched.summary = parts.join(', ')
         } else if (req.targetType === 'RECORD_DELETE') {
-          enriched.summary = t('record_delete') || 'Data Delete'
+          enriched.summary = t('record_delete')
         }
 
         // Fallback: If ID or Name is still empty, infer from record data keys (Summary Data)
@@ -229,12 +229,12 @@ export const useApprovalEnricher = () => {
   }
 
   const getRequesterName = (req) => {
-    if (!req) return t('unknown') || 'Unknown';
+    if (!req) return t('unknown');
     return userStore.getUserName(req.requesterId, req.requesterName || req.requesterUsername);
   }
 
   const getClassificationName = (node, field) => {
-    const unclassified = t('unclassified') || 'Unclassified'
+    const unclassified = t('unclassified')
     if (!node || !node[field]) return unclassified;
     const nameObj = node[field];
     if (typeof nameObj === 'string') return nameObj;
@@ -242,7 +242,7 @@ export const useApprovalEnricher = () => {
   }
 
   const getRequestTypeLabel = (type) => {
-    if (!type) return t('other_request') || 'Other Request';
+    if (!type) return t('other_request');
     const i18nKey = `target_type_${type}`;
     const translated = t(i18nKey);
     if (translated && translated !== i18nKey) return translated;
@@ -250,11 +250,11 @@ export const useApprovalEnricher = () => {
     const codeName = codeStore.getCodeName('TARGET_TYPE', type, null)
     if (codeName && codeName !== type) return codeName
 
-    if (type === 'RECORD_CREATE') return t('record_create') || 'New Record';
-    if (type === 'RECORD_UPDATE') return t('record_update') || 'Data Update';
-    if (type === 'RECORD_DELETE') return t('record_delete') || 'Data Delete';
-    if (type === 'DOMAIN_RECORD_CREATE') return t('domain_record_create') || 'Domain Record Create';
-    return type || t('other_request') || 'Other Request';
+    if (type === 'RECORD_CREATE') return t('record_create');
+    if (type === 'RECORD_UPDATE') return t('record_update');
+    if (type === 'RECORD_DELETE') return t('record_delete');
+    if (type === 'DOMAIN_RECORD_CREATE') return t('domain_record_create');
+    return type || t('other_request');
   }
 
   const getRequestTypeColor = (type) => {

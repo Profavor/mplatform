@@ -10,7 +10,7 @@
             <va-badge text="Overview" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
-            {{ t('dashboard_subtitle') || '마스터 데이터 거버넌스 종합 현황, 품질 진단 지표 및 핵심 연계 상태를 관제합니다.' }}
+            {{ t('dashboard_subtitle') }}
           </span>
         </div>
       </div>

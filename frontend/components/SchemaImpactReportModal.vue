@@ -1,7 +1,7 @@
 <template>
   <va-modal
     v-model="show"
-    :title="isSubmitMode ? ($t('impact_check_title') || '변경 사전 영향도 검토') : ($t('schema_impact_title') || '스키마 변경 영향도 사전 분석 보고서')"
+    :title="isSubmitMode ? ($t('impact_check_title')) : ($t('schema_impact_title'))"
     size="large"
     hide-default-actions
   >
@@ -15,7 +15,7 @@
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem;">
           <div style="background: var(--va-background-element); padding: 0.85rem; border-radius: 8px; border-left: 4px solid var(--va-primary);">
             <div style="font-size: 0.75rem; color: var(--va-text-secondary); text-transform: uppercase; font-weight: 600;">
-              {{ $t('risk_level') || '위험도 등급' }}
+              {{ $t('risk_level') }}
             </div>
             <div style="font-weight: 700; font-size: 1.15rem; margin-top: 0.25rem;">
               <va-badge :text="reportData.riskLevel" :color="getRiskColor(reportData.riskLevel)" size="large" />
@@ -24,7 +24,7 @@
 
           <div style="background: var(--va-background-element); padding: 0.85rem; border-radius: 8px; border-left: 4px solid #2c82e0;">
             <div style="font-size: 0.75rem; color: var(--va-text-secondary); text-transform: uppercase; font-weight: 600;">
-              {{ $t('affected_records') || '영향 받는 레코드' }}
+              {{ $t('affected_records') }}
             </div>
             <div style="font-weight: 700; font-size: 1.15rem; color: var(--va-primary); margin-top: 0.25rem;">
               {{ (reportData.totalAffectedRecords || 0).toLocaleString() }} 건
@@ -33,7 +33,7 @@
 
           <div style="background: var(--va-background-element); padding: 0.85rem; border-radius: 8px; border-left: 4px solid #e6a23c;">
             <div style="font-size: 0.75rem; color: var(--va-text-secondary); text-transform: uppercase; font-weight: 600;">
-              {{ $t('expected_dq_violations') || '예상 DQ 위반' }}
+              {{ $t('expected_dq_violations') }}
             </div>
             <div style="font-weight: 700; font-size: 1.15rem; color: #e6a23c; margin-top: 0.25rem;">
               {{ (reportData.expectedDqViolations || 0).toLocaleString() }} 건
@@ -42,7 +42,7 @@
 
           <div style="background: var(--va-background-element); padding: 0.85rem; border-radius: 8px; border-left: 4px solid #8e44ad;">
             <div style="font-size: 0.75rem; color: var(--va-text-secondary); text-transform: uppercase; font-weight: 600;">
-              {{ $t('affected_target_field') || '대상 속성 필드' }}
+              {{ $t('affected_target_field') }}
             </div>
             <div style="font-weight: 700; font-size: 0.95rem; margin-top: 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
               {{ reportData.affectedFieldName || targetFieldName || '사번 (Employee ID)' }}
@@ -52,7 +52,7 @@
 
         <!-- Impact Summary Callout -->
         <div v-if="computedImpactSummary" style="background: rgba(44, 130, 224, 0.08); border-left: 4px solid #2c82e0; padding: 0.85rem 1rem; border-radius: 6px; font-size: 0.88rem; line-height: 1.5; color: var(--va-text-primary);">
-          <strong>💡 {{ $t('schema_impact_summary') || '영향 요약' }}:</strong> {{ computedImpactSummary }}
+          <strong>💡 {{ $t('schema_impact_summary') }}:</strong> {{ computedImpactSummary }}
         </div>
 
         <!-- Warning or Safety notice list -->
@@ -64,7 +64,7 @@
                padding: '0.85rem 1rem'
              }">
           <div :style="{ fontWeight: '700', marginBottom: '0.4rem', fontSize: '0.95rem', color: reportData?.riskLevel === 'LOW' ? '#198754' : '#d97706' }">
-            {{ reportData?.riskLevel === 'LOW' ? '✅ ' + ($t('impact_safety_notice') || '검토 사항') : '⚠️ ' + ($t('impact_warnings') || '경고 및 주의사항') }}
+            {{ reportData?.riskLevel === 'LOW' ? '✅ ' + ($t('impact_safety_notice')) : '⚠️ ' + ($t('impact_warnings')) }}
           </div>
           <ul style="margin: 0; padding-left: 1.25rem; font-size: 0.88rem; line-height: 1.5; color: var(--va-text-primary);">
             <li v-for="(warn, idx) in computedWarnings" :key="idx" style="margin-bottom: 0.25rem;">
@@ -76,7 +76,7 @@
         <!-- Affected Sample Records Breakdown Table -->
         <div v-if="reportData.sampleAffectedRecords && reportData.sampleAffectedRecords.length > 0" style="display: flex; flex-direction: column; gap: 0.5rem;">
           <div style="font-weight: 600; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center;">
-            <span>📋 {{ $t('affected_records_breakdown') || '영향 받는 실데이터 샘플 목록 (Breakdown)' }}</span>
+            <span>📋 {{ $t('affected_records_breakdown') }}</span>
             <span style="font-size: 0.75rem; color: var(--va-text-secondary);">Top {{ reportData.sampleAffectedRecords.length }} 건 표출</span>
           </div>
 
@@ -108,7 +108,7 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
           <div>
             <div style="font-weight: 600; font-size: 0.85rem; margin-bottom: 0.4rem;">
-              🔗 {{ $t('affected_channels') || '영향 받는 연동 채널' }}
+              🔗 {{ $t('affected_channels') }}
             </div>
             <div v-if="reportData.affectedIntegrationChannels && reportData.affectedIntegrationChannels.length > 0" style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
               <va-chip v-for="ch in reportData.affectedIntegrationChannels" :key="ch" color="info" outline size="small">
@@ -116,13 +116,13 @@
               </va-chip>
             </div>
             <div v-else style="font-size: 0.8rem; color: var(--va-text-secondary); font-style: italic;">
-              {{ $t('no_affected_channels') || '연결된 활성 연동 채널 없음' }}
+              {{ $t('no_affected_channels') }}
             </div>
           </div>
 
           <div>
             <div style="font-weight: 600; font-size: 0.85rem; margin-bottom: 0.4rem;">
-              🛡️ {{ $t('affected_dq_rules') || '연관 품질(DQ) 검칙' }}
+              🛡️ {{ $t('affected_dq_rules') }}
             </div>
             <div v-if="reportData.affectedDqRules && reportData.affectedDqRules.length > 0" style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
               <va-chip v-for="rule in reportData.affectedDqRules" :key="rule" color="warning" outline size="small">
@@ -130,7 +130,7 @@
               </va-chip>
             </div>
             <div v-else style="font-size: 0.8rem; color: var(--va-text-secondary); font-style: italic;">
-              {{ $t('no_affected_dq_rules') || '연결된 DQ 검칙 없음' }}
+              {{ $t('no_affected_dq_rules') }}
             </div>
           </div>
         </div>
@@ -139,26 +139,26 @@
       <!-- Bottom Action Buttons -->
       <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem; border-top: 1px solid var(--va-background-border); padding-top: 1rem;">
         <div style="font-size: 0.8rem; color: var(--va-text-secondary); text-align: right;">
-          ℹ️ {{ isSubmitMode ? '위의 변경 영향도를 확인하였습니다. 버튼을 누르면 결재 요청이 전송됩니다.' : ($t('confirm_risk_desc') || '위험도 및 경고 사항을 모두 확인하였으며, 스키마 변경을 최종 승인 및 적용합니다.') }}
+          ℹ️ {{ isSubmitMode ? '위의 변경 영향도를 확인하였습니다. 버튼을 누르면 결재 요청이 전송됩니다.' : ($t('confirm_risk_desc')) }}
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
-          <va-button preset="secondary" @click="show = false">{{ $t('cancel') || '취소' }}</va-button>
+          <va-button preset="secondary" @click="show = false">{{ $t('cancel') }}</va-button>
           
           <template v-if="isSubmitMode">
             <va-button v-if="reportData?.riskLevel === 'LOW'" color="success" icon="check_circle" @click="confirmSubmit">
-              {{ $t('confirm_safety_submit') || '안전 확인 및 결재 상신' }}
+              {{ $t('confirm_safety_submit') }}
             </va-button>
             <va-button v-else color="primary" icon="send" @click="confirmSubmit">
-              {{ $t('confirm_and_submit') || '영향도 확인 및 결재 상신' }}
+              {{ $t('confirm_and_submit') }}
             </va-button>
           </template>
 
           <template v-else>
             <va-button v-if="reportData?.riskLevel === 'LOW'" color="success" icon="check_circle" @click="confirmChange">
-              {{ $t('confirm_safety_apply') || '안전 확인 및 변경 사항 적용' }}
+              {{ $t('confirm_safety_apply') }}
             </va-button>
             <va-button v-else color="danger" icon="warning" @click="confirmChange">
-              {{ $t('confirm_risk_apply') || '경고 확인 및 변경 사항 최종 적용' }}
+              {{ $t('confirm_risk_apply') }}
             </va-button>
           </template>
         </div>

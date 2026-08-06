@@ -30,21 +30,28 @@ public class FieldEncryptionService {
         if (secretKey == null || secretKey.isBlank() || secretKey.startsWith("${")) {
             secretKey = System.getenv("ENCRYPTION_SECRET_KEY");
         }
-        if (secretKey == null || secretKey.isBlank()) {
-            secretKey = System.getProperty("user.dir", "app-dir") + System.getProperty("user.name", "app-user");
+        if (secretKey == null || secretKey.isBlank() || secretKey.startsWith("${")) {
+            throw new IllegalArgumentException("Encryption secret key must be provided via 'security.encryption.secret-key' or ENCRYPTION_SECRET_KEY environment variable.");
         }
-        byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
-        if (keyBytes.length < 32) {
-            byte[] padded = new byte[32];
-            System.arraycopy(keyBytes, 0, padded, 0, keyBytes.length);
-            keyBytes = padded;
-        } else if (keyBytes.length > 32) {
-            byte[] truncated = new byte[32];
-            System.arraycopy(keyBytes, 0, truncated, 0, 32);
-            keyBytes = truncated;
+        try {
+            byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
+            if (keyBytes.length < 32) {
+                byte[] padded = new byte[32];
+                System.arraycopy(keyBytes, 0, padded, 0, keyBytes.length);
+                keyBytes = padded;
+            } else if (keyBytes.length > 32) {
+                byte[] truncated = new byte[32];
+                System.arraycopy(keyBytes, 0, truncated, 0, 32);
+                keyBytes = truncated;
+            }
+            this.aesKey = new SecretKeySpec(keyBytes, "AES");
+
+            java.security.MessageDigest sha256 = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hmacKeyBytes = sha256.digest(("HMAC-BLIND-INDEX-KEY:" + secretKey).getBytes(StandardCharsets.UTF_8));
+            this.hmacKey = new SecretKeySpec(hmacKeyBytes, HMAC_ALGORITHM);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to initialize encryption keys", e);
         }
-        this.aesKey = new SecretKeySpec(keyBytes, "AES");
-        this.hmacKey = new SecretKeySpec(keyBytes, HMAC_ALGORITHM);
     }
 
     public String encrypt(String plainText) {

@@ -10,21 +10,21 @@
             <va-badge text="System" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
-            {{ $t('menu_management_desc') || '시스템 전체 트리 메뉴 구조 및 권한별 접근 노드를 관리합니다.' }}
+            {{ $t('menu_management_desc') }}
           </span>
         </div>
       </div>
 
       <div style="display: flex; gap: 0.75rem; align-items: center;">
         <va-button v-if="hasPermission('admin:write')" preset="primary" color="warning" icon="sync" size="small" @click="syncMenuSeed">
-          {{ $t('sync_menu_seed') || '시드(Seed) 파일로부터 동기화' }}
+          {{ $t('sync_menu_seed') }}
         </va-button>
         <va-button v-if="hasPermission('admin:write')" preset="primary" color="primary" icon="save_alt" size="small" @click="dumpMenuSeed">
-          {{ $t('backup_menu_seed') || '기본 시드(Seed) 파일로 현재 상태 백업' }}
+          {{ $t('backup_menu_seed') }}
         </va-button>
-        <va-button icon="add" size="small" @click="openAddModal(null)">{{ $t('add_root_menu') || '+ 루트 메뉴 추가' }}</va-button>
+        <va-button icon="add" size="small" @click="openAddModal(null)">{{ $t('add_root_menu') }}</va-button>
         <va-button preset="outline" color="primary" icon="refresh" size="small" @click="fetchMenus">
-          {{ $t('refresh') || '새로고침' }}
+          {{ $t('refresh') }}
         </va-button>
       </div>
     </div>
@@ -39,7 +39,7 @@
                 <div class="d-flex justify-space-between align-center w-100" style="padding: 0.25rem 0; cursor: pointer;" @click="onNodeSelected(node)">
                   <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <span style="font-weight: 600;" :style="{ opacity: node.raw?.isActive === false ? 0.5 : 1 }">{{ node.label }}</span>
-                    <va-badge v-if="node.raw?.isActive === false" :text="$t('inactive_badge') || '비활성'" color="warning" size="small" />
+                    <va-badge v-if="node.raw?.isActive === false" :text="$t('inactive_badge')" color="warning" size="small" />
                   </div>
                   <div>
                     <va-button preset="plain" icon="add" size="small" @click.stop="openAddModal(node.id)" />
@@ -53,35 +53,35 @@
           <!-- Edit Form -->
           <div style="flex: 2;">
             <div v-if="selectedMenu" class="edit-form">
-              <h3 class="mb-4">{{ $t('edit_menu') || '메뉴 정보 수정' }}</h3>
+              <h3 class="mb-4">{{ $t('edit_menu') }}</h3>
               
               <!-- Multilingual Name Input Component -->
               <MultilingualInput
                 v-model:ko="selectedMenuNameKo"
                 v-model:en="selectedMenuNameEn"
-                :label="`${$t('name') || '메뉴 표시명'}`"
+                :label="`${$t('name')}`"
                 required
               />
 
-              <va-input v-model="selectedMenu.path" :label="$t('path') || 'Path (경로)'" class="mb-4 w-100" />
+              <va-input v-model="selectedMenu.path" :label="$t('path')" class="mb-4 w-100" />
               
               <div class="mb-4">
-                <label style="font-size: 0.8rem; color: var(--va-text-primary); margin-bottom: 0.5rem; display: block;">{{ $t('menu_icon') || 'Menu Icon (아이콘)' }}</label>
+                <label style="font-size: 0.8rem; color: var(--va-text-primary); margin-bottom: 0.5rem; display: block;">{{ $t('menu_icon') }}</label>
                 <div class="d-flex align-center" style="gap: 1rem;">
                   <va-icon :name="selectedMenu.icon || 'help_outline'" size="large" color="primary" />
-                  <va-button preset="secondary" border-color="primary" @click="openIconPicker('edit')">{{ $t('select_icon') || 'Select Icon' }}</va-button>
+                  <va-button preset="secondary" border-color="primary" @click="openIconPicker('edit')">{{ $t('select_icon') }}</va-button>
                 </div>
               </div>
 
               <!-- Active Status Switch -->
               <div class="mb-4">
-                <va-switch v-model="selectedMenu.isActive" :label="$t('is_active_label') || $t('is_active') || '사용 여부 (Active)'" color="success" />
+                <va-switch v-model="selectedMenu.isActive" :label="$t('is_active_label') || $t('is_active')" color="success" />
               </div>
               
               <div class="mb-4 w-100">
                 <UserRoleSelect
                   v-model="selectedMenuRoles"
-                  :label="$t('required_roles') || 'Required Roles (Multiple)'"
+                  :label="$t('required_roles')"
                   class="w-100"
                   multiple
                   clearable
@@ -95,12 +95,12 @@
               </div>
               
               <div class="d-flex justify-end mt-4">
-                <va-button @click="saveMenu">{{ $t('save_changes') || 'Save Changes' }}</va-button>
+                <va-button @click="saveMenu">{{ $t('save_changes') }}</va-button>
               </div>
             </div>
             <div v-else class="text-center mt-5" style="color: var(--va-secondary); padding: 3rem 0;">
               <va-icon name="info" size="large" color="secondary" class="mb-2" />
-              <div>{{ $t('select_menu_prompt') || '좌측 트리에서 수정할 메뉴를 선택하세요.' }}</div>
+              <div>{{ $t('select_menu_prompt') }}</div>
             </div>
           </div>
         </div>
@@ -108,37 +108,37 @@
     </va-card>
 
     <!-- Add Modal -->
-    <va-modal v-model="showAddModal" :title="$t('add_menu') || '신규 메뉴 등록'" :ok-text="$t('save') || '등록'" @ok="addMenu">
+    <va-modal v-model="showAddModal" :title="$t('add_menu')" :ok-text="$t('save')" @ok="addMenu">
       <!-- Multilingual Name Input Component -->
       <MultilingualInput
         v-model:ko="newMenuNameKo"
         v-model:en="newMenuNameEn"
-        :label="`${$t('name') || '메뉴 표시명'}`"
+        :label="`${$t('name')}`"
         required
       />
 
-      <va-input v-model="newMenu.path" :label="$t('path') || 'Path (경로)'" class="mb-4 w-100" />
+      <va-input v-model="newMenu.path" :label="$t('path')" class="mb-4 w-100" />
       
       <div class="mb-4">
-        <label style="font-size: 0.8rem; color: var(--va-text-primary); margin-bottom: 0.5rem; display: block;">{{ $t('menu_icon') || 'Menu Icon (아이콘)' }}</label>
+        <label style="font-size: 0.8rem; color: var(--va-text-primary); margin-bottom: 0.5rem; display: block;">{{ $t('menu_icon') }}</label>
         <div class="d-flex align-center" style="gap: 1rem;">
           <va-icon :name="newMenu.icon || 'help_outline'" size="large" color="primary" />
-          <va-button preset="secondary" border-color="primary" @click="openIconPicker('add')">{{ $t('select_icon') || 'Select Icon' }}</va-button>
+          <va-button preset="secondary" border-color="primary" @click="openIconPicker('add')">{{ $t('select_icon') }}</va-button>
         </div>
       </div>
       
-      <va-input v-model="newMenu.sortOrder" :label="$t('sort_order') || 'Sort Order (정렬 순서)'" type="number" class="mb-4 w-100" />
+      <va-input v-model="newMenu.sortOrder" :label="$t('sort_order')" type="number" class="mb-4 w-100" />
       
       <!-- Active Status Switch in Modal -->
       <div class="mb-4">
-        <va-switch v-model="newMenu.isActive" :label="$t('is_active_label') || $t('is_active') || '사용 여부 (Active)'" color="success" />
+        <va-switch v-model="newMenu.isActive" :label="$t('is_active_label') || $t('is_active')" color="success" />
       </div>
 
-      <UserRoleSelect v-model="newMenuRoles" :label="$t('required_roles') || 'Required Roles (Multiple)'" class="mb-4 w-100" multiple clearable include-role-prefix />
+      <UserRoleSelect v-model="newMenuRoles" :label="$t('required_roles')" class="mb-4 w-100" multiple clearable include-role-prefix />
     </va-modal>
 
     <!-- Icon Picker Modal -->
-    <va-modal v-model="showIconPickerModal" :title="$t('select_icon') || '아이콘 선택'" hide-default-actions>
+    <va-modal v-model="showIconPickerModal" :title="$t('select_icon')" hide-default-actions>
       <IconPicker v-model="tempIcon" />
       <div class="d-flex justify-end mt-4" style="gap: 1rem;">
         <va-button preset="plain" color="secondary" @click="showIconPickerModal = false">Cancel</va-button>
@@ -345,7 +345,7 @@ const addMenu = async () => {
       headers: token.value ? { Authorization: `Bearer ${token.value}` } : {},
       body: payload
     })
-    init({ message: t('creation_success') || 'Menu added successfully', color: 'success' })
+    init({ message: t('creation_success'), color: 'success' })
     await refreshMenus()
     await loadAdminMenus()
   } catch (error) {
@@ -368,7 +368,7 @@ const saveMenu = async () => {
       headers: token.value ? { Authorization: `Bearer ${token.value}` } : {},
       body: payload
     })
-    init({ message: t('update_success') || 'Menu updated successfully', color: 'success' })
+    init({ message: t('update_success'), color: 'success' })
     await refreshMenus()
     await loadAdminMenus()
     
@@ -384,7 +384,7 @@ const deleteMenu = async (id) => {
       method: 'DELETE',
       headers: token.value ? { Authorization: `Bearer ${token.value}` } : {}
     })
-    init({ message: t('delete_success') || 'Menu deleted successfully', color: 'success' })
+    init({ message: t('delete_success'), color: 'success' })
     if (selectedMenu.value && selectedMenu.value.id === id) {
       selectedMenu.value = null
     }

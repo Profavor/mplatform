@@ -97,7 +97,7 @@
 
         <div v-if="!departments || departments.length === 0" style="padding: 2.5rem; text-align: center; color: #777; background: var(--va-background-secondary); border-radius: 8px; border: 1px solid var(--va-background-border);">
           <va-icon name="account_tree" size="large" color="secondary" style="margin-bottom: 0.5rem;" />
-          <div>{{ t('no_depts_added') || '등록된 부서가 없습니다.' }}</div>
+          <div>{{ t('no_depts_added') }}</div>
         </div>
 
         <!-- Root Tree View Container -->

@@ -2,6 +2,7 @@ package com.classification.domain_system.controller;
 
 import com.classification.domain_system.entity.User;
 import com.classification.domain_system.service.AuthService;
+import com.classification.domain_system.utils.ClientIpUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -39,47 +40,38 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletRequest httpRequest) {
-        try {
-            String ip = httpRequest.getRemoteAddr();
-            if ("0:0:0:0:0:0:0:1".equals(ip) || "::1".equals(ip)) ip = "127.0.0.1";
-            String userAgent = httpRequest.getHeader("User-Agent");
-            
-            java.util.Map<String, String> tokens = authService.loginWithTokens(request.getUsername(), request.getPassword(), ip, userAgent);
-            User user = authService.findByUsername(request.getUsername());
-            
-            var perms = permissionService.getAuthoritiesForUser(user.getUsername(), user.getRole()).stream()
-                .map(a -> a.getAuthority())
-                .toList();
+        String ip = ClientIpUtil.getClientIp(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
 
-            String serverOffset = OffsetDateTime.now().getOffset().getId();
-            return ResponseEntity.ok(new LoginResponse(
-                tokens.get("token"),
-                tokens.get("refreshToken"),
-                user.getUsername(),
-                user.getRole(),
-                user.getId(),
-                user.getId(),
-                user.getOrganizationId(),
-                user.getDepartmentId(),
-                user.getTimezone(),
-                serverOffset,
-                perms,
-                user.getMustChangePassword() != null ? user.getMustChangePassword() : false
-            ));
-        } catch (Exception e) {
-            return ResponseEntity.status(401).body(e.getMessage());
-        }
+        java.util.Map<String, String> tokens = authService.loginWithTokens(request.getUsername(), request.getPassword(), ip, userAgent);
+        User user = authService.findByUsername(request.getUsername());
+
+        var perms = permissionService.getAuthoritiesForUser(user.getUsername(), user.getRole()).stream()
+            .map(a -> a.getAuthority())
+            .toList();
+
+        String serverOffset = OffsetDateTime.now().getOffset().getId();
+        return ResponseEntity.ok(new LoginResponse(
+            tokens.get("token"),
+            tokens.get("refreshToken"),
+            user.getUsername(),
+            user.getRole(),
+            user.getId(),
+            user.getId(),
+            user.getOrganizationId(),
+            user.getDepartmentId(),
+            user.getTimezone(),
+            serverOffset,
+            perms,
+            user.getMustChangePassword() != null ? user.getMustChangePassword() : false
+        ));
     }
 
     @PostMapping("/refresh")
     public ResponseEntity<?> refreshToken(@RequestBody java.util.Map<String, String> request) {
-        try {
-            String refreshToken = request != null ? request.get("refreshToken") : null;
-            java.util.Map<String, String> tokens = authService.refreshTokens(refreshToken);
-            return ResponseEntity.ok(tokens);
-        } catch (Exception e) {
-            return ResponseEntity.status(401).body(e.getMessage());
-        }
+        String refreshToken = request != null ? request.get("refreshToken") : null;
+        java.util.Map<String, String> tokens = authService.refreshTokens(refreshToken);
+        return ResponseEntity.ok(tokens);
     }
 
     @GetMapping("/login-logs")
@@ -95,12 +87,8 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
-        try {
-            authService.register(request.getUsername(), request.getPassword(), request.getRole(), request.getTimezone());
-            return ResponseEntity.ok("User registered successfully");
-        } catch (Exception e) {
-            return ResponseEntity.status(400).body(e.getMessage());
-        }
+        authService.register(request.getUsername(), request.getPassword(), request.getRole(), request.getTimezone());
+        return ResponseEntity.ok("User registered successfully");
     }
 
     @GetMapping("/check-username")

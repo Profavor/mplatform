@@ -30,6 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(controllers = GlobalRecordController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@org.springframework.context.annotation.Import(com.classification.domain_system.exception.GlobalExceptionHandler.class)
 class GlobalRecordControllerTest {
 
     @Autowired
@@ -113,5 +114,39 @@ class GlobalRecordControllerTest {
 
         mockMvc.perform(get("/api/records/{id}", recordId))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("레코드 수정 요청 중 예외 발생 시 표준 ErrorResponse JSON 반환")
+    void updateRecordRequest_Error_ReturnsStandardErrorJson() throws Exception {
+        when(approvalService.requestRecordUpdate(eq(recordId), any()))
+                .thenThrow(new com.classification.domain_system.exception.BusinessException(
+                        com.classification.domain_system.exception.ErrorCode.INVALID_INPUT,
+                        "Invalid data format"
+                ));
+
+        mockMvc.perform(post("/api/records/{id}/update-request", recordId)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content("{\"comment\":\"update\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"))
+                .andExpect(jsonPath("$.message").value("Invalid data format"));
+    }
+
+    @Test
+    @DisplayName("레코드 삭제 요청 중 예외 발생 시 표준 ErrorResponse JSON 반환")
+    void deleteRecordRequest_Error_ReturnsStandardErrorJson() throws Exception {
+        when(approvalService.requestRecordDeletion(eq(recordId), any()))
+                .thenThrow(new com.classification.domain_system.exception.BusinessException(
+                        com.classification.domain_system.exception.ErrorCode.INVALID_INPUT,
+                        "Deletion prohibited"
+                ));
+
+        mockMvc.perform(post("/api/records/{id}/delete-request", recordId)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content("{\"comment\":\"delete\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"))
+                .andExpect(jsonPath("$.message").value("Deletion prohibited"));
     }
 }

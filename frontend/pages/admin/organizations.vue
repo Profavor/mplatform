@@ -26,7 +26,7 @@
           @click="handleDumpSeedFiles"
           style="border-width: 2px; font-weight: 800;"
         >
-          {{ $t('backup_seed_files') || '현재 상태 백업 (Seed)' }}
+          {{ $t('backup_seed_files') }}
         </va-button>
         <va-button v-if="hasPermission('admin:write') || hasPermission('org:write')" preset="outline" icon="published_with_changes" color="warning" size="small" :loading="isSyncingRoles" @click="handleSyncDefaultRoles">
           {{ $t('sync_default_roles') }}
@@ -673,7 +673,7 @@
             style="min-width: 120px;"
             @click="showErrorAlertModal = false"
           >
-            {{ $t('close') || '확인' }}
+            {{ $t('close') }}
           </va-button>
         </div>
       </div>
@@ -967,9 +967,9 @@ const confirmDeleteDept = async () => {
     })
     showDeleteDeptModalFlag.value = false
     await loadOrgDetails(selectedOrg.value.id)
-    showCustomAlert('부서가 성공적으로 삭제되었습니다.', t('delete_success') || '삭제 완료', t('notification') || '알림', 'success')
+    showCustomAlert('부서가 성공적으로 삭제되었습니다.', t('delete_success'), t('notification'), 'success')
   } catch (e) {
-    showCustomAlert('Failed to delete department: ' + (e.message || String(e)), t('error') || 'Error', t('notification') || 'Notification', 'error')
+    showCustomAlert('Failed to delete department: ' + (e.message || String(e)), t('error'), t('notification'), 'error')
   }
 }
 

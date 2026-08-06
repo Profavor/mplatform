@@ -2,7 +2,7 @@
   <va-card style="width: 100%; margin-bottom: 0.75rem;">
     <va-card-content style="padding: 0.75rem 1rem;">
       <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
-        <div style="font-weight: bold; min-width: 80px;">{{ $t('search_filters') || '검색 필터' }}</div>
+        <div style="font-weight: bold; min-width: 80px;">{{ $t('search_filters') }}</div>
         
         <div v-for="(filter, index) in searchFilters" :key="index" style="display: flex; gap: 0.5rem; align-items: center;">
           <va-select
@@ -23,7 +23,7 @@
           />
           <va-input
             v-model="filter.value"
-            :placeholder="$t('search_keyword') || '검색어'"
+            :placeholder="$t('search_keyword')"
             style="width: 180px;"
             dense
             @keyup.enter="$emit('apply')"
@@ -38,15 +38,15 @@
         </div>
 
         <va-button preset="secondary" icon="add" size="small" @click="$emit('addFilter')">
-          {{ $t('add_filter') || '필터 추가' }}
+          {{ $t('add_filter') }}
         </va-button>
         
         <div style="margin-left: auto; display: flex; gap: 0.5rem;">
           <va-button preset="secondary" icon="restart_alt" @click="$emit('clear')">
-            {{ $t('reset') || '초기화' }}
+            {{ $t('reset') }}
           </va-button>
           <va-button color="primary" icon="search" @click="$emit('apply')">
-            {{ $t('search') || '검색' }}
+            {{ $t('search') }}
           </va-button>
         </div>
       </div>

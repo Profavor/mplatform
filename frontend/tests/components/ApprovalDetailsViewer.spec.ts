@@ -51,7 +51,11 @@ describe('ApprovalDetailsViewer Component - RECORD_UPDATE Filtering Test', () =>
           VaBadge: true,
           VaButton: true,
           VaChip: true,
-          ApprovalSteps: true
+          ApprovalSteps: true,
+          VaModal: true,
+          VaInput: true,
+          'va-modal': true,
+          'va-input': true
         }
       }
     })
@@ -103,7 +107,11 @@ describe('ApprovalDetailsViewer Component - RECORD_UPDATE Filtering Test', () =>
           VaIcon: true,
           VaBadge: true,
           VaButton: true,
-          VaChip: true
+          VaChip: true,
+          VaModal: true,
+          VaInput: true,
+          'va-modal': true,
+          'va-input': true
         }
       }
     })
@@ -129,7 +137,7 @@ describe('ApprovalDetailsViewer Component - RECORD_UPDATE Filtering Test', () =>
       props: { request: mockMaskedRequest },
       global: {
         mocks: { $t: (key: string) => key },
-        stubs: { VaIcon: true, VaBadge: true, VaButton: true, VaChip: true, ApprovalSteps: true }
+        stubs: { VaIcon: true, VaBadge: true, VaButton: true, VaChip: true, ApprovalSteps: true, VaModal: true, VaInput: true, 'va-modal': true, 'va-input': true }
       }
     })
 

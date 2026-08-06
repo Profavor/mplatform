@@ -2,9 +2,9 @@
   <va-modal
     :model-value="modelValue"
     @update:model-value="emit('update:modelValue', $event)"
-    :title="title || $t('submission_comment_title') || '상신 의견 작성'"
-    :ok-text="$t('btn_submit') || '상신'"
-    :cancel-text="$t('btn_cancel') || '취소'"
+    :title="title || $t('submission_comment_title')"
+    :ok-text="$t('btn_submit')"
+    :cancel-text="$t('btn_cancel')"
     @ok="onSubmit"
     @cancel="onCancel"
     :prevent-click-outside="true"
@@ -12,12 +12,12 @@
   >
     <div style="padding: 1rem;">
       <p style="margin-bottom: 1rem; color: var(--va-text-secondary); font-size: 0.9rem;">
-        {{ notice || $t('submission_comment_notice') || '(선택사항) 결재권자에게 남길 상신 사유(의견)를 작성해 주세요.' }}
+        {{ notice || $t('submission_comment_notice') }}
       </p>
       <va-textarea
         :model-value="comment"
         @update:model-value="emit('update:comment', $event)"
-        :placeholder="placeholder || $t('submission_comment_placeholder') || '상신 사유(의견)를 작성해 주세요...'"
+        :placeholder="placeholder || $t('submission_comment_placeholder')"
         style="width: 100%;"
         :rows="4"
       />

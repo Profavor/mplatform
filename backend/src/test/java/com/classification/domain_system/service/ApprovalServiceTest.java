@@ -52,12 +52,27 @@ class ApprovalServiceTest extends BaseServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private UserRoleRepository userRoleRepository;
     @Mock private RecordMergeService recordMergeService;
+    @Mock private com.classification.domain_system.repository.DomainRepository domainRepository;
+    @Mock private com.classification.domain_system.repository.RoleRepository roleRepository;
+    @Mock private DataMaskingService dataMaskingService;
+
+    @org.mockito.Spy
+    @InjectMocks
+    private ApprovalQueryService approvalQueryService;
 
     @InjectMocks
     private ApprovalService approvalService;
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
+        if (approvalQueryService == null) {
+            approvalQueryService = org.mockito.Mockito.spy(new ApprovalQueryService(
+                approvalRepository, stepRepository, domainRepository, fieldDefinitionRepository,
+                fieldDefinitionService, recordRepository, nodeRepository, dataMaskingService,
+                userRepository, roleRepository
+            ));
+        }
+        org.springframework.test.util.ReflectionTestUtils.setField(approvalService, "approvalQueryService", approvalQueryService);
         given(calculatedFieldEvaluator.recomputeCalculatedFields(any(), any()))
                 .willAnswer(invocation -> invocation.getArgument(1));
     }

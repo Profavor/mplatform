@@ -22,14 +22,14 @@
 
       <div style="display: flex; gap: 0.75rem; align-items: center; position: relative; z-index: 1;">
         <va-button preset="secondary" color="success" icon="sync" size="medium" @click="syncCodeSeed" :loading="isSyncing" style="font-weight: 600; border-radius: 8px;">
-          {{ t('code_management.sync_codes') || '기본 코드 동기화' }}
+          {{ t('code_management.sync_codes') }}
         </va-button>
         <va-button preset="secondary" color="warning" icon="save" size="medium" @click="dumpCodeSeed" :loading="isDumping" style="font-weight: 600; border-radius: 8px;">
-          {{ t('code_management.dump_codes') || '기본 코드 백업' }}
+          {{ t('code_management.dump_codes') }}
         </va-button>
         <div style="width: 1px; height: 24px; background: var(--va-background-border); margin: 0 0.5rem;"></div>
         <va-button preset="outline" color="primary" icon="refresh" size="medium" @click="refreshGrid" style="border-radius: 8px;">
-          {{ t('refresh') || '새로고침' }}
+          {{ t('refresh') }}
         </va-button>
       </div>
     </div>
@@ -78,7 +78,7 @@
             @grid-ready="onGridReady"
             @rowClicked="onRowClicked"
             @cellClicked="onGroupCellClicked"
-            rowSelection="single"
+            :rowSelection="{ mode: 'singleRow', headerCheckbox: false }"
             :getRowId="(params) => params.data.id"
             :suppressCellFocus="true"
           >
@@ -152,7 +152,9 @@
                 <template #anchor>
                   <va-icon name="sentiment_satisfied_alt" size="small" style="cursor: pointer" />
                 </template>
-                <EmojiPicker :native="true" @select="(e) => onEmojiSelect(e, groupForm, 'nameKo')" />
+                <ClientOnly>
+                  <EmojiPicker :native="true" @select="(e) => onEmojiSelect(e, groupForm, 'nameKo')" />
+                </ClientOnly>
               </va-dropdown>
             </template>
           </va-input>
@@ -162,7 +164,9 @@
                 <template #anchor>
                   <va-icon name="sentiment_satisfied_alt" size="small" style="cursor: pointer" />
                 </template>
-                <EmojiPicker :native="true" @select="(e) => onEmojiSelect(e, groupForm, 'nameEn')" />
+                <ClientOnly>
+                  <EmojiPicker :native="true" @select="(e) => onEmojiSelect(e, groupForm, 'nameEn')" />
+                </ClientOnly>
               </va-dropdown>
             </template>
           </va-input>
@@ -204,7 +208,9 @@
                 <template #anchor>
                   <va-icon name="sentiment_satisfied_alt" size="small" style="cursor: pointer" />
                 </template>
-                <EmojiPicker :native="true" @select="(e) => onEmojiSelect(e, detailForm, 'nameKo')" />
+                <ClientOnly>
+                  <EmojiPicker :native="true" @select="(e) => onEmojiSelect(e, detailForm, 'nameKo')" />
+                </ClientOnly>
               </va-dropdown>
             </template>
           </va-input>
@@ -214,7 +220,9 @@
                 <template #anchor>
                   <va-icon name="sentiment_satisfied_alt" size="small" style="cursor: pointer" />
                 </template>
-                <EmojiPicker :native="true" @select="(e) => onEmojiSelect(e, detailForm, 'nameEn')" />
+                <ClientOnly>
+                  <EmojiPicker :native="true" @select="(e) => onEmojiSelect(e, detailForm, 'nameEn')" />
+                </ClientOnly>
               </va-dropdown>
             </template>
           </va-input>
@@ -236,14 +244,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, h } from 'vue'
+import { ref, onMounted, computed, h, defineAsyncComponent } from 'vue'
 import { usePageTitle } from '~/composables/usePageTitle'
 import { useI18n } from 'vue-i18n'
 import { useToast, useColors } from 'vuestic-ui'
 import { useCookie } from '#app'
 import { AgGridVue } from 'ag-grid-vue3'
 import { useCodeStore } from '~/stores/useCodeStore'
-import EmojiPicker from 'vue3-emoji-picker'
+const EmojiPicker = defineAsyncComponent(() => import('vue3-emoji-picker'))
 import 'vue3-emoji-picker/css'
 import 'ag-grid-enterprise'
 

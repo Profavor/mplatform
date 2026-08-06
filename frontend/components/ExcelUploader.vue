@@ -226,7 +226,6 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { useI18n } from 'vue-i18n';
@@ -364,28 +363,45 @@ const handleFileUpload = (e) => {
   if (!file) return;
 
   const reader = new FileReader();
-  reader.onload = (evt) => {
+  reader.onload = async (evt) => {
     try {
-      const bstr = evt.target.result;
-      const wb = XLSX.read(bstr, { type: 'binary' });
-      const wsname = wb.SheetNames[0];
-      const ws = wb.Sheets[wsname];
-      const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      const arrayBuffer = evt.target.result;
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(arrayBuffer);
+      const ws = wb.worksheets[0];
       
-      if (data.length < 2) {
+      if (!ws || ws.rowCount < 2) {
         uploadErrorMsg.value = "The Excel file does not contain enough data.";
         return;
       }
       
-      excelHeaders.value = data[0];
+      const headers = [];
+      const firstRow = ws.getRow(1);
+      firstRow.eachCell((cell, colNumber) => {
+        headers[colNumber - 1] = cell.value ? String(cell.value) : '';
+      });
+      excelHeaders.value = headers.filter(Boolean);
       
       // Convert rows to array of objects based on header
       const rows = [];
-      for (let i = 1; i < data.length; i++) {
-        const row = data[i];
+      for (let i = 2; i <= ws.rowCount; i++) {
+        const row = ws.getRow(i);
+        if (!row.hasValues) continue;
         const obj = {};
         for (let j = 0; j < excelHeaders.value.length; j++) {
-          obj[excelHeaders.value[j]] = row[j];
+          const header = excelHeaders.value[j];
+          let colIdx = -1;
+          firstRow.eachCell((cell, colNumber) => {
+            if (cell.value && String(cell.value) === header) {
+              colIdx = colNumber;
+            }
+          });
+          if (colIdx !== -1) {
+            const cellVal = row.getCell(colIdx).value;
+            obj[header] = cellVal !== null && cellVal !== undefined ? cellVal : '';
+          } else {
+            obj[header] = '';
+          }
         }
         rows.push(obj);
       }
@@ -412,7 +428,7 @@ const handleFileUpload = (e) => {
       uploadErrorMsg.value = "Error parsing Excel file.";
     }
   };
-  reader.readAsBinaryString(file);
+  reader.readAsArrayBuffer(file);
 };
 
 /**

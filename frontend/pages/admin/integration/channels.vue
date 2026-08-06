@@ -10,17 +10,17 @@
             <va-badge text="Integration" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
-            {{ $t('integration.channels.desc') || '외부 시스템과의 데이터 연동 파이프라인 및 인터페이스 채널 설정을 관리합니다.' }}
+            {{ $t('integration.channels.desc') }}
           </span>
         </div>
       </div>
 
       <div style="display: flex; gap: 0.75rem; align-items: center;">
         <va-button color="primary" icon="add" size="small" @click="openCreateModal">
-          {{ $t('integration.channels.add') || '신규 채널 등록' }}
+          {{ $t('integration.channels.add') }}
         </va-button>
         <va-button preset="outline" color="primary" icon="refresh" size="small" @click="fetchChannels">
-          {{ $t('refresh') || '새로고침' }}
+          {{ $t('refresh') }}
         </va-button>
       </div>
     </div>
@@ -30,7 +30,7 @@
       <va-card-title class="flex justify-between items-center" style="padding: 1rem 1.25rem;">
         <div class="flex items-center gap-2 font-bold text-lg">
           <va-icon name="hub" color="primary" />
-          <span style="color: var(--va-text-primary);">{{ $t('integration.channels.title') || '연동 채널 목록' }}</span>
+          <span style="color: var(--va-text-primary);">{{ $t('integration.channels.title') }}</span>
           <va-chip size="small" color="primary">{{ channels.length }}개 항목</va-chip>
         </div>
       </va-card-title>
@@ -60,7 +60,7 @@
           <span style="color: var(--va-text-primary);">최근 연동 로그 모니터링 (Recent Integration Logs)</span>
         </div>
         <va-button preset="secondary" icon="refresh" size="small" @click="fetchRecentLogs">
-          {{ $t('refresh') || '새로고침' }}
+          {{ $t('refresh') }}
         </va-button>
       </va-card-title>
 
@@ -84,7 +84,7 @@
     <!-- Create/Edit Modal (Premium Standardized Design) -->
     <va-modal
       v-model="showModal"
-      :title="isEdit ? ($t('integration.channels.edit') || '연계 채널 정보 수정') : ($t('integration.channels.add') || '신규 연계 채널 등록')"
+      :title="isEdit ? ($t('integration.channels.edit')) : ($t('integration.channels.add'))"
       size="large"
       hide-default-actions
     >
@@ -93,10 +93,10 @@
         <va-tabs v-model="activeModalTab" class="mb-4" style="border-bottom: 1px solid var(--va-background-border);">
           <template #tabs>
             <va-tab name="basic" style="font-weight: 700;">
-              <va-icon name="tune" class="mr-2" /> {{ $t('integration.channels.basic_config') || '기본 정보 & 연동 설정' }}
+              <va-icon name="tune" class="mr-2" /> {{ $t('integration.channels.basic_config') }}
             </va-tab>
             <va-tab name="mapping" style="font-weight: 700;">
-              <va-icon name="swap_horiz" class="mr-2" /> {{ $t('integration.channels.field_mapping') || '데이터 필드 매핑' }}
+              <va-icon name="swap_horiz" class="mr-2" /> {{ $t('integration.channels.field_mapping') }}
             </va-tab>
           </template>
         </va-tabs>
@@ -108,7 +108,7 @@
             <MultilingualInput
               v-model:ko="channelNameKo"
               v-model:en="channelNameEn"
-              :label="$t('integration.channels.name') || '채널명'"
+              :label="$t('integration.channels.name')"
               required
             />
 
@@ -133,7 +133,7 @@
                 required
               />
               <div style="padding-bottom: 0.5rem;">
-                <va-checkbox v-model="formData.isActive" :label="$t('integration.channels.is_active') || '활성화'" />
+                <va-checkbox v-model="formData.isActive" :label="$t('integration.channels.is_active')" />
               </div>
             </div>
 
@@ -142,7 +142,7 @@
               <div style="background: var(--va-background-element); border-radius: 12px; padding: 1.25rem; border: 1px solid var(--va-background-border); display: flex; flex-direction: column; gap: 1rem;">
                 <div style="font-weight: 700; font-size: 0.95rem; color: var(--va-primary); display: flex; align-items: center; gap: 0.4rem;">
                   <va-icon name="security" size="small" color="primary" />
-                  {{ $t('integration.channels.auth_type') || '수신(INBOUND) 인증 및 보안 설정' }}
+                  {{ $t('integration.channels.auth_type') }}
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                   <va-select
@@ -155,12 +155,12 @@
                   <div v-if="uiConfig.inboundAuthType !== 'NONE'" style="display: flex; gap: 0.5rem; align-items: flex-end;">
                     <va-input v-model="uiConfig.inboundSecretToken" :label="$t('integration.channels.secret_token')" placeholder="sec_token_..." style="flex: 1;" required />
                     <va-button preset="secondary" color="primary" icon="autorenew" @click="generateSecretToken" style="white-space: nowrap;">
-                      {{ $t('integration.channels.generate_token') || '토큰 생성' }}
+                      {{ $t('integration.channels.generate_token') }}
                     </va-button>
                   </div>
                 </div>
                 <div>
-                  <va-checkbox v-model="formData.requiresApproval" :label="`${$t('integration.channels.requires_approval') || 'Requires Approval'}`" />
+                  <va-checkbox v-model="formData.requiresApproval" :label="`${$t('integration.channels.requires_approval')}`" />
                 </div>
               </div>
 
@@ -168,14 +168,14 @@
               <div style="background: var(--va-background-element); border-radius: 12px; padding: 1.25rem; border: 1px solid var(--va-background-border); display: flex; flex-direction: column; gap: 0.75rem;">
                 <div style="font-weight: 700; font-size: 0.9rem; color: var(--va-primary); display: flex; align-items: center; justify-content: space-between;">
                   <span style="display: flex; align-items: center; gap: 0.4rem;">
-                    <va-icon name="link" size="small" color="primary" /> {{ $t('integration.channels.webhook_url') || '수신 Webhook URL 가이드' }}
+                    <va-icon name="link" size="small" color="primary" /> {{ $t('integration.channels.webhook_url') }}
                   </span>
                   <va-button size="small" color="primary" icon="content_copy" @click="copyWebhookUrl">
-                    {{ $t('integration.channels.webhook_copy') || 'URL 복사' }}
+                    {{ $t('integration.channels.webhook_copy') }}
                   </va-button>
                 </div>
                 <div style="font-size: 0.83rem; color: var(--va-text-secondary); line-height: 1.4;">
-                  {{ $t('integration.channels.inbound_notice') || '외부 시스템에서 아래 Webhook URL로 JSON Payload를 POST 요청하면 설정된 매핑 규칙에 따라 데이터가 연동 처리됩니다.' }}
+                  {{ $t('integration.channels.inbound_notice') }}
                 </div>
                 <va-input :model-value="getWebhookUrl()" readonly style="font-family: monospace; font-size: 0.85rem;" />
                 <div v-if="uiConfig.inboundAuthType !== 'NONE'" style="font-size: 0.8rem; background: var(--va-background-primary); padding: 0.6rem 0.85rem; border-radius: 8px; border: 1px solid var(--va-background-border); color: var(--va-text-primary); display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
@@ -193,7 +193,7 @@
                     </div>
                   </div>
                   <va-button size="small" preset="secondary" color="primary" icon="content_copy" @click="copyAuthHeaderValue">
-                    {{ $t('integration.channels.copy_value') || '값 복사' }}
+                    {{ $t('integration.channels.copy_value') }}
                   </va-button>
                 </div>
 
@@ -202,21 +202,21 @@
                   <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
                     <strong style="display: flex; align-items: center; gap: 0.35rem; color: var(--va-text-primary);">
                       <va-icon name="code" size="small" color="primary" />
-                      {{ $t('integration.channels.sample_payload_title') || '요청 JSON Payload 샘플 (실시간 매핑 반영)' }}
+                      {{ $t('integration.channels.sample_payload_title') }}
                     </strong>
                     <div style="display: flex; gap: 0.4rem;">
                       <va-button size="small" preset="secondary" color="primary" icon="terminal" @click="copyCurlSample">
-                        {{ $t('integration.channels.copy_curl') || 'cURL 복사' }}
+                        {{ $t('integration.channels.copy_curl') }}
                       </va-button>
                       <va-button size="small" preset="secondary" color="primary" icon="content_copy" @click="copySampleJsonPayload">
-                        {{ $t('integration.channels.copy_json') || 'JSON 복사' }}
+                        {{ $t('integration.channels.copy_json') }}
                       </va-button>
                     </div>
                   </div>
                   <pre style="margin: 0; font-family: 'Fira Code', 'Consolas', 'Courier New', monospace; font-size: 0.82rem; background: #0f172a; color: #38bdf8; padding: 0.75rem 1rem; border-radius: 6px; overflow-x: auto; max-height: 220px; line-height: 1.45; border: 1px solid #1e293b;">{{ sampleJsonPayload }}</pre>
                   <div style="font-size: 0.75rem; color: var(--va-text-secondary); display: flex; align-items: center; gap: 0.3rem;">
                     <va-icon name="info" size="extra-small" color="secondary" />
-                    <span>{{ $t('integration.channels.sample_payload_notice') || '매핑 탭에서 구성한 소스 표현식과 Root Path 정보가 실시간으로 반영된 요청 Payload 예시입니다.' }}</span>
+                    <span>{{ $t('integration.channels.sample_payload_notice') }}</span>
                   </div>
                 </div>
               </div>
@@ -228,10 +228,10 @@
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                   <div style="font-weight: 700; font-size: 0.95rem; color: var(--va-primary); display: flex; align-items: center; gap: 0.4rem;">
                     <va-icon name="settings_remote" size="small" color="primary" />
-                    {{ $t('integration.channels.detail_config') || '송신(OUTBOUND) 연결 정보' }}
+                    {{ $t('integration.channels.detail_config') }}
                   </div>
                   <va-button size="small" preset="secondary" color="info" icon="cloud_done" @click="testConnection" :loading="isTesting">
-                    {{ $t('integration.channels.test_connection') || '연결 테스트' }}
+                    {{ $t('integration.channels.test_connection') }}
                   </va-button>
                 </div>
 
@@ -277,7 +277,7 @@
             <div style="background: var(--va-background-element); border-radius: 12px; padding: 1.25rem; border: 1px solid var(--va-background-border); display: flex; flex-direction: column; gap: 1rem;">
               <div style="font-weight: 700; font-size: 0.95rem; color: var(--va-primary); display: flex; align-items: center; gap: 0.4rem;">
                 <va-icon name="account_tree" size="small" color="primary" />
-                {{ $t('integration.channels.select_domain_node') || '연계 대상 도메인 & 노드' }}
+                {{ $t('integration.channels.select_domain_node') }}
               </div>
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 <va-select
@@ -309,7 +309,7 @@
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <div>
                 <h4 style="margin: 0; font-weight: 700; color: var(--va-text-primary);">
-                  {{ $t('integration.channels.field_mapping') || '데이터 필드 매핑' }}
+                  {{ $t('integration.channels.field_mapping') }}
                 </h4>
                 <p style="margin: 0.25rem 0 0 0; font-size: 0.82rem; color: var(--va-text-secondary);">
                   * {{ formData.direction === 'INBOUND' ? $t('integration.channels.mapping_desc_inbound') : $t('integration.channels.mapping_desc') }}
@@ -317,10 +317,10 @@
               </div>
               <div style="display: flex; gap: 0.5rem; align-items: center;">
                 <va-button preset="secondary" size="small" icon="auto_awesome" :disabled="!selectedDomainId && rawFields.length === 0" @click="autoGenerateMappings">
-                  ⚡ {{ $t('integration.channels.auto_map_fields') || '도메인 필드 자동 매핑' }}
+                  ⚡ {{ $t('integration.channels.auto_map_fields') }}
                 </va-button>
                 <va-button size="small" color="primary" icon="add" @click="addMapping">
-                  + {{ $t('integration.channels.add_field') || '필드 추가' }}
+                  + {{ $t('integration.channels.add_field') }}
                 </va-button>
               </div>
             </div>
@@ -354,10 +354,10 @@
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem; width: 100%; padding-top: 1rem; border-top: 1px solid var(--va-background-border);">
           <va-button preset="secondary" color="secondary" @click="showModal = false">
-            {{ $t('close') || '취소' }}
+            {{ $t('close') }}
           </va-button>
           <va-button color="primary" icon="save" @click="submitForm">
-            {{ $t('save') || '저장' }}
+            {{ $t('save') }}
           </va-button>
         </div>
       </template>
@@ -636,7 +636,7 @@ const sampleJsonPayload = computed(() => {
 const copySampleJsonPayload = () => {
   if (navigator.clipboard && sampleJsonPayload.value) {
     navigator.clipboard.writeText(sampleJsonPayload.value)
-    init({ message: t('integration.channels.json_copied') || '샘플 JSON Payload가 클립보드에 복사되었습니다.', color: 'success' })
+    init({ message: t('integration.channels.json_copied'), color: 'success' })
   }
 }
 
@@ -653,7 +653,7 @@ const copyCurlSample = () => {
 
   if (navigator.clipboard) {
     navigator.clipboard.writeText(curlCmd)
-    init({ message: t('integration.channels.curl_copied') || 'cURL 호출 샘플이 클립보드에 복사되었습니다.', color: 'success' })
+    init({ message: t('integration.channels.curl_copied'), color: 'success' })
   }
 }
 
@@ -667,7 +667,7 @@ const copyAuthHeaderValue = () => {
 
   if (navigator.clipboard && headerValue) {
     navigator.clipboard.writeText(headerValue)
-    init({ message: t('integration.channels.header_value_copied') || '헤더 값(Bearer 토큰)이 클립보드에 복사되었습니다.', color: 'success' })
+    init({ message: t('integration.channels.header_value_copied'), color: 'success' })
   }
 }
 
@@ -1072,7 +1072,7 @@ const getChannelNameById = (id) => {
 const channelColumnDefs = computed(() => [
   {
     field: 'name',
-    headerName: t('integration.channels.channel_name') || '채널명',
+    headerName: t('integration.channels.channel_name'),
     flex: 1.2,
     cellRenderer: (params) => {
       const div = document.createElement('div')
@@ -1083,7 +1083,7 @@ const channelColumnDefs = computed(() => [
   },
   {
     field: 'channelCode',
-    headerName: t('integration.channels.channel_code') || '채널 코드',
+    headerName: t('integration.channels.channel_code'),
     width: 140,
     cellRenderer: (params) => {
       const div = document.createElement('div')
@@ -1097,7 +1097,7 @@ const channelColumnDefs = computed(() => [
   },
   {
     field: 'direction',
-    headerName: t('integration.channels.direction') || '연동 방향',
+    headerName: t('integration.channels.direction'),
     width: 130,
     cellRenderer: (params) => {
       const div = document.createElement('div')
@@ -1109,14 +1109,14 @@ const channelColumnDefs = computed(() => [
           ? 'background: rgba(237, 108, 2, 0.12); color: var(--va-warning); border: 1px solid rgba(237, 108, 2, 0.3);'
           : 'background: rgba(25, 118, 210, 0.12); color: var(--va-primary); border: 1px solid rgba(25, 118, 210, 0.3);'
       }`
-      pill.textContent = isInbound ? (t('integration.channels.inbound') || 'Inbound') : (t('integration.channels.outbound') || 'Outbound')
+      pill.textContent = isInbound ? (t('integration.channels.inbound')) : (t('integration.channels.outbound'))
       div.appendChild(pill)
       return div
     }
   },
   {
     field: 'isActive',
-    headerName: t('integration.channels.status') || '상태',
+    headerName: t('integration.channels.status'),
     width: 120,
     cellRenderer: (params) => {
       const div = document.createElement('div')
@@ -1135,7 +1135,7 @@ const channelColumnDefs = computed(() => [
   },
   {
     field: 'createdAt',
-    headerName: t('createdAt') || '생성일시',
+    headerName: t('createdAt'),
     width: 170,
     cellRenderer: (params) => {
       const div = document.createElement('div')
@@ -1146,7 +1146,7 @@ const channelColumnDefs = computed(() => [
   },
   {
     field: 'actions',
-    headerName: t('actions') || '작업',
+    headerName: t('actions'),
     width: 100,
     sortable: false,
     cellRenderer: (params) => {
@@ -1174,7 +1174,7 @@ const channelColumnDefs = computed(() => [
 const recentLogColumnDefs = computed(() => [
   {
     field: 'channelId',
-    headerName: t('integration.channels.channel_name') || '연동 채널',
+    headerName: t('integration.channels.channel_name'),
     flex: 1.2,
     cellRenderer: (params) => {
       const div = document.createElement('div')
@@ -1185,7 +1185,7 @@ const recentLogColumnDefs = computed(() => [
   },
   {
     field: 'direction',
-    headerName: t('integration.channels.direction') || '방향',
+    headerName: t('integration.channels.direction'),
     width: 130,
     cellRenderer: (params) => {
       const div = document.createElement('div')
@@ -1204,7 +1204,7 @@ const recentLogColumnDefs = computed(() => [
   },
   {
     field: 'status',
-    headerName: t('integration.channels.status') || '상태',
+    headerName: t('integration.channels.status'),
     width: 120,
     cellRenderer: (params) => {
       const div = document.createElement('div')
@@ -1223,7 +1223,7 @@ const recentLogColumnDefs = computed(() => [
   },
   {
     field: 'createdAt',
-    headerName: t('createdAt') || '실행 시각',
+    headerName: t('createdAt'),
     flex: 1,
     cellRenderer: (params) => {
       const div = document.createElement('div')

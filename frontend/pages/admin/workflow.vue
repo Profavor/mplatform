@@ -61,7 +61,7 @@
           </template>
         </va-input>
         <va-button preset="outline" color="primary" icon="refresh" size="small" @click="fetchWorkflows">
-          {{ $t('refresh') || '새로고침' }}
+          {{ $t('refresh') }}
         </va-button>
       </div>
     </div>
@@ -91,8 +91,8 @@
       :title="modalData.id ? $t('edit_workflow_title') : $t('create_workflow_title')"
       size="large"
       style="--va-modal-max-width: 960px;"
-      :ok-text="$t('save') || '저장'"
-      :cancel-text="$t('cancel') || '취소'"
+      :ok-text="$t('save')"
+      :cancel-text="$t('cancel')"
       @ok="saveWorkflowModal"
     >
       <div style="display: flex; flex-direction: column; gap: 1.25rem; max-height: 70vh; overflow-y: auto; overflow-x: hidden; padding: 0 4px;">

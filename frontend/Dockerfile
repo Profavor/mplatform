@@ -6,7 +6,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
-ARG API_BASE_URL=https://mplatform-backend.onrender.com
+ARG API_BASE_URL=http://localhost:8080
 ENV API_BASE_URL=$API_BASE_URL
 ENV NUXT_PUBLIC_API_BASE=$API_BASE_URL
 
@@ -20,7 +20,7 @@ RUN npm run build
 FROM node:24-alpine AS runner
 WORKDIR /app
 
-ARG API_BASE_URL=https://mplatform-backend.onrender.com
+ARG API_BASE_URL=http://localhost:8080
 ENV API_BASE_URL=$API_BASE_URL
 ENV NUXT_PUBLIC_API_BASE=$API_BASE_URL
 ENV NODE_ENV=production

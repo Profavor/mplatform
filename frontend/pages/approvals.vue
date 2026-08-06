@@ -10,7 +10,7 @@
             <va-badge text="Approval Inbox" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
-            {{ t('subtitle') || '본인이 제출한 결재 요청 목록 및 승인 대기 중인 결재 건을 확인하고 일괄 처리합니다.' }}
+            {{ t('subtitle') }}
           </span>
         </div>
       </div>
@@ -23,7 +23,7 @@
         <div style="display: flex; align-items: center; gap: 0.6rem;">
           <va-icon name="how_to_reg" color="primary" />
           <span style="font-size: 1.05rem; font-weight: 700; color: var(--va-text-primary); font-family: 'Pretendard', 'Inter', sans-serif;">
-            {{ t('pending_approvals') || '승인 대기 결재 목록' }}
+            {{ t('pending_approvals') }}
           </span>
           <va-chip size="small" color="warning" style="font-weight: 600;">{{ pendingSteps.length }}건 대기</va-chip>
         </div>
@@ -34,7 +34,7 @@
           <va-button size="small" preset="primary" color="danger" icon="cancel" @click="bulkReject" :disabled="!pendingSelectedRows.length">
             {{ t('bulk_reject', { count: pendingSelectedRows.length }) }}
           </va-button>
-          <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshPendingRequests">{{ t('refresh') || '새로고침' }}</va-button>
+          <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshPendingRequests">{{ t('refresh') }}</va-button>
         </div>
       </div>
 
@@ -67,12 +67,12 @@
         <div style="display: flex; align-items: center; gap: 0.6rem;">
           <va-icon name="outbox" color="primary" />
           <span style="font-size: 1.05rem; font-weight: 700; color: var(--va-text-primary); font-family: 'Pretendard', 'Inter', sans-serif;">
-            {{ t('mySubmitted') || '내가 올린 결재 상신 내역' }}
+            {{ t('mySubmitted') }}
           </span>
           <va-chip size="small" color="primary" style="font-weight: 600;">{{ myRequests.length }}건</va-chip>
         </div>
         <div style="display: flex; gap: 0.5rem; align-items: center;">
-          <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshMyRequests">{{ t('refresh') || '새로고침' }}</va-button>
+          <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshMyRequests">{{ t('refresh') }}</va-button>
         </div>
       </div>
 
@@ -1106,14 +1106,14 @@ const getClassificationName = (node, field) => {
 }
 
 const getRequestTypeLabel = (type) => {
-  if (!type) return t('other_request') || '기타 요청';
+  if (!type) return t('other_request');
   const i18nKey = `target_type_${type}`;
   const translated = t(i18nKey);
   if (translated && translated !== i18nKey) return translated;
-  if (type === 'RECORD_CREATE') return t('record_create') || '마스터 레코드 신규 등록';
-  if (type === 'RECORD_UPDATE') return t('record_update') || '마스터 레코드 수정';
-  if (type === 'RECORD_DELETE') return t('record_delete') || '마스터 레코드 삭제';
-  if (type === 'DOMAIN_RECORD_CREATE') return t('domain_record_create') || '도메인 레코드 등록';
+  if (type === 'RECORD_CREATE') return t('record_create');
+  if (type === 'RECORD_UPDATE') return t('record_update');
+  if (type === 'RECORD_DELETE') return t('record_delete');
+  if (type === 'DOMAIN_RECORD_CREATE') return t('domain_record_create');
   return type || t('other_request');
 }
 

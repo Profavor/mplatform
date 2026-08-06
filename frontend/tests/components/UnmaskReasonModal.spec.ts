@@ -76,6 +76,11 @@ describe('UnmaskReasonModal.vue', () => {
       global: {
         mocks: {
           $t: (key: string) => key
+        },
+        stubs: {
+          'va-modal': true,
+          'va-input': true,
+          'va-button': true
         }
       }
     })
@@ -95,6 +100,11 @@ describe('UnmaskReasonModal.vue', () => {
       global: {
         mocks: {
           $t: (key: string) => key
+        },
+        stubs: {
+          'va-modal': true,
+          'va-input': true,
+          'va-button': true
         }
       }
     })

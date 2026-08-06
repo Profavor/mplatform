@@ -11,7 +11,7 @@
             <va-badge text="Golden Record" color="primary" size="small" />
           </h2>
           <span class="header-sub-title">
-            {{ $t('survivorship.description') || '중복 레코드 병합 시 골든 레코드를 생성하기 위한 필드별 생존 우선순위 및 충돌 해결 전략을 설정합니다.' }}
+            {{ $t('survivorship.description') }}
           </span>
         </div>
       </div>
@@ -22,7 +22,7 @@
           :options="domainOptions"
           value-by="value"
           text-by="text"
-          :placeholder="$t('survivorship.select_domain_placeholder') || '도메인을 선택하세요'"
+          :placeholder="$t('survivorship.select_domain_placeholder')"
           class="domain-select-input"
           dense
           @update:modelValue="onDomainChange"
@@ -33,7 +33,7 @@
           :disabled="!selectedDomainId"
           @click="addRule"
         >
-          {{ $t('survivorship.add_rule') || '규칙 추가' }}
+          {{ $t('survivorship.add_rule') }}
         </va-button>
         <va-button
           color="primary"
@@ -42,7 +42,7 @@
           :loading="isSaving"
           @click="saveRules"
         >
-          {{ $t('survivorship.save_settings') || '설정 저장' }}
+          {{ $t('survivorship.save_settings') }}
         </va-button>
       </div>
     </div>
@@ -54,7 +54,7 @@
         <div class="panel-title-group">
           <va-icon name="auto_awesome" color="warning" size="20px" />
           <span class="panel-title-text">
-            {{ $t('survivorship.guide_title') || '서바이버십 (Survivorship) 골든 레코드 충돌 해결 전략' }}
+            {{ $t('survivorship.guide_title') }}
           </span>
         </div>
 
@@ -103,13 +103,13 @@
       <div class="grid-card-header">
         <div class="grid-title-group">
           <va-icon name="table_chart" color="primary" size="22px" />
-          <span class="grid-title">{{ $t('survivorship.rule_list') || '서바이버십 규칙 목록' }}</span>
+          <span class="grid-title">{{ $t('survivorship.rule_list') }}</span>
           <va-chip v-if="selectedDomainId" size="small" color="primary" class="items-chip">
-            {{ rules.length }}{{ $t('survivorship.items_count') || '개 항목' }}
+            {{ rules.length }}{{ $t('survivorship.items_count') }}
           </va-chip>
         </div>
         <va-button preset="secondary" icon="refresh" size="small" :disabled="!selectedDomainId" @click="fetchData">
-          {{ $t('survivorship.refresh') || '새로고침' }}
+          {{ $t('survivorship.refresh') }}
         </va-button>
       </div>
 
@@ -132,13 +132,13 @@
         <div v-else class="empty-state-box">
           <va-icon name="alt_route" size="52px" color="secondary" class="mb-3" />
           <h3 class="empty-state-title">
-            {{ selectedDomainId ? ($t('survivorship.empty_no_rules') || '등록된 서바이버십 규칙이 없습니다.') : ($t('survivorship.empty_no_domain') || '상단 드롭다운에서 도메인을 먼저 선택해 주세요.') }}
+            {{ selectedDomainId ? ($t('survivorship.empty_no_rules')) : ($t('survivorship.empty_no_domain')) }}
           </h3>
           <p class="empty-state-desc">
-            {{ selectedDomainId ? ($t('survivorship.empty_sub_rules') || '우측 상단의 "+ 규칙 추가" 버튼을 클릭하여 새로운 필드 병합 규칙을 구성할 수 있습니다.') : ($t('survivorship.empty_sub_domain') || '도메인을 선택하면 해당 도메인의 스키마 필드 및 설정된 규칙 목록이 AG-Grid에 표시됩니다.') }}
+            {{ selectedDomainId ? ($t('survivorship.empty_sub_rules')) : ($t('survivorship.empty_sub_domain')) }}
           </p>
           <va-button v-if="selectedDomainId" color="success" icon="add" size="small" @click="addRule">
-            {{ $t('survivorship.add_first_rule') || '첫 번째 규칙 추가하기' }}
+            {{ $t('survivorship.add_first_rule') }}
           </va-button>
         </div>
       </div>
@@ -326,7 +326,7 @@ const ActionsCellRenderer = (params: any) => {
 
   const btn = document.createElement('button')
   btn.className = 'grid-btn-delete'
-  btn.innerHTML = `<span class="material-icons" style="font-size: 16px;">delete</span> ${t('delete') || '삭제'}`
+  btn.innerHTML = `<span class="material-icons" style="font-size: 16px;">delete</span> ${t('delete')}`
 
   btn.addEventListener('click', () => {
     removeRule(rowIdx)
@@ -344,25 +344,25 @@ const defaultColDef = {
 const columnDefs = computed(() => [
   {
     field: 'priority',
-    headerName: t('survivorship.priority') || '우선순위',
+    headerName: t('survivorship.priority'),
     width: 140,
     cellRenderer: PriorityCellRenderer
   },
   {
     field: 'fieldKey',
-    headerName: t('survivorship.field_key') || '도메인 필드 (Field Key)',
+    headerName: t('survivorship.field_key'),
     flex: 1,
     cellRenderer: FieldSelectCellRenderer
   },
   {
     field: 'strategy',
-    headerName: t('survivorship.strategy') || '생존 우선순위 전략 (Strategy)',
+    headerName: t('survivorship.strategy'),
     flex: 1.5,
     cellRenderer: StrategySelectCellRenderer
   },
   {
     field: 'actions',
-    headerName: t('actions') || '작업',
+    headerName: t('actions'),
     width: 110,
     cellRenderer: ActionsCellRenderer
   }
@@ -377,7 +377,7 @@ const loadDomains = async () => {
     }
   } catch (e) {
     console.error('Failed to load domains', e)
-    init({ message: t('survivorship.load_domains_fail') || '도메인 목록을 불러오지 못했습니다.', color: 'danger' })
+    init({ message: t('survivorship.load_domains_fail'), color: 'danger' })
   }
 }
 
@@ -427,10 +427,10 @@ const saveRules = async () => {
       method: 'PUT',
       body: payload
     })
-    init({ message: t('survivorship.save_success') || '병합 생존 규칙이 저장되었습니다.', color: 'success' })
+    init({ message: t('survivorship.save_success'), color: 'success' })
     await fetchData()
   } catch (e) {
-    init({ message: t('survivorship.save_fail') || '생존 규칙 저장 중 오류가 발생했습니다.', color: 'danger' })
+    init({ message: t('survivorship.save_fail'), color: 'danger' })
   } finally {
     isSaving.value = false
   }

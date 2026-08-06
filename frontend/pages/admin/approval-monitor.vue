@@ -10,7 +10,7 @@
             <va-badge text="Workflow" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
-            {{ t('subtitle') || '모든 워크플로우 결재 건의 진행 상태, 단계별 승인 현황 및 이력을 통합 관리합니다.' }}
+            {{ t('subtitle') }}
           </span>
         </div>
       </div>
@@ -19,7 +19,7 @@
     
     <va-card style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
       <div style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--va-background-border); display: flex; justify-content: flex-end; align-items: center; background: var(--va-background-element);">
-        <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshGrid">{{ t('refresh') || '새로고침' }}</va-button>
+        <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshGrid">{{ t('refresh') }}</va-button>
       </div>
       
       <va-card-content style="flex: 1; display: flex; flex-direction: column; padding: 0; min-height: 0;">
@@ -296,7 +296,7 @@ const formatStepAssignee = (s, req) => {
     return getUserName(s.assigneeId, nameCandidate)
   }
   if (s.assigneeRole && s.assigneeRole !== 'null') {
-    return (t('label_role') || '역할') + ': ' + formatRoleName(s.assigneeRole)
+    return (t('label_role')) + ': ' + formatRoleName(s.assigneeRole)
   }
   if (s.assigneeName) {
     let nameStr = String(s.assigneeName)
@@ -304,12 +304,12 @@ const formatStepAssignee = (s, req) => {
     for (const prefix of roleKoPrefixes) {
       if (nameStr.startsWith(prefix)) {
         const rawRole = nameStr.substring(prefix.length).trim()
-        return (t('label_role') || '역할') + ': ' + formatRoleName(rawRole)
+        return (t('label_role')) + ': ' + formatRoleName(rawRole)
       }
     }
     return parseI18nVal(nameStr)
   }
-  return getUserName(s.assigneeId) || t('unassigned') || '승인자 미지정'
+  return getUserName(s.assigneeId) || t('unassigned')
 }
 
 const formatTargetType = (type) => {

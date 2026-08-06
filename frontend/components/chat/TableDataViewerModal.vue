@@ -3,7 +3,7 @@
     v-model="show"
     size="large"
     hide-default-actions
-    :title="`📗 ${$t('excel_spreadsheet_viewer_title') || 'MS Excel 스프레드시트 데이터 뷰어'}`"
+    :title="`📗 ${$t('excel_spreadsheet_viewer_title')}`"
   >
     <div
       style="padding: 0.5rem; display: flex; flex-direction: column; gap: 0.75rem; max-height: 78vh; min-height: 480px; width: 100%; user-select: none;"
@@ -45,13 +45,13 @@
             icon="content_copy"
             @click="copyTableData"
           >
-            {{ $t('copy_table_excel') || '📋 엑셀 표 데이터 전체 복사' }}
+            {{ $t('copy_table_excel') }}
           </va-button>
 
           <va-input
             v-model="searchQuery"
             class="excel-search-input"
-            :placeholder="$t('search_in_table') || '시트 내 데이터 검색...'"
+            :placeholder="$t('search_in_table')"
             size="small"
             clearable
             style="width: 190px; background: white; border-radius: 4px;"
@@ -115,7 +115,7 @@
 
             <tr v-if="filteredRows.length === 0">
               <td :colspan="headers.length + 1" style="text-align: center; padding: 3rem; color: #888888;">
-                {{ $t('no_table_data') || '표시할 데이터가 없습니다.' }}
+                {{ $t('no_table_data') }}
               </td>
             </tr>
           </tbody>
@@ -125,7 +125,7 @@
       <!-- Footer / Toast Status & Tips -->
       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.25rem;">
         <div style="font-size: 0.8rem; color: var(--va-text-secondary); display: flex; align-items: center; gap: 0.5rem;">
-          <span>📗 {{ $t('excel_modal_tip') || '마우스 드래그, Shift, Ctrl 키를 이용해 여러 셀을 멀티 선택할 수 있으며 Ctrl+C 로 엑셀에 바로 붙여넣기 할 수 있습니다.' }}</span>
+          <span>📗 {{ $t('excel_modal_tip') }}</span>
           <va-badge v-if="copyToast" color="success" size="small">{{ copyToastMessage }}</va-badge>
         </div>
       </div>

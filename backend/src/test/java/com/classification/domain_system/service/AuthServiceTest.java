@@ -158,6 +158,41 @@ class AuthServiceTest {
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Invalid credentials");
         }
+
+        @Test
+        @DisplayName("실패 - 계정이 잠긴 상태에서 로그인 시도 시 예외 발생")
+        void failAccountLocked() {
+            // given
+            User user = createTestUser("user-id-1", "admin", "encoded_pw", "ADMIN");
+            user.setFailedLoginCount(5);
+            user.setLockedUntil(java.time.LocalDateTime.now().plusMinutes(15));
+            given(userRepository.findByUsername("admin")).willReturn(Optional.of(user));
+
+            // when & then
+            assertThatThrownBy(() -> authService.login("admin", "any_password", "127.0.0.1"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Account is temporarily locked");
+            verify(passwordEncoder, never()).matches(anyString(), anyString());
+        }
+
+        @Test
+        @DisplayName("실패 - 4회 실패 후 5번째 로그인 실패 시 계정이 15분 간 잠긴다")
+        void lockoutAfter5thFailure() {
+            // given
+            User user = createTestUser("user-id-1", "admin", "encoded_pw", "ADMIN");
+            user.setFailedLoginCount(4);
+            given(userRepository.findByUsername("admin")).willReturn(Optional.of(user));
+            given(passwordEncoder.matches("wrongpassword", "encoded_pw")).willReturn(false);
+
+            // when & then
+            assertThatThrownBy(() -> authService.login("admin", "wrongpassword", "127.0.0.1"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Invalid credentials");
+
+            assertThat(user.getFailedLoginCount()).isEqualTo(5);
+            assertThat(user.getLockedUntil()).isNotNull();
+            verify(userRepository).saveAndFlush(user);
+        }
     }
 
     @Nested
