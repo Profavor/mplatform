@@ -684,5 +684,10 @@
   "workflow_management_desc": "워크플로우 서식을 AG-Grid 테이블로 빠르게 탐색하고, 전용 모달 대화상자에서 손쉽게 생성 및 편집합니다.",
   "workflow_name_col": "서식 명칭",
   "add_row": "+ 행 추가",
-  "save_changes_hint": "* 셀 수정 후 상단 또는 하단의 '저장' 버튼을 클릭하여 변경사항을 반영하세요."
+  "save_changes_hint": "* 셀 수정 후 상단 또는 하단의 '저장' 버튼을 클릭하여 변경사항을 반영하세요.",
+  "unmask_reason_title": "원본 보기 (마스킹 해제) 사유 입력",
+  "unmask_reason_desc": "민감한 개인정보 원본을 열람하기 위해 접근 사유를 입력해 주세요. 입력된 사유는 감사 로그에 안전하게 기록됩니다.",
+  "access_reason": "접근 사유",
+  "access_reason_placeholder": "예: 업무 처리, 고객 요청 등",
+  "access_reason_required": "접근 사유를 입력해 주세요."
 }

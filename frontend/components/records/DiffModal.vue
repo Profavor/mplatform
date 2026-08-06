@@ -131,6 +131,9 @@ const formatDiffDisplay = (val, rawVal, fieldType) => {
     }
     return { isFile: true, fname: fn || '파일 다운로드', url };
   }
+  if (fieldType === 'DATE_RANGE') {
+    return { isFile: false, text: String(val).replace(',', ' ~ ') };
+  }
   return { isFile: false, text: String(val) };
 }
 </script>

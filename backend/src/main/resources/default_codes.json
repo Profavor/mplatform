@@ -531,6 +531,15 @@
         },
         "sortOrder": 18,
         "isActive": true
+      },
+      {
+        "detailCode": "DATE_RANGE",
+        "name": {
+          "ko": "📅 기간 (시작일~종료일)",
+          "en": "📅 Date Range"
+        },
+        "sortOrder": 19,
+        "isActive": true
       }
     ]
   },

@@ -198,6 +198,11 @@
         </div>
       </div>
     </va-modal>
+
+    <UnmaskReasonModal
+      v-model="showUnmaskReasonModal"
+      @confirm="executePendingDecrypt"
+    />
   </va-modal>
 </template>
 
@@ -207,6 +212,7 @@ import { useI18n } from 'vue-i18n'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { formatWithTimezone } from '~/composables/useTimezoneDate'
 import { useCookie } from '#app'
+import UnmaskReasonModal from './UnmaskReasonModal.vue'
 
 const props = defineProps<{
   modelValue: boolean
@@ -303,8 +309,19 @@ const isFieldEncrypted = (key: string) => {
   return !!f?.isEncrypted
 }
 
-const requestDecrypt = async (key: string) => {
+const showUnmaskReasonModal = ref(false)
+const pendingDecryptKey = ref<string | null>(null)
+
+const requestDecrypt = (key: string) => {
   if (!selectedNode.value || !selectedNode.value.id) return
+  pendingDecryptKey.value = key
+  showUnmaskReasonModal.value = true
+}
+
+const executePendingDecrypt = async (reason: string) => {
+  const key = pendingDecryptKey.value
+  if (!key) return
+  
   decryptingFields.value[key] = true
   try {
     const historyId = String(selectedNode.value.id).replace('HIST-', '')
@@ -312,7 +329,7 @@ const requestDecrypt = async (key: string) => {
     const res = await $fetch(`/api/sensitive-data/history/${historyId}/decrypt`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
-      body: { fieldKeys: [key] }
+      body: { fieldKeys: [key], accessReason: reason }
     })
     if (res && res[key]) {
       decryptedValues.value[key] = { after: res[key], before: res[key] } // Set both before and after if decrypted since backend only returns newData

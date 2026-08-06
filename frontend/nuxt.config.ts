@@ -23,7 +23,10 @@ export default defineNuxtConfig({
       },
       components: {
         VaModal: {
-          closeButton: true
+          closeButton: true,
+          noOutsideDismiss: true,
+          preventClickOutside: true,
+          blurToCancel: false
         }
       },
 

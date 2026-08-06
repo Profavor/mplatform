@@ -685,5 +685,10 @@
   "workflow_management_desc": "Easily explore workflow templates with AG-Grid and manage or edit them using the dedicated modal dialog.",
   "workflow_name_col": "Form Name",
   "add_row": "+ Add Row",
-  "save_changes_hint": "* Click the 'Save' button at the top or bottom after editing cells to apply changes."
+  "save_changes_hint": "* Click the 'Save' button at the top or bottom after editing cells to apply changes.",
+  "unmask_reason_title": "Enter reason for unmasking",
+  "unmask_reason_desc": "Please enter a reason for accessing the original sensitive data. This reason will be securely recorded in the audit logs.",
+  "access_reason": "Access Reason",
+  "access_reason_placeholder": "e.g., Business process, Customer request",
+  "access_reason_required": "Please enter an access reason."
 }

@@ -235,6 +235,7 @@ public class SensitiveDataService {
                 .nameAttribute(nameAttribute)
                 .fieldKeys(logEntity.getFieldKeys())
                 .formattedFieldLabels(formattedFieldLabels)
+                .accessReason(logEntity.getAccessReason())
                 .ipAddress(normalizedIp)
                 .accessedAt(logEntity.getAccessedAt())
                 .build();
@@ -350,7 +351,7 @@ public class SensitiveDataService {
 
     @Transactional
     @PreAuthorize("hasPermission(null, 'record:unmask')")
-    public Map<String, String> decryptApprovalFields(UUID approvalId, List<String> fieldKeys, String ipAddress) {
+    public Map<String, String> decryptApprovalFields(UUID approvalId, List<String> fieldKeys, String accessReason, String ipAddress) {
         ApprovalRequest approval = approvalRepository.findById(approvalId)
                 .orElseThrow(() -> new ResourceNotFoundException("ApprovalRequest not found"));
 
@@ -366,7 +367,7 @@ public class SensitiveDataService {
         Map<String, String> decryptedMap = decryptFromDataJson(approval.getChanges(), fields, fieldKeys);
 
         if (!decryptedMap.isEmpty()) {
-            saveAccessLog("APPROVAL_REQUEST", approvalId, new ArrayList<>(decryptedMap.keySet()), ipAddress);
+            saveAccessLog("APPROVAL_REQUEST", approvalId, new ArrayList<>(decryptedMap.keySet()), accessReason, ipAddress);
         }
 
         return decryptedMap;
@@ -374,7 +375,7 @@ public class SensitiveDataService {
 
     @Transactional
     @PreAuthorize("hasPermission(null, 'record:unmask')")
-    public Map<String, String> decryptRecordFields(UUID recordId, List<String> fieldKeys, String ipAddress) {
+    public Map<String, String> decryptRecordFields(UUID recordId, List<String> fieldKeys, String accessReason, String ipAddress) {
         Record record = recordRepository.findById(recordId)
                 .orElseThrow(() -> new ResourceNotFoundException("Record not found"));
 
@@ -386,7 +387,7 @@ public class SensitiveDataService {
         Map<String, String> decryptedMap = decryptFromDataJson(record.getData(), fields, fieldKeys);
 
         if (!decryptedMap.isEmpty()) {
-            saveAccessLog("RECORD", recordId, new ArrayList<>(decryptedMap.keySet()), ipAddress);
+            saveAccessLog("RECORD", recordId, new ArrayList<>(decryptedMap.keySet()), accessReason, ipAddress);
         }
 
         return decryptedMap;
@@ -394,7 +395,7 @@ public class SensitiveDataService {
 
     @Transactional
     @PreAuthorize("hasPermission(null, 'record:unmask')")
-    public Map<String, String> decryptHistoryFields(UUID historyId, List<String> fieldKeys, String ipAddress) {
+    public Map<String, String> decryptHistoryFields(UUID historyId, List<String> fieldKeys, String accessReason, String ipAddress) {
         com.classification.domain_system.entity.RecordHistory history = 
             recordHistoryRepository.findById(historyId)
                 .orElseThrow(() -> new ResourceNotFoundException("History not found"));
@@ -425,7 +426,7 @@ public class SensitiveDataService {
         } catch (Exception e) {}
 
         if (!decryptedMap.isEmpty()) {
-            saveAccessLog("RECORD_HISTORY", historyId, new ArrayList<>(decryptedMap.keySet()), ipAddress);
+            saveAccessLog("RECORD_HISTORY", historyId, new ArrayList<>(decryptedMap.keySet()), accessReason, ipAddress);
         }
 
         return decryptedMap;
@@ -495,7 +496,7 @@ public class SensitiveDataService {
         return current;
     }
 
-    private void saveAccessLog(String targetType, UUID targetId, List<String> fieldKeys, String ipAddress) {
+    private void saveAccessLog(String targetType, UUID targetId, List<String> fieldKeys, String accessReason, String ipAddress) {
         try {
             SensitiveDataAccessLog accessLog = new SensitiveDataAccessLog();
             String userId = authContext != null && authContext.getUserId() != null ? authContext.getUserId() : "SYSTEM";
@@ -508,6 +509,7 @@ public class SensitiveDataService {
             accessLog.setTargetType(targetType);
             accessLog.setTargetId(targetId);
             accessLog.setFieldKeys(String.join(",", fieldKeys));
+            accessLog.setAccessReason(accessReason);
             String normalizedIp = ipAddress;
             if ("0:0:0:0:0:0:0:1".equals(normalizedIp) || "::1".equals(normalizedIp)) {
                 normalizedIp = "127.0.0.1";
