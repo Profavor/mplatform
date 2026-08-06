@@ -143,3 +143,10 @@
 | access_reason | string(500) | 필수 열람 사유 |
 | ip_address | string(50) | 열람자 IP 주소 |
 | accessed_at | datetime | 열람 일시 |
+
+### 3.8 permission_master, menu_node, common_code *(멱등성 기반 기초 시드 데이터)*
+시스템 구동 및 운영에 필요한 핵심 권한 매트릭스, 전체 트리 메뉴 노드, 공통 코드 속성 테이블.
+이 테이블들은 프로덕션(`prod`) 배포 및 DB `ddl-auto: validate` 환경에서 불필요한 DDL 변경이나 데이터 훼손 없이 안전하게 운영되도록 **멱등성(Idempotency) Guard(`count() > 0`)** 룰을 적용하여 초기화된다. 
+
+> **💡 암호화 필드(`is_encrypted=true`)의 데이터 저장은 어떻게 되나요?**
+> `field_definition`에서 `is_encrypted=true`로 선언된 항목은 `record.data` JSONB 내에 평문이 아닌 **32바이트 AES 대칭키로 암호화된 Base64 문자열**로 반영된다. 일치 검색이 필요한 경우 원본 복원 키와 분리된 HMAC SHA-256 전용 키를 통해 생성되는 **Blind Index 해시값**을 대조함으로써, 관리자 DB 조회 시에도 원본 평문이 노출되지 않는 제로 트러스트(Zero Trust) 구조를 달성한다.

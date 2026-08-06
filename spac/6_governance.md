@@ -11,3 +11,11 @@
 ## 6.3 필드 수준 출처 계보 (Field Lineage)
 - `RecordFieldSource` 엔티티가 `(record_id, field_key)`별로 최근 데이터 출처 소스 시스템명(`source_system`)과 변경 시각을 기록한다.
 - 프론트엔드 레코드 상세 Drawer 및 결재 상세 Viewer에서 필드 단위 출처 정보가 시각화된다.
+
+## 6.4 암호화 하위 호환성 (Golden Sample Verification) 및 Blind Indexing 거버넌스
+- **Golden Sample 회귀 불변성 보장:** 암호화 알고리즘 개선이나 시스템 라이브러리 교체 시 과거 암호화된 DB 레코드 불만족(복호화 불가) 사고를 100% 차단하기 위해, JUnit 5 기반의 고정 샘플(`FieldEncryptionServiceTest.testGoldenSample_BackwardCompatibility`) 검증이 CI/CD의 사령탑 역할을 수행한다.
+- **키 분리 거버넌스:** 복호화를 위한 AES 대칭키 유도 로직과 검색을 위한 SHA-256 HMAC Blind Index 생성 키는 서로 무관한 분리 연산으로 유도되어, Blind Index가 노출되어도 원본 데이터를 역산할 수 없도록 보안 컴플라이언스를 만족한다.
+
+## 6.5 화면 및 데이터 표출 거버넌스
+- **무의미한 Raw UUID 노출 금지:** 프론트엔드 화면(사용자 목록, 레코드 조회, 결재 모니터링)에 `340a0917-af0b-...` 형태의 원시 UUID 식별자를 날것 그대로 표시하는 것을 엄격히 금지한다. 노출이 불가피한 경우 식별 접두사를 부착한 축약 코드(예: `REC-340a0917` 혹은 `WF-8302f1a2`)나 실제 도메인/명칭 속성으로 가공하여 표출해야 한다.
+- **다국어 및 개인화 타임존 의무화:** 하드코딩된 한국어/영어 라벨 및 날짜 오차를 강제 방지하기 위해, 모든 UI 스트링은 `vue-i18n` 사전에 정의해야 하며 일시 표출 시에는 사용자 개인화 쿠키(`useTimezoneDate()`)를 기반으로 한 현지 시차 변환 및 `parseDate` 방어 함수가 필수로 거쳐야 한다.

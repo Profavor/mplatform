@@ -59,3 +59,30 @@
 - **관리자(Admin) 개입 로직:**
   - 결재 단계(`ApprovalStep`)에 지정된 담당자(`isAssignee` 또는 `hasRole`)가 부재 중이거나 시스템적 처리가 필요한 경우, 최고 관리자(Admin) 권한을 가진 사용자가 결재를 강제 승인(`admin-approve`) 하거나 반려(`admin-reject`)할 수 있다.
   - 해당 내역은 이력에 별도로 기록되어 추적 가능하다.
+
+---
+
+## 4.7 데이터 암호화(Field Encryption) 및 Blind Indexing
+- **하이브리드 암호화 키 분리 전략:**
+  - `FieldEncryptionService`는 복호화가 필요한 레코드 필드(`isEncrypted=true`)에 대해 기존 운영 DB 데이터와의 호환성을 100% 유지하는 32바이트 AES-256 키 유도 로직을 적용한다.
+  - 암호화된 상태에서도 데이터 일치 검색 및 인덱싱이 가능토록, 암호화 키와 분리된 비밀키 기반의 **SHA-256 HMAC Blind Index** 값을 별도 생성 및 관리한다.
+- **Golden Sample 회귀 검증:**
+  - 키 유도 방식이나 암호화 라이브러리 업그레이드 시 복호화 로직이 깨지는 것을 원천 봉쇄하기 위해, 하드코딩된 암호화 텍스트(Golden Sample)를 복호화하는 TDD 단위 테스트(`testGoldenSample_BackwardCompatibility`)를 상시 구동하여 역방향 호환성을 강제한다.
+
+---
+
+## 4.8 멱등성 기반 초기화 (Idempotent Data Seeding) 및 Prod DDL 검증
+- **안전한 데이터 초기화 (Idempotent Guard):**
+  - `PermissionMasterInitializer`, `MenuDataInitializer`, `CommonCodeInitializer` 등 애플리케이션 시작 시 동작하는 모든 시더(Seeder)는 DB 조작 전에 반드시 기존 레코드 유무(`repository.count() > 0` 또는 특정 식별자 조회)를 검증한다.
+  - 데이터가 이미 존재할 경우 불필요한 DML 삽입을 Skip하여, 재부팅 시 DB 충돌을 방지하고 불필요한 트랜잭션 오버헤드를 막는다.
+- **프로덕션(`prod`) 스키마 무결성:**
+  - 실 운영 환경(PostgreSQL)에서는 `ddl-auto: validate` 모드를 철저히 유지하여 애플리케이션 기동 시 예고 없는 테이블 변경이나 데이터 드랍이 일어나지 않도록 보호한다. DB 조작 시에도 기존 레코드를 날리는 `TRUNCATE` 대신 명시적 개별 조회를 통한 안전 관리를 원칙으로 한다.
+
+---
+
+## 4.9 UI 다국어 (Zero-Fallback i18n) & SSR 안전 격리 구조
+- **Zero-Fallback 다국어 원칙:**
+  - Vue 컴포넌트 내에서 라벨이나 텍스트를 하드코딩하거나 `$t('key', 'Fallback')` 형태로 임의 폴백 문자열을 삽입하는 행위가 엄격히 금지된다. 모든 문구는 `ko.json` 및 `en.json` 사전에 100% 동등하게 정의되어야 하며, 누락 키 자동 검출 검증을 거친다.
+- **SSR 및 브라우저 전용 API 격리 (Vite / Node 호환):**
+  - Nuxt 서버 사이드 렌더링(SSR) 구동 시 Node.js 환경에 존재하지 않는 브라우저 API(`indexedDB`, `window` 등) 호출 라이브러리(`vue3-emoji-picker` 등)로 인해 발생하는 런타임 충돌 에러를 원천 차단한다.
+  - 이를 위해 정적 `import` 대신 `defineAsyncComponent` 동적 로딩을 사용하고, 템플릿 영역을 `<ClientOnly>` 태그로 철저히 감싸서 서버단 렌더링을 격리한다.
