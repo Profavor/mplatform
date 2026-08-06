@@ -65,10 +65,24 @@ public class WorkflowConfig {
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = this.createdAt;
+        sanitizeJsonFields();
     }
 
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+        sanitizeJsonFields();
+    }
+
+    private void sanitizeJsonFields() {
+        if (this.name != null && this.name.trim().isEmpty()) {
+            this.name = null; // 빈 문자열 대신 null 할당하여 DB JSON 에러 방지
+        }
+        if (this.description != null && this.description.trim().isEmpty()) {
+            this.description = null;
+        }
+        if (this.stepsConfig != null && this.stepsConfig.trim().isEmpty()) {
+            this.stepsConfig = "[]"; // 배열 형태의 JSON으로 초기화
+        }
     }
 }

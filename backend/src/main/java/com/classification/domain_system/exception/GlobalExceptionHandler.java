@@ -81,6 +81,13 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(ErrorCode.OPTIMISTIC_LOCK_ERROR, "다른 사용자가 이미 이 레코드를 수정했습니다. 새로고침 후 다시 시도해주세요."));
     }
 
+    @ExceptionHandler(org.springframework.web.context.request.async.AsyncRequestTimeoutException.class)
+    public ResponseEntity<Void> handleAsyncRequestTimeoutException(Exception ex, HttpServletRequest request) {
+        log.debug("Async request timeout at URI: {}", request.getRequestURI());
+        // SSE 타임아웃 등 비동기 요청 타임아웃은 정상적인 생명주기의 일부이므로 에러 로그를 남기지 않음
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleAllExceptions(Exception ex, HttpServletRequest request) {
         String stackTrace = getStackTraceAsString(ex);

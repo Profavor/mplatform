@@ -588,6 +588,12 @@ const sensitiveLogColDefs = computed(() => [
     flex: 1
   },
   {
+    headerValueGetter: () => t('access_log_reason') || '열람 사유',
+    field: 'accessReason',
+    valueGetter: params => params.data?.accessReason || '-',
+    flex: 1
+  },
+  {
     headerValueGetter: () => t('access_log_ip') || 'IP 주소',
     field: 'ipAddress',
     valueFormatter: params => {

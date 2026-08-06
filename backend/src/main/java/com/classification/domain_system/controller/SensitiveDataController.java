@@ -30,8 +30,9 @@ public class SensitiveDataController {
             @RequestBody(required = false) DecryptRequest request,
             HttpServletRequest httpRequest) {
         List<String> fieldKeys = request != null ? request.getFieldKeys() : null;
+        String accessReason = request != null ? request.getAccessReason() : null;
         String ip = getClientIp(httpRequest);
-        Map<String, String> decrypted = sensitiveDataService.decryptApprovalFields(approvalId, fieldKeys, ip);
+        Map<String, String> decrypted = sensitiveDataService.decryptApprovalFields(approvalId, fieldKeys, accessReason, ip);
         return ResponseEntity.ok(decrypted);
     }
 
@@ -42,8 +43,9 @@ public class SensitiveDataController {
             @RequestBody(required = false) DecryptRequest request,
             HttpServletRequest httpRequest) {
         List<String> fieldKeys = request != null ? request.getFieldKeys() : null;
+        String accessReason = request != null ? request.getAccessReason() : null;
         String ip = getClientIp(httpRequest);
-        Map<String, String> decrypted = sensitiveDataService.decryptRecordFields(recordId, fieldKeys, ip);
+        Map<String, String> decrypted = sensitiveDataService.decryptRecordFields(recordId, fieldKeys, accessReason, ip);
         return ResponseEntity.ok(decrypted);
     }
 
@@ -54,8 +56,9 @@ public class SensitiveDataController {
             @RequestBody(required = false) DecryptRequest request,
             HttpServletRequest httpRequest) {
         List<String> fieldKeys = request != null ? request.getFieldKeys() : null;
+        String accessReason = request != null ? request.getAccessReason() : null;
         String ip = getClientIp(httpRequest);
-        Map<String, String> decrypted = sensitiveDataService.decryptHistoryFields(historyId, fieldKeys, ip);
+        Map<String, String> decrypted = sensitiveDataService.decryptHistoryFields(historyId, fieldKeys, accessReason, ip);
         return ResponseEntity.ok(decrypted);
     }
 
@@ -90,5 +93,6 @@ public class SensitiveDataController {
     @Data
     public static class DecryptRequest {
         private List<String> fieldKeys;
+        private String accessReason;
     }
 }

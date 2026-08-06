@@ -25,6 +25,7 @@ public class SensitiveDataAccessLogDto {
     private String nameAttribute;
     private String fieldKeys;
     private String formattedFieldLabels;
+    private String accessReason;
     private String ipAddress;
     private LocalDateTime accessedAt;
 }

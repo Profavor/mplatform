@@ -108,7 +108,7 @@
       </va-alert>
     </div>
 
-    <div v-if="newField.type === 'DATE'" class="mb-4 w-full">
+    <div v-if="['DATE', 'DATE_RANGE'].includes(newField.type)" class="mb-4 w-full">
       <va-select
         v-model="newField.dateFormat"
         :options="['YYYY-MM-DD', 'MM/DD/YYYY', 'DD/MM/YYYY']"

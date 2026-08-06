@@ -315,6 +315,11 @@
         <ApprovalSteps :request="request" />
       </div>
     </template>
+
+    <UnmaskReasonModal
+      v-model="showUnmaskReasonModal"
+      @confirm="executeDecryptApprovalField"
+    />
   </div>
 </template>
 
@@ -323,7 +328,13 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useCookie } from '#app'
 import { useI18n } from 'vue-i18n'
 import ApprovalSteps from './ApprovalSteps.vue'
+import UnmaskReasonModal from './UnmaskReasonModal.vue'
+import { useToast } from 'vuestic-ui'
 const { t } = useI18n()
+const { init } = useToast()
+
+const showUnmaskReasonModal = ref(false)
+const pendingDecryptField = ref(null)
 
 const isRequestedDataExpanded = ref(true)
 
@@ -677,14 +688,21 @@ const decryptTimers = ref({})
 const decryptRemainingTime = ref({})
 const decryptIntervals = ref({})
 
-const requestDecryptApprovalField = async (fieldKey) => {
+const requestDecryptApprovalField = (fieldKey) => {
   if (!props.request || !props.request.id) return
+  pendingDecryptField.value = fieldKey
+  showUnmaskReasonModal.value = true
+}
+
+const executeDecryptApprovalField = async (reason) => {
+  const fieldKey = pendingDecryptField.value
+  if (!fieldKey || !props.request || !props.request.id) return
   decryptingFields.value[fieldKey] = true
   try {
     const res = await $fetch(`/api/sensitive-data/approval/${props.request.id}/decrypt`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token.value}` },
-      body: { fieldKeys: [fieldKey] }
+      body: { fieldKeys: [fieldKey], accessReason: reason }
     })
     if (res && res[fieldKey]) {
       decryptedValues.value[fieldKey] = res[fieldKey]

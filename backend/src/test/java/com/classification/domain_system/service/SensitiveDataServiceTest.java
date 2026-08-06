@@ -80,7 +80,7 @@ class SensitiveDataServiceTest {
         when(encryptionService.decrypt("ENC_1234")).thenReturn("900101-1234567");
         when(authContext.getUserId()).thenReturn("user-uuid-1");
 
-        Map<String, String> result = sensitiveDataService.decryptApprovalFields(approvalId, List.of("rrn"), "::1");
+        Map<String, String> result = sensitiveDataService.decryptApprovalFields(approvalId, List.of("rrn"), "업무 목적", "::1");
 
         assertThat(result).containsEntry("rrn", "900101-1234567");
 
@@ -90,6 +90,7 @@ class SensitiveDataServiceTest {
         assertThat(savedLog.getTargetId()).isEqualTo(approvalId);
         assertThat(savedLog.getTargetType()).isEqualTo("APPROVAL_REQUEST");
         assertThat(savedLog.getFieldKeys()).isEqualTo("rrn");
+        assertThat(savedLog.getAccessReason()).isEqualTo("업무 목적");
         assertThat(savedLog.getIpAddress()).isEqualTo("127.0.0.1");
     }
 
@@ -165,7 +166,7 @@ class SensitiveDataServiceTest {
         UUID approvalId = UUID.randomUUID();
         when(approvalRepository.findById(approvalId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> sensitiveDataService.decryptApprovalFields(approvalId, null, "127.0.0.1"))
+        assertThatThrownBy(() -> sensitiveDataService.decryptApprovalFields(approvalId, null, "사유", "127.0.0.1"))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
     @Test

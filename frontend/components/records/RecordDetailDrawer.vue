@@ -282,6 +282,42 @@
                             </div>
                           </transition-group>
                         </div>
+                        <div v-else-if="field.type === 'DATE_RANGE'" class="w-full" style="display: flex; gap: 0.5rem; flex-direction: row; align-items: center; min-width: 0;">
+                          <template v-if="!isEditing">
+                            <va-input
+                              :model-value="(decryptedValues[field.key] || localRecord[field.key] || '').replace(',', ' ~ ')"
+                              readonly
+                              class="w-full"
+                            />
+                          </template>
+                          <template v-else>
+                            <va-input
+                              :model-value="(localRecord[field.key] || '').split(',')[0] || ''"
+                              @update:model-value="(val) => { const arr = (localRecord[field.key] || '').split(','); arr[0] = val; localRecord[field.key] = arr.join(','); if (arr.length === 1) localRecord[field.key] += ','; }"
+                              :type="focusedDateFields['edit_' + field.key + '_start'] || (localRecord[field.key] || '').split(',')[0] ? 'date' : 'text'"
+                              :readonly="evalConditionRule(field, localRecord).readOnly"
+                              :disabled="evalConditionRule(field, localRecord).disabled"
+                              :lang="locale === 'en' ? 'en-US' : 'ko-KR'"
+                              :placeholder="locale === 'en' ? 'Start Date' : '시작일'"
+                              style="flex: 1; min-width: 0;"
+                              @focus="focusedDateFields['edit_' + field.key + '_start'] = true"
+                              @blur="focusedDateFields['edit_' + field.key + '_start'] = false"
+                            />
+                            <span style="font-weight: bold; color: var(--va-text-secondary);">~</span>
+                            <va-input
+                              :model-value="(localRecord[field.key] || '').split(',')[1] || ''"
+                              @update:model-value="(val) => { const arr = (localRecord[field.key] || '').split(','); arr[0] = arr[0] || ''; arr[1] = val; localRecord[field.key] = arr.join(','); }"
+                              :type="focusedDateFields['edit_' + field.key + '_end'] || (localRecord[field.key] || '').split(',')[1] ? 'date' : 'text'"
+                              :readonly="evalConditionRule(field, localRecord).readOnly"
+                              :disabled="evalConditionRule(field, localRecord).disabled"
+                              :lang="locale === 'en' ? 'en-US' : 'ko-KR'"
+                              :placeholder="locale === 'en' ? 'End Date' : '종료일'"
+                              style="flex: 1; min-width: 0;"
+                              @focus="focusedDateFields['edit_' + field.key + '_end'] = true"
+                              @blur="focusedDateFields['edit_' + field.key + '_end'] = false"
+                            />
+                          </template>
+                        </div>
                         <va-input
                           v-else
                           :model-value="decryptedValues[field.key] || localRecord[field.key]"
@@ -495,6 +531,11 @@
     </div>
   </va-modal>
 
+  <UnmaskReasonModal
+    v-model="showUnmaskReasonModal"
+    @confirm="executePendingDecrypt"
+  />
+
   <!-- Reusable User Profile Modal Component -->
   <UserProfileModal
     v-model="showUserProfileModal"
@@ -547,8 +588,22 @@ import { ref, computed, watch } from 'vue'
 import { AgGridVue } from 'ag-grid-vue3'
 import { useToast } from 'vuestic-ui'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
+import UnmaskReasonModal from '../UnmaskReasonModal.vue'
 
 const { gridTheme } = useAgGridTheme()
+
+const showUnmaskReasonModal = ref(false)
+const pendingDecryptAction = ref(null)
+
+const executePendingDecrypt = async (reason) => {
+  if (!pendingDecryptAction.value) return
+  const action = pendingDecryptAction.value
+  if (action.type === 'record') {
+    await executeDecryptRecordField(action.fieldKey, reason)
+  } else if (action.type === 'history') {
+    await executeDecryptHistoryField(action.historyId, action.fieldKey, reason)
+  }
+}
 
 const createUnifiedBtn = (label, colorHex, onClick) => {
   const btn = document.createElement('button');
@@ -647,6 +702,9 @@ const formatDiffValue = (key, val) => {
         return matchedOpt.label || matchedOpt.name || String(val);
       }
     }
+  }
+  if (f && f.type === 'DATE_RANGE' && typeof val === 'string') {
+    return val.replace(',', ' ~ ');
   }
   if (typeof val === 'object') return JSON.stringify(val);
   return String(val);
@@ -845,7 +903,12 @@ const decryptTimers = ref({})
 const decryptRemainingTime = ref({})
 const decryptIntervals = ref({})
 
-const requestDecryptRecordField = async (fieldKey) => {
+const requestDecryptRecordField = (fieldKey) => {
+  pendingDecryptAction.value = { type: 'record', fieldKey }
+  showUnmaskReasonModal.value = true
+}
+
+const executeDecryptRecordField = async (fieldKey, reason) => {
   let recId = null
   let endpoint = ''
   
@@ -865,7 +928,7 @@ const requestDecryptRecordField = async (fieldKey) => {
     const res = await $fetch(endpoint, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
-      body: { fieldKeys: [fieldKey] }
+      body: { fieldKeys: [fieldKey], accessReason: reason }
     })
     if (res && res[fieldKey]) {
       decryptedValues.value[fieldKey] = res[fieldKey]
@@ -893,7 +956,12 @@ const requestDecryptRecordField = async (fieldKey) => {
   }
 }
 
-const requestDecryptHistoryField = async (historyId, fieldKey) => {
+const requestDecryptHistoryField = (historyId, fieldKey) => {
+  pendingDecryptAction.value = { type: 'history', historyId, fieldKey }
+  showUnmaskReasonModal.value = true
+}
+
+const executeDecryptHistoryField = async (historyId, fieldKey, reason) => {
   const key = `${historyId}_${fieldKey}`
   decryptingFields.value[key] = true
   try {
@@ -901,7 +969,7 @@ const requestDecryptHistoryField = async (historyId, fieldKey) => {
     const res = await $fetch(`/api/sensitive-data/history/${historyId}/decrypt`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
-      body: { fieldKeys: [fieldKey] }
+      body: { fieldKeys: [fieldKey], accessReason: reason }
     })
     if (res && res[fieldKey]) {
       decryptedValues.value[key] = res[fieldKey]
