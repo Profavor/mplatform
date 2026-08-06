@@ -12,7 +12,7 @@
           <div style="display: flex; align-items: center; gap: 0.65rem;">
             <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
               <va-icon name="verified_user" color="primary" />
-              {{ t('details') || '결재 상세 정보' }}
+              {{ t('details') }}
             </h3>
             <va-badge :text="getRequestTypeLabel(selectedRequest.targetType)" :color="getRequestTypeColor(selectedRequest.targetType)" />
             <va-badge :text="selectedRequest.status" :color="selectedRequest.status === 'PENDING' ? 'warning' : (selectedRequest.status === 'APPROVED' ? 'success' : 'danger')" />
@@ -21,7 +21,7 @@
           <div style="font-size: 0.85rem; color: var(--va-text-secondary); display: flex; align-items: center; gap: 0.75rem;">
             <span v-if="selectedRequest">
               <va-icon name="person" size="small" style="margin-right: 2px;" />
-              {{ t('requester') || '기안자' }}: <strong>{{ getRequesterName(selectedRequest) }}</strong>
+              {{ t('requester') }}: <strong>{{ getRequesterName(selectedRequest) }}</strong>
             </span>
             <span>
               <va-icon name="schedule" size="small" style="margin-right: 2px;" />
@@ -50,7 +50,7 @@
     </div>
 
     <template #footer>
-      <va-button preset="secondary" @click="$emit('update:modelValue', false)">{{ t('close') || '닫기' }}</va-button>
+      <va-button preset="secondary" @click="$emit('update:modelValue', false)">{{ t('close') }}</va-button>
     </template>
   </va-modal>
 </template>

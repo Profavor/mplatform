@@ -90,4 +90,26 @@ class FieldEncryptionServiceTest {
         String result = fieldEncryptionService.decrypt(plainRrn);
         assertThat(result).isEqualTo(plainRrn);
     }
+
+    @Test
+    @DisplayName("testFailFast_NullOrEmptyKey: Throw IllegalArgumentException when encryption key is missing or invalid")
+    void testFailFast_NullOrEmptyKey() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> new FieldEncryptionService(null));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> new FieldEncryptionService("   "));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> new FieldEncryptionService("${security.encryption.secret-key:#{null}}"));
+    }
+
+    @Test
+    @DisplayName("testGoldenSample_BackwardCompatibility: 기존 DB 암호문과의 하위 호환성을 보장하는 불변(Golden Sample) 회귀 테스트")
+    void testGoldenSample_BackwardCompatibility() {
+        // 기존 32바이트 바이트 추출 AES 키 알고리즘으로 생성된 고정 불변 암호문(IV + 암호문 + GCM Tag)
+        // 만약 키 파생 로직이나 알고리즘 변경으로 기존 DB 데이터와 렌더링 호환성이 단 1바이트라도 어긋날 경우 이 테스트는 즉시 에러를 발생시킵니다.
+        String goldenCiphertext = "rROt/OnTtO18R5a+baaheaj0MTLYI02QTcyg5mqgOWJr0wUpXIBiuXwfUm4+SgRj0fIzMZTJe9jxhH4tGB7IWNHK30E=";
+        String expectedPlainText = "Golden Sample Personal Data - 2026-08-06";
+
+        assertThat(fieldEncryptionService.isEncrypted(goldenCiphertext)).isTrue();
+        String decrypted = fieldEncryptionService.decrypt(goldenCiphertext);
+        assertThat(decrypted).isEqualTo(expectedPlainText);
+    }
 }
+

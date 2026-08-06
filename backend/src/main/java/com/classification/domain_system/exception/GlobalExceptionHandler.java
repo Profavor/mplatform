@@ -55,7 +55,7 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(ErrorCode.INVALID_INPUT, "JSON Parse Error: " + ex.getMessage()));
     }
 
-    @ExceptionHandler({ValidationException.class, IllegalArgumentException.class})
+    @ExceptionHandler({ValidationException.class, IllegalArgumentException.class, IllegalStateException.class})
     public ResponseEntity<ErrorResponse> handleValidationException(Exception ex, HttpServletRequest request) {
         log.warn("Validation/IllegalArgument exception at URI: {}. Message: {}", request.getRequestURI(), ex.getMessage());
         ErrorCode code = (ex instanceof BusinessException be) ? be.getErrorCode() : ErrorCode.INVALID_INPUT;

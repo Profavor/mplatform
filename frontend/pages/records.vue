@@ -10,7 +10,7 @@
             <va-badge text="Master Data" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
-            {{ $t('records_management_desc') || '도메인별 마스터 데이터 레코드를 조회, 신규 생성, 일괄 변경 및 서바이버십 병합을 진행합니다.' }}
+            {{ $t('records_management_desc') }}
           </span>
         </div>
       </div>
@@ -92,19 +92,19 @@
             </va-button>
           </template>
           <va-button size="small" color="info" outline :disabled="(selectedRecordRows?.length || 0) !== 1" @click="showLineageModal = true">
-            <va-icon name="account_tree" class="mr-1"/> {{ $t('data_lineage') || '데이터 계보' }}
+            <va-icon name="account_tree" class="mr-1"/> {{ $t('data_lineage') }}
           </va-button>
           <va-button size="small" color="warning" outline :disabled="(selectedRecordRows?.length || 0) < 2" @click="showCompareModal = true">
-            <va-icon name="scale" class="mr-1"/> {{ $t('compare_records') || '레코드 비교' }} ({{ selectedRecordRows?.length || 0 }})
+            <va-icon name="scale" class="mr-1"/> {{ $t('compare_records') }} ({{ selectedRecordRows?.length || 0 }})
           </va-button>
           <va-button size="small" color="warning" outline @click="showAsyncExportModal = true">
-            <va-icon name="cloud_download" class="mr-1"/> {{ $t('async_export') || '대용량 Export' }}
+            <va-icon name="cloud_download" class="mr-1"/> {{ $t('async_export') }}
           </va-button>
           <va-button preset="plain" color="secondary" size="small" @click="clearFilters" icon="restart_alt">
             {{ $t('reset') }}
           </va-button>
           <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshRecords">
-            {{ $t('refresh') || '새로고침' }}
+            {{ $t('refresh') }}
           </va-button>
         </div>
       </div>
@@ -377,7 +377,7 @@
     />
 
     <!-- Approval / Integration History Modal -->
-    <va-modal v-model="showApprovalHistoryModal" :title="selectedApprovalRequest?.isIntegration ? ($t('integration.channels.integration_detail_title') || $t('integration_detail_title') || '연계 내역 상세') : ($t('integration.channels.approval_detail_title') || $t('approval_detail_title') || '결재 내역 상세')" hide-default-actions size="large" :prevent-click-outside="true" :no-outside-dismiss="true">
+    <va-modal v-model="showApprovalHistoryModal" :title="selectedApprovalRequest?.isIntegration ? ($t('integration.channels.integration_detail_title') || $t('integration_detail_title')) : ($t('integration.channels.approval_detail_title') || $t('approval_detail_title'))" hide-default-actions size="large" :prevent-click-outside="true" :no-outside-dismiss="true">
       <div style="max-height: 60vh; overflow-y: auto; padding: 1rem; box-sizing: border-box; width: 100%;">
         <div v-if="!selectedApprovalRequest" style="text-align: center; color: #777;">
           데이터를 불러오는 중입니다...
@@ -552,7 +552,7 @@ const isDomainRefForCreate = ref(false)
 const openDomainRefModal = (fieldKey, isCreate = false) => {
   const refInfo = domainReferences.value[fieldKey]
   if (!refInfo) {
-    showCustomAlert(t('target_domain_ref_not_loaded') || 'Target domain reference info not loaded.', t('notice') || 'Notice', t('notification') || 'Notification', 'warning')
+    showCustomAlert(t('target_domain_ref_not_loaded'), t('notice'), t('notification'), 'warning')
     return
   }
   currentDomainRefFieldKey.value = fieldKey
@@ -968,10 +968,10 @@ const handleUnmergeRecord = async (record) => {
   if (!targetId) return
 
   const isConfirmed = await confirm({
-    title: t('merge.unmerge_confirm_title') || '병합 취소 (Unmerge)',
-    message: t('merge.unmerge_confirm_msg') || '이 레코드의 병합 상태를 되돌리시겠습니까? 병합 이전 상태로 데이터가 복원됩니다.',
-    okText: t('confirm') || '확인',
-    cancelText: t('cancel') || '취소'
+    title: t('merge.unmerge_confirm_title'),
+    message: t('merge.unmerge_confirm_msg'),
+    okText: t('confirm'),
+    cancelText: t('cancel')
   })
   if (!isConfirmed) return
 
@@ -980,11 +980,11 @@ const handleUnmergeRecord = async (record) => {
       method: 'POST',
       headers: { Authorization: `Bearer ${token.value}` }
     })
-    init({ message: t('merge.unmerge_success') || '레코드가 성공적으로 언머지(복구) 되었습니다.', color: 'success' })
+    init({ message: t('merge.unmerge_success'), color: 'success' })
     showDetailModal.value = false
     refreshRecords()
   } catch (e) {
-    init({ message: t('merge.unmerge_fail') || '언머지 처리 중 오류가 발생했습니다.', color: 'danger' })
+    init({ message: t('merge.unmerge_fail'), color: 'danger' })
   }
 }
 
@@ -1430,7 +1430,7 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
   
   defs.push({
     field: 'updatedAt',
-    headerName: t('updatedAt') || '변경일',
+    headerName: t('updatedAt'),
     sortable: true,
     width: 210,
     valueGetter: (params) => params.data?.updatedAt || params.data?.createdAt,
@@ -1658,7 +1658,7 @@ const viewApprovalHistory = async (row) => {
     selectedApprovalRequest.value = res
   } catch (e) {
     console.error('Failed to load approval details', e)
-    showCustomAlert(t('failed_load_approval_details') || 'Failed to load approval details', t('error') || 'Error', t('notification') || 'Notification', 'error')
+    showCustomAlert(t('failed_load_approval_details'), t('error'), t('notification'), 'error')
     showApprovalHistoryModal.value = false
   }
 }
@@ -1894,7 +1894,7 @@ const openHistory = async () => {
     }
   } catch (e) {
     console.error('Failed to load history', e)
-    showCustomAlert(t('failed_load_history') || 'Failed to load history', t('error') || 'Error', t('notification') || 'Notification', 'error')
+    showCustomAlert(t('failed_load_history'), t('error'), t('notification'), 'error')
   } finally {
     hideLoading()
   }
@@ -2211,7 +2211,7 @@ const openCreateModal = async () => {
       availableWorkflows.value = wfList || []
       if (!availableWorkflows.value || availableWorkflows.value.length === 0) {
         initToast({
-          message: t('no_active_workflow') || '적용된 결재 워크플로우가 없어 레코드를 작성할 수 없습니다.',
+          message: t('no_active_workflow'),
           color: 'warning'
         })
         return
@@ -2229,14 +2229,14 @@ const openCreateModal = async () => {
       availableWorkflows.value = []
       createWorkflowPermission.value = {}
       initToast({
-        message: t('no_active_workflow') || '적용된 결재 워크플로우가 없어 레코드를 작성할 수 없습니다.',
+        message: t('no_active_workflow'),
         color: 'warning'
       })
       return
     }
   } else {
     initToast({
-      message: t('no_active_workflow') || '적용된 결재 워크플로우가 없어 레코드를 작성할 수 없습니다.',
+      message: t('no_active_workflow'),
       color: 'warning'
     })
     return

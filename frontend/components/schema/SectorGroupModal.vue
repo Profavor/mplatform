@@ -13,9 +13,9 @@
         <div style="display:flex; justify-content:space-between; margin-bottom: 1rem; align-items: center;">
           <h3 style="font-weight:bold; margin: 0;">Sectors</h3>
           <div style="display:flex; gap: 0.5rem;">
-            <va-button size="small" icon="add" @click="$emit('add-sector-row')">{{ t('add_row') || '+ 행 추가' }}</va-button>
-            <va-button size="small" color="primary" icon="save" @click="$emit('save-all-sectors')">{{ t('save') || '저장' }}</va-button>
-            <va-button size="small" color="danger" icon="delete" @click="$emit('delete-selected-sector')" :outline="isDark">{{ t('remove_selected') || '선택 삭제' }}</va-button>
+            <va-button size="small" icon="add" @click="$emit('add-sector-row')">{{ t('add_row') }}</va-button>
+            <va-button size="small" color="primary" icon="save" @click="$emit('save-all-sectors')">{{ t('save') }}</va-button>
+            <va-button size="small" color="danger" icon="delete" @click="$emit('delete-selected-sector')" :outline="isDark">{{ t('remove_selected') }}</va-button>
           </div>
         </div>
         <div :class="{ 'ag-theme-quartz-dark': isDark }" style="flex: 1; width: 100%;">
@@ -38,9 +38,9 @@
         <div style="display:flex; justify-content:space-between; margin-bottom: 1rem; align-items: center;">
           <h3 style="font-weight:bold; margin: 0;">Groups</h3>
           <div style="display:flex; gap: 0.5rem;">
-            <va-button size="small" icon="add" @click="$emit('add-group-row')">{{ t('add_row') || '+ 행 추가' }}</va-button>
-            <va-button size="small" color="primary" icon="save" @click="$emit('save-all-groups')">{{ t('save') || '저장' }}</va-button>
-            <va-button size="small" color="danger" icon="delete" @click="$emit('delete-selected-group')" :outline="isDark">{{ t('remove_selected') || '선택 삭제' }}</va-button>
+            <va-button size="small" icon="add" @click="$emit('add-group-row')">{{ t('add_row') }}</va-button>
+            <va-button size="small" color="primary" icon="save" @click="$emit('save-all-groups')">{{ t('save') }}</va-button>
+            <va-button size="small" color="danger" icon="delete" @click="$emit('delete-selected-group')" :outline="isDark">{{ t('remove_selected') }}</va-button>
           </div>
         </div>
         <div :class="{ 'ag-theme-quartz-dark': isDark }" style="flex: 1; width: 100%;">
@@ -59,10 +59,10 @@
       </div>
     </div>
     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; border-top: 1px solid #eee; padding-top: 0.75rem;">
-      <span style="font-size: 0.85em; color: #666;">{{ t('save_changes_hint') || '* 셀 수정 후 상단 또는 하단의 \'저장\' 버튼을 클릭하여 변경사항을 반영하세요.' }}</span>
+      <span style="font-size: 0.85em; color: #666;">{{ t('save_changes_hint') }}</span>
       <div style="display: flex; gap: 0.5rem;">
-        <va-button color="primary" icon="save" @click="$emit('save-sector-group-changes')">{{ t('save') || '저장' }}</va-button>
-        <va-button preset="secondary" @click="$emit('update:modelValue', false)">{{ t('vuestic.close') || '닫기' }}</va-button>
+        <va-button color="primary" icon="save" @click="$emit('save-sector-group-changes')">{{ t('save') }}</va-button>
+        <va-button preset="secondary" @click="$emit('update:modelValue', false)">{{ t('vuestic.close') }}</va-button>
       </div>
     </div>
   </va-modal>

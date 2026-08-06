@@ -10,7 +10,7 @@
             <va-badge text="Governance" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
-            {{ $t('domain_schema_desc') || '분류체계 트리 구조 기반으로 도메인 모델, 속성(Attribute) 및 데이터 타입을 정의합니다.' }}
+            {{ $t('domain_schema_desc') }}
           </span>
         </div>
       </div>
@@ -21,7 +21,7 @@
       <div class="schema-tree-column">
         <va-card>
           <va-card-title>
-            {{ $t('classification_tree') || 'Classification Tree' }}
+            {{ $t('classification_tree') }}
           </va-card-title>
           <va-card-content>
             <div class="schema-tree-wrapper">
@@ -30,7 +30,7 @@
                 :selectedNode="selectedNode"
                 :showEdit="true"
                 :hideAxisSelect="true"
-                :emptyMessage="$t('tree_empty_message') || '분류체계 트리가 없습니다. 하단의 Domain 버튼을 눌러 새 도메인을 생성해주세요.'"
+                :emptyMessage="$t('tree_empty_message')"
                 @select="onNodeSelected"
                 @edit="handleNodeEdit"
                 @loaded="onTreeLoaded"
@@ -44,7 +44,7 @@
               <va-button preset="secondary" style="width: 100%;" @click="showRequestAccessModal = true">Request Domain Access</va-button>
             </div>
             <div style="margin-top: 0.75rem; padding: 0 0.5rem;">
-              <va-button style="width: 100%; border-radius: 8px; font-weight: 600;" color="info" icon="tune" @click="openSectorGroupModal" :disabled="!treeNodes || treeNodes.length === 0" preset="secondary">{{ $t('manage_sectors_groups') || 'Manage Sectors & Groups' }}</va-button>
+              <va-button style="width: 100%; border-radius: 8px; font-weight: 600;" color="info" icon="tune" @click="openSectorGroupModal" :disabled="!treeNodes || treeNodes.length === 0" preset="secondary">{{ $t('manage_sectors_groups') }}</va-button>
             </div>
           </va-card-content>
         </va-card>
@@ -56,8 +56,8 @@
           <va-card-title>
             <va-tabs v-model="activeTab" style="width: 100%;">
               <template #tabs>
-                <va-tab>{{ $t('tab_fields') || 'Fields' }}</va-tab>
-                <va-tab>{{ $t('schema_history.title') || 'Schema History' }}</va-tab>
+                <va-tab>{{ $t('tab_fields') }}</va-tab>
+                <va-tab>{{ $t('schema_history.title') }}</va-tab>
                 <va-tab v-if="selectedNode && selectedNode.type === 'domain'">{{ $t('classification_axes') }}</va-tab>
               </template>
             </va-tabs>
@@ -70,14 +70,14 @@
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
                   <va-icon name="list_alt" color="primary" size="1.1rem" />
                   <span style="font-weight: 700; font-size: 0.95rem; color: var(--va-text-primary);">
-                    {{ selectedNode ? getTranslatedName(selectedNode.name) + ' ' + ($t('tab_fields') || '필드 목록') : ($t('tab_fields') || '필드 목록') }}
+                    {{ selectedNode ? getTranslatedName(selectedNode.name) + ' ' + ($t('tab_fields')) : ($t('tab_fields')) }}
                   </span>
                   <va-chip size="small" color="primary" style="font-weight: 600;">{{ fields.length }}건</va-chip>
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 0.4rem;">
                   <va-button v-if="hasPermission('field:write') || hasPermission('field:*')" size="small" icon="add" @click="openFieldModal(null)">Add Field</va-button>
-                  <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshSchemaData">{{ $t('refresh') || '새로고침' }}</va-button>
+                  <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshSchemaData">{{ $t('refresh') }}</va-button>
                 </div>
               </div>
 
@@ -268,7 +268,7 @@
             style="min-width: 120px;"
             @click="showErrorAlertModal = false"
           >
-            {{ $t('close') || '확인' }}
+            {{ $t('close') }}
           </va-button>
         </div>
       </div>
@@ -302,11 +302,11 @@
             <div style="display: flex; align-items: center; gap: 0.65rem;">
               <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
                 <va-icon name="rate_review" color="primary" />
-                {{ $t('approval_history') || '결재 내역 확인' }}
+                {{ $t('approval_history') }}
               </h3>
               <va-badge 
                 v-if="selectedApprovalRequest?.targetType"
-                :text="selectedApprovalRequest.targetType.startsWith('SCHEMA_') ? ($t('schema_change') || '스키마 변경') : selectedApprovalRequest.targetType" 
+                :text="selectedApprovalRequest.targetType.startsWith('SCHEMA_') ? ($t('schema_change')) : selectedApprovalRequest.targetType" 
                 color="primary" 
               />
             </div>
@@ -314,7 +314,7 @@
             <div style="font-size: 0.85rem; color: var(--va-text-secondary); display: flex; align-items: center; gap: 0.75rem;">
               <span>
                 <va-icon name="person" size="small" style="margin-right: 2px;" />
-                {{ t('requester') || '기안자' }}: <strong>{{ selectedApprovalRequest?.requesterName || selectedApprovalRequest?.requesterId || 'Unknown' }}</strong>
+                {{ t('requester') }}: <strong>{{ selectedApprovalRequest?.requesterName || selectedApprovalRequest?.requesterId || 'Unknown' }}</strong>
               </span>
               <span>
                 <va-icon name="schedule" size="small" style="margin-right: 2px;" />

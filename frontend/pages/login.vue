@@ -7,7 +7,7 @@
           <va-icon name="hub" size="32px" color="primary" />
         </div>
         <h1 class="title">Domain System</h1>
-        <p class="subtitle">{{ $t('login_title_sub') || 'Secure Data Classification Platform' }}</p>
+        <p class="subtitle">{{ $t('login_title_sub') }}</p>
       </div>
 
       <va-card class="auth-card">
@@ -15,10 +15,10 @@
           <va-tabs v-model="activeTab" style="width: 100%;">
             <template #tabs>
               <va-tab name="login" style="flex: 1; text-align: center; font-weight: 700; font-size: 0.95rem;">
-                {{ $t('tab_login') || 'Login' }}
+                {{ $t('tab_login') }}
               </va-tab>
               <va-tab name="register" style="flex: 1; text-align: center; font-weight: 700; font-size: 0.95rem;">
-                {{ $t('tab_register') || 'Register' }}
+                {{ $t('tab_register') }}
               </va-tab>
             </template>
           </va-tabs>
@@ -30,8 +30,8 @@
             <va-input 
               ref="usernameInputRef"
               v-model="loginForm.username" 
-              :label="$t('label_username') || 'Username'" 
-              :placeholder="$t('placeholder_username') || 'Enter your username'"
+              :label="$t('label_username')" 
+              :placeholder="$t('placeholder_username')"
               class="w-full mb-4"
               outline
               tabindex="1"
@@ -46,9 +46,9 @@
             <va-input 
               ref="passwordInputRef"
               v-model="loginForm.password" 
-              :label="$t('label_password') || 'Password'" 
+              :label="$t('label_password')" 
               type="password" 
-              :placeholder="$t('placeholder_password') || 'Enter your password'"
+              :placeholder="$t('placeholder_password')"
               class="w-full mb-4"
               outline
               tabindex="2"
@@ -70,19 +70,19 @@
               class="w-full mt-2 luxury-btn" 
               :loading="loading" 
             >
-              {{ $t('btn_login') || 'Sign In' }}
+              {{ $t('btn_login') }}
             </va-button>
           </form>
 
           <!-- REGISTER FORM -->
           <form v-if="activeTab === 'register'" @submit.prevent="handleRegister" class="auth-form">
             <div class="mb-4">
-              <label class="custom-field-label">{{ $t('label_username') || 'Username' }}</label>
+              <label class="custom-field-label">{{ $t('label_username') }}</label>
               <div class="input-with-button">
                 <div class="flex-grow">
                   <va-input 
                     v-model="registerForm.username" 
-                    :placeholder="$t('placeholder_username') || 'Choose a username'"
+                    :placeholder="$t('placeholder_username')"
                     class="w-full"
                     outline
                     tabindex="1"
@@ -102,7 +102,7 @@
                   @click="checkUsernameAvailability"
                 >
                   <va-icon name="verified_user" size="small" style="margin-right: 4px;" />
-                  {{ $t('btn_check_duplicate') || 'Check Availability' }}
+                  {{ $t('btn_check_duplicate') }}
                 </va-button>
               </div>
               <div v-if="usernameCheckMessage" class="status-msg" :class="{ 'text-success': isUsernameAvailable, 'text-danger': !isUsernameAvailable }">
@@ -113,9 +113,9 @@
             
             <va-input 
               v-model="registerForm.password" 
-              :label="$t('label_password') || 'Password'" 
+              :label="$t('label_password')" 
               type="password" 
-              :placeholder="$t('placeholder_password') || 'Create a password'"
+              :placeholder="$t('placeholder_password')"
               class="w-full mb-4"
               outline
               tabindex="2"
@@ -127,14 +127,14 @@
 
             <va-input 
               v-model="registerForm.confirmPassword" 
-              :label="$t('label_confirm_password') || 'Confirm Password'" 
+              :label="$t('label_confirm_password')" 
               type="password" 
-              :placeholder="$t('placeholder_confirm_password') || 'Re-enter your password'"
+              :placeholder="$t('placeholder_confirm_password')"
               class="w-full mb-4"
               outline
               tabindex="3"
               :error="passwordMismatch"
-              :error-messages="passwordMismatch ? [$t('msg_password_mismatch') || 'Passwords do not match.'] : []"
+              :error-messages="passwordMismatch ? [$t('msg_password_mismatch')] : []"
             >
               <template #prependInner>
                 <va-icon name="lock_reset" color="secondary" />
@@ -163,7 +163,7 @@
               class="w-full mt-2 luxury-btn luxury-btn-register" 
               :loading="loading" 
             >
-              {{ $t('btn_register') || 'Create Account' }}
+              {{ $t('btn_register') }}
             </va-button>
           </form>
         </va-card-content>
@@ -228,7 +228,7 @@ const onUsernameBlur = () => {
 const checkUsernameAvailability = async () => {
   const username = registerForm.value.username ? registerForm.value.username.trim() : ''
   if (!username) {
-    usernameCheckMessage.value = t('msg_username_check_required') || 'Please enter a username.'
+    usernameCheckMessage.value = t('msg_username_check_required')
     isUsernameAvailable.value = false
     return
   }
@@ -243,9 +243,9 @@ const checkUsernameAvailability = async () => {
     isUsernameChecked.value = true
     isUsernameAvailable.value = !!res.available
     if (res.available) {
-      usernameCheckMessage.value = t('msg_username_available') || 'Username is available.'
+      usernameCheckMessage.value = t('msg_username_available')
     } else {
-      usernameCheckMessage.value = t('msg_username_exists') || 'Username already exists.'
+      usernameCheckMessage.value = t('msg_username_exists')
     }
   } catch {
     isUsernameChecked.value = false
@@ -337,13 +337,13 @@ const handleRegister = async () => {
   }
 
   if (registerForm.value.password !== registerForm.value.confirmPassword) {
-    errorMessage.value = t('msg_password_mismatch') || 'Passwords do not match.'
+    errorMessage.value = t('msg_password_mismatch')
     loading.value = false
     return
   }
 
   if (!isUsernameChecked.value || !isUsernameAvailable.value) {
-    errorMessage.value = t('msg_username_check_required') || 'Please check username availability.'
+    errorMessage.value = t('msg_username_check_required')
     loading.value = false
     return
   }

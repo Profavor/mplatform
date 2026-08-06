@@ -12,7 +12,7 @@
           <div style="display: flex; align-items: center; gap: 0.65rem;">
             <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
               <va-icon name="rate_review" color="primary" />
-              {{ $t('approval_review') || '결재 요청 검토' }}
+              {{ $t('approval_review') }}
             </h3>
             <va-badge :text="getRequestTypeLabel(selectedPendingStep.approvalRequest?.targetType)" :color="getRequestTypeColor(selectedPendingStep.approvalRequest?.targetType)" />
           </div>
@@ -20,7 +20,7 @@
           <div style="font-size: 0.85rem; color: var(--va-text-secondary); display: flex; align-items: center; gap: 0.75rem;">
             <span v-if="selectedPendingStep.approvalRequest">
               <va-icon name="person" size="small" style="margin-right: 2px;" />
-              {{ t('requester') || '기안자' }}: <strong>{{ getRequesterName(selectedPendingStep.approvalRequest) }}</strong>
+              {{ t('requester') }}: <strong>{{ getRequesterName(selectedPendingStep.approvalRequest) }}</strong>
             </span>
             <span>
               <va-icon name="schedule" size="small" style="margin-right: 2px;" />

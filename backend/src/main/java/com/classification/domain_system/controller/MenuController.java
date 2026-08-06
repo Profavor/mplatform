@@ -4,6 +4,7 @@ import com.classification.domain_system.entity.Menu;
 import com.classification.domain_system.entity.MenuAccessLog;
 import com.classification.domain_system.service.MenuService;
 import com.classification.domain_system.service.SystemSeedDumpService;
+import com.classification.domain_system.utils.ClientIpUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -76,32 +77,9 @@ public class MenuController {
         String menuPath = (String) payload.get("menuPath");
         String userId = authentication != null ? authentication.getName() : "anonymous";
         String userAgent = request.getHeader("User-Agent");
-        String clientIp = getClientIp(request);
+        String clientIp = ClientIpUtil.getClientIp(request);
         menuService.logAccess(menuId, menuPath, userId, userAgent, clientIp);
         return ResponseEntity.ok().build();
-    }
-
-    private String getClientIp(jakarta.servlet.http.HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("Proxy-Client-IP");
-        }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("WL-Proxy-Client-IP");
-        }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getRemoteAddr();
-        }
-        if (ip != null && ip.contains(",")) {
-            ip = ip.split(",")[0].trim();
-        }
-        if ("0:0:0:0:0:0:0:1".equals(ip) || "::1".equals(ip)) {
-            ip = "127.0.0.1";
-        }
-        if (ip != null && ip.length() > 45) {
-            ip = ip.substring(0, 45);
-        }
-        return ip;
     }
 
     @GetMapping("/logs")

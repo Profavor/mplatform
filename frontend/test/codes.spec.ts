@@ -4,6 +4,12 @@ import Codes from '../pages/admin/codes.vue'
 import { AgGridVue } from 'ag-grid-vue3'
 
 // Mock dependencies
+vi.mock('vue3-emoji-picker', () => ({
+  default: {
+    template: '<div class="emoji-picker-stub"></div>'
+  }
+}))
+
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
     t: (key: string) => key
@@ -55,7 +61,7 @@ describe('Codes Management Page with AG-Grid', () => {
     const wrapper = mount(Codes, {
       global: {
         stubs: {
-          'va-card': true,
+          'va-card': { template: '<div><slot /></div>' },
           'va-icon': true,
           'va-button': true,
           'va-badge': true,

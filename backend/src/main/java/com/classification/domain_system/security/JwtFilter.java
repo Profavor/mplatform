@@ -94,7 +94,7 @@ public class JwtFilter extends OncePerRequestFilter {
                     if (userOpt.isPresent()) {
                         String activeSessionId = userOpt.get().getActiveSessionId();
                         String tokenSessionId = (String) claims.get("sessionId");
-                        log.info("[JwtFilter Check] User: {}, DB activeSessionId: {}, Token sessionId: {}", username, activeSessionId, tokenSessionId);
+                        log.debug("[JwtFilter Check] User: {}, DB activeSessionId: {}, Token sessionId: {}", username, activeSessionId, tokenSessionId);
                         // DB에 activeSessionId가 설정되어 있는 경우, 토큰의 sessionId가 없거나 다르면 기존 세션이므로 즉시 차단
                         if (activeSessionId != null && !activeSessionId.equals(tokenSessionId)) {
                             log.warn("Session invalidated due to concurrent login for user: {}", username);

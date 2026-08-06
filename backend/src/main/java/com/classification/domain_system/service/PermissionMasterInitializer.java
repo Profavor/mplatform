@@ -29,7 +29,12 @@ public class PermissionMasterInitializer implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) throws Exception {
-        log.info("Checking and initializing default Permission Master groups and items from JSON...");
+        if (groupRepository.count() > 0) {
+            log.info("Permission Master data already exists. Skipping initialization.");
+            return;
+        }
+
+        log.info("No permission master data found. Initializing default groups and items from default_permissions.json...");
 
         List<PermissionGroupSeedDto> defaultPermissions = loadDefaultPermissions();
         if (defaultPermissions == null || defaultPermissions.isEmpty()) {

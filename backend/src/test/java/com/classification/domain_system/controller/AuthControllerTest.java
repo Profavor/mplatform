@@ -53,7 +53,9 @@ class AuthControllerTest {
     @BeforeEach
     void setUp() {
         lenient().when(permissionService.getAuthoritiesForUser(any(), any())).thenReturn(List.of());
-        mockMvc = MockMvcBuilders.standaloneSetup(authController).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(authController)
+                .setControllerAdvice(new com.classification.domain_system.exception.GlobalExceptionHandler())
+                .build();
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -89,16 +91,20 @@ class AuthControllerTest {
         }
 
         @Test
-        @DisplayName("비밀번호 불일치 시 401 Unauthorized 반환")
+        @DisplayName("비밀번호 불일치 시 401 Unauthorized 및 표준 ErrorResponse JSON 반환")
         void wrongPassword_Returns401() throws Exception {
             when(authService.loginWithTokens(eq("testuser"), eq("wrong"), any(), any()))
-                    .thenThrow(new RuntimeException("Invalid credentials"));
+                    .thenThrow(new com.classification.domain_system.exception.BusinessException(
+                            com.classification.domain_system.exception.ErrorCode.INVALID_CREDENTIALS,
+                            "Invalid credentials"
+                    ));
 
             mockMvc.perform(post("/api/auth/login")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"username\":\"testuser\",\"password\":\"wrong\"}"))
                     .andExpect(status().isUnauthorized())
-                    .andExpect(content().string("Invalid credentials"));
+                    .andExpect(jsonPath("$.errorCode").value("INVALID_CREDENTIALS"))
+                    .andExpect(jsonPath("$.message").value("Invalid credentials"));
         }
     }
 
@@ -127,16 +133,20 @@ class AuthControllerTest {
         }
 
         @Test
-        @DisplayName("유효하지 않은 리프레시 토큰 전달 시 401 Unauthorized 반환")
+        @DisplayName("유효하지 않은 리프레시 토큰 전달 시 401 Unauthorized 및 표준 ErrorResponse JSON 반환")
         void invalidRefreshToken_Returns401() throws Exception {
             when(authService.refreshTokens("invalid-token"))
-                    .thenThrow(new RuntimeException("Invalid refresh token"));
+                    .thenThrow(new com.classification.domain_system.exception.BusinessException(
+                            com.classification.domain_system.exception.ErrorCode.INVALID_CREDENTIALS,
+                            "Invalid refresh token"
+                    ));
 
             mockMvc.perform(post("/api/auth/refresh")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"refreshToken\":\"invalid-token\"}"))
                     .andExpect(status().isUnauthorized())
-                    .andExpect(content().string("Invalid refresh token"));
+                    .andExpect(jsonPath("$.errorCode").value("INVALID_CREDENTIALS"))
+                    .andExpect(jsonPath("$.message").value("Invalid refresh token"));
         }
     }
 
@@ -160,16 +170,19 @@ class AuthControllerTest {
         }
 
         @Test
-        @DisplayName("이미 존재하는 사용자면 400 Bad Request 반환")
+        @DisplayName("이미 존재하는 사용자면 400 Bad Request 및 표준 ErrorResponse JSON 반환")
         void duplicateUser_Returns400() throws Exception {
-            doThrow(new RuntimeException("Username already exists"))
-                    .when(authService).register(any(), any(), any(), any());
+            doThrow(new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.USERNAME_ALREADY_EXISTS,
+                    "Username already exists"
+            )).when(authService).register(any(), any(), any(), any());
 
             mockMvc.perform(post("/api/auth/register")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"username\":\"exists\",\"password\":\"pass\",\"role\":\"USER\"}"))
                     .andExpect(status().isBadRequest())
-                    .andExpect(content().string("Username already exists"));
+                    .andExpect(jsonPath("$.errorCode").value("USERNAME_ALREADY_EXISTS"))
+                    .andExpect(jsonPath("$.message").value("Username already exists"));
         }
 
         @Test

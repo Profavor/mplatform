@@ -10,17 +10,17 @@
             <va-badge text="RBAC" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
-            {{ $t('user_management_desc') || '사용자 계정 정보, 소속 조직/부서 및 시스템 역할 및 도메인 접근 권한을 관리합니다.' }}
+            {{ $t('user_management_desc') }}
           </span>
         </div>
       </div>
 
       <div style="display: flex; gap: 0.75rem; align-items: center;">
         <va-button preset="solid" color="success" icon="person_add" size="small" @click="showCreateUserModal = true" style="font-weight: 700;">
-          {{ $t('create_user') || '사용자 등록' }}
+          {{ $t('create_user') }}
         </va-button>
         <va-button preset="outline" color="primary" icon="refresh" size="small" @click="fetchUsers">
-          {{ $t('refresh') || '새로고침' }}
+          {{ $t('refresh') }}
         </va-button>
       </div>
     </div>
@@ -34,7 +34,7 @@
             <span>{{ $t('user_management') }}</span>
             <va-badge :text="String(users.length)" color="primary" size="small" />
           </div>
-          <va-input v-model="searchQuery" :placeholder="$t('search') || 'Search'" @keydown="onSearchKeydown" clearable @clear="fetchUsers" style="max-width: 140px;" dense />
+          <va-input v-model="searchQuery" :placeholder="$t('search')" @keydown="onSearchKeydown" clearable @clear="fetchUsers" style="max-width: 140px;" dense />
         </va-card-title>
         <va-card-content style="flex: 1; display: flex; flex-direction: column; padding: 0.75rem;">
           <va-list style="flex: 1; display: flex; flex-direction: column; gap: 0.35rem;">
@@ -88,10 +88,10 @@
                 <va-badge text="Active User" color="success" size="small" />
                 <div style="margin-left: auto; display: flex; gap: 0.5rem;">
                   <va-button v-if="selectedUser.mustChangePassword" size="small" color="warning" outline icon="key" @click="viewTempPassword(selectedUser.id)">
-                    {{ $t('view_temp_password') || '임시 비밀번호 확인' }}
+                    {{ $t('view_temp_password') }}
                   </va-button>
                   <va-button size="small" color="danger" outline icon="delete" @click="confirmDeleteUser(selectedUser)">
-                    {{ $t('delete') || '삭제' }}
+                    {{ $t('delete') }}
                   </va-button>
                 </div>
               </div>
@@ -109,7 +109,7 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem;">
               <h3 style="font-weight: 800; margin: 0; color: var(--va-text-primary); font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
                 <va-icon name="manage_accounts" color="primary" />
-                <span>{{ $t('user_role') || '사용자 시스템 권한 역할' }}</span>
+                <span>{{ $t('user_role') }}</span>
               </h3>
 
               <va-button
@@ -120,7 +120,7 @@
                 @click="updateUserRoleOnly"
                 style="font-weight: 700;"
               >
-                {{ $t('save_role') || '역할 저장' }}
+                {{ $t('save_role') }}
               </va-button>
             </div>
             
@@ -171,11 +171,11 @@
                 :options="availableDomains"
                 value-by="id"
                 text-by="label"
-                :placeholder="$t('select_a_domain') || '도메인을 선택하세요 (다중 선택 가능)'"
+                :placeholder="$t('select_a_domain')"
                 style="flex: 1;"
               />
               <va-button v-if="hasPermission('admin:write') || hasPermission('admin:*') || hasPermission('org:write') || hasPermission('org:*')" color="primary" icon="add" @click="grantPermissions" :disabled="!selectedDomainsToGrant || selectedDomainsToGrant.length === 0" style="font-weight: 700;">
-                {{ $t('grant') || '권한 부여' }}
+                {{ $t('grant') }}
               </va-button>
             </div>
           </div>
@@ -322,60 +322,60 @@
             style="min-width: 120px;"
             @click="showErrorAlertModal = false"
           >
-            {{ $t('close') || '확인' }}
+            {{ $t('close') }}
           </va-button>
         </div>
       </div>
     </va-modal>
 
     <!-- Create User Modal -->
-    <va-modal v-model="showCreateUserModal" :title="$t('create_user') || '사용자 등록'" hide-default-actions>
+    <va-modal v-model="showCreateUserModal" :title="$t('create_user')" hide-default-actions>
       <div style="padding: 1rem; min-width: 400px; display: flex; flex-direction: column; gap: 1.25rem;">
-        <va-input v-model="newUser.username" :label="$t('label_username') || '아이디 (Username)'" outline @update:modelValue="isUsernameChecked = false" :success="isUsernameChecked && checkedUsername === newUser.username">
+        <va-input v-model="newUser.username" :label="$t('label_username')" outline @update:modelValue="isUsernameChecked = false" :success="isUsernameChecked && checkedUsername === newUser.username">
           <template #appendInner>
             <va-button size="small" color="primary" preset="secondary" @click="checkUsernameDuplicate" :loading="isCheckingUsername" :disabled="!newUser.username || (isUsernameChecked && checkedUsername === newUser.username)" style="white-space: nowrap;">
-              {{ $t('check_duplicate') || '중복 확인' }}
+              {{ $t('check_duplicate') }}
             </va-button>
           </template>
         </va-input>
-        <UserRoleSelect v-model="newUser.role" :label="$t('user_role') || '시스템 역할 (단일/다중)'" />
-        <va-select v-model="newUser.organizationId" :options="organizations" value-by="id" :text-by="o => getI18nText(o.displayName) || o.name" :label="$t('organization') || '소속 조직'" clearable outline />
-        <va-select v-model="newUser.departmentId" :options="departmentsForNewUser" value-by="id" text-by="name" :label="$t('department') || '소속 부서'" clearable outline :disabled="!newUser.organizationId" />
+        <UserRoleSelect v-model="newUser.role" :label="$t('user_role')" />
+        <va-select v-model="newUser.organizationId" :options="organizations" value-by="id" :text-by="o => getI18nText(o.displayName) || o.name" :label="$t('organization')" clearable outline />
+        <va-select v-model="newUser.departmentId" :options="departmentsForNewUser" value-by="id" text-by="name" :label="$t('department')" clearable outline :disabled="!newUser.organizationId" />
         
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem;">
-          <va-button preset="secondary" @click="showCreateUserModal = false">{{ $t('cancel') || '취소' }}</va-button>
-          <va-button color="success" @click="createUser" :loading="isCreatingUser">{{ $t('create') || '등록' }}</va-button>
+          <va-button preset="secondary" @click="showCreateUserModal = false">{{ $t('cancel') }}</va-button>
+          <va-button color="success" @click="createUser" :loading="isCreatingUser">{{ $t('create') }}</va-button>
         </div>
       </div>
     </va-modal>
 
     <!-- Temp Password Alert Modal -->
-    <va-modal v-model="showTempPasswordModal" :title="$t('user_created') || '사용자 등록 완료'" hide-default-actions :prevent-click-outside="true" :no-outside-dismiss="true">
+    <va-modal v-model="showTempPasswordModal" :title="$t('user_created')" hide-default-actions :prevent-click-outside="true" :no-outside-dismiss="true">
       <div style="padding: 1.5rem; text-align: center;">
         <va-icon name="check_circle" color="success" size="3.5rem" style="margin-bottom: 1rem;" />
-        <h3 style="margin-bottom: 1rem; font-weight: 800; font-size: 1.3rem;">{{ $t('temp_password_issued') || '임시 비밀번호가 발급되었습니다.' }}</h3>
+        <h3 style="margin-bottom: 1rem; font-weight: 800; font-size: 1.3rem;">{{ $t('temp_password_issued') }}</h3>
         <p style="color: var(--va-text-secondary); margin-bottom: 1.5rem; font-size: 0.9rem;">
-          {{ $t('temp_password_warning') || '이 비밀번호는 다시 표시되지 않으므로 반드시 사용자에게 안전하게 전달해 주세요.' }}
+          {{ $t('temp_password_warning') }}
         </p>
         <div style="background: var(--va-background-secondary); padding: 1.25rem; border-radius: 12px; font-size: 1.8rem; font-weight: 800; letter-spacing: 4px; margin-bottom: 1.5rem; border: 1px dashed var(--va-background-border); color: var(--va-primary);">
           {{ createdTempPassword }}
         </div>
-        <va-button color="primary" @click="showTempPasswordModal = false; createdTempPassword = '';" size="large">{{ $t('confirm') || '확인했습니다' }}</va-button>
+        <va-button color="primary" @click="showTempPasswordModal = false; createdTempPassword = '';" size="large">{{ $t('confirm') }}</va-button>
       </div>
     </va-modal>
 
     <!-- View Temp Password Modal -->
-    <va-modal v-model="showViewTempPasswordModal" :title="$t('temp_password') || '임시 비밀번호'" hide-default-actions>
+    <va-modal v-model="showViewTempPasswordModal" :title="$t('temp_password')" hide-default-actions>
       <div style="padding: 1.5rem; text-align: center;">
         <va-icon name="key" color="warning" size="3.5rem" style="margin-bottom: 1rem;" />
-        <h3 style="margin-bottom: 1rem; font-weight: 800; font-size: 1.3rem;">{{ $t('temp_password_check') || '임시 비밀번호 확인' }}</h3>
+        <h3 style="margin-bottom: 1rem; font-weight: 800; font-size: 1.3rem;">{{ $t('temp_password_check') }}</h3>
         <p style="color: var(--va-text-secondary); margin-bottom: 1.5rem; font-size: 0.9rem;">
-          {{ $t('temp_password_warning') || '이 비밀번호는 사용자가 로그인하여 변경하기 전까지만 유효합니다.' }}
+          {{ $t('temp_password_warning') }}
         </p>
         <div style="background: var(--va-background-secondary); padding: 1.25rem; border-radius: 12px; font-size: 1.8rem; font-weight: 800; letter-spacing: 4px; margin-bottom: 1.5rem; border: 1px dashed var(--va-background-border); color: var(--va-primary);">
           {{ fetchedTempPassword }}
         </div>
-        <va-button color="primary" @click="showViewTempPasswordModal = false; fetchedTempPassword = '';" size="large">{{ $t('close') || '닫기' }}</va-button>
+        <va-button color="primary" @click="showViewTempPasswordModal = false; fetchedTempPassword = '';" size="large">{{ $t('close') }}</va-button>
       </div>
     </va-modal>
   </div>

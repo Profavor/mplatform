@@ -17,7 +17,7 @@
           {{ t('requestedData') }}
         </h4>
         <va-chip size="small" color="primary" preset="outline" style="font-weight: 600; transition: transform 0.2s ease;">
-          {{ isRequestedDataExpanded ? (t('collapse') || '접기') : (t('expand') || '펼치기') }}
+          {{ isRequestedDataExpanded ? (t('collapse')) : (t('expand')) }}
         </va-chip>
       </div>
 
@@ -58,16 +58,16 @@
                   <!-- If UPDATE action: Before vs After comparison table -->
                   <template v-if="schemaDetails.action === 'SCHEMA_FIELD_UPDATE'">
                     <div style="font-size: 0.88rem; font-weight: 700; color: var(--va-primary); margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.4rem;">
-                      <va-icon name="compare_arrows" size="small" /> {{ $t('schema_change_comparison') || '필드 속성 변경 비교 (Before ➔ After)' }}
+                      <va-icon name="compare_arrows" size="small" /> {{ $t('schema_change_comparison') }}
                     </div>
 
                     <div style="border: 1px solid var(--va-background-border); border-radius: 6px; overflow: hidden; background: var(--va-background-element);">
                       <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
                         <thead>
                           <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border); text-align: left; color: var(--va-text-secondary);">
-                            <th style="padding: 0.6rem 0.85rem; width: 25%;">{{ $t('property_name') || '속성 항목' }}</th>
-                            <th style="padding: 0.6rem 0.85rem; width: 37.5%;">{{ $t('before_change') || '변경 전 (Before)' }}</th>
-                            <th style="padding: 0.6rem 0.85rem; width: 37.5%;">{{ $t('after_change') || '변경 후 (After)' }}</th>
+                            <th style="padding: 0.6rem 0.85rem; width: 25%;">{{ $t('property_name') }}</th>
+                            <th style="padding: 0.6rem 0.85rem; width: 37.5%;">{{ $t('before_change') }}</th>
+                            <th style="padding: 0.6rem 0.85rem; width: 37.5%;">{{ $t('after_change') }}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -90,7 +90,7 @@
                   <!-- If ADD action: New Field Properties Grid -->
                   <template v-else-if="schemaDetails.action === 'SCHEMA_FIELD_ADD'">
                     <div style="font-size: 0.88rem; font-weight: 700; color: var(--va-success); margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.4rem;">
-                      <va-icon name="add_circle" size="small" color="success" /> {{ $t('new_field_properties') || '추가되는 신규 필드 속성' }}
+                      <va-icon name="add_circle" size="small" color="success" /> {{ $t('new_field_properties') }}
                     </div>
 
                     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem;">
@@ -104,7 +104,7 @@
                   <!-- If DELETE action: Deleted Field Summary -->
                   <template v-else>
                     <div style="font-size: 0.88rem; font-weight: 700; color: var(--va-danger); margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.4rem;">
-                      <va-icon name="delete" size="small" color="danger" /> {{ $t('deleted_field_properties') || '삭제되는 필드 속성' }}
+                      <va-icon name="delete" size="small" color="danger" /> {{ $t('deleted_field_properties') }}
                     </div>
 
                     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem;">
@@ -135,7 +135,7 @@
                             <div style="background: var(--va-background-secondary); padding: 0.75rem 1rem; border-bottom: 1px solid var(--va-background-border); font-weight: 600; font-size: 0.85rem; color: var(--va-text-primary); display: flex; justify-content: space-between; align-items: center;">
                               <span>
                                 {{ f.label }}
-                                <va-icon v-if="f.isEncrypted" name="lock" size="small" color="warning" style="margin-left: 4px;" :title="t('encrypted_field') || '암호화 필드'" />
+                                <va-icon v-if="f.isEncrypted" name="lock" size="small" color="warning" style="margin-left: 4px;" :title="t('encrypted_field')" />
                               </span>
                               <div style="display: flex; align-items: center; gap: 0.5rem;">
                                 <va-button
@@ -146,7 +146,7 @@
                                   color="warning"
                                   :loading="decryptingFields[f.key]"
                                   @click="requestDecryptApprovalField(f.key)"
-                                >{{ t('view_original') || '원본 보기' }}</va-button>
+                                >{{ t('view_original') }}</va-button>
                                 <va-button
                                   v-if="f.isEncrypted && decryptedValues[f.key]"
                                   size="small"
@@ -154,7 +154,7 @@
                                   icon="visibility_off"
                                   color="secondary"
                                   @click="hideDecryptedField(f.key)"
-                                >{{ t('hide_original') || '원본 숨기기' }} <span v-if="decryptRemainingTime[f.key]" style="margin-left:4px; font-variant-numeric: tabular-nums;">(00:{{ String(decryptRemainingTime[f.key]).padStart(2, '0') }})</span></va-button>
+                                >{{ t('hide_original') }} <span v-if="decryptRemainingTime[f.key]" style="margin-left:4px; font-variant-numeric: tabular-nums;">(00:{{ String(decryptRemainingTime[f.key]).padStart(2, '0') }})</span></va-button>
                                 <va-badge v-if="request.targetType === 'RECORD_UPDATE' && f.val.isChanged" color="warning" size="small">{{ t('modified') }}</va-badge>
                               </div>
                             </div>
@@ -233,36 +233,36 @@
          style="margin-bottom: 1.5rem; padding: 1rem; background-color: var(--va-background-secondary); border-radius: 6px; border-left: 4px solid var(--va-info);">
       <div style="font-weight: bold; font-size: 0.95rem; color: var(--va-text-primary); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
         <va-icon name="sync" color="info" size="small" />
-        <span>{{ $t('integration_log_info') || '연계 상세 정보 (Integration Log)' }}</span>
+        <span>{{ $t('integration_log_info') }}</span>
       </div>
 
       <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-bottom: 1rem; font-size: 0.85rem;">
         <div>
-          <span style="color: var(--va-text-secondary); margin-right: 0.5rem;">{{ $t('integration_channel_system') || '연계 채널/시스템' }}:</span>
+          <span style="color: var(--va-text-secondary); margin-right: 0.5rem;">{{ $t('integration_channel_system') }}:</span>
           <span style="font-weight: bold; color: var(--va-text-primary);">{{ request.sourceSystem || 'Inbound Webhook' }}</span>
         </div>
         <div>
-          <span style="color: var(--va-text-secondary); margin-right: 0.5rem;">{{ $t('integration_direction') || '연계 방향' }}:</span>
+          <span style="color: var(--va-text-secondary); margin-right: 0.5rem;">{{ $t('integration_direction') }}:</span>
           <va-badge color="warning" text="INBOUND (수신)" size="small" />
         </div>
         <div>
-          <span style="color: var(--va-text-secondary); margin-right: 0.5rem;">{{ $t('integration_received_at') || '수신 처리시각' }}:</span>
+          <span style="color: var(--va-text-secondary); margin-right: 0.5rem;">{{ $t('integration_received_at') }}:</span>
           <span style="color: var(--va-text-primary);">{{ formatDate(request.createdAt || request.integrationLog?.createdAt) }}</span>
         </div>
         <div>
-          <span style="color: var(--va-text-secondary); margin-right: 0.5rem;">{{ $t('integration_status') || '처리 상태' }}:</span>
+          <span style="color: var(--va-text-secondary); margin-right: 0.5rem;">{{ $t('integration_status') }}:</span>
           <va-badge :color="request.integrationLog?.status === 'FAIL' ? 'danger' : 'success'" :text="request.integrationLog?.status || 'SUCCESS'" size="small" />
         </div>
       </div>
 
       <template v-if="request.integrationLog">
         <div style="margin-top: 0.75rem;">
-          <div style="font-size: 0.82rem; font-weight: bold; color: var(--va-text-secondary); margin-bottom: 0.25rem;">{{ $t('integration_original_payload') || '외부 수신 원본 Payload (Original Payload)' }}:</div>
+          <div style="font-size: 0.82rem; font-weight: bold; color: var(--va-text-secondary); margin-bottom: 0.25rem;">{{ $t('integration_original_payload') }}:</div>
           <pre style="background: #1e1e1e; color: #d4d4d4; padding: 0.5rem 0.75rem; border-radius: 4px; font-size: 0.8rem; overflow-x: auto; max-height: 150px; margin: 0;">{{ request.integrationLog.originalPayload }}</pre>
         </div>
 
         <div style="margin-top: 0.75rem;">
-          <div style="font-size: 0.82rem; font-weight: bold; color: var(--va-text-secondary); margin-bottom: 0.25rem;">{{ $t('integration_mapped_payload') || '매핑 변환 후 Payload (Mapped Payload)' }}:</div>
+          <div style="font-size: 0.82rem; font-weight: bold; color: var(--va-text-secondary); margin-bottom: 0.25rem;">{{ $t('integration_mapped_payload') }}:</div>
           <pre style="background: #1e1e1e; color: #ce9178; padding: 0.5rem 0.75rem; border-radius: 4px; font-size: 0.8rem; overflow-x: auto; max-height: 150px; margin: 0;">{{ request.integrationLog.mappedPayload }}</pre>
         </div>
       </template>
@@ -724,7 +724,7 @@ const executeDecryptApprovalField = async (reason) => {
     }
   } catch (e) {
     console.error('Failed to decrypt field:', e)
-    init({ message: t('decrypt_failed') || '복호화 실패', color: 'danger' })
+    init({ message: t('decrypt_failed'), color: 'danger' })
   } finally {
     decryptingFields.value[fieldKey] = false
   }
@@ -797,7 +797,7 @@ const formatStepAssignee = (s, req) => {
   }
   // assigneeRole이 있으면 무조건 store에서 locale에 맞는 역할명 표시
   if (s.assigneeRole && s.assigneeRole !== 'null') {
-    return (t('label_role') || '역할') + ': ' + formatRoleName(s.assigneeRole);
+    return (t('label_role')) + ': ' + formatRoleName(s.assigneeRole);
   }
   if (s.assigneeName) {
     let nameStr = String(s.assigneeName);
@@ -806,13 +806,13 @@ const formatStepAssignee = (s, req) => {
     for (const prefix of roleKoPrefixes) {
       if (nameStr.startsWith(prefix)) {
         const rawRole = nameStr.substring(prefix.length).trim();
-        return (t('label_role') || '역할') + ': ' + formatRoleName(rawRole);
+        return (t('label_role')) + ': ' + formatRoleName(rawRole);
       }
     }
     // assigneeName 자체가 JSON 형태이면 파싱
     return parseI18nVal(nameStr);
   }
-  return getUserName(s.assigneeId) || t('unassigned') || '승인자 미지정';
+  return getUserName(s.assigneeId) || t('unassigned');
 }
 
 const loadFieldNamesForRequest = async (req) => {

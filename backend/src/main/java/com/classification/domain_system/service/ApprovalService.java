@@ -68,41 +68,11 @@ public class ApprovalService {
     private final com.classification.domain_system.repository.RoleRepository roleRepository;
     private final DataMaskingService dataMaskingService;
     private final AuthContext authContext;
+    private final ApprovalQueryService approvalQueryService;
 
     public String resolveRoleDisplayName(String roleCode) {
-        if (roleCode == null || roleCode.isBlank()) return "";
-        if (roleRepository == null) return roleCode;
-        try {
-            List<com.classification.domain_system.entity.Role> roles = roleRepository.findAll();
-            for (com.classification.domain_system.entity.Role r : roles) {
-                if (r.getName() != null) {
-                    if (r.getName().equalsIgnoreCase(roleCode) || r.getName().equalsIgnoreCase("ROLE_" + roleCode) || ("ROLE_" + r.getName()).equalsIgnoreCase(roleCode)) {
-                        if (r.getDisplayName() != null && !r.getDisplayName().isBlank()) {
-                            String raw = r.getDisplayName().trim();
-                            if (raw.startsWith("{") && raw.endsWith("}")) {
-                                try {
-                                    com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-                                    com.fasterxml.jackson.databind.JsonNode node = mapper.readTree(raw);
-                                    if (node.has("ko") && !node.get("ko").asText().isBlank()) {
-                                        return node.get("ko").asText();
-                                    } else if (node.has("en") && !node.get("en").asText().isBlank()) {
-                                        return node.get("en").asText();
-                                    }
-                                } catch (Exception ignored) {}
-                            }
-                            return raw;
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) {}
-        return roleCode;
+        return approvalQueryService.resolveRoleDisplayName(roleCode);
     }
-
-    private static final java.util.Set<String> ALLOWED_FILTER_KEYS = java.util.Set.of(
-            "domainName", "classificationName", "requesterId", "changes", "summary",
-            "status", "targetType", "targetId", "id", "currentStepOrder", "createdAt", "updatedAt"
-    );
 
 
     private String recomputeCalculatedFields(UUID nodeId, String dataJson) {
@@ -1001,308 +971,51 @@ public class ApprovalService {
     
     @Transactional(readOnly = true)
     public Page<ApprovalRequest> getPendingRequests(Pageable pageable) {
-        return approvalRepository.findByStatusOrderByCreatedAtDesc("PENDING", pageable);
+        return approvalQueryService.getPendingRequests(pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<ApprovalRequest> getAllRequests(String search, String status, String filterModel, Pageable pageable) {
-        final org.springframework.data.domain.Sort sort = pageable.getSort();
-        Pageable unSortedPageable = org.springframework.data.domain.PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
-        
-        org.springframework.data.jpa.domain.Specification<ApprovalRequest> spec = (root, query, cb) -> {
-            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
-            
-            if (status != null && !status.trim().isEmpty()) {
-                String[] statuses = status.split(",");
-                jakarta.persistence.criteria.CriteriaBuilder.In<String> inClause = cb.in(root.get("status"));
-                for (String s : statuses) {
-                    inClause.value(s.trim());
-                }
-                predicates.add(inClause);
-            }
-            
-            if (filterModel != null && !filterModel.trim().isEmpty()) {
-                try {
-                    com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-                    com.fasterxml.jackson.databind.JsonNode rootNode = mapper.readTree(filterModel);
-                    java.util.Iterator<Map.Entry<String, com.fasterxml.jackson.databind.JsonNode>> fields = rootNode.fields();
-                    
-                    while (fields.hasNext()) {
-                        Map.Entry<String, com.fasterxml.jackson.databind.JsonNode> fieldEntry = fields.next();
-                        String fieldKey = fieldEntry.getKey();
-                        com.fasterxml.jackson.databind.JsonNode filterInfo = fieldEntry.getValue();
-                        
-                        if (!ALLOWED_FILTER_KEYS.contains(fieldKey)) {
-                            throw new BusinessException(ErrorCode.INVALID_INPUT, "Filter key not allowed: " + fieldKey);
-                        }
-                        
-                        if (filterInfo.has("filterType")) {
-                            String filterType = filterInfo.get("filterType").asText();
-                            
-                             if ("set".equals(filterType) && filterInfo.has("values")) {
-                                List<String> vals = new ArrayList<>();
-                                for (com.fasterxml.jackson.databind.JsonNode vNode : filterInfo.get("values")) {
-                                    vals.add(vNode.asText());
-                                }
-                                if (!vals.isEmpty()) {
-                                    if ("domainName".equals(fieldKey) || "classificationName".equals(fieldKey)) {
-                                        jakarta.persistence.criteria.Join<Object, Object> nodeJoin = root.join("classificationNode", jakarta.persistence.criteria.JoinType.LEFT);
-                                        if ("classificationName".equals(fieldKey)) {
-                                            List<jakarta.persistence.criteria.Predicate> orPreds = new ArrayList<>();
-                                            for (String v : vals) {
-                                                orPreds.add(cb.like(cb.lower(nodeJoin.get("name").as(String.class)), "%" + v.toLowerCase() + "%"));
-                                            }
-                                            predicates.add(cb.or(orPreds.toArray(new jakarta.persistence.criteria.Predicate[0])));
-                                        } else {
-                                            jakarta.persistence.criteria.Join<Object, Object> domainJoin = nodeJoin.join("domain", jakarta.persistence.criteria.JoinType.LEFT);
-                                            List<jakarta.persistence.criteria.Predicate> orPreds = new ArrayList<>();
-                                            for (String v : vals) {
-                                                orPreds.add(cb.like(cb.lower(domainJoin.get("name").as(String.class)), "%" + v.toLowerCase() + "%"));
-                                            }
-                                            predicates.add(cb.or(orPreds.toArray(new jakarta.persistence.criteria.Predicate[0])));
-                                        }
-                                    } else {
-                                        jakarta.persistence.criteria.CriteriaBuilder.In<String> inClause = cb.in(root.get(fieldKey));
-                                        for (String v : vals) {
-                                            inClause.value(v);
-                                        }
-                                        predicates.add(inClause);
-                                    }
-                                }
-                            }
-                            else if ("text".equals(filterType) && filterInfo.has("filter")) {
-                                String textValue = filterInfo.get("filter").asText().trim().toLowerCase();
-                                String type = filterInfo.has("type") ? filterInfo.get("type").asText() : "contains";
-                                String likePattern = "%" + textValue + "%";
-                                if ("equals".equals(type)) likePattern = textValue;
-                                else if ("startsWith".equals(type)) likePattern = textValue + "%";
-                                else if ("endsWith".equals(type)) likePattern = "%" + textValue;
-                                
-                                if ("domainName".equals(fieldKey) || "classificationName".equals(fieldKey)) {
-                                    jakarta.persistence.criteria.Join<Object, Object> nodeJoin = root.join("classificationNode", jakarta.persistence.criteria.JoinType.LEFT);
-                                    if ("classificationName".equals(fieldKey)) {
-                                        predicates.add(cb.like(cb.lower(nodeJoin.get("name").as(String.class)), likePattern));
-                                    } else {
-                                        jakarta.persistence.criteria.Join<Object, Object> domainJoin = nodeJoin.join("domain", jakarta.persistence.criteria.JoinType.LEFT);
-                                        predicates.add(cb.like(cb.lower(domainJoin.get("name").as(String.class)), likePattern));
-                                    }
-                                } else if ("requesterId".equals(fieldKey)) {
-                                    predicates.add(cb.like(cb.lower(root.get("requesterId").as(String.class)), likePattern));
-                                } else if ("changes".equals(fieldKey) || "summary".equals(fieldKey)) {
-                                    jakarta.persistence.criteria.Expression<String> changesText = cb.function("concat", String.class, root.get("changes"), cb.literal(""));
-                                    predicates.add(cb.like(cb.lower(changesText), likePattern));
-                                } else {
-                                    predicates.add(cb.like(cb.lower(root.get(fieldKey).as(String.class)), likePattern));
-                                }
-                            }
-                            else if ("date".equals(filterType) && filterInfo.has("dateFrom")) {
-                                String type = filterInfo.has("type") ? filterInfo.get("type").asText() : "equals";
-                                String dateFromStr = filterInfo.get("dateFrom").asText();
-                                String dateToStr = filterInfo.has("dateTo") && !filterInfo.get("dateTo").isNull() ? filterInfo.get("dateTo").asText() : null;
-                                
-                                java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-                                if (dateFromStr.length() == 10) dateFromStr += " 00:00:00";
-                                if (dateFromStr.contains("T")) dateFromStr = dateFromStr.replace("T", " ");
-                                if (dateFromStr.length() > 19) dateFromStr = dateFromStr.substring(0, 19);
-                                java.time.LocalDateTime dateFrom = java.time.LocalDateTime.parse(dateFromStr, dtf);
-                                
-                                java.time.LocalDateTime dateTo = null;
-                                if (dateToStr != null) {
-                                    if (dateToStr.length() == 10) dateToStr += " 23:59:59";
-                                    if (dateToStr.contains("T")) dateToStr = dateToStr.replace("T", " ");
-                                    if (dateToStr.length() > 19) dateToStr = dateToStr.substring(0, 19);
-                                    dateTo = java.time.LocalDateTime.parse(dateToStr, dtf);
-                                }
-                                
-                                if ("equals".equals(type)) {
-                                    predicates.add(cb.between(root.get(fieldKey), dateFrom, dateFrom.plusDays(1).minusSeconds(1)));
-                                } else if ("greaterThan".equals(type)) {
-                                    predicates.add(cb.greaterThan(root.get(fieldKey), dateFrom));
-                                } else if ("lessThan".equals(type)) {
-                                    predicates.add(cb.lessThan(root.get(fieldKey), dateFrom));
-                                } else if ("inRange".equals(type) && dateTo != null) {
-                                    predicates.add(cb.between(root.get(fieldKey), dateFrom, dateTo));
-                                }
-                            }
-                        }
-                    }
-                } catch (BusinessException be) {
-                    throw be;
-                } catch (Exception e) {
-                    log.error("Failed to process dynamic search predicate", e);
-                }
-            }
-            
-            if (search != null && !search.trim().isEmpty()) {
-                String likePattern = "%" + search.trim().toLowerCase() + "%";
-                jakarta.persistence.criteria.Join<Object, Object> nodeJoin = root.join("classificationNode", jakarta.persistence.criteria.JoinType.LEFT);
-                predicates.add(cb.or(
-                    cb.like(cb.lower(root.get("targetType")), likePattern),
-                    cb.like(cb.lower(root.get("status")), likePattern),
-                    cb.like(cb.lower(cb.function("concat", String.class, root.get("changes"), cb.literal(""))), likePattern),
-                    cb.like(cb.lower(nodeJoin.get("name").as(String.class)), likePattern)
-                ));
-            }
-            
-            boolean isCountQuery = Long.class.equals(query.getResultType()) || long.class.equals(query.getResultType());
-            if (!isCountQuery && sort != null && sort.isSorted()) {
-                Map<UUID, String> idKeyMap = new java.util.HashMap<>();
-                Map<UUID, String> nameKeyMap = new java.util.HashMap<>();
-                try {
-                    List<com.classification.domain_system.entity.Domain> domains = domainRepository.findAll();
-                    for (com.classification.domain_system.entity.Domain d : domains) {
-                        if (d.getIdentifierFieldId() != null) {
-                            com.classification.domain_system.entity.FieldDefinition fd = fieldDefinitionRepository.findById(d.getIdentifierFieldId()).orElse(null);
-                            if (fd != null) idKeyMap.put(d.getId(), fd.getKey());
-                        }
-                        if (d.getDisplayNameFieldId() != null) {
-                            com.classification.domain_system.entity.FieldDefinition fd = fieldDefinitionRepository.findById(d.getDisplayNameFieldId()).orElse(null);
-                            if (fd != null) nameKeyMap.put(d.getId(), fd.getKey());
-                        }
-                    }
-                } catch (Exception e) {}
-
-                List<jakarta.persistence.criteria.Order> orders = new ArrayList<>();
-                for (org.springframework.data.domain.Sort.Order o : sort) {
-                    String prop = o.getProperty();
-                    boolean isAsc = o.isAscending();
-                    
-                    jakarta.persistence.criteria.Expression<?> expression;
-                    if ("classificationNode.name".equals(prop)) {
-                        jakarta.persistence.criteria.Join<Object, Object> nodeJoin = root.join("classificationNode", jakarta.persistence.criteria.JoinType.LEFT);
-                        expression = nodeJoin.get("name");
-                    } else if ("classificationNode.domain.name".equals(prop)) {
-                        jakarta.persistence.criteria.Join<Object, Object> nodeJoin = root.join("classificationNode", jakarta.persistence.criteria.JoinType.LEFT);
-                        jakarta.persistence.criteria.Join<Object, Object> domainJoin = nodeJoin.join("domain", jakarta.persistence.criteria.JoinType.LEFT);
-                        expression = domainJoin.get("name");
-                    } else if ("idAttribute".equals(prop) || "nameAttribute".equals(prop)) {
-                        try {
-                            jakarta.persistence.criteria.Join<Object, Object> nodeJoin = root.join("classificationNode", jakarta.persistence.criteria.JoinType.LEFT);
-                            jakarta.persistence.criteria.Join<Object, Object> domainJoin = nodeJoin.join("domain", jakarta.persistence.criteria.JoinType.LEFT);
-                            jakarta.persistence.criteria.Expression<UUID> domainIdExpr = domainJoin.get("id");
-                            
-                            Map<UUID, String> targetMap = "idAttribute".equals(prop) ? idKeyMap : nameKeyMap;
-                            
-                            jakarta.persistence.criteria.CriteriaBuilder.Case<String> caseExpr = cb.selectCase();
-                            
-                            for (Map.Entry<UUID, String> entry : targetMap.entrySet()) {
-                                String keyStr = entry.getValue();
-                                
-                                jakarta.persistence.criteria.Expression<String> extractAfter = cb.function("jsonb_extract_path_text", String.class, 
-                                    root.get("changes"), cb.literal("after"), cb.literal(keyStr));
-                                jakarta.persistence.criteria.Expression<String> extractData = cb.function("jsonb_extract_path_text", String.class, 
-                                    root.get("changes"), cb.literal("data"), cb.literal(keyStr));
-                                jakarta.persistence.criteria.Expression<String> extractRoot = cb.function("jsonb_extract_path_text", String.class, 
-                                    root.get("changes"), cb.literal(keyStr));
-                                
-                                jakarta.persistence.criteria.Expression<String> extractText = cb.coalesce(
-                                    extractAfter, 
-                                    cb.coalesce(extractData, extractRoot)
-                                );
-                                
-                                caseExpr = caseExpr.when(cb.equal(domainIdExpr, entry.getKey()), extractText);
-                            }
-                            
-                            expression = caseExpr.otherwise(cb.literal(""));
-                        } catch (Exception ex) {
-                            log.error("Failed to build sort expression for displayName", ex);
-                            expression = root.get("changes").as(String.class);
-                        }
-                    } else if ("summary".equals(prop)) {
-                        expression = root.get("changes").as(String.class);
-                    } else {
-                        expression = root.get(prop);
-                    }
-                    
-                    orders.add(isAsc ? cb.asc(expression) : cb.desc(expression));
-                }
-                query.orderBy(orders);
-            }
-            
-            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
-        };
-        
-        org.springframework.data.domain.Pageable unsortedPageable = org.springframework.data.domain.PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
-        return approvalRepository.findAll(spec, unsortedPageable);
+        return approvalQueryService.getAllRequests(search, status, filterModel, pageable);
     }
     
     @Transactional(readOnly = true)
     public Page<ApprovalStep> getMyTodos(String assigneeId, Pageable pageable) {
-        return getMyTodos(assigneeId, (String) null, pageable);
+        return approvalQueryService.getMyTodos(assigneeId, pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<ApprovalStep> getMyTodos(String assigneeId, String userRole, Pageable pageable) {
-        if (userRole != null && !userRole.isBlank()) {
-            return stepRepository.findMyPendingSteps(assigneeId, userRole, "PENDING", pageable);
-        }
-        return stepRepository.findByAssigneeIdAndStatus(assigneeId, "PENDING", pageable);
+        return approvalQueryService.getMyTodos(assigneeId, userRole, pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<ApprovalStep> getMyTodos(String assigneeId, java.util.Collection<String> userRoles, Pageable pageable) {
-        if (userRoles != null && !userRoles.isEmpty()) {
-            return stepRepository.findMyPendingStepsForRoles(assigneeId, userRoles, "PENDING", pageable);
-        }
-        return getMyTodos(assigneeId, pageable);
+        return approvalQueryService.getMyTodos(assigneeId, userRoles, pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<ApprovalStep> getMyTodos(String assigneeId, String username, java.util.Collection<String> userRoles, Pageable pageable) {
-        if (userRoles != null && !userRoles.isEmpty()) {
-            return stepRepository.findMyPendingStepsForUserAndRoles(assigneeId, username, userRoles, "PENDING", pageable);
-        }
-        return getMyTodos(assigneeId, pageable);
+        return approvalQueryService.getMyTodos(assigneeId, username, userRoles, pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<ApprovalRequest> getMyRequests(String requesterId, Pageable pageable) {
-        return approvalRepository.findByRequesterIdOrderByCreatedAtDesc(requesterId, pageable);
+        return approvalQueryService.getMyRequests(requesterId, pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<ApprovalRequest> getMyRequests(String requesterId, String username, Pageable pageable) {
-        return approvalRepository.findMyRequestsForUser(requesterId, username, pageable);
+        return approvalQueryService.getMyRequests(requesterId, username, pageable);
     }
 
     public ApprovalRequest maskChangesForRead(ApprovalRequest approval) {
-        if (approval == null || approval.getChanges() == null || approval.getChanges().isBlank() || dataMaskingService == null) {
-            return approval;
-        }
-        ClassificationNode node = approval.getClassificationNode();
-        if (node == null && approval.getTargetId() != null && recordRepository != null) {
-            node = recordRepository.findById(approval.getTargetId()).map(Record::getNode).orElse(null);
-        }
-        if (node == null && approval.getChanges() != null && nodeRepository != null) {
-            try {
-                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-                com.fasterxml.jackson.databind.JsonNode parsed = mapper.readTree(approval.getChanges());
-                if (parsed.has("nodeId") && !parsed.get("nodeId").isNull()) {
-                    String nodeIdStr = parsed.get("nodeId").asText();
-                    if (!nodeIdStr.isBlank()) {
-                        node = nodeRepository.findById(java.util.UUID.fromString(nodeIdStr)).orElse(null);
-                    }
-                }
-            } catch (Exception ignored) {}
-        }
-        List<FieldDefinition> fields;
-        if (node != null && fieldDefinitionService != null) {
-            fields = fieldDefinitionService.getEffectiveFields(node.getId());
-        } else if (fieldDefinitionRepository != null) {
-            fields = fieldDefinitionRepository.findAll();
-        } else {
-            fields = java.util.Collections.emptyList();
-        }
-        boolean canUnmask = false;
-        String maskedChanges = dataMaskingService.maskChangesJson(approval.getChanges(), fields, canUnmask);
-        approval.setChanges(maskedChanges);
-        return approval;
+        return approvalQueryService.maskChangesForRead(approval);
     }
 
     @Transactional(readOnly = true)
     public ApprovalRequest getRequestById(UUID id) {
-        ApprovalRequest req = approvalRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("ApprovalRequest not found"));
-        return maskChangesForRead(req);
+        return approvalQueryService.getRequestById(id);
     }
 
     @Transactional

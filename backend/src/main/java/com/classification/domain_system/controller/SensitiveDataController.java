@@ -3,6 +3,7 @@ package com.classification.domain_system.controller;
 import com.classification.domain_system.dto.SensitiveDataAccessLogDto;
 import com.classification.domain_system.dto.SensitiveDataStatsDto;
 import com.classification.domain_system.service.SensitiveDataService;
+import com.classification.domain_system.utils.ClientIpUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +32,7 @@ public class SensitiveDataController {
             HttpServletRequest httpRequest) {
         List<String> fieldKeys = request != null ? request.getFieldKeys() : null;
         String accessReason = request != null ? request.getAccessReason() : null;
-        String ip = getClientIp(httpRequest);
+        String ip = ClientIpUtil.getClientIp(httpRequest);
         Map<String, String> decrypted = sensitiveDataService.decryptApprovalFields(approvalId, fieldKeys, accessReason, ip);
         return ResponseEntity.ok(decrypted);
     }
@@ -44,7 +45,7 @@ public class SensitiveDataController {
             HttpServletRequest httpRequest) {
         List<String> fieldKeys = request != null ? request.getFieldKeys() : null;
         String accessReason = request != null ? request.getAccessReason() : null;
-        String ip = getClientIp(httpRequest);
+        String ip = ClientIpUtil.getClientIp(httpRequest);
         Map<String, String> decrypted = sensitiveDataService.decryptRecordFields(recordId, fieldKeys, accessReason, ip);
         return ResponseEntity.ok(decrypted);
     }
@@ -57,7 +58,7 @@ public class SensitiveDataController {
             HttpServletRequest httpRequest) {
         List<String> fieldKeys = request != null ? request.getFieldKeys() : null;
         String accessReason = request != null ? request.getAccessReason() : null;
-        String ip = getClientIp(httpRequest);
+        String ip = ClientIpUtil.getClientIp(httpRequest);
         Map<String, String> decrypted = sensitiveDataService.decryptHistoryFields(historyId, fieldKeys, accessReason, ip);
         return ResponseEntity.ok(decrypted);
     }
@@ -74,20 +75,6 @@ public class SensitiveDataController {
     @GetMapping("/statistics")
     public ResponseEntity<SensitiveDataStatsDto> getStatistics() {
         return ResponseEntity.ok(sensitiveDataService.getStatistics());
-    }
-
-    private String getClientIp(HttpServletRequest request) {
-        String xf = request.getHeader("X-Forwarded-For");
-        String ip;
-        if (xf != null && !xf.isBlank()) {
-            ip = xf.split(",")[0].trim();
-        } else {
-            ip = request.getRemoteAddr();
-        }
-        if ("0:0:0:0:0:0:0:1".equals(ip) || "::1".equals(ip)) {
-            ip = "127.0.0.1";
-        }
-        return ip;
     }
 
     @Data

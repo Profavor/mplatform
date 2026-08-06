@@ -59,4 +59,10 @@ public class User {
 
     @Column(name = "encrypted_temp_password")
     private String encryptedTempPassword;
+
+    @Column(name = "failed_login_count")
+    private Integer failedLoginCount = 0;
+
+    @Column(name = "locked_until")
+    private java.time.LocalDateTime lockedUntil;
 }

@@ -42,4 +42,14 @@ class PermissionMasterInitializerTest {
         // 11개 권한 그룹(admin, domain, node, field, record, dq, org, user, role, workflow, log, match, integration 등)이 저장되는지 검증
         verify(groupRepository, atLeast(11)).save(any(PermissionGroup.class));
     }
+
+    @Test
+    @DisplayName("이미 권한 마스터 데이터가 존재할 경우(count > 0) 초기화를 건너뛴다")
+    void testSkipInitializationWhenDataExists() throws Exception {
+        when(groupRepository.count()).thenReturn(5L);
+
+        initializer.run();
+
+        verify(groupRepository, never()).save(any(PermissionGroup.class));
+    }
 }

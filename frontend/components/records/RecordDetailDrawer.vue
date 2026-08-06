@@ -58,7 +58,7 @@
             square
             style="font-weight: 800; margin-top: 4px;"
           >
-            {{ recordStatus === 'PENDING_APPROVAL' ? (t('pending_approval') || '결재 진행중') : (recordStatus === 'ACTIVE' ? (t('active_status') || '정상') : (t('deleted_status') || '삭제됨')) }}
+            {{ recordStatus === 'PENDING_APPROVAL' ? (t('pending_approval')) : (recordStatus === 'ACTIVE' ? (t('active_status')) : (t('deleted_status'))) }}
           </va-chip>
         </div>
       </div>
@@ -73,10 +73,10 @@
 
       <!-- Status Banners -->
       <div v-if="isSnapshotMode" style="margin-bottom: 1rem; padding: 0.5rem; background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 4px; text-align: center; font-weight: bold;">
-        {{ t('snapshot_viewing_notice') || '이전 데이터 스냅샷을 조회 중입니다. (읽기 전용)' }}
+        {{ t('snapshot_viewing_notice') }}
       </div>
       <div v-if="hasPendingUpdate" style="margin-bottom: 1rem; padding: 0.5rem; background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 4px; text-align: center; font-weight: bold;">
-        {{ t('pending_approval_notice') || '⚠️ 이 레코드는 현재 변경 결재가 진행 중이므로 수정할 수 없습니다.' }}
+        {{ t('pending_approval_notice') }}
       </div>
       <div v-if="isEditing && !hasUpdateWorkflow" style="margin-bottom: 1rem; padding: 0.5rem; background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 4px; text-align: center; font-weight: bold;">
         This classification node does not have an UPDATE workflow configured. You cannot save records.
@@ -162,12 +162,12 @@
                             <va-icon name="lock" size="small" />
                             <template v-if="!decryptedValues[field.key]">
                               <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary);" @click.stop="requestDecryptRecordField(field.key)">
-                                {{ t('view_original') || '원본 보기' }}
+                                {{ t('view_original') }}
                               </span>
                             </template>
                             <template v-else>
                               <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary);" @click.stop="hideDecryptedField(field.key)">
-                                {{ t('hide_original') || '원본 숨기기' }}
+                                {{ t('hide_original') }}
                               </span>
                               <span v-if="decryptRemainingTime[field.key]" style="margin-left:4px; font-variant-numeric: tabular-nums;">
                                 (00:{{ String(decryptRemainingTime[field.key]).padStart(2, '0') }})
@@ -379,7 +379,7 @@
       <!-- History Tab Content (AG-Grid with Pagination) -->
       <div v-show="activeMainTab === 'history'" style="height: 100%; width: 100%; display: flex; flex-direction: column; flex: 1; overflow-y: auto; padding-right: 8px;">
         <div v-if="!history || history.length === 0" style="text-align: center; color: #777; padding: 2rem;">
-          {{ t('audit_no_history') || '이력 내역이 없습니다.' }}
+          {{ t('audit_no_history') }}
         </div>
         <div v-else style="padding: 1rem 0.5rem;">
           <va-timeline vertical>
@@ -408,7 +408,7 @@
                 <va-card outlined style="margin-bottom: 1.5rem; width: 100%;">
                   <va-card-title style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border-bottom: 1px solid var(--va-background-border);">
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
-                      <va-badge :color="getHistoryTimelineColor(log.changeType)" :text="log.changeType === 'PENDING_APPROVAL' ? (t('pending_approval') || '결재 진행중') : log.changeType" />
+                      <va-badge :color="getHistoryTimelineColor(log.changeType)" :text="log.changeType === 'PENDING_APPROVAL' ? (t('pending_approval')) : log.changeType" />
                     </div>
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
                       <va-button
@@ -418,7 +418,7 @@
                         icon="history"
                         @click="$emit('viewSnapshot', log.newData || log.previousData, log.id)"
                       >
-                        {{ t('view_snapshot') || '스냅샷 보기' }}
+                        {{ t('view_snapshot') }}
                       </va-button>
                       <va-button
                         v-if="log.approvalRequestId"
@@ -427,7 +427,7 @@
                         icon="fact_check"
                         @click="$emit('viewApprovalHistory', log)"
                       >
-                        {{ t('approval_history_btn') || '결재 내역' }}
+                        {{ t('approval_history_btn') }}
                       </va-button>
                       <va-button
                         v-else-if="log.sourceSystem"
@@ -436,7 +436,7 @@
                         icon="sync"
                         @click="$emit('viewIntegrationHistory', log)"
                       >
-                        {{ t('integration_history_btn') || '연계 내역' }}
+                        {{ t('integration_history_btn') }}
                       </va-button>
                     </div>
                   </va-card-title>
@@ -460,12 +460,12 @@
                             <va-icon name="lock" size="small" />
                             <template v-if="!decryptedValues[log.id + '_' + fieldKey]">
                               <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary);" @click.stop="requestDecryptHistoryField(log.id, fieldKey)">
-                                {{ t('view_original') || '원본 보기' }}
+                                {{ t('view_original') }}
                               </span>
                             </template>
                             <template v-else>
                               <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary);" @click.stop="hideDecryptedField(log.id + '_' + fieldKey)">
-                                {{ t('hide_original') || '원본 숨기기' }}
+                                {{ t('hide_original') }}
                               </span>
                               <span v-if="decryptRemainingTime[log.id + '_' + fieldKey]" style="margin-left:4px; font-variant-numeric: tabular-nums;">
                                 (00:{{ String(decryptRemainingTime[log.id + '_' + fieldKey]).padStart(2, '0') }})
@@ -478,10 +478,10 @@
                     </div>
                   </va-card-content>
                   <va-card-content v-else-if="log.changeType === 'CREATE'" style="padding: 1rem; color: var(--va-success); font-weight: 600;">
-                    <va-icon name="add_circle_outline" class="mr-2" /> {{ t('initial_created') || '최초 생성되었습니다.' }}
+                    <va-icon name="add_circle_outline" class="mr-2" /> {{ t('initial_created') }}
                   </va-card-content>
                   <va-card-content v-else-if="log.changeType === 'DELETE'" style="padding: 1rem; color: var(--va-danger); font-weight: 600;">
-                    <va-icon name="remove_circle_outline" class="mr-2" /> {{ t('deleted_status') || '레코드가 삭제되었습니다.' }}
+                    <va-icon name="remove_circle_outline" class="mr-2" /> {{ t('deleted_status') }}
                   </va-card-content>
                 </va-card>
               </template>
@@ -503,7 +503,7 @@
         icon="call_split"
         @click="$emit('unmerge', localRecord)"
       >
-        {{ t('unmerge_btn') || 'Unmerge' }}
+        {{ t('unmerge_btn') }}
       </va-button>
       <va-button
         v-if="activeMainTab === 'details' && !isEditing && !isSnapshotMode && canDelete"
@@ -750,7 +750,7 @@ const historyGridColumnDefs = computed(() => {
 
         if (val === 'PENDING_APPROVAL') {
           span.style.background = '#e6a23c';
-          span.innerText = t('pending_approval') || '결재 진행중';
+          span.innerText = t('pending_approval');
         } else if (val === 'CREATE') {
           span.style.background = '#1ebc72';
           span.innerText = 'CREATE';
@@ -766,7 +766,7 @@ const historyGridColumnDefs = computed(() => {
     },
     {
       field: 'diff',
-      headerName: t('change_details') || '변경 내역',
+      headerName: t('change_details'),
       width: 150,
       cellRenderer: (params) => {
         if (!params || !params.data) return '';
@@ -775,22 +775,22 @@ const historyGridColumnDefs = computed(() => {
         div.style.cssText = 'display: flex; align-items: center; height: 100%; gap: 0.35rem;';
 
         if (row.changeType === 'PENDING_APPROVAL' && row.rawRequest) {
-          const btn = createUnifiedBtn(t('view_changes') || '변경 내역 보기', '#2c82e0', () => emit('viewDiffDetails', row.rawRequest.changes, row.rawRequest.targetType, true));
+          const btn = createUnifiedBtn(t('view_changes'), '#2c82e0', () => emit('viewDiffDetails', row.rawRequest.changes, row.rawRequest.targetType, true));
           div.appendChild(btn);
         } else if (row.changeType === 'UPDATE') {
-          const btn = createUnifiedBtn(t('view_changes') || '변경 내역 보기', '#2c82e0', () => emit('viewDiffDetails', row.previousData, row.newData, false));
+          const btn = createUnifiedBtn(t('view_changes'), '#2c82e0', () => emit('viewDiffDetails', row.previousData, row.newData, false));
           div.appendChild(btn);
         } else if (row.changeType === 'CREATE') {
-          div.innerHTML = `<span style="display: inline-flex; align-items: center; justify-content: center; height: 22px; background: #1ebc72; color: white; padding: 0 5px; border-radius: 4px; font-size: 11px; font-weight: 700;">CREATE</span> <span style="font-size: 11px; font-weight: 700; color: #15803d; margin-left: 4px; display: inline-flex; align-items: center; height: 100%;">${t('initial_created') || '초기 생성됨'}</span>`;
+          div.innerHTML = `<span style="display: inline-flex; align-items: center; justify-content: center; height: 22px; background: #1ebc72; color: white; padding: 0 5px; border-radius: 4px; font-size: 11px; font-weight: 700;">CREATE</span> <span style="font-size: 11px; font-weight: 700; color: #15803d; margin-left: 4px; display: inline-flex; align-items: center; height: 100%;">${t('initial_created')}</span>`;
         } else if (row.changeType === 'DELETE') {
-          div.innerHTML = `<span style="display: inline-flex; align-items: center; justify-content: center; height: 22px; background: #e53935; color: white; padding: 0 5px; border-radius: 4px; font-size: 11px; font-weight: 700;">DELETE</span> <span style="font-size: 11px; font-weight: 700; color: #b91c1c; margin-left: 4px; display: inline-flex; align-items: center; height: 100%;">${t('deleted_status') || '삭제됨'}</span>`;
+          div.innerHTML = `<span style="display: inline-flex; align-items: center; justify-content: center; height: 22px; background: #e53935; color: white; padding: 0 5px; border-radius: 4px; font-size: 11px; font-weight: 700;">DELETE</span> <span style="font-size: 11px; font-weight: 700; color: #b91c1c; margin-left: 4px; display: inline-flex; align-items: center; height: 100%;">${t('deleted_status')}</span>`;
         }
         return div;
       }
     },
     {
       field: 'actions',
-      headerName: t('actions') || '동작',
+      headerName: t('actions'),
       flex: 1,
       minWidth: 280,
       cellRenderer: (params) => {
@@ -800,29 +800,29 @@ const historyGridColumnDefs = computed(() => {
         container.style.cssText = 'display: flex; align-items: center; height: 100%; gap: 0.35rem;';
 
         if (row.changeType === 'CREATE') {
-          container.appendChild(createUnifiedBtn(t('view_snapshot') || '스냅샷 보기', '#0284c7', () => emit('viewSnapshot', row.newData, row.id)));
+          container.appendChild(createUnifiedBtn(t('view_snapshot'), '#0284c7', () => emit('viewSnapshot', row.newData, row.id)));
           if (row.approvalRequestId) {
-            container.appendChild(createUnifiedBtn(t('approval_history_btn') || '결재 내역', '#6b7280', () => emit('viewApprovalHistory', row)));
+            container.appendChild(createUnifiedBtn(t('approval_history_btn'), '#6b7280', () => emit('viewApprovalHistory', row)));
           } else if (row.sourceSystem) {
-            container.appendChild(createUnifiedBtn(t('integration_history_btn') || '연계 내역', '#0284c7', () => emit('viewIntegrationHistory', row)));
+            container.appendChild(createUnifiedBtn(t('integration_history_btn'), '#0284c7', () => emit('viewIntegrationHistory', row)));
           }
         } else if (row.changeType === 'DELETE') {
-          container.appendChild(createUnifiedBtn(t('last_snapshot') || '마지막 스냅샷', '#d97706', () => emit('viewSnapshot', row.previousData, row.id)));
+          container.appendChild(createUnifiedBtn(t('last_snapshot'), '#d97706', () => emit('viewSnapshot', row.previousData, row.id)));
           if (row.approvalRequestId) {
-            container.appendChild(createUnifiedBtn(t('approval_history_btn') || '결재 내역', '#6b7280', () => emit('viewApprovalHistory', row)));
+            container.appendChild(createUnifiedBtn(t('approval_history_btn'), '#6b7280', () => emit('viewApprovalHistory', row)));
           } else if (row.sourceSystem) {
-            container.appendChild(createUnifiedBtn(t('integration_history_btn') || '연계 내역', '#0284c7', () => emit('viewIntegrationHistory', row)));
+            container.appendChild(createUnifiedBtn(t('integration_history_btn'), '#0284c7', () => emit('viewIntegrationHistory', row)));
           }
         } else if (row.changeType === 'UPDATE') {
-          container.appendChild(createUnifiedBtn(t('prev_snapshot') || '이전 스냅샷', '#d97706', () => emit('viewSnapshot', row.previousData, row.id)));
-          container.appendChild(createUnifiedBtn(t('next_snapshot') || '이후 스냅샷', '#0284c7', () => emit('viewSnapshot', row.newData, row.id)));
+          container.appendChild(createUnifiedBtn(t('prev_snapshot'), '#d97706', () => emit('viewSnapshot', row.previousData, row.id)));
+          container.appendChild(createUnifiedBtn(t('next_snapshot'), '#0284c7', () => emit('viewSnapshot', row.newData, row.id)));
           if (row.approvalRequestId) {
-            container.appendChild(createUnifiedBtn(t('approval_history_btn') || '결재 내역', '#6b7280', () => emit('viewApprovalHistory', row)));
+            container.appendChild(createUnifiedBtn(t('approval_history_btn'), '#6b7280', () => emit('viewApprovalHistory', row)));
           } else if (row.sourceSystem) {
-            container.appendChild(createUnifiedBtn(t('integration_history_btn') || '연계 내역', '#0284c7', () => emit('viewIntegrationHistory', row)));
+            container.appendChild(createUnifiedBtn(t('integration_history_btn'), '#0284c7', () => emit('viewIntegrationHistory', row)));
           }
         } else if (row.changeType === 'PENDING_APPROVAL') {
-          container.appendChild(createUnifiedBtn(t('approval_monitoring') || '결재 모니터링', '#d97706', () => emit('viewApprovalHistory', row)));
+          container.appendChild(createUnifiedBtn(t('approval_monitoring'), '#d97706', () => emit('viewApprovalHistory', row)));
         }
         return container;
       }
@@ -950,7 +950,7 @@ const executeDecryptRecordField = async (fieldKey, reason) => {
     }
   } catch (e) {
     console.error('Failed to decrypt field:', e)
-    useToast().init({ message: t('decrypt_failed') || '복호화 실패', color: 'danger' })
+    useToast().init({ message: t('decrypt_failed'), color: 'danger' })
   } finally {
     decryptingFields.value[fieldKey] = false
   }
@@ -991,7 +991,7 @@ const executeDecryptHistoryField = async (historyId, fieldKey, reason) => {
     }
   } catch (e) {
     console.error('Failed to decrypt history field:', e)
-    useToast().init({ message: t('decrypt_failed') || '복호화 실패', color: 'danger' })
+    useToast().init({ message: t('decrypt_failed'), color: 'danger' })
   } finally {
     decryptingFields.value[key] = false
   }
@@ -1267,11 +1267,11 @@ const handleClose = () => {
 
 
 const historyColumns = computed(() => [
-  { key: 'changedAt', label: t('date_time') || '일시', sortable: true },
-  { key: 'changedBy', label: t('processed_by') || '처리자' },
-  { key: 'changeType', label: t('change_type') || '유형' },
-  { key: 'diff', label: t('change_details') || '변경 내역' },
-  { key: 'actions', label: t('actions') || '동작' }
+  { key: 'changedAt', label: t('date_time'), sortable: true },
+  { key: 'changedBy', label: t('processed_by') },
+  { key: 'changeType', label: t('change_type') },
+  { key: 'diff', label: t('change_details') },
+  { key: 'actions', label: t('actions') }
 ])
 
 const isUuid = (val) => typeof val === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(val)

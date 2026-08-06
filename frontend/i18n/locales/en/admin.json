@@ -12,6 +12,7 @@
   "access_log_target_type": "Target Type",
   "access_log_target_id": "Target ID",
   "access_log_fields": "Accessed Fields",
+  "access_log_reason": "Access Reason",
   "APPROVAL_REQUEST": "Approval Request",
   "RECORD": "Direct Access",
   "RECORD_HISTORY": "Record History",

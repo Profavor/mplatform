@@ -8,7 +8,7 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "test": "vitest run",
+    "test": "vitest run && npm run build",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -23,11 +23,9 @@
     "node-fetch": "^3.3.2",
     "nuxt": "^3.17.7",
     "nuxt-auth-utils": "^0.5.29",
-    "pg": "^8.22.0",
     "vue-echarts": "^7.0.3",
     "vue3-emoji-picker": "^1.1.8",
-    "vuestic-ui": "^1.10.3",
-    "xlsx": "^0.18.5"
+    "vuestic-ui": "^1.10.3"
   },
   "devDependencies": {
     "@nuxt/test-utils": "^3.15.4",

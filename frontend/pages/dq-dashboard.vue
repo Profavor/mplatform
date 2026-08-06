@@ -10,7 +10,7 @@
             <va-badge text="Analytics" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
-            {{ $t('dq_dashboard_subtitle') || '실시간 마스터 데이터 정합성, 오류율 및 품질 진단 지표를 모니터링합니다.' }}
+            {{ $t('dq_dashboard_subtitle') }}
           </span>
         </div>
       </div>
@@ -23,10 +23,10 @@
           value-by="value"
           style="min-width: 220px;"
           dense
-          :placeholder="$t('dq_dashboard.select_domain_placeholder') || '도메인을 선택하세요'"
+          :placeholder="$t('dq_dashboard.select_domain_placeholder')"
         />
         <va-button preset="outline" color="primary" icon="refresh" size="small" :loading="loading" @click="fetchDashboardData">
-          {{ $t('refresh') || '새로고침' }}
+          {{ $t('refresh') }}
         </va-button>
       </div>
     </div>
@@ -34,7 +34,7 @@
     <!-- Loading State -->
     <div v-if="loading" class="loading-state">
       <va-progress-circle indeterminate size="3.5rem" color="primary" />
-      <span class="loading-text">{{ $t('loading_dq_metrics') || 'Loading Quality Metrics...' }}</span>
+      <span class="loading-text">{{ $t('loading_dq_metrics') }}</span>
     </div>
 
     <!-- Score & Stats -->
@@ -44,7 +44,7 @@
         <!-- DQ Score Card -->
         <div class="kpi-card score-card" :class="getScoreClass(scoreData.score)">
           <div class="kpi-card-header">
-            <span class="kpi-title">{{ $t('dq_score_title') || 'Data Quality Score' }}</span>
+            <span class="kpi-title">{{ $t('dq_score_title') }}</span>
             <va-badge :text="getGradeLabel(scoreData.score)" :color="getScoreColor(scoreData.score)" />
           </div>
           <div class="score-body">
@@ -361,7 +361,7 @@
               icon="clear"
               @click="resetViolationFilters"
             >
-              {{ $t('reset') || '초기화' }}
+              {{ $t('reset') }}
             </va-button>
           </div>
         </va-card-title>
@@ -383,13 +383,13 @@
                 <thead>
                   <tr>
                     <th>{{ $t('dq_dashboard.record_id') }}</th>
-                    <th>{{ $t('classification_node') || '분류 노드' }}</th>
+                    <th>{{ $t('classification_node') }}</th>
                     <th>{{ $t('dq_dashboard.violated_field') }}</th>
                     <th>{{ $t('dq_dashboard.severity') }}</th>
                     <th>{{ $t('dq_dashboard.rule_name') }}</th>
                     <th>{{ $t('dq_dashboard.violation_message') }}</th>
-                    <th>{{ $t('createdAt') || '생성일시' }}</th>
-                    <th class="text-center">{{ $t('action') || '작업' }}</th>
+                    <th>{{ $t('createdAt') }}</th>
+                    <th class="text-center">{{ $t('action') }}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -434,7 +434,7 @@
                         class="goto-btn"
                         @click="goToRecord(v.recordId)"
                       >
-                        {{ $t('details') || '상세' }}
+                        {{ $t('details') }}
                       </va-button>
                     </td>
                   </tr>

@@ -28,7 +28,10 @@ public class AuthService {
 
     public void register(String username, String password, String role, String timezone) {
         if (userRepository.findByUsername(username).isPresent()) {
-            throw new RuntimeException("Username already exists");
+            throw new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.USERNAME_ALREADY_EXISTS,
+                    "Username already exists"
+            );
         }
 
         User user = new User();
@@ -54,15 +57,7 @@ public class AuthService {
 
     @org.springframework.transaction.annotation.Transactional
     public String login(String username, String password, String ipAddress, String userAgent) {
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        if (userOpt.isEmpty()) {
-            throw new RuntimeException("Invalid credentials");
-        }
-
-        User user = userOpt.get();
-        if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new RuntimeException("Invalid credentials");
-        }
+        User user = validateAndProcessLogin(username, password);
 
         // 1세션 생성을 위한 newSessionId
         String newSessionId = java.util.UUID.randomUUID().toString();
@@ -100,15 +95,7 @@ public class AuthService {
 
     @org.springframework.transaction.annotation.Transactional
     public Map<String, String> loginWithTokens(String username, String password, String ipAddress, String userAgent) {
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        if (userOpt.isEmpty()) {
-            throw new RuntimeException("Invalid credentials");
-        }
-
-        User user = userOpt.get();
-        if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new RuntimeException("Invalid credentials");
-        }
+        User user = validateAndProcessLogin(username, password);
 
         String newSessionId = java.util.UUID.randomUUID().toString();
         if (user.getId() != null) {
@@ -151,13 +138,19 @@ public class AuthService {
 
     public Map<String, String> refreshTokens(String refreshToken) {
         if (refreshToken == null || !jwtUtil.isTokenValid(refreshToken)) {
-            throw new RuntimeException("Invalid refresh token");
+            throw new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.INVALID_CREDENTIALS,
+                    "Invalid refresh token"
+            );
         }
 
         String username = jwtUtil.extractUsername(refreshToken);
         User user = findByUsername(username);
         if (user == null) {
-            throw new RuntimeException("User not found for refresh token");
+            throw new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.INVALID_CREDENTIALS,
+                    "User not found for refresh token"
+            );
         }
 
         String userIdStr = user.getId() != null ? user.getId().toString() : null;
@@ -177,5 +170,42 @@ public class AuthService {
 
     public org.springframework.data.domain.Page<com.classification.domain_system.entity.LoginLog> getLoginLogs(org.springframework.data.domain.Pageable pageable) {
         return loginLogRepository.findAll(pageable);
+    }
+
+    private User validateAndProcessLogin(String username, String password) {
+        Optional<User> userOpt = userRepository.findByUsername(username);
+        if (userOpt.isEmpty()) {
+            throw new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.INVALID_CREDENTIALS,
+                    "Invalid credentials"
+            );
+        }
+
+        User user = userOpt.get();
+        if (user.getLockedUntil() != null && java.time.LocalDateTime.now().isBefore(user.getLockedUntil())) {
+            throw new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.ACCOUNT_LOCKED,
+                    "Account is temporarily locked due to consecutive login failures."
+            );
+        }
+
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            int currentFails = (user.getFailedLoginCount() == null ? 0 : user.getFailedLoginCount()) + 1;
+            user.setFailedLoginCount(currentFails);
+            if (currentFails >= 5) {
+                user.setLockedUntil(java.time.LocalDateTime.now().plusMinutes(15));
+            }
+            userRepository.saveAndFlush(user);
+            throw new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.INVALID_CREDENTIALS,
+                    "Invalid credentials"
+            );
+        }
+
+        if (user.getFailedLoginCount() != null && user.getFailedLoginCount() > 0) {
+            user.setFailedLoginCount(0);
+            user.setLockedUntil(null);
+        }
+        return user;
     }
 }

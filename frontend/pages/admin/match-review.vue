@@ -21,12 +21,12 @@
           v-model="selectedDomain"
           :options="domainOptions"
           value-by="value"
-          :placeholder="$t('match_review.domain_select') || '도메인 선택'"
+          :placeholder="$t('match_review.domain_select')"
           style="width: 220px;"
           dense
         />
         <va-button preset="outline" color="primary" icon="refresh" size="small" @click="refreshGrid">
-          {{ $t('match_review.refresh') || '새로고침' }}
+          {{ $t('match_review.refresh') }}
         </va-button>
       </div>
     </div>
@@ -60,10 +60,10 @@
             {{ selectedRows.length }}건 선택됨
           </span>
           <va-button color="success" icon="check_circle" size="small" @click="batchConfirm">
-            {{ $t('match_review.batch_confirm') || '일괄 승인' }}
+            {{ $t('match_review.batch_confirm') }}
           </va-button>
           <va-button color="danger" preset="secondary" icon="cancel" size="small" @click="batchReject">
-            {{ $t('match_review.batch_reject') || '일괄 거절' }}
+            {{ $t('match_review.batch_reject') }}
           </va-button>
         </template>
         <span v-else style="font-size: 0.75rem; color: var(--va-text-secondary); display: flex; align-items: center; gap: 4px;">
@@ -124,7 +124,7 @@
             <div style="border-radius: 8px; overflow: hidden; border: 1px solid var(--va-background-border);">
               <div style="display: flex; align-items: center; gap: 6px; padding: 0.45rem 0.75rem; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; background: var(--va-background-element); color: var(--va-text-secondary); border-bottom: 1px solid var(--va-background-border);">
                 <va-icon name="inventory_2" size="13px" color="primary" />
-                {{ $t('match_review.existing_record') || '기존 마스터 레코드' }}
+                {{ $t('match_review.existing_record') }}
               </div>
               <div>
                 <div
@@ -142,7 +142,7 @@
             <div style="border-radius: 8px; overflow: hidden; border: 1px solid var(--va-background-border);">
               <div style="display: flex; align-items: center; gap: 6px; padding: 0.45rem 0.75rem; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; background: var(--va-background-element); color: var(--va-text-secondary); border-bottom: 1px solid var(--va-background-border);">
                 <va-icon name="move_to_inbox" size="13px" color="info" />
-                {{ $t('match_review.incoming_data') || '신규 유입 레코드' }}
+                {{ $t('match_review.incoming_data') }}
               </div>
               <div>
                 <div
@@ -162,11 +162,11 @@
                style="display: flex; gap: 0.5rem; padding: 0.75rem; border-top: 1px solid var(--va-background-border);">
             <va-button preset="secondary" color="danger" style="flex: 1;" @click="rejectSingle(selectedCandidate)">
               <va-icon name="cancel" size="15px" />
-              {{ $t('match_review.reject_new') || '거절' }}
+              {{ $t('match_review.reject_new') }}
             </va-button>
             <va-button color="success" style="flex: 1;" @click="openMergeModal(selectedCandidate)">
               <va-icon name="merge_type" size="15px" />
-              {{ $t('match_review.confirm_merge') || '병합 검토' }}
+              {{ $t('match_review.confirm_merge') }}
             </va-button>
           </div>
         </va-card>
@@ -222,9 +222,9 @@ const hasWritePermission = computed(() => {
 })
 
 const statusOptions = computed(() => [
-  { label: t('match_review.status_pending') || '검토 대기', value: 'PENDING_REVIEW' },
-  { label: t('match_review.status_confirmed') || '병합 완료', value: 'CONFIRMED_MERGE' },
-  { label: t('match_review.status_rejected') || '거절됨', value: 'REJECTED' },
+  { label: t('match_review.status_pending'), value: 'PENDING_REVIEW' },
+  { label: t('match_review.status_confirmed'), value: 'CONFIRMED_MERGE' },
+  { label: t('match_review.status_rejected'), value: 'REJECTED' },
   { label: '전체', value: 'ALL' }
 ])
 
@@ -248,10 +248,10 @@ const columnDefs = computed(() => [
     field: 'id', 
     width: 140
   },
-  { field: 'source', headerName: t('merge.source') || '소스 시스템', width: 140 },
+  { field: 'source', headerName: t('merge.source'), width: 140 },
   { 
     field: 'score', 
-    headerName: t('match_review.similarity_score') || '유사도 점수', 
+    headerName: t('match_review.similarity_score'), 
     width: 180,
     cellRenderer: (params: any) => {
       if (params.value == null) return '-'
@@ -268,21 +268,21 @@ const columnDefs = computed(() => [
   },
   { 
     field: 'status', 
-    headerName: t('match_review.status_filter') || '상태',
+    headerName: t('match_review.status_filter'),
     width: 140,
     cellRenderer: (params: any) => {
       let color = 'gray'
       let text = params.value
-      if (params.value === 'PENDING_REVIEW') { color = 'warning'; text = t('match_review.status_pending') || '검토 대기' }
-      else if (params.value === 'CONFIRMED_MERGE') { color = 'success'; text = t('match_review.status_confirmed') || '병합 완료' }
-      else if (params.value === 'REJECTED') { color = 'danger'; text = t('match_review.status_rejected') || '거절됨' }
+      if (params.value === 'PENDING_REVIEW') { color = 'warning'; text = t('match_review.status_pending') }
+      else if (params.value === 'CONFIRMED_MERGE') { color = 'success'; text = t('match_review.status_confirmed') }
+      else if (params.value === 'REJECTED') { color = 'danger'; text = t('match_review.status_rejected') }
       
       return `<span style="padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; background-color: var(--va-${color}); color: white;">${text}</span>`
     }
   },
   { 
     field: 'createdAt', 
-    headerName: t('schema_history.changed_at') || '생성 시각',
+    headerName: t('schema_history.changed_at'),
     width: 180,
     valueFormatter: (params: any) => params.value ? formatWithTimezone(params.value) : '-'
   }
@@ -389,10 +389,10 @@ const rejectSingle = async (candidate: any) => {
     await customFetch(`/api/match-candidates/${candidate.id}/reject`, {
       method: 'POST'
     })
-    init({ message: t('match_review.reject_success') || '거절 처리되었습니다.', color: 'success' })
+    init({ message: t('match_review.reject_success'), color: 'success' })
     refreshGrid()
   } catch (e) {
-    init({ message: t('match_review.reject_fail') || '거절 처리에 실패했습니다.', color: 'danger' })
+    init({ message: t('match_review.reject_fail'), color: 'danger' })
   }
 }
 
@@ -403,10 +403,10 @@ const batchConfirm = async () => {
       method: 'POST',
       body: { ids, domainId: selectedDomain.value }
     })
-    init({ message: t('match_review.confirm_success') || '승인 처리되었습니다.', color: 'success' })
+    init({ message: t('match_review.confirm_success'), color: 'success' })
     refreshGrid()
   } catch (e) {
-    init({ message: t('match_review.confirm_fail') || '승인 처리에 실패했습니다.', color: 'danger' })
+    init({ message: t('match_review.confirm_fail'), color: 'danger' })
   }
 }
 
@@ -417,10 +417,10 @@ const batchReject = async () => {
       method: 'POST',
       body: { ids }
     })
-    init({ message: t('match_review.reject_success') || '거절 처리되었습니다.', color: 'success' })
+    init({ message: t('match_review.reject_success'), color: 'success' })
     refreshGrid()
   } catch (e) {
-    init({ message: t('match_review.reject_fail') || '거절 처리에 실패했습니다.', color: 'danger' })
+    init({ message: t('match_review.reject_fail'), color: 'danger' })
   }
 }
 

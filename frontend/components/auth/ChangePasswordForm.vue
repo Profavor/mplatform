@@ -2,26 +2,26 @@
   <div style="display: flex; flex-direction: column; gap: 1rem;">
     <va-alert v-if="forceMode" color="warning" class="mb-4 text-sm" outline>
       <template #icon><va-icon name="warning" /></template>
-      {{ $t('force_password_change_desc') || '보안을 위해 초기 비밀번호를 변경해야 합니다. 새로운 비밀번호를 설정해 주세요.' }}
+      {{ $t('force_password_change_desc') }}
     </va-alert>
     
     <va-input 
       v-model="oldPassword" 
-      :label="$t('old_password') || '현재 비밀번호'" 
+      :label="$t('old_password')" 
       type="password" 
       outline 
       :rules="[v => !!v || '필수 항목입니다']"
     />
     <va-input 
       v-model="newPassword" 
-      :label="$t('new_password') || '새 비밀번호'" 
+      :label="$t('new_password')" 
       type="password" 
       outline 
       :rules="[v => !!v || '필수 항목입니다', v => v.length >= 8 || '8자 이상 입력해주세요']"
     />
     <va-input 
       v-model="confirmPassword" 
-      :label="$t('confirm_new_password') || '새 비밀번호 확인'" 
+      :label="$t('confirm_new_password')" 
       type="password" 
       outline 
       :rules="[v => !!v || '필수 항목입니다', v => v === newPassword || '비밀번호가 일치하지 않습니다']"
@@ -32,8 +32,8 @@
     </va-alert>
 
     <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
-      <va-button v-if="!forceMode" preset="secondary" @click="$emit('cancel')">{{ $t('cancel') || '취소' }}</va-button>
-      <va-button color="primary" @click="handleSubmit" :loading="isSubmitting">{{ $t('change_password') || '비밀번호 변경' }}</va-button>
+      <va-button v-if="!forceMode" preset="secondary" @click="$emit('cancel')">{{ $t('cancel') }}</va-button>
+      <va-button color="primary" @click="handleSubmit" :loading="isSubmitting">{{ $t('change_password') }}</va-button>
     </div>
   </div>
 </template>

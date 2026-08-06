@@ -168,11 +168,11 @@
                           alignItems: 'center',
                           gap: '3px'
                         }"
-                        :title="$t('open_table_modal_btn_title') || '큰 모달창 뷰어로 확대 보기'"
+                        :title="$t('open_table_modal_btn_title')"
                         @click.stop="openTableDataModal(msg)"
                       >
                         <va-icon name="zoom_in" size="14px" />
-                        <span>{{ $t('open_table_modal_btn') || '크게 보기' }}</span>
+                        <span>{{ $t('open_table_modal_btn') }}</span>
                       </va-button>
 
                       <va-button
@@ -189,11 +189,11 @@
                           alignItems: 'center',
                           gap: '3px'
                         }"
-                        :title="$t('copy_table_btn_title') || '클립보드에 엑셀 표 데이터 복사'"
+                        :title="$t('copy_table_btn_title')"
                         @click.stop="copyMsgContent(msg)"
                       >
                         <va-icon name="content_copy" size="14px" />
-                        <span>{{ $t('copy_table_btn') || '복사' }}</span>
+                        <span>{{ $t('copy_table_btn') }}</span>
                       </va-button>
                     </div>
 
@@ -255,7 +255,7 @@
                   <img
                     :src="getAuthenticatedImageUrl(msg.fileUrl || msg.content)"
                     style="max-width: 480px; width: 100%; max-height: 420px; border-radius: 10px; cursor: pointer; border: 1px solid rgba(0,0,0,0.12); box-shadow: 0 4px 14px rgba(0,0,0,0.15); object-fit: contain;"
-                    :title="$t('click_image_to_expand_tip') || '클릭하면 원본 이미지를 큰 모달창으로 확대합니다'"
+                    :title="$t('click_image_to_expand_tip')"
                     @click="previewImg(getAuthenticatedImageUrl(msg.fileUrl || msg.content))"
                   />
                 </div>
@@ -289,11 +289,11 @@
                       alignItems: 'center',
                       gap: '4px'
                     }"
-                    :title="$t('excel_viewer_open') || '엑셀 전용 뷰어 열기'"
+                    :title="$t('excel_viewer_open')"
                     @click="openExcelViewer(msg)"
                   >
                     <va-icon name="table_chart" size="16px" :color="isMyMsg(msg) ? '#ffffff' : 'var(--va-primary)'" />
-                    <span>{{ $t('excel_viewer_btn') || '뷰어' }}</span>
+                    <span>{{ $t('excel_viewer_btn') }}</span>
                   </va-button>
 
                   <va-button
@@ -382,7 +382,9 @@
                   <template #anchor>
                     <va-icon name="sentiment_satisfied_alt" size="small" style="cursor: pointer" />
                   </template>
-                  <EmojiPicker :native="true" @select="(e) => inputMsg += e.i" />
+                  <ClientOnly>
+                    <EmojiPicker :native="true" @select="(e) => inputMsg += e.i" />
+                  </ClientOnly>
                 </va-dropdown>
               </template>
             </va-input>
@@ -527,10 +529,10 @@
     />
 
     <!-- Paste Send Format Option Selection Modal -->
-    <va-modal v-model="showPasteOptionModal" :title="$t('paste_option_title') || '붙여넣기 데이터 전송 방식 선택'" hide-default-actions>
+    <va-modal v-model="showPasteOptionModal" :title="$t('paste_option_title')" hide-default-actions>
       <div style="padding: 0.5rem; display: flex; flex-direction: column; gap: 1rem;">
         <p style="font-size: 0.9rem; color: var(--va-text-secondary); margin: 0;">
-          {{ $t('paste_option_desc') || '클립보드 데이터(엑셀 표/텍스트/이미지)를 어떤 형식으로 메시지에 전송하시겠습니까?' }}
+          {{ $t('paste_option_desc') }}
         </p>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.5rem;">
@@ -541,7 +543,7 @@
           >
             <va-icon name="table_chart" size="32px" color="primary" style="margin-bottom: 8px;" />
             <div style="font-weight: 700; font-size: 0.95rem; color: var(--va-primary);">
-              {{ $t('send_as_text_data') || '📋 텍스트/표로 전송' }}
+              {{ $t('send_as_text_data') }}
             </div>
             <div style="font-size: 0.78rem; color: var(--va-text-secondary); margin-top: 4px;">
               (수신자가 셀 데이터를 복사 및 데이터로 활용 가능)
@@ -555,7 +557,7 @@
           >
             <va-icon name="image" size="32px" color="secondary" style="margin-bottom: 8px;" />
             <div style="font-weight: 700; font-size: 0.95rem;">
-              {{ $t('send_as_image') || '🖼️ 이미지로 전송' }}
+              {{ $t('send_as_image') }}
             </div>
             <div style="font-size: 0.78rem; color: var(--va-text-secondary); margin-top: 4px;">
               (시각적 캡처 이미지로 표 표출)
@@ -564,7 +566,7 @@
         </div>
 
         <div style="display: flex; justify-content: flex-end; margin-top: 0.5rem;">
-          <va-button preset="secondary" @click="showPasteOptionModal = false">{{ $t('cancel') || '취소' }}</va-button>
+          <va-button preset="secondary" @click="showPasteOptionModal = false">{{ $t('cancel') }}</va-button>
         </div>
       </div>
     </va-modal>
@@ -572,10 +574,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, defineAsyncComponent } from 'vue'
 import ExcelPreviewModal from '~/components/chat/ExcelPreviewModal.vue'
 import TableDataViewerModal from '~/components/chat/TableDataViewerModal.vue'
-import EmojiPicker from 'vue3-emoji-picker'
+const EmojiPicker = defineAsyncComponent(() => import('vue3-emoji-picker'))
 import 'vue3-emoji-picker/css'
 
 const { t } = useI18n()

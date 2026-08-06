@@ -12,6 +12,7 @@
   "access_log_target_type": "대상 유형",
   "access_log_target_id": "대상 ID",
   "access_log_fields": "열람 필드",
+  "access_log_reason": "열람 사유",
   "access_log_ip": "IP 주소",
   "access_log_time": "열람 시각",
   "masking_pattern_generic": "일반 마스킹 (GENERIC)",

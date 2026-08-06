@@ -61,7 +61,7 @@
                             <va-icon v-if="effectiveRoles.includes('ROLE_ADMIN')" name="verified" size="small" color="warning" title="Admin User" />
                           </div>
                           <div style="font-size: 0.8rem; opacity: 0.9; margin-top: 0.15rem; display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
-                            <span>🏢 {{ currentOrgName || $t('belongs_to_org') || '소속 조직' }}</span>
+                            <span>🏢 {{ currentOrgName || $t('belongs_to_org') }}</span>
                             <span v-if="currentUserDeptName" style="display: inline-flex; align-items: center; gap: 0.2rem;">| <va-icon :name="currentUserDeptIcon" size="small" /> {{ currentUserDeptName }}</span>
                           </div>
                         </div>
@@ -70,7 +70,7 @@
                       <!-- Effective Roles Section -->
                       <div :style="{ background: isDark ? 'rgba(15, 23, 42, 0.65)' : 'rgba(255,255,255,0.15)', backdropFilter: 'blur(12px)', borderRadius: '10px', padding: '0.65rem 0.85rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', border: isDark ? '1px solid rgba(167, 139, 250, 0.3)' : '1px solid rgba(255,255,255,0.2)' }">
                         <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.9; display: flex; justify-content: space-between; align-items: center;">
-                          <span>{{ $t('effective_roles') || '유효 통합 권한 (Effective Roles)' }}</span>
+                          <span>{{ $t('effective_roles') }}</span>
                           <span :style="{ background: isDark ? 'rgba(139,92,246,0.35)' : 'rgba(0,0,0,0.25)', color: isDark ? '#ddd6fe' : 'white' }" style="font-size: 0.65rem; padding: 1px 6px; border-radius: 10px; font-weight: 800;">UNION</span>
                         </div>
                         <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.1rem;">
@@ -107,7 +107,7 @@
                             </div>
                           </va-list-item-section>
                           <va-list-item-section style="font-weight: 600; font-size: 0.9rem;">
-                            {{ $t('request_domain_access') || '도메인 접근 권한 신청' }}
+                            {{ $t('request_domain_access') }}
                           </va-list-item-section>
                         </va-list-item>
 
@@ -118,7 +118,7 @@
                             </div>
                           </va-list-item-section>
                           <va-list-item-section style="font-weight: 600; font-size: 0.9rem;">
-                            {{ $t('personal_settings') || 'Personal Settings' }}
+                            {{ $t('personal_settings') }}
                           </va-list-item-section>
                         </va-list-item>
 
@@ -131,7 +131,7 @@
                             </div>
                           </va-list-item-section>
                           <va-list-item-section style="font-weight: 700; font-size: 0.9rem; color: var(--va-danger);">
-                            {{ $t('logout') || '로그아웃' }}
+                            {{ $t('logout') }}
                           </va-list-item-section>
                         </va-list-item>
                       </va-list>
@@ -156,11 +156,11 @@
         </main>
 
         <!-- Personal Settings Modal -->
-        <va-modal v-model="showSettingsModal" :title="$t('personal_settings') || 'Personal Settings'" hide-default-actions>
+        <va-modal v-model="showSettingsModal" :title="$t('personal_settings')" hide-default-actions>
           <div style="min-width: 320px; padding: 1rem 1.5rem 1.5rem 1.5rem; overflow: hidden; box-sizing: border-box;">
             <div class="mb-4" style="display: flex; flex-direction: column; gap: 0.5rem;">
               <span style="font-size: 0.85rem; color: var(--va-text-secondary); font-weight: 600;">
-                {{ $t('timezone') || 'Timezone Settings' }}
+                {{ $t('timezone') }}
               </span>
               <TimezoneSelect 
                 v-model="selectedTimezone" 
@@ -169,7 +169,7 @@
             </div>
             <div class="mb-4" style="display: flex; flex-direction: column; gap: 0.5rem;">
               <span style="font-size: 0.85rem; color: var(--va-text-secondary); font-weight: 600;">
-                {{ $t('font_size_setting') || 'Font Size' }}
+                {{ $t('font_size_setting') }}
               </span>
               <va-select
                 v-model="selectedFontSize"
@@ -186,7 +186,7 @@
             <va-divider style="margin: 1.5rem 0;" />
             <div style="display: flex; flex-direction: column; gap: 0.5rem;">
               <span style="font-size: 0.85rem; color: var(--va-text-secondary); font-weight: 600;">
-                {{ $t('change_password') || 'Change Password' }}
+                {{ $t('change_password') }}
               </span>
               <ChangePasswordForm @success="handlePasswordChanged" @cancel="showSettingsModal = false" />
             </div>
@@ -196,7 +196,7 @@
         <!-- Force Password Change Modal -->
         <va-modal
           v-model="showForcePasswordChangeModal"
-          :title="$t('force_password_change') || '비밀번호 변경 필요'"
+          :title="$t('force_password_change')"
           hide-default-actions
           :prevent-click-outside="true"
           :no-outside-dismiss="true"
@@ -265,10 +265,10 @@ const handleForcePasswordChanged = () => {
 }
 
 const fontSizeOptions = computed(() => [
-  { text: t('font_size_small') || 'Small', value: '12px' },
-  { text: t('font_size_medium') || 'Medium', value: '14px' },
-  { text: t('font_size_large') || 'Large', value: '16px' },
-  { text: t('font_size_xlarge') || 'X-Large', value: '18px' }
+  { text: t('font_size_small'), value: '12px' },
+  { text: t('font_size_medium'), value: '14px' },
+  { text: t('font_size_large'), value: '16px' },
+  { text: t('font_size_xlarge'), value: '18px' }
 ])
 
 const showRequestAccessModal = ref(false)

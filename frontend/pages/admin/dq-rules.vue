@@ -6,11 +6,11 @@
         <va-icon name="gavel" size="large" color="primary" />
         <div>
           <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-            {{ $t('dq_rules_management') || '데이터 품질 검칙 관리' }}
+            {{ $t('dq_rules_management') }}
             <va-badge text="Quality" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
-            {{ $t('dq_rules_desc') || '도메인 필드별 데이터 품질 검증 규칙 및 검사 파라미터를 설정합니다.' }}
+            {{ $t('dq_rules_desc') }}
           </span>
         </div>
       </div>
@@ -21,7 +21,7 @@
       <div class="tree-column" style="width: 350px; flex: 0 0 auto; display: flex; flex-direction: column;">
         <va-card style="flex: 1; display: flex; flex-direction: column;">
           <va-card-title>
-            {{ $t('classification_tree') || 'Classification Tree' }}
+            {{ $t('classification_tree') }}
           </va-card-title>
           <va-card-content style="flex: 1; overflow-y: auto;">
             <ClassificationTree
@@ -60,7 +60,7 @@
                   :disabled="!selectedFieldId"
                   @click="openRuleModal(null)"
                 >
-                  {{ $t('add_dq_rule') || 'Add Rule' }}
+                  {{ $t('add_dq_rule') }}
                 </va-button>
               </div>
             </div>
@@ -88,7 +88,7 @@
     <!-- Rule Edit Modal -->
     <va-modal
       v-model="showRuleModal"
-      :title="editingRuleId ? ($t('edit_dq_rule') || 'Edit Rule') : ($t('add_dq_rule') || 'Add Rule')"
+      :title="editingRuleId ? ($t('edit_dq_rule')) : ($t('add_dq_rule'))"
       size="medium"
       @ok="saveRule"
       @cancel="showRuleModal = false"
@@ -97,20 +97,20 @@
         <va-select
           v-model="ruleFormData.ruleType"
           :options="ruleTypeOptions"
-          :label="$t('dq_rule_type') || 'Rule Type'"
+          :label="$t('dq_rule_type')"
           required
         />
         
         <va-select
           v-model="ruleFormData.severity"
           :options="severityOptions"
-          :label="$t('dq_severity') || 'Severity'"
+          :label="$t('dq_severity')"
           required
         />
 
         <va-input
           v-model="ruleFormData.params"
-          :label="$t('dq_params') || 'Parameters'"
+          :label="$t('dq_params')"
           placeholder="e.g. ^[0-9]+$"
           type="textarea"
           :min-rows="2"
@@ -118,14 +118,14 @@
 
         <va-input
           v-model="ruleFormData.message"
-          :label="$t('dq_error_message') || 'Error Message'"
+          :label="$t('dq_error_message')"
           placeholder="e.g. 숫자만 입력 가능합니다."
         />
 
         <div style="display: flex; gap: 1rem;">
           <va-input
             v-model="ruleFormData.sortOrder"
-            :label="$t('dq_sort_order') || 'Sort Order'"
+            :label="$t('dq_sort_order')"
             type="number"
             style="flex: 1;"
           />
@@ -189,10 +189,10 @@ const severityOptions = [
 ]
 
 const columnDefs = computed(() => [
-  { field: 'ruleType', headerName: t('dq_rule_type') || 'Type', width: 140, sortable: true },
+  { field: 'ruleType', headerName: t('dq_rule_type'), width: 140, sortable: true },
   { 
     field: 'severity', 
-    headerName: t('dq_severity') || 'Severity', 
+    headerName: t('dq_severity'), 
     width: 100, 
     sortable: true,
     cellRenderer: (params) => {
@@ -201,9 +201,9 @@ const columnDefs = computed(() => [
       return `<span style="background: ${color}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold;">${params.value}</span>`;
     }
   },
-  { field: 'params', headerName: t('dq_params') || 'Params', flex: 1 },
-  { field: 'message', headerName: t('dq_error_message') || 'Message', flex: 1 },
-  { field: 'sortOrder', headerName: t('dq_sort_order') || 'Order', width: 90, sortable: true },
+  { field: 'params', headerName: t('dq_params'), flex: 1 },
+  { field: 'message', headerName: t('dq_error_message'), flex: 1 },
+  { field: 'sortOrder', headerName: t('dq_sort_order'), width: 90, sortable: true },
   { 
     field: 'isActive', 
     headerName: 'Active', 

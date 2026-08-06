@@ -38,17 +38,13 @@ public class GlobalRecordController {
     public ResponseEntity<?> updateRecordRequest(
             @PathVariable UUID id, 
             @RequestBody com.classification.domain_system.dto.RecordRequest request) {
-        try {
-            if (request != null && request.getData() != null) {
-                Record record = recordRepository.findById(id).orElse(null);
-                if (record != null && record.getNode() != null) {
-                    request.setData(recordService.processDataForSave(record.getNode().getId(), request.getData()));
-                }
+        if (request != null && request.getData() != null) {
+            Record record = recordRepository.findById(id).orElse(null);
+            if (record != null && record.getNode() != null) {
+                request.setData(recordService.processDataForSave(record.getNode().getId(), request.getData()));
             }
-            return ResponseEntity.ok(approvalService.requestRecordUpdate(id, request));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
         }
+        return ResponseEntity.ok(approvalService.requestRecordUpdate(id, request));
     }
 
     @PostMapping("/{id}/delete-request")
@@ -56,11 +52,7 @@ public class GlobalRecordController {
     public ResponseEntity<?> deleteRecordRequest(
             @PathVariable UUID id,
             @RequestBody com.classification.domain_system.dto.RecordRequest request) {
-        try {
-            return ResponseEntity.ok(approvalService.requestRecordDeletion(id, request));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+        return ResponseEntity.ok(approvalService.requestRecordDeletion(id, request));
     }
 
     @GetMapping("/domain/{domainId}")
