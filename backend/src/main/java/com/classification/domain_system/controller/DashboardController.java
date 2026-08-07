@@ -33,4 +33,16 @@ public class DashboardController {
     public ResponseEntity<List<Map<String, Object>>> getDomainDistribution() {
         return ResponseEntity.ok(dashboardService.getDomainDistribution());
     }
+
+    @GetMapping("/dq-trends")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<Map<String, Object>>> getDqTrends() {
+        return ResponseEntity.ok(dashboardService.getDqTrends());
+    }
+
+    @GetMapping("/dq-severity")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<Map<String, Object>>> getDqSeverityDistribution() {
+        return ResponseEntity.ok(dashboardService.getDqSeverityDistribution());
+    }
 }

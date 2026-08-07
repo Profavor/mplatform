@@ -63,6 +63,46 @@ public class DashboardService {
     }
 
     @Transactional(readOnly = true)
+    public List<Map<String, Object>> getDqTrends() {
+        LocalDateTime sevenDaysAgo = LocalDate.now().minusDays(6).atStartOfDay();
+        List<com.classification.domain_system.entity.DqViolation> violations = dqViolationRepository.findAll().stream()
+                .filter(v -> v.getCheckedAt().isAfter(sevenDaysAgo))
+                .toList();
+
+        Map<LocalDate, Long> countsByDate = violations.stream()
+                .filter(v -> v.getCheckedAt() != null)
+                .collect(Collectors.groupingBy(v -> v.getCheckedAt().toLocalDate(), Collectors.counting()));
+
+        List<Map<String, Object>> trends = new ArrayList<>();
+        for (int i = 6; i >= 0; i--) {
+            LocalDate date = LocalDate.now().minusDays(i);
+            Map<String, Object> item = new HashMap<>();
+            item.put("date", date.toString());
+            item.put("count", countsByDate.getOrDefault(date, 0L));
+            trends.add(item);
+        }
+        return trends;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getDqSeverityDistribution() {
+        List<com.classification.domain_system.entity.DqViolation> violations = dqViolationRepository.findAll().stream()
+                .filter(v -> !v.getResolved())
+                .toList();
+        Map<String, Long> counts = violations.stream()
+                .collect(Collectors.groupingBy(com.classification.domain_system.entity.DqViolation::getSeverity, Collectors.counting()));
+        
+        return counts.entrySet().stream()
+                .map(e -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("severity", e.getKey());
+                    map.put("count", e.getValue());
+                    return map;
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> getDomainDistribution() {
         List<Domain> domains = domainRepository.findAll();
         List<Map<String, Object>> result = new ArrayList<>();
