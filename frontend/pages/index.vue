@@ -114,6 +114,35 @@
       </va-card>
     </div>
 
+    <!-- Phase 3: Data Quality Analytics Grid -->
+    <div class="content-grid" style="margin-bottom: 1.75rem;">
+      <!-- DQ Violation Trend Chart -->
+      <va-card class="section-card chart-card">
+        <va-card-title class="card-header-title">
+          <va-icon name="trending_up" size="small" color="danger" />
+          {{ t('dq_violation_trend') || 'DQ Violation Trend' }}
+        </va-card-title>
+        <va-card-content>
+          <ClientOnly>
+            <v-chart style="height: 330px; width: 100%;" :option="dqTrendChartOption" autoresize />
+          </ClientOnly>
+        </va-card-content>
+      </va-card>
+
+      <!-- DQ Severity Distribution Chart -->
+      <va-card class="section-card chart-card">
+        <va-card-title class="card-header-title">
+          <va-icon name="warning" size="small" color="warning" />
+          {{ t('dq_severity_distribution') || 'DQ Severity Distribution' }}
+        </va-card-title>
+        <va-card-content>
+          <ClientOnly>
+            <v-chart style="height: 330px; width: 100%;" :option="dqSeverityChartOption" autoresize />
+          </ClientOnly>
+        </va-card-content>
+      </va-card>
+    </div>
+
     <!-- Bottom Section: My To-Do List & Governance/DQ Health -->
     <div class="bottom-grid">
       <!-- My To-Do List -->
@@ -248,6 +277,8 @@ const domainList = ref([])
 const displayInfo = ref({})
 const rawTrends = ref([])
 const rawDistribution = ref([])
+const rawDqTrends = ref([])
+const rawDqSeverity = ref([])
 
 const tokenCookie = useCookie('auth_token')
 const userCookie = useCookie('user_data')
@@ -295,6 +326,14 @@ onMounted(async () => {
 
     try {
       rawDistribution.value = await $fetch('/api/dashboard/domain-distribution', { headers })
+    } catch(e) {}
+
+    try {
+      rawDqTrends.value = await $fetch('/api/dashboard/dq-trends', { headers })
+    } catch(e) {}
+
+    try {
+      rawDqSeverity.value = await $fetch('/api/dashboard/dq-severity', { headers })
     } catch(e) {}
 
     if (myUuid) {
@@ -483,6 +522,93 @@ const distributionChartOption = computed(() => {
           show: false
         },
         data: chartData.length ? chartData : [{ name: t('no_domain_records'), value: 0 }]
+      }
+    ]
+  }
+})
+
+// DQ Violation Trend Line Chart
+const dqTrendChartOption = computed(() => {
+  const textColor = isDark.value ? '#cbd5e1' : '#475569'
+  const splitLineColor = isDark.value ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)'
+
+  const dates = (rawDqTrends.value || []).map(t => t.date?.substring(5) || t.date)
+  const counts = (rawDqTrends.value || []).map(t => t.count || 0)
+
+  return {
+    tooltip: { trigger: 'axis' },
+    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      data: dates.length ? dates : ['D-6', 'D-5', 'D-4', 'D-3', 'D-2', 'D-1', t('today') || 'Today'],
+      axisLabel: { color: textColor },
+      axisLine: { lineStyle: { color: splitLineColor } }
+    },
+    yAxis: {
+      type: 'value',
+      minInterval: 1,
+      axisLabel: { color: textColor },
+      splitLine: { lineStyle: { color: splitLineColor } }
+    },
+    series: [
+      {
+        name: t('open_dq_violations') || 'DQ Violations',
+        data: counts.length ? counts : [0, 0, 0, 0, 0, 0, 0],
+        type: 'line',
+        smooth: true,
+        color: '#e4233c',
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [{
+              offset: 0, color: 'rgba(228, 35, 60, 0.4)'
+            }, {
+              offset: 1, color: 'rgba(228, 35, 60, 0)'
+            }]
+          }
+        }
+      }
+    ]
+  }
+})
+
+// DQ Severity Distribution Bar Chart
+const dqSeverityChartOption = computed(() => {
+  const textColor = isDark.value ? '#cbd5e1' : '#475569'
+  const splitLineColor = isDark.value ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)'
+
+  const dataMap = { 'HIGH': 0, 'MEDIUM': 0, 'LOW': 0 }
+  ;(rawDqSeverity.value || []).forEach(item => {
+    if (item.severity) dataMap[item.severity] = item.count
+  })
+
+  return {
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: ['HIGH', 'MEDIUM', 'LOW'],
+      axisLabel: { color: textColor },
+      axisLine: { lineStyle: { color: splitLineColor } }
+    },
+    yAxis: {
+      type: 'value',
+      minInterval: 1,
+      axisLabel: { color: textColor },
+      splitLine: { lineStyle: { color: splitLineColor } }
+    },
+    series: [
+      {
+        name: t('dq_severity_distribution') || 'Severity',
+        type: 'bar',
+        barWidth: '50%',
+        data: [
+          { value: dataMap['HIGH'], itemStyle: { color: '#e4233c' } },
+          { value: dataMap['MEDIUM'], itemStyle: { color: '#f59e0b' } },
+          { value: dataMap['LOW'], itemStyle: { color: '#3b82f6' } }
+        ]
       }
     ]
   }
