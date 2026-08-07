@@ -69,6 +69,8 @@ public class ApprovalService {
     private final DataMaskingService dataMaskingService;
     private final AuthContext authContext;
     private final ApprovalQueryService approvalQueryService;
+    private final com.classification.domain_system.repository.BatchJobRepository batchJobRepository;
+    private final com.classification.domain_system.repository.StagingRecordRepository stagingRecordRepository;
 
     public String resolveRoleDisplayName(String roleCode) {
         return approvalQueryService.resolveRoleDisplayName(roleCode);
@@ -94,6 +96,39 @@ public class ApprovalService {
                     .orElseThrow(() -> new ResourceNotFoundException("Record not found"));
             record.setStatus("ACTIVE");
             recordRepository.saveAndFlush(record);
+        } else if ("BATCH_RECORD".equals(approval.getTargetType())) {
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                com.fasterxml.jackson.databind.JsonNode changesNode = mapper.readTree(approval.getChanges());
+                List<UUID> recordIds = new ArrayList<>();
+                if (changesNode.has("recordIds") && changesNode.get("recordIds").isArray()) {
+                    for (com.fasterxml.jackson.databind.JsonNode id : changesNode.get("recordIds")) {
+                        recordIds.add(UUID.fromString(id.asText()));
+                    }
+                }
+                List<Record> records = recordRepository.findAllById(recordIds);
+                for (Record record : records) {
+                    record.setStatus("REJECTED");
+                }
+                recordRepository.saveAllAndFlush(records);
+                
+                UUID batchId = UUID.fromString(changesNode.get("batchId").asText());
+                batchJobRepository.findById(batchId).ifPresent(job -> {
+                    job.setStatus("FAILED");
+                    batchJobRepository.save(job);
+                });
+                
+                List<com.classification.domain_system.entity.StagingRecord> stagings = stagingRecordRepository.findByBatchId(batchId);
+                for (com.classification.domain_system.entity.StagingRecord sr : stagings) {
+                    if ("PENDING_APPROVAL".equals(sr.getStatus())) {
+                        sr.setStatus("ERROR");
+                        sr.setErrorMessage("Approval rejected");
+                    }
+                }
+                stagingRecordRepository.saveAll(stagings);
+            } catch (Exception e) {
+                log.error("Error applying rejection for BATCH_RECORD", e);
+            }
         } else if (approval.getTargetType() != null && approval.getTargetType().startsWith("SCHEMA_")) {
             log.info("Schema change request {} was rejected, no record status to revert", approval.getId());
         }
@@ -648,6 +683,52 @@ public class ApprovalService {
         return saved;
     }
     
+    @Transactional
+    public ApprovalRequest requestBatchRecordCreation(
+            UUID domainId, UUID batchId, List<UUID> recordIds, String requesterId) {
+        
+        ClassificationNode anyNode = nodeRepository.findFirstByDomain_IdAndIsDeletedFalse(domainId);
+        WorkflowConfig config = resolveWorkflow(
+            anyNode != null ? anyNode.getId() : domainId, "CREATE");
+        
+        ApprovalRequest approval = new ApprovalRequest();
+        approval.setTargetType("BATCH_RECORD");
+        approval.setTargetId(batchId);
+        if (anyNode != null) {
+            approval.setClassificationNode(anyNode);
+        }
+        approval.setRequesterId(requesterId);
+        approval.setStatus("PENDING");
+        
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            approval.setChanges(mapper.writeValueAsString(Map.of(
+                "batchId", batchId,
+                "recordIds", recordIds,
+                "totalRecords", recordIds.size()
+            )));
+        } catch (Exception e) {
+            approval.setChanges("{}");
+        }
+        
+        approval.setCurrentStepOrder(1);
+        
+        buildDynamicSteps(approval, config);
+        
+        ApprovalStep draftStep = new ApprovalStep();
+        draftStep.setApprovalRequest(approval);
+        draftStep.setStepType("DRAFT");
+        draftStep.setAssigneeId(requesterId);
+        draftStep.setStepOrder(0);
+        draftStep.setStatus("SUBMITTED");
+        draftStep.setComment("Batch Import: " + recordIds.size() + " records");
+        approval.getSteps().add(draftStep);
+        
+        ApprovalRequest saved = approvalRepository.saveAndFlush(approval);
+        eventPublisher.publishEvent(new ApprovalRequestCreatedEvent(saved));
+        return saved;
+    }
+
     @Transactional
     public ApprovalRequest requestRecordUpdate(UUID recordId, RecordRequest request) {
         Record record = recordRepository.findById(recordId)

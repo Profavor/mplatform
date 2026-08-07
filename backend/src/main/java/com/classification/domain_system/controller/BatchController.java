@@ -34,8 +34,8 @@ public class BatchController {
     }
 
     @PostMapping("/{batchId}/commit")
-    public ResponseEntity<Void> commitBatch(@PathVariable UUID batchId) {
-        batchImportService.commitBatch(batchId);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<BatchJob> commitBatch(@PathVariable UUID batchId) {
+        BatchJob job = batchImportService.commitBatch(batchId);
+        return ResponseEntity.ok(job);
     }
 }

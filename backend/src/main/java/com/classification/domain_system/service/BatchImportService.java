@@ -2,17 +2,26 @@ package com.classification.domain_system.service;
 
 import com.classification.domain_system.entity.BatchJob;
 import com.classification.domain_system.entity.StagingRecord;
+import com.classification.domain_system.entity.Record;
+import com.classification.domain_system.entity.ClassificationNode;
 import com.classification.domain_system.repository.BatchJobRepository;
 import com.classification.domain_system.repository.StagingRecordRepository;
+import com.classification.domain_system.repository.RecordRepository;
+import com.classification.domain_system.repository.ClassificationNodeRepository;
+import com.classification.domain_system.service.dq.DqRuleEngine;
+import com.classification.domain_system.service.dq.DqEvaluationResult;
+import com.classification.domain_system.exception.ResourceNotFoundException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -20,6 +29,11 @@ public class BatchImportService {
 
     private final BatchJobRepository batchJobRepository;
     private final StagingRecordRepository stagingRecordRepository;
+    private final RecordRepository recordRepository;
+    private final ClassificationNodeRepository nodeRepository;
+    private final RecordService recordService;
+    private final ApprovalService approvalService;
+    private final DqRuleEngine dqRuleEngine;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -53,7 +67,7 @@ public class BatchImportService {
 
     @Transactional
     public void validateBatch(UUID batchId) {
-        BatchJob job = batchJobRepository.findById(batchId).orElseThrow();
+        BatchJob job = batchJobRepository.findById(batchId).orElseThrow(() -> new ResourceNotFoundException("Batch job not found"));
         job.setStatus("RUNNING");
         batchJobRepository.save(job);
 
@@ -62,10 +76,22 @@ public class BatchImportService {
         int processedCount = 0;
 
         for (StagingRecord sr : records) {
-            // Mock validation
-            if (sr.getRawData() != null && sr.getRawData().contains("error")) {
+            DqEvaluationResult evalResult = dqRuleEngine.evaluate(sr.getNodeId(), sr.getRawData());
+            if (!evalResult.isValid()) {
                 sr.setStatus("ERROR");
-                sr.setErrorMessage("Mock validation error");
+                try {
+                    sr.setErrorMessage(objectMapper.writeValueAsString(
+                        evalResult.getViolations().stream()
+                            .filter(v -> "ERROR".equals(v.getSeverity()))
+                            .map(v -> Map.of(
+                                "fieldKey", v.getFieldKey(),
+                                "ruleType", v.getRuleType(),
+                                "message", v.getMessage()))
+                            .collect(Collectors.toList())
+                    ));
+                } catch (Exception e) {
+                    sr.setErrorMessage("[{\"message\":\"Failed to serialize error message\"}]");
+                }
                 errorCount++;
             } else {
                 sr.setStatus("VALIDATED");
@@ -82,15 +108,64 @@ public class BatchImportService {
     }
 
     @Transactional
-    public void commitBatch(UUID batchId) {
-        // Mock commit
+    public BatchJob commitBatch(UUID batchId) {
+        BatchJob job = batchJobRepository.findById(batchId).orElseThrow(() -> new ResourceNotFoundException("Batch job not found"));
         List<StagingRecord> records = stagingRecordRepository.findByBatchId(batchId);
+        
+        List<Record> recordBatch = new ArrayList<>();
+        List<StagingRecord> committableStagings = new ArrayList<>();
+        List<UUID> allRecordIds = new ArrayList<>();
+        int chunkSize = 500;
+        
         for (StagingRecord sr : records) {
-            if ("VALIDATED".equals(sr.getStatus())) {
-                sr.setStatus("COMMITTED");
-                stagingRecordRepository.save(sr);
-                // In real scenario, insert into Record table
+            if (!"VALIDATED".equals(sr.getStatus())) continue;
+            
+            ClassificationNode node = nodeRepository.findById(sr.getNodeId()).orElseThrow(() -> new ResourceNotFoundException("Node not found"));
+            String processedData = recordService.processDataForSave(sr.getNodeId(), sr.getRawData());
+            
+            Record record = new Record();
+            record.setNode(node);
+            record.setData(processedData);
+            record.setStatus("DRAFT");
+            record.setSourceSystem(sr.getSourceSystem());
+            recordBatch.add(record);
+            committableStagings.add(sr);
+            
+            // 500건 단위 청크 삽입
+            if (recordBatch.size() >= chunkSize) {
+                recordRepository.saveAllAndFlush(recordBatch);
+                allRecordIds.addAll(recordBatch.stream().map(Record::getId).collect(Collectors.toList()));
+                recordBatch.clear();
             }
         }
+        
+        // 잔여분 삽입
+        if (!recordBatch.isEmpty()) {
+            recordRepository.saveAllAndFlush(recordBatch);
+            allRecordIds.addAll(recordBatch.stream().map(Record::getId).collect(Collectors.toList()));
+            recordBatch.clear();
+        }
+        
+        // 스테이징 상태 업데이트 (PENDING_APPROVAL)
+        for (StagingRecord sr : committableStagings) {
+            sr.setStatus("PENDING_APPROVAL");
+        }
+        stagingRecordRepository.saveAll(committableStagings);
+        
+        // 대량 결재 요청 1건 생성
+        com.classification.domain_system.entity.ApprovalRequest approvalReq = approvalService.requestBatchRecordCreation(
+            job.getDomainId(), batchId, allRecordIds, job.getCreatedBy());
+        
+        // BatchJob 업데이트
+        job.setProcessedRecords(committableStagings.size());
+        job.setStatus("PENDING_APPROVAL");
+        job.setCompletedAt(LocalDateTime.now());
+        job.setCommittedRecords(committableStagings.size());
+        if (approvalReq != null) {
+            job.setApprovalRequestId(approvalReq.getId());
+        }
+        batchJobRepository.save(job);
+        
+        return job;
     }
 }
