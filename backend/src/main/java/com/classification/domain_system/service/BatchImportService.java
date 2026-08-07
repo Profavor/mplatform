@@ -34,7 +34,7 @@ public class BatchImportService {
     private final RecordService recordService;
     private final ApprovalService approvalService;
     private final DqRuleEngine dqRuleEngine;
-    private final ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional
     public BatchJob createBatch(UUID domainId, UUID nodeId, List<Map<String, Object>> records, String sourceSystem, String createdBy) {

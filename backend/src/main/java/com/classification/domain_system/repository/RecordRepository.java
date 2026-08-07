@@ -36,4 +36,7 @@ public interface RecordRepository extends JpaRepository<Record, UUID>, CustomRec
 
     @org.springframework.data.jpa.repository.Query("SELECT r FROM Record r JOIN FETCH r.node WHERE r.node.domain.id = :domainId AND r.status NOT IN ('REJECTED', 'MISMATCHED') ORDER BY r.createdAt DESC")
     List<Record> findAllByDomainId(@org.springframework.data.repository.query.Param("domainId") UUID domainId);
+
+    @org.springframework.data.jpa.repository.Query("SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END FROM Record r WHERE r.node.domain.id = :domainId AND cast(r.data as String) LIKE %:searchText%")
+    boolean existsByNodeDomainIdAndDataContaining(@org.springframework.data.repository.query.Param("domainId") UUID domainId, @org.springframework.data.repository.query.Param("searchText") String searchText);
 }
