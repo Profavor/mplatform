@@ -15,4 +15,5 @@ public interface ClassificationNodeRepository extends JpaRepository<Classificati
     List<ClassificationNode> findByParentIdAndIsDeletedFalseOrderByOrderAsc(UUID parentId);
     List<ClassificationNode> findByPathStartingWithAndIsDeletedFalse(String pathPrefix);
     List<ClassificationNode> findByDomain_Id(UUID domainId);
+    ClassificationNode findFirstByDomain_IdAndIsDeletedFalse(UUID domainId);
 }

@@ -40,6 +40,8 @@ public class ApprovalEventListener {
     private final com.classification.domain_system.repository.UserRepository userRepository;
     private final com.classification.domain_system.repository.DomainRepository domainRepository;
     private final com.classification.domain_system.websocket.WebSocketPublisher webSocketPublisher;
+    private final com.classification.domain_system.repository.BatchJobRepository batchJobRepository;
+    private final com.classification.domain_system.repository.StagingRecordRepository stagingRecordRepository;
     
     @org.springframework.beans.factory.annotation.Autowired
     @org.springframework.context.annotation.Lazy
@@ -330,6 +332,39 @@ public class ApprovalEventListener {
                 }
             } catch (Exception e) {
                 log.error("Error applying final approval for schema change", e);
+            }
+        } else if ("BATCH_RECORD".equals(approval.getTargetType())) {
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode changesNode = mapper.readTree(approval.getChanges());
+                List<UUID> recordIds = new ArrayList<>();
+                if (changesNode.has("recordIds") && changesNode.get("recordIds").isArray()) {
+                    for (JsonNode id : changesNode.get("recordIds")) {
+                        recordIds.add(UUID.fromString(id.asText()));
+                    }
+                }
+                
+                List<Record> records = recordRepository.findAllById(recordIds);
+                for (Record record : records) {
+                    record.setStatus("ACTIVE");
+                }
+                recordRepository.saveAll(records);
+                
+                UUID batchId = UUID.fromString(changesNode.get("batchId").asText());
+                batchJobRepository.findById(batchId).ifPresent(job -> {
+                    job.setStatus("COMMITTED");
+                    batchJobRepository.save(job);
+                });
+                
+                List<com.classification.domain_system.entity.StagingRecord> stagings = stagingRecordRepository.findByBatchId(batchId);
+                for (com.classification.domain_system.entity.StagingRecord sr : stagings) {
+                    if ("PENDING_APPROVAL".equals(sr.getStatus())) {
+                        sr.setStatus("COMMITTED");
+                    }
+                }
+                stagingRecordRepository.saveAll(stagings);
+            } catch (Exception e) {
+                log.error("Error applying final approval for BATCH_RECORD", e);
             }
         }
     }

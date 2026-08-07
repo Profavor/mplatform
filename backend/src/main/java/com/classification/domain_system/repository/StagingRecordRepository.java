@@ -10,4 +10,6 @@ import java.util.UUID;
 @Repository
 public interface StagingRecordRepository extends JpaRepository<StagingRecord, UUID> {
     List<StagingRecord> findByBatchId(UUID batchId);
+    List<StagingRecord> findByBatchIdAndStatus(UUID batchId, String status);
+    long countByBatchIdAndStatus(UUID batchId, String status);
 }

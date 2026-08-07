@@ -44,4 +44,10 @@ public class BatchJob {
 
     @Column(name = "created_by")
     private String createdBy;
+
+    @Column(name = "committed_records")
+    private Integer committedRecords = 0;
+
+    @Column(name = "approval_request_id")
+    private UUID approvalRequestId;
 }
