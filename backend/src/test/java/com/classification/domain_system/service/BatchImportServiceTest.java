@@ -38,8 +38,6 @@ class BatchImportServiceTest {
     @Mock private RecordService recordService;
     @Mock private ApprovalService approvalService;
     @Mock private DqRuleEngine dqRuleEngine;
-    
-    private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks
     private BatchImportService batchImportService;
@@ -49,7 +47,7 @@ class BatchImportServiceTest {
         // Mock dependencies with lenient
         batchImportService = new BatchImportService(
             batchJobRepository, stagingRecordRepository, recordRepository, nodeRepository,
-            recordService, approvalService, dqRuleEngine, objectMapper
+            recordService, approvalService, dqRuleEngine
         );
 
         UUID batchId = UUID.randomUUID();
@@ -79,7 +77,7 @@ class BatchImportServiceTest {
     void testValidateBatch_DQ_Error() throws Exception {
         batchImportService = new BatchImportService(
             batchJobRepository, stagingRecordRepository, recordRepository, nodeRepository,
-            recordService, approvalService, dqRuleEngine, objectMapper
+            recordService, approvalService, dqRuleEngine
         );
 
         UUID batchId = UUID.randomUUID();
@@ -109,7 +107,7 @@ class BatchImportServiceTest {
     void testCommitBatch() {
         batchImportService = new BatchImportService(
             batchJobRepository, stagingRecordRepository, recordRepository, nodeRepository,
-            recordService, approvalService, dqRuleEngine, objectMapper
+            recordService, approvalService, dqRuleEngine
         );
 
         UUID batchId = UUID.randomUUID();
