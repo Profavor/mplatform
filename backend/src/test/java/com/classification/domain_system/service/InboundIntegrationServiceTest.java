@@ -179,7 +179,7 @@ class InboundIntegrationServiceTest {
         // when & then
         assertThatThrownBy(() -> inboundIntegrationService.processInboundData(channelId, "{}", "Bearer valid-token-123", null, null))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("비활성화");
+                .hasMessageContaining("disabled");
     }
 
     @Test
@@ -192,6 +192,6 @@ class InboundIntegrationServiceTest {
         // when & then
         assertThatThrownBy(() -> inboundIntegrationService.processInboundData(channelId, "{}", "Bearer valid-token-123", null, null))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Inbound 연계 채널이 아닙니다");
+                .hasMessageContaining("Not an inbound");
     }
 }

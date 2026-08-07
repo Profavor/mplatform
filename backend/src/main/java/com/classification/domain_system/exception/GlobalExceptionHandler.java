@@ -90,6 +90,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleAllExceptions(Exception ex, HttpServletRequest request) {
+        // 클라이언트(브라우저)가 동영상 스트리밍 중 재생을 중지하거나 탐색(Seek)할 때 연결을 끊어 발생하는 예외 무시
+        if (ex.getClass().getName().contains("ClientAbortException")) {
+            log.debug("Client aborted connection during streaming: {}", request.getRequestURI());
+            return null;
+        }
+
         String stackTrace = getStackTraceAsString(ex);
 
         String userId = "anonymous";

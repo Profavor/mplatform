@@ -33,7 +33,7 @@ public class SecurityConfig {
     private final JwtFilter jwtFilter;
     private final CustomPermissionEvaluator permissionEvaluator;
 
-    @Value("${cors.allowed-origins:http://localhost:3000,http://localhost:8080}")
+    @Value("${cors.allowed-origins:http://localhost:3000,http://localhost:8080,http://localhost:9090,http://127.0.0.1:9090}")
     private String allowedOrigins;
 
     @Bean
@@ -93,10 +93,13 @@ public class SecurityConfig {
 
         // 일반 API: 허용된 프론트엔드 Origin만 허용
         CorsConfiguration config = new CorsConfiguration();
-        List<String> origins = Arrays.asList(allowedOrigins.split(","));
+        List<String> origins = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .collect(java.util.stream.Collectors.toList());
         config.setAllowedOrigins(origins);
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("*"));
+        config.setExposedHeaders(Arrays.asList("Content-Disposition", "Content-Length", "Content-Range", "Accept-Ranges"));
         config.setAllowCredentials(true);
         source.registerCorsConfiguration("/**", config);
 

@@ -515,6 +515,10 @@ public class FieldDefinitionService {
         if (field.getFieldGroup() != null) {
             map.put("fieldGroupId", field.getFieldGroup().getId());
             map.put("group", field.getFieldGroup().getName());
+            if (field.getFieldGroup().getSector() != null) {
+                map.put("sectorId", field.getFieldGroup().getSector().getId());
+                map.put("sector", field.getFieldGroup().getSector().getName());
+            }
         }
         return map;
     }

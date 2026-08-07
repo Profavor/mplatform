@@ -57,13 +57,13 @@ class SystemInstallControllerTest {
     @DisplayName("이미 설치된 시스템에 대해 설치 시도 시 표준 ErrorResponse JSON 반환 (400 Bad Request)")
     void installSystem_AlreadyInstalled_ReturnsStandardErrorJson() throws Exception {
         when(installService.installSystem(any(SystemInstallRequest.class)))
-                .thenThrow(new IllegalStateException("이미 설치가 완료된 시스템입니다."));
+                .thenThrow(new IllegalStateException("The system is already installed."));
 
         mockMvc.perform(post("/api/system/install")
                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                 .content("{\"adminUsername\":\"admin\",\"adminPassword\":\"password123\",\"organizationName\":\"Company\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"))
-                .andExpect(jsonPath("$.message").value("이미 설치가 완료된 시스템입니다."));
+                .andExpect(jsonPath("$.message").value("The system is already installed."));
     }
 }

@@ -119,9 +119,9 @@
                       <!-- Date Range -->
                       <div v-else-if="field.type === 'DATE_RANGE'" class="w-full" style="display: flex; gap: 0.5rem; flex-direction: row; align-items: center; min-width: 0;">
                         <va-input
-                          :model-value="(localRecord[field.key] || '').split(',')[0] || ''"
-                          @update:model-value="(val) => { const arr = (localRecord[field.key] || '').split(','); arr[0] = val; localRecord[field.key] = arr.join(','); if (arr.length === 1) localRecord[field.key] += ','; }"
-                          :type="focusedDateFields[field.key + '_start'] || (localRecord[field.key] || '').split(',')[0] ? 'date' : 'text'"
+                          :model-value="(localRecord[field.key] || '').split('~')[0] || ''"
+                          @update:model-value="(val) => { const arr = (localRecord[field.key] || '').split('~'); arr[0] = val; localRecord[field.key] = arr.join('~'); if (arr.length === 1) localRecord[field.key] += '~'; }"
+                          :type="focusedDateFields[field.key + '_start'] || (localRecord[field.key] || '').split('~')[0] ? 'date' : 'text'"
                           :readonly="evalConditionRule(field, localRecord).readOnly"
                           :disabled="evalConditionRule(field, localRecord).disabled"
                           :lang="locale === 'en' ? 'en-US' : 'ko-KR'"
@@ -132,9 +132,9 @@
                         />
                         <span style="font-weight: bold; color: var(--va-text-secondary);">~</span>
                         <va-input
-                          :model-value="(localRecord[field.key] || '').split(',')[1] || ''"
-                          @update:model-value="(val) => { const arr = (localRecord[field.key] || '').split(','); arr[0] = arr[0] || ''; arr[1] = val; localRecord[field.key] = arr.join(','); }"
-                          :type="focusedDateFields[field.key + '_end'] || (localRecord[field.key] || '').split(',')[1] ? 'date' : 'text'"
+                          :model-value="(localRecord[field.key] || '').split('~')[1] || ''"
+                          @update:model-value="(val) => { const arr = (localRecord[field.key] || '').split('~'); arr[0] = arr[0] || ''; arr[1] = val; localRecord[field.key] = arr.join('~'); }"
+                          :type="focusedDateFields[field.key + '_end'] || (localRecord[field.key] || '').split('~')[1] ? 'date' : 'text'"
                           :readonly="evalConditionRule(field, localRecord).readOnly"
                           :disabled="evalConditionRule(field, localRecord).disabled"
                           :lang="locale === 'en' ? 'en-US' : 'ko-KR'"

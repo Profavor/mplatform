@@ -53,11 +53,11 @@ public class InboundIntegrationService {
                 .orElseThrow(() -> new IllegalArgumentException("연계 채널을 찾을 수 없습니다. ID: " + channelId));
 
         if (!channel.isActive()) {
-            throw new IllegalArgumentException("해당 연계 채널이 비활성화 상태입니다. Channel: " + channel.getName());
+            throw new IllegalArgumentException("The integration channel is disabled. Channel: " + channel.getName());
         }
 
         if (!"INBOUND".equalsIgnoreCase(channel.getDirection())) {
-            throw new IllegalArgumentException("Inbound 연계 채널이 아닙니다. Direction: " + channel.getDirection());
+            throw new IllegalArgumentException("Not an inbound integration channel. Direction: " + channel.getDirection());
         }
 
         // Inbound Authentication Check
@@ -78,7 +78,7 @@ public class InboundIntegrationService {
                     List<ClassificationNode> rootNodes = nodeRepository.findByDomain_IdAndParentIsNullAndIsDeletedFalseOrderByOrderAsc(domainId);
                     if (!rootNodes.isEmpty()) {
                         targetNode = rootNodes.get(0);
-                        log.info("[Inbound] Channel [{}]의 nodeId가 없으므로 도메인[{}]의 Root Node[{}]로 자동 지정합니다.", channel.getName(), domainId, targetNode.getId());
+                        log.info("[Inbound] NodeId for Channel [{}] is empty. Automatically assigning Root Node [{}] of Domain [{}].", channel.getName(), targetNode.getId(), domainId);
                     }
                 }
             }
@@ -86,7 +86,7 @@ public class InboundIntegrationService {
             if (targetNode != null) {
                 savedRecordIds = saveAsRecords(targetNode, transformedPayload, channel.getName(), channel);
             } else {
-                throw new IllegalArgumentException("Inbound 연계 채널에 데이터 수신 대상 도메인 및 분류 노드가 설정되어 있지 않습니다. 연계 채널 설정을 확인해 주세요.");
+                throw new IllegalArgumentException("Target domain and classification node are not configured for the inbound integration channel. Please check the channel settings.");
             }
 
             UUID firstRecordId = savedRecordIds.isEmpty() ? null : savedRecordIds.get(0);
@@ -119,7 +119,7 @@ public class InboundIntegrationService {
                 }
             }
 
-            throw new RuntimeException("Inbound 데이터 처리 중 오류가 발생했습니다: " + e.getMessage(), e);
+            throw new RuntimeException("An error occurred during inbound data processing: " + e.getMessage(), e);
         }
     }
 
@@ -152,7 +152,7 @@ public class InboundIntegrationService {
                 if (id != null) savedIds.add(id);
             }
         } catch (Exception e) {
-            log.error("[Inbound] Record/RecordHistory 저장 중 오류: {}", e.getMessage(), e);
+            log.error("[Inbound] Error saving Record/RecordHistory: {}", e.getMessage(), e);
         }
         return savedIds;
     }
@@ -188,7 +188,7 @@ public class InboundIntegrationService {
 
                 String mergedDataJson = itemJson;
                 if (priorities.isEmpty()) {
-                    log.info("[Survivorship] 서바이버십 미설정 도메인, 레거시 전체 덮어쓰기 방식 적용: domainId={}", domainId);
+                    log.info("[Survivorship] Survivorship not configured, applying legacy full overwrite: domainId={}", domainId);
                 } else {
                     try {
                         Map<String, Object> existingMap = objectMapper.readValue(prevData != null ? prevData : "{}", new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
@@ -236,7 +236,7 @@ public class InboundIntegrationService {
                         }
                         mergedDataJson = objectMapper.writeValueAsString(finalMap);
                     } catch (Exception e) {
-                        log.error("[Survivorship Error] 서바이버십 병합 실패: {}", e.getMessage());
+                        log.error("[Survivorship Error] Survivorship merge failed: {}", e.getMessage());
                     }
                 }
 
@@ -263,7 +263,7 @@ public class InboundIntegrationService {
                     log.error("[Inbound DQE] Error evaluating record [{}]: {}", saved.getId(), e.getMessage());
                 }
 
-                log.info("[Inbound] 기존 레코드 발견으로 UPDATE 처리 완료: id={}, ver={}", saved.getId(), saved.getVersion());
+                log.info("[Inbound] Existing record found, UPDATE processed: id={}, ver={}", saved.getId(), saved.getVersion());
                 return saved.getId();
             }
         }
@@ -294,7 +294,7 @@ public class InboundIntegrationService {
             log.error("[Inbound DQE] Error evaluating record [{}]: {}", saved.getId(), e.getMessage());
         }
 
-        log.info("[Inbound] 신규 레코드 INSERT 처리 완료: id={}", saved.getId());
+        log.info("[Inbound] New record INSERT processed: id={}", saved.getId());
         return saved.getId();
     }
 
@@ -349,7 +349,7 @@ public class InboundIntegrationService {
                 return UUID.fromString(config.get("domainId").asText());
             }
         } catch (Exception e) {
-            log.error("[Inbound] configJson domainId 추출 실패: {}", e.getMessage());
+            log.error("[Inbound] Failed to extract domainId from configJson: {}", e.getMessage());
         }
         return null;
     }

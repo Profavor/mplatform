@@ -51,8 +51,8 @@ public class DataMappingTransformer {
             try {
                 payload = lenientMapper.readValue(payloadJson, new TypeReference<>() {});
             } catch (Exception parseEx) {
-                log.error("[Mapping] Payload JSON 파싱 실패: {}", parseEx.getMessage());
-                throw new IllegalArgumentException("수신된 Payload가 유효한 JSON 형식이 아닙니다: " + parseEx.getMessage(), parseEx);
+                log.error("[Mapping] Payload JSON parsing failed: {}", parseEx.getMessage());
+                throw new IllegalArgumentException("The received payload is not a valid JSON format: " + parseEx.getMessage(), parseEx);
             }
             
             // Setup SpEL context
@@ -157,8 +157,8 @@ public class DataMappingTransformer {
             // payload 파싱 실패 등 명시적 예외는 그대로 전파
             throw e;
         } catch (Exception e) {
-            log.error("[Mapping] 매핑 처리 중 예기치 않은 오류: {}", e.getMessage(), e);
-            throw new RuntimeException("매핑 처리 중 오류가 발생했습니다: " + e.getMessage(), e);
+            log.error("[Mapping] Unexpected error during mapping processing: {}", e.getMessage(), e);
+            throw new RuntimeException("An error occurred during mapping processing: " + e.getMessage(), e);
         }
     }
 }

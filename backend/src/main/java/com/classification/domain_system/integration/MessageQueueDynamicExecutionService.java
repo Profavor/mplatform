@@ -47,10 +47,10 @@ public class MessageQueueDynamicExecutionService {
             String topic = config.path("topic").asText();
 
             if (broker == null || broker.isBlank()) {
-                throw new IllegalArgumentException("브로커 URL이 설정되지 않았습니다.");
+                throw new IllegalArgumentException("Broker URL is not configured.");
             }
             if (topic == null || topic.isBlank()) {
-                throw new IllegalArgumentException("토픽/큐 이름이 설정되지 않았습니다.");
+                throw new IllegalArgumentException("Topic/Queue name is not configured.");
             }
 
             if (broker.startsWith("kafka://")) {
@@ -58,11 +58,11 @@ public class MessageQueueDynamicExecutionService {
             } else if (broker.startsWith("amqp://")) {
                 sendToRabbit(broker, topic, payload);
             } else {
-                throw new IllegalArgumentException("지원하지 않는 MQ 프로토콜입니다: " + broker
-                        + " (kafka:// 또는 amqp:// 스키마를 사용해주세요)");
+                throw new IllegalArgumentException("Unsupported MQ protocol: " + broker
+                        + " (Please use kafka:// or amqp:// scheme)");
             }
         } catch (Exception e) {
-            log.error("MQ 전송 실패: {}", e.getMessage(), e);
+            log.error("Failed to send MQ: {}", e.getMessage(), e);
             throw new RuntimeException("MESSAGE_QUEUE Execution failed: " + e.getMessage(), e);
         }
     }
@@ -127,7 +127,7 @@ public class MessageQueueDynamicExecutionService {
 
             return new RabbitTemplate(connectionFactory);
         } catch (Exception e) {
-            throw new RuntimeException("RabbitMQ ConnectionFactory 생성 실패: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to create RabbitMQ ConnectionFactory: " + e.getMessage(), e);
         }
     }
 }

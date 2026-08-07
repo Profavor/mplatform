@@ -281,6 +281,36 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
             for (String key : searchParams.keySet()) {
                 if (key.startsWith("op_") || key.endsWith("_max")) continue;
                 
+                if (key.equals("multi_keys")) continue;
+                if (key.equals("multi_val")) {
+                    String fieldsStr = searchParams.get("multi_keys");
+                    if (fieldsStr == null || fieldsStr.isEmpty()) continue;
+                    String[] fields = fieldsStr.split(",");
+                    
+                    StringBuilder multiCond = new StringBuilder(" AND ( ");
+                    for (int i = 0; i < fields.length; i++) {
+                        String f = fields[i].replaceAll("[^a-zA-Z0-9_]", "_");
+                        if (i > 0) multiCond.append(" OR ");
+                        if (isH2) {
+                            multiCond.append(" (CAST(COALESCE(r.searchable_data, r.data) AS VARCHAR) LIKE '%\"").append(f).append("\":\"' || :searchValLike").append(paramIndex).append(" || '\"%' ")
+                                     .append(" OR CAST(COALESCE(r.searchable_data, r.data) AS VARCHAR) LIKE '%\"").append(f).append("\":' || :searchValLike").append(paramIndex).append(" || ',%' ")
+                                     .append(" OR CAST(COALESCE(r.searchable_data, r.data) AS VARCHAR) LIKE '%\"").append(f).append("\":' || :searchValLike").append(paramIndex).append(" || '}%' ) ");
+                        } else {
+                            multiCond.append(" ((NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'").append(f).append("', '') ILIKE :searchValLike").append(paramIndex).append(") ")
+                                     .append(" OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'").append(f.toLowerCase()).append("', '') ILIKE :searchValLike").append(paramIndex).append(") ")
+                                     .append(" OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->'").append(f).append("'->>'ko', '') ILIKE :searchValLike").append(paramIndex).append(") ")
+                                     .append(" OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->'").append(f).append("'->>'en', '') ILIKE :searchValLike").append(paramIndex).append(") ")
+                                     .append(" OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->'").append(f.toLowerCase()).append("'->>'ko', '') ILIKE :searchValLike").append(paramIndex).append(") ")
+                                     .append(" OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->'").append(f.toLowerCase()).append("'->>'en', '') ILIKE :searchValLike").append(paramIndex).append(")) ");
+                        }
+                    }
+                    multiCond.append(" ) ");
+                    sql.append(multiCond.toString());
+                    countSql.append(multiCond.toString());
+                    paramIndex++;
+                    continue;
+                }
+                
                 String safeKey = key.replaceAll("[^a-zA-Z0-9_]", "_");
                 String op = searchParams.getOrDefault("op_" + key, "EQ");
                 
@@ -365,6 +395,16 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
         if (searchParams != null) {
             for (String key : searchParams.keySet()) {
                 if (key.startsWith("op_") || key.endsWith("_max")) continue;
+                
+                if (key.equals("multi_keys")) continue;
+                if (key.equals("multi_val")) {
+                    String val = searchParams.get(key);
+                    String likeVal = "%" + val + "%";
+                    query.setParameter("searchValLike" + paramIndex, likeVal);
+                    countQuery.setParameter("searchValLike" + paramIndex, likeVal);
+                    paramIndex++;
+                    continue;
+                }
                 String op = searchParams.getOrDefault("op_" + key, "EQ");
                 String val = searchParams.get(key);
                 String safeKey = key.replaceAll("[^a-zA-Z0-9_]", "_");

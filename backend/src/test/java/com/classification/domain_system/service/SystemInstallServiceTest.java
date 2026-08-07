@@ -93,7 +93,7 @@ class SystemInstallServiceTest {
         when(configRepository.findById("IS_INSTALLED")).thenReturn(Optional.of(new SystemConfig("IS_INSTALLED", "true")));
 
         IllegalStateException ex = assertThrows(IllegalStateException.class, () -> installService.installSystem(request));
-        assertTrue(ex.getMessage().contains("이미 설치가 완료된 시스템입니다"));
+        assertTrue(ex.getMessage().contains("The system is already installed."));
     }
 
     @Test

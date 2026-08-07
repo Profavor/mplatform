@@ -32,6 +32,13 @@ public class ChatMessageController {
 
     private final ChatMessageService chatMessageService;
     private final AuthContext authContext;
+    private final com.classification.domain_system.websocket.PresenceEventListener presenceEventListener;
+
+    @GetMapping("/presence")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<java.util.Set<String>> getOnlineUsers() {
+        return ResponseEntity.ok(presenceEventListener.getOnlineUsers());
+    }
 
     private String getAuthenticatedUserId() {
         String uid = authContext.getUserId();
@@ -85,7 +92,8 @@ public class ChatMessageController {
     @GetMapping("/rooms/{roomId}/messages")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<ChatMessageService.ChatMessageDto>> getRoomMessages(@PathVariable UUID roomId) {
-        return ResponseEntity.ok(chatMessageService.getRoomMessages(roomId));
+        String userId = getAuthenticatedUserId();
+        return ResponseEntity.ok(chatMessageService.getRoomMessages(roomId, userId));
     }
 
     @PostMapping("/rooms/{roomId}/read")
@@ -93,6 +101,59 @@ public class ChatMessageController {
     public ResponseEntity<?> markRoomAsRead(@PathVariable UUID roomId) {
         String userId = getAuthenticatedUserId();
         chatMessageService.markRoomAsRead(roomId, userId);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/rooms/{roomId}/members")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> leaveRoom(@PathVariable UUID roomId) {
+        String userId = getAuthenticatedUserId();
+        chatMessageService.leaveRoom(roomId, userId);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/rooms/{roomId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> deleteRoom(@PathVariable UUID roomId) {
+        String userId = getAuthenticatedUserId();
+        chatMessageService.deleteRoom(roomId, userId);
+        return ResponseEntity.ok().build();
+    }
+
+    @Data
+    public static class DelegateCreatorRequest {
+        private String newCreatorId;
+    }
+
+    @PutMapping("/rooms/{roomId}/creator")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> delegateCreator(@PathVariable UUID roomId, @RequestBody DelegateCreatorRequest req) {
+        String userId = getAuthenticatedUserId();
+        chatMessageService.delegateCreator(roomId, userId, req.getNewCreatorId());
+        return ResponseEntity.ok().build();
+    }
+
+    @Data
+    public static class InviteMembersRequest {
+        private List<String> userIds;
+        private Integer pastMessageHours;
+    }
+
+    @PostMapping("/rooms/{roomId}/members")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> inviteMembers(@PathVariable UUID roomId, @RequestBody InviteMembersRequest req) {
+        String userId = getAuthenticatedUserId();
+        Integer hours = req.getPastMessageHours() != null ? req.getPastMessageHours() : 0;
+        if (hours > 48) hours = 48;
+        chatMessageService.inviteMembers(roomId, userId, req.getUserIds(), hours);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/rooms/{roomId}/members/{targetUserId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> kickMember(@PathVariable UUID roomId, @PathVariable String targetUserId) {
+        String userId = getAuthenticatedUserId();
+        chatMessageService.kickMember(roomId, userId, targetUserId);
         return ResponseEntity.ok().build();
     }
 

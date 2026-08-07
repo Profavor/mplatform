@@ -75,7 +75,7 @@ public class RecordService {
             return modified ? objectMapper.writeValueAsString(dataMap) : dataJson;
         } catch (Exception e) {
             log.error("Failed to encrypt field data on save for nodeId {}", nodeId, e);
-            throw new RuntimeException("암호화 처리 실패로 저장을 중단합니다. nodeId=" + nodeId, e);
+            throw new RuntimeException("Saving aborted due to encryption failure. nodeId=" + nodeId, e);
         }
     }
 
