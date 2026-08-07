@@ -10,7 +10,7 @@ import com.classification.domain_system.repository.RecordRepository;
 import com.classification.domain_system.repository.ClassificationNodeRepository;
 import com.classification.domain_system.service.dq.DqRuleEngine;
 import com.classification.domain_system.service.dq.DqEvaluationResult;
-import com.classification.domain_system.service.dq.DqViolation;
+import com.classification.domain_system.service.dq.DqEvaluationResult.Violation;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -62,7 +62,7 @@ class BatchImportServiceTest {
         sr.setRawData("{\"key\":\"value\"}");
         when(stagingRecordRepository.findByBatchId(batchId)).thenReturn(List.of(sr));
 
-        DqEvaluationResult evalResult = new DqEvaluationResult(true, new ArrayList<>());
+        DqEvaluationResult evalResult = new DqEvaluationResult();
         when(dqRuleEngine.evaluate(eq(sr.getNodeId()), anyString())).thenReturn(evalResult);
 
         batchImportService.validateBatch(batchId);
@@ -92,9 +92,8 @@ class BatchImportServiceTest {
         sr.setRawData("{\"key\":\"error\"}");
         when(stagingRecordRepository.findByBatchId(batchId)).thenReturn(List.of(sr));
 
-        DqEvaluationResult evalResult = new DqEvaluationResult(false, List.of(
-            new DqViolation("key", "NOT_NULL", "ERROR", "Value cannot be null")
-        ));
+        DqEvaluationResult evalResult = new DqEvaluationResult();
+        evalResult.addViolation("key", "NOT_NULL", "ERROR", Map.of("ko", "Value cannot be null"), "null");
         when(dqRuleEngine.evaluate(eq(sr.getNodeId()), anyString())).thenReturn(evalResult);
 
         batchImportService.validateBatch(batchId);
