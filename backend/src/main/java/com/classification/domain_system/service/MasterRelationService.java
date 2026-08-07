@@ -15,8 +15,7 @@ import java.util.UUID;
 public class MasterRelationService {
 
     private final MasterRelationRepository masterRelationRepository;
-    // Inject RecordRepository for referential integrity check in a real scenario
-    // private final RecordRepository recordRepository;
+    private final com.classification.domain_system.repository.RecordRepository recordRepository;
 
     @Transactional
     public MasterRelation createRelation(MasterRelationRequest request) {
@@ -55,15 +54,20 @@ public class MasterRelationService {
 
     @Transactional(readOnly = true)
     public boolean checkReferentialIntegrity(UUID recordId, UUID targetDomainId) {
-        // Implementation that checks if any records reference this recordId
-        // with RESTRICT policy.
         List<MasterRelation> relations = masterRelationRepository.findByTargetDomainId(targetDomainId);
-        boolean hasRestrict = relations.stream()
-                .anyMatch(r -> "RESTRICT".equalsIgnoreCase(r.getCascadePolicy()) && r.getIsActive());
         
-        // If there are restrictive relations, we would typically query the Record table 
-        // using the sourceDomainId and sourceFieldKey to check if recordId exists in data JSON.
-        // For phase 4.2 mock implementation, assume true (safe to delete) if no restrict relations found.
-        return !hasRestrict; 
+        for (MasterRelation relation : relations) {
+            if ("RESTRICT".equalsIgnoreCase(relation.getCascadePolicy()) && Boolean.TRUE.equals(relation.getIsActive())) {
+                boolean isReferenced = recordRepository.existsByNodeDomainIdAndDataContaining(
+                        relation.getSourceDomainId(), 
+                        recordId.toString());
+                
+                if (isReferenced) {
+                    return false; // Safe to delete is false, because it's referenced
+                }
+            }
+        }
+        
+        return true; 
     }
 }
