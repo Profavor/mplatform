@@ -9,7 +9,8 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@nuxtjs/i18n": "^9.1.1",
@@ -30,6 +31,7 @@
   },
   "devDependencies": {
     "@nuxt/test-utils": "^3.15.4",
+    "@playwright/test": "^1.62.1",
     "@vue/test-utils": "^2.4.6",
     "happy-dom": "^17.1.8",
     "typescript": "^5.9.3",

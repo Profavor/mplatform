@@ -20,7 +20,7 @@
     <!-- Left Column: Classification Tree -->
     <div class="left-tree records-tree-column">
       <h3 style="padding: 0.5rem; margin: 0; border-bottom: 1px solid #ddd; font-size: 1rem; font-weight: bold; color: #555; text-transform: uppercase;">
-        Classification Tree
+        {{ $t('classification_tree') }}
       </h3>
       <div style="flex: 1; overflow-y: auto;">
         <va-card flat>
@@ -240,7 +240,7 @@
         
         <va-card v-else>
           <va-card-content style="text-align: center; padding: 3rem; color: #666;">
-            Select a Classification Node from the tree to view or manage records.
+            {{ $t('select_node_to_view_records') }}
           </va-card-content>
         </va-card>
       </div>
@@ -380,7 +380,7 @@
     <va-modal v-model="showApprovalHistoryModal" :title="selectedApprovalRequest?.isIntegration ? ($t('integration.channels.integration_detail_title') || $t('integration_detail_title')) : ($t('integration.channels.approval_detail_title') || $t('approval_detail_title'))" hide-default-actions size="large" :prevent-click-outside="true" :no-outside-dismiss="true">
       <div style="max-height: 60vh; overflow-y: auto; padding: 1rem; box-sizing: border-box; width: 100%;">
         <div v-if="!selectedApprovalRequest" style="text-align: center; color: #777;">
-          데이터를 불러오는 중입니다...
+          {{ $t('loading_data') }}
         </div>
         <div v-else>
           <ApprovalDetailsViewer :request="selectedApprovalRequest" />
@@ -1193,7 +1193,7 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
 
     { 
       field: 'nodeName', 
-      headerName: 'Classification Node', 
+      headerName: t('classification_node'), 
       sortable: true, 
       width: 180,
       hide: !showNodeColumn 
