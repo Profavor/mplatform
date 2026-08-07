@@ -59,3 +59,11 @@ mdm:
 chat:
   retention-days: ${CHAT_RETENTION_DAYS:7}
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: domain-system
