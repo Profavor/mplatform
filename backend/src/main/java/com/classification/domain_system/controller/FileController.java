@@ -5,10 +5,13 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.MediaTypeFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpRange;
 import org.springframework.web.util.UriUtils;
 
 import java.nio.charset.StandardCharsets;
@@ -48,22 +51,43 @@ public class FileController {
 
     @GetMapping("/download/{fileName:.+}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Resource> downloadFile(@PathVariable String fileName, @RequestParam(value = "name", required = false) String originalName) {
+    public ResponseEntity<?> downloadFile(@PathVariable String fileName,
+                                          @RequestParam(value = "name", required = false) String originalName,
+                                          @RequestHeader HttpHeaders headers) {
         try {
             Resource resource = fileStorageService.loadFileAsResource(fileName);
             if (resource != null && resource.exists()) {
                 String downloadName = originalName != null ? originalName : resource.getFilename();
                 String safeName = UriUtils.encode(downloadName, StandardCharsets.UTF_8);
 
-                ContentDisposition contentDisposition = ContentDisposition.attachment()
+                MediaType mediaType = MediaTypeFactory.getMediaType(resource).orElse(MediaType.APPLICATION_OCTET_STREAM);
+
+                ContentDisposition contentDisposition = ContentDisposition.inline()
                         .filename(safeName)
                         .filename(downloadName, StandardCharsets.UTF_8)
                         .build();
 
-                return ResponseEntity.ok()
-                        .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                        .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
-                        .body(resource);
+                long contentLength = resource.contentLength();
+
+                if (headers.getRange().isEmpty()) {
+                    return ResponseEntity.ok()
+                            .contentType(mediaType)
+                            .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
+                            .header(HttpHeaders.ACCEPT_RANGES, "bytes")
+                            .body(resource);
+                } else {
+                    HttpRange range = headers.getRange().get(0);
+                    long start = range.getRangeStart(contentLength);
+                    long end = range.getRangeEnd(contentLength);
+                    long rangeLength = Math.min(1024 * 1024 * 5, end - start + 1); // Max 5MB chunk
+                    org.springframework.core.io.support.ResourceRegion region = new org.springframework.core.io.support.ResourceRegion(resource, start, rangeLength);
+
+                    return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
+                            .contentType(mediaType)
+                            .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
+                            .header(HttpHeaders.ACCEPT_RANGES, "bytes")
+                            .body(region);
+                }
             } else {
                 return ResponseEntity.notFound().build();
             }

@@ -114,6 +114,144 @@ public class ChatMessageService {
         return roomRepository.findRoomsByUserId(userId);
     }
 
+    @Transactional
+    public void leaveRoom(UUID roomId, String userId) {
+        if (roomId == null || userId == null) return;
+        
+        // Find member by username or id
+        Optional<ChatMessageRoomMember> memberOpt = memberRepository.findByRoomIdAndUserId(roomId, userId);
+        if (memberOpt.isEmpty()) {
+            User u = userRepository.findByUsername(userId).orElse(null);
+            if (u != null) {
+                memberOpt = memberRepository.findByRoomIdAndUserId(roomId, u.getId());
+                if (memberOpt.isPresent()) {
+                    memberRepository.deleteByRoomIdAndUserId(roomId, u.getId());
+                }
+            }
+        } else {
+            memberRepository.deleteByRoomIdAndUserId(roomId, userId);
+        }
+        
+        // 브로드캐스트 (나간 사람의 ID를 content로 전달, 프론트에서 다국어 처리)
+        sendMessage(roomId, "SYSTEM", "LEAVE", userId, null, null, null);
+    }
+
+    @Transactional
+    public void deleteRoom(UUID roomId, String userId) {
+        if (roomId == null || userId == null) return;
+        
+        ChatMessageRoom room = roomRepository.findById(roomId).orElseThrow(() -> new IllegalArgumentException("Room not found"));
+        
+        // Validate if the user is the creator
+        String uId = userId;
+        User u = userRepository.findByUsername(userId).orElse(null);
+        if (u != null && !userId.equals(room.getCreatedBy())) {
+            uId = u.getId();
+        }
+        
+        if (!room.getCreatedBy().equals(userId) && (u != null && !room.getCreatedBy().equals(u.getId()))) {
+            throw new IllegalStateException("Only the room creator can delete this room.");
+        }
+        
+        messageRepository.deleteByRoomId(roomId);
+        memberRepository.deleteByRoomId(roomId);
+        roomRepository.delete(room);
+    }
+
+    @Transactional
+    public void delegateCreator(UUID roomId, String currentUserId, String newCreatorId) {
+        if (roomId == null || currentUserId == null || newCreatorId == null) return;
+        
+        ChatMessageRoom room = roomRepository.findById(roomId).orElseThrow(() -> new IllegalArgumentException("Room not found"));
+        
+        // Validate if the user is the creator
+        String uId = currentUserId;
+        User u = userRepository.findByUsername(currentUserId).orElse(null);
+        if (u != null && !currentUserId.equals(room.getCreatedBy())) {
+            uId = u.getId();
+        }
+        
+        if (!room.getCreatedBy().equals(currentUserId) && (u != null && !room.getCreatedBy().equals(u.getId()))) {
+            throw new IllegalStateException("Only the room creator can delegate the creator role.");
+        }
+        
+        room.setCreatedBy(newCreatorId);
+        roomRepository.save(room);
+    }
+
+    @Transactional
+    public void inviteMembers(UUID roomId, String requesterId, List<String> newMemberIds, Integer pastMessageHours) {
+        if (roomId == null || requesterId == null || newMemberIds == null || newMemberIds.isEmpty()) return;
+        
+        ChatMessageRoom room = roomRepository.findById(roomId)
+            .orElseThrow(() -> new IllegalArgumentException("Room not found"));
+            
+        // Check if requester is in the room
+        boolean isRequesterInRoom = memberRepository.findByRoomId(roomId).stream()
+            .anyMatch(m -> m.getUserId().equals(requesterId));
+            
+        if (!isRequesterInRoom && !room.getCreatedBy().equals(requesterId)) {
+            // Also check UUID mapping
+            User u = userRepository.findByUsername(requesterId).orElse(null);
+            boolean isUuidInRoom = u != null && memberRepository.findByRoomId(roomId).stream()
+                .anyMatch(m -> m.getUserId().equals(u.getId()));
+                
+            if (!isUuidInRoom && (u == null || !room.getCreatedBy().equals(u.getId()))) {
+                throw new IllegalStateException("Only room members can invite others.");
+            }
+        }
+        
+        // Add new members if they aren't already in the room
+        List<ChatMessageRoomMember> currentMembers = memberRepository.findByRoomId(roomId);
+        int hoursToMinus = pastMessageHours != null ? pastMessageHours : 0;
+        if (hoursToMinus > 48) hoursToMinus = 48;
+        LocalDateTime joinedTime = java.time.LocalDateTime.now().minusHours(hoursToMinus);
+        
+        for (String newMemberId : newMemberIds) {
+            boolean alreadyExists = currentMembers.stream().anyMatch(m -> m.getUserId().equals(newMemberId));
+            if (!alreadyExists) {
+                ChatMessageRoomMember newMember = new ChatMessageRoomMember();
+                newMember.setRoom(room);
+                newMember.setUserId(newMemberId);
+                newMember.setJoinedAt(joinedTime);
+                newMember.setLastReadAt(java.time.LocalDateTime.now());
+                memberRepository.save(newMember);
+                
+                // 브로드캐스트 (초대된 사람의 ID를 content로 전달)
+                sendMessage(roomId, "SYSTEM", "JOIN", newMemberId, null, null, null);
+            }
+        }
+    }
+
+    @Transactional
+    public void kickMember(UUID roomId, String requesterId, String targetUserId) {
+        if (roomId == null || requesterId == null || targetUserId == null) return;
+        
+        ChatMessageRoom room = roomRepository.findById(roomId)
+            .orElseThrow(() -> new IllegalArgumentException("Room not found"));
+            
+        // Validate if the user is the creator
+        String uId = requesterId;
+        User u = userRepository.findByUsername(requesterId).orElse(null);
+        if (u != null && !requesterId.equals(room.getCreatedBy())) {
+            uId = u.getId();
+        }
+        
+        if (!room.getCreatedBy().equals(requesterId) && (u != null && !room.getCreatedBy().equals(u.getId()))) {
+            throw new IllegalStateException("Only the room creator can kick members.");
+        }
+        
+        // Cannot kick yourself
+        if (requesterId.equals(targetUserId) || (u != null && u.getId().equals(targetUserId))) {
+            throw new IllegalArgumentException("Cannot kick yourself.");
+        }
+        
+        memberRepository.deleteByRoomIdAndUserId(roomId, targetUserId);
+        
+        // 브로드캐스트 (강퇴된 사람의 ID를 content로 전달)
+        sendMessage(roomId, "SYSTEM", "LEAVE", targetUserId, null, null, null);
+    }
+
     @lombok.Data
     public static class ChatMessageDto {
         private UUID id;
@@ -190,10 +328,23 @@ public class ChatMessageService {
     }
 
     @Transactional(readOnly = true)
-    public List<ChatMessageDto> getRoomMessages(UUID roomId) {
+    public List<ChatMessageDto> getRoomMessages(UUID roomId, String userId) {
         LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
-        List<ChatMessage> msgs = messageRepository.findByRoomIdAndCreatedAtGreaterThanEqualOrderByCreatedAtAsc(roomId, sevenDaysAgo);
         List<ChatMessageRoomMember> members = memberRepository.findByRoomId(roomId);
+        
+        LocalDateTime userJoinedAt = sevenDaysAgo;
+        if (userId != null) {
+            for (ChatMessageRoomMember m : members) {
+                if (m.getUserId().equals(userId)) {
+                    userJoinedAt = m.getJoinedAt() != null ? m.getJoinedAt() : sevenDaysAgo;
+                    break;
+                }
+            }
+        }
+        
+        LocalDateTime fetchAfter = userJoinedAt.isAfter(sevenDaysAgo) ? userJoinedAt : sevenDaysAgo;
+        
+        List<ChatMessage> msgs = messageRepository.findByRoomIdAndCreatedAtGreaterThanEqualOrderByCreatedAtAsc(roomId, fetchAfter);
 
         List<ChatMessageDto> dtos = new ArrayList<>();
         for (ChatMessage msg : msgs) {

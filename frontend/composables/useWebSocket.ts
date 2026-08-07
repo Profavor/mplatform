@@ -1,6 +1,8 @@
+import { Client } from '@stomp/stompjs'
+
 export const useWebSocket = () => {
   const isConnected = ref(false)
-  let socket: WebSocket | null = null
+  let stompClient: Client | null = null
 
   const connect = (onMessageCallback?: (event: any) => void) => {
     if (process.server) return
@@ -10,37 +12,66 @@ export const useWebSocket = () => {
     const wsBase = apiBase.replace(/^http/, 'ws')
     const wsUrl = `${wsBase}/ws-stomp`
 
-    try {
-      socket = new WebSocket(wsUrl)
-      socket.onopen = () => {
-        isConnected.value = true
-      }
-      socket.onmessage = (msg) => {
-        if (onMessageCallback && msg.data) {
-          try {
-            const parsed = JSON.parse(msg.data)
-            onMessageCallback(parsed)
-          } catch (e) {
-            onMessageCallback(msg.data)
-          }
+    stompClient = new Client({
+      brokerURL: wsUrl,
+      connectHeaders: {},
+      reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
+      beforeConnect: () => {
+        const currentToken = useCookie('auth_token').value || ''
+        stompClient!.connectHeaders = {
+          token: currentToken
         }
-      }
-      socket.onclose = () => {
+      },
+      onConnect: () => {
+        isConnected.value = true
+        // STOMP is connected! Subscribe to presence updates and general chat events
+        stompClient?.subscribe('/topic/chat/presence', (message) => {
+          if (onMessageCallback) {
+            try {
+              const body = JSON.parse(message.body)
+              // Wrap with PRESENCE_UPDATE type if not present, to match old logic
+              if (!body.type) body.type = 'PRESENCE_UPDATE'
+              onMessageCallback(body)
+            } catch (e) {
+              onMessageCallback(message.body)
+            }
+          }
+        })
+        stompClient?.subscribe('/topic/chat/messages', (message) => {
+           if (onMessageCallback) {
+             try {
+                const body = JSON.parse(message.body)
+                onMessageCallback(body)
+             } catch (e) {
+                onMessageCallback(message.body)
+             }
+           }
+        })
+      },
+      onStompError: (frame) => {
+        console.error('Broker reported error: ' + frame.headers['message'])
+        console.error('Additional details: ' + frame.body)
+        isConnected.value = false
+      },
+      onWebSocketClose: () => {
+        isConnected.value = false
+      },
+      onWebSocketError: () => {
         isConnected.value = false
       }
-      socket.onerror = () => {
-        isConnected.value = false
-      }
-    } catch (e) {
-      console.debug('[WebSocket] Connection attempt skipped:', e)
-    }
+    })
+
+    stompClient.activate()
   }
 
   const disconnect = () => {
-    if (socket) {
-      socket.close()
-      socket = null
+    if (stompClient) {
+      stompClient.deactivate()
+      stompClient = null
     }
+    isConnected.value = false
   }
 
   return {

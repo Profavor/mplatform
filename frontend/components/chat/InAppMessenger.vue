@@ -57,10 +57,41 @@
           <va-button v-if="activeRoom" preset="plain" color="#ffffff" size="small" :title="$t('messenger.viewMembersTooltip')" @click.stop="showMembersModal">
             <va-icon name="group" size="20px" />
           </va-button>
+          
+          <va-dropdown v-if="activeRoom" placement="bottom-end" :close-on-content-click="true" trigger="click">
+            <template #anchor>
+              <va-button preset="plain" color="#ffffff" size="small" :title="$t('messenger.roomSettings')">
+                <va-icon name="settings" size="20px" />
+              </va-button>
+            </template>
+            <va-dropdown-content style="min-width: 150px; padding: 4px;">
+              <va-list>
+                <va-list-item @click="showLeaveConfirmModal = true" style="cursor: pointer;">
+                  <va-list-item-section icon>
+                    <va-icon name="logout" color="var(--va-text-primary)" size="small" />
+                  </va-list-item-section>
+                  <va-list-item-section>
+                    <span style="font-size: 0.85rem;">{{ $t('messenger.leaveRoom') }}</span>
+                  </va-list-item-section>
+                </va-list-item>
+                <template v-if="isRoomCreator">
+                  <va-list-item @click="showDeleteConfirmModal = true" style="cursor: pointer;">
+                    <va-list-item-section icon>
+                      <va-icon name="delete_forever" color="danger" size="small" />
+                    </va-list-item-section>
+                    <va-list-item-section>
+                      <span style="font-size: 0.85rem; color: var(--va-danger); font-weight: 700;">{{ $t('messenger.deleteRoom') }}</span>
+                    </va-list-item-section>
+                  </va-list-item>
+                </template>
+              </va-list>
+            </va-dropdown-content>
+          </va-dropdown>
+
           <va-button v-if="!activeRoom" preset="plain" color="#ffffff" size="small" :title="$t('messenger.createRoomTooltip')" @click.stop="showCreateModal = true">
             <va-icon name="group_add" size="20px" />
           </va-button>
-          <va-button preset="plain" color="#ffffff" size="small" @click.stop="isOpen = false">
+          <va-button preset="plain" color="#ffffff" size="small" @click.stop="toggleMessenger">
             <va-icon name="close" size="20px" />
           </va-button>
         </div>
@@ -114,7 +145,23 @@
               </span>
               <div style="flex: 1; height: 1px; background: var(--va-background-border);"></div>
             </div>
-            <div class="msg-bubble-wrapper" :data-sender="msg.senderName" :data-time="formatDateTime(msg.createdAt)" :data-msg-id="msg.id" :data-type="msg.messageType" :style="{ marginLeft: isMyMsg(msg) ? 'auto' : '0', marginRight: isMyMsg(msg) ? '0' : 'auto', maxWidth: msg.messageType === 'IMAGE' ? '92%' : (parseTableContent(msg.content).isTable ? '96%' : '85%'), width: 'fit-content', marginBottom: '10px' }">
+            <!-- System Message -->
+            <div v-if="['SYSTEM', 'LEAVE', 'JOIN', 'INFO'].includes(msg.messageType)" style="display: flex; justify-content: center; margin: 12px 0; width: 100%;">
+              <div style="background: var(--va-background-element); color: var(--va-text-secondary); padding: 6px 16px; border-radius: 16px; font-size: 0.75rem; font-weight: 600; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <template v-if="msg.messageType === 'LEAVE'">
+                  {{ $t('messenger.system_leave', { name: getDisplayUsername(msg.content) || msg.content }) }}
+                </template>
+                <template v-else-if="msg.messageType === 'JOIN'">
+                  {{ $t('messenger.system_join', { name: getDisplayUsername(msg.content) || msg.content }) }}
+                </template>
+                <template v-else>
+                  {{ msg.content }}
+                </template>
+              </div>
+            </div>
+
+            <!-- Normal Chat Message -->
+            <div v-else class="msg-bubble-wrapper" :data-sender="msg.senderName" :data-time="formatDateTime(msg.createdAt)" :data-msg-id="msg.id" :data-type="msg.messageType" :style="{ marginLeft: isMyMsg(msg) ? 'auto' : '0', marginRight: isMyMsg(msg) ? '0' : 'auto', maxWidth: msg.messageType === 'IMAGE' ? '92%' : (parseTableContent(msg.content).isTable ? '96%' : '85%'), width: 'fit-content', marginBottom: '10px' }">
             <!-- Sender Name (only for other people's messages visually) -->
             <div v-if="!isMyMsg(msg)" class="msg-sender-name" style="font-size: 0.75rem; color: var(--va-text-secondary); margin-bottom: 3px; font-weight: 700; user-select: none; display: block;">
               {{ msg.senderName }}
@@ -259,9 +306,18 @@
                     @click="previewImg(getAuthenticatedImageUrl(msg.fileUrl || msg.content))"
                   />
                 </div>
+                <!-- VIDEO -->
+                <div v-else-if="msg.messageType === 'FILE' && isVideoFile(msg.fileName)" style="margin: 4px 0;">
+                  <video
+                    :src="getVideoUrlWithToken(msg.fileUrl || msg.content)"
+                    controls
+                    preload="metadata"
+                    style="max-width: 480px; width: 100%; max-height: 420px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.12); box-shadow: 0 4px 14px rgba(0,0,0,0.15); object-fit: contain; background: #000;"
+                  ></video>
+                </div>
 
                 <!-- FILE -->
-                <div v-else-if="msg.messageType === 'FILE'" style="display: flex; align-items: center; gap: 8px; padding: 2px 0;">
+                <div v-else-if="msg.messageType === 'FILE' && !isVideoFile(msg.fileName)" style="display: flex; align-items: center; gap: 8px; padding: 2px 0;">
                   <div style="background: rgba(255,255,255,0.2); padding: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
                     <va-icon :name="getFileIcon(msg.fileName)" size="22px" :color="isMyMsg(msg) ? '#ffffff' : 'var(--va-primary)'" />
                   </div>
@@ -397,10 +453,18 @@
     <!-- Create Group Room Modal -->
     <va-modal v-model="showCreateModal" :title="$t('messenger.createGroupRoomTitle')" :ok-text="$t('messenger.createBtn')" :cancel-text="$t('messenger.cancelBtn')" @ok="createNewRoom">
       <va-input v-model="newRoomName" :label="$t('messenger.roomNameLabel')" style="margin-bottom: 12px;" />
-      <div style="font-size: 0.85rem; color: var(--va-text-secondary); margin-bottom: 6px;">{{ $t('messenger.selectUsersLabel') }}</div>
-      <div style="max-height: 180px; overflow-y: auto;">
-        <div v-for="u in selectableUsers" :key="u.id" style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-          <va-checkbox v-model="selectedUserIds" :array-value="u.id" :label="u.username + ' (' + u.role + ')'" />
+      <div style="font-size: 0.85rem; color: var(--va-text-secondary); margin-bottom: 6px;">
+        <span>{{ $t('messenger.selectUsersLabel') }}</span>
+      </div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px;">
+        <va-button preset="secondary" size="small" icon="search" @click="showUserSelectModalForCreate = true">사용자 검색/선택</va-button>
+        <div v-if="selectedUserIds.length > 0" style="display: flex; flex-wrap: wrap; gap: 4px; max-height: 120px; overflow-y: auto;">
+          <va-chip v-for="id in selectedUserIds" :key="id" size="small" color="primary" outline>
+            {{ getDisplayUsername(id) }}
+          </va-chip>
+        </div>
+        <div v-else style="color: var(--va-text-secondary); font-size: 0.85rem;">
+          선택된 사용자가 없습니다.
         </div>
       </div>
     </va-modal>
@@ -415,7 +479,15 @@
     <!-- Room Members Modal with Online/Offline Presence Status -->
     <va-modal v-model="showMembersModalFlag" :title="`👥 ${$t('messenger.roomMembersTitle')} (${roomMembers.length})`" hide-default-actions>
       <div style="max-height: 280px; overflow-y: auto; padding: 4px;">
-        <div v-for="m in roomMembers" :key="m.userId" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--va-background-border);">
+        <div v-for="m in roomMembers" :key="m.userId" 
+             :style="{
+               display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderBottom: '1px solid var(--va-background-border)',
+               cursor: 'default',
+               background: 'transparent',
+               transition: 'background 0.2s'
+             }"
+             :class="{ 'hoverable-member': isRoomCreator && !isMe(m) }"
+        >
           <div style="display: flex; align-items: center; gap: 12px;">
             <!-- Avatar with Presence Status Dot -->
             <div style="position: relative; display: inline-flex;">
@@ -448,8 +520,33 @@
             </div>
           </div>
 
-          <!-- Presence Status Badge -->
-          <div style="display: flex; align-items: center; gap: 4px;">
+          <!-- Presence Status Badge & Settings Dropdown -->
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <va-dropdown v-if="isRoomCreator && !isMe(m)" placement="bottom-end" :close-on-content-click="true" trigger="click">
+              <template #anchor>
+                <va-button preset="plain" icon="settings" color="secondary" size="small" />
+              </template>
+              <va-dropdown-content style="min-width: 130px; padding: 4px;">
+                <va-list>
+                  <va-list-item @click="confirmDelegateCreator(m)" style="cursor: pointer;">
+                    <va-list-item-section icon>
+                      <va-icon name="manage_accounts" color="primary" size="small" />
+                    </va-list-item-section>
+                    <va-list-item-section>
+                      <span style="font-size: 0.85rem;">{{ $t('messenger.delegateCreator') }}</span>
+                    </va-list-item-section>
+                  </va-list-item>
+                  <va-list-item @click="confirmKickMember(m)" style="cursor: pointer;">
+                    <va-list-item-section icon>
+                      <va-icon name="person_remove" color="danger" size="small" />
+                    </va-list-item-section>
+                    <va-list-item-section>
+                      <span style="font-size: 0.85rem; color: var(--va-danger);">{{ $t('messenger.kickUserBtn') }}</span>
+                    </va-list-item-section>
+                  </va-list-item>
+                </va-list>
+              </va-dropdown-content>
+            </va-dropdown>
             <va-badge
               :color="isUserOnline(m) ? 'success' : 'secondary'"
               size="small"
@@ -461,15 +558,97 @@
         </div>
       </div>
       <template #footer>
-        <va-button preset="secondary" @click="showMembersModalFlag = false">{{ $t('messenger.closeBtn') }}</va-button>
+        <div style="display: flex; justify-content: space-between; width: 100%;">
+          <va-button preset="primary" icon="person_add" @click="openInviteModal">{{ $t('messenger.inviteUserBtn') }}</va-button>
+          <va-button preset="secondary" @click="showMembersModalFlag = false">{{ $t('messenger.closeBtn') }}</va-button>
+        </div>
       </template>
+    </va-modal>
+
+    <!-- Invite Members Modal -->
+    <va-modal v-model="showInviteModal" :title="$t('messenger.inviteModalTitle')" :ok-text="$t('messenger.inviteUserBtn')" :cancel-text="$t('messenger.cancelBtn')" @ok="inviteMembers">
+      <div style="font-size: 0.85rem; color: var(--va-text-secondary); margin-bottom: 6px;">
+        <span>{{ $t('messenger.selectUsersLabel') }}</span>
+      </div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px;">
+        <va-button preset="secondary" size="small" icon="search" @click="showUserSelectModalForInvite = true">사용자 검색/선택</va-button>
+        <div v-if="selectedInviteUserIds.length > 0" style="display: flex; flex-wrap: wrap; gap: 4px; max-height: 120px; overflow-y: auto;">
+          <va-chip v-for="id in selectedInviteUserIds" :key="id" size="small" color="primary" outline>
+            {{ getDisplayUsername(id) }}
+          </va-chip>
+        </div>
+        <div v-else style="color: var(--va-text-secondary); font-size: 0.85rem;">
+          선택된 사용자가 없습니다.
+        </div>
+      </div>
+      <div style="margin-top: 16px;">
+        <div style="font-size: 0.85rem; color: var(--va-text-secondary); margin-bottom: 8px;">{{ $t('messenger.pastMessageOptionTitle') }}</div>
+        <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px;">
+          <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; color: var(--va-text-primary);">
+            <input type="radio" v-model.number="pastMessageHoursOption" :value="0" />
+            {{ $t('messenger.pastMessageNone') }}
+          </label>
+          <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; color: var(--va-text-primary);">
+            <input type="radio" v-model.number="pastMessageHoursOption" :value="1" />
+            {{ $t('messenger.pastMessage1h') }}
+          </label>
+          <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; color: var(--va-text-primary);">
+            <input type="radio" v-model.number="pastMessageHoursOption" :value="24" />
+            {{ $t('messenger.pastMessage24h') }}
+          </label>
+          <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; color: var(--va-text-primary);">
+            <input type="radio" v-model.number="pastMessageHoursOption" :value="48" />
+            {{ $t('messenger.pastMessage48h') }}
+          </label>
+        </div>
+      </div>
+    </va-modal>
+
+    <!-- User Grid Select Modals -->
+    <UserGridSelectModal
+      v-model="showUserSelectModalForCreate"
+      :users="selectableUsers"
+      :initial-selected-ids="selectedUserIds"
+      @confirm="ids => { selectedUserIds = ids }"
+    />
+    <UserGridSelectModal
+      v-model="showUserSelectModalForInvite"
+      :users="inviteableUsers"
+      :initial-selected-ids="selectedInviteUserIds"
+      @confirm="ids => { selectedInviteUserIds = ids }"
+    />
+
+    <!-- Leave Room Confirm Modal -->
+    <va-modal v-model="showLeaveConfirmModal" :title="$t('messenger.confirmLeaveTitle')" :ok-text="$t('messenger.leaveRoom')" :cancel-text="$t('messenger.cancelBtn')" @ok="leaveRoom">
+      <div style="padding: 8px 0; font-size: 0.95rem;">{{ $t('messenger.confirmLeaveDesc') }}</div>
+    </va-modal>
+
+    <!-- Delete Room Confirm Modal -->
+    <va-modal v-model="showDeleteConfirmModal" :title="$t('messenger.confirmDeleteTitle')" :ok-text="$t('messenger.deleteRoom')" :cancel-text="$t('messenger.cancelBtn')" @ok="deleteRoom">
+      <div style="padding: 8px 0; font-size: 0.95rem; color: var(--va-danger); font-weight: 500;">{{ $t('messenger.confirmDeleteDesc') }}</div>
+    </va-modal>
+
+    <!-- Delegate Confirm Modal -->
+    <va-modal v-model="showDelegateConfirmModal" :title="$t('messenger.delegateCreatorTitle')" :ok-text="$t('messenger.delegateCreator')" :cancel-text="$t('messenger.cancelBtn')" @ok="delegateCreator">
+      <div style="padding: 8px 0; font-size: 0.95rem;">
+        {{ $t('messenger.confirmDelegateCreatorDesc', { username: targetMemberToDelegate?.username || '' }) }}
+      </div>
+    </va-modal>
+
+
+    <!-- Kick Confirm Modal -->
+    <va-modal v-model="showKickConfirmModal" :title="$t('messenger.kickConfirmTitle')" :ok-text="$t('messenger.kickUserBtn')" :cancel-text="$t('messenger.cancelBtn')" @ok="kickMember">
+      <div style="padding: 8px 0; font-size: 0.95rem; color: var(--va-danger); font-weight: 500;">{{ $t('messenger.kickConfirmDesc') }}</div>
+      <div v-if="targetMemberToKick" style="font-weight: 700; margin-top: 8px; font-size: 1.1rem; text-align: center;">
+        {{ targetMemberToKick.username }}
+      </div>
     </va-modal>
 
     <!-- Context Menu Popup -->
     <div
       v-if="contextMenu.show"
       class="chat-context-menu"
-      :style="{ position: 'fixed', top: contextMenu.y + 'px', left: contextMenu.x + 'px', zIndex: 9999, background: 'var(--va-background-element)', border: '1px solid var(--va-background-border)', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.25)', padding: '4px 0', minWidth: '130px' }"
+      :style="{ position: 'fixed', top: contextMenu.y + 'px', left: contextMenu.x + 'px', zIndex: 999999, background: 'var(--va-background-element)', border: '1px solid var(--va-background-border)', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.25)', padding: '4px 0', minWidth: '130px' }"
     >
       <div v-if="contextMenu.msg && (contextMenu.msg.messageType === 'TEXT' || contextMenu.msg.messageType === 'EMOJI')" style="padding: 8px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.85rem;" @click="toggleTranslateMsg">
         <va-icon name="g_translate" size="16px" color="primary" /> {{ contextMenu.msg.showTranslation ? $t('messenger.hideTranslation') : $t('messenger.translateMessage') }}
@@ -577,6 +756,8 @@
 import { ref, computed, onMounted, onUnmounted, nextTick, defineAsyncComponent } from 'vue'
 import ExcelPreviewModal from '~/components/chat/ExcelPreviewModal.vue'
 import TableDataViewerModal from '~/components/chat/TableDataViewerModal.vue'
+import UserGridSelectModal from './UserGridSelectModal.vue'
+import { getMultilingualText } from '~/utils/multilingual'
 const EmojiPicker = defineAsyncComponent(() => import('vue3-emoji-picker'))
 import 'vue3-emoji-picker/css'
 
@@ -925,6 +1106,15 @@ const activeRoom = ref<any>(null)
 const messages = ref<any[]>([])
 const inputMsg = ref('')
 const showCreateModal = ref(false)
+const showLeaveConfirmModal = ref(false)
+const showDeleteConfirmModal = ref(false)
+const showKickConfirmModal = ref(false)
+const targetMemberToKick = ref<any>(null)
+const showUserSelectModalForCreate = ref(false)
+const showUserSelectModalForInvite = ref(false)
+const showInviteModal = ref(false)
+const selectedInviteUserIds = ref<string[]>([])
+const pastMessageHoursOption = ref<number>(0)
 const newRoomName = ref('')
 const availableUsers = ref<any[]>([])
 const selectedUserIds = ref<string[]>([])
@@ -967,7 +1157,7 @@ const uploadAndSendImage = async (imageFile: File) => {
       body: formData
     })
     if (res && res.fileUrl) {
-      sendMessage('IMAGE', res.fileUrl)
+      postMessage('IMAGE', res.fileUrl, res.fileUrl, imageFile.name, imageFile.size)
     }
   } catch (e) {
     console.error('Failed to upload image:', e)
@@ -978,6 +1168,19 @@ const isExcelFile = (fileName?: string) => {
   if (!fileName) return false
   const ext = fileName.toLowerCase()
   return ext.endsWith('.xlsx') || ext.endsWith('.xls') || ext.endsWith('.csv')
+}
+
+const isVideoFile = (fileName?: string) => {
+  if (!fileName) return false
+  const ext = fileName.toLowerCase()
+  return ext.endsWith('.mp4') || ext.endsWith('.mov') || ext.endsWith('.webm') || ext.endsWith('.ogg') || ext.endsWith('.mkv')
+}
+
+const getVideoUrlWithToken = (url: string) => {
+  if (!url) return ''
+  const separator = url.includes('?') ? '&' : '?'
+  if (url.startsWith('http')) return `${url}${separator}token=${tokenCookie.value}`
+  return `${url}${separator}token=${tokenCookie.value}` // assumes relative path is handled by proxy or already includes /api
 }
 
 const openExcelViewer = (msg: any) => {
@@ -1161,6 +1364,7 @@ const quickEmojis = ['👍', '❤️', '😂', '🎉', '🔥', '✅', '🙏']
 
 const tokenCookie = useCookie('auth_token')
 const userCookie = useCookie('user_data')
+const onlineUsernames = ref<Set<string>>(new Set())
 
 const parseJwtUserId = (token: any) => {
   if (!token) return null
@@ -1193,24 +1397,34 @@ const myUuid = computed(() => {
 })
 
 const selectableUsers = computed(() => {
-  if (!availableUsers.value || !Array.isArray(availableUsers.value)) return []
-  return availableUsers.value.filter((u: any) => {
-    const uId = String(u.id || u.uuid || '')
-    const uName = String(u.username || '')
-    return uId !== myUuid.value && uName !== currentUser.value?.username
-  })
+  return availableUsers.value || []
+})
+
+const inviteableUsers = computed(() => {
+  if (!availableUsers.value || !roomMembers.value) return []
+  const memberIds = new Set(roomMembers.value.map((m: any) => m.userId))
+  return availableUsers.value.filter((u: any) => !memberIds.has(String(u.id || u.uuid)))
+})
+
+const isRoomCreator = computed(() => {
+  if (!activeRoom.value) return false
+  const creatorId = activeRoom.value.createdBy
+  return (!!myUuid.value && creatorId === myUuid.value) || (!!currentUser.value?.username && creatorId === currentUser.value.username)
 })
 
 const { connect: connectWS } = useWebSocket()
 
-const toggleMessenger = () => {
-  isOpen.value = !isOpen.value
+const toggleMessenger = async () => {
   if (isOpen.value) {
+    isOpen.value = false
+    activeRoom.value = null
+  } else {
+    isOpen.value = true
     fetchRooms()
     fetchTotalUnreadCount()
     if (activeRoom.value) {
-      markAsRead(activeRoom.value.id)
-      fetchRoomMessages(activeRoom.value.id)
+      await markAsRead(activeRoom.value.id)
+      await fetchRoomMessages(activeRoom.value.id)
     }
     nextTick(() => {
       scrollToBottom()
@@ -1232,8 +1446,6 @@ const fetchRooms = async () => {
     })
   } catch (e) {}
 }
-
-
 
 const fetchRoomMessages = async (roomId: string) => {
   if (!tokenCookie.value) return
@@ -1373,9 +1585,120 @@ const isCreator = (member: any) => {
   return cId === mId
 }
 
+const leaveRoom = async () => {
+  if (!activeRoom.value || !tokenCookie.value) return
+  try {
+    await $fetch(`/api/chat/rooms/${activeRoom.value.id}/members`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${tokenCookie.value}` }
+    })
+    showLeaveConfirmModal.value = false
+    activeRoom.value = null
+    fetchRooms()
+  } catch (e) {
+    console.error('Failed to leave room:', e)
+  }
+}
+
+const deleteRoom = async () => {
+  if (!activeRoom.value || !tokenCookie.value) return
+  try {
+    await $fetch(`/api/chat/rooms/${activeRoom.value.id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${tokenCookie.value}` }
+    })
+    showDeleteConfirmModal.value = false
+    activeRoom.value = null
+    fetchRooms()
+  } catch (e) {
+    console.error('Failed to delete room:', e)
+  }
+}
+
+const confirmKickMember = (member: any) => {
+  targetMemberToKick.value = member
+  showKickConfirmModal.value = true
+}
+
+const kickMember = async () => {
+  if (!activeRoom.value || !tokenCookie.value || !targetMemberToKick.value) return
+  try {
+    await $fetch(`/api/chat/rooms/${activeRoom.value.id}/members/${targetMemberToKick.value.userId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${tokenCookie.value}` }
+    })
+    showKickConfirmModal.value = false
+    targetMemberToKick.value = null
+    roomMembers.value = await $fetch(`/api/chat/rooms/${activeRoom.value.id}/members`, {
+      headers: { Authorization: `Bearer ${tokenCookie.value}` }
+    })
+  } catch (e) {
+    console.error('Failed to kick member:', e)
+  }
+}
+const showDelegateConfirmModal = ref(false)
+const targetMemberToDelegate = ref<any>(null)
+
+const confirmDelegateCreator = (member: any) => {
+  targetMemberToDelegate.value = member
+  showDelegateConfirmModal.value = true
+}
+
+const delegateCreator = async () => {
+  if (!activeRoom.value || !tokenCookie.value || !targetMemberToDelegate.value) return
+  try {
+    await $fetch(`/api/chat/rooms/${activeRoom.value.id}/creator`, {
+      method: 'PUT',
+      headers: { 
+        Authorization: `Bearer ${tokenCookie.value}`,
+        'Content-Type': 'application/json'
+      },
+      body: { newCreatorId: targetMemberToDelegate.value.userId }
+    })
+    showDelegateConfirmModal.value = false
+    targetMemberToDelegate.value = null
+    fetchRooms()
+  } catch (e) {
+    console.error('Failed to delegate creator:', e)
+  }
+}
+
+const openInviteModal = () => {
+  selectedInviteUserIds.value = []
+  pastMessageHoursOption.value = 0
+  showInviteModal.value = true
+}
+
+const inviteMembers = async () => {
+  if (!activeRoom.value || !tokenCookie.value || selectedInviteUserIds.value.length === 0) return
+  try {
+    await $fetch(`/api/chat/rooms/${activeRoom.value.id}/members`, {
+      method: 'POST',
+      headers: { 
+        Authorization: `Bearer ${tokenCookie.value}`,
+        'Content-Type': 'application/json'
+      },
+      body: { 
+        userIds: selectedInviteUserIds.value,
+        pastMessageHours: Number(pastMessageHoursOption.value) || 0
+      }
+    })
+    showInviteModal.value = false
+    // Refresh members
+    roomMembers.value = await $fetch(`/api/chat/rooms/${activeRoom.value.id}/members`, {
+      headers: { Authorization: `Bearer ${tokenCookie.value}` }
+    })
+    fetchRooms()
+  } catch (e) {
+    console.error('Failed to invite members:', e)
+  }
+}
+
 const isUserOnline = (member: any): boolean => {
   if (!member) return false
   if (isMe(member)) return true
+  const username = member.username || member.name || ''
+  if (username && onlineUsernames.value.has(username)) return true
   if (typeof member.isOnline === 'boolean') return member.isOnline
   if (member.status === 'ONLINE' || member.status === 'ACTIVE' || member.online === true) return true
   return false
@@ -1856,7 +2179,12 @@ const handleMessageDeleted = (event: any) => {
   }
 }
 
-
+const getDisplayUsername = (userId: string) => {
+  const u = availableUsers.value.find((u: any) => u.id === userId)
+  if (!u) return userId
+  const dept = getMultilingualText(u.deptName)
+  return u.username + (dept ? ` (${dept})` : '')
+}
 
 onMounted(async () => {
   if (process.client) {
@@ -1866,16 +2194,37 @@ onMounted(async () => {
     window.addEventListener('paste', handlePaste)
     window.addEventListener('copy', handleCopyEvent)
     window.addEventListener('click', closeContextMenu)
-
   }
   if (tokenCookie.value) {
     try {
       availableUsers.value = await $fetch('/api/users', {
         headers: { Authorization: `Bearer ${tokenCookie.value}` }
       })
+      const initPresence = await $fetch<string[]>('/api/chat/presence', {
+        headers: { Authorization: `Bearer ${tokenCookie.value}` }
+      })
+      if (Array.isArray(initPresence)) {
+        onlineUsernames.value = new Set(initPresence)
+      }
       fetchTotalUnreadCount()
       fetchRooms()
     } catch (e) {}
+
+    // Connect WebSocket and handle presence updates
+    connectWS((event: any) => {
+      if (event && event.type === 'PRESENCE_UPDATE') {
+        const username = event.username
+        if (username) {
+          if (event.status === 'ONLINE') {
+            onlineUsernames.value.add(username)
+          } else if (event.status === 'OFFLINE') {
+            onlineUsernames.value.delete(username)
+          }
+          // Force reactivity by replacing the Set
+          onlineUsernames.value = new Set(onlineUsernames.value)
+        }
+      }
+    })
   }
 })
 

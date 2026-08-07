@@ -163,6 +163,8 @@ public class UserController {
         public java.util.UUID teamId;
         public Boolean isActive;
         public Boolean mustChangePassword;
+        public String orgName;
+        public String deptName;
         
         public UserDto(String id, String username, String role) {
             this(id, username, role, null, null, null, true, false);
@@ -177,6 +179,12 @@ public class UserController {
             this.teamId = teamId;
             this.isActive = isActive;
             this.mustChangePassword = mustChangePassword;
+        }
+
+        public UserDto(String id, String username, String role, java.util.UUID organizationId, java.util.UUID departmentId, java.util.UUID teamId, Boolean isActive, Boolean mustChangePassword, String orgName, String deptName) {
+            this(id, username, role, organizationId, departmentId, teamId, isActive, mustChangePassword);
+            this.orgName = orgName;
+            this.deptName = deptName;
         }
     }
     @PostMapping("/timezone")

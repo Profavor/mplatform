@@ -51,11 +51,11 @@ public class SystemInstallService {
     @Transactional
     public User installSystem(SystemInstallRequest request) {
         if (configRepository.findById("IS_INSTALLED").map(c -> "true".equalsIgnoreCase(c.getConfigValue())).orElse(false)) {
-            throw new IllegalStateException("이미 설치가 완료된 시스템입니다.");
+            throw new IllegalStateException("The system is already installed.");
         }
 
         if (userRepository.findByUsername(request.getAdminUsername()).isPresent()) {
-            throw new IllegalArgumentException("이미 사용 중인 관리자 아이디입니다.");
+            throw new IllegalArgumentException("The administrator ID is already in use.");
         }
 
         log.info("Starting System Setup for Initial Admin: {}", request.getAdminUsername());

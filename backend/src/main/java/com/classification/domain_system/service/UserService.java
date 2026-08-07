@@ -20,11 +20,29 @@ public class UserService {
     private final com.classification.domain_system.repository.UserOrgHistoryRepository userOrgHistoryRepository;
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
     private final com.classification.domain_system.service.FieldEncryptionService fieldEncryptionService;
+    private final com.classification.domain_system.repository.OrganizationRepository organizationRepository;
+    private final com.classification.domain_system.repository.DepartmentRepository departmentRepository;
 
     @Transactional(readOnly = true)
     public List<UserDto> getAllUsers() {
+        // Cache to avoid N+1 issues
+        java.util.Map<java.util.UUID, String> orgCache = new java.util.HashMap<>();
+        java.util.Map<java.util.UUID, String> deptCache = new java.util.HashMap<>();
+
         return userRepository.findAll().stream()
-                .map(u -> new UserDto(u.getId(), u.getUsername(), u.getRole(), u.getOrganizationId(), u.getDepartmentId(), u.getTeamId(), u.getIsActive(), u.getMustChangePassword()))
+                .map(u -> {
+                    String orgName = null;
+                    if (u.getOrganizationId() != null) {
+                        orgName = orgCache.computeIfAbsent(u.getOrganizationId(), id -> 
+                            organizationRepository.findById(id).map(o -> o.getDisplayName() != null ? o.getDisplayName() : o.getName()).orElse(null));
+                    }
+                    String deptName = null;
+                    if (u.getDepartmentId() != null) {
+                        deptName = deptCache.computeIfAbsent(u.getDepartmentId(), id -> 
+                            departmentRepository.findById(id).map(com.classification.domain_system.entity.Department::getName).orElse(null));
+                    }
+                    return new UserDto(u.getId(), u.getUsername(), u.getRole(), u.getOrganizationId(), u.getDepartmentId(), u.getTeamId(), u.getIsActive(), u.getMustChangePassword(), orgName, deptName);
+                })
                 .collect(Collectors.toList());
     }
 
@@ -188,7 +206,7 @@ public class UserService {
         try {
             userRepository.delete(user);
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            throw new IllegalStateException("해당 사용자가 생성한 레코드나 결재 이력 등 연결된 데이터가 존재하여 삭제할 수 없습니다. (데이터 무결성 보호)", e);
+            throw new IllegalStateException("Cannot delete user because linked data (such as records or approval history) exists. (Data integrity protection)", e);
         }
     }
 }

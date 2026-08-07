@@ -1,11 +1,11 @@
 [ {
-  "displayName" : "{\"ko\":\"🛡️ 데이터 스튜어드\",\"en\":\"🛡️ Data Steward\"}",
+  "displayName" : "{\"ko\":\"\uD83D\uDEE1️ 데이터 스튜어드\",\"en\":\"\uD83D\uDEE1️ Data Steward\"}",
   "isSystemRole" : null,
-  "permissions" : [ "field:*", "domain:read", "field:read", "workflow:request", "dq:write", "record:read", "dq:read", "match:*", "domain:write", "record:write", "workflow:approve", "node:*", "record:unmask", "node:read", "user:read", "workflow:read", "record:*", "org:read" ],
+  "permissions" : [ "field:*", "domain:read", "field:read", "workflow:request", "dq:write", "record:read", "role:read", "dq:read", "match:*", "domain:write", "record:write", "workflow:approve", "node:*", "record:unmask", "node:read", "user:read", "workflow:read", "record:*", "org:read" ],
   "NAME" : "DATA_STEWARD",
   "DESCRIPTION" : "{\"ko\":\"데이터 품질 및 모델 관리 권한\",\"en\":\"Data quality and model management\"}"
 }, {
-  "displayName" : "{\"ko\":\"🔌 연계 관리자\",\"en\":\"🔌 Integration Manager\"}",
+  "displayName" : "{\"ko\":\"\uD83D\uDD0C 연계 관리자\",\"en\":\"\uD83D\uDD0C Integration Manager\"}",
   "isSystemRole" : null,
   "permissions" : [ "domain:read", "field:read", "log:*", "integration:*", "channel:*", "node:read", "user:read", "org:read" ],
   "NAME" : "INTEGRATION",
@@ -17,31 +17,31 @@
   "NAME" : "DOMAIN_EDITOR",
   "DESCRIPTION" : "{\"ko\":\"도메인 및 필드 생성/편집 권한\",\"en\":\"Create and edit domains and fields\"}"
 }, {
-  "displayName" : "{\"ko\":\"👤 일반 사용자\",\"en\":\"👤 General User\"}",
+  "displayName" : "{\"ko\":\"\uD83D\uDC64 일반 사용자\",\"en\":\"\uD83D\uDC64 General User\"}",
   "isSystemRole" : null,
   "permissions" : [ "domain:read", "field:read", "integration:read", "workflow:request", "record:read", "role:read", "match:read", "dq:read", "workflow:approve", "node:read", "user:read", "workflow:read", "org:read" ],
   "NAME" : "ROLE_USER",
   "DESCRIPTION" : "{\"ko\":\"기본 사용자 접근 권한\",\"en\":\"Basic user access\"}"
 }, {
-  "displayName" : "{\"ko\":\"📊 데이터 품질 관리자\",\"en\":\"📊 DQ Manager\"}",
+  "displayName" : "{\"ko\":\"\uD83D\uDCCA 데이터 품질 관리자\",\"en\":\"\uD83D\uDCCA DQ Manager\"}",
   "isSystemRole" : null,
   "permissions" : [ "domain:read", "dq_scan:*", "field:read", "dq:*", "dq:write", "record:read", "dq_rule:*", "node:read", "user:read", "dq:read", "org:read" ],
   "NAME" : "DQ_MANAGER",
   "DESCRIPTION" : "{\"ko\":\"품질 규칙 및 검사 결과 관리\",\"en\":\"Manage DQ rules and scan results\"}"
 }, {
-  "displayName" : "{\"ko\":\"👑 시스템 관리자\",\"en\":\"👑 System Admin\"}",
+  "displayName" : "{\"ko\":\"\uD83D\uDC51 시스템 관리자\",\"en\":\"\uD83D\uDC51 System Admin\"}",
   "isSystemRole" : null,
   "permissions" : [ "*" ],
   "NAME" : "ROLE_ADMIN",
   "DESCRIPTION" : "{\"ko\":\"시스템 전체 관리 권한\",\"en\":\"Full system administration access\"}"
 }, {
-  "displayName" : "{\"ko\":\"🏢 조직 관리자\",\"en\":\"🏢 Organization Admin\"}",
+  "displayName" : "{\"ko\":\"\uD83C\uDFE2 조직 관리자\",\"en\":\"\uD83C\uDFE2 Organization Admin\"}",
   "isSystemRole" : null,
   "permissions" : [ "field:*", "domain:read", "field:read", "domain:*", "org:*", "user:*", "role:*", "dq:*", "node:*", "node:read", "admin:read", "record:*" ],
   "NAME" : "ORG_ADMIN",
   "DESCRIPTION" : "{\"ko\":\"조직 내 모든 리소스 제어 권한\",\"en\":\"Full control over organization resources\"}"
 }, {
-  "displayName" : "{\"ko\":\"🔄 워크플로우 관리\",\"en\":\"🔄 Workflow Manager\"}",
+  "displayName" : "{\"ko\":\"\uD83D\uDD04 워크플로우 관리\",\"en\":\"\uD83D\uDD04 Workflow Manager\"}",
   "isSystemRole" : null,
   "permissions" : [ "domain:read", "field:read", "workflow:write", "node:read", "role:read", "user:read", "workflow:read", "org:read" ],
   "NAME" : "WORKFLOW",

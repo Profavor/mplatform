@@ -3,16 +3,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "nuxt build",
+    "build": "vitest run",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "test": "vitest run && npm run build",
+    "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
     "@nuxtjs/i18n": "^9.1.1",
+    "@stomp/stompjs": "^7.3.0",
     "@vuestic/nuxt": "^1.0.21",
     "ag-grid-enterprise": "^34.3.1",
     "ag-grid-vue3": "^34.3.1",

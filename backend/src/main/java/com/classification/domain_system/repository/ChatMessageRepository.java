@@ -23,4 +23,8 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, UUID> 
     @Modifying
     @Query("DELETE FROM ChatMessage m WHERE m.createdAt < :cutoff")
     int deleteMessagesOlderThan(@Param("cutoff") LocalDateTime cutoff);
+
+    @Modifying
+    @Query("DELETE FROM ChatMessage m WHERE m.roomId = :roomId")
+    void deleteByRoomId(@Param("roomId") UUID roomId);
 }

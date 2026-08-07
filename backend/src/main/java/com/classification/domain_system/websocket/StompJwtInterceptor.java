@@ -48,9 +48,15 @@ public class StompJwtInterceptor implements ChannelInterceptor {
                 String username = jwtUtil.extractUsername(token);
                 Claims claims = jwtUtil.extractAllClaims(token);
                 String roleStr = claims.get("role", String.class);
+                String userId = claims.get("userId", String.class);
 
                 Collection<GrantedAuthority> authorities = permissionService.getAuthoritiesForUser(username, roleStr);
                 UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(username, null, authorities);
+                
+                java.util.Map<String, String> details = new java.util.HashMap<>();
+                details.put("userId", userId != null ? userId : "");
+                details.put("username", username);
+                auth.setDetails(details);
                 
                 StompHeaderAccessor mutableAccessor = accessor.isMutable() ? accessor : (StompHeaderAccessor) MessageHeaderAccessor.getMutableAccessor(message);
                 mutableAccessor.setUser(auth);
