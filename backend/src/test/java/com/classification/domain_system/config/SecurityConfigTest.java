@@ -39,8 +39,8 @@ class SecurityConfigTest {
         CorsConfiguration config = source.getCorsConfiguration(request);
 
         assertThat(config).isNotNull();
-        List<String> allowedOrigins = config.getAllowedOrigins();
-        assertThat(allowedOrigins).containsExactly("http://localhost:3000", "http://localhost:8080", "http://localhost:9090", "http://127.0.0.1:9090");
+        List<String> allowedOrigins = config.getAllowedOriginPatterns();
+        assertThat(allowedOrigins).containsExactly("http://localhost:3000", "http://localhost:8080", "http://localhost:9090", "http://127.0.0.1:9090", "http://127.0.0.1:*");
         assertThat(config.getAllowCredentials()).isTrue();
     }
 }

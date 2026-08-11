@@ -63,7 +63,7 @@ class DashboardServiceTest {
         when(dqViolationRepository.countByResolvedFalse()).thenReturn(1L);
 
         // when
-        Map<String, Long> stats = dashboardService.getStats();
+        Map<String, Object> stats = dashboardService.getStats();
 
         // then
         assertThat(stats.get("totalDomains")).isEqualTo(10L);
