@@ -48,12 +48,16 @@ public class SecurityConfig {
         return expressionHandler;
     }
 
+    @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri:#{null}}")
+    private String jwkSetUri;
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/system/**").permitAll()
@@ -74,8 +78,11 @@ public class SecurityConfig {
                     response.setContentType("application/json;charset=UTF-8");
                     response.getWriter().write("{\"error\":\"Forbidden\",\"message\":\"Access denied\"}");
                 })
-            )
-            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+            );
+
+        if (jwkSetUri != null && !jwkSetUri.isEmpty()) {
+            http.oauth2ResourceServer(oauth2 -> oauth2.jwt(org.springframework.security.config.Customizer.withDefaults()));
+        }
 
         return http.build();
     }
@@ -94,10 +101,14 @@ public class SecurityConfig {
 
         // 일반 API: 허용된 프론트엔드 Origin만 허용
         CorsConfiguration config = new CorsConfiguration();
-        List<String> origins = Arrays.stream(allowedOrigins.split(","))
+        List<String> originPatterns = Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
                 .collect(java.util.stream.Collectors.toList());
-        config.setAllowedOrigins(origins);
+        // allowedOriginPatterns로 통일 (allowedOrigins + allowCredentials 동시 사용 시 충돌 방지)
+        for (String origin : originPatterns) {
+            config.addAllowedOriginPattern(origin);
+        }
+        config.addAllowedOriginPattern("http://127.0.0.1:*");
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("*"));
         config.setExposedHeaders(Arrays.asList("Content-Disposition", "Content-Length", "Content-Range", "Accept-Ranges"));

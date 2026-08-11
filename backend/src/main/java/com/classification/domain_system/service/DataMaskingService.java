@@ -82,14 +82,21 @@ public class DataMaskingService {
         return str.substring(0, 2) + "*".repeat(len - 2);
     }
 
-    public String maskJsonData(String dataJson, List<FieldDefinition> fields, boolean canUnmask) {
+    public String maskJsonData(String dataJson, List<?> fieldsRaw, boolean canUnmask) {
         if (dataJson == null || dataJson.isBlank()) return dataJson;
         try {
             Map<String, Object> dataMap = objectMapper.readValue(dataJson, new TypeReference<Map<String, Object>>() {});
             dataMap.keySet().removeIf(key -> key.toLowerCase().startsWith("_idx_"));
 
-            if (fields != null) {
-                for (FieldDefinition field : fields) {
+            if (fieldsRaw != null) {
+                for (Object rawField : fieldsRaw) {
+                    FieldDefinition field;
+                    if (rawField instanceof FieldDefinition) {
+                        field = (FieldDefinition) rawField;
+                    } else {
+                        field = objectMapper.convertValue(rawField, FieldDefinition.class);
+                    }
+                    
                     if (Boolean.TRUE.equals(field.getIsEncrypted()) && field.getKey() != null) {
                         String matchedKey = null;
                         for (String k : dataMap.keySet()) {

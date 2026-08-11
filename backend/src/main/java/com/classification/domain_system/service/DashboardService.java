@@ -29,9 +29,10 @@ public class DashboardService {
     private final MatchCandidateRepository matchCandidateRepository;
     private final DqViolationRepository dqViolationRepository;
 
+    @org.springframework.cache.annotation.Cacheable(value = "dashboardStats")
     @Transactional(readOnly = true)
-    public Map<String, Long> getStats() {
-        Map<String, Long> stats = new HashMap<>();
+    public Map<String, Object> getStats() {
+        Map<String, Object> stats = new HashMap<>();
         stats.put("totalDomains", domainRepository.count());
         stats.put("pendingApprovals", approvalRepository.findByStatusOrderByCreatedAtDesc("PENDING", Pageable.unpaged()).getTotalElements());
         stats.put("approvedApprovals", approvalRepository.findByStatusOrderByCreatedAtDesc("APPROVED", Pageable.unpaged()).getTotalElements());

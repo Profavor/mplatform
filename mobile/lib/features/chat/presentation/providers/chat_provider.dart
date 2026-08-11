@@ -26,6 +26,9 @@ class ChatController extends StateNotifier<ChatState> {
   final void Function()? onForceLogout;
 
   ChatController(this._repository, this._wsService, {this.onForceLogout}) : super(const ChatState()) {
+    // STOMP 연결은 ChatController 생성 시점 (로그인 완료 후 채팅 화면 진입 시)에만 수행
+    _wsService.connect();
+
     _wsService.notificationStream.listen((event) {
       if (event['eventType'] == 'FORCE_LOGOUT') {
         onForceLogout?.call();
@@ -113,11 +116,13 @@ class ChatController extends StateNotifier<ChatState> {
     );
     try {
       final messages = await _repository.getMessages(roomId);
+      print('MESSAGES LOADED: ${messages.length}');
       state = state.copyWith(activeMessages: messages, isLoadingMessages: false);
       await _repository.markRoomAsRead(roomId);
       await fetchTotalUnreadCount();
       await loadRooms();
-    } catch (e) {
+    } catch (e, stack) {
+      print('selectRoom Error: $e\n$stack');
       state = state.copyWith(isLoadingMessages: false, errorMessage: e.toString());
     }
   }
@@ -134,8 +139,10 @@ class ChatController extends StateNotifier<ChatState> {
     String? fileUrl,
     String? fileName,
     int? fileSize,
+    String? url,
+    String? originalName,
   }) async {
-    if (content.trim().isEmpty && attachmentUrl == null && fileUrl == null) return;
+    if (content.trim().isEmpty && attachmentUrl == null && fileUrl == null && url == null) return;
     state = state.copyWith(isSending: true);
     try {
       final sentMsg = await _repository.sendMessage(
@@ -146,6 +153,8 @@ class ChatController extends StateNotifier<ChatState> {
         fileUrl: fileUrl,
         fileName: fileName,
         fileSize: fileSize,
+        url: url,
+        originalName: originalName,
       );
       state = state.copyWith(
         activeMessages: [...state.activeMessages, sentMsg],
@@ -162,13 +171,18 @@ class ChatController extends StateNotifier<ChatState> {
     try {
       final uploadResult = await _repository.uploadFile(fileBytes, fileName);
       final type = isImage ? 'IMAGE' : 'FILE';
+      
+      final url = uploadResult['url'] as String?;
+      final originalName = uploadResult['originalName'] as String? ?? fileName;
+      
       await sendMessage(
         roomId,
-        content: fileName,
+        content: originalName,
         messageType: type,
-        fileUrl: uploadResult['fileUrl'] as String?,
-        fileName: uploadResult['fileName'] as String? ?? fileName,
-        fileSize: uploadResult['fileSize'] as int?,
+        fileUrl: url,
+        fileName: originalName,
+        url: url,
+        originalName: originalName,
       );
     } catch (e) {
       state = state.copyWith(isSending: false, errorMessage: e.toString());

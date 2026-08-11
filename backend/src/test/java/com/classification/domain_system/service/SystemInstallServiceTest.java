@@ -42,6 +42,7 @@ class SystemInstallServiceTest {
         userRoleRepository = Mockito.mock(UserRoleRepository.class);
         roleInitializer = Mockito.mock(RoleInitializer.class);
         passwordEncoder = Mockito.mock(PasswordEncoder.class);
+        KeycloakAdminService keycloakAdminService = Mockito.mock(KeycloakAdminService.class);
 
         installService = new SystemInstallService(
                 configRepository,
@@ -50,7 +51,8 @@ class SystemInstallServiceTest {
                 roleRepository,
                 userRoleRepository,
                 roleInitializer,
-                passwordEncoder
+                passwordEncoder,
+                keycloakAdminService
         );
     }
 

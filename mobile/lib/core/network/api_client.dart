@@ -2,16 +2,27 @@ import 'package:dio/dio.dart';
 import 'package:mplatform_mobile/core/network/interceptors/auth_interceptor.dart';
 import 'package:mplatform_mobile/core/network/interceptors/timezone_interceptor.dart';
 
+import 'dart:io';
+
+String getDefaultBaseUrl() {
+  try {
+    if (Platform.isAndroid) {
+      return 'http://10.0.2.2:8080';
+    }
+  } catch (_) {} // Handle web platform where Platform throws
+  return 'http://localhost:8080';
+}
+
 class ApiClient {
   final Dio dio;
 
   ApiClient({
     required AuthInterceptor authInterceptor,
     required TimezoneInterceptor timezoneInterceptor,
-    String baseUrl = 'http://localhost:8080',
+    String? baseUrl,
   }) : dio = Dio(
           BaseOptions(
-            baseUrl: baseUrl,
+            baseUrl: baseUrl ?? getDefaultBaseUrl(),
             connectTimeout: const Duration(seconds: 15),
             receiveTimeout: const Duration(seconds: 15),
             headers: {'Content-Type': 'application/json'},

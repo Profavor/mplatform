@@ -4,6 +4,10 @@ import com.classification.domain_system.entity.ClassificationNode;
 import com.classification.domain_system.entity.TaxonomyVersion;
 import com.classification.domain_system.repository.ClassificationNodeRepository;
 import com.classification.domain_system.repository.TaxonomyVersionRepository;
+import com.classification.domain_system.repository.FieldDefinitionRepository;
+import com.classification.domain_system.entity.FieldDefinition;
+import com.classification.domain_system.entity.FieldGroup;
+import com.classification.domain_system.dto.FieldDefinitionDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,6 +32,9 @@ class TaxonomyVersionServiceTest {
     
     @Mock
     private ClassificationNodeRepository classificationNodeRepository;
+    
+    @Mock
+    private FieldDefinitionRepository fieldDefinitionRepository;
 
     @InjectMocks
     private TaxonomyVersionService taxonomyVersionService;
@@ -55,12 +62,25 @@ class TaxonomyVersionServiceTest {
         when(classificationNodeRepository.findByDomain_IdAndParentIsNullAndIsDeletedFalseOrderByOrderAsc(domainId))
                 .thenReturn(List.of(rootNode));
                 
+        FieldDefinition fieldDef = new FieldDefinition();
+        fieldDef.setId(UUID.randomUUID());
+        fieldDef.setKey("sample_field");
+        fieldDef.setDefinedAtNode(rootNode);
+        
+        when(fieldDefinitionRepository.findNodeFieldsWithSort(rootNode.getId()))
+                .thenReturn(List.of(fieldDef));
+        when(fieldDefinitionRepository.findNodeFieldsWithSort(childNode.getId()))
+                .thenReturn(List.of());
+
         TaxonomyVersion result = taxonomyVersionService.createSnapshot(domainId, "v1.0", "admin");
         
         assertEquals("v1.0", result.getVersionLabel());
         assertNotNull(result.getSnapshotData());
         assertTrue(result.getSnapshotData().contains("Root Node"));
+        assertTrue(result.getSnapshotData().contains("sample_field"), "Should contain field schema");
         
         verify(classificationNodeRepository, times(1)).findByDomain_IdAndParentIsNullAndIsDeletedFalseOrderByOrderAsc(domainId);
+        verify(fieldDefinitionRepository, times(1)).findNodeFieldsWithSort(rootNode.getId());
+        verify(fieldDefinitionRepository, times(1)).findNodeFieldsWithSort(childNode.getId());
     }
 }

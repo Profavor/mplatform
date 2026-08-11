@@ -4,6 +4,8 @@ export const useWebSocket = () => {
   const isConnected = ref(false)
   let stompClient: Client | null = null
 
+  const { user } = useOidcAuth()
+
   const connect = (onMessageCallback?: (event: any) => void) => {
     if (process.server) return
 
@@ -19,7 +21,7 @@ export const useWebSocket = () => {
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
       beforeConnect: () => {
-        const currentToken = useCookie('auth_token').value || ''
+        const currentToken = user.value?.accessToken || useCookie('auth_token').value || ''
         stompClient!.connectHeaders = {
           token: currentToken
         }

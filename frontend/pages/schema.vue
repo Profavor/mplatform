@@ -59,6 +59,7 @@
                 <va-tab>{{ $t('tab_fields') }}</va-tab>
                 <va-tab>{{ $t('schema_history.title') }}</va-tab>
                 <va-tab v-if="selectedNode && selectedNode.type === 'domain'">{{ $t('classification_axes') }}</va-tab>
+                <va-tab v-if="selectedNode && selectedNode.type === 'domain'">Data Profiling</va-tab>
               </template>
             </va-tabs>
           </va-card-title>
@@ -106,9 +107,14 @@
               <SchemaHistoryTab :domain-id="selectedNode?.domainId || selectedNode?.id || (selectedNode?.type === 'domain' ? selectedNode?.id : null)" />
             </div>
 
-            <!-- Classification Axes Tab -->
-            <div v-show="activeTab === 2" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
-              <ClassificationAxisTab :domain-id="selectedNode?.domainId || selectedNode?.id || (selectedNode?.type === 'domain' ? selectedNode?.id : '')" />
+            <!-- Classification Axes Tab (Domain Only) -->
+            <div v-show="activeTab === 2 && selectedNode && selectedNode.type === 'domain'" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 1rem;">
+              <ClassificationAxisTab :domain-id="selectedNode?.id" />
+            </div>
+
+            <!-- Data Profiling Tab (Domain Only) -->
+            <div v-show="activeTab === 3 && selectedNode && selectedNode.type === 'domain'" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+              <DataProfilingTab :domain-id="selectedNode?.id" />
             </div>
           </va-card-content>
         </va-card>
@@ -361,7 +367,7 @@ const colors = useColors()
 const isDark = computed(() => colors.currentPresetName.value === 'dark')
 import { usePermission } from '~/composables/usePermission'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { currentPresetName } = useColors()
 const { hasPermission } = usePermission()
 import { ref, computed, onMounted, watch } from 'vue'
@@ -374,6 +380,7 @@ import { AgGridVue } from 'ag-grid-vue3'
 import SchemaHistoryTab from '~/components/schema/SchemaHistoryTab.vue'
 import WorkflowConfigTab from '~/components/schema/WorkflowConfigTab.vue'
 import ClassificationAxisTab from '~/components/schema/ClassificationAxisTab.vue'
+import DataProfilingTab from '~/components/schema/DataProfilingTab.vue'
 
 const showImpactModal = ref(false)
 const impactChangeRequest = ref({

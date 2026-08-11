@@ -17,6 +17,9 @@
           <template #right>
             <va-navbar-item class="text-white">
               <div class="navbar-right">
+                <!-- Global Search -->
+                <GlobalSearch class="hide-mobile" />
+                
                 <!-- Notification Bell -->
                 <NotificationBell class="mr-2" />
 
@@ -226,6 +229,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useCookie, useState } from '#app'
 import { useColors } from 'vuestic-ui'
 import { useMenu } from '~/composables/useMenu'
+import GlobalSearch from '~/components/layout/GlobalSearch.vue'
 import NotificationBell from '~/components/layout/NotificationBell.vue'
 import InAppMessenger from '~/components/chat/InAppMessenger.vue'
 import SystemRadioWidget from '~/components/chat/SystemRadioWidget.vue'
@@ -562,7 +566,7 @@ const currentOrgName = computed(() => {
   return parseMultilingualText(raw)
 })
 
-const handleLogout = () => {
+const handleLogout = async () => {
   tokenCookie.value = null
   userCookie.value = null
   if (process.client) {
@@ -570,7 +574,14 @@ const handleLogout = () => {
     document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
     document.cookie = 'user_data=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
   }
-  router.push('/login')
+  
+  try {
+    const { logout } = useOidcAuth()
+    await logout()
+  } catch (e) {
+    console.warn('OIDC logout error', e)
+    router.push('/login')
+  }
 }
 </script>
 

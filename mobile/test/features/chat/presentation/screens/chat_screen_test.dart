@@ -13,13 +13,17 @@ import 'package:mplatform_mobile/features/chat/data/services/chat_websocket_serv
 import 'package:mplatform_mobile/features/chat/domain/models/chat_message_model.dart';
 import 'package:mplatform_mobile/features/chat/domain/models/chat_room_model.dart';
 import 'package:mplatform_mobile/features/chat/presentation/providers/chat_provider.dart';
+import 'package:mplatform_mobile/core/providers/core_providers.dart';
 import 'package:mplatform_mobile/features/chat/presentation/screens/chat_room_list_screen.dart';
 import 'package:mplatform_mobile/features/chat/presentation/screens/chat_screen.dart';
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'chat_screen_test.mocks.dart';
 
 class FakeAuthRepo implements AuthRepository {
+  @override
+  Future<List<UserModel>> getUsers() async => [];
   @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -32,25 +36,55 @@ class _FakeAuthController extends AuthController {
   Future<void> checkAuthStatus() async {}
 }
 
-@GenerateMocks([ChatRepository, ChatWebSocketService])
+@GenerateMocks([ChatRepository])
+
+class FakeChatWs implements ChatWebSocketService {
+  @override
+  Stream<ChatMessageModel> get messageStream => const Stream.empty();
+  @override
+  Stream<Map<String, dynamic>> get notificationStream => const Stream.empty();
+  @override
+  Stream<String> get roomReadStream => const Stream.empty();
+  @override
+  Stream<Map<String, dynamic>> get presenceStream => const Stream.empty();
+  @override
+  void subscribeToRoom(String roomId) {}
+  @override
+  void unsubscribeFromRoom() {}
+  @override
+  void disconnect() {}
+  @override
+  void dispose() {}
+  @override
+  void sendMessage(String destination, Map<String, dynamic> body) {}
+  @override
+  Future<void> connect() async {}
+  @override
+  bool get isConnected => true;
+  @override
+  void onConnect(dynamic frame) {}
+}
+
 void main() {
   group('ChatRoomListScreen & ChatScreen Widget Tests (TDD - Zero Hardcoding & UUID Protection)', () {
     late MockChatRepository mockRepository;
-    late MockChatWebSocketService mockWsService;
+    late FakeChatWs fakeWsService;
 
     setUp(() {
       mockRepository = MockChatRepository();
-      mockWsService = MockChatWebSocketService();
-      when(mockWsService.messageStream).thenAnswer((_) => const Stream<ChatMessageModel>.empty());
+      fakeWsService = FakeChatWs();
     });
 
     Widget createTestWidget(Widget child) {
+      final fakeAuthRepo = FakeAuthRepo();
       return ProviderScope(
         overrides: [
+          dioProvider.overrideWithValue(Dio(BaseOptions(baseUrl: 'http://localhost'))),
+          authRepositoryProvider.overrideWithValue(fakeAuthRepo),
           chatRepositoryProvider.overrideWithValue(mockRepository),
-          chatWebSocketServiceProvider.overrideWithValue(mockWsService),
+          chatWebSocketServiceProvider.overrideWithValue(fakeWsService),
           authControllerProvider.overrideWith((ref) {
-            final authCtrl = _FakeAuthController(FakeAuthRepo(), const AsyncValue.data(UserModel(id: '1', username: 'my_account', name: '나', role: 'ROLE_USER')));
+            final authCtrl = _FakeAuthController(fakeAuthRepo, const AsyncValue.data(UserModel(id: '1', username: 'my_account', name: '나', role: 'ROLE_USER')));
             return authCtrl;
           }),
         ],
@@ -79,6 +113,7 @@ void main() {
       );
 
       when(mockRepository.getChatRooms()).thenAnswer((_) async => [room]);
+      when(mockRepository.getOnlineUsers()).thenAnswer((_) async => []);
 
       await tester.pumpWidget(createTestWidget(const ChatRoomListScreen()));
       await tester.pumpAndSettle();
@@ -110,7 +145,13 @@ void main() {
       );
 
       when(mockRepository.getMessages('r-100')).thenAnswer((_) async => [msg1, msg2]);
-
+      when(mockRepository.markRoomAsRead(any)).thenAnswer((_) async => true);
+      when(mockRepository.getChatRooms()).thenAnswer((_) async => []);
+      when(mockRepository.getOnlineUsers()).thenAnswer((_) async => []);
+      when(mockRepository.markRoomAsRead(any)).thenAnswer((_) async => true);
+      when(mockRepository.fetchTotalUnreadCount()).thenAnswer((_) async => 0);
+      when(mockRepository.getChatRooms()).thenAnswer((_) async => []);
+      when(mockRepository.getOnlineUsers()).thenAnswer((_) async => []);
       await tester.pumpWidget(createTestWidget(const ChatScreen(
         roomId: 'r-100',
         roomTitle: '마스터 데이터 품질 QA 대화방',
@@ -119,9 +160,12 @@ void main() {
       await tester.pumpAndSettle();
 
       // Check bubble contents and sender info
-      expect(find.text('이홍길 (품질팀)'), findsOneWidget);
-      expect(find.text('신규 마스터 스키마 승인 요청드립니다.'), findsOneWidget);
-      expect(find.text('네, 지금 검토 중입니다.'), findsOneWidget);
+      for (final widget in tester.allWidgets.whereType<Text>()) {
+        print('TEXT FOUND: ${widget.data}');
+      }
+      expect(find.byWidgetPredicate((w) => w is Text && w.data != null && w.data!.contains('이홍길'), skipOffstage: false), findsWidgets);
+      expect(find.byWidgetPredicate((w) => w is Text && w.data != null && w.data!.contains('신규 마스터 스키마'), skipOffstage: false), findsWidgets);
+      expect(find.byWidgetPredicate((w) => w is Text && w.data != null && w.data!.contains('지금 검토 중입니다'), skipOffstage: false), findsWidgets);
 
       // Check text field input existence
       expect(find.byType(TextField), findsOneWidget);

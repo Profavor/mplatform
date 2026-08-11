@@ -13,21 +13,28 @@ import 'package:mplatform_mobile/features/records/domain/models/records_page_res
 import 'package:mplatform_mobile/features/records/presentation/providers/records_provider.dart';
 import 'package:mplatform_mobile/features/records/presentation/screens/records_list_screen.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mplatform_mobile/core/providers/core_providers.dart';
+
 import 'records_list_screen_test.mocks.dart';
 
 @GenerateMocks([RecordsRepository])
 void main() {
   group('RecordsListScreen & DetailScreen Widget Tests (TDD - Zero Hardcoding & UUID Formatting)', () {
     late MockRecordsRepository mockRepository;
+    late SharedPreferences prefs;
 
-    setUp(() {
+    setUp(() async {
       mockRepository = MockRecordsRepository();
+      SharedPreferences.setMockInitialValues({'user_personal_timezone': 'Asia/Seoul'});
+      prefs = await SharedPreferences.getInstance();
     });
 
     Widget createTestWidget() {
       return ProviderScope(
         overrides: [
           recordsRepositoryProvider.overrideWithValue(mockRepository),
+          sharedPreferencesProvider.overrideWithValue(prefs),
         ],
         child: const MaterialApp(
           localizationsDelegates: [
@@ -45,8 +52,8 @@ void main() {
 
     testWidgets('displays domain name, formatted UUID (never raw UUID), and dynamically rendered fields without hardcoding', (WidgetTester tester) async {
       const domain = DomainModel(id: 'domain-uuid-1', name: '고객 정보');
-      const field1 = FieldDefinition(id: 101, fieldName: 'cust_nm', fieldLabel: '고객명', fieldType: 'String', showInList: true, displayOrder: 1);
-      const field2 = FieldDefinition(id: 102, fieldName: 'cust_grade', fieldLabel: '회원등급', fieldType: 'String', showInList: true, displayOrder: 2);
+      const field1 = FieldDefinition(id: '101', fieldName: 'cust_nm', fieldLabel: '고객명', fieldType: 'String', showInList: true, displayOrder: 1);
+      const field2 = FieldDefinition(id: '102', fieldName: 'cust_grade', fieldLabel: '회원등급', fieldType: 'String', showInList: true, displayOrder: 2);
       
       // Raw UUID generated from server
       const rawUuid = '340a0917-af0b-4d13-a1ce-479d4b2e2ca7';
@@ -59,9 +66,14 @@ void main() {
       const pageRes = RecordsPageResponse(content: [record], totalElements: 1, totalPages: 1, number: 0, size: 20);
 
       when(mockRepository.getDomains()).thenAnswer((_) async => [domain]);
+      when(mockRepository.getClassificationTree('domain-uuid-1')).thenAnswer((_) async => []);
       when(mockRepository.getFieldDefinitions('domain-uuid-1')).thenAnswer((_) async => [field1, field2]);
-      when(mockRepository.getRecords(domainId: 'domain-uuid-1', page: 0, size: 20, searchQuery: anyNamed('searchQuery'), filters: anyNamed('filters')))
-          .thenAnswer((_) async => pageRes);
+      when(mockRepository.getRecords(
+        domainId: anyNamed('domainId'),
+        page: anyNamed('page'),
+        size: anyNamed('size'),
+        searchFields: anyNamed('searchFields'),
+      )).thenAnswer((_) async => pageRes);
 
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();

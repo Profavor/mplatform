@@ -15,6 +15,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -35,6 +38,10 @@ public class BatchImportService {
     private final ApprovalService approvalService;
     private final DqRuleEngine dqRuleEngine;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Autowired
+    @Lazy
+    private BatchImportService self;
 
     @Transactional
     public BatchJob createBatch(UUID domainId, UUID nodeId, List<Map<String, Object>> records, String sourceSystem, String createdBy) {
@@ -107,9 +114,19 @@ public class BatchImportService {
         batchJobRepository.save(job);
     }
 
-    @Transactional
     public BatchJob commitBatch(UUID batchId) {
         BatchJob job = batchJobRepository.findById(batchId).orElseThrow(() -> new ResourceNotFoundException("Batch job not found"));
+        try {
+            return self.commitBatchInternal(job, batchId);
+        } catch (Exception e) {
+            job.setStatus("FAILED");
+            batchJobRepository.save(job);
+            throw new RuntimeException("Batch commit failed", e);
+        }
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public BatchJob commitBatchInternal(BatchJob job, UUID batchId) {
         List<StagingRecord> records = stagingRecordRepository.findByBatchId(batchId);
         
         List<Record> recordBatch = new ArrayList<>();

@@ -16,6 +16,8 @@ public interface RecordRepository extends JpaRepository<Record, UUID>, CustomRec
     Page<Record> findByNodeIdIn(@org.springframework.data.repository.query.Param("nodeIds") java.util.List<UUID> nodeIds, Pageable pageable);
 
     Page<Record> findByNodeIdAndStatus(UUID nodeId, String status, Pageable pageable);
+    
+    Page<Record> findBySearchableDataContainingIgnoreCase(String keyword, Pageable pageable);
 
     @org.springframework.data.jpa.repository.Query(value = "SELECT * FROM record r "
             + "WHERE r.id <> :excludedRecordId "
@@ -39,4 +41,14 @@ public interface RecordRepository extends JpaRepository<Record, UUID>, CustomRec
 
     @org.springframework.data.jpa.repository.Query("SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END FROM Record r WHERE r.node.domain.id = :domainId AND cast(r.data as String) LIKE %:searchText%")
     boolean existsByNodeDomainIdAndDataContaining(@org.springframework.data.repository.query.Param("domainId") UUID domainId, @org.springframework.data.repository.query.Param("searchText") String searchText);
+
+    @org.springframework.data.jpa.repository.Query(value = "SELECT EXISTS (SELECT 1 FROM record r " +
+            "JOIN classification_node n ON r.node_id = n.id " +
+            "WHERE n.domain_id = :domainId " +
+            "AND r.data ->> CAST(:fieldKey AS text) = :recordId " +
+            "AND r.status NOT IN ('REJECTED', 'MERGED'))", nativeQuery = true)
+    boolean existsReferencingRecord(
+            @org.springframework.data.repository.query.Param("domainId") UUID domainId,
+            @org.springframework.data.repository.query.Param("fieldKey") String fieldKey,
+            @org.springframework.data.repository.query.Param("recordId") String recordId);
 }

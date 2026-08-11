@@ -8,12 +8,14 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import com.classification.domain_system.service.opensearch.RecordSyncListener;
 
 @Entity
 @Table(name = "record")
 @Getter
 @Setter
 @NoArgsConstructor
+@EntityListeners({RecordSyncListener.class})
 public class Record {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

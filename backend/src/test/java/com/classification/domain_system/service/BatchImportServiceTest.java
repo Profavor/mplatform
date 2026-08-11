@@ -130,6 +130,8 @@ class BatchImportServiceTest {
         when(nodeRepository.findById(sr.getNodeId())).thenReturn(Optional.of(node));
         when(recordService.processDataForSave(sr.getNodeId(), sr.getRawData())).thenReturn("{\"processed\":\"value\"}");
 
+        org.springframework.test.util.ReflectionTestUtils.setField(batchImportService, "self", batchImportService);
+
         BatchJob result = batchImportService.commitBatch(batchId);
 
         assertEquals("PENDING_APPROVAL", sr.getStatus());
@@ -138,5 +140,31 @@ class BatchImportServiceTest {
         verify(approvalService, times(1)).requestBatchRecordCreation(eq(domainId), eq(batchId), anyList(), eq("user1"));
         assertEquals("PENDING_APPROVAL", result.getStatus());
         assertEquals(1, result.getCommittedRecords());
+    }
+
+    @Test
+    void testCommitBatch_Exception_RollbackAndFail() {
+        batchImportService = new BatchImportService(
+            batchJobRepository, stagingRecordRepository, recordRepository, nodeRepository,
+            recordService, approvalService, dqRuleEngine
+        );
+        // Set up the self mock for reflection or direct field access if needed, 
+        // but since self is @Autowired, we can just use reflection to inject it
+        org.springframework.test.util.ReflectionTestUtils.setField(batchImportService, "self", batchImportService);
+
+        UUID batchId = UUID.randomUUID();
+        BatchJob job = new BatchJob();
+        job.setId(batchId);
+        
+        when(batchJobRepository.findById(batchId)).thenReturn(Optional.of(job));
+        when(stagingRecordRepository.findByBatchId(batchId)).thenThrow(new RuntimeException("Database error"));
+
+        Exception exception = assertThrows(RuntimeException.class, () -> {
+            batchImportService.commitBatch(batchId);
+        });
+
+        assertTrue(exception.getMessage().contains("Batch commit failed"));
+        assertEquals("FAILED", job.getStatus());
+        verify(batchJobRepository, times(1)).save(job);
     }
 }

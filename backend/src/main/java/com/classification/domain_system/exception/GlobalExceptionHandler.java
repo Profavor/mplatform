@@ -73,6 +73,14 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(code, ex.getMessage()));
     }
 
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthenticationException(Exception ex, HttpServletRequest request) {
+        log.warn("Authentication exception at URI: {}. Message: {}", request.getRequestURI(), ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(ErrorResponse.of(ErrorCode.INVALID_CREDENTIALS, "인증되지 않은 사용자입니다."));
+    }
+
     @ExceptionHandler({jakarta.persistence.OptimisticLockException.class, org.springframework.orm.ObjectOptimisticLockingFailureException.class})
     public ResponseEntity<ErrorResponse> handleOptimisticLockException(Exception ex, HttpServletRequest request) {
         log.warn("Optimistic lock conflict at URI: {}. Message: {}", request.getRequestURI(), ex.getMessage());
@@ -117,7 +125,7 @@ public class GlobalExceptionHandler {
 
         log.error("Unhandled Exception occurred at URI: {} for User: {}. Message: {}", requestUri, userId, errorMessage, ex);
 
-        // Do not expose internal system details in HTTP 500 response
+        // Return masked error message to the client
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ErrorResponse.of(ErrorCode.INTERNAL_SERVER_ERROR, "내부 오류가 발생했습니다."));
     }

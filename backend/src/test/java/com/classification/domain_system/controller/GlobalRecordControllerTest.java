@@ -30,7 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(controllers = GlobalRecordController.class)
 @AutoConfigureMockMvc(addFilters = false)
-@org.springframework.context.annotation.Import(com.classification.domain_system.exception.GlobalExceptionHandler.class)
+@org.springframework.context.annotation.Import({com.classification.domain_system.exception.GlobalExceptionHandler.class, com.classification.domain_system.config.SecurityConfig.class, com.classification.domain_system.config.TestSecurityConfig.class})
 class GlobalRecordControllerTest {
 
     @Autowired

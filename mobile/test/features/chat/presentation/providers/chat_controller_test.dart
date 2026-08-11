@@ -20,6 +20,15 @@ void main() {
       mockRepository = MockChatRepository();
       mockWsService = MockChatWebSocketService();
       when(mockWsService.messageStream).thenAnswer((_) => const Stream<ChatMessageModel>.empty());
+      when(mockWsService.notificationStream).thenAnswer((_) => const Stream<Map<String, dynamic>>.empty());
+      when(mockWsService.roomReadStream).thenAnswer((_) => const Stream<String>.empty());
+      when(mockWsService.presenceStream).thenAnswer((_) => const Stream<Map<String, dynamic>>.empty());
+      
+      when(mockRepository.markRoomAsRead(any)).thenAnswer((_) async => true);
+      when(mockRepository.fetchTotalUnreadCount()).thenAnswer((_) async => 0);
+      when(mockRepository.getChatRooms()).thenAnswer((_) async => []);
+      when(mockRepository.getOnlineUsers()).thenAnswer((_) async => []);
+
       controller = ChatController(mockRepository, mockWsService);
     });
 

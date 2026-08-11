@@ -8,6 +8,11 @@ import 'package:mplatform_mobile/features/chat/presentation/providers/chat_provi
 import 'package:mplatform_mobile/features/notifications/domain/models/notification_item.dart';
 import 'package:mplatform_mobile/features/notifications/presentation/providers/notifications_provider.dart';
 import 'package:mplatform_mobile/core/providers/locale_provider.dart';
+import 'package:mplatform_mobile/features/dashboard/presentation/providers/dashboard_provider.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:mplatform_mobile/features/search/presentation/screens/global_search_screen.dart';
+import 'package:mplatform_mobile/features/dq/presentation/widgets/ai_dq_recommendation_card.dart';
+import 'package:mplatform_mobile/features/dq/presentation/widgets/data_profiling_card.dart';
 
 class HomeDashboardScreen extends ConsumerStatefulWidget {
   const HomeDashboardScreen({super.key});
@@ -25,6 +30,7 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
         ref.read(approvalsControllerProvider.notifier).loadApprovals();
         ref.read(chatControllerProvider.notifier).loadRooms();
         ref.read(notificationsControllerProvider.notifier).fetchNotifications(refresh: true);
+        ref.read(dashboardProvider.notifier).fetchDashboardData();
       }
     });
   }
@@ -37,12 +43,15 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
     final approvalsState = ref.watch(approvalsControllerProvider);
     final chatState = ref.watch(chatControllerProvider);
     final notificationsState = ref.watch(notificationsControllerProvider);
+    final dashboardState = ref.watch(dashboardProvider);
 
     final int pendingApprovalsCount = approvalsState.pendingItems.length;
     final int unreadMessagesCount = chatState.rooms.fold<int>(0, (sum, room) => sum + room.unreadCount);
+    final int openDqViolationsCount = dashboardState.stats?.openDqViolations ?? 0;
+    
     final List<NotificationItem> recentActivities = notificationsState.notifications.take(5).toList();
 
-    final bool isLoading = approvalsState.isLoading || chatState.isLoadingRooms || notificationsState.isLoading;
+    final bool isLoading = approvalsState.isLoading || chatState.isLoadingRooms || notificationsState.isLoading || dashboardState.isLoading;
 
     return Scaffold(
       appBar: AppBar(
@@ -51,6 +60,16 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
         backgroundColor: Colors.indigo[800],
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: 'Global Search',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const GlobalSearchScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.language),
             tooltip: 'Toggle Language',
@@ -70,6 +89,7 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
           await ref.read(approvalsControllerProvider.notifier).loadApprovals();
           await ref.read(chatControllerProvider.notifier).loadRooms();
           await ref.read(notificationsControllerProvider.notifier).fetchNotifications(refresh: true);
+          await ref.read(dashboardProvider.notifier).fetchDashboardData();
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -161,7 +181,7 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                         color: Colors.amber.shade800,
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: _buildMetricCard(
                         context,
@@ -171,9 +191,44 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                         color: Colors.teal.shade700,
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildMetricCard(
+                        context,
+                        title: l10n.openDqViolations,
+                        count: openDqViolationsCount.toString(),
+                        icon: Icons.warning_amber,
+                        color: Colors.red.shade700,
+                      ),
+                    ),
                   ],
                 ),
               const SizedBox(height: 28),
+              
+              // 2-B. Dashboard DQ Charts
+              if (!isLoading && (dashboardState.dqTrends.isNotEmpty || dashboardState.dqSeverity.isNotEmpty))
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.dqDashboardTitle,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const AiDqRecommendationCard(),
+                    const SizedBox(height: 12),
+                    const DataProfilingCard(),
+                    const SizedBox(height: 16),
+                    _buildDqTrendChart(dashboardState),
+                    const SizedBox(height: 16),
+                    _buildDqSeverityChart(dashboardState),
+                    const SizedBox(height: 28),
+                  ],
+                ),
 
               // 3. Recent Activity Section (No Hardcoded Mock Data!)
               Text(
@@ -318,12 +373,185 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
           Text(
             title,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
               color: Colors.grey[600],
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDqTrendChart(DashboardState state) {
+    if (state.dqTrends.isEmpty) return const SizedBox.shrink();
+    
+    final maxY = state.dqTrends.map((e) => e.count).fold<int>(0, (p, c) => c > p ? c : p).toDouble() + 5;
+    
+    return Container(
+      height: 240,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.trending_up, color: Colors.red.shade700, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'DQ Trend (7 Days)',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: LineChart(
+              LineChartData(
+                gridData: FlGridData(show: true, drawVerticalLine: false),
+                titlesData: FlTitlesData(
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, meta) {
+                        if (value.toInt() >= 0 && value.toInt() < state.dqTrends.length) {
+                          final dateStr = state.dqTrends[value.toInt()].date;
+                          final display = dateStr.length > 5 ? dateStr.substring(5) : dateStr;
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(display, style: const TextStyle(fontSize: 10)),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                      reservedSize: 22,
+                    ),
+                  ),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: true, reservedSize: 28),
+                  ),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                ),
+                borderData: FlBorderData(show: false),
+                minX: 0,
+                maxX: (state.dqTrends.length - 1).toDouble(),
+                minY: 0,
+                maxY: maxY,
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: List.generate(
+                      state.dqTrends.length,
+                      (index) => FlSpot(index.toDouble(), state.dqTrends[index].count.toDouble()),
+                    ),
+                    isCurved: true,
+                    color: Colors.red.shade600,
+                    barWidth: 3,
+                    isStrokeCapRound: true,
+                    dotData: const FlDotData(show: true),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: Colors.red.shade100.withOpacity(0.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDqSeverityChart(DashboardState state) {
+    if (state.dqSeverity.isEmpty) return const SizedBox.shrink();
+    
+    final maxY = state.dqSeverity.map((e) => e.count).fold<int>(0, (p, c) => c > p ? c : p).toDouble() + 5;
+    
+    return Container(
+      height: 240,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.warning, color: Colors.amber.shade800, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                AppLocalizations.of(context)!.dqSeverity,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: BarChart(
+              BarChartData(
+                alignment: BarChartAlignment.spaceAround,
+                maxY: maxY,
+                barTouchData: BarTouchData(enabled: true),
+                titlesData: FlTitlesData(
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, meta) {
+                        if (value.toInt() >= 0 && value.toInt() < state.dqSeverity.length) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              state.dqSeverity[value.toInt()].severity,
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                            ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                      reservedSize: 28,
+                    ),
+                  ),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: true, reservedSize: 28),
+                  ),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                ),
+                gridData: FlGridData(show: true, drawVerticalLine: false),
+                borderData: FlBorderData(show: false),
+                barGroups: List.generate(
+                  state.dqSeverity.length,
+                  (index) {
+                    final sev = state.dqSeverity[index].severity;
+                    Color barColor = Colors.blue;
+                    if (sev == 'HIGH' || sev == 'CRITICAL') barColor = Colors.red.shade600;
+                    if (sev == 'MEDIUM') barColor = Colors.amber.shade600;
+                    return BarChartGroupData(
+                      x: index,
+                      barRods: [
+                        BarChartRodData(
+                          toY: state.dqSeverity[index].count.toDouble(),
+                          color: barColor,
+                          width: 20,
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ),
           ),
         ],
       ),

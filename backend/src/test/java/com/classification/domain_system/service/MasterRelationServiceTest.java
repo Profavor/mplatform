@@ -54,18 +54,19 @@ class MasterRelationServiceTest {
         MasterRelation relation = new MasterRelation();
         relation.setSourceDomainId(sourceDomainId);
         relation.setTargetDomainId(targetDomainId);
+        relation.setSourceFieldKey("target_id");
         relation.setCascadePolicy("RESTRICT");
         relation.setIsActive(true);
 
         when(masterRelationRepository.findByTargetDomainId(targetDomainId))
                 .thenReturn(Arrays.asList(relation));
-        when(recordRepository.existsByNodeDomainIdAndDataContaining(sourceDomainId, recordId.toString()))
+        when(recordRepository.existsReferencingRecord(sourceDomainId, "target_id", recordId.toString()))
                 .thenReturn(true);
 
         boolean canDelete = masterRelationService.checkReferentialIntegrity(recordId, targetDomainId);
         assertFalse(canDelete, "Should return false when RESTRICT policy is active and record is referenced");
         
-        verify(recordRepository, times(1)).existsByNodeDomainIdAndDataContaining(sourceDomainId, recordId.toString());
+        verify(recordRepository, times(1)).existsReferencingRecord(sourceDomainId, "target_id", recordId.toString());
     }
     
     @Test
@@ -77,17 +78,18 @@ class MasterRelationServiceTest {
         MasterRelation relation = new MasterRelation();
         relation.setSourceDomainId(sourceDomainId);
         relation.setTargetDomainId(targetDomainId);
+        relation.setSourceFieldKey("target_id");
         relation.setCascadePolicy("RESTRICT");
         relation.setIsActive(true);
 
         when(masterRelationRepository.findByTargetDomainId(targetDomainId))
                 .thenReturn(Arrays.asList(relation));
-        when(recordRepository.existsByNodeDomainIdAndDataContaining(sourceDomainId, recordId.toString()))
+        when(recordRepository.existsReferencingRecord(sourceDomainId, "target_id", recordId.toString()))
                 .thenReturn(false);
 
         boolean canDelete = masterRelationService.checkReferentialIntegrity(recordId, targetDomainId);
         assertTrue(canDelete, "Should return true when RESTRICT policy is active but record is NOT referenced");
         
-        verify(recordRepository, times(1)).existsByNodeDomainIdAndDataContaining(sourceDomainId, recordId.toString());
+        verify(recordRepository, times(1)).existsReferencingRecord(sourceDomainId, "target_id", recordId.toString());
     }
 }

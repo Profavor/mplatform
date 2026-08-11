@@ -14,6 +14,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import java.util.*;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.elasticsearch.core.query.StringQuery;
+import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
+import org.springframework.data.elasticsearch.core.SearchHit;
+import org.springframework.data.elasticsearch.core.SearchHits;
+import com.classification.domain_system.entity.RecordDocument;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +30,7 @@ public class MatchingService {
     private final ClassificationNodeRepository nodeRepository;
     private final FieldDefinitionRepository fieldDefinitionRepository;
     private final MdmProperties mdmProperties;
+    private final ElasticsearchOperations elasticsearchOperations;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public static class DuplicateResult {
@@ -60,7 +66,21 @@ public class MatchingService {
                         searchParams.put(idDef.getKey(), val.toString());
                         searchParams.put("op_" + idDef.getKey(), "EQ");
                         
-                        List<Record> duplicates = recordRepository.findDynamicRecords(List.of(nodeId), null, searchParams, Pageable.unpaged()).getContent();
+                        List<Record> duplicates = new ArrayList<>();
+                        try {
+                            String json = String.format("{\"bool\": {\"must\": [{\"term\": {\"domainId\": \"%s\"}}, {\"match\": {\"dataMap.%s\": \"%s\"}}]}}",
+                                    node.getDomain().getId().toString(), idDef.getKey(), val.toString().replace("\"", "\\\""));
+                            StringQuery sq = new StringQuery(json);
+                            SearchHits<RecordDocument> hits = elasticsearchOperations.search(sq, RecordDocument.class);
+                            for (SearchHit<RecordDocument> hit : hits) {
+                                Record r = new Record();
+                                r.setId(UUID.fromString(hit.getContent().getId()));
+                                duplicates.add(r);
+                            }
+                        } catch (Exception e) {
+                            duplicates = recordRepository.findDynamicRecords(List.of(nodeId), null, searchParams, Pageable.unpaged()).getContent();
+                        }
+
                         if (!duplicates.isEmpty()) {
                             result.hasDuplicates = true;
                             duplicates.forEach(d -> result.duplicateRecordIds.add(d.getId()));
@@ -83,7 +103,22 @@ public class MatchingService {
                             Map<String, String> searchParams = new HashMap<>();
                             searchParams.put(k, val.toString());
                             searchParams.put("op_" + k, "EQ");
-                            List<Record> duplicates = recordRepository.findDynamicRecords(List.of(nodeId), null, searchParams, Pageable.unpaged()).getContent();
+                            
+                            List<Record> duplicates = new ArrayList<>();
+                            try {
+                                String json = String.format("{\"bool\": {\"must\": [{\"term\": {\"domainId\": \"%s\"}}, {\"match\": {\"dataMap.%s\": \"%s\"}}]}}",
+                                        node.getDomain().getId().toString(), k, val.toString().replace("\"", "\\\""));
+                                StringQuery sq = new StringQuery(json);
+                                SearchHits<RecordDocument> hits = elasticsearchOperations.search(sq, RecordDocument.class);
+                                for (SearchHit<RecordDocument> hit : hits) {
+                                    Record r = new Record();
+                                    r.setId(UUID.fromString(hit.getContent().getId()));
+                                    duplicates.add(r);
+                                }
+                            } catch (Exception e) {
+                                duplicates = recordRepository.findDynamicRecords(List.of(nodeId), null, searchParams, Pageable.unpaged()).getContent();
+                            }
+                            
                             if (!duplicates.isEmpty()) {
                                 result.hasDuplicates = true;
                                 duplicates.forEach(d -> result.duplicateRecordIds.add(d.getId()));
@@ -127,7 +162,25 @@ public class MatchingService {
                     }
 
                     if (hasAllFields) {
-                        List<Record> duplicates = recordRepository.findDynamicRecords(List.of(nodeId), null, searchParams, Pageable.unpaged()).getContent();
+                        List<Record> duplicates = new ArrayList<>();
+                        try {
+                            StringBuilder musts = new StringBuilder();
+                            musts.append(String.format("{\"term\": {\"domainId\": \"%s\"}}", node.getDomain().getId().toString()));
+                            for (String field : fields) {
+                                musts.append(String.format(",{\"match\": {\"dataMap.%s\": \"%s\"}}", field, data.get(field).toString().replace("\"", "\\\"")));
+                            }
+                            String json = String.format("{\"bool\": {\"must\": [%s]}}", musts.toString());
+                            StringQuery sq = new StringQuery(json);
+                            SearchHits<RecordDocument> hits = elasticsearchOperations.search(sq, RecordDocument.class);
+                            for (SearchHit<RecordDocument> hit : hits) {
+                                Record r = new Record();
+                                r.setId(UUID.fromString(hit.getContent().getId()));
+                                duplicates.add(r);
+                            }
+                        } catch (Exception e) {
+                            duplicates = recordRepository.findDynamicRecords(List.of(nodeId), null, searchParams, Pageable.unpaged()).getContent();
+                        }
+                        
                         if (!duplicates.isEmpty()) {
                             result.hasDuplicates = true;
                             duplicates.forEach(d -> result.duplicateRecordIds.add(d.getId()));
@@ -139,46 +192,71 @@ public class MatchingService {
                         }
                     }
                 } else {
-                    // FUZZY matching
-                    int pageSize = (mdmProperties != null && mdmProperties.getMatching() != null && mdmProperties.getMatching().getFuzzyMaxCandidates() > 0)
-                            ? mdmProperties.getMatching().getFuzzyMaxCandidates() : 500;
-                    int maxPages = (mdmProperties != null && mdmProperties.getMatching() != null && mdmProperties.getMatching().getFuzzyMaxPages() > 0)
-                            ? mdmProperties.getMatching().getFuzzyMaxPages() : 10;
-                    for (int page = 0; page < maxPages; page++) {
-                        org.springframework.data.domain.Page<Record> candidatePage = recordRepository.findByNodeId(nodeId, org.springframework.data.domain.PageRequest.of(page, pageSize));
-                        List<Record> candidateRecords = candidatePage.getContent();
-                        for (Record cand : candidateRecords) {
-                            if (cand.getData() == null) continue;
-                            try {
-                                Map<String, Object> candData = mapper.readValue(cand.getData(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
-                                double totalScore = 0.0;
-                                int count = 0;
-                                for (String field : fields) {
-                                    Object v1 = data.get(field);
-                                    Object v2 = candData.get(field);
-                                    if (v1 != null && v2 != null) {
-                                        String s1 = v1.toString().trim().toLowerCase().replaceAll("[^a-zA-Z0-9가-힣]", "");
-                                        String s2 = v2.toString().trim().toLowerCase().replaceAll("[^a-zA-Z0-9가-힣]", "");
-                                        double sim = similarityAlgo.apply(s1, s2);
-                                        totalScore += sim;
-                                        count++;
-                                    }
-                                }
-                                if (count > 0) {
-                                    double avgScore = totalScore / count;
-                                    if (avgScore >= threshold) {
-                                        result.hasDuplicates = true;
-                                        result.duplicateRecordIds.add(cand.getId());
-                                        result.message = "Fuzzy duplicate candidate found based on rule: " + rule.getRuleName() + " (Score: " + String.format("%.2f", avgScore) + ")";
-                                        result.score = avgScore;
-                                        result.matchedRuleId = rule.getId();
-                                        result.matchType = "FUZZY";
-                                        return result;
-                                    }
-                                }
-                            } catch (Exception ignored) {}
+                    try {
+                        StringBuilder shoulds = new StringBuilder();
+                        for (String field : fields) {
+                            Object val = data.get(field);
+                            if (val != null && !val.toString().isBlank()) {
+                                if (shoulds.length() > 0) shoulds.append(",");
+                                shoulds.append(String.format("{\"fuzzy\": {\"dataMap.%s\": {\"value\": \"%s\", \"fuzziness\": \"AUTO\"}}}", field, val.toString().replace("\"", "\\\"")));
+                            }
                         }
-                        if (!candidatePage.hasNext()) break;
+                        String json = String.format("{\"bool\": {\"must\": [{\"term\": {\"domainId\": \"%s\"}}], \"should\": [%s], \"minimum_should_match\": 1}}", node.getDomain().getId().toString(), shoulds.toString());
+                        StringQuery sq = new StringQuery(json);
+                        sq.setMaxResults(10);
+                        SearchHits<RecordDocument> hits = elasticsearchOperations.search(sq, RecordDocument.class);
+                        if (hits.hasSearchHits()) {
+                            SearchHit<RecordDocument> firstHit = hits.getSearchHit(0);
+                            result.hasDuplicates = true;
+                            result.duplicateRecordIds.add(UUID.fromString(firstHit.getContent().getId()));
+                            result.message = "Fuzzy duplicate candidate found via OpenSearch (rule: " + rule.getRuleName() + ")";
+                            result.score = (double) firstHit.getScore();
+                            result.matchedRuleId = rule.getId();
+                            result.matchType = "FUZZY";
+                            return result;
+                        }
+                    } catch (Exception fallbackE) {
+                        // FUZZY matching (JPA Fallback with JaroWinkler)
+                        int pageSize = (mdmProperties != null && mdmProperties.getMatching() != null && mdmProperties.getMatching().getFuzzyMaxCandidates() > 0)
+                                ? mdmProperties.getMatching().getFuzzyMaxCandidates() : 500;
+                        int maxPages = (mdmProperties != null && mdmProperties.getMatching() != null && mdmProperties.getMatching().getFuzzyMaxPages() > 0)
+                                ? mdmProperties.getMatching().getFuzzyMaxPages() : 10;
+                        for (int page = 0; page < maxPages; page++) {
+                            org.springframework.data.domain.Page<Record> candidatePage = recordRepository.findByNodeId(nodeId, org.springframework.data.domain.PageRequest.of(page, pageSize));
+                            List<Record> candidateRecords = candidatePage.getContent();
+                            for (Record cand : candidateRecords) {
+                                if (cand.getData() == null) continue;
+                                try {
+                                    Map<String, Object> candData = mapper.readValue(cand.getData(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+                                    double totalScore = 0.0;
+                                    int count = 0;
+                                    for (String field : fields) {
+                                        Object v1 = data.get(field);
+                                        Object v2 = candData.get(field);
+                                        if (v1 != null && v2 != null) {
+                                            String s1 = v1.toString().trim().toLowerCase().replaceAll("[^a-zA-Z0-9가-힣]", "");
+                                            String s2 = v2.toString().trim().toLowerCase().replaceAll("[^a-zA-Z0-9가-힣]", "");
+                                            double sim = similarityAlgo.apply(s1, s2);
+                                            totalScore += sim;
+                                            count++;
+                                        }
+                                    }
+                                    if (count > 0) {
+                                        double avgScore = totalScore / count;
+                                        if (avgScore >= threshold) {
+                                            result.hasDuplicates = true;
+                                            result.duplicateRecordIds.add(cand.getId());
+                                            result.message = "Fuzzy duplicate candidate found based on rule: " + rule.getRuleName() + " (Score: " + String.format("%.2f", avgScore) + ")";
+                                            result.score = avgScore;
+                                            result.matchedRuleId = rule.getId();
+                                            result.matchType = "FUZZY";
+                                            return result;
+                                        }
+                                    }
+                                } catch (Exception ignored) {}
+                            }
+                            if (!candidatePage.hasNext()) break;
+                        }
                     }
                 }
             }
@@ -198,36 +276,54 @@ public class MatchingService {
             return Collections.emptyList();
         }
         
-        org.springframework.data.domain.Page<Record> candidatePage = recordRepository.findByNodeId(nodeId, org.springframework.data.domain.PageRequest.of(page, size));
-        List<Map<String, Object>> results = new ArrayList<>();
-        org.apache.commons.text.similarity.JaroWinklerSimilarity similarityAlgo = new org.apache.commons.text.similarity.JaroWinklerSimilarity();
-        String s2 = keyword.trim().toLowerCase().replaceAll("[^a-zA-Z0-9가-힣]", "");
-        
-        for (Record cand : candidatePage.getContent()) {
-            if (cand.getData() == null) continue;
-            try {
-                Map<String, Object> candData = mapper.readValue(cand.getData(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
-                double maxScore = 0.0;
-                for (Object value : candData.values()) {
-                    if (value == null) continue;
-                    String s1 = value.toString().trim().toLowerCase().replaceAll("[^a-zA-Z0-9가-힣]", "");
-                    double sim = similarityAlgo.apply(s1, s2);
-                    if (sim > maxScore) {
-                        maxScore = sim;
+        try {
+            String domainId = nodeRepository.findById(nodeId).map(n -> n.getDomain().getId().toString()).orElse("");
+            String json = String.format("{\"bool\": {\"must\": [{\"term\": {\"domainId\": \"%s\"}}, {\"match\": {\"searchableData\": \"%s\"}}]}}",
+                    domainId, keyword.replace("\"", "\\\""));
+            StringQuery sq = new StringQuery(json);
+            sq.setPageable(org.springframework.data.domain.PageRequest.of(page, size));
+            SearchHits<RecordDocument> hits = elasticsearchOperations.search(sq, RecordDocument.class);
+            List<Map<String, Object>> results = new ArrayList<>();
+            for (SearchHit<RecordDocument> hit : hits) {
+                Map<String, Object> map = new HashMap<>();
+                map.put("recordId", UUID.fromString(hit.getContent().getId()));
+                map.put("data", hit.getContent().getData() != null ? hit.getContent().getData() : new HashMap<>());
+                map.put("score", (double) hit.getScore());
+                results.add(map);
+            }
+            return results;
+        } catch (Exception e) {
+            org.springframework.data.domain.Page<Record> candidatePage = recordRepository.findByNodeId(nodeId, org.springframework.data.domain.PageRequest.of(page, size));
+            List<Map<String, Object>> results = new ArrayList<>();
+            org.apache.commons.text.similarity.JaroWinklerSimilarity similarityAlgo = new org.apache.commons.text.similarity.JaroWinklerSimilarity();
+            String s2 = keyword.trim().toLowerCase().replaceAll("[^a-zA-Z0-9가-힣]", "");
+            
+            for (Record cand : candidatePage.getContent()) {
+                if (cand.getData() == null) continue;
+                try {
+                    Map<String, Object> candData = mapper.readValue(cand.getData(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+                    double maxScore = 0.0;
+                    for (Object value : candData.values()) {
+                        if (value == null) continue;
+                        String s1 = value.toString().trim().toLowerCase().replaceAll("[^a-zA-Z0-9가-힣]", "");
+                        double sim = similarityAlgo.apply(s1, s2);
+                        if (sim > maxScore) {
+                            maxScore = sim;
+                        }
                     }
-                }
-                
-                if (maxScore >= 0.5) {
-                    Map<String, Object> hit = new HashMap<>();
-                    hit.put("recordId", cand.getId());
-                    hit.put("data", candData);
-                    hit.put("score", maxScore);
-                    results.add(hit);
-                }
-            } catch (Exception ignored) {}
+                    
+                    if (maxScore >= 0.5) {
+                        Map<String, Object> hit = new HashMap<>();
+                        hit.put("recordId", cand.getId());
+                        hit.put("data", candData);
+                        hit.put("score", maxScore);
+                        results.add(hit);
+                    }
+                } catch (Exception ignored) {}
+            }
+            
+            results.sort((a, b) -> Double.compare((Double) b.get("score"), (Double) a.get("score")));
+            return results;
         }
-        
-        results.sort((a, b) -> Double.compare((Double) b.get("score"), (Double) a.get("score")));
-        return results;
     }
 }

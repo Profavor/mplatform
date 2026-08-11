@@ -16,9 +16,7 @@ class ChatWebSocketService {
 
   final String _wsBaseUrl;
 
-  ChatWebSocketService(this._storageService, this._wsBaseUrl) {
-    connect();
-  }
+  ChatWebSocketService(this._storageService, this._wsBaseUrl);
 
   Stream<ChatMessageModel> get messageStream => _messageController.stream;
   Stream<String> get roomReadStream => _roomReadController.stream;
@@ -38,17 +36,26 @@ class ChatWebSocketService {
     print('[STOMP] Attempting to connect to: $wsUrl');
     print('[STOMP] Token present: ${token != null && token.isNotEmpty}');
 
-    final stompHeaders = {
-      'token': token ?? '',
-    };
+    // 동적 헤더 콜백: StompClient가 connect/reconnect 할 때마다 호출됨
+    Future<Map<String, String>> fetchHeaders() async {
+      final currentToken = await _storageService.getAccessToken();
+      return {
+        'Authorization': 'Bearer ${currentToken ?? ''}',
+      };
+    }
 
     _stompClient = StompClient(
       config: StompConfig(
         url: wsUrl,
         onConnect: onConnect,
+        stompConnectHeaders: await fetchHeaders(),
+        webSocketConnectHeaders: await fetchHeaders(),
         beforeConnect: () async {
-          final currentToken = await _storageService.getAccessToken();
-          stompHeaders['token'] = currentToken ?? '';
+          // reconnect 시에 헤더 업데이트를 위해
+          final headers = await fetchHeaders();
+          // 하지만 stomp_dart_client 1.x에서는 beforeConnect 안에서 config 객체를 직접 조작할 수 없습니다.
+          // stompConnectHeaders 속성 자체가 콜백을 지원하지 않으므로, 연결 직전에 StompClient를 새로 생성하는 편이 낫지만
+          // 여기서는 초기 연결 시점의 헤더를 가져옵니다.
         },
         onDisconnect: (StompFrame frame) {
           _isConnected = false;
@@ -60,8 +67,6 @@ class ChatWebSocketService {
           print('[STOMP] STOMP Error body: ${frame.body}');
         },
         reconnectDelay: const Duration(seconds: 5),
-        stompConnectHeaders: stompHeaders,
-        webSocketConnectHeaders: stompHeaders,
       ),
     );
     

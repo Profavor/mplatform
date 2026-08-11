@@ -18,6 +18,12 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Map;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 @Component
 @Slf4j
@@ -27,16 +33,20 @@ public class JwtFilter extends OncePerRequestFilter {
     private final PermissionService permissionService;
     private final AuthContext authContext;
     private final ObjectProvider<UserRepository> userRepositoryProvider;
+    private final ObjectProvider<JwtDecoder> jwtDecoderProvider;
 
-    public JwtFilter(JwtUtil jwtUtil, PermissionService permissionService, AuthContext authContext, ObjectProvider<UserRepository> userRepositoryProvider) {
+    public JwtFilter(JwtUtil jwtUtil, PermissionService permissionService, AuthContext authContext, 
+                     ObjectProvider<UserRepository> userRepositoryProvider,
+                     ObjectProvider<JwtDecoder> jwtDecoderProvider) {
         this.jwtUtil = jwtUtil;
         this.permissionService = permissionService;
         this.authContext = authContext;
         this.userRepositoryProvider = userRepositoryProvider;
+        this.jwtDecoderProvider = jwtDecoderProvider;
     }
 
     public static JwtFilter createForTest(JwtUtil jwtUtil, PermissionService permissionService, AuthContext authContext, UserRepository userRepository) {
-        return new JwtFilter(jwtUtil, permissionService, authContext, new SimpleObjectProvider<>(userRepository));
+        return new JwtFilter(jwtUtil, permissionService, authContext, new SimpleObjectProvider<>(userRepository), new SimpleObjectProvider<>(null));
     }
 
     private static class SimpleObjectProvider<T> implements ObjectProvider<T> {
@@ -71,6 +81,12 @@ public class JwtFilter extends OncePerRequestFilter {
         }
 
         if (jwt != null) {
+            // 1. Keycloak JWT 시도 (issuer 기반 판별)
+            if (tryKeycloakAuth(jwt, request)) {
+                chain.doFilter(request, response);
+                return;
+            }
+            // 2. 기존 자체 JWT 시도
             try {
                 username = jwtUtil.extractUsername(jwt);
             } catch (Exception e) {
@@ -115,5 +131,39 @@ public class JwtFilter extends OncePerRequestFilter {
             }
         }
         chain.doFilter(request, response);
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean tryKeycloakAuth(String token, HttpServletRequest request) {
+        JwtDecoder decoder = jwtDecoderProvider != null ? jwtDecoderProvider.getIfAvailable() : null;
+        if (decoder == null) return false;
+
+        try {
+            Jwt jwt = decoder.decode(token);
+            String preferredUsername = jwt.getClaimAsString("preferred_username");
+            String sub = jwt.getSubject();
+            if (preferredUsername == null) return false;
+
+            authContext.setUserId(sub != null ? sub : preferredUsername);
+
+            // realm_access.roles → GrantedAuthority
+            List<GrantedAuthority> authorities = new java.util.ArrayList<>();
+            Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
+            if (realmAccess != null && realmAccess.containsKey("roles")) {
+                List<String> roles = (List<String>) realmAccess.get("roles");
+                authorities.addAll(roles.stream()
+                    .map(r -> (GrantedAuthority) new SimpleGrantedAuthority("ROLE_" + r.toUpperCase()))
+                    .collect(Collectors.toList()));
+            }
+
+            UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                    preferredUsername, null, authorities);
+            SecurityContextHolder.getContext().setAuthentication(auth);
+            log.debug("Keycloak JWT authenticated: {}", preferredUsername);
+            return true;
+        } catch (Exception e) {
+            log.debug("Not a valid Keycloak JWT, falling back to internal JWT", e);
+            return false;
+        }
     }
 }

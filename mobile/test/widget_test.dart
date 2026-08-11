@@ -35,6 +35,8 @@ void main() {
     when(mockApprovalsRepo.getMySubmittedApprovals()).thenAnswer((_) async => []);
     when(mockChatRepo.getChatRooms()).thenAnswer((_) async => []);
     when(mockChatWs.messageStream).thenAnswer((_) => const Stream.empty());
+    when(mockChatWs.notificationStream).thenAnswer((_) => const Stream.empty());
+    when(mockChatWs.roomReadStream).thenAnswer((_) => const Stream.empty());
 
     await tester.pumpWidget(ProviderScope(
       overrides: [

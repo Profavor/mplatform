@@ -58,8 +58,9 @@ public class MasterRelationService {
         
         for (MasterRelation relation : relations) {
             if ("RESTRICT".equalsIgnoreCase(relation.getCascadePolicy()) && Boolean.TRUE.equals(relation.getIsActive())) {
-                boolean isReferenced = recordRepository.existsByNodeDomainIdAndDataContaining(
+                boolean isReferenced = recordRepository.existsReferencingRecord(
                         relation.getSourceDomainId(), 
+                        relation.getSourceFieldKey(),
                         recordId.toString());
                 
                 if (isReferenced) {
