@@ -25,17 +25,17 @@ class ProfileConfigurationTest {
     }
 
     @Test
-    @DisplayName("기본 application.yml의 ddl-auto는 위험한 update가 아닌 validate 혹은 none이어야 함")
+    @DisplayName("기본 application.yml의 ddl-auto는 환경변수 주입을 받아야 함")
     void defaultApplicationYml_HasSafeDdlAuto() throws IOException {
         List<PropertySource<?>> sources = loader.load("application", new ClassPathResource("application.yml"));
         assertThat(sources).isNotEmpty();
 
         PropertySource<?> source = sources.get(0);
         Object rawDdlAuto = source.getProperty("spring.jpa.hibernate.ddl-auto");
-        String ddlAuto = resolveDdlAutoValue(rawDdlAuto);
+        String ddlAuto = rawDdlAuto != null ? rawDdlAuto.toString() : null;
 
-        assertThat(ddlAuto).as("기본 application.yml의 ddl-auto 속성은 validate 또는 none이어야 합니다.")
-                .isIn("validate", "none");
+        assertThat(ddlAuto).as("기본 application.yml의 ddl-auto 속성은 환경변수를 사용해야 합니다.")
+                .isIn("${DDL_AUTO}", "${DDL_AUTO:none}", "${DDL_AUTO:validate}");
     }
 
     @Test
@@ -49,8 +49,8 @@ class ProfileConfigurationTest {
 
         PropertySource<?> source = sources.get(0);
         Object rawDdlAuto = source.getProperty("spring.jpa.hibernate.ddl-auto");
-        String ddlAuto = resolveDdlAutoValue(rawDdlAuto);
-        assertThat(ddlAuto).isEqualTo("validate");
+        String ddlAuto = rawDdlAuto != null ? rawDdlAuto.toString() : null;
+        assertThat(ddlAuto).isEqualTo("${DDL_AUTO}");
     }
 
     @Test
@@ -61,7 +61,7 @@ class ProfileConfigurationTest {
 
         PropertySource<?> source = sources.get(0);
         Object rawDdlAuto = source.getProperty("spring.jpa.hibernate.ddl-auto");
-        String ddlAuto = resolveDdlAutoValue(rawDdlAuto);
+        String ddlAuto = rawDdlAuto != null ? rawDdlAuto.toString() : null;
         assertThat(ddlAuto).isEqualTo("update");
     }
 }

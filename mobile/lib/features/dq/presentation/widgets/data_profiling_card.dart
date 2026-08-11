@@ -22,18 +22,17 @@ class _DataProfilingCardState extends ConsumerState<DataProfilingCard> {
   }
 
   Future<void> _fetchProfiling() async {
+    if (!mounted) return;
     try {
-      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:8080')); // Replace with config provider
-      final storage = ref.read(storageServiceProvider);
-      final token = await storage.getAccessToken();
+      final dio = ref.read(dioProvider);
 
       // Fetch domains to get an ID
-      final domainRes = await dio.get('/api/v1/domains', options: Options(headers: {'Authorization': 'Bearer $token'}));
+      final domainRes = await dio.get('/api/v1/domains');
       
       if (domainRes.statusCode == 200 && (domainRes.data as List).isNotEmpty) {
         final domainId = domainRes.data[0]['id'];
         
-        final profRes = await dio.get('/api/v1/domains/$domainId/profiling', options: Options(headers: {'Authorization': 'Bearer $token'}));
+        final profRes = await dio.get('/api/v1/domains/$domainId/profiling');
         if (profRes.statusCode == 200) {
           if (mounted) {
             setState(() {
