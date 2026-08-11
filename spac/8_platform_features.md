@@ -40,3 +40,35 @@
   - 다국어 글로벌 환경의 스튜어드 간 소통을 위해 메시지 송수신 시 원클릭 번역 및 번역 토글(`translateMessage`, `hideTranslation`)을 기본 탑재한다.
 - **스프레드시트 및 테이블 프리뷰어:**
   - Excel 대량 파일이나 복잡한 데이터셋을 업로드하기 전 즉시 가시화해볼 수 있는 대화형 데이터 뷰어 모달(`ExcelPreviewModal`, `TableDataViewerModal`) 및 유튜브 계정 연동 DJ 방송 제어판 기능까지 지원한다.
+
+---
+
+## 8.6 전역 통합 검색 (Global Search)
+- OpenSearch 기반으로 도메인과 레코드를 실시간으로 인덱싱하여 빠른 풀텍스트 검색 및 다중 필드 조합 검색을 제공한다.
+
+## 8.7 시스템 모니터링 (Observability)
+- Spring Boot Actuator와 Micrometer를 통해 애플리케이션의 핵심 지표(HTTP 요청률, Latency p95, JVM Heap, GC, HikariCP Pool, CPU 등)를 Prometheus로 수집하고 Grafana 대시보드에 시각화하여 플랫폼의 가용성을 모니터링한다.
+
+## 8.8 파일 스토리지 (MinIO Object Storage)
+- AWS S3 호환 MinIO SDK를 기반으로 분산 파일 스토리지를 구성하여 대용량 파일 업로드/다운로드, 버킷 단위 관리, 프리사인드 URL(Pre-signed URL) 기반 안전한 파일 접근을 지원한다.
+
+## 8.9 실시간 알림 시스템 (Real-time Notifications)
+- 결재 상태 변경, 도메인 권한 승인, DQ 스캔 완료 등 플랫폼 내 주요 이벤트 발생 시 SSE(Server-Sent Events)와 STOMP WebSocket을 결합한 이중 채널 구조로 클라이언트에게 지연 없는 실시간 알림을 푸시한다.
+
+## 8.10 AI 기반 DQ 룰 추천 (DQ Rule Recommendation)
+- 도메인 필드 메타데이터 및 데이터 프로파일링 통계를 기반으로 적절한 데이터 품질(DQ) 검증 규칙을 AI가 자동 추천하여 스튜어드의 설정 부담을 줄인다.
+
+## 8.11 데이터 프로파일링 (Data Profiling)
+- 도메인 내 전체 레코드의 각 필드에 대해 null 비율, 고유값(Distinct) 수, 데이터 분포 통계 등 메타 수준의 프로파일링을 자동 수행하여 데이터의 건강 상태를 진단한다.
+
+## 8.12 스키마 영향도 분석 (Schema Impact Analysis)
+- 스키마 구조 변경(필드 삭제/타입 변경 등)을 시도할 때, 해당 필드를 참조하고 있는 레코드, DQ 룰 세트, 연계 채널 매핑 설정의 파급 영향을 사전에 스캔하고 영향도 보고서를 제공한다.
+
+## 8.13 마스터 데이터 간 관계 (Master Data Relations)
+- 서로 다른 도메인 간의 논리적 참조(예: '사원' 도메인과 '부서' 도메인 간 연결)를 정의하고, 레코드 수준에서 크로스 도메인 탐색이 가능하도록 관계망을 형성한다.
+
+## 8.14 자동 채번 서비스 (Numbering Service)
+- 도메인별로 정의된 접두사, 날짜 포맷, 일련번호 증가 규칙에 따라 레코드 생성 시 고유 식별 코드를 동적으로 자동 생성(채번)하는 서비스를 제공한다.
+
+## 8.15 모바일 앱 (Flutter Cross-Platform)
+- Flutter 프레임워크를 기반으로 Android, iOS, Web을 동시 지원하는 크로스 플랫폼 모바일 앱을 제공한다. Riverpod 상태관리, GoRouter 라우팅, Dio 네트워크 클라이언트, STOMP 채팅을 활용하여 모바일에서도 결재, 채팅 등 주요 기능을 끊김 없이 사용할 수 있다.

@@ -150,3 +150,179 @@
 
 > **💡 암호화 필드(`is_encrypted=true`)의 데이터 저장은 어떻게 되나요?**
 > `field_definition`에서 `is_encrypted=true`로 선언된 항목은 `record.data` JSONB 내에 평문이 아닌 **32바이트 AES 대칭키로 암호화된 Base64 문자열**로 반영된다. 일치 검색이 필요한 경우 원본 복원 키와 분리된 HMAC SHA-256 전용 키를 통해 생성되는 **Blind Index 해시값**을 대조함으로써, 관리자 DB 조회 시에도 원본 평문이 노출되지 않는 제로 트러스트(Zero Trust) 구조를 달성한다.
+
+### 3.9 사용자/조직 관리 (User & Organization)
+사용자 및 조직도 구성을 위한 테이블.
+
+#### user
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | string/PK | 사용자 ID |
+| username | string | 사용자 로그인 아이디 |
+| name | string | 사용자 이름 |
+| email | string | 이메일 |
+| department_id | UUID/FK | 주 소속 부서 |
+| created_at / updated_at | datetime | |
+
+#### role
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | UUID/PK | 역할 ID |
+| code | string | 역할 코드 (예: ADMIN, USER) |
+| name | JSONB | 역할명 다국어 |
+
+#### user_role
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | UUID/PK | 매핑 ID |
+| user_id | string/FK | 사용자 ID |
+| role_id | UUID/FK | 역할 ID |
+
+#### organization, department, team
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | UUID/PK | 식별자 ID |
+| parent_id | UUID/FK, nullable | 상위 조직 ID |
+| name | JSONB | 조직명 다국어 |
+
+#### user_org_history
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | UUID/PK | 이력 ID |
+| user_id | string/FK | 사용자 ID |
+| department_id | UUID/FK | 발령 부서 ID |
+| effective_date | date | 발령 일자 |
+
+### 3.10 메뉴 시스템 (Menu)
+#### menu
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | UUID/PK | 메뉴 ID |
+| parent_id | UUID/FK | 부모 메뉴 ID |
+| name | JSONB | 메뉴명 다국어 |
+| path | string | 라우팅 경로 |
+
+#### menu_access_log
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | UUID/PK | 로그 ID |
+| user_id | string/FK | 사용자 ID |
+| menu_id | UUID/FK | 접근 메뉴 ID |
+| accessed_at | datetime | 접근 일시 |
+
+### 3.11 권한 관리 (Permission)
+#### permission_group, permission_item
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | UUID/PK | 권한 식별자 |
+| code | string | 권한 코드 |
+| description | string | 권한 설명 |
+
+### 3.12 STOMP 채팅 (Chat)
+#### chat_message, chat_message_room, chat_message_room_member
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | UUID/PK | 식별자 |
+| room_id | UUID/FK | 채팅방 ID |
+| sender_id | string/FK | 송신자 ID |
+| content | text | 메시지 내용 |
+
+### 3.13 알림 (Notification)
+#### notification
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | UUID/PK | 알림 ID |
+| user_id | string/FK | 수신자 ID |
+| message | string | 알림 내용 |
+| is_read | boolean | 읽음 여부 |
+| created_at | datetime | 생성 일시 |
+
+### 3.14 배치 처리 (BatchJob & Staging)
+#### batch_job
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | UUID/PK | 배치 ID |
+| job_type | string | 작업 유형 (IMPORT, EXPORT) |
+| status | string | 상태 (RUNNING, COMPLETED, FAILED) |
+
+#### staging_record
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | UUID/PK | 임시 레코드 ID |
+| batch_job_id | UUID/FK | 배치 작업 ID |
+| raw_data | text | 원본 데이터 |
+
+### 3.15 검색 인덱스 (RecordDocument)
+#### record_document
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | string/PK | 오픈서치 문서 ID (Record ID와 동일) |
+| domain_id | UUID/FK | 도메인 ID |
+| indexed_data | JSON | 검색용 인덱싱 데이터 |
+
+### 3.16 도메인 기능 확장
+#### master_relation (마스터 데이터 관계)
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | UUID/PK | 관계 ID |
+| source_domain_id | UUID/FK | 소스 도메인 |
+| target_domain_id | UUID/FK | 타겟 도메인 |
+
+#### taxonomy_version (분류체계 버전)
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | UUID/PK | 버전 ID |
+| domain_id | UUID/FK | 도메인 ID |
+| version_tag | string | 버전 태그 |
+| snapshot_data | JSONB | 체계 스냅샷 |
+
+#### domain_access_request, domain_permission (도메인 권한)
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | UUID/PK | 식별자 |
+| domain_id | UUID/FK | 도메인 |
+| user_id | string/FK | 사용자 |
+| access_level | string | 접근 수준 (READ, WRITE) |
+
+#### dq_scan_schedule (DQ 스케줄)
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | UUID/PK | 스케줄 ID |
+| domain_id | UUID/FK | 도메인 ID |
+| cron_expression | string | 실행 주기 |
+
+#### workflow_config (워크플로우 설정)
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | UUID/PK | 워크플로우 ID |
+| domain_id | UUID/FK | 도메인 ID |
+| config_json | JSONB | 결재선 규칙 |
+
+### 3.17 공통 및 시스템 (System & Logs)
+#### login_log, error_log
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | UUID/PK | 로그 ID |
+| user_id | string | 사용자 |
+| error_message | text | 오류 메시지 |
+| created_at | datetime | 발생 일시 |
+
+#### system_config
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| config_key | string/PK | 설정 키 |
+| config_value | text | 설정 값 |
+
+#### user_youtube_config
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| user_id | string/PK | 사용자 ID |
+| api_key | string | 유튜브 연동 키 |
+
+#### code_group, code_detail
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | UUID/PK | 코드 식별자 |
+| group_code | string | 그룹 코드 |
+| detail_code | string | 상세 코드 |
+| name | JSONB | 코드명 다국어 |

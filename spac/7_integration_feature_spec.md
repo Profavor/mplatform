@@ -21,3 +21,20 @@
   - `GET /api/admin/integration/logs/dead-letter`: DLQ 목록 조회
   - `POST /api/admin/integration/logs/{logId}/retry`: 개별 로그 1건 수동 재시도
   - `POST /api/admin/integration/logs/dead-letter/retry-all`: DLQ 전체 일괄 재시도
+
+---
+
+## 7.3 인바운드 연계 인증
+- 외부 시스템에서 플랫폼으로 데이터를 전송할 때는 채널별로 발급된 고유 시크릿 토큰을 HTTP 헤더를 통해 검증하는 Webhook 인증 메커니즘을 사용한다.
+
+## 7.4 아웃바운드 연계 프로토콜별 상세
+- **HTTP REST Webhook:** Spring Integration HTTP Outbound Gateway를 통해 RESTful API 호출 수행.
+- **JDBC Direct:** MySQL, MariaDB, Oracle, MSSQL 등 내장 드라이버를 활용해 Spring Integration JDBC Outbound Adapter로 직접 SQL 쿼리 실행.
+- **Apache Kafka:** Spring Kafka Producer를 이용한 메시지 스트림 전송.
+- **RabbitMQ AMQP:** Spring AMQP Template을 활용한 메시지 큐 전송.
+
+## 7.5 연계 채널 SpEL 매핑
+- 채널에 정의된 `mapping_config_json` 설정을 통해, 수신되거나 발신되는 페이로드를 Spring Expression Language(SpEL) 기반으로 동적 구조 변환 및 데이터 매핑한다.
+
+## 7.6 비동기 대량 데이터 내보내기
+- 수십만 건의 대용량 레코드 조회를 엑셀로 내보낼 시 브라우저 타임아웃을 방지하기 위해 `AsyncBatchExportService`를 사용한다. 내보내기 작업은 백그라운드에서 비동기로 수행되며 완료된 파일은 MinIO 오브젝트 스토리지에 업로드되어 알림을 통해 다운로드 링크가 제공된다.
