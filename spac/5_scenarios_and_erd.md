@@ -4,14 +4,20 @@
 
 ```mermaid
 erDiagram
+    user ||--o{ user_role : "has"
+    role ||--o{ user_role : "assigned to"
+    
     domain ||--o{ classification_axis : "possesses"
     domain ||--o{ classification_node : "has root nodes"
     domain ||--o{ dq_score_snapshot : "records trend"
     domain ||--o{ integration_channels : "configures"
+    domain ||--o{ workflow_config : "defines workflow"
+    domain ||--o{ master_relation : "source"
 
     classification_axis ||--o{ classification_node : "defines axis nodes"
     classification_node ||--o{ classification_node : "parent-child tree"
     classification_node ||--o{ field_definition : "defines fields"
+    classification_node ||--o{ workflow_config : "overrides workflow"
 
     record }|--|| classification_node : "primary node"
     record ||--o{ record_secondary_node : "secondary axis nodes"
@@ -19,8 +25,32 @@ erDiagram
 
     record ||--o{ record_history : "tracks versions"
     record ||--o{ record_field_source : "field lineage"
+    record ||--o{ approval_request : "triggers approval"
 
     integration_channels ||--o{ integration_logs : "emits"
+
+    chat_message_room ||--o{ chat_message : "contains"
+    user ||--o{ chat_message : "sends"
+    user ||--o{ notification : "receives"
+    
+    batch_job ||--o{ staging_record : "processes"
+
+    user {
+        string id PK
+        string username
+        string name
+    }
+    
+    role {
+        uuid id PK
+        string code
+    }
+
+    user_role {
+        uuid id PK
+        string user_id FK
+        uuid role_id FK
+    }
 
     domain {
         uuid id PK
@@ -88,6 +118,44 @@ erDiagram
         int retry_count
         datetime next_retry_at
     }
+
+    workflow_config {
+        uuid id PK
+        uuid domain_id FK
+        jsonb config_json
+    }
+
+    master_relation {
+        uuid id PK
+        uuid source_domain_id FK
+        uuid target_domain_id FK
+    }
+
+    approval_request {
+        uuid id PK
+        uuid record_id FK
+        string status
+    }
+    
+    chat_message {
+        uuid id PK
+        uuid room_id FK
+        string sender_id FK
+        text content
+    }
+    
+    notification {
+        uuid id PK
+        string user_id FK
+        string message
+        boolean is_read
+    }
+
+    batch_job {
+        uuid id PK
+        string job_type
+        string status
+    }
 ```
 
 ## 5.2 주요 운영 시나리오
@@ -107,3 +175,22 @@ erDiagram
 4. **연계 지수 백오프 및 Dead-Letter Queue 처리**:
    - 외부 시스템 연계 장애 시 지수 백오프에 따른 자동 재시도 실행.
    - 최대 재시도 초과 시 DLQ 상태로 전환되어 관리자 전용 대시보드에서 일괄 재시도 수행.
+
+5. **시스템 초기 설치**:
+   - `/api/system/install` 엔드포인트를 통한 위저드로 어드민 계정 생성 및 Keycloak Realm 연동 초기화 진행.
+
+6. **사용자/조직 관리**:
+   - 관리자가 조직 트리를 생성하고 사용자를 부서에 배치.
+   - 사용자에 역할을 할당하고 `DomainPermission`을 통해 도메인 접근 권한을 매핑.
+
+7. **실시간 협업**:
+   - 사용자가 STOMP 기반 인앱 메신저에 연결.
+   - 채팅방을 생성하고 실시간 메시지를 주고받으며 번역 기능을 통해 글로벌 커뮤니케이션.
+
+8. **모니터링**:
+   - Prometheus를 통해 시스템 리소스, 지연 시간(Latency) 등 메트릭 수집.
+   - Grafana 대시보드에 실시간 시각화하여 플랫폼 가용성 확인.
+
+9. **대량 데이터 비동기 내보내기**:
+   - `AsyncBatchExportService`를 통해 대용량 레코드 엑셀 다운로드 요청.
+   - BatchJob의 상태를 폴링하여 완료 시 생성된 파일 링크를 제공.

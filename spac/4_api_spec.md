@@ -73,3 +73,70 @@
 | GET | `/admin/integration/logs/dead-letter` | Dead-Letter Queue 연계 실패 로그 조회 *(신규)* |
 | POST | `/admin/integration/logs/dead-letter/retry-all` | DLQ전건 일괄 수동 재시도 *(신규)* |
 | POST | `/admin/integration/logs/{logId}/retry` | 연계 실패 1건 수동 재시도 *(신규)* |
+
+### 인증 및 권한 (Auth & Permissions)
+| Method | Endpoint | 설명 |
+|---|---|---|
+| POST | `/auth/login` | 로그인 |
+| POST | `/auth/refresh` | 토큰 갱신 |
+| POST | `/auth/change-password` | 비밀번호 변경 |
+| GET / PUT | `/admin/permissions` | 권한 매트릭스 조회 및 수정 |
+
+### 사용자 및 조직 (Users & Organizations)
+| Method | Endpoint | 설명 |
+|---|---|---|
+| GET / POST / PUT | `/admin/users` | 사용자 관리 및 역할 할당 |
+| GET / POST / PUT / DELETE | `/admin/organizations` | 조직 관리 |
+| GET / POST / PUT / DELETE | `/admin/departments` | 부서 관리 |
+| GET / POST / PUT / DELETE | `/admin/teams` | 팀 관리 |
+
+### 시스템 및 공통 관리
+| Method | Endpoint | 설명 |
+|---|---|---|
+| GET / POST / PUT / DELETE | `/admin/menus/tree` | 트리 메뉴 관리 |
+| GET / POST / PUT / DELETE | `/admin/codes/groups` | 공통 코드 그룹 관리 |
+| GET / POST / PUT / DELETE | `/admin/codes/details` | 공통 코드 상세 관리 |
+| GET | `/dashboard/summary` | 대시보드 요약 데이터 조회 |
+| POST | `/system/install` | 시스템 초기 설치 |
+| GET | `/system/install-status` | 초기 설치 상태 확인 |
+
+### 실시간 협업 및 알림
+| Method | Endpoint | 설명 |
+|---|---|---|
+| GET / PUT | `/notifications` | 알림 목록 및 읽음 처리 |
+| GET | `/notifications/stream` | SSE 기반 실시간 알림 스트림 |
+| WS | `/ws-stomp` | STOMP 웹소켓 엔드포인트 |
+| GET / POST | `/chat/messages` | 채팅 메시지 조회 및 전송 |
+| GET / POST | `/chat/rooms` | 채팅방 조회 및 생성 |
+| POST / GET | `/music/broadcast` | 유튜브 음악 방송 제어 |
+
+### 파일 및 검색 공통
+| Method | Endpoint | 설명 |
+|---|---|---|
+| POST | `/files/upload` | 파일 업로드 |
+| GET | `/files/download/{id}` | 파일 다운로드 |
+| GET | `/search` | 글로벌 통합 검색 |
+| POST | `/translate` | 다국어 번역 요청 |
+
+### 도메인 특화 부가기능
+| Method | Endpoint | 설명 |
+|---|---|---|
+| POST | `/domains/{domainId}/data-profiling` | 데이터 프로파일링 실행 |
+| GET | `/domains/{domainId}/dq-recommendations` | DQ 룰 추천 목록 조회 |
+| GET | `/nodes/{nodeId}/schema-impact` | 스키마 변경 영향도 분석 |
+| GET | `/records/{id}/lineage` | 레코드 필드 수준 계보(Lineage) 조회 |
+| GET | `/records/{id}/history` | 레코드 변경 이력 조회 |
+| GET / POST | `/domains/{domainId}/taxonomy-versions` | 분류체계 버전 스냅샷 관리 |
+| GET / POST / DELETE | `/domains/{domainId}/relations` | 도메인 간 마스터 관계 관리 |
+| GET / POST / PUT / DELETE | `/domains/{domainId}/workflows` | 워크플로우 결재선 설정 |
+
+### 배치 및 모니터링
+| Method | Endpoint | 설명 |
+|---|---|---|
+| POST | `/records/export/async` | 대용량 레코드 비동기 내보내기 |
+| GET | `/batch-jobs/{jobId}/status` | 배치 작업 상태 폴링 |
+| POST | `/records/{id}/unmask` | 민감 데이터 마스킹 해제 요청 |
+| GET | `/admin/sensitive-data/access-logs` | 민감 데이터 접근 감사 로그 조회 |
+| GET | `/health` | 헬스 체크 |
+| GET | `/actuator/prometheus` | Prometheus 메트릭 수집 엔드포인트 |
+| GET | `/admin/error-logs` | 시스템 에러 로그 조회 |
