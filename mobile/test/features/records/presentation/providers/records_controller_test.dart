@@ -3,6 +3,7 @@ import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:mplatform_mobile/features/records/data/repositories/records_repository.dart';
 import 'package:mplatform_mobile/features/records/domain/models/domain_model.dart';
+import 'package:mplatform_mobile/features/records/domain/models/classification_node_model.dart';
 import 'package:mplatform_mobile/features/records/domain/models/field_definition.dart';
 import 'package:mplatform_mobile/features/records/domain/models/record_item.dart';
 import 'package:mplatform_mobile/features/records/domain/models/records_page_response.dart';
@@ -23,14 +24,23 @@ void main() {
 
     test('loadInitialData fetches domains, sets default domain, loads dynamic schema fields and page 0 of records', () async {
       const domain = DomainModel(id: 'domain-uuid-1', name: '고객 정보');
-      const field = FieldDefinition(id: 101, fieldName: 'cust_nm', fieldLabel: '고객명', fieldType: 'String', showInList: true);
+      const field = FieldDefinition(id: '101', fieldName: 'cust_nm', fieldLabel: '고객명', fieldType: 'String', showInList: true, displayOrder: 1);
       const record = RecordItem(recordId: '340a0917-af0b-4d13-a1ce-479d4b2e2ca7', domainId: 'domain-uuid-1', attributes: {'cust_nm': '홍길동'});
       const pageRes = RecordsPageResponse(content: [record], totalElements: 50, totalPages: 3, number: 0, size: 20);
 
       when(mockRepository.getDomains()).thenAnswer((_) async => [domain]);
+      final List<ClassificationNodeModel> tree = [const ClassificationNodeModel(id: 'node-1', name: 'ROOT', children: [])];
+      when(mockRepository.getDomains()).thenAnswer((_) async => [domain]);
       when(mockRepository.getFieldDefinitions('domain-uuid-1')).thenAnswer((_) async => [field]);
-      when(mockRepository.getRecords(domainId: 'domain-uuid-1', page: 0, size: 20, searchQuery: anyNamed('searchQuery'), filters: anyNamed('filters')))
-          .thenAnswer((_) async => pageRes);
+      when(mockRepository.getClassificationTree('domain-uuid-1')).thenAnswer((_) async => tree);
+      when(mockRepository.getRecords(
+        domainId: 'domain-uuid-1',
+        page: 0,
+        size: 20,
+        searchFields: anyNamed('searchFields'),
+        filters: anyNamed('filters'),
+        searchQuery: anyNamed('searchQuery'),
+      )).thenAnswer((_) async => pageRes);
 
       await controller.loadInitialData();
 
@@ -48,16 +58,18 @@ void main() {
       const record1 = RecordItem(recordId: 'uuid-1111-1111', domainId: 'domain-uuid-1', attributes: {'cust_nm': '홍길동'});
       const record2 = RecordItem(recordId: 'uuid-2222-2222', domainId: 'domain-uuid-1', attributes: {'cust_nm': '김철수'});
 
+      final List<ClassificationNodeModel> tree = [const ClassificationNodeModel(id: 'node-1', name: 'ROOT', children: [])];
       when(mockRepository.getDomains()).thenAnswer((_) async => [domain]);
       when(mockRepository.getFieldDefinitions('domain-uuid-1')).thenAnswer((_) async => []);
-      when(mockRepository.getRecords(domainId: 'domain-uuid-1', page: 0, size: 20, searchQuery: anyNamed('searchQuery'), filters: anyNamed('filters')))
+      when(mockRepository.getClassificationTree('domain-uuid-1')).thenAnswer((_) async => tree);
+      when(mockRepository.getRecords(domainId: 'domain-uuid-1', page: 0, size: 20, searchFields: anyNamed('searchFields'), searchQuery: anyNamed('searchQuery'), filters: anyNamed('filters')))
           .thenAnswer((_) async => const RecordsPageResponse(content: [record1], totalElements: 50, totalPages: 3, number: 0, size: 20));
 
       await controller.loadInitialData();
       expect(controller.state.records.length, equals(1));
 
       // Mock response for page 1
-      when(mockRepository.getRecords(domainId: 'domain-uuid-1', page: 1, size: 20, searchQuery: anyNamed('searchQuery'), filters: anyNamed('filters')))
+      when(mockRepository.getRecords(domainId: 'domain-uuid-1', page: 1, size: 20, searchFields: anyNamed('searchFields'), searchQuery: anyNamed('searchQuery'), filters: anyNamed('filters')))
           .thenAnswer((_) async => const RecordsPageResponse(content: [record2], totalElements: 50, totalPages: 3, number: 1, size: 20));
 
       await controller.loadNextPage();
@@ -70,9 +82,11 @@ void main() {
 
     test('loadNextPage does nothing if already at last page (currentPage + 1 >= totalPages)', () async {
       const domain = DomainModel(id: 'domain-uuid-1', name: '고객 정보');
+      final List<ClassificationNodeModel> tree = [const ClassificationNodeModel(id: 'node-1', name: 'ROOT', children: [])];
       when(mockRepository.getDomains()).thenAnswer((_) async => [domain]);
       when(mockRepository.getFieldDefinitions('domain-uuid-1')).thenAnswer((_) async => []);
-      when(mockRepository.getRecords(domainId: 'domain-uuid-1', page: 0, size: 20, searchQuery: anyNamed('searchQuery'), filters: anyNamed('filters')))
+      when(mockRepository.getClassificationTree('domain-uuid-1')).thenAnswer((_) async => tree);
+      when(mockRepository.getRecords(domainId: 'domain-uuid-1', page: 0, size: 20, searchFields: anyNamed('searchFields'), searchQuery: anyNamed('searchQuery'), filters: anyNamed('filters')))
           .thenAnswer((_) async => const RecordsPageResponse(content: [], totalElements: 5, totalPages: 1, number: 0, size: 20));
 
       await controller.loadInitialData();

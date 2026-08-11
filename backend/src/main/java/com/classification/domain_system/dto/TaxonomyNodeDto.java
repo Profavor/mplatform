@@ -18,4 +18,5 @@ public class TaxonomyNodeDto {
     private Integer order;
     private String icon;
     private List<TaxonomyNodeDto> children = new ArrayList<>();
+    private List<FieldDefinitionDto> fieldDefinitions = new ArrayList<>();
 }

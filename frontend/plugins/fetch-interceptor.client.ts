@@ -1,5 +1,6 @@
 import { translateBackendError } from '~/utils/errorTranslator'
 import { ofetch, type FetchOptions } from 'ofetch'
+import { useOidcAuth } from '#imports'
 
 let isRefreshing = false
 let refreshPromise: Promise<string | null> | null = null
@@ -23,7 +24,7 @@ export default defineNuxtPlugin((nuxtApp) => {
     }
   }
 
-  const performTokenRefresh = async (refreshToken: string): Promise<string | null> => {
+  const performTokenRefresh = async (): Promise<string | null> => {
     // 이미 리프레시 중이면 기존 프로미스 재사용 (중복 방지)
     if (isRefreshing && refreshPromise) {
       return await refreshPromise
@@ -32,26 +33,16 @@ export default defineNuxtPlugin((nuxtApp) => {
     isRefreshing = true
     refreshPromise = (async () => {
       try {
-        const response = await window.fetch('/api/auth/refresh', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken })
-        })
-
-        if (!response.ok) {
-          clearAuthCookies()
-          return null
+        const { refresh, user, loggedIn } = useOidcAuth()
+        await refresh()
+        
+        if (loggedIn.value && user.value?.accessToken) {
+          return user.value.accessToken
         }
-
-        const res = await response.json()
-        if (res?.token) {
-          setAuthCookies(res.token, res.refreshToken)
-          return res.token
-        }
-        clearAuthCookies()
+        
         return null
-      } catch {
-        clearAuthCookies()
+      } catch (e) {
+        console.warn('Fetch Interceptor: OIDC refresh failed', e)
         return null
       } finally {
         isRefreshing = false
@@ -97,7 +88,15 @@ export default defineNuxtPlugin((nuxtApp) => {
 
     // 최초 요청 시 현재 토큰 헤더 주입
     if (!isAuthUrl && process.client) {
-      const token = getCookieValue('auth_token')
+      let token = getCookieValue('auth_token')
+      if (!token) {
+        try {
+          const { user } = useOidcAuth()
+          if (user.value?.accessToken) {
+             token = user.value.accessToken
+          }
+        } catch(e) {}
+      }
       if (token) applyAuthHeader(options, token)
     }
 
@@ -134,26 +133,26 @@ export default defineNuxtPlugin((nuxtApp) => {
           throw err
         }
 
+        console.error('Fetch Interceptor: 401 Unauthorized caught. Checking tokens...');
+
         // 세션 만료 / 다른 기기 로그인 메시지 체크
         const body = JSON.stringify(err?.response?._data || err?.data || '')
         if (body.includes('another device') || body.includes('Session expired')) {
+          console.warn('Fetch Interceptor: Session expired from backend');
           clearAuthCookies()
           if (process.client && window.location.pathname !== '/login') window.location.href = '/login'
           throw err
         }
 
-        // refresh_token 없으면 로그인 이동
-        const refreshToken = getCookieValue('refresh_token')
-        if (!refreshToken) {
-          clearAuthCookies()
-          if (process.client && window.location.pathname !== '/login') window.location.href = '/login'
-          throw err
-        }
-
-        // 토큰 갱신 시도
-        const newToken = await performTokenRefresh(refreshToken)
+        // OIDC 토큰 갱신 시도
+        const newToken = await performTokenRefresh()
         if (!newToken) {
+          console.warn('Fetch Interceptor: Token refresh failed. Logging out.');
           clearAuthCookies()
+          try {
+            const { logout } = useOidcAuth()
+            logout()
+          } catch(e) {}
           if (process.client && window.location.pathname !== '/login') window.location.href = '/login'
           throw err
         }

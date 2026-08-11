@@ -3,8 +3,11 @@ package com.classification.domain_system.service;
 import com.classification.domain_system.entity.TaxonomyVersion;
 import com.classification.domain_system.repository.TaxonomyVersionRepository;
 import com.classification.domain_system.repository.ClassificationNodeRepository;
+import com.classification.domain_system.repository.FieldDefinitionRepository;
 import com.classification.domain_system.dto.TaxonomyNodeDto;
+import com.classification.domain_system.dto.FieldDefinitionDto;
 import com.classification.domain_system.entity.ClassificationNode;
+import com.classification.domain_system.entity.FieldDefinition;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +25,7 @@ public class TaxonomyVersionService {
 
     private final TaxonomyVersionRepository taxonomyVersionRepository;
     private final ClassificationNodeRepository classificationNodeRepository;
+    private final FieldDefinitionRepository fieldDefinitionRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional
@@ -56,12 +60,44 @@ public class TaxonomyVersionService {
         dto.setOrder(node.getOrder());
         dto.setIcon(node.getIcon());
         
+        List<FieldDefinition> fieldDefs = fieldDefinitionRepository.findNodeFieldsWithSort(node.getId());
+        List<FieldDefinitionDto> fieldDefDtos = fieldDefs.stream().map(this::convertFieldDefToDto).toList();
+        dto.setFieldDefinitions(fieldDefDtos);
+        
         if (node.getChildren() != null && !node.getChildren().isEmpty()) {
             dto.setChildren(node.getChildren().stream()
                     .filter(c -> !c.getIsDeleted())
                     .map(this::convertToDto)
                     .toList());
         }
+        return dto;
+    }
+
+    private FieldDefinitionDto convertFieldDefToDto(FieldDefinition fieldDef) {
+        FieldDefinitionDto dto = new FieldDefinitionDto();
+        dto.setId(fieldDef.getId());
+        if (fieldDef.getDomain() != null) dto.setDomainId(fieldDef.getDomain().getId());
+        if (fieldDef.getDefinedAtNode() != null) dto.setDefinedAtNodeId(fieldDef.getDefinedAtNode().getId());
+        dto.setName(fieldDef.getName());
+        dto.setHint(fieldDef.getHint());
+        dto.setKey(fieldDef.getKey());
+        dto.setType(fieldDef.getType());
+        dto.setUnit(fieldDef.getUnit());
+        dto.setOptions(fieldDef.getOptions());
+        dto.setRequired(fieldDef.getRequired());
+        dto.setDefaultValue(fieldDef.getDefaultValue());
+        dto.setOrder(fieldDef.getOrder());
+        dto.setGridWidth(fieldDef.getGridWidth());
+        dto.setTableColumnWidth(fieldDef.getTableColumnWidth());
+        dto.setIsHighlighted(fieldDef.getIsHighlighted());
+        dto.setIsMultiValue(fieldDef.getIsMultiValue());
+        dto.setIsTable(fieldDef.getIsTable());
+        dto.setIsEncrypted(fieldDef.getIsEncrypted());
+        dto.setIsSearchable(fieldDef.getIsSearchable());
+        dto.setIsReadOnly(fieldDef.getIsReadOnly());
+        dto.setIsImmutable(fieldDef.getIsImmutable());
+        dto.setIsHidden(fieldDef.getIsHidden());
+        dto.setMaskingPattern(fieldDef.getMaskingPattern());
         return dto;
     }
 

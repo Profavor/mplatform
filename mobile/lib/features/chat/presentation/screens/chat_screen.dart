@@ -71,7 +71,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   void dispose() {
-    ref.read(chatControllerProvider.notifier).clearSelectedRoom();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -914,8 +913,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final state = ref.watch(chatControllerProvider);
+    print('BUILD ACTIVE MESSAGES: ${state.activeMessages.length}, isLoading: ${state.isLoadingMessages}');
+    final l10n = AppLocalizations.of(context)!;
     final authState = ref.watch(authControllerProvider);
 
     const backgroundColor = Color(0xFFB2C7D9);

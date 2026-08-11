@@ -10,6 +10,9 @@ import 'package:mplatform_mobile/features/notifications/presentation/providers/n
 import 'package:mplatform_mobile/core/providers/locale_provider.dart';
 import 'package:mplatform_mobile/features/dashboard/presentation/providers/dashboard_provider.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:mplatform_mobile/features/search/presentation/screens/global_search_screen.dart';
+import 'package:mplatform_mobile/features/dq/presentation/widgets/ai_dq_recommendation_card.dart';
+import 'package:mplatform_mobile/features/dq/presentation/widgets/data_profiling_card.dart';
 
 class HomeDashboardScreen extends ConsumerStatefulWidget {
   const HomeDashboardScreen({super.key});
@@ -57,6 +60,16 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
         backgroundColor: Colors.indigo[800],
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: 'Global Search',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const GlobalSearchScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.language),
             tooltip: 'Toggle Language',
@@ -206,6 +219,10 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
+                    const AiDqRecommendationCard(),
+                    const SizedBox(height: 12),
+                    const DataProfilingCard(),
+                    const SizedBox(height: 16),
                     _buildDqTrendChart(dashboardState),
                     const SizedBox(height: 16),
                     _buildDqSeverityChart(dashboardState),

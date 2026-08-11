@@ -10,21 +10,28 @@ import 'package:mplatform_mobile/features/approvals/domain/models/approval_item.
 import 'package:mplatform_mobile/features/approvals/presentation/providers/approvals_provider.dart';
 import 'package:mplatform_mobile/features/approvals/presentation/screens/approvals_list_screen.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mplatform_mobile/core/providers/core_providers.dart';
+
 import 'approvals_list_screen_test.mocks.dart';
 
 @GenerateMocks([ApprovalsRepository])
 void main() {
   group('ApprovalsListScreen Widget Tests (TDD - Zero Hardcoding & UUID Protection)', () {
     late MockApprovalsRepository mockRepository;
+    late SharedPreferences prefs;
 
-    setUp(() {
+    setUp(() async {
       mockRepository = MockApprovalsRepository();
+      SharedPreferences.setMockInitialValues({'user_personal_timezone': 'Asia/Seoul'});
+      prefs = await SharedPreferences.getInstance();
     });
 
     Widget createTestWidget() {
       return ProviderScope(
         overrides: [
           approvalsRepositoryProvider.overrideWithValue(mockRepository),
+          sharedPreferencesProvider.overrideWithValue(prefs),
         ],
         child: const MaterialApp(
           localizationsDelegates: [

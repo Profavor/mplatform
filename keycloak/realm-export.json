@@ -1,0 +1,74 @@
+{
+  "realm": "mplatform",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "roles": {
+    "realm": [
+      { "name": "SYSTEM_ADMIN", "description": "System Administrator" },
+      { "name": "DOMAIN_ADMIN", "description": "Domain Administrator" },
+      { "name": "DATA_STEWARD", "description": "Data Steward" },
+      { "name": "VIEWER", "description": "Read-only Viewer" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "mdm-frontend",
+      "name": "MDM Frontend Application",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "secret",
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "redirectUris": ["http://localhost:3000/*", "http://localhost:3001/*", "http://localhost:8080/*"],
+      "webOrigins": ["http://localhost:3000", "http://localhost:3001", "http://localhost:8080"],
+      "protocol": "openid-connect",
+      "defaultClientScopes": ["openid", "profile", "email", "roles"]
+    },
+    {
+      "clientId": "mdm-backend",
+      "name": "MDM Backend Service",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "mdm-backend-secret",
+      "serviceAccountsEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": false,
+      "protocol": "openid-connect",
+      "defaultClientScopes": ["openid", "profile", "email", "roles"]
+    },
+    {
+      "clientId": "mdm-mobile",
+      "name": "MDM Mobile Application",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "redirectUris": ["*"],
+      "webOrigins": ["*"],
+      "protocol": "openid-connect",
+      "defaultClientScopes": ["openid", "profile", "email", "roles"]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "admin@mplatform.local",
+      "firstName": "System",
+      "lastName": "Admin",
+      "credentials": [
+        { "type": "password", "value": "admin", "temporary": false }
+      ],
+      "realmRoles": ["SYSTEM_ADMIN"]
+    }
+  ]
+}

@@ -36,6 +36,7 @@ public class SystemInstallService {
     private final UserRoleRepository userRoleRepository;
     private final RoleInitializer roleInitializer;
     private final PasswordEncoder passwordEncoder;
+    private final KeycloakAdminService keycloakAdminService;
 
     @Transactional(readOnly = true)
     public SystemInstallStatusResponse getInstallStatus() {
@@ -83,7 +84,8 @@ public class SystemInstallService {
 
         // 3. Create Super Admin User
         User adminUser = new User();
-        adminUser.setUsername(request.getAdminUsername().trim());
+        String adminUsername = request.getAdminUsername().trim();
+        adminUser.setUsername(adminUsername);
         adminUser.setPassword(passwordEncoder.encode(request.getAdminPassword()));
         adminUser.setRole("ROLE_ADMIN");
         adminUser.setOrganizationId(savedOrg.getId());
@@ -105,6 +107,13 @@ public class SystemInstallService {
         // 5. Save System Installation Config Flag
         configRepository.save(new SystemConfig("IS_INSTALLED", "true"));
         log.info("System Installation successfully completed. Admin User: {}", savedUser.getUsername());
+        
+        // 6. Sync Admin User to Keycloak
+        try {
+            keycloakAdminService.createUser(adminUsername, request.getAdminPassword(), adminUsername + "@example.com", "System Admin");
+        } catch (Exception e) {
+            log.error("Failed to sync initial admin user to Keycloak: {}", adminUsername, e);
+        }
 
         return savedUser;
     }

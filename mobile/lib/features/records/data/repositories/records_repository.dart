@@ -62,11 +62,11 @@ class RecordsRepository {
       if (filters != null) ...filters,
     };
 
-    final path = (nodeId != null && nodeId.isNotEmpty)
-        ? '/api/nodes/$nodeId/records'
+    final String url = nodeId != null 
+        ? '/api/nodes/$nodeId/records' 
         : '/api/records/domain/$domainId';
 
-    final response = await _dio.get(path, queryParameters: queryParams);
+    final response = await _dio.get(url, queryParameters: queryParams);
     return RecordsPageResponse.fromJson(response.data as Map<String, dynamic>);
   }
 

@@ -45,6 +45,8 @@ class ChatRepository {
     String? fileUrl,
     String? fileName,
     int? fileSize,
+    String? url,
+    String? originalName,
   }) async {
     final response = await _dio.post(
       '/api/chat/rooms/$roomId/messages',
@@ -55,6 +57,8 @@ class ChatRepository {
         if (fileName != null) 'fileName': fileName,
         if (fileSize != null) 'fileSize': fileSize,
         if (attachmentUrl != null) 'attachmentUrl': attachmentUrl,
+        if (url != null) 'url': url,
+        if (originalName != null) 'originalName': originalName,
       },
     );
     return ChatMessageModel.fromJson(response.data as Map<String, dynamic>);
@@ -89,12 +93,12 @@ class ChatRepository {
     }
   }
 
-  /// 파일 업로드 → { fileUrl, fileName, fileSize } 반환
+  /// 파일 업로드 → { url, originalName } 반환
   Future<Map<String, dynamic>> uploadFile(List<int> fileBytes, String fileName) async {
     final formData = FormData.fromMap({
       'file': MultipartFile.fromBytes(fileBytes, filename: fileName),
     });
-    final response = await _dio.post('/api/chat/upload', data: formData);
+    final response = await _dio.post('/api/files/upload', data: formData);
     return response.data as Map<String, dynamic>;
   }
 

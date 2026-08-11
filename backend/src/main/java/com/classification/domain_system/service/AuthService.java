@@ -22,6 +22,12 @@ public class AuthService {
     private final com.classification.domain_system.websocket.WebSocketPublisher webSocketPublisher;
     private final SseNotificationService sseNotificationService;
 
+    @org.springframework.beans.factory.annotation.Value("${keycloak.token-uri:}")
+    private String keycloakTokenUri;
+
+    @org.springframework.beans.factory.annotation.Value("${keycloak.client-id:}")
+    private String keycloakClientId;
+
     public void register(String username, String password, String role) {
         register(username, password, role, "Asia/Seoul");
     }
@@ -95,9 +101,45 @@ public class AuthService {
 
     @org.springframework.transaction.annotation.Transactional
     public Map<String, String> loginWithTokens(String username, String password, String ipAddress, String userAgent) {
-        User user = validateAndProcessLogin(username, password);
+        String accessToken;
+        String refreshToken;
+        User user;
 
-        String newSessionId = java.util.UUID.randomUUID().toString();
+        if (keycloakTokenUri != null && !keycloakTokenUri.trim().isEmpty()) {
+            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            headers.setContentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED);
+
+            org.springframework.util.MultiValueMap<String, String> mapConfig = new org.springframework.util.LinkedMultiValueMap<>();
+            mapConfig.add("client_id", keycloakClientId != null ? keycloakClientId : "mdm-frontend");
+            mapConfig.add("grant_type", "password");
+            mapConfig.add("username", username);
+            mapConfig.add("password", password);
+
+            org.springframework.http.HttpEntity<org.springframework.util.MultiValueMap<String, String>> kcRequest = new org.springframework.http.HttpEntity<>(mapConfig, headers);
+
+            try {
+                org.springframework.http.ResponseEntity<Map> kcResponse = restTemplate.postForEntity(keycloakTokenUri, kcRequest, Map.class);
+                Map body = kcResponse.getBody();
+                accessToken = (String) body.get("access_token");
+                refreshToken = (String) body.get("refresh_token");
+            } catch (Exception e) {
+                throw new com.classification.domain_system.exception.BusinessException(com.classification.domain_system.exception.ErrorCode.INVALID_CREDENTIALS, "Keycloak SSO Login failed: " + e.getMessage());
+            }
+
+            user = userRepository.findByUsername(username).orElseThrow(() -> 
+                new com.classification.domain_system.exception.BusinessException(com.classification.domain_system.exception.ErrorCode.INVALID_CREDENTIALS, "User authenticated by Keycloak but not found in local DB")
+            );
+        } else {
+            user = validateAndProcessLogin(username, password);
+            String userIdStr = user.getId() != null ? user.getId().toString() : null;
+            String newSessionId = java.util.UUID.randomUUID().toString();
+            accessToken = jwtUtil.generateToken(user.getUsername(), user.getRole(), userIdStr, newSessionId);
+            refreshToken = jwtUtil.generateRefreshToken(user.getUsername(), user.getRole(), userIdStr);
+            user.setActiveSessionId(newSessionId);
+        }
+
+        // 세션 처리 및 동시 접속 로그아웃 알림
         if (user.getId() != null) {
             Map<String, Object> logoutEvent = Map.of(
                     "eventType", "FORCE_LOGOUT",
@@ -115,7 +157,7 @@ public class AuthService {
                 } catch (Exception ignored) {}
             }
         }
-        user.setActiveSessionId(newSessionId);
+        
         userRepository.saveAndFlush(user);
 
         com.classification.domain_system.entity.LoginLog log = com.classification.domain_system.entity.LoginLog.builder()
@@ -125,10 +167,6 @@ public class AuthService {
                 .clientIp(ipAddress)
                 .build();
         loginLogRepository.save(log);
-
-        String userIdStr = user.getId() != null ? user.getId().toString() : null;
-        String accessToken = jwtUtil.generateToken(user.getUsername(), user.getRole(), userIdStr, newSessionId);
-        String refreshToken = jwtUtil.generateRefreshToken(user.getUsername(), user.getRole(), userIdStr);
 
         Map<String, String> map = new HashMap<>();
         map.put("token", accessToken);

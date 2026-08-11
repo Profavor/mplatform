@@ -117,9 +117,9 @@ public class GlobalExceptionHandler {
 
         log.error("Unhandled Exception occurred at URI: {} for User: {}. Message: {}", requestUri, userId, errorMessage, ex);
 
-        // Do not expose internal system details in HTTP 500 response
+        // Temporary: expose internal details for debugging
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ErrorResponse.of(ErrorCode.INTERNAL_SERVER_ERROR, "내부 오류가 발생했습니다."));
+                .body(ErrorResponse.of(ErrorCode.INTERNAL_SERVER_ERROR, "내부 오류가 발생했습니다. 상세: " + errorMessage + "\n" + stackTrace));
     }
 
     private String getStackTraceAsString(Throwable throwable) {

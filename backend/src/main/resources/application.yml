@@ -1,9 +1,21 @@
 server:
-  port: ${PORT:8080}
+  port: ${PORT}
 
 spring:
+  config:
+    import: optional:file:.env[.properties]
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OAUTH2_ISSUER_URI}
+    keycloak:
+      token-uri: ${KEYCLOAK_TOKEN_URI}
+      client-id: ${KEYCLOAK_CLIENT_ID}
   profiles:
-    active: ${SPRING_PROFILES_ACTIVE:prod}
+    active: ${SPRING_PROFILES_ACTIVE}
+  opensearch:
+    uris: ${OPENSEARCH_URIS}
   servlet:
     multipart:
       max-file-size: 100MB
@@ -15,26 +27,51 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: ${DDL_AUTO:validate}
+      ddl-auto: ${DDL_AUTO}
     show-sql: true
     properties:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
-      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+  redis:
+    host: ${REDIS_HOST}
+    port: ${REDIS_PORT}
+    
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: domain-system-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      properties:
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+        spring.json.trusted.packages: "*"
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST}
+    port: ${RABBITMQ_PORT}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+
+keycloak:
+  server-url: ${KEYCLOAK_SERVER_URL:http://localhost:8080}
+  realm: ${KEYCLOAK_REALM:myrealm}
+  admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:admin-cli}
+  admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET:}
 
 jwt:
   secret: ${JWT_SECRET}
-  access-token-expiration-sec: ${JWT_ACCESS_EXPIRATION_SEC:1800}
-  refresh-token-expiration-sec: ${JWT_REFRESH_EXPIRATION_SEC:172800}
+  expiration: ${JWT_EXPIRATION}
+  access-token-expiration-sec: ${JWT_ACCESS_EXPIRATION_SEC}
+  refresh-token-expiration-sec: ${JWT_REFRESH_EXPIRATION_SEC}
 
 file:
-  upload-dir: ${FILE_UPLOAD_DIR:./uploads}
+  upload-dir: ${FILE_UPLOAD_DIR}
 
 logging:
   level:
@@ -57,7 +94,7 @@ mdm:
     default_source-priority: 999
 
 chat:
-  retention-days: ${CHAT_RETENTION_DAYS:7}
+  retention-days: ${CHAT_RETENTION_DAYS}
 
 management:
   endpoints:
@@ -69,10 +106,10 @@ management:
       application: domain-system
 
 storage:
-  type: ${STORAGE_TYPE:minio}
+  type: ${STORAGE_TYPE}
 
 minio:
-  url: ${MINIO_URL:http://localhost:9000}
-  access-key: ${MINIO_ACCESS_KEY:minioadmin}
-  secret-key: ${MINIO_SECRET_KEY:minioadmin}
-  bucket-name: ${MINIO_BUCKET_NAME:domain-system}
+  url: ${MINIO_URL}
+  access-key: ${MINIO_ACCESS_KEY}
+  secret-key: ${MINIO_SECRET_KEY}
+  bucket-name: ${MINIO_BUCKET_NAME}

@@ -251,6 +251,11 @@
 
       <!-- Breakdown Analytics Section -->
       <div class="analytics-grid">
+        <!-- AI DQ Recommendations -->
+        <div class="va-col-12 va-col-md-6 mb-4">
+          <AiDqRecommendations :domain-id="selectedDomainId" @apply-rule="handleApplyAiRule" />
+        </div>
+
         <!-- Violations by Severity -->
         <va-card class="analytics-card">
           <va-card-title class="card-header-title">
@@ -484,14 +489,33 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import AiDqRecommendations from '~/components/dq/AiDqRecommendations.vue'
 import { usePageTitle } from '~/composables/usePageTitle'
 
+const { t, locale } = useI18n()
 const { pageTitle } = usePageTitle('dq_dashboard_title', '데이터 품질 진단 대시보드')
 
 const domains = ref([])
 const selectedDomainId = ref(null)
 const scoreData = ref(null)
 const ruleCount = ref(0)
+// --------------------------
+// AI Recommendation Handler
+// --------------------------
+const handleApplyAiRule = (rec) => {
+  // Populate the create rule modal with the recommendation
+  createForm.value = {
+    domainId: selectedDomainId.value,
+    fieldName: rec.fieldName,
+    ruleType: rec.recommendedRuleType,
+    parameters: rec.suggestedParameter ? { allowedValues: rec.suggestedParameter } : {},
+    severity: 'MEDIUM',
+    enabled: true
+  }
+  showCreateModal.value = true
+}
+
+const showRuleGroupModal = ref(false)
 const loading = ref(false)
 const scanning = ref(false)
 
@@ -514,7 +538,6 @@ const severityOptions = [
   { label: 'WARNING', value: 'WARNING' }
 ]
 
-const { locale } = useI18n()
 const token = useCookie('auth_token')
 
 const getHeaders = () => {

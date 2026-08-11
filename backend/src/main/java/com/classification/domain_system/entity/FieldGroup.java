@@ -22,6 +22,7 @@ public class FieldGroup {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sector_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Sector sector;
 
     @ManyToOne(fetch = FetchType.LAZY)

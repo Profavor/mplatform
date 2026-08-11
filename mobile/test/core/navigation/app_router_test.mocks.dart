@@ -396,6 +396,8 @@ class MockChatRepository extends _i1.Mock implements _i16.ChatRepository {
     String? fileUrl,
     String? fileName,
     int? fileSize,
+    String? url,
+    String? originalName,
   }) =>
       (super.noSuchMethod(
             Invocation.method(
@@ -408,6 +410,8 @@ class MockChatRepository extends _i1.Mock implements _i16.ChatRepository {
                 #fileUrl: fileUrl,
                 #fileName: fileName,
                 #fileSize: fileSize,
+                #url: url,
+                #originalName: originalName,
               },
             ),
             returnValue: _i8.Future<_i5.ChatMessageModel>.value(
@@ -423,6 +427,8 @@ class MockChatRepository extends _i1.Mock implements _i16.ChatRepository {
                     #fileUrl: fileUrl,
                     #fileName: fileName,
                     #fileSize: fileSize,
+                    #url: url,
+                    #originalName: originalName,
                   },
                 ),
               ),

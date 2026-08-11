@@ -1,9 +1,18 @@
+import { defineNuxtConfig } from 'nuxt/config'
+import dns from 'dns'
+
+// Force IPv4 for localhost to fix Node 18+ Docker connectivity issues
+dns.setDefaultResultOrder('ipv4first')
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  compatibilityDate: '2024-11-01',
+  compatibilityDate: '2026-08-11',
+  experimental: {
+    scanPageMeta: true
+  },
   devtools: { enabled: false },
   unhead: { legacy: true },
-  modules: ['@vuestic/nuxt', 'nuxt-auth-utils', '@nuxtjs/i18n'],
+  modules: ['@vuestic/nuxt', 'nuxt-oidc-auth', '@nuxtjs/i18n'],
   css: ['~/assets/main.css'],
   vuestic: {
     css: ['typography', 'grid', 'reset'],
@@ -67,7 +76,32 @@ export default defineNuxtConfig({
       optimizeTranslationDirective: false
     }
   },
+  oidc: {
+    defaultProvider: 'keycloak',
+    providers: {
+      keycloak: {
+        baseUrl: process.env.OAUTH2_ISSUER_URI || 'http://localhost:8081/realms/mplatform',
+        clientId: 'mdm-frontend',
+        exposeAccessToken: true,
+        clientSecret: 'secret',
+        authenticationScheme: 'body',
+        pkce: false,
+        nonce: false,
+        redirectUri: process.env.KEYCLOAK_REDIRECT_URI || 'http://localhost:3000/auth/keycloak/callback'
+      }
+    },
+    session: {
+      expirationCheck: false,
+      automaticRefresh: false
+    },
+    middleware: {
+      globalMiddlewareEnabled: false,
+      customLoginPage: true,
+      customLogoutPage: true
+    }
+  },
   build: {
+    transpile: []
   },
   app: {
     head: {
@@ -93,7 +127,6 @@ export default defineNuxtConfig({
     const targetUrl = rawUrl
     const wsUrl = targetUrl.replace(/^http/, 'ws')
     return {
-      '/api/**': { proxy: `${targetUrl.replace(/\/$/, '')}/api/**` },
       '/ws-stomp/**': { proxy: `${wsUrl.replace(/\/$/, '')}/ws-stomp/**` }
     }
   })(),

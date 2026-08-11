@@ -6,6 +6,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableScheduling
+@org.springframework.data.jpa.repository.config.EnableJpaRepositories(basePackages = "com.classification.domain_system.repository")
 public class DomainSystemApplication {
 
 	public static void main(String[] args) {

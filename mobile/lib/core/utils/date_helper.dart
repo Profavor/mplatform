@@ -8,9 +8,9 @@ class DateHelper {
     }
     String str = dateStr.trim();
     // 만약 타임존 표시(Z, +, -)가 없다면 기본적으로 서버 시간(KST, +09:00)으로 간주하고 보정
-    // 예: "2026-08-06T14:30:00" -> "2026-08-06T14:30:00+09:00"
+    // 예: "2026-08-06T14:30:00" -> "2026-08-06T14:30:00Z"
     if (str.contains('T') && !str.endsWith('Z') && !RegExp(r'[+-]\d{2}:\d{2}$').hasMatch(str)) {
-      str = "$str+09:00";
+      str = "${str}Z";
     }
     try {
       return DateTime.parse(str);

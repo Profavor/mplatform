@@ -12,10 +12,12 @@ import 'package:mplatform_mobile/features/approvals/presentation/providers/appro
 import 'package:mplatform_mobile/features/chat/data/repositories/chat_repository.dart';
 import 'package:mplatform_mobile/features/chat/data/services/chat_websocket_service.dart';
 import 'package:mplatform_mobile/features/chat/domain/models/chat_room_model.dart';
-import 'package:mplatform_mobile/features/chat/presentation/providers/chat_provider.dart';
+import 'package:mplatform_mobile/features/home/presentation/screens/home_dashboard_screen.dart';
 import 'package:mplatform_mobile/features/notifications/data/repositories/notifications_repository.dart';
 import 'package:mplatform_mobile/features/notifications/domain/models/notification_item.dart';
 import 'package:mplatform_mobile/features/notifications/presentation/providers/notifications_provider.dart';
+import 'package:mplatform_mobile/features/chat/domain/models/chat_message_model.dart';
+import 'package:mockito/mockito.dart';
 
 class FakeApprovalsRepo extends ApprovalsRepository {
   FakeApprovalsRepo() : super(Dio());
@@ -34,8 +36,18 @@ class FakeNotifRepo extends NotificationsRepository {
     const NotificationItem(id: 'n1', title: 'Test Activity', content: 'Test Content', targetId: '340a0917-af0b-4d13-a1ce-479d4b2e2ca7', targetType: 'APPROVAL', createdAt: '2026-08-06T12:00:00Z', isRead: false),
   ];
 }
-class FakeChatWs extends ChatWebSocketService {}
 
+
+class MockChatWs extends Mock implements ChatWebSocketService {
+  @override
+  Stream<Map<String, dynamic>> get notificationStream => const Stream<Map<String, dynamic>>.empty();
+  @override
+  Stream<ChatMessageModel> get messageStream => const Stream<ChatMessageModel>.empty();
+  @override
+  Stream<String> get roomReadStream => const Stream<String>.empty();
+  @override
+  Stream<Map<String, dynamic>> get presenceStream => const Stream<Map<String, dynamic>>.empty();
+}
 void main() {
   group('HomeDashboardScreen Widget Tests (TDD - No Hardcoding, UUID Masking, Timezone Safety)', () {
     Widget createTestWidget() {
@@ -43,7 +55,7 @@ void main() {
         overrides: [
           approvalsRepositoryProvider.overrideWithValue(FakeApprovalsRepo()),
           chatRepositoryProvider.overrideWithValue(FakeChatRepo()),
-          chatWebSocketServiceProvider.overrideWithValue(FakeChatWs()),
+          chatWebSocketServiceProvider.overrideWithValue(MockChatWs()),
           notificationsRepositoryProvider.overrideWithValue(FakeNotifRepo()),
         ],
         child: const MaterialApp(

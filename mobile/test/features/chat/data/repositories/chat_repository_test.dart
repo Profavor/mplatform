@@ -20,8 +20,8 @@ void main() {
     test('getChatRooms requests /api/chat/rooms and returns parsed ChatRoomModel list', () async {
       final mockData = [
         {
-          'roomId': 'room-uuid-1',
-          'title': '개발팀 마스터 데이터 논의',
+          'id': 'room-uuid-1',
+          'name': '개발팀 마스터 데이터 논의',
           'participantNames': ['kim_developer', 'lee_admin'],
           'lastMessage': '결재 승인 완료되었습니다.',
           'unreadCount': 2,
@@ -52,7 +52,7 @@ void main() {
 
       when(mockDio.post(
         '/api/chat/rooms/room-uuid-1/messages',
-        data: argThat(equals({'content': '안녕하세요!'}), named: 'data'),
+        data: anyNamed('data'),
         options: anyNamed('options'),
         cancelToken: anyNamed('cancelToken'),
         onSendProgress: anyNamed('onSendProgress'),

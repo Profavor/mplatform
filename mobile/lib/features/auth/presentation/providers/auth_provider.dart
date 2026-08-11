@@ -38,6 +38,8 @@ class AuthController extends StateNotifier<AsyncValue<UserModel?>> {
       state = AsyncValue.data(response.user);
       return true;
     } catch (e, st) {
+      print('LOGIN ERROR: $e');
+      print('STACK TRACE: $st');
       state = AsyncValue.error(e, st);
       return false;
     }

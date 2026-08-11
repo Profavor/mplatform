@@ -22,6 +22,7 @@ public class UserService {
     private final com.classification.domain_system.service.FieldEncryptionService fieldEncryptionService;
     private final com.classification.domain_system.repository.OrganizationRepository organizationRepository;
     private final com.classification.domain_system.repository.DepartmentRepository departmentRepository;
+    private final KeycloakAdminService keycloakAdminService;
 
     @Transactional(readOnly = true)
     public List<UserDto> getAllUsers() {
@@ -177,6 +178,13 @@ public class UserService {
         
         userRepository.save(user);
         
+        // Sync to Keycloak
+        try {
+            keycloakAdminService.createUser(username, tempPassword, username + "@example.com", username);
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(UserService.class).error("Failed to sync user creation to Keycloak: {}", username, e);
+        }
+        
         return tempPassword;
     }
 
@@ -193,6 +201,13 @@ public class UserService {
         user.setMustChangePassword(false);
         user.setEncryptedTempPassword(null);
         userRepository.save(user);
+        
+        // Sync to Keycloak
+        try {
+            keycloakAdminService.resetPassword(username, newPassword);
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(UserService.class).error("Failed to sync password change to Keycloak: {}", username, e);
+        }
     }
 
     @Transactional
@@ -204,7 +219,15 @@ public class UserService {
         userOrgHistoryRepository.deleteByUserId(userId);
         
         try {
+            String username = user.getUsername();
             userRepository.delete(user);
+            
+            // Sync to Keycloak
+            try {
+                keycloakAdminService.deleteUser(username);
+            } catch (Exception e) {
+                org.slf4j.LoggerFactory.getLogger(UserService.class).error("Failed to sync user deletion to Keycloak: {}", username, e);
+            }
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
             throw new IllegalStateException("Cannot delete user because linked data (such as records or approval history) exists. (Data integrity protection)", e);
         }

@@ -18,7 +18,7 @@ public class DashboardController {
 
     @GetMapping("/stats")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Map<String, Long>> getStats() {
+    public ResponseEntity<Map<String, Object>> getStats() {
         return ResponseEntity.ok(dashboardService.getStats());
     }
 

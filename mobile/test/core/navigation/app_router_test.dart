@@ -16,6 +16,7 @@ import 'package:mplatform_mobile/features/auth/presentation/screens/login_screen
 import 'package:mplatform_mobile/features/chat/data/repositories/chat_repository.dart';
 import 'package:mplatform_mobile/features/chat/data/services/chat_websocket_service.dart';
 import 'package:mplatform_mobile/features/chat/presentation/providers/chat_provider.dart';
+import 'package:mplatform_mobile/features/chat/domain/models/chat_message_model.dart';
 import 'package:dio/dio.dart';
 import 'package:mplatform_mobile/features/navigation/presentation/screens/main_navigation_screen.dart';
 import 'package:mplatform_mobile/features/notifications/data/repositories/notifications_repository.dart';
@@ -23,6 +24,11 @@ import 'package:mplatform_mobile/features/notifications/domain/models/notificati
 import 'package:mplatform_mobile/features/notifications/presentation/providers/notifications_provider.dart';
 import 'package:mplatform_mobile/features/records/data/repositories/records_repository.dart';
 import 'package:mplatform_mobile/features/records/presentation/providers/records_provider.dart';
+import 'package:mplatform_mobile/features/dashboard/data/repositories/dashboard_repository.dart';
+import 'package:mplatform_mobile/features/dashboard/presentation/providers/dashboard_provider.dart';
+import 'package:mplatform_mobile/features/dashboard/data/models/dashboard_stats_model.dart';
+import 'package:mplatform_mobile/features/dashboard/data/models/dq_trend_item_model.dart';
+import 'package:mplatform_mobile/features/dashboard/data/models/dq_severity_item_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_router_test.mocks.dart';
@@ -41,6 +47,16 @@ class FakeNotificationsRepository extends NotificationsRepository {
   FakeNotificationsRepository() : super(Dio());
   @override
   Future<List<NotificationItem>> getNotifications({int page = 0, int size = 20}) async => [];
+}
+
+class FakeDashboardRepository extends DashboardRepository {
+  FakeDashboardRepository() : super(Dio());
+  @override
+  Future<DashboardStatsModel> getStats() async => const DashboardStatsModel(totalDomains: 0, activeRecords: 0, pendingApprovals: 0, openDqViolations: 0);
+  @override
+  Future<List<DqTrendItemModel>> getDqTrends() async => [];
+  @override
+  Future<List<DqSeverityItemModel>> getDqSeverity() async => [];
 }
 
 @GenerateMocks([AuthRepository, RecordsRepository, ApprovalsRepository, ChatRepository, ChatWebSocketService])
@@ -67,7 +83,10 @@ void main() {
       when(mockApprovalsRepo.getPendingApprovals()).thenAnswer((_) async => []);
       when(mockApprovalsRepo.getMySubmittedApprovals()).thenAnswer((_) async => []);
       when(mockChatRepo.getChatRooms()).thenAnswer((_) async => []);
-      when(mockChatWs.messageStream).thenAnswer((_) => const Stream.empty());
+      when(mockChatWs.messageStream).thenAnswer((_) => const Stream<ChatMessageModel>.empty());
+      when(mockChatWs.notificationStream).thenAnswer((_) => const Stream<Map<String, dynamic>>.empty());
+      when(mockChatWs.roomReadStream).thenAnswer((_) => const Stream<String>.empty());
+      when(mockChatWs.presenceStream).thenAnswer((_) => const Stream<Map<String, dynamic>>.empty());
     });
 
     testWidgets('unauthenticated user (AsyncValue.data(null)) routes to LoginScreen instead of MainNavigationScreen', (tester) async {
@@ -83,6 +102,7 @@ void main() {
           chatRepositoryProvider.overrideWithValue(mockChatRepo),
           chatWebSocketServiceProvider.overrideWithValue(mockChatWs),
           notificationsRepositoryProvider.overrideWithValue(FakeNotificationsRepository()),
+          dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository()),
         ],
         child: Consumer(builder: (context, ref, _) {
           final router = ref.watch(appRouterProvider);
@@ -118,6 +138,7 @@ void main() {
           chatRepositoryProvider.overrideWithValue(mockChatRepo),
           chatWebSocketServiceProvider.overrideWithValue(mockChatWs),
           notificationsRepositoryProvider.overrideWithValue(FakeNotificationsRepository()),
+          dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository()),
         ],
         child: Consumer(builder: (context, ref, _) {
           final router = ref.watch(appRouterProvider);

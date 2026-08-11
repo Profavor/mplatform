@@ -30,7 +30,7 @@ final timezoneInterceptorProvider = Provider<TimezoneInterceptor>((ref) {
 
 final tokenRefreshDioProvider = Provider<Dio>((ref) {
   return Dio(BaseOptions(
-    baseUrl: 'http://localhost:8080',
+    baseUrl: getDefaultBaseUrl(),
     connectTimeout: const Duration(seconds: 15),
     receiveTimeout: const Duration(seconds: 15),
     headers: {'Content-Type': 'application/json'},
