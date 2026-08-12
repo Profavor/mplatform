@@ -41,7 +41,7 @@ class DashboardControllerTest {
     @Test
     @DisplayName("getStats - DashboardService에서 반환된 통계 데이터 응답")
     void getStats_ReturnsStatsMap() throws Exception {
-        Map<String, Long> stats = Map.of(
+        Map<String, Object> stats = Map.of(
                 "totalDomains", 5L,
                 "pendingApprovals", 2L,
                 "activeRecords", 100L,

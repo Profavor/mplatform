@@ -23,7 +23,7 @@
     "file-saver": "^2.0.5",
     "glob": "^13.0.6",
     "node-fetch": "^3.3.2",
-    "nuxt": "3.11.2",
+    "nuxt": "^3.21.11",
     "nuxt-auth-utils": "^0.5.29",
     "nuxt-oidc-auth": "^1.0.0-beta.11",
     "vue-echarts": "^7.0.3",
