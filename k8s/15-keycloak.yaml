@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  namespace: mdm-system
+spec:
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    metadata:
+      labels:
+        app: keycloak
+    spec:
+      containers:
+      - name: keycloak
+        image: quay.io/keycloak/keycloak:24.0
+        args:
+        - start-dev
+        - --import-realm
+        env:
+        - name: KC_HTTP_RELATIVE_PATH
+          value: "/auth"
+        - name: KC_DB
+          value: postgres
+        - name: KC_DB_URL
+          value: jdbc:postgresql://postgres:5432/domain_system
+        - name: KC_DB_SCHEMA
+          value: keycloak
+        - name: KC_DB_USERNAME
+          valueFrom:
+            configMapKeyRef:
+              name: mdm-config
+              key: DB_USERNAME
+        - name: KC_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mdm-secrets
+              key: DB_PASSWORD
+        - name: KEYCLOAK_ADMIN
+          valueFrom:
+            secretKeyRef:
+              name: mdm-secrets
+              key: KEYCLOAK_ADMIN
+        - name: KEYCLOAK_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mdm-secrets
+              key: KEYCLOAK_ADMIN_PASSWORD
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: realm-config
+          mountPath: /opt/keycloak/data/import/
+      volumes:
+      - name: realm-config
+        configMap:
+          name: keycloak-realm-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  namespace: mdm-system
+spec:
+  ports:
+  - port: 8080
+    targetPort: 8080
+  selector:
+    app: keycloak
