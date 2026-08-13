@@ -2,6 +2,7 @@ package com.classification.domain_system.service;
 
 import com.classification.domain_system.exception.BusinessException;
 import com.classification.domain_system.service.storage.FileStorageService;
+import com.classification.domain_system.service.storage.FileValidationUtil;
 import com.classification.domain_system.service.storage.LocalStorageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,7 +26,8 @@ class FileStorageServiceTest {
 
     @BeforeEach
     void setUp() {
-        fileStorageService = new LocalStorageService(tempDir.toString());
+        FileValidationUtil validationUtil = new FileValidationUtil("jpg,jpeg,png,gif,pdf,txt,xlsx,xls,csv,docx,doc,pptx,ppt,zip");
+        fileStorageService = new LocalStorageService(tempDir.toString(), validationUtil);
     }
 
     @Test

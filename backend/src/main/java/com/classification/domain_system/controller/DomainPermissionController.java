@@ -115,6 +115,7 @@ public class DomainPermissionController {
         String orgIdStr = (String) payload.get("organizationId");
         String deptIdStr = (String) payload.get("departmentId");
         String teamIdStr = (String) payload.get("teamId");
+        String email = (String) payload.get("email");
 
         UUID orgId = (orgIdStr != null && !orgIdStr.trim().isEmpty()) ? UUID.fromString(orgIdStr) : null;
         UUID deptId = (deptIdStr != null && !deptIdStr.trim().isEmpty()) ? UUID.fromString(deptIdStr) : null;
@@ -125,6 +126,9 @@ public class DomainPermissionController {
         updateReq.setOrganizationId(orgId);
         updateReq.setDepartmentId(deptId);
         updateReq.setTeamId(teamId);
+        if (email != null && !email.trim().isEmpty()) {
+            updateReq.setEmail(email.trim());
+        }
 
         userService.updateUserInfo(userId, updateReq);
         return ResponseEntity.ok().build();

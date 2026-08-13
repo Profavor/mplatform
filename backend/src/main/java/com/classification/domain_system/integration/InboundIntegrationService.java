@@ -45,6 +45,7 @@ public class InboundIntegrationService {
     private final com.classification.domain_system.repository.SourcePriorityRepository sourcePriorityRepository;
     private final com.classification.domain_system.repository.RecordFieldSourceRepository recordFieldSourceRepository;
     private final NotificationService notificationService;
+    private final com.classification.domain_system.service.FieldEncryptionService encryptionService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional
@@ -298,6 +299,13 @@ public class InboundIntegrationService {
         return saved.getId();
     }
 
+    private boolean constantTimeEquals(String a, String b) {
+        if (a == null || b == null) return false;
+        byte[] aBytes = a.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] bBytes = b.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        return java.security.MessageDigest.isEqual(aBytes, bBytes);
+    }
+
 
     private void validateInboundAuthentication(IntegrationChannel channel, String rawPayload, String authHeader, String xApiKeyHeader, String apiKeyParam) {
         String configJson = channel.getConfigJson();
@@ -314,17 +322,21 @@ public class InboundIntegrationService {
                 return; // 인증 미설정 채널
             }
 
+            if (encryptionService != null && encryptionService.isEncrypted(secretToken)) {
+                secretToken = encryptionService.decrypt(secretToken);
+            }
+
             boolean isAuthenticated = false;
 
             if ("BEARER_TOKEN".equalsIgnoreCase(authType)) {
                 if (authHeader != null && authHeader.startsWith("Bearer ")) {
                     String extractedToken = authHeader.substring(7).trim();
-                    if (secretToken.equals(extractedToken)) {
+                    if (constantTimeEquals(secretToken, extractedToken)) {
                         isAuthenticated = true;
                     }
                 }
             } else if ("API_KEY".equalsIgnoreCase(authType)) {
-                if (secretToken.equals(xApiKeyHeader) || secretToken.equals(apiKeyParam)) {
+                if (constantTimeEquals(secretToken, xApiKeyHeader) || constantTimeEquals(secretToken, apiKeyParam)) {
                     isAuthenticated = true;
                 }
             }

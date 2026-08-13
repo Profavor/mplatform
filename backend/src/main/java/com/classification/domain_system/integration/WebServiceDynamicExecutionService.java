@@ -11,12 +11,31 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.beans.factory.annotation.Value;
+import jakarta.annotation.PostConstruct;
+import java.time.Duration;
+
 @Slf4j
 @Service
 public class WebServiceDynamicExecutionService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final RestTemplate restTemplate = new RestTemplate();
+    private RestTemplate restTemplate;
+
+    @Value("${integration.webservice.connect-timeout-ms:5000}")
+    private int connectTimeoutMs;
+
+    @Value("${integration.webservice.read-timeout-ms:10000}")
+    private int readTimeoutMs;
+
+    @PostConstruct
+    public void init() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofMillis(connectTimeoutMs));
+        factory.setReadTimeout(Duration.ofMillis(readTimeoutMs));
+        this.restTemplate = new RestTemplate(factory);
+    }
 
     public void executeWebService(String configJson, String payloadJson) throws Exception {
         JsonNode config = objectMapper.readTree(configJson);

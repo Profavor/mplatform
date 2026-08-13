@@ -12,6 +12,7 @@ import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.stereotype.Service;
+import jakarta.annotation.PreDestroy;
 
 import java.net.URI;
 import java.util.HashMap;
@@ -125,9 +126,40 @@ public class MessageQueueDynamicExecutionService {
                 connectionFactory.setPassword(parts[1]);
             }
 
-            return new RabbitTemplate(connectionFactory);
+            connectionFactory.getRabbitConnectionFactory().setConnectionTimeout(5000);
+
+            RabbitTemplate rabbitTemplate = new RabbitTemplate(connectionFactory);
+            rabbitTemplate.setReplyTimeout(5000);
+            return rabbitTemplate;
         } catch (Exception e) {
             throw new RuntimeException("Failed to create RabbitMQ ConnectionFactory: " + e.getMessage(), e);
         }
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        log.info("Closing all cached MessageQueue templates...");
+        kafkaTemplateCache.values().forEach(t -> {
+            try { 
+                ProducerFactory<String, String> factory = t.getProducerFactory();
+                if (factory instanceof org.springframework.beans.factory.DisposableBean disposableFactory) {
+                    disposableFactory.destroy();
+                }
+            } catch (Exception e) { 
+                log.warn("Failed to destroy KafkaTemplate: {}", e.getMessage()); 
+            }
+        });
+        kafkaTemplateCache.clear();
+
+        rabbitTemplateCache.values().forEach(t -> {
+            if (t instanceof RabbitTemplate rt && rt.getConnectionFactory() instanceof CachingConnectionFactory ccf) {
+                try { 
+                    ccf.destroy(); 
+                } catch (Exception e) { 
+                    log.warn("Failed to destroy RabbitMQ ConnectionFactory: {}", e.getMessage()); 
+                }
+            }
+        });
+        rabbitTemplateCache.clear();
     }
 }

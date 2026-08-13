@@ -14,13 +14,16 @@ import org.springframework.web.client.RestTemplate;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.net.URI;
+import com.classification.domain_system.service.FieldEncryptionService;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class IntegrationTestService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RestTemplate restTemplate = new RestTemplate(); // Simple rest template
+    private final FieldEncryptionService encryptionService;
 
     public ConnectionTestResponse testConnection(ConnectionTestRequest request) {
         try {
@@ -75,15 +78,22 @@ public class IntegrationTestService {
         String user = config.path("user").asText();
         String password = config.path("password").asText();
         
+        if (encryptionService != null && encryptionService.isEncrypted(password)) {
+            password = encryptionService.decrypt(password);
+        }
+        
         if (url == null || url.trim().isEmpty()) {
             return new ConnectionTestResponse(false, "JDBC URL이 입력되지 않았습니다.");
         }
 
-        try (Connection conn = DriverManager.getConnection(url, user, password)) {
-            if (conn.isValid(5)) {
-                return new ConnectionTestResponse(true, "DB 연결 성공!");
-            } else {
-                return new ConnectionTestResponse(false, "DB 연결이 유효하지 않습니다.");
+        try {
+            DriverManager.setLoginTimeout(5);
+            try (Connection conn = DriverManager.getConnection(url, user, password)) {
+                if (conn.isValid(5)) {
+                    return new ConnectionTestResponse(true, "DB 연결 성공!");
+                } else {
+                    return new ConnectionTestResponse(false, "DB 연결이 유효하지 않습니다.");
+                }
             }
         } catch (Exception e) {
             return new ConnectionTestResponse(false, "DB 연결 실패: " + e.getMessage());

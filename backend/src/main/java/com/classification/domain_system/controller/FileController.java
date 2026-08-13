@@ -1,6 +1,7 @@
 package com.classification.domain_system.controller;
 
 import com.classification.domain_system.service.storage.FileStorageService;
+import com.classification.domain_system.service.storage.FileValidationUtil;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -60,9 +61,11 @@ public class FileController {
                 String downloadName = originalName != null ? originalName : resource.getFilename();
                 String safeName = UriUtils.encode(downloadName, StandardCharsets.UTF_8);
 
-                MediaType mediaType = MediaTypeFactory.getMediaType(resource).orElse(MediaType.APPLICATION_OCTET_STREAM);
+                boolean isDangerous = FileValidationUtil.isDangerousExtension(downloadName);
+                
+                MediaType mediaType = isDangerous ? MediaType.APPLICATION_OCTET_STREAM : MediaTypeFactory.getMediaType(resource).orElse(MediaType.APPLICATION_OCTET_STREAM);
 
-                ContentDisposition contentDisposition = ContentDisposition.inline()
+                ContentDisposition contentDisposition = (isDangerous ? ContentDisposition.attachment() : ContentDisposition.inline())
                         .filename(safeName)
                         .filename(downloadName, StandardCharsets.UTF_8)
                         .build();
