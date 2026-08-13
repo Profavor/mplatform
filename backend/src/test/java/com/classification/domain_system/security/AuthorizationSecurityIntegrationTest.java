@@ -19,6 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -46,6 +47,9 @@ class AuthorizationSecurityIntegrationTest {
 
     @MockitoBean
     private AuthContext authContext;
+
+    @MockitoBean
+    private JwtDecoder jwtDecoder;
 
     private String userToken;
     private String adminToken;

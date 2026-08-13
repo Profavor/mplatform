@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 public class IntegrationChannelService {
 
     public static final String MASKED_PLACEHOLDER = "********";
+    private static final java.util.Set<String> SENSITIVE_KEYS = java.util.Set.of("password", "secretToken");
 
     private final IntegrationChannelRepository repository;
     private final FieldEncryptionService encryptionService;
@@ -108,22 +109,24 @@ public class IntegrationChannelService {
             JsonNode rootNode = objectMapper.readTree(newConfigJson);
             if (rootNode.isObject()) {
                 ObjectNode objNode = (ObjectNode) rootNode;
-                if (objNode.has("password")) {
-                    String password = objNode.get("password").asText();
-                    if (MASKED_PLACEHOLDER.equals(password)) {
-                        // Restore old password
-                        if (oldConfigJson != null && !oldConfigJson.isBlank()) {
-                            JsonNode oldNode = objectMapper.readTree(oldConfigJson);
-                            if (oldNode.has("password")) {
-                                objNode.put("password", oldNode.get("password").asText());
+                for (String sensitiveKey : SENSITIVE_KEYS) {
+                    if (objNode.has(sensitiveKey)) {
+                        String value = objNode.get(sensitiveKey).asText();
+                        if (MASKED_PLACEHOLDER.equals(value)) {
+                            // Restore old value
+                            if (oldConfigJson != null && !oldConfigJson.isBlank()) {
+                                JsonNode oldNode = objectMapper.readTree(oldConfigJson);
+                                if (oldNode.has(sensitiveKey)) {
+                                    objNode.put(sensitiveKey, oldNode.get(sensitiveKey).asText());
+                                } else {
+                                    objNode.remove(sensitiveKey);
+                                }
                             } else {
-                                objNode.remove("password");
+                                objNode.remove(sensitiveKey);
                             }
-                        } else {
-                            objNode.remove("password");
+                        } else if (!encryptionService.isEncrypted(value)) {
+                            objNode.put(sensitiveKey, encryptionService.encrypt(value));
                         }
-                    } else if (!encryptionService.isEncrypted(password)) {
-                        objNode.put("password", encryptionService.encrypt(password));
                     }
                 }
                 return objectMapper.writeValueAsString(objNode);
@@ -147,8 +150,10 @@ public class IntegrationChannelService {
             JsonNode rootNode = objectMapper.readTree(configJson);
             if (rootNode.isObject()) {
                 ObjectNode objNode = (ObjectNode) rootNode;
-                if (objNode.has("password")) {
-                    objNode.put("password", MASKED_PLACEHOLDER);
+                for (String sensitiveKey : SENSITIVE_KEYS) {
+                    if (objNode.has(sensitiveKey)) {
+                        objNode.put(sensitiveKey, MASKED_PLACEHOLDER);
+                    }
                 }
                 return objectMapper.writeValueAsString(objNode);
             }

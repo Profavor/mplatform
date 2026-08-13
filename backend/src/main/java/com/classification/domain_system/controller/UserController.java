@@ -62,7 +62,7 @@ public class UserController {
     @PostMapping
     @PreAuthorize("hasPermission(null, 'user:write')")
     public ResponseEntity<Map<String, String>> createUser(@RequestBody AdminUserCreateDto createReq) {
-        String tempPassword = userService.createAdminUser(createReq.getUsername(), createReq.getRole(), createReq.getOrganizationId(), createReq.getDepartmentId());
+        String tempPassword = userService.createAdminUser(createReq.getUsername(), createReq.getEmail(), createReq.getRole(), createReq.getOrganizationId(), createReq.getDepartmentId());
         Map<String, String> response = new HashMap<>();
         response.put("username", createReq.getUsername());
         response.put("tempPassword", tempPassword);
@@ -157,6 +157,7 @@ public class UserController {
     public static class UserDto {
         public String id;
         public String username;
+        public String email;
         public String role;
         public java.util.UUID organizationId;
         public java.util.UUID departmentId;
@@ -167,12 +168,13 @@ public class UserController {
         public String deptName;
         
         public UserDto(String id, String username, String role) {
-            this(id, username, role, null, null, null, true, false);
+            this(id, username, null, role, null, null, null, true, false);
         }
 
-        public UserDto(String id, String username, String role, java.util.UUID organizationId, java.util.UUID departmentId, java.util.UUID teamId, Boolean isActive, Boolean mustChangePassword) {
+        public UserDto(String id, String username, String email, String role, java.util.UUID organizationId, java.util.UUID departmentId, java.util.UUID teamId, Boolean isActive, Boolean mustChangePassword) {
             this.id = id;
             this.username = username;
+            this.email = email;
             this.role = role;
             this.organizationId = organizationId;
             this.departmentId = departmentId;
@@ -181,8 +183,8 @@ public class UserController {
             this.mustChangePassword = mustChangePassword;
         }
 
-        public UserDto(String id, String username, String role, java.util.UUID organizationId, java.util.UUID departmentId, java.util.UUID teamId, Boolean isActive, Boolean mustChangePassword, String orgName, String deptName) {
-            this(id, username, role, organizationId, departmentId, teamId, isActive, mustChangePassword);
+        public UserDto(String id, String username, String email, String role, java.util.UUID organizationId, java.util.UUID departmentId, java.util.UUID teamId, Boolean isActive, Boolean mustChangePassword, String orgName, String deptName) {
+            this(id, username, email, role, organizationId, departmentId, teamId, isActive, mustChangePassword);
             this.orgName = orgName;
             this.deptName = deptName;
         }
@@ -204,6 +206,7 @@ public class UserController {
     @lombok.Data
     public static class AdminUserCreateDto {
         private String username;
+        private String email;
         private String role;
         private java.util.UUID organizationId;
         private java.util.UUID departmentId;

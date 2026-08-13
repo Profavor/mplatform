@@ -42,7 +42,7 @@ public class UserService {
                         deptName = deptCache.computeIfAbsent(u.getDepartmentId(), id -> 
                             departmentRepository.findById(id).map(com.classification.domain_system.entity.Department::getName).orElse(null));
                     }
-                    return new UserDto(u.getId(), u.getUsername(), u.getRole(), u.getOrganizationId(), u.getDepartmentId(), u.getTeamId(), u.getIsActive(), u.getMustChangePassword(), orgName, deptName);
+                    return new UserDto(u.getId(), u.getUsername(), u.getEmail(), u.getRole(), u.getOrganizationId(), u.getDepartmentId(), u.getTeamId(), u.getIsActive(), u.getMustChangePassword(), orgName, deptName);
                 })
                 .collect(Collectors.toList());
     }
@@ -71,6 +71,7 @@ public class UserService {
         }
         if (dto.getRole() != null) user.setRole(dto.getRole());
         if (dto.getIsActive() != null) user.setIsActive(dto.getIsActive());
+        if (dto.getEmail() != null) user.setEmail(dto.getEmail());
 
         com.classification.domain_system.entity.User savedUser = userRepository.save(user);
 
@@ -118,6 +119,7 @@ public class UserService {
         dto.setDepartmentId(updateReq.getDepartmentId());
         dto.setTeamId(updateReq.getTeamId());
         dto.setIsActive(updateReq.getIsActive());
+        dto.setEmail(updateReq.getEmail());
         return updateAdminUserInfo(userId, dto);
     }
 
@@ -158,7 +160,7 @@ public class UserService {
     }
 
     @Transactional
-    public String createAdminUser(String username, String role, java.util.UUID organizationId, java.util.UUID departmentId) {
+    public String createAdminUser(String username, String email, String role, java.util.UUID organizationId, java.util.UUID departmentId) {
         if (userRepository.findByUsername(username).isPresent()) {
             throw new IllegalArgumentException("Username already exists");
         }
@@ -168,6 +170,7 @@ public class UserService {
         
         com.classification.domain_system.entity.User user = new com.classification.domain_system.entity.User();
         user.setUsername(username);
+        user.setEmail(email);
         user.setPassword(passwordEncoder.encode(tempPassword));
         user.setEncryptedTempPassword(fieldEncryptionService.encrypt(tempPassword));
         user.setRole(role != null && !role.trim().isEmpty() ? role : "ROLE_USER");
@@ -180,7 +183,7 @@ public class UserService {
         
         // Sync to Keycloak
         try {
-            keycloakAdminService.createUser(username, tempPassword, username + "@example.com", username);
+            keycloakAdminService.createUser(username, tempPassword, email != null && !email.trim().isEmpty() ? email : username + "@example.com", username);
         } catch (Exception e) {
             org.slf4j.LoggerFactory.getLogger(UserService.class).error("Failed to sync user creation to Keycloak: {}", username, e);
         }

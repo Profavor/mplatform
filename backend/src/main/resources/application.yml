@@ -72,7 +72,9 @@ jwt:
   refresh-token-expiration-sec: ${JWT_REFRESH_EXPIRATION_SEC}
 
 file:
-  upload-dir: ${FILE_UPLOAD_DIR}
+  upload-dir: ${FILE_UPLOAD_DIR:uploads}
+  upload:
+    allowed-extensions: ${FILE_UPLOAD_ALLOWED_EXTENSIONS:jpg,jpeg,png,gif,pdf,xlsx,xls,csv,docx,doc,pptx,ppt,txt,zip}
 
 logging:
   level:
@@ -122,3 +124,8 @@ integration:
       connection-timeout: ${INTEGRATION_JDBC_CONNECTION_TIMEOUT:5000}
       validation-timeout: ${INTEGRATION_JDBC_VALIDATION_TIMEOUT:3000}
       max-lifetime: ${INTEGRATION_JDBC_MAX_LIFETIME:600000}
+  webservice:
+    connect-timeout-ms: ${INTEGRATION_WEBSERVICE_CONNECT_TIMEOUT_MS:5000}
+    read-timeout-ms: ${INTEGRATION_WEBSERVICE_READ_TIMEOUT_MS:10000}
+  scheduler:
+    pool-size: ${INTEGRATION_SCHEDULER_POOL_SIZE:4}

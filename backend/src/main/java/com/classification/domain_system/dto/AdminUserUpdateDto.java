@@ -10,4 +10,5 @@ public class AdminUserUpdateDto {
     private UUID departmentId;
     private UUID teamId;
     private Boolean isActive;
+    private String email;
 }
