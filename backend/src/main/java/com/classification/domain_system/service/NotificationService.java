@@ -71,9 +71,12 @@ public class NotificationService {
     }
 
     @Transactional
-    public Notification markAsRead(UUID id) {
+    public Notification markAsRead(UUID id, String currentUserId) {
         Notification notification = notificationRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Notification not found with ID: " + id));
+        if (!notification.getUserId().equals(currentUserId)) {
+            throw new org.springframework.security.access.AccessDeniedException("User does not have permission to mark this notification as read");
+        }
         notification.setIsRead(true);
         return notificationRepository.save(notification);
     }
@@ -84,7 +87,12 @@ public class NotificationService {
     }
 
     @Transactional
-    public void deleteNotification(UUID id) {
+    public void deleteNotification(UUID id, String currentUserId) {
+        Notification notification = notificationRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Notification not found with ID: " + id));
+        if (!notification.getUserId().equals(currentUserId)) {
+            throw new org.springframework.security.access.AccessDeniedException("User does not have permission to delete this notification");
+        }
         notificationRepository.deleteById(id);
     }
 

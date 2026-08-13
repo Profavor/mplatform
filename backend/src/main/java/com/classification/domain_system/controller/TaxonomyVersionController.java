@@ -18,6 +18,7 @@ public class TaxonomyVersionController {
     private final TaxonomyVersionService taxonomyVersionService;
 
     @PostMapping
+    @org.springframework.security.access.prepost.PreAuthorize("hasPermission(null, 'domain:write')")
     public ResponseEntity<TaxonomyVersion> createSnapshot(
             @PathVariable UUID domainId,
             @RequestBody Map<String, String> request) {
@@ -25,11 +26,13 @@ public class TaxonomyVersionController {
     }
 
     @GetMapping
+    @org.springframework.security.access.prepost.PreAuthorize("hasPermission(null, 'domain:read')")
     public ResponseEntity<List<TaxonomyVersion>> getVersions(@PathVariable UUID domainId) {
         return ResponseEntity.ok(taxonomyVersionService.getVersions(domainId));
     }
 
     @GetMapping("/{versionId}/data")
+    @org.springframework.security.access.prepost.PreAuthorize("hasPermission(null, 'domain:read')")
     public ResponseEntity<String> getSnapshotData(@PathVariable UUID domainId, @PathVariable UUID versionId) {
         return ResponseEntity.ok(taxonomyVersionService.getSnapshotData(versionId));
     }
