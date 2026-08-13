@@ -15,13 +15,22 @@ import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class JdbcDynamicExecutionService {
 
+    private static final Pattern SAFE_IDENTIFIER = Pattern.compile("^[A-Za-z_][A-Za-z0-9_]{0,127}$");
+    
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    private void validateIdentifier(String identifier) {
+        if (identifier == null || !SAFE_IDENTIFIER.matcher(identifier).matches()) {
+            throw new IllegalArgumentException("Invalid identifier: " + identifier);
+        }
+    }
 
     public void executeUpsert(String configJson, String payloadJson) throws Exception {
         JsonNode config = objectMapper.readTree(configJson);
@@ -36,6 +45,11 @@ public class JdbcDynamicExecutionService {
             return;
         }
 
+        List<String> columns = new ArrayList<>(data.keySet());
+        
+        validateIdentifier(table);
+        columns.forEach(this::validateIdentifier);
+
         try (Connection conn = DriverManager.getConnection(url, user, password)) {
             DatabaseMetaData metaData = conn.getMetaData();
             ResultSet pkRs = metaData.getPrimaryKeys(null, null, table);
@@ -45,11 +59,12 @@ public class JdbcDynamicExecutionService {
             }
 
             String dbProductName = metaData.getDatabaseProductName().toLowerCase();
-            List<String> columns = new ArrayList<>(data.keySet());
             List<Object> values = new ArrayList<>();
             for (String col : columns) {
                 values.add(data.get(col));
             }
+
+            pkColumns.forEach(this::validateIdentifier);
 
             String sql;
             if (dbProductName.contains("mysql") || dbProductName.contains("mariadb")) {
@@ -88,17 +103,17 @@ public class JdbcDynamicExecutionService {
     }
 
     private String buildMySqlUpsert(String table, List<String> columns) {
-        StringBuilder sql = new StringBuilder("INSERT INTO ");
-        sql.append(table).append(" (");
+        StringBuilder sql = new StringBuilder("INSERT INTO `");
+        sql.append(table).append("` (");
         
         StringBuilder values = new StringBuilder("VALUES (");
         StringBuilder update = new StringBuilder("ON DUPLICATE KEY UPDATE ");
 
         for (int i = 0; i < columns.size(); i++) {
             String col = columns.get(i);
-            sql.append(col);
+            sql.append("`").append(col).append("`");
             values.append("?");
-            update.append(col).append("=VALUES(").append(col).append(")");
+            update.append("`").append(col).append("`=VALUES(`").append(col).append("`)");
 
             if (i < columns.size() - 1) {
                 sql.append(", ");
@@ -167,18 +182,18 @@ public class JdbcDynamicExecutionService {
             throw new IllegalStateException("Primary key is required for Oracle merge on table: " + table);
         }
 
-        StringBuilder sql = new StringBuilder("MERGE INTO ");
-        sql.append(table).append(" t USING (SELECT ");
+        StringBuilder sql = new StringBuilder("MERGE INTO \"");
+        sql.append(table).append("\" t USING (SELECT ");
         
         for (int i = 0; i < columns.size(); i++) {
-            sql.append("? AS ").append(columns.get(i));
+            sql.append("? AS \"").append(columns.get(i)).append("\"");
             if (i < columns.size() - 1) sql.append(", ");
         }
         sql.append(" FROM DUAL) s ON (");
 
         for (int i = 0; i < pkColumns.size(); i++) {
             String pk = pkColumns.get(i);
-            sql.append("t.").append(pk).append(" = s.").append(pk);
+            sql.append("t.\"").append(pk).append("\" = s.\"").append(pk).append("\"");
             if (i < pkColumns.size() - 1) sql.append(" AND ");
         }
         sql.append(") ");
@@ -194,7 +209,7 @@ public class JdbcDynamicExecutionService {
             sql.append("WHEN MATCHED THEN UPDATE SET ");
             for (int i = 0; i < nonPkColumns.size(); i++) {
                 String col = nonPkColumns.get(i);
-                sql.append("t.").append(col).append(" = s.").append(col);
+                sql.append("t.\"").append(col).append("\" = s.\"").append(col).append("\"");
                 if (i < nonPkColumns.size() - 1) sql.append(", ");
             }
             sql.append(" ");
@@ -202,12 +217,12 @@ public class JdbcDynamicExecutionService {
 
         sql.append("WHEN NOT MATCHED THEN INSERT (");
         for (int i = 0; i < columns.size(); i++) {
-            sql.append(columns.get(i));
+            sql.append("\"").append(columns.get(i)).append("\"");
             if (i < columns.size() - 1) sql.append(", ");
         }
         sql.append(") VALUES (");
         for (int i = 0; i < columns.size(); i++) {
-            sql.append("s.").append(columns.get(i));
+            sql.append("s.\"").append(columns.get(i)).append("\"");
             if (i < columns.size() - 1) sql.append(", ");
         }
         sql.append(")");
