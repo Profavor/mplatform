@@ -1,5 +1,6 @@
 package com.classification.domain_system.integration;
 
+import com.classification.domain_system.service.FieldEncryptionService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,6 +26,7 @@ public class JdbcDynamicExecutionService {
     private static final Pattern SAFE_IDENTIFIER = Pattern.compile("^[A-Za-z_][A-Za-z0-9_]{0,127}$");
     
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final FieldEncryptionService encryptionService;
 
     private void validateIdentifier(String identifier) {
         if (identifier == null || !SAFE_IDENTIFIER.matcher(identifier).matches()) {
@@ -37,6 +39,9 @@ public class JdbcDynamicExecutionService {
         String url = config.get("url").asText();
         String user = config.get("user").asText();
         String password = config.get("password").asText();
+        if (encryptionService != null && encryptionService.isEncrypted(password)) {
+            password = encryptionService.decrypt(password);
+        }
         String table = config.get("table").asText();
 
         Map<String, Object> data = objectMapper.readValue(payloadJson, new TypeReference<>() {});
