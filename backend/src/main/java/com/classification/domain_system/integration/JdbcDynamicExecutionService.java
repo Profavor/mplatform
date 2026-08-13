@@ -16,7 +16,14 @@ import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
+
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+import jakarta.annotation.PreDestroy;
+import org.springframework.beans.factory.annotation.Value;
+import org.apache.commons.codec.digest.DigestUtils;
 
 @Slf4j
 @Service
@@ -27,6 +34,56 @@ public class JdbcDynamicExecutionService {
     
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final FieldEncryptionService encryptionService;
+    private final Map<String, HikariDataSource> dataSourceCache = new ConcurrentHashMap<>();
+
+    @Value("${integration.jdbc.pool.maximum-pool-size:5}")
+    private int maximumPoolSize;
+
+    @Value("${integration.jdbc.pool.connection-timeout:5000}")
+    private long connectionTimeout;
+
+    @Value("${integration.jdbc.pool.validation-timeout:3000}")
+    private long validationTimeout;
+
+    @Value("${integration.jdbc.pool.max-lifetime:600000}")
+    private long maxLifetime;
+
+    @PreDestroy
+    public void destroy() {
+        log.info("Closing all cached HikariDataSources...");
+        dataSourceCache.values().forEach(HikariDataSource::close);
+        dataSourceCache.clear();
+    }
+
+    public void invalidateDataSource(String url, String user, String password) {
+        String cacheKey = generateCacheKey(url, user, password);
+        HikariDataSource ds = dataSourceCache.remove(cacheKey);
+        if (ds != null && !ds.isClosed()) {
+            ds.close();
+            log.info("Invalidated and closed DataSource cache for key: {}", cacheKey);
+        }
+    }
+
+    private String generateCacheKey(String url, String user, String password) {
+        String pwHash = password != null ? DigestUtils.sha256Hex(password) : "";
+        return url + "|" + user + "|" + pwHash;
+    }
+
+    private HikariDataSource getOrCreateDataSource(String url, String user, String password) {
+        String cacheKey = generateCacheKey(url, user, password);
+        return dataSourceCache.computeIfAbsent(cacheKey, k -> {
+            log.info("Creating new HikariDataSource for URL: {}, User: {}", url, user);
+            HikariConfig config = new HikariConfig();
+            config.setJdbcUrl(url);
+            config.setUsername(user);
+            config.setPassword(password);
+            config.setMaximumPoolSize(maximumPoolSize);
+            config.setConnectionTimeout(connectionTimeout);
+            config.setValidationTimeout(validationTimeout);
+            config.setMaxLifetime(maxLifetime);
+            return new HikariDataSource(config);
+        });
+    }
 
     private void validateIdentifier(String identifier) {
         if (identifier == null || !SAFE_IDENTIFIER.matcher(identifier).matches()) {
@@ -55,7 +112,9 @@ public class JdbcDynamicExecutionService {
         validateIdentifier(table);
         columns.forEach(this::validateIdentifier);
 
-        try (Connection conn = DriverManager.getConnection(url, user, password)) {
+        HikariDataSource dataSource = getOrCreateDataSource(url, user, password);
+
+        try (Connection conn = dataSource.getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
             ResultSet pkRs = metaData.getPrimaryKeys(null, null, table);
             List<String> pkColumns = new ArrayList<>();

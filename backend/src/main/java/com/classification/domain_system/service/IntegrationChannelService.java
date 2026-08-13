@@ -2,6 +2,7 @@ package com.classification.domain_system.service;
 
 import com.classification.domain_system.dto.IntegrationChannelResponse;
 import com.classification.domain_system.entity.IntegrationChannel;
+import com.classification.domain_system.integration.JdbcDynamicExecutionService;
 import com.classification.domain_system.repository.IntegrationChannelRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -9,6 +10,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Lazy;
 
 import java.util.List;
 import java.util.Optional;
@@ -24,6 +26,7 @@ public class IntegrationChannelService {
 
     private final IntegrationChannelRepository repository;
     private final FieldEncryptionService encryptionService;
+    private final JdbcDynamicExecutionService jdbcService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public List<IntegrationChannelResponse> getAllChannels() {
@@ -48,6 +51,8 @@ public class IntegrationChannelService {
 
     public Optional<IntegrationChannelResponse> updateChannel(UUID id, IntegrationChannel updated) {
         return repository.findById(id).map(existing -> {
+            String oldConfig = existing.getConfigJson();
+            
             existing.setName(updated.getName());
             existing.setType(updated.getType());
             if (updated.getDirection() != null && !updated.getDirection().isBlank()) {
@@ -57,19 +62,42 @@ public class IntegrationChannelService {
             existing.setMappingConfigJson(updated.getMappingConfigJson());
             existing.setActive(updated.isActive());
             
-            existing.setConfigJson(encryptConfigJson(updated.getConfigJson(), existing.getConfigJson()));
+            existing.setConfigJson(encryptConfigJson(updated.getConfigJson(), oldConfig));
             
             IntegrationChannel saved = repository.save(existing);
+            
+            // Invalidate cache if credentials or active status changed
+            invalidateCacheIfNeeded(oldConfig);
+            
             return toMaskedResponse(saved);
         });
     }
 
     public boolean deleteChannel(UUID id) {
-        if (repository.existsById(id)) {
+        return repository.findById(id).map(existing -> {
+            String oldConfig = existing.getConfigJson();
             repository.deleteById(id);
+            invalidateCacheIfNeeded(oldConfig);
             return true;
+        }).orElse(false);
+    }
+
+    private void invalidateCacheIfNeeded(String configJson) {
+        if (configJson == null || configJson.isBlank()) return;
+        try {
+            JsonNode rootNode = objectMapper.readTree(configJson);
+            if (rootNode.has("url") && rootNode.has("user") && rootNode.has("password")) {
+                String url = rootNode.get("url").asText();
+                String user = rootNode.get("user").asText();
+                String password = rootNode.get("password").asText();
+                if (encryptionService.isEncrypted(password)) {
+                    password = encryptionService.decrypt(password);
+                }
+                jdbcService.invalidateDataSource(url, user, password);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to invalidate cache", e);
         }
-        return false;
     }
 
     private String encryptConfigJson(String newConfigJson, String oldConfigJson) {
