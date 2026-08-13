@@ -23,30 +23,9 @@ spec:
             name: mdm-config
         - secretRef:
             name: mdm-secrets
-        # If any variables need special names or are missing from configmap, add them here
         env:
-        - name: JWT_SECRET
-          value: "YOUR_SUPER_SECRET_KEY_FOR_JWT_AUTHENTICATION_OVER_256_BITS"
-        - name: JWT_ACCESS_EXPIRATION_SEC
-          value: "1800"
-        - name: JWT_REFRESH_EXPIRATION_SEC
-          value: "172800"
-        - name: JWT_EXPIRATION
-          value: "86400000"
-        - name: ENCRYPTION_SECRET_KEY
-          value: "your_encryption_secret_key_which_must_be_at_least_256_bits_long"
-        - name: FILE_UPLOAD_DIR
-          value: "/app/uploads"
-        - name: REDIS_HOST
-          value: "localhost"
-        - name: REDIS_PORT
-          value: "6379"
-        - name: CHAT_RETENTION_DAYS
-          value: "7"
         - name: JAVA_OPTS
           value: "-Xms4g -Xmx4g -XX:MaxMetaspaceSize=512m -XX:+UseSerialGC"
-        - name: DDL_AUTO
-          value: "update"
 ---
 apiVersion: v1
 kind: Service

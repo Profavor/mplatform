@@ -23,33 +23,11 @@ spec:
         imagePullPolicy: Never
         ports:
         - containerPort: 3000
-        env:
-        - name: OAUTH2_ISSUER_URI
-          value: "http://mplatform.local/auth/realms/mplatform"
-        - name: KEYCLOAK_REDIRECT_URI
-          value: "http://mplatform.local/auth/keycloak/callback"
-        # Nuxt 3 requires this variable to hit the backend API
-        - name: NUXT_PUBLIC_API_BASE
-          value: "http://mplatform.local/api"
-        - name: NUXT_OIDC_SESSION_SECRET
-          value: "NlhsR8Ak3KmuSmETkuWo97F2NOlv72UcvXWRAtgvsOrT1Y8n"
-        - name: NUXT_OIDC_TOKEN_KEY
-          value: "data:;base64,4bRR/K5TVe98TP1itI2lvT2HZYG4lGBT02vmqtHnhLE="
-        - name: NUXT_OIDC_AUTH_SESSION_SECRET
-          value: "CNwSsFJo3EZRs-6qwK9ZT7p4bcDza3Ov1Sd_AA-QB33iUjQY"
-        - name: NUXT_OIDC_SESSION_COOKIE_SECURE
-          value: "false"
-        - name: NUXT_OIDC_COOKIE_SECURE
-          value: "false"
-        - name: NUXT_SESSION_COOKIE_SECURE
-          value: "false"
-        # Node environment for Nuxt SSR
-        - name: NODE_ENV
-          value: "production"
-        - name: HOST
-          value: "0.0.0.0"
-        - name: PORT
-          value: "3000"
+        envFrom:
+        - configMapRef:
+            name: mdm-config
+        - secretRef:
+            name: mdm-secrets
 ---
 apiVersion: v1
 kind: Service

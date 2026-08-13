@@ -30,8 +30,28 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue'
+import { useRoute } from '#app'
+import { useI18n } from 'vue-i18n'
+import { useToast } from 'vuestic-ui'
+
 definePageMeta({
   layout: false
+})
+
+const route = useRoute()
+const { t } = useI18n()
+const { init: initToast } = useToast()
+
+onMounted(() => {
+  if (route.query.error) {
+    initToast({
+      message: t('auth_login_error_message') || '인증에 실패했습니다. 계정 정보를 다시 확인해주세요.',
+      color: 'danger',
+      duration: 5000,
+      position: 'top-right'
+    })
+  }
 })
 
 const handleLogin = () => {
