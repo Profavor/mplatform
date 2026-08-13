@@ -10,6 +10,8 @@ import org.mockito.ArgumentCaptor;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.classification.domain_system.integration.JdbcDynamicExecutionService;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -19,12 +21,14 @@ public class IntegrationChannelServiceTest {
     private IntegrationChannelService service;
     private IntegrationChannelRepository repository;
     private FieldEncryptionService encryptionService;
+    private JdbcDynamicExecutionService jdbcService;
 
     @BeforeEach
     void setUp() {
         repository = mock(IntegrationChannelRepository.class);
         encryptionService = mock(FieldEncryptionService.class);
-        service = new IntegrationChannelService(repository, encryptionService);
+        jdbcService = mock(JdbcDynamicExecutionService.class);
+        service = new IntegrationChannelService(repository, encryptionService, jdbcService);
     }
 
     @Test

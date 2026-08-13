@@ -14,12 +14,7 @@ public class JdbcDynamicExecutionServiceTest {
 
     @BeforeEach
     void setUp() {
-        // We only need the objectMapper for validation tests, but RequiredArgsConstructor would normally want it.
-        // It's instantiated inside the class itself though (private final ObjectMapper objectMapper = new ObjectMapper();)
-        // Let's check constructor signature if any.
-        // Wait, @RequiredArgsConstructor generates a constructor for `final` uninitialized fields.
-        // `objectMapper` is initialized inline. If there are no other uninitialized final fields, the default constructor works.
-        service = new JdbcDynamicExecutionService();
+        service = new JdbcDynamicExecutionService(null);
     }
 
     @Test
