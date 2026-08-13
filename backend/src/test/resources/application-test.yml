@@ -9,6 +9,11 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: create-drop
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:8080/dummy-jwk-set-uri
   kafka:
     bootstrap-servers: localhost:9092
     consumer:
@@ -28,6 +33,7 @@ spring:
       - org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration
 
 keycloak:
   server-url: http://localhost:8080
@@ -45,6 +51,11 @@ jwt:
 
 chat:
   retention-days: 7
+
+storage:
+  type: local
+  local:
+    dir: ./uploads
 
 dq:
   engine:
