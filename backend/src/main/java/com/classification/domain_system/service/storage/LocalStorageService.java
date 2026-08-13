@@ -29,8 +29,10 @@ import java.util.UUID;
 public class LocalStorageService implements FileStorageService {
 
     private final Path fileStorageLocation;
+    private final FileValidationUtil fileValidationUtil;
 
-    public LocalStorageService(@Value("${file.upload-dir}") String uploadDir) {
+    public LocalStorageService(@Value("${file.upload-dir}") String uploadDir, FileValidationUtil fileValidationUtil) {
+        this.fileValidationUtil = fileValidationUtil;
         Path location;
         try {
             location = Paths.get(uploadDir).toAbsolutePath().normalize();
@@ -84,6 +86,14 @@ public class LocalStorageService implements FileStorageService {
         String cleanName = StringUtils.cleanPath(originalFileName);
         if (cleanName.contains("..")) {
             throw new BusinessException(ErrorCode.UPLOAD_FILE_FAIL, "Filename contains invalid path sequence: " + originalFileName);
+        }
+        
+        fileValidationUtil.validateExtension(cleanName);
+
+        try (InputStream is = file.getInputStream()) {
+            fileValidationUtil.validateMagicBytes(is);
+        } catch (IOException e) {
+            throw new BusinessException(ErrorCode.UPLOAD_FILE_FAIL, "Could not read file for validation");
         }
 
         try {

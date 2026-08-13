@@ -48,9 +48,6 @@ public class SecurityConfig {
         return expressionHandler;
     }
 
-    @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri:#{null}}")
-    private String jwkSetUri;
-
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
@@ -79,10 +76,6 @@ public class SecurityConfig {
                     response.getWriter().write("{\"error\":\"Forbidden\",\"message\":\"Access denied\"}");
                 })
             );
-
-        if (jwkSetUri != null && !jwkSetUri.isEmpty()) {
-            http.oauth2ResourceServer(oauth2 -> oauth2.jwt(org.springframework.security.config.Customizer.withDefaults()));
-        }
 
         return http.build();
     }

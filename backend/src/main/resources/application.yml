@@ -72,7 +72,9 @@ jwt:
   refresh-token-expiration-sec: ${JWT_REFRESH_EXPIRATION_SEC}
 
 file:
-  upload-dir: ${FILE_UPLOAD_DIR}
+  upload-dir: ${FILE_UPLOAD_DIR:uploads}
+  upload:
+    allowed-extensions: ${FILE_UPLOAD_ALLOWED_EXTENSIONS:jpg,jpeg,png,gif,pdf,xlsx,xls,csv,docx,doc,pptx,ppt,txt,zip}
 
 logging:
   level:

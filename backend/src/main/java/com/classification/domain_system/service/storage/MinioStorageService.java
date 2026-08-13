@@ -26,17 +26,20 @@ public class MinioStorageService implements FileStorageService {
     private final String secretKey;
     private final String bucketName;
     private MinioClient minioClient;
+    private final FileValidationUtil fileValidationUtil;
 
     public MinioStorageService(
             @Value("${minio.url}") String minioUrl,
             @Value("${minio.access-key}") String accessKey,
             @Value("${minio.secret-key}") String secretKey,
             @Value("${minio.bucket-name}") String bucketName,
-            @Value("${file.upload-dir}") String uploadDir) {
+            @Value("${file.upload-dir}") String uploadDir,
+            FileValidationUtil fileValidationUtil) {
         this.minioUrl = minioUrl;
         this.accessKey = accessKey;
         this.secretKey = secretKey;
         this.bucketName = bucketName;
+        this.fileValidationUtil = fileValidationUtil;
 
         try {
             this.minioClient = MinioClient.builder()
@@ -71,6 +74,14 @@ public class MinioStorageService implements FileStorageService {
         String cleanName = StringUtils.cleanPath(originalFileName);
         if (cleanName.contains("..")) {
             throw new BusinessException(ErrorCode.UPLOAD_FILE_FAIL, "Filename contains invalid path sequence: " + originalFileName);
+        }
+
+        fileValidationUtil.validateExtension(cleanName);
+
+        try (InputStream is = file.getInputStream()) {
+            fileValidationUtil.validateMagicBytes(is);
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.UPLOAD_FILE_FAIL, "Could not read file for validation");
         }
 
         try {

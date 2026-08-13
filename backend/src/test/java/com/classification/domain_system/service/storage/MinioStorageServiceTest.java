@@ -32,8 +32,9 @@ class MinioStorageServiceTest {
     @BeforeEach
     void setUp() throws Exception {
         // Create service via constructor, then replace the internal minioClient with our mock
+        FileValidationUtil validationUtil = new FileValidationUtil("jpg,jpeg,png,gif,pdf,txt,xlsx,xls,csv,docx,doc,pptx,ppt,zip");
         storageService = new MinioStorageService(
-                "http://localhost:9000", "test-access-key", "test-secret-key", "test-bucket", "./uploads");
+                "http://localhost:9000", "test-access-key", "test-secret-key", "test-bucket", "./uploads", validationUtil);
         ReflectionTestUtils.setField(storageService, "minioClient", minioClient);
     }
 
