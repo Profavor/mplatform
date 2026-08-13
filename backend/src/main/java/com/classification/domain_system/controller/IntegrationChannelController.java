@@ -1,7 +1,8 @@
 package com.classification.domain_system.controller;
 
+import com.classification.domain_system.dto.IntegrationChannelResponse;
 import com.classification.domain_system.entity.IntegrationChannel;
-import com.classification.domain_system.repository.IntegrationChannelRepository;
+import com.classification.domain_system.service.IntegrationChannelService;
 import com.classification.domain_system.dto.ConnectionTestRequest;
 import com.classification.domain_system.dto.ConnectionTestResponse;
 import com.classification.domain_system.service.IntegrationTestService;
@@ -19,7 +20,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 @RequiredArgsConstructor
 public class IntegrationChannelController {
 
-    private final IntegrationChannelRepository repository;
+    private final IntegrationChannelService service;
     private final IntegrationTestService testService;
 
     @PostMapping("/test-connection")
@@ -30,41 +31,28 @@ public class IntegrationChannelController {
 
     @GetMapping
     @PreAuthorize("hasPermission(null, 'integration:read')")
-    public List<IntegrationChannel> getAll() {
-        return repository.findAll();
+    public List<IntegrationChannelResponse> getAll() {
+        return service.getAllChannels();
     }
 
     @PostMapping
     @PreAuthorize("hasPermission(null, 'integration:write')")
-    public IntegrationChannel create(@RequestBody IntegrationChannel channel) {
-        if (channel.getDirection() == null || channel.getDirection().isBlank()) {
-            channel.setDirection("OUTBOUND");
-        }
-        return repository.save(channel);
+    public IntegrationChannelResponse create(@RequestBody IntegrationChannel channel) {
+        return service.createChannel(channel);
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasPermission(null, 'integration:write')")
-    public ResponseEntity<IntegrationChannel> update(@PathVariable UUID id, @RequestBody IntegrationChannel updated) {
-        return repository.findById(id).map(channel -> {
-            channel.setName(updated.getName());
-            channel.setType(updated.getType());
-            if (updated.getDirection() != null && !updated.getDirection().isBlank()) {
-                channel.setDirection(updated.getDirection());
-            }
-            channel.setNodeId(updated.getNodeId());
-            channel.setConfigJson(updated.getConfigJson());
-            channel.setMappingConfigJson(updated.getMappingConfigJson());
-            channel.setActive(updated.isActive());
-            return ResponseEntity.ok(repository.save(channel));
-        }).orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<IntegrationChannelResponse> update(@PathVariable UUID id, @RequestBody IntegrationChannel updated) {
+        return service.updateChannel(id, updated)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasPermission(null, 'integration:write')")
     public ResponseEntity<Void> deleteChannel(@PathVariable UUID id) {
-        if (repository.existsById(id)) {
-            repository.deleteById(id);
+        if (service.deleteChannel(id)) {
             return ResponseEntity.ok().build();
         }
         return ResponseEntity.notFound().build();

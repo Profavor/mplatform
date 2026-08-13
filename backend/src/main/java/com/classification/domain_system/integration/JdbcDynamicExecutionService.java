@@ -1,5 +1,6 @@
 package com.classification.domain_system.integration;
 
+import com.classification.domain_system.service.FieldEncryptionService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,19 +16,89 @@ import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
+
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+import jakarta.annotation.PreDestroy;
+import org.springframework.beans.factory.annotation.Value;
+import org.apache.commons.codec.digest.DigestUtils;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class JdbcDynamicExecutionService {
 
+    private static final Pattern SAFE_IDENTIFIER = Pattern.compile("^[A-Za-z_][A-Za-z0-9_]{0,127}$");
+    
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final FieldEncryptionService encryptionService;
+    private final Map<String, HikariDataSource> dataSourceCache = new ConcurrentHashMap<>();
+
+    @Value("${integration.jdbc.pool.maximum-pool-size:5}")
+    private int maximumPoolSize;
+
+    @Value("${integration.jdbc.pool.connection-timeout:5000}")
+    private long connectionTimeout;
+
+    @Value("${integration.jdbc.pool.validation-timeout:3000}")
+    private long validationTimeout;
+
+    @Value("${integration.jdbc.pool.max-lifetime:600000}")
+    private long maxLifetime;
+
+    @PreDestroy
+    public void destroy() {
+        log.info("Closing all cached HikariDataSources...");
+        dataSourceCache.values().forEach(HikariDataSource::close);
+        dataSourceCache.clear();
+    }
+
+    public void invalidateDataSource(String url, String user, String password) {
+        String cacheKey = generateCacheKey(url, user, password);
+        HikariDataSource ds = dataSourceCache.remove(cacheKey);
+        if (ds != null && !ds.isClosed()) {
+            ds.close();
+            log.info("Invalidated and closed DataSource cache for key: {}", cacheKey);
+        }
+    }
+
+    private String generateCacheKey(String url, String user, String password) {
+        String pwHash = password != null ? DigestUtils.sha256Hex(password) : "";
+        return url + "|" + user + "|" + pwHash;
+    }
+
+    private HikariDataSource getOrCreateDataSource(String url, String user, String password) {
+        String cacheKey = generateCacheKey(url, user, password);
+        return dataSourceCache.computeIfAbsent(cacheKey, k -> {
+            log.info("Creating new HikariDataSource for URL: {}, User: {}", url, user);
+            HikariConfig config = new HikariConfig();
+            config.setJdbcUrl(url);
+            config.setUsername(user);
+            config.setPassword(password);
+            config.setMaximumPoolSize(maximumPoolSize);
+            config.setConnectionTimeout(connectionTimeout);
+            config.setValidationTimeout(validationTimeout);
+            config.setMaxLifetime(maxLifetime);
+            return new HikariDataSource(config);
+        });
+    }
+
+    private void validateIdentifier(String identifier) {
+        if (identifier == null || !SAFE_IDENTIFIER.matcher(identifier).matches()) {
+            throw new IllegalArgumentException("Invalid identifier: " + identifier);
+        }
+    }
 
     public void executeUpsert(String configJson, String payloadJson) throws Exception {
         JsonNode config = objectMapper.readTree(configJson);
         String url = config.get("url").asText();
         String user = config.get("user").asText();
         String password = config.get("password").asText();
+        if (encryptionService != null && encryptionService.isEncrypted(password)) {
+            password = encryptionService.decrypt(password);
+        }
         String table = config.get("table").asText();
 
         Map<String, Object> data = objectMapper.readValue(payloadJson, new TypeReference<>() {});
@@ -36,7 +107,14 @@ public class JdbcDynamicExecutionService {
             return;
         }
 
-        try (Connection conn = DriverManager.getConnection(url, user, password)) {
+        List<String> columns = new ArrayList<>(data.keySet());
+        
+        validateIdentifier(table);
+        columns.forEach(this::validateIdentifier);
+
+        HikariDataSource dataSource = getOrCreateDataSource(url, user, password);
+
+        try (Connection conn = dataSource.getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
             ResultSet pkRs = metaData.getPrimaryKeys(null, null, table);
             List<String> pkColumns = new ArrayList<>();
@@ -45,11 +123,12 @@ public class JdbcDynamicExecutionService {
             }
 
             String dbProductName = metaData.getDatabaseProductName().toLowerCase();
-            List<String> columns = new ArrayList<>(data.keySet());
             List<Object> values = new ArrayList<>();
             for (String col : columns) {
                 values.add(data.get(col));
             }
+
+            pkColumns.forEach(this::validateIdentifier);
 
             String sql;
             if (dbProductName.contains("mysql") || dbProductName.contains("mariadb")) {
@@ -88,17 +167,17 @@ public class JdbcDynamicExecutionService {
     }
 
     private String buildMySqlUpsert(String table, List<String> columns) {
-        StringBuilder sql = new StringBuilder("INSERT INTO ");
-        sql.append(table).append(" (");
+        StringBuilder sql = new StringBuilder("INSERT INTO `");
+        sql.append(table).append("` (");
         
         StringBuilder values = new StringBuilder("VALUES (");
         StringBuilder update = new StringBuilder("ON DUPLICATE KEY UPDATE ");
 
         for (int i = 0; i < columns.size(); i++) {
             String col = columns.get(i);
-            sql.append(col);
+            sql.append("`").append(col).append("`");
             values.append("?");
-            update.append(col).append("=VALUES(").append(col).append(")");
+            update.append("`").append(col).append("`=VALUES(`").append(col).append("`)");
 
             if (i < columns.size() - 1) {
                 sql.append(", ");
@@ -167,18 +246,18 @@ public class JdbcDynamicExecutionService {
             throw new IllegalStateException("Primary key is required for Oracle merge on table: " + table);
         }
 
-        StringBuilder sql = new StringBuilder("MERGE INTO ");
-        sql.append(table).append(" t USING (SELECT ");
+        StringBuilder sql = new StringBuilder("MERGE INTO \"");
+        sql.append(table).append("\" t USING (SELECT ");
         
         for (int i = 0; i < columns.size(); i++) {
-            sql.append("? AS ").append(columns.get(i));
+            sql.append("? AS \"").append(columns.get(i)).append("\"");
             if (i < columns.size() - 1) sql.append(", ");
         }
         sql.append(" FROM DUAL) s ON (");
 
         for (int i = 0; i < pkColumns.size(); i++) {
             String pk = pkColumns.get(i);
-            sql.append("t.").append(pk).append(" = s.").append(pk);
+            sql.append("t.\"").append(pk).append("\" = s.\"").append(pk).append("\"");
             if (i < pkColumns.size() - 1) sql.append(" AND ");
         }
         sql.append(") ");
@@ -194,7 +273,7 @@ public class JdbcDynamicExecutionService {
             sql.append("WHEN MATCHED THEN UPDATE SET ");
             for (int i = 0; i < nonPkColumns.size(); i++) {
                 String col = nonPkColumns.get(i);
-                sql.append("t.").append(col).append(" = s.").append(col);
+                sql.append("t.\"").append(col).append("\" = s.\"").append(col).append("\"");
                 if (i < nonPkColumns.size() - 1) sql.append(", ");
             }
             sql.append(" ");
@@ -202,12 +281,12 @@ public class JdbcDynamicExecutionService {
 
         sql.append("WHEN NOT MATCHED THEN INSERT (");
         for (int i = 0; i < columns.size(); i++) {
-            sql.append(columns.get(i));
+            sql.append("\"").append(columns.get(i)).append("\"");
             if (i < columns.size() - 1) sql.append(", ");
         }
         sql.append(") VALUES (");
         for (int i = 0; i < columns.size(); i++) {
-            sql.append("s.").append(columns.get(i));
+            sql.append("s.\"").append(columns.get(i)).append("\"");
             if (i < columns.size() - 1) sql.append(", ");
         }
         sql.append(")");

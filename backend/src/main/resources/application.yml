@@ -114,3 +114,11 @@ minio:
   access-key: ${MINIO_ACCESS_KEY}
   secret-key: ${MINIO_SECRET_KEY}
   bucket-name: ${MINIO_BUCKET_NAME}
+
+integration:
+  jdbc:
+    pool:
+      maximum-pool-size: ${INTEGRATION_JDBC_MAX_POOL_SIZE:5}
+      connection-timeout: ${INTEGRATION_JDBC_CONNECTION_TIMEOUT:5000}
+      validation-timeout: ${INTEGRATION_JDBC_VALIDATION_TIMEOUT:3000}
+      max-lifetime: ${INTEGRATION_JDBC_MAX_LIFETIME:600000}
