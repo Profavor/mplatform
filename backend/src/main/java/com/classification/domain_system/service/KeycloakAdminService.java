@@ -25,26 +25,23 @@ public class KeycloakAdminService {
     @Value("${keycloak.realm}")
     private String realm;
 
-    @Value("${keycloak.admin-client-id}")
-    private String clientId;
+    @Value("${keycloak.admin-username}")
+    private String adminUsername;
 
-    @Value("${keycloak.admin-client-secret}")
-    private String clientSecret;
+    @Value("${keycloak.admin-password}")
+    private String adminPassword;
 
     private Keycloak keycloak;
 
     @PostConstruct
     public void init() {
-        if (clientSecret == null || clientSecret.trim().isEmpty()) {
-            log.warn("KEYCLOAK_ADMIN_CLIENT_SECRET is missing! Keycloak Admin API integration might fail.");
-        }
-        
         keycloak = KeycloakBuilder.builder()
                 .serverUrl(serverUrl)
-                .realm(realm)
-                .clientId(clientId)
-                .clientSecret(clientSecret)
-                .grantType(org.keycloak.OAuth2Constants.CLIENT_CREDENTIALS)
+                .realm("master")
+                .clientId("admin-cli")
+                .grantType(org.keycloak.OAuth2Constants.PASSWORD)
+                .username(adminUsername)
+                .password(adminPassword)
                 .build();
     }
 
@@ -89,6 +86,7 @@ public class KeycloakAdminService {
             }
         } catch (Exception e) {
             log.error("Error creating Keycloak user: {}", username, e);
+            throw new RuntimeException("Failed to create Keycloak user", e);
         }
     }
 
@@ -113,6 +111,7 @@ public class KeycloakAdminService {
             log.info("Reset password for Keycloak user: {}", username);
         } catch (Exception e) {
             log.error("Error resetting Keycloak password for user: {}", username, e);
+            throw new RuntimeException("Failed to reset Keycloak password", e);
         }
     }
 
@@ -136,6 +135,7 @@ public class KeycloakAdminService {
             }
         } catch (Exception e) {
             log.error("Error deleting Keycloak user: {}", username, e);
+            throw new RuntimeException("Failed to delete Keycloak user", e);
         }
     }
 
@@ -163,6 +163,7 @@ public class KeycloakAdminService {
             log.info("Updated Keycloak user: {}", username);
         } catch (Exception e) {
             log.error("Error updating Keycloak user: {}", username, e);
+            throw new RuntimeException("Failed to update Keycloak user", e);
         }
     }
 }

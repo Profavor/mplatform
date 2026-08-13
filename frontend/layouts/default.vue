@@ -83,8 +83,22 @@
                             :style="getRoleBadgeStyle(r)"
                             style="padding: 3px 9px; border-radius: 12px; font-size: 0.75rem; font-weight: 800;"
                           >
-                            {{ r }}
+                            {{ formatRoleText(r, true, locale) }}
                           </span>
+                        </div>
+                        <div v-if="currentUser?.permissions?.length" style="margin-top: 0.4rem; border-top: 1px dashed rgba(255,255,255,0.2); padding-top: 0.4rem;">
+                          <div style="font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.8; margin-bottom: 0.25rem;">
+                            Permissions
+                          </div>
+                          <div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
+                            <span
+                              v-for="p in currentUser.permissions"
+                              :key="p"
+                              style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.15); color: #e2e8f0; padding: 2px 6px; border-radius: 6px; font-size: 0.65rem; font-family: monospace; font-weight: 600;"
+                            >
+                              {{ p }}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -239,7 +253,7 @@ import { useRoles } from '~/composables/useRoles'
 
 const { t, locale, setLocale } = useI18n()
 const { applyPreset, currentPresetName } = useColors()
-const { getRoleBadgeStyle: getStoreRoleBadgeStyle } = useRoles()
+const { getRoleBadgeStyle: getStoreRoleBadgeStyle, formatRoleText, initGlobalRoles } = useRoles()
 
 const router = useRouter()
 const tokenCookie = useCookie('auth_token')
@@ -519,6 +533,7 @@ onMounted(async () => {
   await fetchMenus(true)
   await fetchUserOrganizationName()
   await fetchDepartmentRoles()
+  await initGlobalRoles()
 
   if (window.innerWidth < 768) {
     isMobile.value = true

@@ -34,7 +34,17 @@ export function useRoleStore() {
   }
 
   const fetchRolesForOrg = async (orgId?: string | null, forceRefresh = false): Promise<RoleInfo[]> => {
-    if (!token.value) {
+    let currentToken = token.value
+    if (!currentToken) {
+      try {
+        const { user } = await import('#imports').then(m => m.useOidcAuth())
+        if (user.value?.accessToken) {
+          currentToken = user.value.accessToken
+        }
+      } catch (e) {}
+    }
+    
+    if (!currentToken) {
       return []
     }
 
@@ -53,7 +63,7 @@ export function useRoleStore() {
     globalRolesPromise = (async () => {
       try {
         const endpoint = targetOrgId ? `/api/roles/org/${targetOrgId}` : '/api/roles'
-        const headers = token.value ? { Authorization: `Bearer ${token.value}` } : {}
+        const headers = currentToken ? { Authorization: `Bearer ${currentToken}` } : {}
         const list = await $fetch<RoleInfo[]>(endpoint, { headers })
 
         if (Array.isArray(list)) {

@@ -87,6 +87,7 @@ public class SystemInstallService {
         String adminUsername = request.getAdminUsername().trim();
         adminUser.setUsername(adminUsername);
         adminUser.setPassword(passwordEncoder.encode(request.getAdminPassword()));
+        adminUser.setEmail(request.getAdminEmail());
         adminUser.setRole("ROLE_ADMIN");
         adminUser.setOrganizationId(savedOrg.getId());
         adminUser.setIsActive(true);
@@ -110,9 +111,13 @@ public class SystemInstallService {
         
         // 6. Sync Admin User to Keycloak
         try {
-            keycloakAdminService.createUser(adminUsername, request.getAdminPassword(), adminUsername + "@example.com", "System Admin");
+            String keycloakEmail = (request.getAdminEmail() != null && !request.getAdminEmail().trim().isEmpty()) 
+                ? request.getAdminEmail().trim() 
+                : adminUsername + "@example.com";
+            keycloakAdminService.createUser(adminUsername, request.getAdminPassword(), keycloakEmail, "System Admin");
         } catch (Exception e) {
             log.error("Failed to sync initial admin user to Keycloak: {}", adminUsername, e);
+            throw new RuntimeException("Failed to sync admin user to authentication server.", e);
         }
 
         return savedUser;

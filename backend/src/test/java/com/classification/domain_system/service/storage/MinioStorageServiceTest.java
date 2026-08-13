@@ -33,7 +33,7 @@ class MinioStorageServiceTest {
     void setUp() throws Exception {
         // Create service via constructor, then replace the internal minioClient with our mock
         storageService = new MinioStorageService(
-                "http://localhost:9000", "minioadmin", "minioadmin", "test-bucket", "./uploads");
+                "http://localhost:9000", "test-access-key", "test-secret-key", "test-bucket", "./uploads");
         ReflectionTestUtils.setField(storageService, "minioClient", minioClient);
     }
 

@@ -87,12 +87,19 @@ export default defineNuxtConfig({
         authenticationScheme: 'body',
         pkce: false,
         nonce: false,
-        redirectUri: process.env.KEYCLOAK_REDIRECT_URI || 'http://localhost:3000/auth/keycloak/callback'
+        redirectUri: process.env.KEYCLOAK_REDIRECT_URI || 'http://localhost:3000/auth/keycloak/callback',
+        logoutRedirectUri: process.env.KEYCLOAK_LOGOUT_REDIRECT_URI || 'http://localhost:3000/login'
       }
+    },
+    cookie: {
+      secure: false
     },
     session: {
       expirationCheck: false,
-      automaticRefresh: false
+      automaticRefresh: false,
+      cookie: {
+        secure: false
+      }
     },
     middleware: {
       globalMiddlewareEnabled: false,

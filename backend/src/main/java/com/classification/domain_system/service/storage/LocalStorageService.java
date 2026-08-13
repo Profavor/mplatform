@@ -30,7 +30,7 @@ public class LocalStorageService implements FileStorageService {
 
     private final Path fileStorageLocation;
 
-    public LocalStorageService(@Value("${file.upload-dir:./uploads}") String uploadDir) {
+    public LocalStorageService(@Value("${file.upload-dir}") String uploadDir) {
         Path location;
         try {
             location = Paths.get(uploadDir).toAbsolutePath().normalize();

@@ -160,7 +160,7 @@
             </div>
             <div style="font-size: 0.82rem; color: var(--va-text-secondary); margin-bottom: 0.6rem;" v-if="role.description">{{ getI18nText(role.description) }}</div>
             <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
-              <va-chip v-for="perm in (role.permissions || [])" :key="perm" size="small" color="success" outline>
+              <va-chip v-for="perm in (role.permissions || [])" :key="perm" size="small" color="primary" style="font-weight: 700; font-family: monospace;">
                 {{ perm }}
               </va-chip>
             </div>

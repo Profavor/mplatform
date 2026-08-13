@@ -31,6 +31,7 @@ public class AuthController {
         User user = authService.findByUsername(authentication.getName());
         var perms = permissionService.getAuthoritiesForUser(user.getUsername(), user.getRole()).stream()
             .map(a -> a.getAuthority())
+            .filter(auth -> !auth.startsWith("ROLE_"))
             .toList();
         String serverOffset = OffsetDateTime.now().getOffset().getId();
         return ResponseEntity.ok(new LoginResponse(null, null, user.getUsername(), user.getRole(), user.getId(), user.getId(), user.getOrganizationId(), user.getDepartmentId(), user.getTimezone(), serverOffset, perms, user.getMustChangePassword() != null ? user.getMustChangePassword() : false));
@@ -48,6 +49,7 @@ public class AuthController {
 
         var perms = permissionService.getAuthoritiesForUser(user.getUsername(), user.getRole()).stream()
             .map(a -> a.getAuthority())
+            .filter(auth -> !auth.startsWith("ROLE_"))
             .toList();
 
         String serverOffset = OffsetDateTime.now().getOffset().getId();

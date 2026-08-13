@@ -6,13 +6,15 @@ import org.opensearch.data.client.orhlc.RestClients;
 import org.opensearch.client.RestHighLevelClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.elasticsearch.repository.config.EnableElasticsearchRepositories;
 
 @Configuration
+@Profile("!test")
 @EnableElasticsearchRepositories(basePackages = "com.classification.domain_system.repository")
 public class OpenSearchConfig extends AbstractOpenSearchConfiguration {
 
-    @Value("${spring.opensearch.uris:localhost:9200}")
+    @Value("${spring.opensearch.uris}")
     private String opensearchUris;
 
     @Override

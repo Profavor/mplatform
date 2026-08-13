@@ -148,18 +148,26 @@ public class JwtFilter extends OncePerRequestFilter {
 
             // realm_access.roles → GrantedAuthority
             List<GrantedAuthority> authorities = new java.util.ArrayList<>();
+            List<String> keycloakRoles = new java.util.ArrayList<>();
             Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
             if (realmAccess != null && realmAccess.containsKey("roles")) {
-                List<String> roles = (List<String>) realmAccess.get("roles");
-                authorities.addAll(roles.stream()
+                keycloakRoles = (List<String>) realmAccess.get("roles");
+                authorities.addAll(keycloakRoles.stream()
                     .map(r -> (GrantedAuthority) new SimpleGrantedAuthority("ROLE_" + r.toUpperCase()))
                     .collect(Collectors.toList()));
             }
 
+            // DB 기반 세부 권한(domain:read, admin:write 등) 로딩
+            String roleStr = keycloakRoles.stream()
+                .map(String::toUpperCase)
+                .collect(Collectors.joining(","));
+            Collection<GrantedAuthority> dbAuthorities = permissionService.getAuthoritiesForUser(preferredUsername, roleStr);
+            authorities.addAll(dbAuthorities);
+
             UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
                     preferredUsername, null, authorities);
             SecurityContextHolder.getContext().setAuthentication(auth);
-            log.debug("Keycloak JWT authenticated: {}", preferredUsername);
+            log.debug("Keycloak JWT authenticated: {} with {} authorities", preferredUsername, authorities.size());
             return true;
         } catch (Exception e) {
             log.debug("Not a valid Keycloak JWT, falling back to internal JWT", e);

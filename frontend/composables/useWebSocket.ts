@@ -9,9 +9,7 @@ export const useWebSocket = () => {
   const connect = (onMessageCallback?: (event: any) => void) => {
     if (process.server) return
 
-    const config = useRuntimeConfig()
-    const apiBase = (config.public && config.public.apiBaseUrl) ? config.public.apiBaseUrl : 'http://localhost:8080'
-    const wsBase = apiBase.replace(/^http/, 'ws')
+    const wsBase = window.location.origin.replace(/^http/, 'ws')
     const wsUrl = `${wsBase}/ws-stomp`
 
     stompClient = new Client({
@@ -21,7 +19,16 @@ export const useWebSocket = () => {
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
       beforeConnect: () => {
-        const currentToken = user.value?.accessToken || useCookie('auth_token').value || ''
+        let currentToken = user.value?.accessToken || ''
+        if (!currentToken && process.client) {
+          const match = document.cookie.match(/(?:^|;\s*)auth_token=([^;]*)/)
+          if (match && match[1]) {
+            currentToken = match[1]
+          }
+        }
+        if (!currentToken) {
+          currentToken = useCookie('auth_token').value || ''
+        }
         stompClient!.connectHeaders = {
           token: currentToken
         }

@@ -64,6 +64,9 @@
   "error_username_exists": "이미 사용 중인 사용자 아이디입니다.",
   "formula_settings": "수식 설정 (Formula)",
   "install_admin_name": "관리자 성명 (Display Name)",
+  "install_admin_email": "이메일 주소 (Email)",
+  "install_require_email": "이메일 주소를 입력해주세요.",
+  "install_require_email_valid": "올바른 이메일 형식이 아닙니다.",
   "install_admin_pwd": "비밀번호 (Password)",
   "install_admin_pwd_confirm": "비밀번호 확인 (Confirm)",
   "install_admin_username": "관리자 아이디 (Username)",
@@ -197,5 +200,9 @@
     "load_failed": "데이터를 불러오지 못했습니다.",
     "sync_codes": "기본 코드 동기화",
     "dump_codes": "기본 코드 백업"
-  }
+  },
+  "global_search_placeholder": "전역 검색 (Search any data...)",
+  "search_min_length": "최소 2글자 이상 입력해주세요.",
+  "search_no_results": "검색 결과가 없습니다.",
+  "search_no_data": "데이터 없음"
 }

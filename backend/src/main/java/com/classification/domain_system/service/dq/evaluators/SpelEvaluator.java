@@ -37,7 +37,7 @@ public class SpelEvaluator implements RuleEvaluator {
 
     @Getter
     @Setter
-    @Value("${dq.engine.custom-spel.enabled:true}")
+    @Value("${dq.engine.custom-spel.enabled}")
     private boolean enabled = true;
 
     private final SpelExpressionParser parser = new SpelExpressionParser();

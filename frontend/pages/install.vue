@@ -110,6 +110,22 @@
             />
           </div>
 
+          <div class="form-group mb-3">
+            <label class="form-label">
+              <va-icon name="email" size="small" class="mr-1" />
+              {{ t('install_admin_email') }}
+            </label>
+            <va-input
+              v-model="form.adminEmail"
+              placeholder="admin@example.com"
+              class="w-full"
+              :rules="[
+                (v) => !!v || t('install_require_email'),
+                (v) => /.+@.+\..+/.test(v) || t('install_require_email_valid')
+              ]"
+            />
+          </div>
+
           <div class="form-grid mb-4">
             <div class="form-group">
               <label class="form-label">
@@ -173,10 +189,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from '#app'
 import { useI18n } from 'vue-i18n'
+import { useToast } from 'vuestic-ui'
 
 definePageMeta({
   layout: false
 })
+
+const { init: initToast } = useToast()
 
 const isMounted = ref(false)
 onMounted(() => {
@@ -202,6 +221,7 @@ const form = ref({
   organizationNameKo: '',
   organizationNameEn: '',
   adminUsername: '',
+  adminEmail: '',
   adminPassword: '',
   confirmPassword: '',
   timezone: 'Asia/Seoul'
@@ -211,6 +231,8 @@ const isFormValid = computed(() => {
   return (
     form.value.organizationNameKo.trim() !== '' &&
     form.value.adminUsername.trim() !== '' &&
+    form.value.adminEmail.trim() !== '' &&
+    /.+@.+\..+/.test(form.value.adminEmail) &&
     form.value.adminPassword.length >= 6 &&
     form.value.adminPassword === form.value.confirmPassword
   )
@@ -229,6 +251,7 @@ const submitInstall = async () => {
         organizationNameKo: form.value.organizationNameKo.trim(),
         organizationNameEn: form.value.organizationNameEn.trim(),
         adminUsername: form.value.adminUsername.trim(),
+        adminEmail: form.value.adminEmail.trim(),
         adminPassword: form.value.adminPassword,
         timezone: form.value.timezone
       }
@@ -245,6 +268,7 @@ const submitInstall = async () => {
     console.error('Install Failed:', e)
     const errText = e.data?.error || e.message || '시스템 설치 중 오류가 발생했습니다.'
     errorMessage.value = errText
+    initToast({ message: errText, color: 'danger', position: 'top-right', duration: 4000 })
 
     if (typeof errText === 'string' && errText.includes('이미 설치가 완료된 시스템')) {
       setTimeout(() => {

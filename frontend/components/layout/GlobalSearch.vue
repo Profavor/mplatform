@@ -2,7 +2,7 @@
   <div class="global-search-container" ref="searchContainer">
     <va-input
       v-model="searchQuery"
-      placeholder="전역 검색 (Search any data...)"
+      :placeholder="t('global_search_placeholder')"
       class="global-search-input"
       :style="{ width: isFocused ? '300px' : '200px', transition: 'width 0.3s ease' }"
       @focus="isFocused = true"
@@ -14,7 +14,7 @@
       </template>
     </va-input>
     
-    <div class="search-dropdown" v-if="isFocused && (results.length > 0 || isSearching)">
+    <div class="search-dropdown" v-if="isFocused && searchQuery.trim() !== ''">
       <va-inner-loading :loading="isSearching">
         <va-list v-if="results.length > 0">
           <va-list-item v-for="res in results" :key="res.id" class="search-result-item" @click="goToRecord(res.id)">
@@ -28,8 +28,11 @@
             </va-list-item-section>
           </va-list-item>
         </va-list>
-        <div v-else-if="!isSearching && searchQuery.trim() !== ''" style="padding: 1rem; text-align: center; color: var(--va-text-secondary);">
-          검색 결과가 없습니다.
+        <div v-else-if="searchQuery.trim().length < 2" style="padding: 1rem; text-align: center; color: var(--va-text-secondary);">
+          {{ t('search_min_length') }}
+        </div>
+        <div v-else-if="!isSearching" style="padding: 1rem; text-align: center; color: var(--va-text-secondary);">
+          {{ t('search_no_results') }}
         </div>
       </va-inner-loading>
     </div>
@@ -40,7 +43,9 @@
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCookie } from '#app'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const searchQuery = ref('')
 const isFocused = ref(false)
 const isSearching = ref(false)
@@ -92,7 +97,7 @@ const handleBlur = (e) => {
 }
 
 const formatData = (dataStr) => {
-  if (!dataStr) return 'No Data'
+  if (!dataStr) return t('search_no_data')
   try {
     const obj = JSON.parse(dataStr)
     // Extract first 2 keys as preview

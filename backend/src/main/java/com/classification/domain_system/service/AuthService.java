@@ -101,9 +101,9 @@ public class AuthService {
 
     @org.springframework.transaction.annotation.Transactional
     public Map<String, String> loginWithTokens(String username, String password, String ipAddress, String userAgent) {
-        String accessToken;
-        String refreshToken;
-        User user;
+        String accessToken = null;
+        String refreshToken = null;
+        User user = null;
 
         if (keycloakTokenUri != null && !keycloakTokenUri.trim().isEmpty()) {
             org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
@@ -118,18 +118,29 @@ public class AuthService {
 
             org.springframework.http.HttpEntity<org.springframework.util.MultiValueMap<String, String>> kcRequest = new org.springframework.http.HttpEntity<>(mapConfig, headers);
 
+            boolean kcSuccess = false;
             try {
                 org.springframework.http.ResponseEntity<Map> kcResponse = restTemplate.postForEntity(keycloakTokenUri, kcRequest, Map.class);
                 Map body = kcResponse.getBody();
                 accessToken = (String) body.get("access_token");
                 refreshToken = (String) body.get("refresh_token");
+                kcSuccess = true;
+                
+                user = userRepository.findByUsername(username).orElseThrow(() -> 
+                    new com.classification.domain_system.exception.BusinessException(com.classification.domain_system.exception.ErrorCode.INVALID_CREDENTIALS, "User authenticated by Keycloak but not found in local DB")
+                );
             } catch (Exception e) {
-                throw new com.classification.domain_system.exception.BusinessException(com.classification.domain_system.exception.ErrorCode.INVALID_CREDENTIALS, "Keycloak SSO Login failed: " + e.getMessage());
+                System.err.println("Keycloak login failed for user '" + username + "', falling back to local DB. Reason: " + e.getMessage());
             }
 
-            user = userRepository.findByUsername(username).orElseThrow(() -> 
-                new com.classification.domain_system.exception.BusinessException(com.classification.domain_system.exception.ErrorCode.INVALID_CREDENTIALS, "User authenticated by Keycloak but not found in local DB")
-            );
+            if (!kcSuccess) {
+                user = validateAndProcessLogin(username, password);
+                String userIdStr = user.getId() != null ? user.getId().toString() : null;
+                String newSessionId = java.util.UUID.randomUUID().toString();
+                accessToken = jwtUtil.generateToken(user.getUsername(), user.getRole(), userIdStr, newSessionId);
+                refreshToken = jwtUtil.generateRefreshToken(user.getUsername(), user.getRole(), userIdStr);
+                user.setActiveSessionId(newSessionId);
+            }
         } else {
             user = validateAndProcessLogin(username, password);
             String userIdStr = user.getId() != null ? user.getId().toString() : null;

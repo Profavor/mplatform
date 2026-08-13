@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opensearch
+  namespace: mdm-system
+spec:
+  selector:
+    matchLabels:
+      app: opensearch
+  template:
+    metadata:
+      labels:
+        app: opensearch
+    spec:
+      containers:
+      - name: opensearch
+        image: opensearchproject/opensearch:2.11.1
+        env:
+        - name: cluster.name
+          value: opensearch-cluster
+        - name: node.name
+          value: opensearch-node1
+        - name: discovery.type
+          value: single-node
+        - name: bootstrap.memory_lock
+          value: "true"
+        - name: OPENSEARCH_JAVA_OPTS
+          value: "-Xms512m -Xmx512m"
+        - name: DISABLE_SECURITY_PLUGIN
+          value: "true"
+        - name: compatibility.override_main_response_version
+          value: "true"
+        ports:
+        - containerPort: 9200
+        - containerPort: 9600
+        volumeMounts:
+        - name: opensearch-data
+          mountPath: /usr/share/opensearch/data
+      volumes:
+      - name: opensearch-data
+        persistentVolumeClaim:
+          claimName: opensearch-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opensearch
+  namespace: mdm-system
+spec:
+  ports:
+  - port: 9200
+    name: http
+  - port: 9600
+    name: metrics
+  selector:
+    app: opensearch
