@@ -230,6 +230,7 @@ import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { useI18n } from 'vue-i18n';
 import { useCookie } from '#app';
+import { useCustomFetch } from '~/composables/useCustomFetch';
 
 const props = defineProps({
   nodeId: { type: String, required: true },
@@ -240,7 +241,8 @@ const props = defineProps({
 const emit = defineEmits(['close', 'uploaded']);
 
 const userCookie = useCookie('user_data');
-const token = useCookie('auth_token', { default: () => '' });
+
+const { customFetch } = useCustomFetch();
 
 const currentUser = computed(() => {
   if (userCookie.value) {
@@ -511,9 +513,8 @@ const runValidation = async () => {
   try {
     const requests = parsedData.value.map(row => transformRowToRequest(row));
 
-    const result = await $fetch(`/api/nodes/${props.nodeId}/records/batch-validate`, {
+    const result = await customFetch(`/api/nodes/${props.nodeId}/records/batch-validate`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token.value}` },
       body: requests
     });
 
@@ -563,9 +564,8 @@ const proceedUpload = async () => {
       const chunk = validRows.slice(i, i + batchSize);
       const requests = chunk.map(row => transformRowToRequest(row));
 
-      await $fetch(`/api/nodes/${props.nodeId}/records/batch`, {
+      await customFetch(`/api/nodes/${props.nodeId}/records/batch`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token.value}` },
         body: requests
       });
 

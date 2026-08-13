@@ -9,13 +9,15 @@ import com.classification.domain_system.repository.ApprovalRequestRepository;
 import com.classification.domain_system.repository.ApprovalStepRepository;
 import com.classification.domain_system.repository.RecordRepository;
 import com.classification.domain_system.repository.ClassificationNodeRepository;
-import com.classification.domain_system.repository.WorkflowConfigRepository;
 import com.classification.domain_system.repository.RecordHistoryRepository;
 import com.classification.domain_system.repository.UserRepository;
 import com.classification.domain_system.entity.WorkflowConfig;
 import com.classification.domain_system.entity.RecordHistory;
 import com.classification.domain_system.entity.User;
 import com.classification.domain_system.dto.RecordRequest;
+import com.classification.domain_system.entity.enums.ApprovalStatus;
+import com.classification.domain_system.entity.enums.ApprovalTargetType;
+import com.classification.domain_system.entity.enums.RecordStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -37,9 +39,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.GrantedAuthority;
 
-import org.springframework.context.ApplicationEventPublisher;
-import com.classification.domain_system.event.ApprovalRequestCreatedEvent;
-import com.classification.domain_system.event.ApprovalStepApprovedEvent;
 import com.classification.domain_system.exception.*;
 import lombok.extern.slf4j.Slf4j;
 
@@ -52,15 +51,14 @@ public class ApprovalService {
     private final ApprovalStepRepository stepRepository;
     private final RecordRepository recordRepository;
     private final ClassificationNodeRepository nodeRepository;
-    private final WorkflowConfigRepository workflowConfigRepository;
-    private final DataQualityService dqService;
+    private final WorkflowResolver workflowResolver;
+    private final ApprovalNotificationFacade notificationFacade;
+        private final DataQualityService dqService;
     private final RecordHistoryRepository recordHistoryRepository;
     private final FieldDefinitionService fieldDefinitionService;
     private final MatchingService matchingService;
-    private final ApplicationEventPublisher eventPublisher;
-    private final UserRepository userRepository;
-    private final NotificationService notificationService;
-    private final com.classification.domain_system.repository.DomainRepository domainRepository;
+        private final UserRepository userRepository;
+        private final com.classification.domain_system.repository.DomainRepository domainRepository;
     private final com.classification.domain_system.repository.FieldDefinitionRepository fieldDefinitionRepository;
     private final CalculatedFieldEvaluator calculatedFieldEvaluator;
     private final com.classification.domain_system.websocket.WebSocketPublisher webSocketPublisher;
@@ -86,17 +84,17 @@ public class ApprovalService {
     }
 
     private void revertRecordStatusOnRejection(ApprovalRequest approval) {
-        if ("RECORD".equals(approval.getTargetType())) {
+        if (ApprovalTargetType.RECORD.name().equals(approval.getTargetType())) {
             Record record = recordRepository.findById(approval.getTargetId())
                     .orElseThrow(() -> new ResourceNotFoundException("Record not found"));
-            record.setStatus("REJECTED");
+            record.setStatus(ApprovalStatus.REJECTED.name());
             recordRepository.saveAndFlush(record);
-        } else if ("RECORD_UPDATE".equals(approval.getTargetType()) || "RECORD_DELETE".equals(approval.getTargetType())) {
+        } else if (ApprovalTargetType.RECORD_UPDATE.name().equals(approval.getTargetType()) || ApprovalTargetType.RECORD_DELETE.name().equals(approval.getTargetType())) {
             Record record = recordRepository.findById(approval.getTargetId())
                     .orElseThrow(() -> new ResourceNotFoundException("Record not found"));
-            record.setStatus("ACTIVE");
+            record.setStatus(RecordStatus.ACTIVE.name());
             recordRepository.saveAndFlush(record);
-        } else if ("BATCH_RECORD".equals(approval.getTargetType())) {
+        } else if (ApprovalTargetType.BATCH_RECORD.name().equals(approval.getTargetType())) {
             try {
                 com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
                 com.fasterxml.jackson.databind.JsonNode changesNode = mapper.readTree(approval.getChanges());
@@ -108,7 +106,7 @@ public class ApprovalService {
                 }
                 List<Record> records = recordRepository.findAllById(recordIds);
                 for (Record record : records) {
-                    record.setStatus("REJECTED");
+                    record.setStatus(ApprovalStatus.REJECTED.name());
                 }
                 recordRepository.saveAllAndFlush(records);
                 
@@ -134,278 +132,6 @@ public class ApprovalService {
         }
     }
 
-    private boolean isEffectiveConfig(WorkflowConfig config) {
-        return config != null && config.getStepsConfig() != null 
-            && !config.getStepsConfig().isEmpty() 
-            && !config.getStepsConfig().equals("{\"steps\":[],\"observerIds\":[]}");
-    }
-
-    public List<WorkflowConfig> resolveWorkflows(UUID nodeId, String actionType) {
-        return resolveWorkflowsForUser(nodeId, actionType, null, null);
-    }
-
-    public List<WorkflowConfig> resolveWorkflowsForUser(UUID nodeId, String actionType, String requesterId, String userRole) {
-        if (nodeId == null) return java.util.Collections.emptyList();
-
-        List<WorkflowConfig> rawList = new java.util.ArrayList<>();
-        ClassificationNode current = nodeRepository.findById(nodeId).orElse(null);
-        Domain targetDomain = null;
-
-        if (current != null) {
-            targetDomain = current.getDomain();
-            while (current != null) {
-                List<WorkflowConfig> confs = workflowConfigRepository.findByNodeIdAndActionType(
-                    current.getId(), actionType
-                );
-                List<WorkflowConfig> effective = confs.stream()
-                        .filter(c -> !Boolean.FALSE.equals(c.getIsActive()))
-                        .filter(this::isEffectiveConfig)
-                        .toList();
-                if (!effective.isEmpty()) {
-                    rawList = effective;
-                    break;
-                }
-                current = current.getParent();
-            }
-        } else if (domainRepository != null) {
-            targetDomain = domainRepository.findById(nodeId).orElse(null);
-        }
-
-        // Fallback to domain level
-        if (rawList.isEmpty() && targetDomain != null) {
-            List<WorkflowConfig> domainConfs = workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(
-                targetDomain.getId(), actionType
-            );
-            rawList = domainConfs.stream()
-                    .filter(c -> !Boolean.FALSE.equals(c.getIsActive()))
-                    .filter(this::isEffectiveConfig)
-                    .toList();
-        }
-
-        if (requesterId == null && (userRole == null || userRole.isBlank())) {
-            return rawList;
-        }
-
-        // Filter workflows that allow user to perform this action
-        return rawList.stream()
-                .filter(config -> allowsUserAction(config, actionType, requesterId, userRole))
-                .toList();
-    }
-
-    private boolean allowsUserAction(WorkflowConfig config, String actionType, String requesterId, String userRole) {
-        if (config == null || config.getStepsConfig() == null || config.getStepsConfig().isBlank()) return true;
-        try {
-            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(config.getStepsConfig());
-            if (!root.has("permissions") || !root.get("permissions").isArray() || root.get("permissions").isEmpty()) {
-                return true;
-            }
-            for (com.fasterxml.jackson.databind.JsonNode perm : root.get("permissions")) {
-                String targetType = perm.has("targetType") ? perm.get("targetType").asText() : "";
-                String targetId = perm.has("targetId") ? perm.get("targetId").asText() : "";
-                String targetRole = perm.has("targetRole") ? perm.get("targetRole").asText() : "";
-
-                boolean matchesUser = "USER".equalsIgnoreCase(targetType) && matchesUserIdentity(targetId, requesterId);
-                boolean matchesRole = "ROLE".equalsIgnoreCase(targetType) && userRole != null &&
-                        (targetRole.equalsIgnoreCase(userRole)
-                         || ("ROLE_" + targetRole).equalsIgnoreCase(userRole)
-                         || targetRole.equalsIgnoreCase("ROLE_" + userRole));
-                boolean matchesAll = "ALL".equalsIgnoreCase(targetType) || "EVERYONE".equalsIgnoreCase(targetType) || "*".equals(targetType) || targetType.isBlank();
-
-                if (matchesUser || matchesRole || matchesAll) {
-                    if (perm.has("allowedActions") && perm.get("allowedActions").isArray()) {
-                        for (com.fasterxml.jackson.databind.JsonNode act : perm.get("allowedActions")) {
-                            if (act.asText().equalsIgnoreCase(actionType) || act.asText().equals("*") || "ALL".equalsIgnoreCase(act.asText())) {
-                                return true;
-                            }
-                        }
-                    } else {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        } catch (Exception e) {
-            switch (actionType) {
-                case "RECORD": return true;
-                case "RECORD_UPDATE": return true;
-                case "RECORD_DELETE": return true;
-                case "RECORD_MERGE": return true;
-            }
-            return true;
-        }
-    }
-
-    public WorkflowConfig resolveWorkflow(UUID nodeId, String actionType) {
-        List<WorkflowConfig> list = resolveWorkflows(nodeId, actionType);
-        if (list.isEmpty()) return null;
-        // Prefer default workflow if set, otherwise first
-        return list.stream().filter(c -> Boolean.TRUE.equals(c.getIsDefault())).findFirst().orElse(list.get(0));
-    }
-
-    public WorkflowConfig resolveWorkflowById(UUID workflowId) {
-        if (workflowId == null) return null;
-        return workflowConfigRepository.findById(workflowId).orElse(null);
-    }
-
-    public void buildDynamicSteps(ApprovalRequest approval, WorkflowConfig config) {
-        List<ApprovalStep> steps = new java.util.ArrayList<>();
-        try {
-            if (config != null && config.getStepsConfig() != null && !config.getStepsConfig().isEmpty()) {
-                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-                com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(config.getStepsConfig());
-                
-                com.fasterxml.jackson.databind.JsonNode stepsArray = null;
-                if (root.has("approvalLine") && root.get("approvalLine").isArray()) {
-                    stepsArray = root.get("approvalLine");
-                } else if (root.has("steps") && root.get("steps").isArray()) {
-                    stepsArray = root.get("steps");
-                }
-
-                if (stepsArray != null) {
-                    for (com.fasterxml.jackson.databind.JsonNode stepNode : stepsArray) {
-                        ApprovalStep step = new ApprovalStep();
-                        step.setApprovalRequest(approval);
-                        step.setStepType(stepNode.has("stepType") ? stepNode.get("stepType").asText() : "APPROVAL");
-                        step.setStepOrder(stepNode.has("stepOrder") ? stepNode.get("stepOrder").asInt() : (steps.size() + 1));
-                        step.setStatus(step.getStepOrder() == 1 ? "PENDING" : "WAITING");
-                        
-                        if (stepNode.has("assigneeId") && !stepNode.get("assigneeId").asText().isBlank() && !"null".equalsIgnoreCase(stepNode.get("assigneeId").asText())) {
-                            step.setAssigneeId(stepNode.get("assigneeId").asText());
-                        }
-                        if (stepNode.has("assigneeRole") && !stepNode.get("assigneeRole").asText().isBlank() && !"null".equalsIgnoreCase(stepNode.get("assigneeRole").asText())) {
-                            step.setAssigneeRole(stepNode.get("assigneeRole").asText());
-                        }
-                        steps.add(step);
-                    }
-                }
-                
-                if (root.has("observerIds") && root.get("observerIds").isArray()) {
-                    approval.setObserverIds(mapper.writeValueAsString(root.get("observerIds")));
-                } else {
-                    approval.setObserverIds("[]");
-                }
-            } else {
-                approval.setObserverIds("[]");
-            }
-        } catch (Exception e) {
-            approval.setObserverIds("[]");
-            log.error("Failed to parse observerIds / stepsConfig", e);
-        }
-        approval.getSteps().addAll(steps);
-    }
-
-    public void enrichUserNames(ApprovalRequest request) {
-        if (request == null) return;
-        List<com.classification.domain_system.entity.User> allUsers = userRepository.findAll();
-        if (request.getRequesterId() != null) {
-            String reqId = request.getRequesterId();
-            Optional<com.classification.domain_system.entity.User> uOpt = userRepository.findById(reqId);
-            if (uOpt.isEmpty()) {
-                uOpt = userRepository.findByUsername(reqId);
-            }
-            if (uOpt.isEmpty() && !allUsers.isEmpty()) {
-                uOpt = allUsers.stream().filter(u -> u.getId().equalsIgnoreCase(reqId) || u.getUsername().equalsIgnoreCase(reqId)).findFirst();
-                if (uOpt.isEmpty() && allUsers.size() == 1) {
-                    uOpt = Optional.of(allUsers.get(0));
-                }
-            }
-            if (uOpt.isPresent()) {
-                request.setRequesterName(uOpt.get().getUsername());
-            } else if (!allUsers.isEmpty()) {
-                request.setRequesterName(allUsers.get(0).getUsername());
-            } else {
-                request.setRequesterName(reqId);
-            }
-        }
-        if (request.getSteps() != null) {
-            for (ApprovalStep step : request.getSteps()) {
-                if (step.getAssigneeId() != null && !step.getAssigneeId().isBlank() && !"null".equalsIgnoreCase(step.getAssigneeId())) {
-                    String assId = step.getAssigneeId();
-                    Optional<com.classification.domain_system.entity.User> uOpt = userRepository.findById(assId);
-                    if (uOpt.isEmpty()) {
-                        uOpt = userRepository.findByUsername(assId);
-                    }
-                    if (uOpt.isEmpty() && !allUsers.isEmpty()) {
-                        uOpt = allUsers.stream().filter(u -> u.getId().equalsIgnoreCase(assId) || u.getUsername().equalsIgnoreCase(assId)).findFirst();
-                        if (uOpt.isEmpty() && allUsers.size() == 1) {
-                            uOpt = Optional.of(allUsers.get(0));
-                        }
-                    }
-                    if (uOpt.isPresent()) {
-                        step.setAssigneeName(uOpt.get().getUsername());
-                    } else if (!allUsers.isEmpty() && assId.matches("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")) {
-                        step.setAssigneeName(allUsers.get(0).getUsername());
-                    } else {
-                        step.setAssigneeName(assId);
-                    }
-                } else if (step.getAssigneeRole() != null && !step.getAssigneeRole().isBlank() && !"null".equalsIgnoreCase(step.getAssigneeRole())) {
-                    String roleDisp = resolveRoleDisplayName(step.getAssigneeRole());
-                    step.setAssigneeName("역할: " + roleDisp);
-                } else {
-                    // Try to repair step if assignee is missing by checking current WorkflowConfig
-                    try {
-                        UUID nodeId = request.getClassificationNode() != null ? request.getClassificationNode().getId() : null;
-                        UUID targetId = request.getTargetId();
-                        WorkflowConfig config = resolveWorkflow(nodeId != null ? nodeId : targetId, "SCHEMA_CHANGE");
-                        if (config == null && targetId != null) {
-                            List<WorkflowConfig> list = workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(targetId, "SCHEMA_CHANGE");
-                            if (list.isEmpty()) {
-                                list = workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(targetId, "UPDATE");
-                            }
-                            if (!list.isEmpty()) config = list.get(0);
-                        }
-                        if (config != null && config.getStepsConfig() != null) {
-                            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-                            com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(config.getStepsConfig());
-                            com.fasterxml.jackson.databind.JsonNode stepsArray = root.has("approvalLine") ? root.get("approvalLine") : (root.has("steps") ? root.get("steps") : null);
-                            if (stepsArray != null && stepsArray.isArray()) {
-                                for (com.fasterxml.jackson.databind.JsonNode stepNode : stepsArray) {
-                                    int order = stepNode.has("stepOrder") ? stepNode.get("stepOrder").asInt() : 1;
-                                    if (order == step.getStepOrder()) {
-                                        if (stepNode.has("assigneeRole") && !stepNode.get("assigneeRole").asText().isBlank()) {
-                                            String role = stepNode.get("assigneeRole").asText();
-                                            step.setAssigneeRole(role);
-                                            step.setAssigneeName("역할: " + role);
-                                            stepRepository.save(step);
-                                        } else if (stepNode.has("assigneeId") && !stepNode.get("assigneeId").asText().isBlank()) {
-                                            String assignee = stepNode.get("assigneeId").asText();
-                                            step.setAssigneeId(assignee);
-                                            userRepository.findById(assignee).ifPresent(u -> step.setAssigneeName(u.getUsername()));
-                                            stepRepository.save(step);
-                                        }
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    } catch (Exception ignored) {}
-                    if (step.getAssigneeName() == null || step.getAssigneeName().isBlank()) {
-                        step.setAssigneeName("승인자 미지정");
-                    }
-                }
-            }
-        }
-        if (request.getObserverIds() != null && !request.getObserverIds().isBlank()) {
-            try {
-                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-                List<String> obsIds = mapper.readValue(request.getObserverIds(), new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {});
-                if (obsIds != null) {
-                    List<String> names = obsIds.stream().map(id -> 
-                        userRepository.findById(id).map(com.classification.domain_system.entity.User::getUsername).orElse(id)
-                    ).collect(Collectors.toList());
-                    request.setObserverNames(names);
-                }
-            } catch (Exception e) {
-                log.warn("Failed to parse observerIds for enrichment", e);
-            }
-        }
-    }
-
-    public void enrichUserNames(List<ApprovalRequest> requests) {
-        if (requests == null) return;
-        requests.forEach(this::enrichUserNames);
-    }
 
     /**
      * Workflow 관리 화면에서 저장한 targetId(username)와 요청자의 UUID를 매칭합니다.
@@ -624,8 +350,8 @@ public class ApprovalService {
         }
         
         WorkflowConfig workflowConfig = (request != null && request.getWorkflowConfigId() != null)
-                ? resolveWorkflowById(request.getWorkflowConfigId())
-                : resolveWorkflow(nodeId, "CREATE");
+                ? workflowResolver.resolveWorkflowById(request.getWorkflowConfigId())
+                : workflowResolver.resolveWorkflow(nodeId, "CREATE");
         validateUserActionPermission(workflowConfig, request.getRequesterId(), null, "CREATE");
         List<String> editableFields = extractEditableFields(workflowConfig, request.getRequesterId(), null);
 
@@ -650,7 +376,7 @@ public class ApprovalService {
         String computedData = recomputeCalculatedFields(nodeId, request.getData());
         Record record = new Record();
         record.setNode(node);
-        record.setStatus("PENDING_APPROVAL");
+        record.setStatus(RecordStatus.PENDING_APPROVAL.name());
         record.setData(computedData);
         record = recordRepository.save(record);
         
@@ -660,13 +386,13 @@ public class ApprovalService {
         approval.setTargetId(record.getId());
         approval.setClassificationNode(record.getNode());
         approval.setRequesterId(request.getRequesterId());
-        approval.setStatus("PENDING");
+        approval.setStatus(ApprovalStatus.PENDING.name());
         approval.setChanges(computedData);
         approval.setCurrentStepOrder(1);
         
         // 4. Create Steps based on dynamic request
-        WorkflowConfig config = resolveWorkflow(nodeId, "CREATE");
-        buildDynamicSteps(approval, config);
+        WorkflowConfig config = workflowResolver.resolveWorkflow(nodeId, "CREATE");
+        workflowResolver.buildDynamicSteps(approval, config);
         
         // 5. Add Requester's DRAFT Step (stepOrder = 0)
         ApprovalStep draftStep = new ApprovalStep();
@@ -674,12 +400,12 @@ public class ApprovalService {
         draftStep.setStepType("DRAFT");
         draftStep.setAssigneeId(request.getRequesterId());
         draftStep.setStepOrder(0);
-        draftStep.setStatus("SUBMITTED");
+        draftStep.setStatus(ApprovalStatus.SUBMITTED.name());
         draftStep.setComment(request.getComment());
         approval.getSteps().add(draftStep);
         
         ApprovalRequest saved = approvalRepository.saveAndFlush(approval);
-        eventPublisher.publishEvent(new ApprovalRequestCreatedEvent(saved));
+        notificationFacade.publishApprovalRequestCreated(saved);
         return saved;
     }
     
@@ -688,7 +414,7 @@ public class ApprovalService {
             UUID domainId, UUID batchId, List<UUID> recordIds, String requesterId) {
         
         ClassificationNode anyNode = nodeRepository.findFirstByDomain_IdAndIsDeletedFalse(domainId);
-        WorkflowConfig config = resolveWorkflow(
+        WorkflowConfig config = workflowResolver.resolveWorkflow(
             anyNode != null ? anyNode.getId() : domainId, "CREATE");
         
         ApprovalRequest approval = new ApprovalRequest();
@@ -698,7 +424,7 @@ public class ApprovalService {
             approval.setClassificationNode(anyNode);
         }
         approval.setRequesterId(requesterId);
-        approval.setStatus("PENDING");
+        approval.setStatus(ApprovalStatus.PENDING.name());
         
         try {
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
@@ -713,19 +439,19 @@ public class ApprovalService {
         
         approval.setCurrentStepOrder(1);
         
-        buildDynamicSteps(approval, config);
+        workflowResolver.buildDynamicSteps(approval, config);
         
         ApprovalStep draftStep = new ApprovalStep();
         draftStep.setApprovalRequest(approval);
         draftStep.setStepType("DRAFT");
         draftStep.setAssigneeId(requesterId);
         draftStep.setStepOrder(0);
-        draftStep.setStatus("SUBMITTED");
+        draftStep.setStatus(ApprovalStatus.SUBMITTED.name());
         draftStep.setComment("Batch Import: " + recordIds.size() + " records");
         approval.getSteps().add(draftStep);
         
         ApprovalRequest saved = approvalRepository.saveAndFlush(approval);
-        eventPublisher.publishEvent(new ApprovalRequestCreatedEvent(saved));
+        notificationFacade.publishApprovalRequestCreated(saved);
         return saved;
     }
 
@@ -739,14 +465,14 @@ public class ApprovalService {
         }
         
         List<ApprovalRequest> pendingUpdates = approvalRepository.findByTargetIdAndStatus(recordId, "PENDING");
-        boolean hasPendingUpdate = pendingUpdates.stream().anyMatch(a -> "RECORD_UPDATE".equals(a.getTargetType()));
+        boolean hasPendingUpdate = pendingUpdates.stream().anyMatch(a -> ApprovalTargetType.RECORD_UPDATE.name().equals(a.getTargetType()));
         if (hasPendingUpdate) {
             throw new BusinessException(ErrorCode.UPDATE_PENDING_UPDATE, "This record is already under a pending update approval.");
         }
         
         UUID nodeId = record.getNode().getId();
         
-        WorkflowConfig workflowConfig = resolveWorkflow(nodeId, "UPDATE");
+        WorkflowConfig workflowConfig = workflowResolver.resolveWorkflow(nodeId, "UPDATE");
         validateUserActionPermission(workflowConfig, request.getRequesterId(), null, "UPDATE");
         List<String> editableFields = extractEditableFields(workflowConfig, request.getRequesterId(), null);
 
@@ -778,17 +504,17 @@ public class ApprovalService {
         approval.setTargetType("RECORD_UPDATE");
         approval.setTargetId(record.getId());
         
-        record.setStatus("PENDING_APPROVAL");
+        record.setStatus(RecordStatus.PENDING_APPROVAL.name());
         recordRepository.save(record);
         approval.setClassificationNode(record.getNode());
         approval.setRequesterId(request.getRequesterId());
-        approval.setStatus("PENDING");
+        approval.setStatus(ApprovalStatus.PENDING.name());
         approval.setChanges(changes);
         approval.setCurrentStepOrder(1);
         
         // 4. Create Steps based on dynamic request
-        WorkflowConfig config = resolveWorkflow(record.getNode().getId(), "UPDATE");
-        buildDynamicSteps(approval, config);
+        WorkflowConfig config = workflowResolver.resolveWorkflow(record.getNode().getId(), "UPDATE");
+        workflowResolver.buildDynamicSteps(approval, config);
         
         // 5. Add Requester's DRAFT Step (stepOrder = 0)
         ApprovalStep draftStep = new ApprovalStep();
@@ -796,11 +522,11 @@ public class ApprovalService {
         draftStep.setStepType("DRAFT");
         draftStep.setAssigneeId(request.getRequesterId());
         draftStep.setStepOrder(0);
-        draftStep.setStatus("SUBMITTED");
+        draftStep.setStatus(ApprovalStatus.SUBMITTED.name());
         draftStep.setComment(request.getComment());
         approval.getSteps().add(draftStep);
         ApprovalRequest saved = approvalRepository.saveAndFlush(approval);
-        eventPublisher.publishEvent(new ApprovalRequestCreatedEvent(saved));
+        notificationFacade.publishApprovalRequestCreated(saved);
         return saved;
     }
     
@@ -834,13 +560,13 @@ public class ApprovalService {
         approval.setTargetId(record.getId());
         approval.setClassificationNode(record.getNode());
         approval.setRequesterId(request.getRequesterId());
-        approval.setStatus("PENDING");
+        approval.setStatus(ApprovalStatus.PENDING.name());
         approval.setChanges(record.getData());
         approval.setCurrentStepOrder(1);
         
         // Create Steps based on dynamic request
-        WorkflowConfig config = resolveWorkflow(record.getNode().getId(), "DELETE");
-        buildDynamicSteps(approval, config);
+        WorkflowConfig config = workflowResolver.resolveWorkflow(record.getNode().getId(), "DELETE");
+        workflowResolver.buildDynamicSteps(approval, config);
         
         // Add Requester's DRAFT Step (stepOrder = 0)
         ApprovalStep draftStep = new ApprovalStep();
@@ -848,16 +574,16 @@ public class ApprovalService {
         draftStep.setStepType("DRAFT");
         draftStep.setAssigneeId(request.getRequesterId());
         draftStep.setStepOrder(0);
-        draftStep.setStatus("SUBMITTED");
+        draftStep.setStatus(ApprovalStatus.SUBMITTED.name());
         draftStep.setComment(request.getComment() != null ? request.getComment() : "Deletion requested");
         approval.getSteps().add(draftStep);
         
         // Update record status to PENDING_APPROVAL
-        record.setStatus("PENDING_APPROVAL");
+        record.setStatus(RecordStatus.PENDING_APPROVAL.name());
         recordRepository.save(record);
         
         ApprovalRequest saved = approvalRepository.saveAndFlush(approval);
-        eventPublisher.publishEvent(new ApprovalRequestCreatedEvent(saved));
+        notificationFacade.publishApprovalRequestCreated(saved);
         return saved;
     }
         
@@ -900,22 +626,22 @@ public class ApprovalService {
         if (!isStepAssigneeOrRoleMatch(step, approverId)) {
             throw new CustomAccessDeniedException(ErrorCode.NOT_STEP_ASSIGNEE, "You are not the assignee for this step");
         }
-        if (!"PENDING".equals(step.getStatus())) {
+        if (!ApprovalStatus.PENDING.name().equals(step.getStatus())) {
             throw new BusinessException(ErrorCode.STEP_NOT_PENDING, "Step is not pending");
         }
         
-        step.setStatus("APPROVED");
+        step.setStatus(ApprovalStatus.APPROVED.name());
         step.setComment(comment);
         stepRepository.saveAndFlush(step);
         
         ApprovalRequest approval = step.getApprovalRequest();
-        if (notificationService != null) {
+        if (notificationFacade != null) {
             try {
                 String approverName = userRepository.findById(approverId).map(User::getUsername).orElse(approverId);
-                notificationService.updateApprovalNotificationsToProcessed(approval.getId(), approverName, "APPROVED");
+                notificationFacade.processStepApprovalNotifications(approval, null, approverName);
             } catch (Exception ignored) {}
         }
-        eventPublisher.publishEvent(new ApprovalStepApprovedEvent(approval, step));
+        notificationFacade.publishApprovalStepApproved(approval, step);
         
         return approval;
     }
@@ -928,27 +654,28 @@ public class ApprovalService {
         if (!isStepAssigneeOrRoleMatch(step, approverId)) {
             throw new CustomAccessDeniedException(ErrorCode.NOT_STEP_ASSIGNEE, "You are not the assignee for this step");
         }
-        if (!"PENDING".equals(step.getStatus())) {
+        if (!ApprovalStatus.PENDING.name().equals(step.getStatus())) {
             throw new BusinessException(ErrorCode.STEP_NOT_PENDING, "Step is not pending");
         }
         
-        step.setStatus("REJECTED");
+        step.setStatus(ApprovalStatus.REJECTED.name());
         step.setComment(comment);
         stepRepository.saveAndFlush(step);
         
         ApprovalRequest approval = step.getApprovalRequest();
-        approval.setStatus("REJECTED");
+        approval.setStatus(ApprovalStatus.REJECTED.name());
         approvalRepository.saveAndFlush(approval);
         
-        if (notificationService != null) {
+        if (notificationFacade != null) {
             try {
                 String approverName = userRepository.findById(approverId).map(User::getUsername).orElse(approverId);
-                notificationService.updateApprovalNotificationsToProcessed(approval.getId(), approverName, "REJECTED");
+                notificationFacade.processStepRejectionNotifications(approval, null, approverName);
             } catch (Exception ignored) {}
         }
         
         revertRecordStatusOnRejection(approval);
-        sendRejectionNotification(approval, approverId, comment);
+        notificationFacade.sendRejectionNotification(approval, approverId, comment);
+        broadcastRejectionEvent(approval);
         
         return approval;
     }
@@ -961,16 +688,16 @@ public class ApprovalService {
         ApprovalStep step = stepRepository.findById(stepId)
                 .orElseThrow(() -> new ResourceNotFoundException("Step not found"));
                 
-        if (!"PENDING".equals(step.getStatus())) {
+        if (!ApprovalStatus.PENDING.name().equals(step.getStatus())) {
             throw new BusinessException(ErrorCode.STEP_NOT_PENDING, "Step is not pending");
         }
         
-        step.setStatus("APPROVED");
-        step.setComment((comment != null && !comment.isBlank() ? comment + " " : "") + "(Admin Proxy)");
+        step.setStatus(ApprovalStatus.APPROVED.name());
+        step.setComment((comment != null && !comment.trim().isEmpty() ? comment + " " : "") + "(Admin Proxy)");
         stepRepository.saveAndFlush(step);
         
         ApprovalRequest approval = step.getApprovalRequest();
-        eventPublisher.publishEvent(new ApprovalStepApprovedEvent(approval, step));
+        notificationFacade.publishApprovalStepApproved(approval, step);
         
         return approval;
     }
@@ -983,65 +710,31 @@ public class ApprovalService {
         ApprovalStep step = stepRepository.findById(stepId)
                 .orElseThrow(() -> new ResourceNotFoundException("Step not found"));
                 
-        if (!"PENDING".equals(step.getStatus())) {
+        if (!ApprovalStatus.PENDING.name().equals(step.getStatus())) {
             throw new BusinessException(ErrorCode.STEP_NOT_PENDING, "Step is not pending");
         }
         
-        step.setStatus("REJECTED");
-        step.setComment((comment != null && !comment.isBlank() ? comment + " " : "") + "(Admin Proxy)");
+        step.setStatus(ApprovalStatus.REJECTED.name());
+        step.setComment((comment != null && !comment.trim().isEmpty() ? comment + " " : "") + "(Admin Proxy)");
         stepRepository.saveAndFlush(step);
         
         ApprovalRequest approval = step.getApprovalRequest();
-        approval.setStatus("REJECTED");
+        approval.setStatus(ApprovalStatus.REJECTED.name());
         approvalRepository.saveAndFlush(approval);
         
         revertRecordStatusOnRejection(approval);
-        sendRejectionNotification(approval, adminId, comment);
+        notificationFacade.sendRejectionNotification(approval, adminId, comment);
+        broadcastRejectionEvent(approval);
         
         return approval;
     }
-
-    private String resolveActionLabel(String targetType) {
-        if (targetType == null) return "결재";
-        switch (targetType.toUpperCase()) {
-            case "RECORD_CREATE": return "데이터 등록";
-            case "RECORD_UPDATE": return "데이터 수정";
-            case "RECORD_DELETE": return "데이터 삭제";
-            case "SCHEMA_FIELD_ADD": return "필드 추가";
-            case "SCHEMA_FIELD_UPDATE": return "필드 속성 변경";
-            case "SCHEMA_FIELD_DELETE": return "필드 삭제";
-            default:
-                return targetType;
-        }
-    }
-
-    private void sendRejectionNotification(ApprovalRequest approval, String rejecterId, String comment) {
-        if (approval == null || notificationService == null || approval.getRequesterId() == null) return;
-        try {
-            String rejecterName = userRepository.findById(rejecterId).map(User::getUsername).orElse(rejecterId);
-            String actionLabel = resolveActionLabel(approval.getTargetType());
-            
-            String msg = rejecterName + "님이 " + actionLabel + " 요청을 반려하였습니다.";
-            if (comment != null && !comment.isBlank()) {
-                msg += " (반려 사유: " + comment + ")";
-            }
-
-            notificationService.createNotification(
-                    approval.getRequesterId(),
-                    "@i18n:notifications.approval_rejected",
-                    msg,
-                    "APPROVAL",
-                    "/approvals?requestId=" + approval.getId()
-            );
-        } catch (Exception ex) {
-            log.warn("Failed to send rejection notification for request {}", approval.getId(), ex);
-        }
-
+    
+    private void broadcastRejectionEvent(ApprovalRequest approval) {
         if (webSocketPublisher != null) {
             java.util.Map<String, Object> payload = java.util.Map.of(
-                    "eventType", "REJECTED",
+                    "eventType", ApprovalStatus.REJECTED.name(),
                     "approvalId", approval.getId(),
-                    "status", "REJECTED",
+                    "status", ApprovalStatus.REJECTED.name(),
                     "targetType", approval.getTargetType() != null ? approval.getTargetType() : "",
                     "targetId", approval.getTargetId() != null ? approval.getTargetId() : ""
             );
@@ -1049,7 +742,6 @@ public class ApprovalService {
             webSocketPublisher.publishApprovalEvent("/topic/approvals/status-changes", payload);
         }
     }
-    
     @Transactional(readOnly = true)
     public Page<ApprovalRequest> getPendingRequests(Pageable pageable) {
         return approvalQueryService.getPendingRequests(pageable);
@@ -1107,7 +799,7 @@ public class ApprovalService {
         Record survivor = recordRepository.findById(request.survivorRecordId)
                 .orElseThrow(() -> new ResourceNotFoundException("Survivor record not found: " + request.survivorRecordId));
 
-        if ("MERGED".equalsIgnoreCase(survivor.getStatus()) || "REJECTED".equalsIgnoreCase(survivor.getStatus())) {
+        if (RecordStatus.MERGED.name().equalsIgnoreCase(survivor.getStatus()) || RecordStatus.REJECTED.name().equalsIgnoreCase(survivor.getStatus())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "Cannot merge into an inactive/merged record.");
         }
 
@@ -1156,11 +848,11 @@ public class ApprovalService {
         }
 
         ApprovalRequest approval = new ApprovalRequest();
-        approval.setTargetType("RECORD_MERGE");
+        approval.setTargetType(ApprovalTargetType.RECORD_MERGE.name());
         approval.setTargetId(survivor.getId());
         approval.setRequesterId(requesterId);
         approval.setClassificationNode(survivor.getNode());
-        approval.setStatus("PENDING");
+        approval.setStatus(ApprovalStatus.PENDING.name());
 
         try {
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
@@ -1170,13 +862,13 @@ public class ApprovalService {
         }
 
         UUID nodeId = survivor.getNode() != null ? survivor.getNode().getId() : null;
-        List<WorkflowConfig> configs = resolveWorkflows(nodeId, "MERGE");
+        List<WorkflowConfig> configs = workflowResolver.resolveWorkflows(nodeId, "MERGE");
         WorkflowConfig config = configs != null && !configs.isEmpty() ? configs.get(0) : null;
-        buildDynamicSteps(approval, config);
+        workflowResolver.buildDynamicSteps(approval, config);
         approval.setCurrentStepOrder(1);
 
         ApprovalRequest saved = approvalRepository.saveAndFlush(approval);
-        eventPublisher.publishEvent(new ApprovalRequestCreatedEvent(saved));
+        notificationFacade.publishApprovalRequestCreated(saved);
         return saved;
     }
 }

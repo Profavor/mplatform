@@ -107,7 +107,7 @@ public class GlobalRecordController {
     }
 
     @PostMapping("/admin/migrate-searchable-data")
-    @PreAuthorize("hasRole('ADMIN') or hasPermission(null, 'admin:write')")
+    @PreAuthorize("hasPermission(null, 'admin:write')")
     public ResponseEntity<String> migrateSearchableData() {
         int count = recordService.migrateSearchableData();
         return ResponseEntity.ok("Successfully migrated " + count + " records.");

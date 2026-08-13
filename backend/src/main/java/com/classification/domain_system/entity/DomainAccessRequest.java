@@ -6,6 +6,7 @@ import lombok.Setter;
 import lombok.NoArgsConstructor;
 import java.util.UUID;
 import java.time.LocalDateTime;
+import com.classification.domain_system.entity.enums.ApprovalStatus;
 
 @Entity
 @Table(name = "domain_access_request")
@@ -40,7 +41,7 @@ public class DomainAccessRequest {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = this.createdAt;
         if (this.status == null) {
-            this.status = "PENDING";
+            this.status = ApprovalStatus.PENDING.name();
         }
     }
 

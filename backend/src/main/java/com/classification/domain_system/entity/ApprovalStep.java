@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.classification.domain_system.entity.enums.ApprovalStatus;
 
 @Entity
 @Table(name = "approval_step")
@@ -72,7 +73,7 @@ public class ApprovalStep {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = this.createdAt;
         if (this.status == null) {
-            this.status = "WAITING";
+            this.status = ApprovalStatus.WAITING.name();
         }
     }
 

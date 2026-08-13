@@ -155,5 +155,12 @@
   "schema_prop_conditionEnabled": "Condition Enabled",
   "schema_prop_true": "True",
   "schema_prop_false": "False",
-  "items_count": " items"
+  "items_count": " items",
+  "governance": "Governance",
+  "domain": "Domain",
+  "node": "Node",
+  "request_domain_access": "Request Domain Access",
+  "data_profiling": "Data Profiling",
+  "item_count": "{count} items",
+  "select_node_prompt": "Select a Classification Node from the tree to view or add fields."
 }

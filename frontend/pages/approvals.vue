@@ -7,7 +7,7 @@
         <div>
           <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
             {{ pageTitle }}
-            <va-badge text="Approval Inbox" color="primary" size="small" />
+            <va-badge :text="t('approval_inbox')" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
             {{ t('subtitle') }}
@@ -25,7 +25,7 @@
           <span style="font-size: 1.05rem; font-weight: 700; color: var(--va-text-primary); font-family: 'Pretendard', 'Inter', sans-serif;">
             {{ t('pending_approvals') }}
           </span>
-          <va-chip size="small" color="warning" style="font-weight: 600;">{{ pendingSteps.length }}건 대기</va-chip>
+          <va-chip size="small" color="warning" style="font-weight: 600;">{{ t('pending_count', { count: pendingSteps.length }) }}</va-chip>
         </div>
         <div style="display: flex; gap: 0.5rem; align-items: center;">
           <va-button size="small" preset="primary" icon="check_circle" @click="bulkApprove" :disabled="!pendingSelectedRows.length">
@@ -69,7 +69,7 @@
           <span style="font-size: 1.05rem; font-weight: 700; color: var(--va-text-primary); font-family: 'Pretendard', 'Inter', sans-serif;">
             {{ t('mySubmitted') }}
           </span>
-          <va-chip size="small" color="primary" style="font-weight: 600;">{{ myRequests.length }}건</va-chip>
+          <va-chip size="small" color="primary" style="font-weight: 600;">{{ t('item_count', { count: myRequests.length }) }}</va-chip>
         </div>
         <div style="display: flex; gap: 0.5rem; align-items: center;">
           <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshMyRequests">{{ t('refresh') }}</va-button>

@@ -17,6 +17,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.util.Arrays;
 import java.util.List;
 
@@ -68,12 +70,24 @@ public class SecurityConfig {
                 .authenticationEntryPoint((request, response, authException) -> {
                     response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
                     response.setContentType("application/json;charset=UTF-8");
-                    response.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"Authentication token expired or invalid\"}");
+                    var mapper = new ObjectMapper();
+                    var body = java.util.Map.of(
+                        "status", 401,
+                        "error", "Unauthorized",
+                        "message", authException.getMessage() != null ? authException.getMessage() : "Authentication token expired or invalid"
+                    );
+                    response.getWriter().write(mapper.writeValueAsString(body));
                 })
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
                     response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_FORBIDDEN);
                     response.setContentType("application/json;charset=UTF-8");
-                    response.getWriter().write("{\"error\":\"Forbidden\",\"message\":\"Access denied\"}");
+                    var mapper = new ObjectMapper();
+                    var body = java.util.Map.of(
+                        "status", 403,
+                        "error", "Forbidden",
+                        "message", accessDeniedException.getMessage() != null ? accessDeniedException.getMessage() : "Access denied"
+                    );
+                    response.getWriter().write(mapper.writeValueAsString(body));
                 })
             );
 
@@ -101,6 +115,7 @@ public class SecurityConfig {
         for (String origin : originPatterns) {
             config.addAllowedOriginPattern(origin);
         }
+        // TODO: Move http://127.0.0.1:* to application properties if not already there
         config.addAllowedOriginPattern("http://127.0.0.1:*");
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("*"));

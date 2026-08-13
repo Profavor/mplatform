@@ -7,7 +7,7 @@
         <div>
           <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
             {{ pageTitle }}
-            <va-badge text="Governance" color="primary" size="small" />
+            <va-badge :text="$t('governance')" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
             {{ $t('domain_schema_desc') }}
@@ -37,11 +37,11 @@
               />
             </div>
             <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; padding: 0 0.5rem; flex-wrap: wrap;">
-              <va-button v-if="hasPermission('domain:write') || hasPermission('domain:*')" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="create_new_folder" @click="openDomainModal()" color="primary">Domain</va-button>
-              <va-button v-if="hasPermission('node:write') || hasPermission('node:*')" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="note_add" @click="openNodeModal()" :disabled="!selectedNode" color="primary" :preset="selectedNode ? 'primary' : 'secondary'">Node</va-button>
+              <va-button v-if="hasPermission('domain:write') || hasPermission('domain:*')" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="create_new_folder" @click="openDomainModal()" color="primary">{{ $t('domain') }}</va-button>
+              <va-button v-if="hasPermission('node:write') || hasPermission('node:*')" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="note_add" @click="openNodeModal()" :disabled="!selectedNode" color="primary" :preset="selectedNode ? 'primary' : 'secondary'">{{ $t('node') }}</va-button>
             </div>
             <div style="margin-top: 0.75rem; padding: 0 0.5rem;">
-              <va-button preset="secondary" style="width: 100%;" @click="showRequestAccessModal = true">Request Domain Access</va-button>
+              <va-button preset="secondary" style="width: 100%;" @click="showRequestAccessModal = true">{{ $t('request_domain_access') }}</va-button>
             </div>
             <div style="margin-top: 0.75rem; padding: 0 0.5rem;">
               <va-button style="width: 100%; border-radius: 8px; font-weight: 600;" color="info" icon="tune" @click="openSectorGroupModal" :disabled="!treeNodes || treeNodes.length === 0" preset="secondary">{{ $t('manage_sectors_groups') }}</va-button>
@@ -59,7 +59,7 @@
                 <va-tab>{{ $t('tab_fields') }}</va-tab>
                 <va-tab>{{ $t('schema_history.title') }}</va-tab>
                 <va-tab v-if="selectedNode && selectedNode.type === 'domain'">{{ $t('classification_axes') }}</va-tab>
-                <va-tab v-if="selectedNode && selectedNode.type === 'domain'">Data Profiling</va-tab>
+                <va-tab v-if="selectedNode && selectedNode.type === 'domain'">{{ $t('data_profiling') }}</va-tab>
               </template>
             </va-tabs>
           </va-card-title>
@@ -73,11 +73,11 @@
                   <span style="font-weight: 700; font-size: 0.95rem; color: var(--va-text-primary);">
                     {{ selectedNode ? getTranslatedName(selectedNode.name) + ' ' + ($t('tab_fields')) : ($t('tab_fields')) }}
                   </span>
-                  <va-chip size="small" color="primary" style="font-weight: 600;">{{ fields.length }}건</va-chip>
+                  <va-chip size="small" color="primary" style="font-weight: 600;">{{ $t('item_count', { count: fields.length }) }}</va-chip>
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 0.4rem;">
-                  <va-button v-if="hasPermission('field:write') || hasPermission('field:*')" size="small" icon="add" @click="openFieldModal(null)">Add Field</va-button>
+                  <va-button v-if="hasPermission('field:write') || hasPermission('field:*')" size="small" icon="add" @click="openFieldModal(null)">{{ $t('add_field') }}</va-button>
                   <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshSchemaData">{{ $t('refresh') }}</va-button>
                 </div>
               </div>
@@ -120,7 +120,7 @@
         </va-card>
         <va-card v-else>
           <va-card-content style="text-align: center; padding: 3rem; color: #666;">
-            Select a Classification Node from the tree to view or add fields.
+            {{ $t('select_node_prompt') }}
           </va-card-content>
         </va-card>
       </div>
@@ -199,11 +199,11 @@
     />
 
     <!-- Icon Picker Modal -->
-    <va-modal v-model="showIconPickerModal" title="Select Icon" size="medium" hide-default-actions>
+    <va-modal v-model="showIconPickerModal" :title="$t('select_icon')" size="medium" hide-default-actions>
       <IconPicker v-model="tempIcon" />
       <div style="display: flex; justify-content: flex-end; margin-top: 1rem; gap: 0.5rem;">
-        <va-button preset="secondary" @click="showIconPickerModal = false">Cancel</va-button>
-        <va-button @click="applyIcon">Confirm</va-button>
+        <va-button preset="secondary" @click="showIconPickerModal = false">{{ $t('cancel') }}</va-button>
+        <va-button @click="applyIcon">{{ $t('confirm') }}</va-button>
       </div>
     </va-modal>
 
@@ -347,13 +347,15 @@ import { usePageTitle } from '~/composables/usePageTitle'
 import SchemaImpactReportModal from '~/components/SchemaImpactReportModal.vue'
 import ApprovalDetailsViewer from '~/components/ApprovalDetailsViewer.vue'
 
+const { customFetch } = useCustomFetch()
+
 const showApprovalViewer = ref(false)
 const selectedApprovalRequest = ref(null)
 
 const openApprovalViewer = async (requestId) => {
   if (!requestId) return
   try {
-    const data = await $fetch(`/api/approval-requests/${requestId}`, { headers: getAuthHeaders() })
+    const data = await customFetch(`/api/approval-requests/${requestId}`)
     selectedApprovalRequest.value = data
     showApprovalViewer.value = true
   } catch (e) {
@@ -459,9 +461,8 @@ const executeDeleteField = async (fieldData, reasonText = '') => {
       deleteUrl += `?reason=${encodeURIComponent(reasonText.trim())}`
     }
 
-    await $fetch(deleteUrl, {
-      method: 'DELETE',
-      headers: getAuthHeaders()
+    await customFetch(deleteUrl, {
+      method: 'DELETE'
     })
     showCustomAlert(t('field_delete_approval_submitted'), t('approval_submitted_title'), 'Success', 'success')
     await onNodeSelected(selectedNode.value)
@@ -507,10 +508,7 @@ const showCustomAlert = (msg, header = '', title = '', type = 'success') => {
   showErrorAlertModal.value = true
 }
 
-const currentLocale = useCookie('locale', { default: () => 'ko' })
-const token = useCookie('auth_token', { default: () => '' })
 const userCookie = useCookie('user_data')
-const getAuthHeaders = () => token.value ? { Authorization: `Bearer ${token.value}` } : {}
 
 const activeTab = ref(0)
 const sgActiveTab = ref(0)
@@ -542,7 +540,7 @@ const createFieldsDatasource = () => {
           ? `/api/domains/${selectedNode.value.id}/fields/page?page=${page}&size=${size}`
           : `/api/nodes/${selectedNode.value.id}/fields/effective/page?page=${page}&size=${size}`;
           
-        const pageData = await $fetch(endpoint, { headers: getAuthHeaders() });
+        const pageData = await customFetch(endpoint);
         params.successCallback(pageData.content, pageData.totalElements);
       } catch (e) {
         console.error('Failed to load fields page:', e);
@@ -1184,9 +1182,8 @@ const saveWorkflowConfigs = async () => {
       ? `/api/workflow-configs/domain/${selectedNode.value.id}`
       : `/api/workflow-configs/node/${selectedNode.value.id}`
       
-    await $fetch(url, {
+    await customFetch(url, {
       method: 'POST',
-      headers: getAuthHeaders(),
       body: payloads
     })
     showCustomAlert('Workflow configurations saved successfully.', 'Save Success', 'Notification', 'success')
@@ -1220,10 +1217,10 @@ const onNodeSelected = async (nodes) => {
     const wfUrl = node.isDomain ? `/api/workflow-configs/domain/${node.id}` : `/api/workflow-configs/node/${node.id}`
     const fieldUrl = node.isDomain ? `/api/domains/${node.id}/fields` : `/api/nodes/${node.id}/fields/effective`
     const [sData, gData, wfData, fData] = await Promise.all([
-      $fetch(`/api/domains/${dId}/sectors`, { headers: getAuthHeaders() }),
-      $fetch(`/api/domains/${dId}/groups`, { headers: getAuthHeaders() }),
-      $fetch(wfUrl, { headers: getAuthHeaders() }).catch(() => []),
-      $fetch(fieldUrl, { headers: getAuthHeaders() }).catch(() => [])
+      customFetch(`/api/domains/${dId}/sectors`),
+      customFetch(`/api/domains/${dId}/groups`),
+      customFetch(wfUrl).catch(() => []),
+      customFetch(fieldUrl).catch(() => [])
     ])
     domainSectors.value = sData
     domainGroups.value = gData
@@ -1301,7 +1298,7 @@ const checkPendingSchemaStatus = async () => {
   const domainId = selectedNode.value.isDomain ? selectedNode.value.id : selectedNode.value.domainId;
   const nodeId = selectedNode.value.isDomain ? null : selectedNode.value.id;
   try {
-    const res = await $fetch(`/api/approval-requests/pending-schema-status?domainId=${domainId || ''}&nodeId=${nodeId || ''}`, { headers: getAuthHeaders() });
+    const res = await customFetch(`/api/approval-requests/pending-schema-status?domainId=${domainId || ''}&nodeId=${nodeId || ''}`);
     hasPendingSchemaApproval.value = Boolean(res?.hasPendingApproval);
     pendingFieldIds.value = Array.isArray(res?.pendingFieldIds) ? res.pendingFieldIds : [];
   } catch (e) {
@@ -1316,7 +1313,7 @@ const handleNodeEdit = async (node) => {
   isEditMode.value = true
   if (targetNode.isDomain) {
     try {
-      const dFields = await $fetch(`/api/domains/${targetNode.id}/fields`, { headers: getAuthHeaders() })
+      const dFields = await customFetch(`/api/domains/${targetNode.id}/fields`)
       domainFieldOptions.value = dFields.map(f => {
         const pName = typeof f.name === 'string' ? JSON.parse(f.name || '{}') : (f.name || {})
         return {
@@ -1400,7 +1397,7 @@ const openFieldModal = async (rowData = null) => {
       const fieldUrl = selectedNode.value.isDomain
         ? `/api/domains/${selectedNode.value.id}/fields`
         : `/api/nodes/${selectedNode.value.id}/fields/effective`
-      fields.value = await $fetch(fieldUrl, { headers: getAuthHeaders() }).catch(() => [])
+      fields.value = await customFetch(fieldUrl).catch(() => [])
     } catch (e) {
       console.error('Failed to load fields for modal:', e)
     }
@@ -1508,9 +1505,8 @@ const saveDomain = async () => {
       autoDqScanEnabled: Boolean(newDomain.value.autoDqScanEnabled)
     }
 
-    await $fetch(url, {
+    await customFetch(url, {
       method: isEditMode.value ? 'PUT' : 'POST',
-      headers: getAuthHeaders(),
       body: payload
     })
     showDomainModal.value = false
@@ -1532,9 +1528,8 @@ const saveNode = async () => {
     const url = isEditMode.value ? `/api/domains/${newNode.value.domainId}/nodes/${targetId}` : `/api/domains/${domainId}/nodes`
     const parentId = isEditMode.value ? undefined : (selectedNode.value.isDomain ? null : selectedNode.value.id)
 
-    await $fetch(url, {
+    await customFetch(url, {
       method: isEditMode.value ? 'PUT' : 'POST',
-      headers: getAuthHeaders(),
       body: {
         name: newNode.value.name,
         order: newNode.value.order,
@@ -1663,9 +1658,8 @@ const executePendingFieldSave = async () => {
       reason: newField.value.reason || ''
     }
 
-    await $fetch(url, {
+    await customFetch(url, {
       method,
-      headers: { Authorization: `Bearer ${token.value}` },
       body: payload
     })
     newField.value = { 
@@ -1718,9 +1712,9 @@ const saveAllSectors = async () => {
 
     try {
       if (item.id) {
-        await $fetch(`/api/domains/${dId}/sectors/${item.id}`, { method: 'PUT', headers: getAuthHeaders(), body: payload })
+        await customFetch(`/api/domains/${dId}/sectors/${item.id}`, { method: 'PUT', body: payload })
       } else {
-        await $fetch(`/api/domains/${dId}/sectors`, { method: 'POST', headers: getAuthHeaders(), body: payload })
+        await customFetch(`/api/domains/${dId}/sectors`, { method: 'POST', body: payload })
       }
       saveCount++
     } catch (e) {
@@ -1729,7 +1723,7 @@ const saveAllSectors = async () => {
     }
   }
 
-  domainSectors.value = await $fetch(`/api/domains/${dId}/sectors`, { headers: getAuthHeaders() })
+  domainSectors.value = await customFetch(`/api/domains/${dId}/sectors`)
   if (!hasError) {
     showCustomAlert(`섹터 ${saveCount}건이 성공적으로 저장되었습니다.`, '저장 완료', 'Notification', 'success')
   } else {
@@ -1762,9 +1756,9 @@ const saveAllGroups = async () => {
 
     try {
       if (item.id) {
-        await $fetch(`/api/domains/${dId}/groups/${item.id}`, { method: 'PUT', headers: getAuthHeaders(), body: payload })
+        await customFetch(`/api/domains/${dId}/groups/${item.id}`, { method: 'PUT', body: payload })
       } else {
-        await $fetch(`/api/domains/${dId}/groups`, { method: 'POST', headers: getAuthHeaders(), body: payload })
+        await customFetch(`/api/domains/${dId}/groups`, { method: 'POST', body: payload })
       }
       saveCount++
     } catch (e) {
@@ -1773,7 +1767,7 @@ const saveAllGroups = async () => {
     }
   }
 
-  domainGroups.value = await $fetch(`/api/domains/${dId}/groups`, { headers: getAuthHeaders() })
+  domainGroups.value = await customFetch(`/api/domains/${dId}/groups`)
   if (!hasError) {
     showCustomAlert(`그룹 ${saveCount}건이 성공적으로 저장되었습니다.`, '저장 완료', 'Notification', 'success')
   } else {
@@ -1796,7 +1790,7 @@ const deleteSelectedSector = async () => {
   const id = selected[0].data.id
   const dId = selectedNode.value.domainId
   if (!id) {
-    domainSectors.value = await $fetch(`/api/domains/${dId}/sectors`, { headers: getAuthHeaders() })
+    domainSectors.value = await customFetch(`/api/domains/${dId}/sectors`)
     return
   }
   await deleteSector(id)
@@ -1809,7 +1803,7 @@ const deleteSelectedGroup = async () => {
   const id = selected[0].data.id
   const dId = selectedNode.value.domainId
   if (!id) {
-    domainGroups.value = await $fetch(`/api/domains/${dId}/groups`, { headers: getAuthHeaders() })
+    domainGroups.value = await customFetch(`/api/domains/${dId}/groups`)
     return
   }
   await deleteGroup(id)
@@ -1818,11 +1812,10 @@ const deleteSelectedGroup = async () => {
 const deleteGroup = async (id) => {
   const dId = selectedNode.value.domainId
   try {
-    await $fetch(`/api/domains/${dId}/groups/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token.value}` }
+    await customFetch(`/api/domains/${dId}/groups/${id}`, {
+      method: 'DELETE'
     })
-    domainGroups.value = await $fetch(`/api/domains/${dId}/groups`, { headers: { Authorization: `Bearer ${token.value}` } })
+    domainGroups.value = await customFetch(`/api/domains/${dId}/groups`)
     cancelEditGroup()
   } catch (e) { showCustomAlert('Error deleting group.', 'Delete Error', 'Error', 'error') }
 }

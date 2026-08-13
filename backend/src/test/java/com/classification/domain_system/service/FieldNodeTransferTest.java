@@ -20,28 +20,29 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.jdbc.core.JdbcTemplate;
+import com.classification.domain_system.security.SecurityUtils;
+
+@ExtendWith(MockitoExtension.class)
 class FieldNodeTransferTest {
 
-    private FieldDefinitionRepository fieldRepository;
-    private ClassificationNodeRepository nodeRepository;
-    private DomainRepository domainRepository;
-    private FieldGroupRepository fieldGroupRepository;
+    @Mock private FieldDefinitionRepository fieldRepository;
+    @Mock private ClassificationNodeRepository nodeRepository;
+    @Mock private DomainRepository domainRepository;
+    @Mock private FieldGroupRepository fieldGroupRepository;
+    @Mock private JdbcTemplate jdbcTemplate;
+    @Mock private SecurityUtils securityUtils;
+
+    @InjectMocks
     private FieldDefinitionService fieldService;
 
     @BeforeEach
     void setUp() {
-        fieldRepository = Mockito.mock(FieldDefinitionRepository.class);
-        nodeRepository = Mockito.mock(ClassificationNodeRepository.class);
-        domainRepository = Mockito.mock(DomainRepository.class);
-        fieldGroupRepository = Mockito.mock(FieldGroupRepository.class);
-
-        fieldService = new FieldDefinitionService(
-                fieldRepository,
-                nodeRepository,
-                domainRepository,
-                fieldGroupRepository,
-                null
-        );
+        org.mockito.Mockito.lenient().when(securityUtils.getCurrentUserId()).thenReturn("tester");
     }
 
     @Test

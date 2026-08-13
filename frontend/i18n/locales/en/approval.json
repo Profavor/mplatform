@@ -72,5 +72,8 @@
   "step_type_approval": "Approval",
   "submit_request": "Submit Request",
   "typeApproval": "Approval",
-  "view_approval_history": "View Approval History"
+  "view_approval_history": "View Approval History",
+  "approval_inbox": "Approval Inbox",
+  "pending_count": "{count} Pending",
+  "item_count": "{count} items"
 }

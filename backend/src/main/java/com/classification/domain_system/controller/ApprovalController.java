@@ -26,6 +26,7 @@ import com.classification.domain_system.exception.CustomAccessDeniedException;
 public class ApprovalController {
     
     private final ApprovalService approvalService;
+    private final com.classification.domain_system.service.WorkflowResolver workflowResolver;
     private final AuthContext authContext;
     private final com.classification.domain_system.repository.UserRepository userRepository;
     private final com.classification.domain_system.service.PermissionService permissionService;
@@ -77,7 +78,7 @@ public class ApprovalController {
 
     @GetMapping("/effective-workflow/{nodeId}")
     public ResponseEntity<Boolean> hasEffectiveWorkflow(@PathVariable UUID nodeId, @RequestParam String actionType) {
-        com.classification.domain_system.entity.WorkflowConfig config = approvalService.resolveWorkflow(nodeId, actionType);
+        com.classification.domain_system.entity.WorkflowConfig config = workflowResolver.resolveWorkflow(nodeId, actionType);
         boolean hasWorkflow = config != null && config.getStepsConfig() != null && !config.getStepsConfig().isEmpty() && !config.getStepsConfig().equals("{\"steps\":[],\"observerIds\":[]}");
         return ResponseEntity.ok(hasWorkflow);
     }
@@ -113,7 +114,7 @@ public class ApprovalController {
         } catch (Exception e) {
             // Unauthenticated or guest context
         }
-        List<com.classification.domain_system.entity.WorkflowConfig> list = approvalService.resolveWorkflowsForUser(nodeId, actionType, authenticatedUserId, userRole);
+        List<com.classification.domain_system.entity.WorkflowConfig> list = workflowResolver.resolveWorkflowsForUser(nodeId, actionType, authenticatedUserId, userRole);
         return ResponseEntity.ok(list);
     }
 
@@ -135,8 +136,8 @@ public class ApprovalController {
         }
 
         com.classification.domain_system.entity.WorkflowConfig config = workflowId != null 
-                ? approvalService.resolveWorkflowById(workflowId) 
-                : approvalService.resolveWorkflow(nodeId, actionType);
+                ? workflowResolver.resolveWorkflowById(workflowId) 
+                : workflowResolver.resolveWorkflow(nodeId, actionType);
         boolean hasWorkflow = config != null && config.getStepsConfig() != null && !config.getStepsConfig().isEmpty();
 
         List<String> editableFields = approvalService.extractEditableFields(config, authenticatedUserId, userRole);
@@ -198,9 +199,11 @@ public class ApprovalController {
         
         var resultPage = approvalService.getAllRequests(search, status, filterModel, PageRequest.of(page, size, sortObj));
         if (resultPage.getContent() != null) {
-            resultPage.getContent().forEach(approvalService::maskChangesForRead);
+            resultPage.getContent().forEach(req -> {
+                approvalService.maskChangesForRead(req);
+                workflowResolver.enrichUserNames(req);
+            });
         }
-        approvalService.enrichUserNames(resultPage.getContent());
         return ResponseEntity.ok(PageResponse.of(resultPage));
     }
 
@@ -224,7 +227,7 @@ public class ApprovalController {
             todoPage.getContent().forEach(s -> {
                 if (s.getApprovalRequest() != null) {
                     approvalService.maskChangesForRead(s.getApprovalRequest());
-                    approvalService.enrichUserNames(s.getApprovalRequest());
+                    workflowResolver.enrichUserNames(s.getApprovalRequest());
                 }
             });
         }
@@ -242,9 +245,11 @@ public class ApprovalController {
 
         var myReqPage = approvalService.getMyRequests(targetRequesterId, username, PageRequest.of(page, size));
         if (myReqPage.getContent() != null) {
-            myReqPage.getContent().forEach(approvalService::maskChangesForRead);
+            myReqPage.getContent().forEach(req -> {
+                approvalService.maskChangesForRead(req);
+                workflowResolver.enrichUserNames(req);
+            });
         }
-        approvalService.enrichUserNames(myReqPage.getContent());
         return ResponseEntity.ok(PageResponse.of(myReqPage));
     }
     
@@ -253,7 +258,7 @@ public class ApprovalController {
         var req = approvalService.getRequestById(id);
         if (req != null) {
             approvalService.maskChangesForRead(req);
-            approvalService.enrichUserNames(req);
+            workflowResolver.enrichUserNames(req);
         }
         return ResponseEntity.ok(req);
     }
@@ -265,7 +270,7 @@ public class ApprovalController {
         String approverId = getAuthenticatedUserId();
         String comment = payload != null ? payload.get("comment") : null;
         ApprovalRequest req = approvalService.approveStep(stepId, approverId, comment);
-        approvalService.enrichUserNames(req);
+        workflowResolver.enrichUserNames(req);
         return ResponseEntity.ok(req);
     }
     
@@ -276,7 +281,7 @@ public class ApprovalController {
         String approverId = getAuthenticatedUserId();
         String comment = payload != null ? payload.get("comment") : null;
         ApprovalRequest req = approvalService.rejectStep(stepId, approverId, comment);
-        approvalService.enrichUserNames(req);
+        workflowResolver.enrichUserNames(req);
         return ResponseEntity.ok(req);
     }
     
@@ -288,7 +293,7 @@ public class ApprovalController {
         String adminId = getAuthenticatedUserId();
         String comment = payload != null ? payload.get("comment") : null;
         ApprovalRequest req = approvalService.adminApproveStep(stepId, adminId, comment);
-        approvalService.enrichUserNames(req);
+        workflowResolver.enrichUserNames(req);
         return ResponseEntity.ok(req);
     }
     
@@ -300,7 +305,7 @@ public class ApprovalController {
         String adminId = getAuthenticatedUserId();
         String comment = payload != null ? payload.get("comment") : null;
         ApprovalRequest req = approvalService.adminRejectStep(stepId, adminId, comment);
-        approvalService.enrichUserNames(req);
+        workflowResolver.enrichUserNames(req);
         return ResponseEntity.ok(req);
     }
 }

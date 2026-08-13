@@ -13,6 +13,9 @@ import com.classification.domain_system.service.dq.DqEvaluationResult;
 import com.classification.domain_system.exception.ResourceNotFoundException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import com.classification.domain_system.entity.enums.ApprovalStatus;
+import com.classification.domain_system.entity.enums.ApprovalTargetType;
+import com.classification.domain_system.entity.enums.RecordStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Propagation;
@@ -143,7 +146,7 @@ public class BatchImportService {
             Record record = new Record();
             record.setNode(node);
             record.setData(processedData);
-            record.setStatus("DRAFT");
+            record.setStatus(RecordStatus.DRAFT.name());
             record.setSourceSystem(sr.getSourceSystem());
             recordBatch.add(record);
             committableStagings.add(sr);
@@ -165,7 +168,7 @@ public class BatchImportService {
         
         // 스테이징 상태 업데이트 (PENDING_APPROVAL)
         for (StagingRecord sr : committableStagings) {
-            sr.setStatus("PENDING_APPROVAL");
+            sr.setStatus(RecordStatus.PENDING_APPROVAL.name());
         }
         stagingRecordRepository.saveAll(committableStagings);
         
@@ -175,7 +178,7 @@ public class BatchImportService {
         
         // BatchJob 업데이트
         job.setProcessedRecords(committableStagings.size());
-        job.setStatus("PENDING_APPROVAL");
+        job.setStatus(RecordStatus.PENDING_APPROVAL.name());
         job.setCompletedAt(LocalDateTime.now());
         job.setCommittedRecords(committableStagings.size());
         if (approvalReq != null) {

@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue'
+import { defineStore } from 'pinia'
 import { useCookie } from '#app'
 
 export interface AuthUser {
@@ -13,10 +14,11 @@ export interface AuthUser {
   mustChangePassword?: boolean
 }
 
-const currentUserState = ref<AuthUser | null>(null)
-const isLoadingUser = ref(false)
-
-export function useAuthUser() {
+export const useAuthUser = defineStore('authUser', () => {
+  const currentUserState = ref<AuthUser | null>(null)
+  const isLoadingUser = ref(false)
+  
+  const { customFetch } = useCustomFetch()
   const tokenCookie = useCookie('auth_token')
   const timezoneCookie = useCookie('timezone', { default: () => 'Asia/Seoul' })
 
@@ -32,10 +34,7 @@ export function useAuthUser() {
 
     isLoadingUser.value = true
     try {
-      const headers: Record<String, String> = {
-        Authorization: `Bearer ${tokenCookie.value}`
-      }
-      const data = await $fetch<AuthUser>('/api/auth/me', { headers })
+      const data = await customFetch<AuthUser>('/api/auth/me')
       if (data) {
         currentUserState.value = data
         if (data.timezone) {
@@ -73,4 +72,4 @@ export function useAuthUser() {
     fetchCurrentUser,
     setCurrentUser
   }
-}
+})

@@ -2,6 +2,7 @@ import { useMenuStore } from '~/stores/useMenuStore'
 
 export const useMenu = () => {
   const store = useMenuStore()
+  const { customFetch } = useCustomFetch()
 
   const fetchMenus = async (forceRefresh = false, includeInactive = false) => {
     return await store.fetchMenuTree(forceRefresh)
@@ -19,9 +20,8 @@ export const useMenu = () => {
       const menuInfo = store.getMenuByPath(menuPath)
       const menuId = menuInfo?.raw?.id || null
 
-      await $fetch('/api/menus/access', {
+      await customFetch('/api/menus/access', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token.value}` },
         body: { menuId, menuPath }
       }).catch(() => null)
     } catch (error) {

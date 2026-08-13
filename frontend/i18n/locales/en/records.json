@@ -110,5 +110,7 @@
   "export_roles_fail": "Failed to export role template.",
   "import_roles_success": "Role template imported successfully.",
   "import_roles_fail": "Failed to import role template.",
-  "import_roles_confirm": "Do you want to overwrite existing roles and permissions with the uploaded backup file?"
+  "import_roles_confirm": "Do you want to overwrite existing roles and permissions with the uploaded backup file?",
+  "master_data": "Master Data",
+  "remove_filter": "Remove Filter"
 }

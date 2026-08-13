@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import { useCookie } from '#app'
+import { defineStore } from 'pinia'
 
 export interface DomainInfo {
   id: string
@@ -9,13 +10,6 @@ export interface DomainInfo {
   code?: string
   [key: string]: any
 }
-
-// Global reactive Store state (singleton across client session)
-const domainsList = ref<DomainInfo[]>([])
-const domainMap = ref<Record<string, DomainInfo>>({})
-const isInitialized = ref(false)
-const isLoading = ref(false)
-let domainsPromise: Promise<DomainInfo[]> | null = null
 
 export function parseDomainName(val: any): string {
   if (!val) return ''
@@ -37,7 +31,14 @@ export function parseDomainName(val: any): string {
   return String(val)
 }
 
-export function useDomainStore() {
+export const useDomainStore = defineStore('domain', () => {
+  // Global reactive Store state (singleton across client session)
+  const domainsList = ref<DomainInfo[]>([])
+  const domainMap = ref<Record<string, DomainInfo>>({})
+  const isInitialized = ref(false)
+  const isLoading = ref(false)
+  let domainsPromise: Promise<DomainInfo[]> | null = null
+
   const token = useCookie('auth_token')
 
   const fetchDomains = async (forceRefresh = false): Promise<DomainInfo[]> => {
@@ -139,4 +140,4 @@ export function useDomainStore() {
     removeDomainFromStore,
     parseDomainName
   }
-}
+})

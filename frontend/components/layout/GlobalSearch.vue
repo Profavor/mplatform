@@ -46,6 +46,7 @@ import { useCookie } from '#app'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
+const { customFetch } = useCustomFetch()
 const searchQuery = ref('')
 const isFocused = ref(false)
 const isSearching = ref(false)
@@ -53,7 +54,6 @@ const results = ref([])
 const searchContainer = ref(null)
 
 const router = useRouter()
-const tokenCookie = useCookie('auth_token')
 
 let debounceTimer = null
 
@@ -65,11 +65,7 @@ const performSearch = async () => {
   
   isSearching.value = true
   try {
-    const res = await $fetch(`/api/v1/search?q=${encodeURIComponent(searchQuery.value)}&size=5`, {
-      headers: {
-        Authorization: `Bearer ${tokenCookie.value}`
-      }
-    })
+    const res = await customFetch(`/api/v1/search?q=${encodeURIComponent(searchQuery.value)}&size=5`)
     
     if (res && res.content) {
       results.value = res.content

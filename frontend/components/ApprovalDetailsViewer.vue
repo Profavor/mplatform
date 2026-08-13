@@ -330,8 +330,10 @@ import { useI18n } from 'vue-i18n'
 import ApprovalSteps from './ApprovalSteps.vue'
 import UnmaskReasonModal from './UnmaskReasonModal.vue'
 import { useToast } from 'vuestic-ui'
+import { useCustomFetch } from '~/composables/useCustomFetch'
 const { t } = useI18n()
 const { init } = useToast()
+const { customFetch } = useCustomFetch()
 
 const showUnmaskReasonModal = ref(false)
 const pendingDecryptField = ref(null)
@@ -346,7 +348,6 @@ const props = defineProps({
 })
 
 const currentLocale = useCookie('locale', { default: () => 'ko' })
-const token = useCookie('auth_token')
 const { downloadFileWithAuth } = useFileDownloader()
 const fieldNameMap = ref({})
 const domainRefDisplayMap = ref({})
@@ -447,9 +448,7 @@ const schemaFieldKey = computed(() => {
 
 const safeFetch = async (url, opts) => {
   try {
-    if (typeof $fetch === 'function') {
-      return await $fetch(url, opts)
-    }
+    return await customFetch(url, opts)
   } catch (e) {}
   return []
 }
@@ -464,7 +463,7 @@ const loadSchemaDetails = async (req) => {
     const fieldId = parsed.fieldId
 
     if (domainId) {
-      const domains = await safeFetch('/api/domains', { headers: { Authorization: `Bearer ${token.value}` } })
+      const domains = await safeFetch('/api/domains')
       if (Array.isArray(domains)) {
         const d = domains.find(x => x && x.id === domainId)
         if (d) {
@@ -474,7 +473,7 @@ const loadSchemaDetails = async (req) => {
     }
 
     if (nodeId) {
-      const tree = await safeFetch('/api/nodes/tree', { headers: { Authorization: `Bearer ${token.value}` } })
+      const tree = await safeFetch('/api/nodes/tree')
       const findNodeInTree = (nodes, targetId) => {
         if (!nodes || !Array.isArray(nodes)) return null
         for (const n of nodes) {
@@ -495,7 +494,7 @@ const loadSchemaDetails = async (req) => {
     }
 
     if (domainId) {
-      const groups = await safeFetch(`/api/domains/${domainId}/groups`, { headers: { Authorization: `Bearer ${token.value}` } })
+      const groups = await safeFetch(`/api/domains/${domainId}/groups`)
       const map = {}
       if (Array.isArray(groups)) {
         groups.forEach(g => {
@@ -509,7 +508,7 @@ const loadSchemaDetails = async (req) => {
     }
 
     if (fieldId && !parsed.before) {
-      const domainFields = domainId ? await safeFetch(`/api/domains/${domainId}/fields`, { headers: { Authorization: `Bearer ${token.value}` } }) : []
+      const domainFields = domainId ? await safeFetch(`/api/domains/${domainId}/fields`) : []
       if (Array.isArray(domainFields)) {
         const f = domainFields.find(x => x && x.id === fieldId)
         if (f) {
@@ -699,9 +698,8 @@ const executeDecryptApprovalField = async (reason) => {
   if (!fieldKey || !props.request || !props.request.id) return
   decryptingFields.value[fieldKey] = true
   try {
-    const res = await $fetch(`/api/sensitive-data/approval/${props.request.id}/decrypt`, {
+    const res = await customFetch(`/api/sensitive-data/approval/${props.request.id}/decrypt`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token.value}` },
       body: { fieldKeys: [fieldKey], accessReason: reason }
     })
     if (res && res[fieldKey]) {
@@ -825,18 +823,18 @@ const loadFieldNamesForRequest = async (req) => {
     let nodeId = req.nodeId || props.nodeId;
     if (!nodeId && req.targetId) {
       try {
-        const record = await $fetch(`/api/records/${req.targetId}`, { headers: { Authorization: `Bearer ${token.value}` } }).catch(() => null)
+        const record = await customFetch(`/api/records/${req.targetId}`).catch(() => null)
         nodeId = record?.node?.id || record?.nodeId;
       } catch (e) {}
     }
     if (!nodeId && req.integrationLog?.channelId) {
       try {
-        const ch = await $fetch(`/api/admin/integration/channels/${req.integrationLog.channelId}`, { headers: { Authorization: `Bearer ${token.value}` } })
+        const ch = await customFetch(`/api/admin/integration/channels/${req.integrationLog.channelId}`)
         nodeId = ch?.nodeId;
       } catch (e) {}
     }
     if (nodeId) {
-      const fields = await $fetch(`/api/nodes/${nodeId}/fields/effective`, { headers: { Authorization: `Bearer ${token.value}` } })
+      const fields = await customFetch(`/api/nodes/${nodeId}/fields/effective`)
       if (fields && fields.length > 0) {
         const map = {}
         fields.forEach(f => {
@@ -882,7 +880,7 @@ const fetchDomainRefName = async (uuid, targetDomainId) => {
   }
   domainRefDisplayMap.value[uuid] = 'Loading...'; 
   try {
-    const rec = await $fetch(`/api/records/${uuid}`, { headers: { Authorization: `Bearer ${token.value}` } }).catch(() => null);
+    const rec = await customFetch(`/api/records/${uuid}`).catch(() => null);
     
     if (!rec) {
       const uname = getUserName(uuid);
@@ -901,14 +899,14 @@ const fetchDomainRefName = async (uuid, targetDomainId) => {
       return;
     }
 
-    const domains = await $fetch('/api/domains', { headers: { Authorization: `Bearer ${token.value}` } })
+    const domains = await customFetch('/api/domains')
     const tDomain = domains.find(d => d.id === tDomainId)
     if (!tDomain) {
       domainRefDisplayMap.value[uuid] = uuid;
       return;
     }
     const dFieldId = tDomain.displayNameFieldId || tDomain.identifierFieldId
-    const tFields = await $fetch(`/api/domains/${tDomainId}/fields`, { headers: { Authorization: `Bearer ${token.value}` } })
+    const tFields = await customFetch(`/api/domains/${tDomainId}/fields`)
     let f = tFields.find(x => x.id === dFieldId);
     if (!f) {
       f = tFields.find(x => {

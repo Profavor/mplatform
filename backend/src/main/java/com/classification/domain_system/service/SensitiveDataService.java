@@ -29,6 +29,8 @@ import java.util.stream.Collectors;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import com.classification.domain_system.dto.SensitiveDataStatsDto;
+import com.classification.domain_system.entity.enums.ApprovalTargetType;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -387,7 +389,7 @@ public class SensitiveDataService {
         Map<String, String> decryptedMap = decryptFromDataJson(record.getData(), fields, fieldKeys);
 
         if (!decryptedMap.isEmpty()) {
-            saveAccessLog("RECORD", recordId, new ArrayList<>(decryptedMap.keySet()), accessReason, ipAddress);
+            saveAccessLog(ApprovalTargetType.RECORD.name(), recordId, new ArrayList<>(decryptedMap.keySet()), accessReason, ipAddress);
         }
 
         return decryptedMap;

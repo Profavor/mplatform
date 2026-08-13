@@ -25,6 +25,9 @@ class DomainServiceTest extends BaseServiceTest {
     @Mock
     private com.classification.domain_system.repository.UserRepository userRepository;
 
+    @Mock
+    private com.classification.domain_system.security.SecurityUtils securityUtils;
+
     @InjectMocks
     private DomainService domainService;
 
@@ -38,6 +41,7 @@ class DomainServiceTest extends BaseServiceTest {
             // given
             DomainRequest request = createTestDomainRequest("인사", "HR");
             Domain saved = createTestDomain(UUID.randomUUID(), "인사", "HR");
+            given(securityUtils.getCurrentUserId()).willReturn("tester");
             given(domainRepository.save(any(Domain.class))).willReturn(saved);
 
             // when
@@ -57,6 +61,7 @@ class DomainServiceTest extends BaseServiceTest {
             request.setAutoDqScanEnabled(true);
             Domain saved = createTestDomain(UUID.randomUUID(), "인사", "HR");
             saved.setAutoDqScanEnabled(true);
+            given(securityUtils.getCurrentUserId()).willReturn("tester");
             given(domainRepository.save(any(Domain.class))).willReturn(saved);
 
             // when
@@ -154,15 +159,16 @@ class DomainServiceTest extends BaseServiceTest {
         @DisplayName("성공 - ID로 도메인을 조회한다")
         void success() {
             // given
-            UUID id = UUID.randomUUID();
-            Domain domain = createTestDomain(id, "인사", "HR");
-            given(domainRepository.findById(id)).willReturn(Optional.of(domain));
+            UUID domainId = UUID.randomUUID();
+            Domain saved = createTestDomain(domainId, "인사", "HR");
+            given(securityUtils.getCurrentUserId()).willReturn("tester");
+            given(domainRepository.findById(domainId)).willReturn(Optional.of(saved));
 
             // when
-            Domain result = domainService.getDomain(id);
+            Domain result = domainService.getDomain(domainId);
 
             // then
-            assertThat(result.getId()).isEqualTo(id);
+            assertThat(result.getId()).isEqualTo(domainId);
         }
 
         @Test

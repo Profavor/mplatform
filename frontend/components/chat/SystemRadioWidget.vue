@@ -69,6 +69,8 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 
+const { customFetch } = useCustomFetch()
+
 const track = ref<any>({ isPlaying: false, videoId: '', seekSeconds: 0 })
 const isMuted = ref(false)
 const volume = ref<number>(70)
@@ -197,7 +199,7 @@ watch(isMuted, () => {
 
 const fetchState = async () => {
   try {
-    const res: any = await $fetch('/api/music/state')
+    const res: any = await customFetch('/api/music/state')
     if (res && res.isPlaying && res.videoId) {
       track.value = res
       initPlayer(res.videoId, res.seekSeconds)

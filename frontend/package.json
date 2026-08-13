@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@nuxtjs/i18n": "^9.1.1",
+    "@pinia/nuxt": "^1.0.2",
     "@stomp/stompjs": "^7.3.0",
     "@vuestic/nuxt": "^1.0.21",
     "ag-grid-enterprise": "^34.3.1",
@@ -26,6 +27,7 @@
     "nuxt": "^3.21.11",
     "nuxt-auth-utils": "^0.5.29",
     "nuxt-oidc-auth": "^1.0.0-beta.11",
+    "pinia": "^4.0.3",
     "vue-echarts": "^7.0.3",
     "vue3-emoji-picker": "^1.1.8",
     "vuestic-ui": "^1.10.3"

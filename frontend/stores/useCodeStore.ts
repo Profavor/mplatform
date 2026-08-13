@@ -1,22 +1,23 @@
 import { ref } from 'vue'
+import { defineStore } from 'pinia'
 import { useCookie } from '#app'
 
-// Global state
-const detailsByGroup = ref({}) // { groupCode: { detailCode: CodeDetail } }
-const groupsLoaded = ref(new Set())
+export const useCodeStore = defineStore('code', () => {
+  // Global state moved inside
+  const detailsByGroup = ref<Record<string, any>>({}) // { groupCode: { detailCode: CodeDetail } }
+  const groupsLoaded = ref(new Set<string>())
 
-export function useCodeStore() {
   const token = useCookie('auth_token')
 
-  const loadGroup = async (groupCode) => {
+  const loadGroup = async (groupCode: string) => {
     if (groupsLoaded.value.has(groupCode)) return;
 
     try {
-      const details = await $fetch(`/api/code-groups/code/${groupCode}/details`, {
+      const details = await $fetch<any[]>(`/api/code-groups/code/${groupCode}/details`, {
         headers: { Authorization: `Bearer ${token.value}` }
       })
       
-      const map = {}
+      const map: Record<string, any> = {}
       details.forEach(d => {
         map[d.detailCode] = d
       })
@@ -28,7 +29,7 @@ export function useCodeStore() {
   }
 
   // Helper to synchronously get name if loaded
-  const getCodeName = (groupCode, detailCode, fallback = null) => {
+  const getCodeName = (groupCode: string, detailCode: string, fallback: string | null = null) => {
     const locale = useCookie('locale', { default: () => 'ko' }).value
     const group = detailsByGroup.value[groupCode]
     if (!group) return fallback || detailCode
@@ -44,12 +45,12 @@ export function useCodeStore() {
   }
 
   // Bulk load multiple groups
-  const preloadGroups = async (groupCodes) => {
+  const preloadGroups = async (groupCodes: string[]) => {
     const promises = groupCodes.map(code => loadGroup(code))
     await Promise.all(promises)
   }
 
-  const getDropdownOptions = (groupCode) => {
+  const getDropdownOptions = (groupCode: string) => {
     const locale = useCookie('locale', { default: () => 'ko' }).value
     const group = detailsByGroup.value[groupCode]
     if (!group) return []
@@ -79,4 +80,4 @@ export function useCodeStore() {
     getDropdownOptions,
     invalidateCache
   }
-}
+})

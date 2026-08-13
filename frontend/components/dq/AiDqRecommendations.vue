@@ -55,6 +55,8 @@
 import { ref, watch, onMounted } from 'vue'
 import { useCookie } from '#app'
 
+const { customFetch } = useCustomFetch()
+
 const props = defineProps({
   domainId: {
     type: String,
@@ -66,7 +68,6 @@ const emit = defineEmits(['apply-rule'])
 
 const recommendations = ref([])
 const loading = ref(false)
-const tokenCookie = useCookie('auth_token')
 
 const fetchRecommendations = async () => {
   if (!props.domainId) {
@@ -76,9 +77,7 @@ const fetchRecommendations = async () => {
   
   loading.value = true
   try {
-    const res = await $fetch(`/api/v1/dq/recommendations/${props.domainId}`, {
-      headers: { Authorization: `Bearer ${tokenCookie.value}` }
-    })
+    const res = await customFetch(`/api/v1/dq/recommendations/${props.domainId}`)
     recommendations.value = res || []
   } catch (e) {
     console.error('Failed to fetch AI recommendations', e)

@@ -21,7 +21,7 @@ public class DqRecommendationController {
     private final DqRecommendationService dqRecommendationService;
 
     @GetMapping("/recommendations/{domainId}")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'DATA_STEWARD')")
+    @PreAuthorize("hasPermission(null, 'dq:read')")
     public ResponseEntity<List<DqRecommendationResponse>> getRecommendations(@PathVariable UUID domainId) {
         return ResponseEntity.ok(dqRecommendationService.getRecommendations(domainId));
     }

@@ -21,7 +21,7 @@ public class DataProfilingController {
     private final DataProfilingService dataProfilingService;
 
     @GetMapping("/{id}/profiling")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'DATA_STEWARD', 'DATA_CONSUMER')")
+    @PreAuthorize("hasPermission(null, 'dq:read')")
     public ResponseEntity<List<DataProfilingResponse>> getDomainProfiling(@PathVariable UUID id) {
         return ResponseEntity.ok(dataProfilingService.profileDomainData(id));
     }

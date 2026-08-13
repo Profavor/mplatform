@@ -36,14 +36,15 @@ public class MatchCandidateService {
     private final ClassificationNodeRepository nodeRepository;
     private final RecordMergeService recordMergeService;
     private final MdmProperties mdmProperties;
+    private final com.classification.domain_system.security.SecurityUtils securityUtils;
 
     private String resolveUsername(String username) {
         if (username != null && !username.isBlank()) {
             return username;
         }
-        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.isAuthenticated() && auth.getName() != null && !"anonymousUser".equals(auth.getName())) {
-            return auth.getName();
+        String authUser = securityUtils.getCurrentUserId();
+        if (authUser != null) {
+            return authUser;
         }
         throw new CustomAccessDeniedException("Unauthenticated user context");
     }

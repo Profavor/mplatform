@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 public class UserController {
 
     private final UserService userService;
+    private final com.classification.domain_system.security.SecurityUtils securityUtils;
 
     @GetMapping
     @PreAuthorize("hasPermission(null, 'user:read')")
@@ -38,7 +39,7 @@ public class UserController {
     @PutMapping("/me")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<User> updateSelfUser(@RequestBody SelfUserUpdateDto updateReq) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        String username = securityUtils.getCurrentUserIdOrThrow();
         User u = userService.updateSelfUserInfo(username, updateReq);
         return ResponseEntity.ok(u);
     }
@@ -72,7 +73,7 @@ public class UserController {
     @PutMapping("/me/password")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> changeMyPassword(@RequestBody ChangePasswordDto req) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        String username = securityUtils.getCurrentUserIdOrThrow();
         try {
             userService.changePassword(username, req.getOldPassword(), req.getNewPassword());
             return ResponseEntity.ok().build();
@@ -192,7 +193,7 @@ public class UserController {
     @PostMapping("/timezone")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateTimezone(@RequestBody TimezoneRequest request) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        String username = securityUtils.getCurrentUserIdOrThrow();
         userService.updateTimezone(username, request.getTimezone());
         return ResponseEntity.ok().build();
     }

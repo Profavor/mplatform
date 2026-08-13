@@ -14,6 +14,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import com.classification.domain_system.entity.enums.ApprovalStatus;
+import com.classification.domain_system.entity.enums.ApprovalTargetType;
+import com.classification.domain_system.entity.enums.RecordStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -62,7 +65,7 @@ public class RecordMergeService {
         Record survivor = recordRepository.findById(request.survivorRecordId)
                 .orElseThrow(() -> new ResourceNotFoundException("Survivor record not found"));
 
-        if ("MERGED".equalsIgnoreCase(survivor.getStatus()) || "REJECTED".equalsIgnoreCase(survivor.getStatus())) {
+        if (RecordStatus.MERGED.name().equalsIgnoreCase(survivor.getStatus()) || RecordStatus.REJECTED.name().equalsIgnoreCase(survivor.getStatus())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "Cannot merge into an inactive/merged record.");
         }
 
@@ -167,7 +170,7 @@ public class RecordMergeService {
             // Update Merged Records to MERGED status & RecordHistory
             for (Record m : mergedRecords) {
                 String prevMergedData = m.getData();
-                m.setStatus("MERGED");
+                m.setStatus(RecordStatus.MERGED.name());
                 m.setMergedIntoRecordId(survivor.getId());
                 m.setUpdatedAt(LocalDateTime.now());
                 Record savedM = recordRepository.save(m);
@@ -268,13 +271,13 @@ public class RecordMergeService {
         Record m = recordRepository.findById(mergedRecordId)
                 .orElseThrow(() -> new ResourceNotFoundException("Record not found for unmerge: " + mergedRecordId));
 
-        if (!"MERGED".equalsIgnoreCase(m.getStatus())) {
+        if (!RecordStatus.MERGED.name().equalsIgnoreCase(m.getStatus())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "Record is not in MERGED status.");
         }
 
         UUID survivorId = m.getMergedIntoRecordId();
 
-        m.setStatus("ACTIVE");
+        m.setStatus(RecordStatus.ACTIVE.name());
         m.setMergedIntoRecordId(null);
         m.setUpdatedAt(LocalDateTime.now());
         Record savedM = recordRepository.save(m);
