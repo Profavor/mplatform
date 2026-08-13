@@ -173,10 +173,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from '#app'
 import { useI18n } from 'vue-i18n'
+import { useToast } from 'vuestic-ui'
 
 definePageMeta({
   layout: false
 })
+
+const { init: initToast } = useToast()
 
 const isMounted = ref(false)
 onMounted(() => {
@@ -245,6 +248,7 @@ const submitInstall = async () => {
     console.error('Install Failed:', e)
     const errText = e.data?.error || e.message || '시스템 설치 중 오류가 발생했습니다.'
     errorMessage.value = errText
+    initToast({ message: errText, color: 'danger', position: 'top-right', duration: 4000 })
 
     if (typeof errText === 'string' && errText.includes('이미 설치가 완료된 시스템')) {
       setTimeout(() => {

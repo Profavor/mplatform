@@ -61,8 +61,8 @@ spring:
 keycloak:
   server-url: ${KEYCLOAK_SERVER_URL:http://localhost:8080}
   realm: ${KEYCLOAK_REALM:myrealm}
-  admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:admin-cli}
-  admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET:}
+  admin-username: ${KEYCLOAK_ADMIN}
+  admin-password: ${KEYCLOAK_ADMIN_PASSWORD}
 
 jwt:
   secret: ${JWT_SECRET}

@@ -113,6 +113,7 @@ public class SystemInstallService {
             keycloakAdminService.createUser(adminUsername, request.getAdminPassword(), adminUsername + "@example.com", "System Admin");
         } catch (Exception e) {
             log.error("Failed to sync initial admin user to Keycloak: {}", adminUsername, e);
+            throw new RuntimeException("Failed to sync admin user to authentication server.", e);
         }
 
         return savedUser;

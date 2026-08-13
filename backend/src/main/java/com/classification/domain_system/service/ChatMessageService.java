@@ -29,7 +29,7 @@ import org.springframework.beans.factory.annotation.Value;
 @RequiredArgsConstructor
 public class ChatMessageService {
 
-    @Value("${chat.retention-days:7}")
+    @Value("${chat.retention-days}")
     private int retentionDays = 7;
 
     private final ChatMessageRoomRepository roomRepository;

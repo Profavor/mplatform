@@ -33,7 +33,7 @@ public class SecurityConfig {
     private final JwtFilter jwtFilter;
     private final CustomPermissionEvaluator permissionEvaluator;
 
-    @Value("${cors.allowed-origins:http://localhost:3000,http://localhost:8080,http://localhost:9090,http://127.0.0.1:9090}")
+    @Value("${cors.allowed-origins}")
     private String allowedOrigins;
 
     @Bean

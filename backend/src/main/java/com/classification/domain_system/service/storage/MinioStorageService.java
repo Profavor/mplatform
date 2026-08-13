@@ -28,11 +28,11 @@ public class MinioStorageService implements FileStorageService {
     private MinioClient minioClient;
 
     public MinioStorageService(
-            @Value("${minio.url:http://localhost:9000}") String minioUrl,
-            @Value("${minio.access-key:minioadmin}") String accessKey,
-            @Value("${minio.secret-key:minioadmin}") String secretKey,
-            @Value("${minio.bucket-name:domain-system}") String bucketName,
-            @Value("${file.upload-dir:./uploads}") String uploadDir) {
+            @Value("${minio.url}") String minioUrl,
+            @Value("${minio.access-key}") String accessKey,
+            @Value("${minio.secret-key}") String secretKey,
+            @Value("${minio.bucket-name}") String bucketName,
+            @Value("${file.upload-dir}") String uploadDir) {
         this.minioUrl = minioUrl;
         this.accessKey = accessKey;
         this.secretKey = secretKey;

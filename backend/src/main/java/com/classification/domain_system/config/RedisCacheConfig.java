@@ -20,8 +20,11 @@ import java.time.Duration;
  * RedisConnectionFactory가 존재하는 환경(운영 등)에서만 활성화됩니다.
  * Redis가 없는 환경에서는 LocalCacheConfig의 인메모리 캐시가 대신 사용됩니다.
  */
+import org.springframework.context.annotation.Profile;
+
 @Configuration
 @EnableCaching
+@Profile("!test")
 public class RedisCacheConfig {
 
     @Bean

@@ -90,9 +90,15 @@ export default defineNuxtConfig({
         redirectUri: process.env.KEYCLOAK_REDIRECT_URI || 'http://localhost:3000/auth/keycloak/callback'
       }
     },
+    cookie: {
+      secure: false
+    },
     session: {
       expirationCheck: false,
-      automaticRefresh: false
+      automaticRefresh: false,
+      cookie: {
+        secure: false
+      }
     },
     middleware: {
       globalMiddlewareEnabled: false,

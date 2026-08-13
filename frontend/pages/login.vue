@@ -30,16 +30,12 @@
 </template>
 
 <script setup>
-import { useOidcAuth } from '#imports'
-
 definePageMeta({
   layout: false
 })
 
-const { login } = useOidcAuth()
-
 const handleLogin = () => {
-  login('keycloak')
+  window.location.href = '/auth/keycloak/login'
 }
 </script>
 

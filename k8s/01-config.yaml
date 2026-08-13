@@ -13,11 +13,17 @@ data:
   RABBITMQ_HOST: "rabbitmq"
   RABBITMQ_PORT: "5672"
   RABBITMQ_USERNAME: "guest"
-  OAUTH2_ISSUER_URI: "http://keycloak:8080/realms/mplatform"
+  OAUTH2_ISSUER_URI: "http://keycloak:8080/auth/realms/mplatform"
   STORAGE_TYPE: "minio"
   MINIO_URL: "http://minio:9000"
   MINIO_BUCKET_NAME: "domain-system"
   SPRING_PROFILES_ACTIVE: "prod"
+  KEYCLOAK_SERVER_URL: "http://keycloak:8080/auth"
+  KEYCLOAK_REALM: "mplatform"
+  KEYCLOAK_ADMIN_CLIENT_ID: "admin-cli"
+  CORS_ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:8080,http://localhost:9090,http://127.0.0.1:9090"
+  SPRING_KAFKA_CONSUMER_GROUP_ID: "domain-system-group"
+  DQ_ENGINE_CUSTOM_SPEL_ENABLED: "true"
 ---
 apiVersion: v1
 kind: Secret
@@ -32,3 +38,4 @@ stringData:
   RABBITMQ_PASSWORD: "guest"
   KEYCLOAK_ADMIN: "admin"
   KEYCLOAK_ADMIN_PASSWORD: "admin"
+  KEYCLOAK_ADMIN_CLIENT_SECRET: "Yr0F7nHXe5dasmunoNXRL4S81HF7tUIM"
