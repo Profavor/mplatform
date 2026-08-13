@@ -30,11 +30,17 @@ public class NotificationController {
     private final JwtUtil jwtUtil;
 
     private String getCurrentUserId(String paramUserId) {
+        String authUserId = (authContext != null) ? authContext.getUserId() : null;
         if (paramUserId != null && !paramUserId.isBlank()) {
+            if (authUserId != null && !paramUserId.equals(authUserId)) {
+                // To prevent IDOR, if a user requests data for another user, deny access.
+                // Alternatively, we could check for admin role here, but throwing AccessDeniedException is safer.
+                throw new org.springframework.security.access.AccessDeniedException("User does not have permission to access notifications for another user");
+            }
             return paramUserId;
         }
-        if (authContext != null && authContext.getUserId() != null) {
-            return authContext.getUserId();
+        if (authUserId != null) {
+            return authUserId;
         }
         throw new IllegalArgumentException("User ID is required");
     }
@@ -51,8 +57,9 @@ public class NotificationController {
     }
 
     @PutMapping("/{id}/read")
-    public ResponseEntity<Notification> markAsRead(@PathVariable UUID id) {
-        return ResponseEntity.ok(notificationService.markAsRead(id));
+    public ResponseEntity<Notification> markAsRead(@PathVariable UUID id, @RequestParam(required = false) String userId) {
+        String currentUserId = getCurrentUserId(userId);
+        return ResponseEntity.ok(notificationService.markAsRead(id, currentUserId));
     }
 
     @PutMapping("/read-all")
@@ -70,8 +77,9 @@ public class NotificationController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteNotification(@PathVariable UUID id) {
-        notificationService.deleteNotification(id);
+    public ResponseEntity<Void> deleteNotification(@PathVariable UUID id, @RequestParam(required = false) String userId) {
+        String currentUserId = getCurrentUserId(userId);
+        notificationService.deleteNotification(id, currentUserId);
         return ResponseEntity.noContent().build();
     }
 

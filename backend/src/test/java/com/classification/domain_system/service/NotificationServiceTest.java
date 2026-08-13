@@ -80,7 +80,7 @@ class NotificationServiceTest {
         when(notificationRepository.findById(notificationId)).thenReturn(Optional.of(notification));
         when(notificationRepository.save(any(Notification.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Notification result = notificationService.markAsRead(notificationId);
+        Notification result = notificationService.markAsRead(notificationId, userId);
 
         assertThat(result.getIsRead()).isTrue();
         verify(notificationRepository).save(notification);

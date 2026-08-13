@@ -20,6 +20,7 @@ public class CodeManagementController {
     private final CodeManagementService codeManagementService;
 
     @PostMapping
+    @org.springframework.security.access.prepost.PreAuthorize("hasPermission(null, 'admin:write')")
     public ResponseEntity<CodeGroup> createGroup(@RequestBody CodeGroupRequest request) {
         return ResponseEntity.ok(codeManagementService.createGroup(request));
     }
@@ -47,17 +48,20 @@ public class CodeManagementController {
     }
 
     @PutMapping("/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasPermission(null, 'admin:write')")
     public ResponseEntity<CodeGroup> updateGroup(@PathVariable UUID id, @RequestBody CodeGroupRequest request) {
         return ResponseEntity.ok(codeManagementService.updateGroup(id, request));
     }
 
     @DeleteMapping("/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasPermission(null, 'admin:write')")
     public ResponseEntity<Void> deleteGroup(@PathVariable UUID id) {
         codeManagementService.deleteGroup(id);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{groupId}/details")
+    @org.springframework.security.access.prepost.PreAuthorize("hasPermission(null, 'admin:write')")
     public ResponseEntity<CodeDetail> createDetail(@PathVariable UUID groupId, @RequestBody CodeDetailRequest request) {
         return ResponseEntity.ok(codeManagementService.createDetail(groupId, request));
     }
@@ -68,11 +72,13 @@ public class CodeManagementController {
     }
 
     @PutMapping("/details/{detailId}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasPermission(null, 'admin:write')")
     public ResponseEntity<CodeDetail> updateDetail(@PathVariable UUID detailId, @RequestBody CodeDetailRequest request) {
         return ResponseEntity.ok(codeManagementService.updateDetail(detailId, request));
     }
 
     @DeleteMapping("/details/{detailId}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasPermission(null, 'admin:write')")
     public ResponseEntity<Void> deleteDetail(@PathVariable UUID detailId) {
         codeManagementService.deleteDetail(detailId);
         return ResponseEntity.ok().build();
@@ -89,6 +95,7 @@ public class CodeManagementController {
     }
 
     @PostMapping("/import")
+    @org.springframework.security.access.prepost.PreAuthorize("hasPermission(null, 'admin:write')")
     public ResponseEntity<Void> importCodes(@RequestBody List<com.classification.domain_system.dto.CodeExportDto> importData) {
         codeManagementService.importCodes(importData);
         return ResponseEntity.ok().build();
