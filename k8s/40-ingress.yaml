@@ -5,6 +5,8 @@ metadata:
   namespace: mdm-system
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
 spec:
   rules:
   - host: mplatform.local
@@ -38,6 +40,20 @@ spec:
             name: frontend
             port:
               number: 3000
+      - path: /api/_auth
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 3000
+      - path: /ws-stomp
+        pathType: Prefix
+        backend:
+          service:
+            name: backend
+            port:
+              number: 8080
       - path: /api
         pathType: Prefix
         backend:

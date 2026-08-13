@@ -10,6 +10,7 @@ data:
   DB_NAME: "domain_system"
   DB_USERNAME: "postgres"
   DDL_AUTO: "update"
+  TZ: "Asia/Seoul"
   
   # External Services
   OPENSEARCH_URIS: "http://opensearch:9200"
@@ -17,7 +18,7 @@ data:
   RABBITMQ_HOST: "rabbitmq"
   RABBITMQ_PORT: "5672"
   RABBITMQ_USERNAME: "guest"
-  REDIS_HOST: "localhost"
+  REDIS_HOST: "redis"
   REDIS_PORT: "6379"
   
   # Auth / Keycloak
@@ -44,7 +45,11 @@ data:
   
   # Frontend Settings
   OAUTH2_ISSUER_URI: "http://mplatform.local/auth/realms/mplatform"
+  NUXT_OIDC_PROVIDERS_KEYCLOAK_BASE_URL: "http://mplatform.local/auth/realms/mplatform"
   KEYCLOAK_REDIRECT_URI: "http://mplatform.local/auth/keycloak/callback"
+  NUXT_OIDC_PROVIDERS_KEYCLOAK_REDIRECT_URI: "http://mplatform.local/auth/keycloak/callback"
+  KEYCLOAK_LOGOUT_REDIRECT_URI: "http://mplatform.local/login"
+  NUXT_OIDC_PROVIDERS_KEYCLOAK_LOGOUT_REDIRECT_URI: "http://mplatform.local/login"
   NUXT_PUBLIC_API_BASE: "http://mplatform.local/api"
   NUXT_OIDC_SESSION_COOKIE_SECURE: "false"
   NUXT_OIDC_COOKIE_SECURE: "false"

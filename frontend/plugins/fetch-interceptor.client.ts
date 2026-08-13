@@ -33,16 +33,45 @@ export default defineNuxtPlugin((nuxtApp) => {
     isRefreshing = true
     refreshPromise = (async () => {
       try {
-        const { refresh, user, loggedIn } = useOidcAuth()
-        await refresh()
+        const internalRefreshToken = getCookieValue('refresh_token')
         
-        if (loggedIn.value && user.value?.accessToken) {
-          return user.value.accessToken
+        // 1. 내부 로그인(username/password) 방식의 리프레시 토큰이 있는 경우
+        if (internalRefreshToken) {
+          try {
+            const res = await fetch('/api/auth/refresh', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ refreshToken: internalRefreshToken })
+            })
+            if (res.ok) {
+              const data = await res.json()
+              if (data && data.token) {
+                setAuthCookies(data.token, data.refreshToken)
+                return data.token
+              }
+            }
+          } catch (internalErr) {
+            console.warn('Fetch Interceptor: Internal token refresh failed', internalErr)
+          }
+          return null
+        }
+
+        // 2. OIDC (Keycloak SSO) 로그인 방식인 경우
+        const { refresh, user, loggedIn } = useOidcAuth()
+        if (loggedIn.value) {
+          try {
+            await refresh()
+            if (loggedIn.value && user.value?.accessToken) {
+              return user.value.accessToken
+            }
+          } catch (oidcErr) {
+            console.warn('Fetch Interceptor: OIDC token refresh failed', oidcErr)
+          }
         }
         
         return null
       } catch (e) {
-        console.warn('Fetch Interceptor: OIDC refresh failed', e)
+        console.warn('Fetch Interceptor: Token refresh failed completely', e)
         return null
       } finally {
         isRefreshing = false
@@ -150,10 +179,15 @@ export default defineNuxtPlugin((nuxtApp) => {
           console.warn('Fetch Interceptor: Token refresh failed. Logging out.');
           clearAuthCookies()
           try {
-            const { logout } = useOidcAuth()
-            logout()
-          } catch(e) {}
-          if (process.client && window.location.pathname !== '/login') window.location.href = '/login'
+            const { logout, loggedIn } = useOidcAuth()
+            if (loggedIn.value) {
+              logout()
+            } else {
+              if (process.client && window.location.pathname !== '/login') window.location.href = '/login'
+            }
+          } catch(e) {
+            if (process.client && window.location.pathname !== '/login') window.location.href = '/login'
+          }
           throw err
         }
 

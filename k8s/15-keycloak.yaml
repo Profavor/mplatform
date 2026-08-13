@@ -52,10 +52,22 @@ spec:
         volumeMounts:
         - name: realm-config
           mountPath: /opt/keycloak/data/import/
+        - name: theme-props
+          mountPath: /opt/keycloak/themes/mdm-theme/login/theme.properties
+          subPath: theme.properties
+        - name: theme-css
+          mountPath: /opt/keycloak/themes/mdm-theme/login/resources/css/styles.css
+          subPath: styles.css
       volumes:
       - name: realm-config
         configMap:
           name: keycloak-realm-config
+      - name: theme-props
+        configMap:
+          name: mdm-theme-props
+      - name: theme-css
+        configMap:
+          name: mdm-theme-css
 ---
 apiVersion: v1
 kind: Service

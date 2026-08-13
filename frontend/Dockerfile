@@ -24,6 +24,7 @@ RUN npm run build
 # Stage 2: Runtime stage
 FROM node:24-alpine AS runner
 WORKDIR /app
+RUN apk add --no-cache tzdata
 
 ARG API_BASE_URL=http://localhost:8080
 ENV API_BASE_URL=$API_BASE_URL

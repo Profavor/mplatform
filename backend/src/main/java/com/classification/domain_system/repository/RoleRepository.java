@@ -8,6 +8,7 @@ import java.util.Optional;
 
 public interface RoleRepository extends JpaRepository<Role, UUID> {
     List<Role> findByOrganizationId(UUID organizationId);
+    List<Role> findByOrganizationIdOrOrganizationIdIsNull(UUID organizationId);
     Optional<Role> findByOrganizationIdAndName(UUID organizationId, String name);
     boolean existsByOrganizationIdAndName(UUID organizationId, String name);
 }

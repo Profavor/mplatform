@@ -67,6 +67,9 @@
   "install_admin_pwd": "Password",
   "install_admin_pwd_confirm": "Confirm Password",
   "install_admin_username": "Admin Username",
+  "install_admin_email": "Email Address",
+  "install_require_email": "Please enter an email address.",
+  "install_require_email_valid": "Invalid email format.",
   "source_system_node": "Source System",
   "install_org_en": "Primary Master Organization (EN)",
   "install_org_en_placeholder": "e.g. Enterprise HQ",
@@ -197,5 +200,9 @@
     "load_failed": "Failed to load data.",
     "sync_codes": "Sync Default Codes",
     "dump_codes": "Backup Codes (Dump)"
-  }
+  },
+  "global_search_placeholder": "Global Search (Search any data...)",
+  "search_min_length": "Please enter at least 2 characters.",
+  "search_no_results": "No results found.",
+  "search_no_data": "No Data"
 }
