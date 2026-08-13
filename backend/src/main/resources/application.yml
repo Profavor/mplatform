@@ -122,3 +122,8 @@ integration:
       connection-timeout: ${INTEGRATION_JDBC_CONNECTION_TIMEOUT:5000}
       validation-timeout: ${INTEGRATION_JDBC_VALIDATION_TIMEOUT:3000}
       max-lifetime: ${INTEGRATION_JDBC_MAX_LIFETIME:600000}
+  webservice:
+    connect-timeout-ms: ${INTEGRATION_WEBSERVICE_CONNECT_TIMEOUT_MS:5000}
+    read-timeout-ms: ${INTEGRATION_WEBSERVICE_READ_TIMEOUT_MS:10000}
+  scheduler:
+    pool-size: ${INTEGRATION_SCHEDULER_POOL_SIZE:4}
