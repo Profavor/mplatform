@@ -77,11 +77,13 @@ public class DomainController {
     }
     
     @GetMapping("/{domainId}/fields")
+    @PreAuthorize("hasPermission(null, 'domain:read')")
     public ResponseEntity<List<FieldDefinition>> getDomainFields(@PathVariable UUID domainId) {
         return ResponseEntity.ok(fieldService.getDomainFields(domainId));
     }
     
     @PostMapping("/{domainId}/fields")
+    @PreAuthorize("hasPermission(null, 'domain:write')")
     public ResponseEntity<FieldDefinition> addDomainField(
             @PathVariable UUID domainId,
             @RequestBody FieldDefinitionRequest request) {
@@ -89,6 +91,7 @@ public class DomainController {
     }
     
     @PutMapping("/{domainId}/fields/{fieldId}")
+    @PreAuthorize("hasPermission(null, 'domain:write')")
     public ResponseEntity<FieldDefinition> updateDomainField(
             @PathVariable UUID domainId,
             @PathVariable UUID fieldId,
@@ -97,6 +100,7 @@ public class DomainController {
     }
 
     @DeleteMapping("/{domainId}/fields/{fieldId}")
+    @PreAuthorize("hasPermission(null, 'domain:write')")
     public ResponseEntity<Void> deleteDomainField(
             @PathVariable UUID domainId,
             @PathVariable UUID fieldId,
@@ -107,11 +111,13 @@ public class DomainController {
 
     // Sectors
     @GetMapping("/{domainId}/sectors")
+    @PreAuthorize("hasPermission(null, 'domain:read')")
     public ResponseEntity<List<Sector>> getSectors(@PathVariable UUID domainId) {
         return ResponseEntity.ok(sectorService.getSectorsByDomain(domainId));
     }
 
     @PostMapping("/{domainId}/sectors")
+    @PreAuthorize("hasPermission(null, 'domain:write')")
     public ResponseEntity<Sector> createSector(
             @PathVariable UUID domainId,
             @RequestBody SectorRequest request) {
@@ -119,6 +125,7 @@ public class DomainController {
     }
 
     @PutMapping("/{domainId}/sectors/{sectorId}")
+    @PreAuthorize("hasPermission(null, 'domain:write')")
     public ResponseEntity<Sector> updateSector(
             @PathVariable UUID domainId, // for path consistency
             @PathVariable UUID sectorId,
@@ -127,6 +134,7 @@ public class DomainController {
     }
 
     @DeleteMapping("/{domainId}/sectors/{sectorId}")
+    @PreAuthorize("hasPermission(null, 'domain:write')")
     public ResponseEntity<Void> deleteSector(
             @PathVariable UUID domainId,
             @PathVariable UUID sectorId) {
@@ -140,11 +148,13 @@ public class DomainController {
 
     // FieldGroups
     @GetMapping("/{domainId}/groups")
+    @PreAuthorize("hasPermission(null, 'domain:read')")
     public ResponseEntity<List<FieldGroup>> getGroups(@PathVariable UUID domainId) {
         return ResponseEntity.ok(fieldGroupService.getGroupsByDomain(domainId));
     }
 
     @PostMapping("/{domainId}/groups")
+    @PreAuthorize("hasPermission(null, 'domain:write')")
     public ResponseEntity<FieldGroup> createGroup(
             @PathVariable UUID domainId,
             @RequestBody FieldGroupRequest request) {
@@ -152,6 +162,7 @@ public class DomainController {
     }
 
     @PutMapping("/{domainId}/groups/{groupId}")
+    @PreAuthorize("hasPermission(null, 'domain:write')")
     public ResponseEntity<FieldGroup> updateGroup(
             @PathVariable UUID domainId,
             @PathVariable UUID groupId,
@@ -160,6 +171,7 @@ public class DomainController {
     }
 
     @DeleteMapping("/{domainId}/groups/{groupId}")
+    @PreAuthorize("hasPermission(null, 'domain:write')")
     public ResponseEntity<Void> deleteGroup(
             @PathVariable UUID domainId,
             @PathVariable UUID groupId) {
@@ -170,12 +182,14 @@ public class DomainController {
     // ─── DQ Domain Endpoints ──────────────────────────────────────────
 
     @GetMapping("/{domainId}/dq-score")
+    @PreAuthorize("hasPermission(null, 'domain:read')")
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<java.util.Map<String, Object>> getDomainDqScore(@PathVariable UUID domainId) {
         return ResponseEntity.ok(dqRuleEngine.getDomainDqScore(domainId));
     }
 
     @PostMapping("/{domainId}/dq-scan")
+    @PreAuthorize("hasPermission(null, 'domain:write')")
     @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<java.util.Map<String, Object>> runDomainDqScan(@PathVariable UUID domainId) {
         java.util.Map<String, Object> scoreData = dqRuleEngine.runDomainDqScan(domainId);
@@ -184,6 +198,7 @@ public class DomainController {
     }
 
     @GetMapping("/{domainId}/dq-rules-count")
+    @PreAuthorize("hasPermission(null, 'domain:read')")
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<java.util.Map<String, Long>> getDomainDqRulesCount(@PathVariable UUID domainId) {
         long count = dqRuleRepository.countByDomainId(domainId);
@@ -191,6 +206,7 @@ public class DomainController {
     }
 
     @GetMapping("/{domainId}/dq-violations")
+    @PreAuthorize("hasPermission(null, 'domain:read')")
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<PageResponse<com.classification.domain_system.dto.DqViolationResponse>> getDomainDqViolations(
             @PathVariable UUID domainId,
@@ -202,6 +218,7 @@ public class DomainController {
     }
 
     @GetMapping("/{domainId}/dq-score/trend")
+    @PreAuthorize("hasPermission(null, 'domain:read')")
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<java.util.List<com.classification.domain_system.entity.DqScoreSnapshot>> getDqScoreTrend(
             @PathVariable UUID domainId,
@@ -211,6 +228,7 @@ public class DomainController {
     }
 
     @GetMapping("/{domainId}/dq-score/recent")
+    @PreAuthorize("hasPermission(null, 'domain:read')")
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<java.util.List<com.classification.domain_system.entity.DqScoreSnapshot>> getDqScoreRecent(
             @PathVariable UUID domainId) {
