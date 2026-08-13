@@ -758,10 +758,12 @@ import ExcelPreviewModal from '~/components/chat/ExcelPreviewModal.vue'
 import TableDataViewerModal from '~/components/chat/TableDataViewerModal.vue'
 import UserGridSelectModal from './UserGridSelectModal.vue'
 import { getMultilingualText } from '~/utils/multilingual'
+import { useCustomFetch } from '~/composables/useCustomFetch'
 const EmojiPicker = defineAsyncComponent(() => import('vue3-emoji-picker'))
 import 'vue3-emoji-picker/css'
 
 const { t } = useI18n()
+const { customFetch } = useCustomFetch()
 
 // Drag & Resize Position State
 const messengerPanelRef = ref<HTMLElement | null>(null)
@@ -1151,9 +1153,8 @@ const uploadAndSendImage = async (imageFile: File) => {
   const formData = new FormData()
   formData.append('file', imageFile, 'paste_image.png')
   try {
-    const res: any = await $fetch('/api/chat/upload', {
+    const res: any = await customFetch('/api/chat/upload', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${tokenCookie.value}` },
       body: formData
     })
     if (res && res.fileUrl) {
@@ -1202,8 +1203,7 @@ const loadAuthenticatedImage = async (url: string) => {
   }
   loadingBlobUrls.add(url)
   try {
-    const blob: any = await $fetch(url, {
-      headers: { Authorization: `Bearer ${tokenCookie.value}` },
+    const blob: any = await customFetch(url, {
       responseType: 'blob'
     })
     imageBlobUrls.value[url] = URL.createObjectURL(blob)
@@ -1252,9 +1252,8 @@ const uploadAndSendFile = async (file: File) => {
   formData.append('file', file)
 
   try {
-    const res: any = await $fetch('/api/chat/upload', {
+    const res: any = await customFetch('/api/chat/upload', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${tokenCookie.value}` },
       body: formData
     })
 
@@ -1292,8 +1291,7 @@ const getFileIcon = (fileName?: string) => {
 const downloadAuthenticatedFile = async (msg: any) => {
   if (!msg.fileUrl || !tokenCookie.value) return
   try {
-    const blob: any = await $fetch(msg.fileUrl, {
-      headers: { Authorization: `Bearer ${tokenCookie.value}` },
+    const blob: any = await customFetch(msg.fileUrl, {
       responseType: 'blob'
     })
     const downloadUrl = URL.createObjectURL(blob)
@@ -1347,9 +1345,8 @@ const toggleTranslateMsg = async () => {
 
   msg.isTranslating = true
   try {
-    const res: any = await $fetch('/api/chat/translate', {
+    const res: any = await customFetch('/api/chat/translate', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${tokenCookie.value}` },
       body: { text: msg.content }
     })
     msg.translatedText = res?.translated || msg.content
@@ -1441,18 +1438,14 @@ const toggleMessenger = async () => {
 const fetchRooms = async () => {
   if (!tokenCookie.value) return
   try {
-    rooms.value = await $fetch('/api/chat/rooms', {
-      headers: { Authorization: `Bearer ${tokenCookie.value}` }
-    })
+    rooms.value = await customFetch('/api/chat/rooms')
   } catch (e) {}
 }
 
 const fetchRoomMessages = async (roomId: string) => {
   if (!tokenCookie.value) return
   try {
-    messages.value = await $fetch(`/api/chat/rooms/${roomId}/messages`, {
-      headers: { Authorization: `Bearer ${tokenCookie.value}` }
-    })
+    messages.value = await customFetch(`/api/chat/rooms/${roomId}/messages`)
     scrollToBottom()
   } catch (e) {}
 }
@@ -1475,9 +1468,8 @@ const sendEmoji = async (emoji: string) => {
 
 const postMessage = async (type: string, content: string, fileUrl?: string, fileName?: string, fileSize?: number) => {
   try {
-    const res = await $fetch(`/api/chat/rooms/${activeRoom.value.id}/messages`, {
+    const res = await customFetch(`/api/chat/rooms/${activeRoom.value.id}/messages`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${tokenCookie.value}` },
       body: {
         roomId: activeRoom.value.id,
         senderId: myUuid.value,
@@ -1545,9 +1537,8 @@ const createNewRoom = async () => {
   if (!tokenCookie.value) return
   try {
     const finalMembers = Array.from(new Set([...(selectedUserIds.value || []), myUuid.value])).filter(Boolean)
-    const room = await $fetch('/api/chat/rooms', {
+    const room = await customFetch('/api/chat/rooms', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${tokenCookie.value}` },
       body: {
         roomName: newRoomName.value || '신규 그룹방',
         isGroup: true,
@@ -1565,9 +1556,7 @@ const createNewRoom = async () => {
 const showMembersModal = async () => {
   if (!activeRoom.value || !tokenCookie.value) return
   try {
-    roomMembers.value = await $fetch(`/api/chat/rooms/${activeRoom.value.id}/members`, {
-      headers: { Authorization: `Bearer ${tokenCookie.value}` }
-    })
+    roomMembers.value = await customFetch(`/api/chat/rooms/${activeRoom.value.id}/members`)
     showMembersModalFlag.value = true
   } catch (e) {}
 }
@@ -1588,9 +1577,8 @@ const isCreator = (member: any) => {
 const leaveRoom = async () => {
   if (!activeRoom.value || !tokenCookie.value) return
   try {
-    await $fetch(`/api/chat/rooms/${activeRoom.value.id}/members`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${tokenCookie.value}` }
+    await customFetch(`/api/chat/rooms/${activeRoom.value.id}/members`, {
+      method: 'DELETE'
     })
     showLeaveConfirmModal.value = false
     activeRoom.value = null
@@ -1603,9 +1591,8 @@ const leaveRoom = async () => {
 const deleteRoom = async () => {
   if (!activeRoom.value || !tokenCookie.value) return
   try {
-    await $fetch(`/api/chat/rooms/${activeRoom.value.id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${tokenCookie.value}` }
+    await customFetch(`/api/chat/rooms/${activeRoom.value.id}`, {
+      method: 'DELETE'
     })
     showDeleteConfirmModal.value = false
     activeRoom.value = null
@@ -1623,15 +1610,12 @@ const confirmKickMember = (member: any) => {
 const kickMember = async () => {
   if (!activeRoom.value || !tokenCookie.value || !targetMemberToKick.value) return
   try {
-    await $fetch(`/api/chat/rooms/${activeRoom.value.id}/members/${targetMemberToKick.value.userId}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${tokenCookie.value}` }
+    await customFetch(`/api/chat/rooms/${activeRoom.value.id}/members/${targetMemberToKick.value.userId}`, {
+      method: 'DELETE'
     })
     showKickConfirmModal.value = false
     targetMemberToKick.value = null
-    roomMembers.value = await $fetch(`/api/chat/rooms/${activeRoom.value.id}/members`, {
-      headers: { Authorization: `Bearer ${tokenCookie.value}` }
-    })
+    roomMembers.value = await customFetch(`/api/chat/rooms/${activeRoom.value.id}/members`)
   } catch (e) {
     console.error('Failed to kick member:', e)
   }
@@ -1647,10 +1631,9 @@ const confirmDelegateCreator = (member: any) => {
 const delegateCreator = async () => {
   if (!activeRoom.value || !tokenCookie.value || !targetMemberToDelegate.value) return
   try {
-    await $fetch(`/api/chat/rooms/${activeRoom.value.id}/creator`, {
+    await customFetch(`/api/chat/rooms/${activeRoom.value.id}/creator`, {
       method: 'PUT',
       headers: { 
-        Authorization: `Bearer ${tokenCookie.value}`,
         'Content-Type': 'application/json'
       },
       body: { newCreatorId: targetMemberToDelegate.value.userId }
@@ -1672,10 +1655,9 @@ const openInviteModal = () => {
 const inviteMembers = async () => {
   if (!activeRoom.value || !tokenCookie.value || selectedInviteUserIds.value.length === 0) return
   try {
-    await $fetch(`/api/chat/rooms/${activeRoom.value.id}/members`, {
+    await customFetch(`/api/chat/rooms/${activeRoom.value.id}/members`, {
       method: 'POST',
       headers: { 
-        Authorization: `Bearer ${tokenCookie.value}`,
         'Content-Type': 'application/json'
       },
       body: { 
@@ -1685,9 +1667,7 @@ const inviteMembers = async () => {
     })
     showInviteModal.value = false
     // Refresh members
-    roomMembers.value = await $fetch(`/api/chat/rooms/${activeRoom.value.id}/members`, {
-      headers: { Authorization: `Bearer ${tokenCookie.value}` }
-    })
+    roomMembers.value = await customFetch(`/api/chat/rooms/${activeRoom.value.id}/members`)
     fetchRooms()
   } catch (e) {
     console.error('Failed to invite members:', e)
@@ -1709,9 +1689,7 @@ const totalUnreadCount = ref(0)
 const fetchTotalUnreadCount = async () => {
   if (!tokenCookie.value) return
   try {
-    const res = await $fetch('/api/chat/unread-count', {
-      headers: { Authorization: `Bearer ${tokenCookie.value}` }
-    })
+    const res = await customFetch('/api/chat/unread-count')
     totalUnreadCount.value = Number(res || 0)
   } catch (e) {}
 }
@@ -1726,9 +1704,8 @@ const selectRoom = async (room: any) => {
 const markAsRead = async (roomId: string) => {
   if (!tokenCookie.value) return
   try {
-    await $fetch(`/api/chat/rooms/${roomId}/read`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${tokenCookie.value}` }
+    await customFetch(`/api/chat/rooms/${roomId}/read`, {
+      method: 'POST'
     })
     fetchTotalUnreadCount()
   } catch (e) {}
@@ -2121,9 +2098,8 @@ const forwardToUser = async (user: any) => {
 
   try {
     const uId = String(user.id || user.uuid || user.username)
-    const room: any = await $fetch('/api/chat/rooms', {
+    const room: any = await customFetch('/api/chat/rooms', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${tokenCookie.value}` },
       body: {
         roomName: user.username + '님과의 대화',
         isGroup: false,
@@ -2138,9 +2114,8 @@ const forwardToUser = async (user: any) => {
       forwardContent = `${t('messenger.forwardedImgPrefix')}\n👤 ${t('messenger.writerLabel')}: ${sender} (${timeInfo})`
     }
 
-    await $fetch(`/api/chat/rooms/${room.id}/messages`, {
+    await customFetch(`/api/chat/rooms/${room.id}/messages`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${tokenCookie.value}` },
       body: {
         roomId: room.id,
         senderId: myUuid.value,
@@ -2163,9 +2138,8 @@ const deleteMsg = async () => {
   if (!targetMsg || !tokenCookie.value) return
 
   try {
-    await $fetch(`/api/chat/messages/${targetMsg.id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${tokenCookie.value}` }
+    await customFetch(`/api/chat/messages/${targetMsg.id}`, {
+      method: 'DELETE'
     })
     messages.value = messages.value.filter((m: any) => String(m.id) !== String(targetMsg.id))
   } catch (e) {}
@@ -2197,12 +2171,8 @@ onMounted(async () => {
   }
   if (tokenCookie.value) {
     try {
-      availableUsers.value = await $fetch('/api/users', {
-        headers: { Authorization: `Bearer ${tokenCookie.value}` }
-      })
-      const initPresence = await $fetch<string[]>('/api/chat/presence', {
-        headers: { Authorization: `Bearer ${tokenCookie.value}` }
-      })
+      availableUsers.value = await customFetch('/api/users')
+      const initPresence = await customFetch<string[]>('/api/chat/presence')
       if (Array.isArray(initPresence)) {
         onlineUsernames.value = new Set(initPresence)
       }

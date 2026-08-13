@@ -28,9 +28,10 @@ public class NotificationController {
     private final SseNotificationService sseNotificationService;
     private final AuthContext authContext;
     private final JwtUtil jwtUtil;
+    private final com.classification.domain_system.security.SecurityUtils securityUtils;
 
     private String getCurrentUserId(String paramUserId) {
-        String authUserId = (authContext != null) ? authContext.getUserId() : null;
+        String authUserId = securityUtils.getCurrentUserId();
         if (paramUserId != null && !paramUserId.isBlank()) {
             if (authUserId != null && !paramUserId.equals(authUserId)) {
                 // To prevent IDOR, if a user requests data for another user, deny access.

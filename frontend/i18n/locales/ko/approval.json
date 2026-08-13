@@ -72,5 +72,8 @@
   "step_type_approval": "결재",
   "submit_request": "신청하기",
   "typeApproval": "결재",
-  "view_approval_history": "결재 내역 보기"
+  "view_approval_history": "결재 내역 보기",
+  "approval_inbox": "결재함",
+  "pending_count": "{count}건 대기",
+  "item_count": "{count}건"
 }

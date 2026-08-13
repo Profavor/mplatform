@@ -1,14 +1,14 @@
 import { useCookie } from '#app'
 
 export const useFileDownloader = () => {
+  const { customFetch } = useCustomFetch()
+
   const downloadFileWithAuth = async (url: string, defaultName?: string) => {
     if (!url || url === '#' || url === '-') return
-    const token = useCookie('auth_token')
     
     try {
       // 1. Fetch file blob with Authorization header
-      const blob: Blob = await $fetch(url, {
-        headers: { Authorization: `Bearer ${token.value}` },
+      const blob: Blob = await customFetch(url, {
         responseType: 'blob'
       })
       

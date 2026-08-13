@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import { useCookie } from '#app'
+import { defineStore } from 'pinia'
 
 export interface MenuItem {
   id: number | string
@@ -11,13 +12,13 @@ export interface MenuItem {
   requiredRoles?: string[]
 }
 
-const menuTree = ref<MenuItem[]>([])
-const flatMenuList = ref<MenuItem[]>([])
-const isInitialized = ref(false)
-const isLoading = ref(false)
-let fetchPromise: Promise<MenuItem[]> | null = null
+export const useMenuStore = defineStore('menu', () => {
+  const menuTree = ref<MenuItem[]>([])
+  const flatMenuList = ref<MenuItem[]>([])
+  const isInitialized = ref(false)
+  const isLoading = ref(false)
+  let fetchPromise: Promise<MenuItem[]> | null = null
 
-export function useMenuStore() {
   const token = useCookie('auth_token')
 
   const getActiveLocale = (): string => {
@@ -127,4 +128,4 @@ export function useMenuStore() {
     getMenuByPath,
     parseMultilingualText
   }
-}
+})

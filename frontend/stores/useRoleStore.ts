@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import { useCookie } from '#app'
+import { defineStore } from 'pinia'
 import { getMultilingualText } from '~/utils/multilingual'
 
 export interface RoleInfo {
@@ -11,15 +12,15 @@ export interface RoleInfo {
   isSystemRole?: boolean
 }
 
-// Global reactive Store state (singleton across client session)
-const rolesList = ref<RoleInfo[]>([])
-const orgRolesMap = ref<Record<string, RoleInfo[]>>({})
-const globalRoleLookupMap = ref<Record<string, RoleInfo>>({})
-const isInitialized = ref(false)
-const isLoading = ref(false)
-let globalRolesPromise: Promise<RoleInfo[]> | null = null
+export const useRoleStore = defineStore('role', () => {
+  // Global reactive Store state (singleton across client session)
+  const rolesList = ref<RoleInfo[]>([])
+  const orgRolesMap = ref<Record<string, RoleInfo[]>>({})
+  const globalRoleLookupMap = ref<Record<string, RoleInfo>>({})
+  const isInitialized = ref(false)
+  const isLoading = ref(false)
+  let globalRolesPromise: Promise<RoleInfo[]> | null = null
 
-export function useRoleStore() {
   const token = useCookie('auth_token')
   const userCookie = useCookie<any>('user_data')
 
@@ -251,5 +252,4 @@ export function useRoleStore() {
     getRoleBadgeStyle,
     getUserOrgId
   }
-}
-
+})

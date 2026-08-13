@@ -54,6 +54,8 @@
 import { ref, watch, onMounted } from 'vue'
 import { useCookie } from '#app'
 
+const { customFetch } = useCustomFetch()
+
 const props = defineProps({
   domainId: {
     type: String,
@@ -63,15 +65,12 @@ const props = defineProps({
 
 const stats = ref([])
 const loading = ref(false)
-const tokenCookie = useCookie('auth_token')
 
 const fetchProfiling = async () => {
   if (!props.domainId) return
   loading.value = true
   try {
-    const res = await $fetch(`/api/v1/domains/${props.domainId}/profiling`, {
-      headers: { Authorization: `Bearer ${tokenCookie.value}` }
-    })
+    const res = await customFetch(`/api/v1/domains/${props.domainId}/profiling`)
     stats.value = res || []
   } catch (e) {
     console.error('Failed to fetch profiling data', e)

@@ -23,6 +23,7 @@ public class DomainPermissionController {
 
     private final DomainPermissionService permissionService;
     private final UserService userService;
+    private final com.classification.domain_system.security.SecurityUtils securityUtils;
 
     @GetMapping("/users")
     @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'user:read')")
@@ -43,7 +44,7 @@ public class DomainPermissionController {
     @GetMapping("/domains/available")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<com.classification.domain_system.entity.Domain>> getAvailableDomains() {
-        String userId = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        String userId = securityUtils.getCurrentUserIdOrThrow();
         User user = userService.findByUsername(userId);
         return ResponseEntity.ok(permissionService.getAvailableDomains(user.getId()));
     }
@@ -65,7 +66,7 @@ public class DomainPermissionController {
     @PostMapping("/requests")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<DomainAccessRequest> requestAccess(@RequestBody Map<String, String> payload) {
-        String userId = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        String userId = securityUtils.getCurrentUserIdOrThrow();
         User user = userService.findByUsername(userId);
         UUID domainId = UUID.fromString(payload.get("domainId"));
         return ResponseEntity.ok(permissionService.requestAccess(user.getId(), domainId));
@@ -94,7 +95,7 @@ public class DomainPermissionController {
     @DeleteMapping("/requests/{requestId}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> cancelRequest(@PathVariable UUID requestId) {
-        String userId = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        String userId = securityUtils.getCurrentUserIdOrThrow();
         User user = userService.findByUsername(userId);
         permissionService.cancelRequest(requestId, user != null ? user.getId() : userId);
         return ResponseEntity.ok().build();

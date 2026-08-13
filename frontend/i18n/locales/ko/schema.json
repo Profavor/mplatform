@@ -155,5 +155,12 @@
   "schema_prop_conditionEnabled": "조건부 연동 사용 여부",
   "schema_prop_true": "예",
   "schema_prop_false": "아니오",
-  "items_count": "개 항목"
+  "items_count": "개 항목",
+  "governance": "거버넌스",
+  "domain": "도메인",
+  "node": "노드",
+  "request_domain_access": "도메인 접근 요청",
+  "data_profiling": "데이터 프로파일링",
+  "item_count": "{count}건",
+  "select_node_prompt": "좌측 트리에서 분류 노드를 선택하여 필드를 조회하거나 추가하세요."
 }

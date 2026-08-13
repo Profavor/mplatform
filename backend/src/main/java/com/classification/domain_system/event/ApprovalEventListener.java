@@ -14,6 +14,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
+import com.classification.domain_system.entity.enums.ApprovalStatus;
+import com.classification.domain_system.entity.enums.ApprovalTargetType;
+import com.classification.domain_system.entity.enums.RecordStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,9 +62,9 @@ public class ApprovalEventListener {
         
         long realStepCount = approval.getSteps().stream().filter(s -> s.getStepOrder() > 0).count();
         if (realStepCount == 0) {
-            approval.setStatus("APPROVED");
+            approval.setStatus(ApprovalStatus.APPROVED.name());
             approval.getSteps().stream().filter(s -> s.getStepOrder() == 0).forEach(s -> {
-                s.setStatus("APPROVED");
+                s.setStatus(ApprovalStatus.APPROVED.name());
                 s.setComment("시스템 자동 승인 (결재선 미설정)");
                 stepRepository.saveAndFlush(s);
             });
@@ -99,14 +102,14 @@ public class ApprovalEventListener {
             ApprovalRequest approval = approvalRepository.findByIdWithLock(requestFromEvent.getId())
                     .orElse(requestFromEvent);
 
-            if (!"PENDING".equals(approval.getStatus())) {
+            if (!ApprovalStatus.PENDING.name().equals(approval.getStatus())) {
                 log.info("ApprovalRequest {} status is already {}, skipping advancement.", approval.getId(), approval.getStatus());
                 return;
             }
 
             boolean allApproved = approval.getSteps().stream()
                     .filter(s -> s.getStepOrder().equals(approval.getCurrentStepOrder()))
-                    .allMatch(s -> "APPROVED".equals(s.getStatus()));
+                    .allMatch(s -> ApprovalStatus.APPROVED.name().equals(s.getStatus()));
                     
             if (allApproved) {
                 Integer nextOrder = approval.getSteps().stream()
@@ -153,7 +156,7 @@ public class ApprovalEventListener {
                                 .forEach(s -> sendPendingStepNotification(s, nextActionLabel, nextRequesterName, nextDomainName, nextClassificationName, nextSummary, approval.getId(), approval.getTargetType()));
                     }
                 } else {
-                    approval.setStatus("APPROVED");
+                    approval.setStatus(ApprovalStatus.APPROVED.name());
                     approvalRepository.saveAndFlush(approval);
                     applyFinalApproval(approval);
 
@@ -193,7 +196,7 @@ public class ApprovalEventListener {
             List<ApprovalStep> pendingAutoSteps = approval.getSteps().stream()
                     .filter(s -> s.getStepOrder() != null
                             && s.getStepOrder().equals(currentOrder) 
-                            && "PENDING".equals(s.getStatus()) 
+                            && ApprovalStatus.PENDING.name().equals(s.getStatus()) 
                             && s.getAssigneeId() != null
                             && s.getAssigneeId().equals(approval.getRequesterId()))
                     .toList();
@@ -201,14 +204,14 @@ public class ApprovalEventListener {
             
             if (!pendingAutoSteps.isEmpty()) {
                 for (ApprovalStep step : pendingAutoSteps) {
-                    step.setStatus("APPROVED");
+                    step.setStatus(ApprovalStatus.APPROVED.name());
                     step.setComment("시스템 자동 승인 (기안자 자동 전결)");
                     stepRepository.saveAndFlush(step);
                 }
                 
                 boolean allApproved = approval.getSteps().stream()
                         .filter(s -> s.getStepOrder().equals(currentOrder))
-                        .allMatch(s -> "APPROVED".equals(s.getStatus()));
+                        .allMatch(s -> ApprovalStatus.APPROVED.name().equals(s.getStatus()));
                 
                 if (allApproved) {
                     Integer nextOrder = approval.getSteps().stream()
@@ -225,7 +228,7 @@ public class ApprovalEventListener {
                         approvalRepository.saveAndFlush(approval);
                         progress = true;
                     } else {
-                        approval.setStatus("APPROVED");
+                        approval.setStatus(ApprovalStatus.APPROVED.name());
                         approvalRepository.saveAndFlush(approval);
                         applyFinalApproval(approval);
                     }
@@ -235,10 +238,10 @@ public class ApprovalEventListener {
     }
 
     private void applyFinalApproval(ApprovalRequest approval) {
-        if ("RECORD".equals(approval.getTargetType())) {
+        if (ApprovalTargetType.RECORD.name().equals(approval.getTargetType())) {
             Record record = recordRepository.findById(approval.getTargetId())
                     .orElseThrow(() -> new RuntimeException("Record not found"));
-            record.setStatus("ACTIVE");
+            record.setStatus(RecordStatus.ACTIVE.name());
             
             String changesJson = approval.getChanges();
             Domain domain = record.getNode().getDomain();
@@ -264,7 +267,7 @@ public class ApprovalEventListener {
             recordRepository.save(record);
             logHistory(record, "CREATE", approval.getRequesterId(), null, finalData, approval.getId());
             applicationEventPublisher.publishEvent(new MasterDataChangedEvent(this, record.getId(), record.getNode().getId(), "CREATE", finalData));
-        } else if ("RECORD_UPDATE".equals(approval.getTargetType())) {
+        } else if (ApprovalTargetType.RECORD_UPDATE.name().equals(approval.getTargetType())) {
             Record record = recordRepository.findById(approval.getTargetId())
                     .orElseThrow(() -> new RuntimeException("Record not found"));
             try {
@@ -275,21 +278,21 @@ public class ApprovalEventListener {
                     String afterData = recomputeCalculatedFields(record.getNode().getId(), root.get("after").toString());
                     record.setData(afterData);
                 }
-                record.setStatus("ACTIVE");
+                record.setStatus(RecordStatus.ACTIVE.name());
                 recordRepository.save(record);
                 logHistory(record, "UPDATE", approval.getRequesterId(), prevData, record.getData(), approval.getId());
                 applicationEventPublisher.publishEvent(new MasterDataChangedEvent(this, record.getId(), record.getNode().getId(), "UPDATE", record.getData()));
             } catch (Exception e) {
                 log.error("Error applying final approval for RECORD_UPDATE", e);
             }
-        } else if ("RECORD_DELETE".equals(approval.getTargetType())) {
+        } else if (ApprovalTargetType.RECORD_DELETE.name().equals(approval.getTargetType())) {
             Record record = recordRepository.findById(approval.getTargetId())
                     .orElseThrow(() -> new RuntimeException("Record not found"));
             String deletedData = record.getData();
             logHistory(record, "DELETE", approval.getRequesterId(), deletedData, null, approval.getId());
             recordRepository.delete(record);
             applicationEventPublisher.publishEvent(new MasterDataChangedEvent(this, record.getId(), record.getNode().getId(), "DELETE", deletedData));
-        } else if ("RECORD_MERGE".equals(approval.getTargetType())) {
+        } else if (ApprovalTargetType.RECORD_MERGE.name().equals(approval.getTargetType())) {
             try {
                 ObjectMapper mapper = new ObjectMapper();
                 com.classification.domain_system.service.RecordMergeService.MergeRequest request = mapper.readValue(approval.getChanges(), com.classification.domain_system.service.RecordMergeService.MergeRequest.class);
@@ -303,14 +306,14 @@ public class ApprovalEventListener {
             try {
                 ObjectMapper mapper = new ObjectMapper();
                 JsonNode changes = mapper.readTree(approval.getChanges());
-                if ("SCHEMA_FIELD_ADD".equals(approval.getTargetType())) {
+                if (ApprovalTargetType.SCHEMA_FIELD_ADD.name().equals(approval.getTargetType())) {
                     com.classification.domain_system.dto.FieldDefinitionRequest request = mapper.treeToValue(changes.get("request"), com.classification.domain_system.dto.FieldDefinitionRequest.class);
                     if (changes.has("nodeId")) {
                         fieldDefinitionService.addFieldDirect(UUID.fromString(changes.get("nodeId").asText()), request);
                     } else if (changes.has("domainId")) {
                         fieldDefinitionService.addDomainFieldDirect(UUID.fromString(changes.get("domainId").asText()), request);
                     }
-                } else if ("SCHEMA_FIELD_UPDATE".equals(approval.getTargetType())) {
+                } else if (ApprovalTargetType.SCHEMA_FIELD_UPDATE.name().equals(approval.getTargetType())) {
                     com.classification.domain_system.dto.FieldDefinitionRequest request = mapper.treeToValue(changes.get("request"), com.classification.domain_system.dto.FieldDefinitionRequest.class);
                     UUID fieldId = UUID.fromString(changes.get("fieldId").asText());
                     if (changes.has("nodeId")) {
@@ -318,7 +321,7 @@ public class ApprovalEventListener {
                     } else if (changes.has("domainId")) {
                         fieldDefinitionService.updateDomainFieldDirect(UUID.fromString(changes.get("domainId").asText()), fieldId, request);
                     }
-                } else if ("SCHEMA_FIELD_DELETE".equals(approval.getTargetType())) {
+                } else if (ApprovalTargetType.SCHEMA_FIELD_DELETE.name().equals(approval.getTargetType())) {
                     UUID fieldId = UUID.fromString(changes.get("fieldId").asText());
                     UUID domainId = changes.has("domainId") ? UUID.fromString(changes.get("domainId").asText()) : null;
                     String requester = resolveRequesterName(approval);
@@ -333,7 +336,7 @@ public class ApprovalEventListener {
             } catch (Exception e) {
                 log.error("Error applying final approval for schema change", e);
             }
-        } else if ("BATCH_RECORD".equals(approval.getTargetType())) {
+        } else if (ApprovalTargetType.BATCH_RECORD.name().equals(approval.getTargetType())) {
             try {
                 ObjectMapper mapper = new ObjectMapper();
                 JsonNode changesNode = mapper.readTree(approval.getChanges());
@@ -346,7 +349,7 @@ public class ApprovalEventListener {
                 
                 List<Record> records = recordRepository.findAllById(recordIds);
                 for (Record record : records) {
-                    record.setStatus("ACTIVE");
+                    record.setStatus(RecordStatus.ACTIVE.name());
                 }
                 recordRepository.saveAll(records);
                 
@@ -358,7 +361,7 @@ public class ApprovalEventListener {
                 
                 List<com.classification.domain_system.entity.StagingRecord> stagings = stagingRecordRepository.findByBatchId(batchId);
                 for (com.classification.domain_system.entity.StagingRecord sr : stagings) {
-                    if ("PENDING_APPROVAL".equals(sr.getStatus())) {
+                    if (RecordStatus.PENDING_APPROVAL.name().equals(sr.getStatus())) {
                         sr.setStatus("COMMITTED");
                     }
                 }
@@ -503,7 +506,7 @@ public class ApprovalEventListener {
             }
 
             // If DELETE action with before object, extract field info if not present
-            if ("SCHEMA_FIELD_DELETE".equals(approval.getTargetType()) && root.has("before")) {
+            if (ApprovalTargetType.SCHEMA_FIELD_DELETE.name().equals(approval.getTargetType()) && root.has("before")) {
                 JsonNode beforeNode = root.get("before");
                 if (!root.has("fieldName") && beforeNode.has("name")) {
                     JsonNode nVal = beforeNode.get("name");

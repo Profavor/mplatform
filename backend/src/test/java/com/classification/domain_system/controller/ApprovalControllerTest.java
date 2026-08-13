@@ -44,6 +44,9 @@ class ApprovalControllerTest {
     private ApprovalService approvalService;
 
     @MockitoBean
+    private com.classification.domain_system.service.WorkflowResolver workflowResolver;
+
+    @MockitoBean
     private JwtUtil jwtUtil;
 
     @MockitoBean
@@ -80,7 +83,7 @@ class ApprovalControllerTest {
         @Test
         @DisplayName("config가 null이면 false 반환")
         void configNull_ReturnsFalse() throws Exception {
-            when(approvalService.resolveWorkflow(eq(nodeId), eq("CREATE"))).thenReturn(null);
+            when(workflowResolver.resolveWorkflow(eq(nodeId), eq("CREATE"))).thenReturn(null);
 
             mockMvc.perform(get("/api/approval-requests/effective-workflow/{nodeId}", nodeId)
                     .param("actionType", "CREATE"))
@@ -93,7 +96,7 @@ class ApprovalControllerTest {
         void emptyStepsJson_ReturnsFalse() throws Exception {
             WorkflowConfig config = new WorkflowConfig();
             config.setStepsConfig("{\"steps\":[],\"observerIds\":[]}");
-            when(approvalService.resolveWorkflow(eq(nodeId), eq("CREATE"))).thenReturn(config);
+            when(workflowResolver.resolveWorkflow(eq(nodeId), eq("CREATE"))).thenReturn(config);
 
             mockMvc.perform(get("/api/approval-requests/effective-workflow/{nodeId}", nodeId)
                     .param("actionType", "CREATE"))
@@ -106,7 +109,7 @@ class ApprovalControllerTest {
         void validStepsConfig_ReturnsTrue() throws Exception {
             WorkflowConfig config = new WorkflowConfig();
             config.setStepsConfig("{\"steps\":[{\"approverIds\":[]}],\"observerIds\":[]}");
-            when(approvalService.resolveWorkflow(eq(nodeId), eq("CREATE"))).thenReturn(config);
+            when(workflowResolver.resolveWorkflow(eq(nodeId), eq("CREATE"))).thenReturn(config);
 
             mockMvc.perform(get("/api/approval-requests/effective-workflow/{nodeId}", nodeId)
                     .param("actionType", "CREATE"))

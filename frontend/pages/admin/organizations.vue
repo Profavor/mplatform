@@ -705,6 +705,7 @@ import OrgDetailForm from '~/components/org/OrgDetailForm.vue'
 import { usePageTitle } from '~/composables/usePageTitle'
 
 const { pageTitle } = usePageTitle('org_tenant_management', '조직 및 부서 관리')
+const { customFetch } = useCustomFetch()
 import { ref, onMounted, computed } from 'vue'
 import { useCookie } from '#app'
 import { AgGridVue } from 'ag-grid-vue3'
@@ -814,7 +815,6 @@ const handleDumpSeedFiles = async () => {
   }
 }
 
-const token = useCookie('auth_token')
 const showErrorAlertModal = ref(false)
 const errorAlertTitle = ref('')
 const errorAlertHeader = ref('')
@@ -932,9 +932,8 @@ const saveEditDept = async () => {
   if (!selectedOrg.value || (!editDeptForm.value.nameKo && !editDeptForm.value.nameEn)) return
   const roleStr = Array.isArray(editDeptForm.value.roles) ? editDeptForm.value.roles.join(',') : (editDeptForm.value.roles || '')
   try {
-    await $fetch(`/api/organizations/${selectedOrg.value.id}/departments/${editDeptForm.value.id}`, {
+    await customFetch(`/api/organizations/${selectedOrg.value.id}/departments/${editDeptForm.value.id}`, {
       method: 'PUT',
-      headers: { Authorization: `Bearer ${token.value}` },
       body: {
         id: editDeptForm.value.id,
         parentDepartmentId: editDeptForm.value.parentDepartmentId,
@@ -961,9 +960,8 @@ const openDeleteDeptConfirmModal = (dept) => {
 const confirmDeleteDept = async () => {
   if (!selectedOrg.value || !targetDeletingDept.value) return
   try {
-    await $fetch(`/api/organizations/${selectedOrg.value.id}/departments/${targetDeletingDept.value.id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token.value}` }
+    await customFetch(`/api/organizations/${selectedOrg.value.id}/departments/${targetDeletingDept.value.id}`, {
+      method: 'DELETE'
     })
     showDeleteDeptModalFlag.value = false
     await loadOrgDetails(selectedOrg.value.id)
@@ -981,8 +979,7 @@ const userSearchKeyword = ref('')
 
 const fetchAllUsersList = async () => {
   try {
-    const res = await $fetch('/api/permissions/users', {
-      headers: { Authorization: `Bearer ${token.value}` },
+    const res = await customFetch('/api/permissions/users', {
       query: { page: 0, size: 100 }
     })
     allUsersList.value = res.content || []
@@ -1048,9 +1045,8 @@ const saveMultiRoleForUser = async () => {
   const user = editingRoleUser.value
   const chosenRolesStr = selectedRoleCheckboxes.value.join(',')
   try {
-    await $fetch(`/api/permissions/users/${user.id}/tenant-info`, {
+    await customFetch(`/api/permissions/users/${user.id}/tenant-info`, {
       method: 'PUT',
-      headers: { Authorization: `Bearer ${token.value}` },
       body: {
         organizationId: selectedOrg.value.id,
         departmentId: targetManagingDept.value.id,
@@ -1189,9 +1185,8 @@ const changeMemberRolesInDept = async (user, newRoles) => {
   if (!user) return
   const roleStr = Array.isArray(newRoles) ? newRoles.join(',') : (newRoles || 'USER')
   try {
-    await $fetch(`/api/permissions/users/${user.id}/tenant-info`, {
+    await customFetch(`/api/permissions/users/${user.id}/tenant-info`, {
       method: 'PUT',
-      headers: { Authorization: `Bearer ${token.value}` },
       body: {
         organizationId: selectedOrg.value.id,
         departmentId: user.departmentId,
@@ -1214,9 +1209,8 @@ const assignUserFromSearchModal = async (user) => {
   const isCurrent = user.departmentId === targetManagingDept.value.id
 
   try {
-    await $fetch(`/api/permissions/users/${user.id}/tenant-info`, {
+    await customFetch(`/api/permissions/users/${user.id}/tenant-info`, {
       method: 'PUT',
-      headers: { Authorization: `Bearer ${token.value}` },
       body: {
         organizationId: selectedOrg.value.id,
         departmentId: targetManagingDept.value.id,
@@ -1244,9 +1238,8 @@ const saveAllSearchModalUserRoles = async () => {
     const isCurrent = user.departmentId === targetManagingDept.value.id
     if (isCurrent && chosenRole && chosenRole !== user.role) {
       try {
-        await $fetch(`/api/permissions/users/${user.id}/tenant-info`, {
+        await customFetch(`/api/permissions/users/${user.id}/tenant-info`, {
           method: 'PUT',
-          headers: { Authorization: `Bearer ${token.value}` },
           body: {
             organizationId: selectedOrg.value.id,
             departmentId: targetManagingDept.value.id,
@@ -1270,9 +1263,8 @@ const saveAllSearchModalUserRoles = async () => {
 const removeUserFromDept = async (user) => {
   if (!targetManagingDept.value || !user) return
   try {
-    await $fetch(`/api/permissions/users/${user.id}/tenant-info`, {
+    await customFetch(`/api/permissions/users/${user.id}/tenant-info`, {
       method: 'PUT',
-      headers: { Authorization: `Bearer ${token.value}` },
       body: {
         organizationId: selectedOrg.value.id,
         departmentId: null
@@ -1327,9 +1319,7 @@ const openCreateDeptModal = (parentDeptId = null) => {
 const fetchOrganizations = async () => {
   loadingOrgs.value = true
   try {
-    const res = await $fetch('/api/organizations', {
-      headers: { Authorization: `Bearer ${token.value}` }
-    })
+    const res = await customFetch('/api/organizations')
     organizations.value = res || []
     if (organizations.value.length > 0 && !selectedOrg.value) {
       selectOrganization(organizations.value[0])
@@ -1350,9 +1340,9 @@ const selectOrganization = async (org) => {
 const loadOrgDetails = async (orgId) => {
   try {
     const [deptsRes, teamsRes, rolesRes] = await Promise.all([
-      $fetch(`/api/organizations/${orgId}/departments`, { headers: { Authorization: `Bearer ${token.value}` } }),
-      $fetch(`/api/organizations/${orgId}/teams`, { headers: { Authorization: `Bearer ${token.value}` } }),
-      $fetch(`/api/roles/org/${orgId}`, { headers: { Authorization: `Bearer ${token.value}` } })
+      customFetch(`/api/organizations/${orgId}/departments`),
+      customFetch(`/api/organizations/${orgId}/teams`),
+      customFetch(`/api/roles/org/${orgId}`)
     ])
     departments.value = deptsRes || []
     teams.value = teamsRes || []
@@ -1383,9 +1373,8 @@ const openDeleteOrgModal = (org) => {
 const confirmDeleteOrganization = async () => {
   if (!targetDeletingOrg.value) return
   try {
-    await $fetch(`/api/organizations/${targetDeletingOrg.value.id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token.value}` }
+    await customFetch(`/api/organizations/${targetDeletingOrg.value.id}`, {
+      method: 'DELETE'
     })
     showDeleteOrgModalFlag.value = false
     const deletedId = targetDeletingOrg.value.id
@@ -1414,9 +1403,8 @@ const openCreateOrgModal = () => {
 const saveNewOrg = async () => {
   if (!newOrgForm.value.name) return
   try {
-    const created = await $fetch('/api/organizations', {
+    const created = await customFetch('/api/organizations', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token.value}` },
       body: {
         name: newOrgForm.value.name.trim(),
         displayName: JSON.stringify({ ko: newOrgForm.value.displayNameKo || newOrgForm.value.name, en: newOrgForm.value.displayNameEn || newOrgForm.value.displayNameKo || newOrgForm.value.name }),
@@ -1441,9 +1429,8 @@ const saveNewOrg = async () => {
 const saveOrgInfo = async (editOrgFormData) => {
   if (!selectedOrg.value) return
   try {
-    const updated = await $fetch(`/api/organizations/${selectedOrg.value.id}`, {
+    const updated = await customFetch(`/api/organizations/${selectedOrg.value.id}`, {
       method: 'PUT',
-      headers: { Authorization: `Bearer ${token.value}` },
       body: {
         name: editOrgFormData.name,
         displayName: JSON.stringify({ ko: editOrgFormData.displayNameKo || editOrgFormData.name, en: editOrgFormData.displayNameEn || editOrgFormData.displayNameKo || editOrgFormData.name }),
@@ -1470,9 +1457,8 @@ const saveNewDept = async () => {
   if (!selectedOrg.value || (!newDeptForm.value.nameKo && !newDeptForm.value.nameEn)) return
   const roleStr = Array.isArray(newDeptForm.value.roles) ? newDeptForm.value.roles.join(',') : (newDeptForm.value.roles || '')
   try {
-    await $fetch(`/api/organizations/${selectedOrg.value.id}/departments`, {
+    await customFetch(`/api/organizations/${selectedOrg.value.id}/departments`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token.value}` },
       body: {
         parentDepartmentId: newDeptForm.value.parentDepartmentId,
         name: JSON.stringify({ ko: newDeptForm.value.nameKo || newDeptForm.value.nameEn, en: newDeptForm.value.nameEn || newDeptForm.value.nameKo }),
@@ -1587,9 +1573,7 @@ const openEditGroupModal = (group) => {
 
 const fetchPermissionMasterGroups = async () => {
   try {
-    const list = await $fetch('/api/permissions/groups', {
-      headers: { Authorization: `Bearer ${token.value}` }
-    })
+    const list = await customFetch('/api/permissions/groups')
     if (Array.isArray(list) && list.length > 0) {
       customPermissionGroups.value = list.map(g => ({
         id: g.id,
@@ -1614,9 +1598,8 @@ const fetchPermissionMasterGroups = async () => {
 
 const deleteGroup = async (group) => {
   try {
-    await $fetch(`/api/permissions/groups/${group.id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token.value}` }
+    await customFetch(`/api/permissions/groups/${group.id}`, {
+      method: 'DELETE'
     })
     await fetchPermissionMasterGroups()
   } catch (e) {
@@ -1632,9 +1615,8 @@ const saveNewGroup = async () => {
 
   try {
     if (isEditingGroup.value && targetEditingGroup.value) {
-      await $fetch(`/api/permissions/groups/${targetEditingGroup.value.id}`, {
+      await customFetch(`/api/permissions/groups/${targetEditingGroup.value.id}`, {
         method: 'PUT',
-        headers: { Authorization: `Bearer ${token.value}` },
         body: {
           titleKo: titleKoStr,
           titleEn: titleEnStr,
@@ -1642,9 +1624,8 @@ const saveNewGroup = async () => {
         }
       })
     } else {
-      await $fetch('/api/permissions/groups', {
+      await customFetch('/api/permissions/groups', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token.value}` },
         body: {
           code: codeClean,
           titleKo: titleKoStr,
@@ -1704,9 +1685,8 @@ const deletePermFromGroup = async (group, perm) => {
     return
   }
   try {
-    await $fetch(`/api/permissions/groups/items/${perm.id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token.value}` }
+    await customFetch(`/api/permissions/groups/items/${perm.id}`, {
+      method: 'DELETE'
     })
     await fetchPermissionMasterGroups()
   } catch (e) {
@@ -1722,9 +1702,8 @@ const saveNewPermToGroup = async () => {
   const labelEnStr = newPermToGroupForm.value.labelEn || labelKoStr
 
   try {
-    await $fetch(`/api/permissions/groups/${targetGroupForPerm.value.id}/items`, {
+    await customFetch(`/api/permissions/groups/${targetGroupForPerm.value.id}/items`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token.value}` },
       body: {
         labelKo: `${labelKoStr} (${actClean})`,
         labelEn: `${labelEnStr} (${actClean})`,
@@ -1755,9 +1734,8 @@ const saveNewRole = async () => {
   if (!selectedOrg.value || !newRoleForm.value.name) return
   try {
     const permsSet = Array.isArray(newRoleForm.value.permissions) ? newRoleForm.value.permissions : []
-    await $fetch('/api/roles', {
+    await customFetch('/api/roles', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token.value}` },
       body: {
         organizationId: selectedOrg.value.id,
         name: newRoleForm.value.name.toUpperCase().trim(),
@@ -1804,9 +1782,8 @@ const openEditRoleModal = (role) => {
 const saveEditRole = async () => {
   if (!editRoleForm.value.id) return
   try {
-    await $fetch(`/api/roles/${editRoleForm.value.id}`, {
+    await customFetch(`/api/roles/${editRoleForm.value.id}`, {
       method: 'PUT',
-      headers: { Authorization: `Bearer ${token.value}` },
       body: {
         displayName: JSON.stringify({ ko: editRoleForm.value.displayNameKo || editRoleForm.value.name, en: editRoleForm.value.displayNameEn || editRoleForm.value.displayNameKo || editRoleForm.value.name }),
         description: JSON.stringify({ ko: editRoleForm.value.descriptionKo, en: editRoleForm.value.descriptionEn }),
@@ -1829,9 +1806,8 @@ const openDeleteRoleConfirmModal = (role) => {
 const confirmDeleteRole = async () => {
   if (!targetDeletingRole.value) return
   try {
-    await $fetch(`/api/roles/${targetDeletingRole.value.id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token.value}` }
+    await customFetch(`/api/roles/${targetDeletingRole.value.id}`, {
+      method: 'DELETE'
     })
     showDeleteRoleModalFlag.value = false
     await loadOrgDetails(selectedOrg.value.id)

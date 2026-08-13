@@ -9,7 +9,7 @@ export const useApprovalEnricher = () => {
   const { t } = useI18n()
   const userStore = useUserStore()
   const codeStore = useCodeStore()
-  const token = useCookie('auth_token')
+  const { customFetch } = useCustomFetch()
   const localeCookie = useCookie('locale', { default: () => 'ko' })
   const domains = ref({})
   const domainsFull = ref({})
@@ -22,7 +22,7 @@ export const useApprovalEnricher = () => {
       // Preload DD codes
       codeStore.loadGroup('TARGET_TYPE').catch(console.error)
       
-      const domRes = await $fetch('/api/domains', { headers: { Authorization: `Bearer ${token.value}` } })
+      const domRes = await customFetch('/api/domains')
       
       const dMap = {}
       const dFullMap = {}
@@ -45,7 +45,7 @@ export const useApprovalEnricher = () => {
       }
       
       const treePromises = domRes.map(d => 
-        $fetch(`/api/domains/${d.id}/nodes/tree`, { headers: { Authorization: `Bearer ${token.value}` } })
+        customFetch(`/api/domains/${d.id}/nodes/tree`)
           .catch(e => {
             console.error(`Failed to load tree for domain ${d.id}`, e)
             return []
@@ -73,9 +73,7 @@ export const useApprovalEnricher = () => {
 
     inFlightNodeRequests[nodeId] = (async () => {
       try {
-        const fields = await $fetch(`/api/nodes/${nodeId}/fields/effective`, {
-          headers: { Authorization: `Bearer ${token.value}` }
-        })
+        const fields = await customFetch(`/api/nodes/${nodeId}/fields/effective`)
         fieldSchemas.value[nodeId] = fields || []
         return fieldSchemas.value[nodeId]
       } catch (e) {

@@ -12,6 +12,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import com.classification.domain_system.entity.enums.ApprovalStatus;
+import com.classification.domain_system.entity.enums.ApprovalTargetType;
+import com.classification.domain_system.entity.enums.RecordStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -121,7 +124,7 @@ public class NotificationService {
         try {
             String linkUrlPart = "requestId=" + approvalId;
             List<Notification> list = notificationRepository.findByLinkUrlContaining(linkUrlPart);
-            String actionLabel = "REJECTED".equalsIgnoreCase(actionType) ? "반려" : "승인";
+            String actionLabel = ApprovalStatus.REJECTED.name().equalsIgnoreCase(actionType) ? "반려" : "승인";
             String statusPrefix = "[처리 완료] ";
             String statusText = (approverName != null && !approverName.isBlank() ? approverName : "담당자") + "님에 의해 " + actionLabel + " 처리되었습니다.";
 

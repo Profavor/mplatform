@@ -277,8 +277,11 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useCookie } from '#app'
+import { useCustomFetch } from '~/composables/useCustomFetch'
+
+const { customFetch } = useCustomFetch()
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -584,7 +587,7 @@ const fetchAxesAndNodes = async () => {
   if (!props.selectedDomainInfo?.id) return
   try {
     const domainId = props.selectedDomainInfo.id
-    const axesRes = await $fetch(`/api/domains/${domainId}/axes`)
+    const axesRes = await customFetch(`/api/domains/${domainId}/axes`)
     axesList.value = axesRes || []
     
     const flat = []
@@ -608,8 +611,8 @@ const fetchAxesAndNodes = async () => {
 
     // Fetch tree for primary domain nodes + each secondary axis
     const treePromises = [
-      $fetch(`/api/domains/${domainId}/nodes/tree`),
-      ...axesList.value.map(a => $fetch(`/api/domains/${domainId}/nodes/tree?axisId=${a.id}`))
+      customFetch(`/api/domains/${domainId}/nodes/tree`),
+      ...axesList.value.map(a => customFetch(`/api/domains/${domainId}/nodes/tree?axisId=${a.id}`))
     ]
     const treeResults = await Promise.all(treePromises)
     treeResults.forEach(tree => flattenTree(tree))

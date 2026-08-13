@@ -18,6 +18,7 @@ public class DomainService {
     
     private final DomainRepository domainRepository;
     private final com.classification.domain_system.repository.UserRepository userRepository;
+    private final com.classification.domain_system.security.SecurityUtils securityUtils;
     
     @Transactional
     public Domain createDomain(DomainRequest request) {
@@ -36,12 +37,13 @@ public class DomainService {
     
     @Transactional(readOnly = true)
     public List<Domain> getAllDomains() {
-        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getName())) {
+        String username = securityUtils.getCurrentUserId();
+        if (username == null) {
             return java.util.Collections.emptyList();
         }
         
-        String username = auth.getName();
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        
         com.classification.domain_system.entity.User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
                 

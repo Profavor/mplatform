@@ -40,6 +40,7 @@ class FieldDefinitionServiceTest {
     @Mock private DomainRepository domainRepository;
     @Mock private FieldGroupRepository fieldGroupRepository;
     @Mock private JdbcTemplate jdbcTemplate;
+    @Mock private com.classification.domain_system.security.SecurityUtils securityUtils;
 
     @InjectMocks
     private FieldDefinitionService fieldDefinitionService;
@@ -63,6 +64,8 @@ class FieldDefinitionServiceTest {
         node = new ClassificationNode();
         node.setId(nodeId);
         node.setDomain(domain);
+
+        lenient().when(securityUtils.getCurrentUserId()).thenReturn("tester");
     }
 
     // ─────────────────────────────────────────────────────────────────

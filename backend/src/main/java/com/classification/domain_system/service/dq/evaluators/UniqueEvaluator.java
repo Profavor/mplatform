@@ -24,10 +24,7 @@ public class UniqueEvaluator implements RuleEvaluator {
         this.env = env;
     }
 
-    private boolean isH2Database() {
-        String url = env.getProperty("spring.datasource.url");
-        return url != null && url.startsWith("jdbc:h2:");
-    }
+
 
     @Override
     public DqRuleType supports() {
@@ -50,11 +47,8 @@ public class UniqueEvaluator implements RuleEvaluator {
         String sql;
         Integer count;
         
-        // Use LIKE for H2 (since JSON_VALUE is often missing or broken in older H2 versions), ->> for PostgreSQL
-        boolean isH2 = isH2Database();
-        
-        String jsonCondition = isH2 ? "r.data LIKE ?" : "r.data->>'" + fieldKey + "' = ?";
-        String paramValue = isH2 ? "%\"" + fieldKey + "\":\"" + textValue + "\"%" : textValue;
+        String jsonCondition = "r.data->>'" + fieldKey + "' = ?";
+        String paramValue = textValue;
 
         if (context.getRecordId() != null) {
             sql = "SELECT COUNT(*) FROM record r " +

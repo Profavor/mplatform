@@ -1,12 +1,13 @@
 import { ref } from 'vue'
 import { useCookie } from '#app'
+import { defineStore } from 'pinia'
 
-const userMap = ref<Record<string, string>>({})
-const isInitialized = ref(false)
-const isLoading = ref(false)
-let userMapPromise: Promise<Record<string, string>> | null = null
+export const useUserStore = defineStore('user', () => {
+  const userMap = ref<Record<string, string>>({})
+  const isInitialized = ref(false)
+  const isLoading = ref(false)
+  let userMapPromise: Promise<Record<string, string>> | null = null
 
-export function useUserStore() {
   const token = useCookie('auth_token')
 
   const fetchUserMap = async (forceRefresh = false): Promise<Record<string, string>> => {
@@ -102,4 +103,4 @@ export function useUserStore() {
     getUserName,
     parseI18nVal
   }
-}
+})

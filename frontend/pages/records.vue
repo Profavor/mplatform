@@ -7,7 +7,7 @@
         <div>
           <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
             {{ pageTitle }}
-            <va-badge text="Master Data" color="primary" size="small" />
+            <va-badge :text="$t('master_data')" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
             {{ $t('records_management_desc') }}
@@ -47,7 +47,7 @@
             {{ selectedNode ? getTranslatedName(selectedNode.name) : $t('master_data_record_list') }}
           </span>
           <va-chip v-if="selectedNode" size="small" color="primary" style="font-weight: 600;">
-            {{ selectedNode.isDomain ? 'Domain' : 'Node' }}
+            {{ selectedNode.isDomain ? $t('domain') : $t('node') }}
           </va-chip>
           <va-button v-if="searchableFields.length > 0" preset="secondary" size="small" @click="showAdvancedSearch = !showAdvancedSearch">
             <va-icon :name="showAdvancedSearch ? 'expand_less' : 'expand_more'" size="small" />
@@ -66,7 +66,7 @@
               name="close"
               size="14px"
               style="margin-left: 6px; cursor: pointer; opacity: 0.85;"
-              title="필터 삭제"
+              :title="$t('remove_filter')"
               @click.stop="removeFilter(key)"
             />
           </va-chip>
@@ -387,7 +387,7 @@
         </div>
       </div>
       <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
-        <va-button @click="showApprovalHistoryModal = false">Close</va-button>
+        <va-button @click="showApprovalHistoryModal = false">{{ $t('close') }}</va-button>
       </div>
     </va-modal>
 
@@ -422,6 +422,7 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { usePageTitle } from '~/composables/usePageTitle'
 
 const { pageTitle } = usePageTitle('records_management', '마스터 데이터 레코드 관리')
+const { customFetch } = useCustomFetch()
 import { useCookie } from '#app'
 import { AgGridVue } from 'ag-grid-vue3'
 import ExcelUploader from '~/components/ExcelUploader.vue'
@@ -524,11 +525,11 @@ const loadDomainReferences = async (fields) => {
         const tDomainId = opts.targetDomainId
         if (!tDomainId) continue
         
-        const domains = await $fetch('/api/domains', { headers: { Authorization: `Bearer ${token.value}` } })
+        const domains = await customFetch('/api/domains')
         const tDomain = domains.find(d => d.id === tDomainId)
         
-        const tFields = await $fetch(`/api/domains/${tDomainId}/fields`, { headers: { Authorization: `Bearer ${token.value}` } })
-        const tRecords = await $fetch(`/api/records/domain/${tDomainId}`, { headers: { Authorization: `Bearer ${token.value}` } })
+        const tFields = await customFetch(`/api/domains/${tDomainId}/fields`)
+        const tRecords = await customFetch(`/api/records/domain/${tDomainId}`)
         
         domainReferences.value[f.key] = {
           targetDomainId: tDomainId,
@@ -667,7 +668,7 @@ const fetchDomainRefName = async (uuid, targetDomainId) => {
   if (!uuid || domainRefDisplayMap.value[uuid]) return;
   domainRefDisplayMap.value[uuid] = 'Loading...';
   try {
-    const rec = await $fetch(`/api/records/${uuid}`, { headers: { Authorization: `Bearer ${token.value}` } }).catch(() => null);
+    const rec = await customFetch(`/api/records/${uuid}`).catch(() => null);
     if (!rec) {
       const uname = getUserName(uuid);
       domainRefDisplayMap.value[uuid] = (uname && uname !== uuid) ? uname : uuid;
@@ -685,14 +686,14 @@ const fetchDomainRefName = async (uuid, targetDomainId) => {
       return;
     }
 
-    const domains = await $fetch('/api/domains', { headers: { Authorization: `Bearer ${token.value}` } });
+    const domains = await customFetch('/api/domains');
     const tDomain = domains.find(d => d.id === tDomainId);
     if (!tDomain) {
       domainRefDisplayMap.value[uuid] = uuid;
       return;
     }
     
-    const tFields = await $fetch(`/api/domains/${tDomainId}/fields`, { headers: { Authorization: `Bearer ${token.value}` } });
+    const tFields = await customFetch(`/api/domains/${tDomainId}/fields`);
     
     if (rec.data) {
       const dataObj = typeof rec.data === 'string' ? JSON.parse(rec.data) : rec.data;
@@ -931,7 +932,7 @@ const openRecordDetailModal = async (record) => {
                        (record.node && !record.node.parent) || 
                        (!record.node && record.domainId)
       const fieldsUrl = isDomain ? `/api/domains/${targetNodeId}/fields` : `/api/nodes/${targetNodeId}/fields/effective`
-      const fetched = await $fetch(fieldsUrl, { headers: { Authorization: `Bearer ${token.value}` } }).catch(() => null)
+      const fetched = await customFetch(fieldsUrl).catch(() => null)
       if (fetched && Array.isArray(fetched) && fetched.length > 0) {
         nodeFields.value = fetched
       }
@@ -976,9 +977,8 @@ const handleUnmergeRecord = async (record) => {
   if (!isConfirmed) return
 
   try {
-    await $fetch(`/api/records/${targetId}/unmerge`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token.value}` }
+    await customFetch(`/api/records/${targetId}/unmerge`, {
+      method: 'POST'
     })
     init({ message: t('merge.unmerge_success'), color: 'success' })
     showDetailModal.value = false
@@ -998,9 +998,7 @@ const handleInitialRouteParams = async () => {
   if (queryRecordId) {
     initialRouteHandled.value = true
     try {
-      const rec = await $fetch(`/api/records/${queryRecordId}`, {
-        headers: { Authorization: `Bearer ${token.value}` }
-      }).catch(() => null)
+      const rec = await customFetch(`/api/records/${queryRecordId}`).catch(() => null)
 
       if (rec) {
         let targetNode = null
@@ -1108,9 +1106,7 @@ const selectNode = async (node) => {
 
   if (targetDomainId) {
     try {
-      const dom = await $fetch(`/api/domains/${targetDomainId}`, {
-        headers: { Authorization: `Bearer ${token.value}` }
-      })
+      const dom = await customFetch(`/api/domains/${targetDomainId}`)
       selectedDomainInfo.value = dom
     } catch (e) {
       console.error('Failed to load selected domain details:', e)
@@ -1119,9 +1115,7 @@ const selectNode = async (node) => {
   
   if (node.isDomain) {
     try {
-      const fields = await $fetch(`/api/domains/${node.id}/fields`, {
-        headers: { Authorization: `Bearer ${token.value}` }
-      }).catch(() => [])
+      const fields = await customFetch(`/api/domains/${node.id}/fields`).catch(() => [])
       nodeFields.value = fields
       await loadDomainReferences(fields)
       columnDefs.value = buildColumnDefs(fields, true)
@@ -1133,9 +1127,7 @@ const selectNode = async (node) => {
   }
   
   try {
-    const fields = await $fetch(`/api/nodes/${node.id}/fields/effective`, {
-      headers: { Authorization: `Bearer ${token.value}` }
-    })
+    const fields = await customFetch(`/api/nodes/${node.id}/fields/effective`)
     nodeFields.value = fields
     await loadDomainReferences(fields)
     
@@ -1144,8 +1136,8 @@ const selectNode = async (node) => {
     
     try {
       const [createRes, updateRes] = await Promise.all([
-        $fetch(`/api/approval-requests/effective-workflow/${node.id}?actionType=CREATE`, { headers: { Authorization: `Bearer ${token.value}` } }).catch(() => true),
-        $fetch(`/api/approval-requests/effective-workflow/${node.id}?actionType=UPDATE`, { headers: { Authorization: `Bearer ${token.value}` } }).catch(() => true)
+        customFetch(`/api/approval-requests/effective-workflow/${node.id}?actionType=CREATE`).catch(() => true),
+        customFetch(`/api/approval-requests/effective-workflow/${node.id}?actionType=UPDATE`).catch(() => true)
       ])
       hasCreateWorkflow.value = createRes === true
       hasUpdateWorkflow.value = updateRes === true
@@ -1571,9 +1563,7 @@ const createDatasource = () => {
         
         const finalEndpoint = endpoint.split('?')[0] + '?' + searchParams.toString();
           
-        const pageData = await $fetch(finalEndpoint, {
-          headers: { Authorization: `Bearer ${token.value}` }
-        });
+        const pageData = await customFetch(finalEndpoint);
         
         const rows = pageData.content.map(r => {
           const parsedData = processRecordDataWithFields(r.data, nodeFields.value)
@@ -1652,9 +1642,7 @@ const viewApprovalHistory = async (row) => {
   selectedReflectionTime.value = row.changedAt
   showApprovalHistoryModal.value = true
   try {
-    const res = await $fetch(`/api/approval-requests/${row.approvalRequestId}`, {
-      headers: { Authorization: `Bearer ${token.value}` }
-    })
+    const res = await customFetch(`/api/approval-requests/${row.approvalRequestId}`)
     selectedApprovalRequest.value = res
   } catch (e) {
     console.error('Failed to load approval details', e)
@@ -1668,9 +1656,7 @@ const viewIntegrationHistory = async (row) => {
   selectedReflectionTime.value = row.changedAt
   showApprovalHistoryModal.value = true
   try {
-    const logs = await $fetch(`/api/admin/integration/logs/by-record/${row.recordId}`, {
-      headers: { Authorization: `Bearer ${token.value}` }
-    })
+    const logs = await customFetch(`/api/admin/integration/logs/by-record/${row.recordId}`)
     const log = logs && logs.length > 0 ? logs[0] : null
     selectedApprovalRequest.value = {
       isIntegration: true,
@@ -1862,17 +1848,15 @@ const openHistory = async () => {
   if (!selectedRecordId.value) return
   showLoading('이력을 불러오는 중입니다...')
   try {
-    const res = await $fetch(`/api/records/${selectedRecordId.value}/history`, {
-      headers: { Authorization: `Bearer ${token.value}` }
-    })
+    const res = await customFetch(`/api/records/${selectedRecordId.value}/history`)
     historyLogs.value = res || []
     
     try {
-      const approvalsRes = await $fetch('/api/approval-requests?status=PENDING&size=100', { headers: { Authorization: `Bearer ${token.value}` } })
+      const approvalsRes = await customFetch('/api/approval-requests?status=PENDING&size=100')
       const list = approvalsRes?.content || (Array.isArray(approvalsRes) ? approvalsRes : [])
       const pending = list.find(a => String(a.targetId) === String(selectedRecordId.value) && a.status === 'PENDING')
       if (pending) {
-        const fullPending = await $fetch(`/api/approval-requests/${pending.id}`, { headers: { Authorization: `Bearer ${token.value}` } })
+        const fullPending = await customFetch(`/api/approval-requests/${pending.id}`)
         if (!historyLogs.value.some(log => log.id === 'pending-approval-log')) {
           historyLogs.value = [
             {
@@ -2027,9 +2011,8 @@ const saveEditedRecord = async () => {
           if (file instanceof File) {
             const fd = new FormData()
             fd.append('file', file)
-            const res = await $fetch('/api/files/upload', {
+            const res = await customFetch('/api/files/upload', {
               method: 'POST',
-              headers: { Authorization: `Bearer ${token.value}` },
               body: fd
             })
             uploadedUrls.push(res.url)
@@ -2049,17 +2032,15 @@ const saveEditedRecord = async () => {
       }
     }
     const payload = { requesterId: reqId, data: JSON.stringify(formatDataForSave(dataToSave)), comment: draftCommentText.value }
-    const res = await $fetch(`/api/records/${selectedRecordId.value}/update-request`, {
+    const res = await customFetch(`/api/records/${selectedRecordId.value}/update-request`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token.value}` },
       body: payload
     })
     
     // Save Secondary Nodes if any
     if (pendingSecondaryNodes.value.length > 0) {
-      await $fetch(`/api/records/${selectedRecordId.value}/secondary-nodes`, {
+      await customFetch(`/api/records/${selectedRecordId.value}/secondary-nodes`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token.value}` },
         body: { nodeIds: pendingSecondaryNodes.value }
       }).catch(e => console.error('Failed to save secondary nodes on update', e))
     }
@@ -2097,9 +2078,8 @@ const requestDeleteRecord = async () => {
   try {
     const reqId = myUuid.value
     const payload = { requesterId: reqId, data: "{}" }
-    await $fetch(`/api/records/${selectedRecordId.value}/delete-request`, {
+    await customFetch(`/api/records/${selectedRecordId.value}/delete-request`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token.value}` },
       body: payload
     })
     showDetailModal.value = false
@@ -2188,7 +2168,7 @@ const fetchEffectivePermissionForWorkflow = async (nodeId, actionType, workflowI
     if (workflowId) {
       url += `&workflowId=${workflowId}`
     }
-    const res = await $fetch(url, { headers: { Authorization: `Bearer ${token.value}` } })
+    const res = await customFetch(url)
     return res || {}
   } catch (e) {
     return {}
@@ -2205,9 +2185,7 @@ const openCreateModal = async () => {
 
   if (selectedNode.value && selectedNode.value.id) {
     try {
-      const wfList = await $fetch(`/api/approval-requests/available-workflows/${selectedNode.value.id}?actionType=CREATE`, {
-        headers: { Authorization: `Bearer ${token.value}` }
-      })
+      const wfList = await customFetch(`/api/approval-requests/available-workflows/${selectedNode.value.id}?actionType=CREATE`)
       availableWorkflows.value = wfList || []
       if (!availableWorkflows.value || availableWorkflows.value.length === 0) {
         initToast({
@@ -2401,9 +2379,8 @@ const promptDraftComment = async (action, eventPayload) => {
   showDqValidationModal.value = true
   try {
     const recIdQuery = action === 'UPDATE' && selectedRecordId.value ? `&recordId=${selectedRecordId.value}` : ''
-    const res = await $fetch(`/api/dq-rules/validate?nodeId=${selectedNode.value.id}${recIdQuery}`, {
+    const res = await customFetch(`/api/dq-rules/validate?nodeId=${selectedNode.value.id}${recIdQuery}`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token.value}` },
       body: { data: formattedData }
     })
     dqValidationResult.value = res || { valid: true, errors: [], warnings: [] }
@@ -2456,9 +2433,8 @@ const saveRecord = async () => {
           if (file instanceof File) {
             const fd = new FormData()
             fd.append('file', file)
-            const res = await $fetch('/api/files/upload', {
+            const res = await customFetch('/api/files/upload', {
               method: 'POST',
-              headers: { Authorization: `Bearer ${token.value}` },
               body: fd
             })
             uploadedUrls.push(res.url)
@@ -2486,17 +2462,15 @@ const saveRecord = async () => {
       workflowConfigId: selectedWorkflowConfigId.value
     }
     
-    const res = await $fetch(`/api/nodes/${selectedNode.value.id}/records`, {
+    const res = await customFetch(`/api/nodes/${selectedNode.value.id}/records`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token.value}` },
       body: payload
     })
     
     // Save Secondary Nodes if any
     if (res && res.record && res.record.id && pendingSecondaryNodes.value.length > 0) {
-      await $fetch(`/api/records/${res.record.id}/secondary-nodes`, {
+      await customFetch(`/api/records/${res.record.id}/secondary-nodes`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token.value}` },
         body: { nodeIds: pendingSecondaryNodes.value }
       }).catch(e => console.error('Failed to save secondary nodes', e))
     }

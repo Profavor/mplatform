@@ -12,7 +12,7 @@ export default defineNuxtConfig({
   },
   devtools: { enabled: false },
   unhead: { legacy: true },
-  modules: ['@vuestic/nuxt', 'nuxt-oidc-auth', '@nuxtjs/i18n'],
+  modules: ['@pinia/nuxt', '@vuestic/nuxt', 'nuxt-oidc-auth', '@nuxtjs/i18n'],
   css: ['~/assets/main.css'],
   vuestic: {
     css: ['typography', 'grid', 'reset'],

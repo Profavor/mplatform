@@ -191,8 +191,10 @@ import { useCookie } from '#app'
 import { useToast, useColors } from 'vuestic-ui'
 import { useTimezoneDate } from '~/composables/useTimezoneDate'
 import { useApprovalEnricher } from '~/composables/useApprovalEnricher'
+import { useCustomFetch } from '~/composables/useCustomFetch'
 import ApprovalDetailsViewer from '~/components/ApprovalDetailsViewer.vue'
 
+const { customFetch } = useCustomFetch()
 const router = useRouter()
 const { t, te, locale } = useI18n()
 const currentLocale = computed(() => locale.value)
@@ -233,9 +235,7 @@ const parseJwtUserId = (token) => {
 const fetchNotifications = async () => {
   if (!tokenCookie.value) return
   try {
-    const data = await $fetch('/api/notifications', {
-      headers: { Authorization: `Bearer ${tokenCookie.value}` }
-    })
+    const data = await customFetch('/api/notifications')
     // Backend returns PageResponse { content: [...], totalElements, ... }
     const items = Array.isArray(data) ? data : (data && Array.isArray(data.content) ? data.content : [])
     notifications.value = items.map(n => ({
@@ -374,9 +374,8 @@ const handleNotificationClick = async (item) => {
   item.read = true
   if (item.id && tokenCookie.value) {
     try {
-      await $fetch(`/api/notifications/${item.id}/read`, {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${tokenCookie.value}` }
+      await customFetch(`/api/notifications/${item.id}/read`, {
+        method: 'PUT'
       })
     } catch {
       // Graceful ignore
@@ -395,9 +394,7 @@ const handleNotificationClick = async (item) => {
 
   if (approvalId) {
     try {
-      const fullReq = await $fetch(`/api/approval-requests/${approvalId}`, {
-        headers: { Authorization: `Bearer ${tokenCookie.value}` }
-      })
+      const fullReq = await customFetch(`/api/approval-requests/${approvalId}`)
       if (fullReq) {
         const enriched = await enrichRequest(fullReq)
         
@@ -465,9 +462,8 @@ const handleNotificationClick = async (item) => {
 const handleSingleAction = async (action) => {
   if (!pendingStepId.value) return
   try {
-    await $fetch(`/api/approval-requests/steps/${pendingStepId.value}/${action}`, {
+    await customFetch(`/api/approval-requests/steps/${pendingStepId.value}/${action}`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${tokenCookie.value}` },
       body: { comment: commentData.value }
     })
     notifyToast({
@@ -488,9 +484,8 @@ const markAllAsRead = async () => {
   notifications.value.forEach(n => { n.read = true })
   if (tokenCookie.value) {
     try {
-      await $fetch('/api/notifications/read-all', {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${tokenCookie.value}` }
+      await customFetch('/api/notifications/read-all', {
+        method: 'PUT'
       })
     } catch {
       // Graceful ignore
@@ -502,9 +497,8 @@ const deleteNotification = async (item) => {
   notifications.value = notifications.value.filter(n => n.id !== item.id)
   if (item.id && tokenCookie.value) {
     try {
-      await $fetch(`/api/notifications/${item.id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${tokenCookie.value}` }
+      await customFetch(`/api/notifications/${item.id}`, {
+        method: 'DELETE'
       })
     } catch {
       // Graceful ignore
@@ -516,9 +510,8 @@ const deleteAllNotifications = async () => {
   notifications.value = []
   if (tokenCookie.value) {
     try {
-      await $fetch('/api/notifications/clear-all', {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${tokenCookie.value}` }
+      await customFetch('/api/notifications/clear-all', {
+        method: 'DELETE'
       })
     } catch {
       // Graceful ignore

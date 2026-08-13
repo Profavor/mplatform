@@ -4,6 +4,7 @@ WORKDIR /app
 
 # Copy package files and install dependencies
 COPY package*.json ./
+COPY patch-oidc.js ./
 RUN npm ci
 
 ARG API_BASE_URL=http://localhost:8080
@@ -13,8 +14,6 @@ ENV NUXT_PUBLIC_API_BASE=$API_BASE_URL
 # Copy application source code
 COPY . .
 
-# Fix nuxt-oidc-auth module typescript reference push bug with Nuxt 3.21+
-RUN node -e "const fs=require('fs');const f='node_modules/nuxt-oidc-auth/dist/module.mjs';let c=fs.readFileSync(f,'utf8');c=c.split('.push(').join('?.push(');fs.writeFileSync(f,c);" || true
 
 # Build Nuxt 3 SSR application
 ENV OAUTH2_ISSUER_URI="http://mplatform.local/auth/realms/mplatform"

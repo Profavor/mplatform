@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import com.classification.domain_system.entity.enums.RecordStatus;
 
 @Service
 public class AsyncBatchExportService {
@@ -49,7 +50,7 @@ public class AsyncBatchExportService {
             totalCount = request.getRecords().size();
             taskGridDataMap.put(taskId, request);
         } else if (domainId != null) {
-            totalCount = recordRepository.countByNodeDomainIdAndStatus(domainId, "ACTIVE");
+            totalCount = recordRepository.countByNodeDomainIdAndStatus(domainId, RecordStatus.ACTIVE.name());
             taskDomainMap.put(taskId, domainId);
         }
 
@@ -207,7 +208,7 @@ public class AsyncBatchExportService {
 
                 // 4. Status
                 Cell statusCell = row.createCell(colIdx++);
-                statusCell.setCellValue(record.getStatus() != null ? record.getStatus() : "ACTIVE");
+                statusCell.setCellValue(record.getStatus() != null ? record.getStatus() : RecordStatus.ACTIVE.name());
                 statusCell.setCellStyle(currentStyle);
 
                 // 5. Node Name

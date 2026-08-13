@@ -325,10 +325,8 @@ const executePendingDecrypt = async (reason: string) => {
   decryptingFields.value[key] = true
   try {
     const historyId = String(selectedNode.value.id).replace('HIST-', '')
-    const token = useCookie('auth_token').value
-    const res = await $fetch(`/api/sensitive-data/history/${historyId}/decrypt`, {
+    const res = await customFetch(`/api/sensitive-data/history/${historyId}/decrypt`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
       body: { fieldKeys: [key], accessReason: reason }
     })
     if (res && res[key]) {

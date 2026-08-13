@@ -55,6 +55,8 @@ class ApprovalServiceTest extends BaseServiceTest {
     @Mock private com.classification.domain_system.repository.DomainRepository domainRepository;
     @Mock private com.classification.domain_system.repository.RoleRepository roleRepository;
     @Mock private DataMaskingService dataMaskingService;
+    @Mock private com.classification.domain_system.service.WorkflowResolver workflowResolver;
+    @Mock private com.classification.domain_system.service.ApprovalNotificationFacade notificationFacade;
 
     @org.mockito.Spy
     @InjectMocks
@@ -710,7 +712,10 @@ class ApprovalServiceTest extends BaseServiceTest {
             WorkflowConfig config = new WorkflowConfig();
             config.setStepsConfig("{\"steps\":[{\"stepOrder\":1,\"stepType\":\"APPROVAL\",\"assigneeType\":\"ROLE\",\"assigneeRole\":\"DOMAIN_EDITOR\"}]}");
 
-            approvalService.buildDynamicSteps(approval, config);
+            com.classification.domain_system.service.WorkflowResolver workflowResolver = new com.classification.domain_system.service.WorkflowResolver(
+                null, null, null, null
+            );
+            workflowResolver.buildDynamicSteps(approval, config);
 
             assertThat(approval.getSteps()).hasSize(1);
             assertThat(approval.getSteps().get(0).getAssigneeRole()).isEqualTo("DOMAIN_EDITOR");

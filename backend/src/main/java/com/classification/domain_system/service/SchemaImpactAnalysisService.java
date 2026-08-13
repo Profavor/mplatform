@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import com.classification.domain_system.entity.enums.RecordStatus;
 
 @Service
 @Transactional(readOnly = true)
@@ -130,7 +131,7 @@ public class SchemaImpactAnalysisService {
         }
 
         // If targetFieldKey matching count is 0, check if total active records exist in domain
-        long totalActiveDomainRecords = recordRepository.countByNodeDomainIdAndStatus(domainId, "ACTIVE");
+        long totalActiveDomainRecords = recordRepository.countByNodeDomainIdAndStatus(domainId, RecordStatus.ACTIVE.name());
         long effectiveAffectedRecords = (actualAffectedCount > 0) ? actualAffectedCount : totalActiveDomainRecords;
         
         response.setTotalAffectedRecords(effectiveAffectedRecords);

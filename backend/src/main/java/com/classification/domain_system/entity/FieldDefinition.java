@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.HashMap;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import com.classification.domain_system.entity.enums.ApprovalStatus;
+import com.classification.domain_system.entity.enums.RecordStatus;
 
 @Entity
 @Table(name = "field_definition")
@@ -133,7 +135,7 @@ public class FieldDefinition {
 
     @Transient
     @com.fasterxml.jackson.annotation.JsonProperty("approvalStatus")
-    private String approvalStatus = "ACTIVE";
+    private String approvalStatus = RecordStatus.ACTIVE.name();
 
     @Transient
     @com.fasterxml.jackson.annotation.JsonProperty("isPendingApproval")
@@ -149,7 +151,7 @@ public class FieldDefinition {
 
     public void setApprovalStatus(String approvalStatus) {
         this.approvalStatus = approvalStatus;
-        if ("PENDING_APPROVAL".equalsIgnoreCase(approvalStatus) || "PENDING".equalsIgnoreCase(approvalStatus)) {
+        if (RecordStatus.PENDING_APPROVAL.name().equalsIgnoreCase(approvalStatus) || ApprovalStatus.PENDING.name().equalsIgnoreCase(approvalStatus)) {
             this.isPendingApproval = true;
         }
     }

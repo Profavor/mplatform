@@ -31,6 +31,9 @@ class UserControllerTest {
     private UserService userService;
 
     @MockitoBean
+    private com.classification.domain_system.security.SecurityUtils securityUtils;
+
+    @MockitoBean
     private com.classification.domain_system.repository.UserRepository userRepository;
 
     @MockitoBean

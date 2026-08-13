@@ -41,6 +41,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useCookie } from '#app'
+import { useCustomFetch } from '~/composables/useCustomFetch'
 
 const props = defineProps({
   forceMode: {
@@ -56,8 +57,8 @@ const newPassword = ref('')
 const confirmPassword = ref('')
 const isSubmitting = ref(false)
 const errorMessage = ref('')
-const token = useCookie('auth_token')
 const userCookie = useCookie('user_data')
+const { customFetch } = useCustomFetch()
 
 const handleSubmit = async () => {
   if (!oldPassword.value || !newPassword.value || !confirmPassword.value) {
@@ -77,9 +78,8 @@ const handleSubmit = async () => {
   errorMessage.value = ''
   
   try {
-    await $fetch('/api/users/me/password', {
+    await customFetch('/api/users/me/password', {
       method: 'PUT',
-      headers: { Authorization: `Bearer ${token.value}` },
       body: {
         oldPassword: oldPassword.value,
         newPassword: newPassword.value

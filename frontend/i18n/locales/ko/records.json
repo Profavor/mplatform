@@ -110,5 +110,7 @@
   "export_roles_fail": "역할 템플릿 다운로드에 실패했습니다.",
   "import_roles_success": "역할 템플릿이 성공적으로 적용되었습니다.",
   "import_roles_fail": "역할 템플릿 적용에 실패했습니다.",
-  "import_roles_confirm": "업로드한 백업 파일의 역할 및 권한 설정으로 기존 조직의 권한을 덮어쓰시겠습니까?"
+  "import_roles_confirm": "업로드한 백업 파일의 역할 및 권한 설정으로 기존 조직의 권한을 덮어쓰시겠습니까?",
+  "master_data": "마스터 데이터",
+  "remove_filter": "필터 삭제"
 }

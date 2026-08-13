@@ -15,6 +15,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import com.classification.domain_system.entity.enums.ApprovalStatus;
+import com.classification.domain_system.entity.enums.ApprovalTargetType;
+import com.classification.domain_system.entity.enums.RecordStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -76,7 +79,7 @@ public class ApprovalQueryService {
 
     @Transactional(readOnly = true)
     public Page<ApprovalRequest> getPendingRequests(Pageable pageable) {
-        return approvalRepository.findByStatusOrderByCreatedAtDesc("PENDING", pageable);
+        return approvalRepository.findByStatusOrderByCreatedAtDesc(ApprovalStatus.PENDING.name(), pageable);
     }
 
     @Transactional(readOnly = true)
@@ -309,15 +312,15 @@ public class ApprovalQueryService {
     @Transactional(readOnly = true)
     public Page<ApprovalStep> getMyTodos(String assigneeId, String userRole, Pageable pageable) {
         if (userRole != null && !userRole.isBlank()) {
-            return stepRepository.findMyPendingSteps(assigneeId, userRole, "PENDING", pageable);
+            return stepRepository.findMyPendingSteps(assigneeId, userRole, ApprovalStatus.PENDING.name(), pageable);
         }
-        return stepRepository.findByAssigneeIdAndStatus(assigneeId, "PENDING", pageable);
+        return stepRepository.findByAssigneeIdAndStatus(assigneeId, ApprovalStatus.PENDING.name(), pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<ApprovalStep> getMyTodos(String assigneeId, Collection<String> userRoles, Pageable pageable) {
         if (userRoles != null && !userRoles.isEmpty()) {
-            return stepRepository.findMyPendingStepsForRoles(assigneeId, userRoles, "PENDING", pageable);
+            return stepRepository.findMyPendingStepsForRoles(assigneeId, userRoles, ApprovalStatus.PENDING.name(), pageable);
         }
         return getMyTodos(assigneeId, pageable);
     }
@@ -325,7 +328,7 @@ public class ApprovalQueryService {
     @Transactional(readOnly = true)
     public Page<ApprovalStep> getMyTodos(String assigneeId, String username, Collection<String> userRoles, Pageable pageable) {
         if (userRoles != null && !userRoles.isEmpty()) {
-            return stepRepository.findMyPendingStepsForUserAndRoles(assigneeId, username, userRoles, "PENDING", pageable);
+            return stepRepository.findMyPendingStepsForUserAndRoles(assigneeId, username, userRoles, ApprovalStatus.PENDING.name(), pageable);
         }
         return getMyTodos(assigneeId, pageable);
     }
