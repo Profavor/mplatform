@@ -42,9 +42,9 @@ definePageMeta({
 const route = useRoute()
 const { t } = useI18n()
 const { init: initToast } = useToast()
-const { currentPresetName } = useColors()
-
-const isDark = computed(() => currentPresetName.value === 'dark')
+const colors = useColors()
+const currentPresetName = colors?.currentPresetName
+const isDark = computed(() => currentPresetName?.value === 'dark')
 
 onMounted(() => {
   if (route.query.error) {

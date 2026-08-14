@@ -199,11 +199,11 @@ const router = useRouter()
 const { t, te, locale } = useI18n()
 const currentLocale = computed(() => locale.value)
 const { formatWithTimezone } = useTimezoneDate()
-const { init: notifyToast } = useToast()
-const { currentPresetName } = useColors()
+const colors = useColors()
+const currentPresetName = colors?.currentPresetName
 const { enrichRequest } = useApprovalEnricher()
 
-const isDark = computed(() => currentPresetName.value === 'dark')
+const isDark = computed(() => currentPresetName?.value === 'dark')
 
 const tokenCookie = useCookie('auth_token')
 const notifications = ref([])

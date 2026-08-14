@@ -76,8 +76,9 @@ const userCookie = useCookie('user_data')
 const localeCookie = useCookie('locale')
 const currentLocale = computed(() => localeCookie.value || 'ko')
 
-const { currentPresetName } = useColors()
-const isDark = computed(() => currentPresetName.value === 'dark')
+const colors = useColors()
+const currentPresetName = colors?.currentPresetName
+const isDark = computed(() => currentPresetName?.value === 'dark')
 
 const currentUser = computed(() => {
   if (userCookie.value) {

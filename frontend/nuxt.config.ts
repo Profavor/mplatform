@@ -6,6 +6,7 @@ dns.setDefaultResultOrder('ipv4first')
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+  ssr: false,
   compatibilityDate: '2026-08-11',
   experimental: {
     scanPageMeta: true

@@ -112,7 +112,7 @@ import { useRoleStore } from '~/stores/useRoleStore'
 const { hasPermission } = usePermission()
 
 const colors = useColors()
-const isDark = computed(() => colors.currentPresetName.value === 'dark')
+const isDark = computed(() => colors?.currentPresetName?.value === 'dark')
 
 const messages = {
   ko: {
@@ -256,7 +256,6 @@ const messages = {
 }
 const { t, locale } = useI18n({ messages, useScope: 'local', inheritLocale: true })
 
-const { currentPresetName } = useColors()
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useCookie } from '#app'

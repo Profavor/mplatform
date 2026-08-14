@@ -27,7 +27,7 @@ export function useEchartsTheme() {
 
   try {
     const colors = useColors()
-    isDark.value = colors.currentPresetName.value === 'dark'
+    isDark.value = colors?.currentPresetName?.value === 'dark'
   } catch {
     isDark.value = false
   }

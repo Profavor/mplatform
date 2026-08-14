@@ -252,7 +252,9 @@ import ChangePasswordForm from '~/components/auth/ChangePasswordForm.vue'
 import { useRoles } from '~/composables/useRoles'
 
 const { t, locale, setLocale } = useI18n()
-const { applyPreset, currentPresetName } = useColors()
+const colors = useColors()
+const applyPreset = colors?.applyPreset || (() => {})
+const currentPresetName = colors?.currentPresetName
 const { getRoleBadgeStyle: getStoreRoleBadgeStyle, formatRoleText, initGlobalRoles } = useRoles()
 
 const router = useRouter()
@@ -468,7 +470,7 @@ const handleSaveTimezone = async () => {
   }
 }
 
-const isDark = computed(() => currentPresetName.value === 'dark')
+const isDark = computed(() => currentPresetName?.value === 'dark')
 
 if (setLocale) setLocale(currentLocale.value || 'ko')
 else locale.value = currentLocale.value || 'ko'

@@ -281,11 +281,11 @@ const openApprovalViewer = async (requestId) => {
 
 const { pageTitle } = usePageTitle('domain_schema_title', '도메인 스키마 관리')
 const colors = useColors()
-const isDark = computed(() => colors.currentPresetName.value === 'dark')
+const currentPresetName = colors?.currentPresetName
+const isDark = computed(() => currentPresetName?.value === 'dark')
 import { usePermission } from '~/composables/usePermission'
 
 const { t, locale } = useI18n()
-const { currentPresetName } = useColors()
 const { hasPermission } = usePermission()
 import { ref, computed, onMounted, watch } from 'vue'
 import { useCookie, useState } from '#app'
