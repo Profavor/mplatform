@@ -57,8 +57,14 @@ onMounted(() => {
   }
 })
 
-const handleLogin = () => {
-  window.location.href = '/auth/keycloak/login'
+const { login } = useOidcAuth()
+
+const handleLogin = async () => {
+  try {
+    await login('keycloak')
+  } catch (e) {
+    window.location.href = '/auth/keycloak/login'
+  }
 }
 </script>
 
