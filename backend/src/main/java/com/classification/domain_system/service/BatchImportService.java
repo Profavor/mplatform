@@ -57,6 +57,7 @@ public class BatchImportService {
         job.setCreatedBy(createdBy);
         batchJobRepository.save(job);
 
+        List<StagingRecord> stagingList = new ArrayList<>(records.size());
         for (Map<String, Object> recordData : records) {
             StagingRecord sr = new StagingRecord();
             sr.setBatchId(job.getId());
@@ -69,7 +70,14 @@ public class BatchImportService {
             }
             sr.setStatus("PENDING");
             sr.setSourceSystem(sourceSystem);
-            stagingRecordRepository.save(sr);
+            stagingList.add(sr);
+        }
+
+        // 500건 단위 청크 일괄 저장
+        int chunkSize = 500;
+        for (int i = 0; i < stagingList.size(); i += chunkSize) {
+            int end = Math.min(i + chunkSize, stagingList.size());
+            stagingRecordRepository.saveAll(stagingList.subList(i, end));
         }
 
         return job;
@@ -106,13 +114,16 @@ public class BatchImportService {
             } else {
                 sr.setStatus("VALIDATED");
             }
-            stagingRecordRepository.save(sr);
             processedCount++;
         }
+
+        // 전체 검증 결과 일괄 저장
+        stagingRecordRepository.saveAll(records);
 
         job.setProcessedRecords(processedCount);
         job.setErrorRecords(errorCount);
         job.setStatus("COMPLETED");
+
         job.setCompletedAt(LocalDateTime.now());
         batchJobRepository.save(job);
     }

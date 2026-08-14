@@ -1,7 +1,7 @@
 <template>
   <va-modal
     v-model="modalVisible"
-    :title="t('compare_records_title') || (isEn ? 'Compare Selected Records' : '선택 레코드 비교')"
+    :title="t('compare_records_title')"
     size="large"
     hide-default-actions
     class="record-compare-modal"
@@ -14,14 +14,14 @@
           <div style="display: flex; align-items: center; gap: 0.4rem;">
             <va-icon name="scale" color="primary" />
             <span style="font-weight: 700; font-size: 0.9rem;">
-              {{ t('comparing_count') || (isEn ? `Comparing ${records.length} records` : `${records.length}개 레코드 비교 중`) }}
+              {{ t('comparing_count', { count: records.length }) }}
             </span>
           </div>
 
           <!-- Baseline Record Selector -->
           <div style="display: flex; align-items: center; gap: 0.35rem; margin-left: 0.5rem;">
             <span style="font-size: 0.78rem; font-weight: 700; color: var(--va-text-secondary); white-space: nowrap;">
-              {{ t('baseline_record') || (isEn ? 'Baseline Record:' : '기준 레코드:') }}
+              {{ t('baseline_record') }}
             </span>
             <va-select
               v-model="baselineRecordIndex"
@@ -39,10 +39,10 @@
             v-model="onlyDifferences"
             size="small"
             color="warning"
-            :label="t('only_differences') || (isEn ? 'Show Only Differences' : '차이점만 보기')"
+            :label="t('only_differences')"
           />
           <va-badge
-            :text="`${diffFieldsCount} ${t('diff_count_suffix') || (isEn ? 'Diffs' : '개 항목 다름')}`"
+            :text="`${diffFieldsCount} ${t('diff_count_suffix')}`"
             color="warning"
             style="font-size: 0.8rem; font-weight: 700;"
           />
@@ -58,7 +58,7 @@
             <tr style="background: var(--va-background-element); position: sticky; top: 0; z-index: 2; border-bottom: 2px solid var(--va-background-border);">
               <th style="width: 180px; min-width: 160px; padding: 0.75rem; text-align: left; background: var(--va-background-element); border-right: 1px solid var(--va-background-border);">
                 <div style="font-weight: 700; color: var(--va-text-secondary); text-transform: uppercase; font-size: 0.75rem;">
-                  {{ t('field_name') || (isEn ? 'Attributes / Fields' : '속성 / 필드명') }}
+                  {{ t('field_name') }}
                 </div>
               </th>
               
@@ -93,7 +93,7 @@
                       color="primary"
                       style="font-size: 11px; font-weight: 700;"
                     >
-                      ⭐ {{ t('baseline_badge') || (isEn ? 'Baseline' : '기준 레코드') }}
+                      ⭐ {{ t('baseline_badge') }}
                     </va-chip>
                     <va-button
                       v-else
@@ -103,7 +103,7 @@
                       style="font-size: 11px; padding: 0;"
                       @click="baselineRecordIndex = index"
                     >
-                      {{ t('set_as_baseline') || (isEn ? 'Set as Baseline' : '기준으로 설정') }}
+                      {{ t('set_as_baseline') }}
                     </va-button>
                   </div>
                 </div>
@@ -158,7 +158,7 @@
 
             <tr v-if="displayedFields.length === 0">
               <td :colspan="records.length + 1" style="text-align: center; padding: 2rem; color: var(--va-text-secondary);">
-                {{ t('no_differences_found') || (isEn ? 'No differences found between selected records.' : '선택된 레코드 간 차이점이 없습니다.') }}
+                {{ t('no_differences_found') }}
               </td>
             </tr>
           </tbody>
@@ -175,14 +175,15 @@
           preset="secondary"
           @click="exportToExcel"
         >
-          {{ t('export_excel') || (isEn ? 'Export to Excel' : '엑셀 내보내기') }}
+          {{ t('export_excel') }}
         </va-button>
         <va-button color="secondary" @click="handleClose">
-          {{ t('close') || (isEn ? 'Close' : '닫기') }}
+          {{ t('close') }}
         </va-button>
       </div>
     </template>
   </va-modal>
+
 </template>
 
 <script setup>

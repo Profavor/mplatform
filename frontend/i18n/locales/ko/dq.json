@@ -40,10 +40,14 @@
     "field": "필드",
     "loading_violations": "위반 레코드 조회 중...",
     "no_violations_found": "선택한 조건의 품질 위반 레코드가 없습니다.",
-    "record_id": "레코드 ID",
+    "record_id": "레코드 식별자",
     "violated_field": "위반 필드",
     "rule_name": "검증 규칙",
-    "violation_message": "위반 내용"
+    "violation_message": "위반 내용",
+    "actual_value": "실제 입력값",
+    "empty_value": "(빈 값)",
+    "details": "상세보기",
+    "pagination_summary": "총 {total}건 중 {start} - {end}건 표시"
   },
   "dq_dashboard_desc": "도메인별 데이터 품질 검칙 이행률, 오류 건수 및 필드별 품질 진단 상태를 실시간 모니터링합니다.",
   "dq_dashboard_subtitle": "실시간 마스터 데이터 거버넌스 및 데이터 정합성 모니터링",

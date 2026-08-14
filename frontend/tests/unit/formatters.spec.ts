@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { formatEntityId, formatRecordCode } from '../../utils/formatters'
+import { formatEntityId, formatRecordCode, formatApprovalCode } from '../../utils/formatters'
+
 
 describe('formatters utility (TDD)', () => {
   describe('formatEntityId', () => {
@@ -33,4 +34,13 @@ describe('formatters utility (TDD)', () => {
       expect(formatRecordCode(uuid)).toBe('REC-e1a2b3c4')
     })
   })
+
+  describe('formatApprovalCode', () => {
+    it('결재 UUID를 APP- 식별 코드로 변환한다', () => {
+      const uuid = 'a1b2c3d4-5678-40ef-89ab-cdef01234567'
+      expect(formatApprovalCode(uuid)).toBe('APP-a1b2c3d4')
+    })
+  })
 })
+
+

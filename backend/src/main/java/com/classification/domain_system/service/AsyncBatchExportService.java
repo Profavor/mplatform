@@ -7,7 +7,9 @@ import com.classification.domain_system.repository.FieldDefinitionRepository;
 import com.classification.domain_system.repository.RecordRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -20,6 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.classification.domain_system.entity.enums.RecordStatus;
 
 @Service
+@Slf4j
 public class AsyncBatchExportService {
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -31,6 +34,7 @@ public class AsyncBatchExportService {
     private final Map<String, AsyncBatchDto.BatchTaskResponse> taskMap = new ConcurrentHashMap<>();
     private final Map<String, UUID> taskDomainMap = new ConcurrentHashMap<>();
     private final Map<String, AsyncBatchDto.ExportAsyncRequest> taskGridDataMap = new ConcurrentHashMap<>();
+    private final Map<String, byte[]> taskFileResultMap = new ConcurrentHashMap<>();
 
     public AsyncBatchExportService(RecordRepository recordRepository,
                                   FieldDefinitionRepository fieldDefinitionRepository) {
@@ -65,22 +69,26 @@ public class AsyncBatchExportService {
     }
 
     @Async
-    protected void processExportAsync(String taskId, long totalCount) {
+    public void processExportAsync(String taskId, long totalCount) {
         AsyncBatchDto.BatchTaskResponse task = taskMap.get(taskId);
         if (task == null) return;
 
         try {
-            for (int i = 1; i <= 10; i++) {
-                Thread.sleep(150);
-                long processed = totalCount > 0 ? (totalCount * i) / 10 : 0;
-                int percent = i * 10;
-                task.setProcessedCount(processed);
-                task.setProgressPercent(percent);
+            byte[] fileBytes;
+            AsyncBatchDto.ExportAsyncRequest gridData = taskGridDataMap.get(taskId);
+            if (gridData != null && gridData.getRecords() != null && !gridData.getRecords().isEmpty()) {
+                fileBytes = generateExcelFromGridData(gridData);
+            } else {
+                fileBytes = generateStreamingExcelForDomain(taskId, task, totalCount);
             }
+
+            taskFileResultMap.put(taskId, fileBytes);
+            task.setProcessedCount(totalCount);
+            task.setProgressPercent(100);
             task.setStatus("COMPLETED");
             task.setDownloadUrl("/api/batch/download/" + taskId);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+        } catch (Exception e) {
+            log.error("Failed to generate async batch export file for task: {}", taskId, e);
             task.setStatus("FAILED");
         }
     }
@@ -94,15 +102,35 @@ public class AsyncBatchExportService {
     }
 
     public byte[] downloadTaskFile(String taskId) {
+        byte[] cachedBytes = taskFileResultMap.get(taskId);
+        if (cachedBytes != null) {
+            return cachedBytes;
+        }
+
         AsyncBatchDto.ExportAsyncRequest gridData = taskGridDataMap.get(taskId);
         if (gridData != null && gridData.getRecords() != null && !gridData.getRecords().isEmpty()) {
-            return generateExcelFromGridData(gridData);
+            byte[] bytes = generateExcelFromGridData(gridData);
+            taskFileResultMap.put(taskId, bytes);
+            return bytes;
         }
+
+        UUID domainId = taskDomainMap.get(taskId);
+        AsyncBatchDto.BatchTaskResponse task = taskMap.get(taskId);
+        long totalCount = task != null ? task.getTotalCount() : 0;
+        byte[] bytes = generateStreamingExcelForDomain(taskId, task, totalCount);
+        taskFileResultMap.put(taskId, bytes);
+        return bytes;
+    }
+
+
+    private byte[] generateStreamingExcelForDomain(String taskId, AsyncBatchDto.BatchTaskResponse task, long totalCount) {
         UUID domainId = taskDomainMap.get(taskId);
         List<Record> records = (domainId != null) ? recordRepository.findAllByDomainId(domainId) : recordRepository.findAll();
         List<FieldDefinition> fieldDefs = (domainId != null) ? fieldDefinitionRepository.findDomainFieldsWithSort(domainId) : Collections.emptyList();
 
-        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+        // Use SXSSFWorkbook with row window 100 for true memory-efficient streaming export
+        try (SXSSFWorkbook workbook = new SXSSFWorkbook(100); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            workbook.setCompressTempFiles(true);
             Sheet sheet = workbook.createSheet("Master Data Export");
 
             // Title Style
@@ -224,22 +252,27 @@ public class AsyncBatchExportService {
                 String updateTimeStr = (record.getUpdatedAt() != null) ? record.getUpdatedAt().format(DATE_FORMATTER) : "";
                 dateCell.setCellValue(updateTimeStr);
                 dateCell.setCellStyle(currentStyle);
+
+                if (task != null && totalCount > 0) {
+                    task.setProcessedCount(sequenceIndex - 1);
+                    int pct = (int) Math.min(99, ((long) (sequenceIndex - 1) * 100) / totalCount);
+                    task.setProgressPercent(pct);
+                }
             }
 
-            // Safe column width adjustment
+            // Safe column width adjustment (fixed width for streaming sheet)
             for (int i = 0; i < headerTitles.size(); i++) {
-                try {
-                    sheet.autoSizeColumn(i);
-                } catch (Exception ignored) {}
-                sheet.setColumnWidth(i, Math.max(sheet.getColumnWidth(i) + 1024, 4500));
+                sheet.setColumnWidth(i, 5000);
             }
 
             workbook.write(out);
+            workbook.dispose(); // clean up temporary files
             return out.toByteArray();
         } catch (IOException e) {
-            throw new RuntimeException("Failed to generate Excel export file", e);
+            throw new RuntimeException("Failed to generate streaming Excel export file", e);
         }
     }
+
 
     private JsonNode parseRecordDataJson(String dataStr) {
         if (dataStr == null || dataStr.isBlank()) return null;

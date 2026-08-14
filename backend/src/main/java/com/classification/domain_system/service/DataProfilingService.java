@@ -41,38 +41,46 @@ public class DataProfilingService {
             return Collections.emptyList();
         }
 
-        Map<String, FieldStats> statsMap = new HashMap<>();
         long totalRecords = sampleRecords.size();
+        List<Map<String, Object>> parsedDataList = new ArrayList<>(sampleRecords.size());
+        Set<String> allKeys = new HashSet<>();
 
         for (Record record : sampleRecords) {
+            if (record.getData() == null || record.getData().isBlank()) {
+                parsedDataList.add(Collections.emptyMap());
+                continue;
+            }
             try {
-                if (record.getData() == null || record.getData().isBlank()) continue;
                 Map<String, Object> data = objectMapper.readValue(record.getData(), new TypeReference<Map<String, Object>>() {});
-                
-                // Ensure all fields have an entry
-                for (String key : data.keySet()) {
-                    statsMap.putIfAbsent(key, new FieldStats());
-                }
-
-                for (Map.Entry<String, FieldStats> entry : statsMap.entrySet()) {
-                    String key = entry.getKey();
-                    Object value = data.get(key);
-                    FieldStats stats = entry.getValue();
-
-                    if (value == null || value.toString().isBlank()) {
-                        stats.nullCount++;
-                    } else {
-                        String strValue = value.toString();
-                        stats.valueFrequencies.put(strValue, stats.valueFrequencies.getOrDefault(strValue, 0L) + 1);
-                    }
-                }
+                parsedDataList.add(data);
+                allKeys.addAll(data.keySet());
             } catch (Exception e) {
+                parsedDataList.add(Collections.emptyMap());
                 log.warn("Failed to parse record data {}", record.getId());
+            }
+        }
+
+        Map<String, FieldStats> statsMap = new HashMap<>();
+        for (String key : allKeys) {
+            statsMap.put(key, new FieldStats());
+        }
+
+        for (Map<String, Object> data : parsedDataList) {
+            for (String key : allKeys) {
+                FieldStats stats = statsMap.get(key);
+                Object value = data.get(key);
+                if (value == null || value.toString().isBlank()) {
+                    stats.nullCount++;
+                } else {
+                    String strValue = value.toString().trim();
+                    stats.valueFrequencies.put(strValue, stats.valueFrequencies.getOrDefault(strValue, 0L) + 1);
+                }
             }
         }
 
         List<DataProfilingResponse> responses = new ArrayList<>();
         for (Map.Entry<String, FieldStats> entry : statsMap.entrySet()) {
+
             String fieldName = entry.getKey();
             FieldStats stats = entry.getValue();
 

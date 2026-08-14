@@ -70,8 +70,9 @@ class BatchImportServiceTest {
         assertEquals(0, job.getErrorRecords());
         assertEquals("COMPLETED", job.getStatus());
         verify(batchJobRepository, times(2)).save(job);
-        verify(stagingRecordRepository, times(1)).save(sr);
+        verify(stagingRecordRepository, times(1)).saveAll(anyList());
     }
+
 
     @Test
     void testValidateBatch_DQ_Error() throws Exception {

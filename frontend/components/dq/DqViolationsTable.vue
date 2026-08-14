@@ -6,8 +6,8 @@
           <va-icon name="report_problem" color="danger" size="medium" />
         </div>
         <div>
-          <div class="table-main-title">{{ t('dq_dashboard.violation_table_title', '품질 검칙 위반 상세 내역') }}</div>
-          <div class="table-sub-title">{{ t('dq_dashboard.violation_table_sub', '검증 규칙에 위배된 레코드의 상세 정보 및 원인 분석') }}</div>
+          <div class="table-main-title">{{ t('dq_dashboard.violation_table_title') }}</div>
+          <div class="table-sub-title">{{ t('dq_dashboard.violation_table_sub') }}</div>
         </div>
       </div>
 
@@ -19,7 +19,7 @@
           :options="severityOptions"
           text-by="label"
           value-by="value"
-          :label="t('dq_dashboard.severity', '심각도')"
+          :label="t('dq_dashboard.severity')"
           class="filter-select"
         />
         <va-select
@@ -28,7 +28,7 @@
           :options="availableFieldFilterOptions"
           text-by="label"
           value-by="value"
-          :label="t('dq_dashboard.field', '대상 필드')"
+          :label="t('dq_dashboard.field')"
           class="filter-select-wide"
         />
         <va-button
@@ -38,7 +38,7 @@
           icon="clear"
           @click="emit('reset-filters')"
         >
-          {{ t('reset', '초기화') }}
+          {{ t('reset') }}
         </va-button>
       </div>
     </va-card-title>
@@ -46,12 +46,12 @@
     <va-card-content class="table-content">
       <div v-if="loadingViolations" class="table-loading">
         <va-progress-circle indeterminate size="2rem" />
-        <span>{{ t('dq_dashboard.loading_violations', '위반 내역을 조회하는 중입니다...') }}</span>
+        <span>{{ t('dq_dashboard.loading_violations') }}</span>
       </div>
 
       <div v-else-if="!violationList || violationList.length === 0" class="empty-state">
         <span class="empty-icon">🎉</span>
-        <p>{{ t('dq_dashboard.no_violations_found', '검출된 데이터 품질 위반 내역이 없습니다.') }}</p>
+        <p>{{ t('dq_dashboard.no_violations_found') }}</p>
       </div>
 
       <template v-else>
@@ -59,14 +59,14 @@
           <table class="custom-dq-table">
             <thead>
               <tr>
-                <th>{{ t('dq_dashboard.record_id', '레코드 식별자') }}</th>
-                <th>{{ t('classification_node', '분류 노드') }}</th>
-                <th>{{ t('dq_dashboard.violated_field', '위반 필드') }}</th>
-                <th>{{ t('dq_dashboard.severity', '심각도') }}</th>
-                <th>{{ t('dq_dashboard.rule_name', '검증 규칙') }}</th>
-                <th>{{ t('dq_dashboard.violation_message', '위반 메시지 / 원인') }}</th>
-                <th>{{ t('createdAt', '진단 일시') }}</th>
-                <th class="text-center">{{ t('action', '작업') }}</th>
+                <th>{{ t('dq_dashboard.record_id') }}</th>
+                <th>{{ t('classification_node') }}</th>
+                <th>{{ t('dq_dashboard.violated_field') }}</th>
+                <th>{{ t('dq_dashboard.severity') }}</th>
+                <th>{{ t('dq_dashboard.rule_name') }}</th>
+                <th>{{ t('dq_dashboard.violation_message') }}</th>
+                <th>{{ t('createdAt') }}</th>
+                <th class="text-center">{{ t('action') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -74,7 +74,7 @@
                 <td>
                   <div class="record-id-cell">
                     <va-icon name="folder" size="small" color="primary" />
-                    <span>{{ v.recordIdentifier || v.recordId }}</span>
+                    <span>{{ v.recordIdentifier || formatRecordCode(v.recordId) }}</span>
                   </div>
                 </td>
                 <td>
@@ -97,7 +97,7 @@
                 </td>
                 <td>
                   <code class="actual-value-code">
-                    {{ v.actualValue || '(빈 값)' }}
+                    {{ v.actualValue || t('dq_dashboard.empty_value') }}
                   </code>
                 </td>
                 <td>
@@ -111,7 +111,7 @@
                     class="goto-btn"
                     @click="onGoToRecord(v.recordId)"
                   >
-                    {{ t('details', '상세보기') }}
+                    {{ t('dq_dashboard.details') }}
                   </va-button>
                 </td>
               </tr>
@@ -122,9 +122,11 @@
         <!-- Custom Pagination Toolbar -->
         <div class="pagination-toolbar">
           <span class="pagination-info">
-            총 <strong>{{ totalViolationsCount.toLocaleString() }}</strong>건 중
-            <strong>{{ (violationPage * violationSize) + 1 }}</strong> -
-            <strong>{{ Math.min((violationPage + 1) * violationSize, totalViolationsCount) }}</strong>건 표시
+            {{ t('dq_dashboard.pagination_summary', {
+              total: totalViolationsCount.toLocaleString(),
+              start: (violationPage * violationSize) + 1,
+              end: Math.min((violationPage + 1) * violationSize, totalViolationsCount)
+            }) }}
           </span>
 
           <div class="pagination-controls">
@@ -155,6 +157,8 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { formatWithTimezone } from '~/composables/useTimezoneDate'
+import { formatRecordCode } from '~/utils/formatters'
+
 
 const { t, locale } = useI18n()
 

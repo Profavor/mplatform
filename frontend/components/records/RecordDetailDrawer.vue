@@ -501,23 +501,24 @@
         v-if="activeMainTab === 'details' && !isEditing && recordStatus === 'MERGED' && canWrite"
         color="warning"
         icon="call_split"
-        @click="$emit('unmerge', localRecord)"
+        @click="showUnmergePreview = true"
       >
         {{ t('unmerge_btn') }}
       </va-button>
+
       <va-button
         v-if="activeMainTab === 'details' && !isEditing && !isSnapshotMode && canDelete"
         color="danger"
         @click="$emit('delete')"
       >
-        Delete
+        {{ t('btn_delete') }}
       </va-button>
       <va-button
         v-if="activeMainTab === 'details' && !isEditing && !isSnapshotMode && canWrite"
         color="warning"
         @click="isEditing = true"
       >
-        Edit
+        {{ t('btn_edit') }}
       </va-button>
       <va-button
         v-if="activeMainTab === 'details' && isEditing && !isSnapshotMode && canWrite"
@@ -525,11 +526,12 @@
         :disabled="!hasUpdateWorkflow"
         @click="$emit('save', localRecord)"
       >
-        Save
+        {{ t('btn_save') }}
       </va-button>
-      <va-button @click="handleClose">Close</va-button>
+      <va-button @click="handleClose">{{ t('btn_close') }}</va-button>
     </div>
   </va-modal>
+
 
   <UnmaskReasonModal
     v-model="showUnmaskReasonModal"
@@ -540,6 +542,13 @@
   <UserProfileModal
     v-model="showUserProfileModal"
     :user-profile="selectedUserProfile"
+  />
+
+  <UnmergePreviewModal
+    v-model="showUnmergePreview"
+    :master-record="localRecord"
+    :source-records="subRecords"
+    @confirm="$emit('unmerge', localRecord)"
   />
 
   <!-- Modal: Assign Secondary Classification Nodes -->
@@ -589,10 +598,13 @@ import { AgGridVue } from 'ag-grid-vue3'
 import { useToast } from 'vuestic-ui'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import UnmaskReasonModal from '../UnmaskReasonModal.vue'
+import UnmergePreviewModal from './UnmergePreviewModal.vue'
 
 const { gridTheme } = useAgGridTheme()
 
+const showUnmergePreview = ref(false)
 const showUnmaskReasonModal = ref(false)
+
 const pendingDecryptAction = ref(null)
 
 const executePendingDecrypt = async (reason) => {

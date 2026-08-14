@@ -4,7 +4,7 @@
       <div style="display: flex; align-items: center; gap: 0.6rem;">
         <va-icon name="show_chart" color="primary" />
         <span style="font-size: 1.05rem; font-weight: 700; color: var(--va-text-primary); font-family: 'Pretendard', 'Inter', sans-serif;">
-          {{ t('dq_dashboard.score_trend_title', '품질 점수 변동 추이') }}
+          {{ t('dq_dashboard.score_trend_title') }}
         </span>
         <va-chip v-if="recentSnapshots.length > 0" size="small" color="primary" style="font-weight: 600;">
           {{ t('dq_dashboard.snapshot_count', { count: recentSnapshots.length }) }}
@@ -15,10 +15,10 @@
         <div style="display: flex; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 8px; padding: 2px;">
           <button
             v-for="opt in [
-              { label: t('dq_dashboard.recent_7_days', '최근 7일'), value: 7 },
-              { label: t('dq_dashboard.recent_30_days', '최근 30일'), value: 30 },
-              { label: t('dq_dashboard.recent_90_days', '최근 90일'), value: 90 },
-              { label: t('dq_dashboard.recent_all', '전체'), value: 0 }
+              { label: t('dq_dashboard.recent_7_days'), value: 7 },
+              { label: t('dq_dashboard.recent_30_days'), value: 30 },
+              { label: t('dq_dashboard.recent_90_days'), value: 90 },
+              { label: t('dq_dashboard.recent_all'), value: 0 }
             ]"
             :key="opt.value"
             type="button"
@@ -45,7 +45,7 @@
           :loading="scanning"
           @click="onTriggerScan"
         >
-          {{ t('dq_dashboard.run_scan', '즉시 스캔') }}
+          {{ t('dq_dashboard.run_scan') }}
         </va-button>
       </div>
     </div>
@@ -57,13 +57,14 @@
           <va-icon name="insights" size="large" color="primary" />
         </div>
         <div style="font-size: 1.05rem; font-weight: 700; color: var(--va-text-primary); font-family: 'Pretendard', 'Inter', sans-serif;">
-          {{ t('dq_dashboard.no_snapshots', '품질 진단 이력이 없습니다') }}
+          {{ t('dq_dashboard.no_snapshots') }}
+
         </div>
         <div style="font-size: 0.85rem; color: var(--va-text-secondary); max-width: 440px; line-height: 1.5;">
-          {{ t('dq_dashboard.no_snapshots_desc', '스캔을 실행하여 도메인 내 데이터의 품질 진단 결과를 기록해보세요.') }}
+          {{ t('dq_dashboard.no_snapshots_desc') }}
         </div>
         <va-button size="small" color="primary" icon="bolt" :loading="scanning" @click="onTriggerScan" style="margin-top: 0.5rem;">
-          {{ t('dq_dashboard.start_scan_now', '지금 스캔 시작하기') }}
+          {{ t('dq_dashboard.start_scan_now') }}
         </va-button>
       </div>
 
@@ -72,22 +73,23 @@
         <!-- Summary Stats Pill Banner -->
         <div style="display: flex; gap: 1.5rem; padding: 0.75rem 1.25rem; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 10px; align-items: center; flex-wrap: wrap;">
           <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <span style="font-size: 0.8rem; color: var(--va-text-secondary); font-weight: 600;">{{ t('dq_dashboard.avg_score', '평균 점수') }}</span>
+            <span style="font-size: 0.8rem; color: var(--va-text-secondary); font-weight: 600;">{{ t('dq_dashboard.avg_score') }}</span>
             <span style="font-size: 1rem; font-weight: 800; color: var(--va-primary);">{{ avgTrendScore }}점</span>
           </div>
           <div style="height: 14px; width: 1px; background: var(--va-background-border);"></div>
           <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <span style="font-size: 0.8rem; color: var(--va-text-secondary); font-weight: 600;">{{ t('dq_dashboard.max_score', '최고 점수') }}</span>
+            <span style="font-size: 0.8rem; color: var(--va-text-secondary); font-weight: 600;">{{ t('dq_dashboard.max_score') }}</span>
             <span style="font-size: 1rem; font-weight: 800; color: var(--va-success);">{{ maxTrendScore }}점</span>
           </div>
           <div style="height: 14px; width: 1px; background: var(--va-background-border);"></div>
           <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <span style="font-size: 0.8rem; color: var(--va-text-secondary); font-weight: 600;">{{ t('dq_dashboard.latest_snapshot', '최근 스캔') }}</span>
+            <span style="font-size: 0.8rem; color: var(--va-text-secondary); font-weight: 600;">{{ t('dq_dashboard.latest_snapshot') }}</span>
             <span style="font-size: 0.85rem; font-weight: 700; color: var(--va-text-primary); font-family: monospace;">
               {{ formatDateTime(recentSnapshots[0]?.recordedAt) }}
             </span>
           </div>
         </div>
+
 
         <!-- Sparkline Bars -->
         <div style="display: flex; align-items: flex-end; gap: 0.6rem; height: 130px; padding: 0.75rem 0.5rem 0.5rem 0.5rem; border-bottom: 1px solid var(--va-background-border); overflow-x: auto;">
