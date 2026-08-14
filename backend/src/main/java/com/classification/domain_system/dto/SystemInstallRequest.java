@@ -10,5 +10,6 @@ public class SystemInstallRequest {
     private String organizationName;
     private String organizationNameKo;
     private String organizationNameEn;
+    private String emailDomain;
     private String timezone;
 }

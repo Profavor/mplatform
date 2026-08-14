@@ -75,6 +75,8 @@
   "install_org_en_placeholder": "e.g. Enterprise HQ",
   "install_org_ko": "대표 마스터 조직명 (한글)",
   "install_org_ko_placeholder": "예: (주)엔터프라이즈 본사",
+  "install_org_email_domain": "조직 기본 이메일 도메인",
+  "install_org_email_domain_tip": "조직 구성원의 기본 이메일 도메인을 설정합니다. (예: company.com, 선택 사항)",
   "install_org_tip": "생성된 대표 조직에 시스템 표준 7종 역할(Role) 및 와일드카드(*) 권한이 자동 부여됩니다.",
   "install_require_org_en": "영문 조직명을 입력해주세요.",
   "install_require_org_ko": "한글 조직명을 입력해주세요.",

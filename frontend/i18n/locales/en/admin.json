@@ -75,6 +75,8 @@
   "install_org_en_placeholder": "e.g. Enterprise HQ",
   "install_org_ko": "Primary Master Organization (KO)",
   "install_org_ko_placeholder": "e.g. (주)엔터프라이즈 본사",
+  "install_org_email_domain": "Primary Email Domain",
+  "install_org_email_domain_tip": "Configure the default email domain for organization members. (e.g. company.com, optional)",
   "install_org_tip": "Standard system roles and wildcard(*) permissions will be automatically assigned to the created organization.",
   "install_require_org_en": "Please enter organization name in English.",
   "install_require_org_ko": "Please enter organization name in Korean.",

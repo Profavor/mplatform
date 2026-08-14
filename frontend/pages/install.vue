@@ -79,6 +79,20 @@
               />
             </div>
           </div>
+
+          <div class="form-group mb-4">
+            <label class="form-label">
+              <va-icon name="alternate_email" size="small" class="mr-1" />
+              {{ t('install_org_email_domain', '조직 기본 이메일 도메인') }}
+            </label>
+
+            <va-input
+              v-model="form.emailDomain"
+              :placeholder="t('placeholder_email_domain', '예: company.com')"
+              class="w-full"
+              :messages="[t('install_org_email_domain_tip', '조직 구성원의 기본 이메일 도메인을 설정합니다. (선택 사항)')]"
+            />
+          </div>
           <span class="input-tip mb-4 block">{{ t('install_org_tip') }}</span>
 
           <div class="actions">
@@ -117,7 +131,7 @@
             </label>
             <va-input
               v-model="form.adminEmail"
-              placeholder="admin@example.com"
+              :placeholder="form.emailDomain ? `${form.adminUsername || 'admin'}@${form.emailDomain.replace(/^@/, '')}` : 'admin@example.com'"
               class="w-full"
               :rules="[
                 (v) => !!v || t('install_require_email'),
@@ -220,6 +234,7 @@ const errorMessage = ref('')
 const form = ref({
   organizationNameKo: '',
   organizationNameEn: '',
+  emailDomain: '',
   adminUsername: '',
   adminEmail: '',
   adminPassword: '',
@@ -250,6 +265,7 @@ const submitInstall = async () => {
       body: {
         organizationNameKo: form.value.organizationNameKo.trim(),
         organizationNameEn: form.value.organizationNameEn.trim(),
+        emailDomain: form.value.emailDomain ? form.value.emailDomain.trim() : null,
         adminUsername: form.value.adminUsername.trim(),
         adminEmail: form.value.adminEmail.trim(),
         adminPassword: form.value.adminPassword,

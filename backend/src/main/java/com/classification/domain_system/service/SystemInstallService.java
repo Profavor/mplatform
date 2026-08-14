@@ -75,6 +75,9 @@ public class SystemInstallService {
         organization.setDescription("{\"ko\":\"최초 마스터 대표 조직\",\"en\":\"System Primary Organization\"}");
         organization.setIcon("corporate_fare");
         organization.setIsActive(true);
+        if (request.getEmailDomain() != null && !request.getEmailDomain().trim().isEmpty()) {
+            organization.setEmailDomain(request.getEmailDomain().trim().replaceAll("^@", ""));
+        }
         Organization savedOrg = organizationRepository.save(organization);
 
         // 2. Seed Default Roles for Org
@@ -87,7 +90,16 @@ public class SystemInstallService {
         String adminUsername = request.getAdminUsername().trim();
         adminUser.setUsername(adminUsername);
         adminUser.setPassword(passwordEncoder.encode(request.getAdminPassword()));
-        adminUser.setEmail(request.getAdminEmail());
+
+        String resolvedAdminEmail = request.getAdminEmail() != null ? request.getAdminEmail().trim() : "";
+        if (resolvedAdminEmail.isEmpty()) {
+            if (savedOrg.getEmailDomain() != null && !savedOrg.getEmailDomain().isEmpty()) {
+                resolvedAdminEmail = adminUsername + "@" + savedOrg.getEmailDomain();
+            } else {
+                resolvedAdminEmail = adminUsername + "@example.com";
+            }
+        }
+        adminUser.setEmail(resolvedAdminEmail);
         adminUser.setRole("ROLE_ADMIN");
         adminUser.setOrganizationId(savedOrg.getId());
         adminUser.setIsActive(true);
@@ -111,10 +123,7 @@ public class SystemInstallService {
         
         // 6. Sync Admin User to Keycloak
         try {
-            String keycloakEmail = (request.getAdminEmail() != null && !request.getAdminEmail().trim().isEmpty()) 
-                ? request.getAdminEmail().trim() 
-                : adminUsername + "@example.com";
-            keycloakAdminService.createUser(adminUsername, request.getAdminPassword(), keycloakEmail, "System Admin");
+            keycloakAdminService.createUser(adminUsername, request.getAdminPassword(), resolvedAdminEmail, "System Admin");
         } catch (Exception e) {
             log.error("Failed to sync initial admin user to Keycloak: {}", adminUsername, e);
             throw new RuntimeException("Failed to sync admin user to authentication server.", e);
