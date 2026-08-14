@@ -39,24 +39,44 @@ public class ChatMessageService {
     private final WebSocketPublisher webSocketPublisher;
     private final SseNotificationService sseNotificationService;
 
+    public String resolveUserId(String idOrUsername) {
+        if (idOrUsername == null || idOrUsername.isBlank()) return idOrUsername;
+        var userOpt = userRepository.findById(idOrUsername);
+        if (userOpt.isPresent() && userOpt.get().getId() != null) {
+            return userOpt.get().getId();
+        }
+        var userByName = userRepository.findByUsername(idOrUsername);
+        if (userByName.isPresent() && userByName.get().getId() != null) {
+            return userByName.get().getId();
+        }
+        return idOrUsername;
+    }
+
+    private boolean isUuidString(String str) {
+        if (str == null) return false;
+        return str.matches("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
+    }
+
     @Transactional
     public ChatMessageRoom createRoom(String roomName, Boolean isGroup, String creatorId, List<String> memberUserIds) {
+        String resolvedCreatorId = resolveUserId(creatorId);
         ChatMessageRoom room = new ChatMessageRoom();
         room.setName(roomName);
         room.setIsGroup(isGroup != null && isGroup);
-        room.setCreatedBy(creatorId);
+        room.setCreatedBy(resolvedCreatorId);
         room.setLastMessage("채팅방이 생성되었습니다.");
         room.setLastMessageAt(LocalDateTime.now());
         ChatMessageRoom savedRoom = roomRepository.save(room);
 
         List<String> allMembers = new ArrayList<>();
-        if (creatorId != null && !creatorId.isBlank()) {
-            allMembers.add(creatorId);
+        if (resolvedCreatorId != null && !resolvedCreatorId.isBlank()) {
+            allMembers.add(resolvedCreatorId);
         }
         if (memberUserIds != null) {
             for (String uid : memberUserIds) {
-                if (!allMembers.contains(uid)) {
-                    allMembers.add(uid);
+                String resolvedMemberId = resolveUserId(uid);
+                if (resolvedMemberId != null && !allMembers.contains(resolvedMemberId)) {
+                    allMembers.add(resolvedMemberId);
                 }
             }
         }
@@ -89,10 +109,12 @@ public class ChatMessageService {
     public List<RoomMemberDto> getRoomMembers(UUID roomId) {
         List<ChatMessageRoomMember> members = memberRepository.findByRoomId(roomId);
         List<RoomMemberDto> dtos = new ArrayList<>();
+        java.util.Set<String> seenUsernames = new java.util.HashSet<>();
+
         for (ChatMessageRoomMember m : members) {
             String uid = m.getUserId();
-            String username = uid;
-            String role = "USER";
+            String username = null;
+            String role = "ROLE_USER";
             var userOpt = userRepository.findById(uid);
             if (userOpt.isPresent()) {
                 username = userOpt.get().getUsername();
@@ -104,6 +126,20 @@ public class ChatMessageService {
                     role = userByUsername.get().getRole();
                 }
             }
+
+            if (username == null || username.isBlank()) {
+                if (isUuidString(uid)) {
+                    username = "USER-" + uid.substring(0, Math.min(uid.length(), 8));
+                } else {
+                    username = uid;
+                }
+            }
+
+            String dedupKey = username.toLowerCase();
+            if (!seenUsernames.add(dedupKey)) {
+                continue;
+            }
+
             dtos.add(new RoomMemberDto(uid, username, role, m.getJoinedAt()));
         }
         return dtos;
@@ -207,8 +243,12 @@ public class ChatMessageService {
         if (hoursToMinus > 48) hoursToMinus = 48;
         LocalDateTime joinedTime = java.time.LocalDateTime.now().minusHours(hoursToMinus);
         
-        for (String newMemberId : newMemberIds) {
-            boolean alreadyExists = currentMembers.stream().anyMatch(m -> m.getUserId().equals(newMemberId));
+        for (String rawMemberId : newMemberIds) {
+            String newMemberId = resolveUserId(rawMemberId);
+            boolean alreadyExists = currentMembers.stream().anyMatch(m -> {
+                String existingUid = m.getUserId();
+                return existingUid.equals(newMemberId) || resolveUserId(existingUid).equals(newMemberId);
+            });
             if (!alreadyExists) {
                 ChatMessageRoomMember newMember = new ChatMessageRoomMember();
                 newMember.setRoom(room);

@@ -242,5 +242,12 @@
     "delete_confirm": "'{name}' 매칭 규칙을 삭제하시겠습니까?",
     "delete_success": "매칭 규칙이 삭제되었습니다.",
     "delete_failed": "매칭 규칙 삭제에 실패했습니다."
-  }
+  },
+  "label_email": "이메일 주소",
+  "placeholder_email": "예: user{'@'}company.com",
+  "email_domain": "이메일 도메인",
+  "placeholder_email_domain": "예: company.com",
+  "org_email_domain_desc": "조직의 기본 이메일 도메인을 설정합니다. 사용자 등록 시 이메일을 비워두면 자동으로 '{username}{'@'}{domain}'으로 생성됩니다.",
+  "email_domain_auto_hint": "미입력 시 소속 조직 도메인({domain})으로 자동 생성됩니다.",
+  "email_default_fallback_hint": "미입력 시 기본 도메인({'@'}example.com)으로 자동 생성됩니다."
 }

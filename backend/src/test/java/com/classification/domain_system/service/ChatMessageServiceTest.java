@@ -93,4 +93,69 @@ class ChatMessageServiceTest {
         assertThat(deleted).isEqualTo(15);
         verify(messageRepository).deleteMessagesOlderThan(any(LocalDateTime.class));
     }
+
+    @Test
+    @DisplayName("성공 - 방 참여자 목록 조회 시 UUID와 username으로 중복 저장된 경우 사용자명을 정상 매핑하고 중복 제거하여 반환한다")
+    void getRoomMembers_DedupAndResolveUser() {
+        UUID roomId = UUID.randomUUID();
+        ChatMessageRoom room = new ChatMessageRoom();
+        room.setId(roomId);
+        room.setName("테스트방");
+
+        com.classification.domain_system.entity.User superAdmin = new com.classification.domain_system.entity.User();
+        superAdmin.setId("user-uuid-1234");
+        superAdmin.setUsername("superadmin");
+        superAdmin.setRole("ROLE_ADMIN");
+
+        // 동일 사용자가 Keycloak UUID("user-uuid-1234")와 로컬 username("superadmin")으로 2개 저장된 상태 시뮬레이션
+        ChatMessageRoomMember m1 = new ChatMessageRoomMember();
+        m1.setRoom(room);
+        m1.setUserId("user-uuid-1234");
+        m1.setJoinedAt(LocalDateTime.now().minusHours(1));
+
+        ChatMessageRoomMember m2 = new ChatMessageRoomMember();
+        m2.setRoom(room);
+        m2.setUserId("superadmin");
+        m2.setJoinedAt(LocalDateTime.now());
+
+        given(memberRepository.findByRoomId(roomId)).willReturn(List.of(m1, m2));
+        given(userRepository.findById("user-uuid-1234")).willReturn(Optional.of(superAdmin));
+        given(userRepository.findById("superadmin")).willReturn(Optional.empty());
+        given(userRepository.findByUsername("superadmin")).willReturn(Optional.of(superAdmin));
+
+        List<ChatMessageService.RoomMemberDto> members = chatMessageService.getRoomMembers(roomId);
+
+        assertThat(members).hasSize(1);
+        assertThat(members.get(0).getUsername()).isEqualTo("superadmin");
+        assertThat(members.get(0).getRole()).isEqualTo("ROLE_ADMIN");
+    }
+
+    @Test
+    @DisplayName("성공 - 방 생성 시 생성자 및 멤버 목록의 ID/Username이 DB 사용자로 정규화되고 중복이 방지된다")
+    void createRoom_ResolveUser() {
+        String creatorUsername = "superadmin";
+        List<String> rawMembers = List.of("superadmin", "user-uuid-1234");
+
+        com.classification.domain_system.entity.User superAdmin = new com.classification.domain_system.entity.User();
+        superAdmin.setId("user-uuid-1234");
+        superAdmin.setUsername("superadmin");
+        superAdmin.setRole("ROLE_ADMIN");
+
+        given(userRepository.findById("superadmin")).willReturn(Optional.empty());
+        given(userRepository.findByUsername("superadmin")).willReturn(Optional.of(superAdmin));
+        given(userRepository.findById("user-uuid-1234")).willReturn(Optional.of(superAdmin));
+
+        given(roomRepository.save(any(ChatMessageRoom.class))).willAnswer(inv -> {
+            ChatMessageRoom r = inv.getArgument(0);
+            r.setId(UUID.randomUUID());
+            return r;
+        });
+
+        ChatMessageRoom room = chatMessageService.createRoom("신규방", true, creatorUsername, rawMembers);
+
+        assertThat(room).isNotNull();
+        assertThat(room.getCreatedBy()).isEqualTo("user-uuid-1234");
+        // superadmin이 creator이자 멤버 2개로 들어왔지만 단 1개의 member로만 저장되어야 함
+        verify(memberRepository, org.mockito.Mockito.times(1)).save(any(ChatMessageRoomMember.class));
+    }
 }

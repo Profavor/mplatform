@@ -41,11 +41,15 @@ export const useAuthUser = defineStore('authUser', () => {
         if (data.timezone) {
           timezoneCookie.value = data.timezone
         }
+        const userCookie = useCookie('user_data', { maxAge: 1800, path: '/' })
+        userCookie.value = JSON.stringify(data)
       }
       return currentUserState.value
     } catch (e) {
       console.error('Failed to fetch current user (/api/auth/me):', e)
       currentUserState.value = null
+      const userCookie = useCookie('user_data', { path: '/' })
+      userCookie.value = null
       return null
     } finally {
       isLoadingUser.value = false
@@ -54,8 +58,14 @@ export const useAuthUser = defineStore('authUser', () => {
 
   const setCurrentUser = (user: AuthUser | null) => {
     currentUserState.value = user
-    if (user?.timezone) {
-      timezoneCookie.value = user.timezone
+    const userCookie = useCookie('user_data', { maxAge: 1800, path: '/' })
+    if (user) {
+      if (user.timezone) {
+        timezoneCookie.value = user.timezone
+      }
+      userCookie.value = JSON.stringify(user)
+    } else {
+      userCookie.value = null
     }
   }
 

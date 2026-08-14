@@ -95,4 +95,32 @@ class JwtFilterTest {
         assertEquals("user1", SecurityContextHolder.getContext().getAuthentication().getName());
         verify(filterChain, times(1)).doFilter(request, response);
     }
+
+    @Test
+    @DisplayName("Keycloak JWT 인증 시 로컬 DB의 User와 매핑되어 DB 사용자 ID가 AuthContext에 설정된다")
+    void tryKeycloakAuth_MapsDbUserId() throws Exception {
+        org.springframework.security.oauth2.jwt.JwtDecoder jwtDecoder = mock(org.springframework.security.oauth2.jwt.JwtDecoder.class);
+        jwtFilter = JwtFilter.createForTest(jwtUtil, permissionService, authContext, userRepository, jwtDecoder);
+
+        org.springframework.security.oauth2.jwt.Jwt mockJwt = mock(org.springframework.security.oauth2.jwt.Jwt.class);
+        when(mockJwt.getClaimAsString("preferred_username")).thenReturn("superadmin");
+        when(mockJwt.getSubject()).thenReturn("keycloak-sub-uuid-1234");
+        when(mockJwt.getClaimAsMap("realm_access")).thenReturn(java.util.Map.of("roles", List.of("admin")));
+        when(jwtDecoder.decode("mock-keycloak-token")).thenReturn(mockJwt);
+
+        com.classification.domain_system.entity.User superAdmin = new com.classification.domain_system.entity.User();
+        superAdmin.setId("local-db-user-id-9999");
+        superAdmin.setUsername("superadmin");
+        superAdmin.setRole("ROLE_ADMIN");
+
+        when(userRepository.findByUsername("superadmin")).thenReturn(java.util.Optional.of(superAdmin));
+        when(request.getHeader("Authorization")).thenReturn("Bearer mock-keycloak-token");
+
+        jwtFilter.doFilterInternal(request, response, filterChain);
+
+        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+        assertEquals("superadmin", SecurityContextHolder.getContext().getAuthentication().getName());
+        assertEquals("local-db-user-id-9999", authContext.getUserId());
+        verify(filterChain, times(1)).doFilter(request, response);
+    }
 }

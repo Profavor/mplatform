@@ -242,5 +242,12 @@
     "delete_confirm": "Are you sure you want to delete matching rule '{name}'?",
     "delete_success": "Matching rule deleted.",
     "delete_failed": "Failed to delete matching rule."
-  }
+  },
+  "label_email": "Email Address",
+  "placeholder_email": "e.g., user{'@'}company.com",
+  "email_domain": "Email Domain",
+  "placeholder_email_domain": "e.g., company.com",
+  "org_email_domain_desc": "Set the default email domain for the organization. If email is left blank when creating a user, '{username}{'@'}{domain}' will be generated automatically.",
+  "email_domain_auto_hint": "If left blank, it will be automatically generated with the organization domain ({domain}).",
+  "email_default_fallback_hint": "If left blank, it will be automatically generated with default domain ({'@'}example.com)."
 }

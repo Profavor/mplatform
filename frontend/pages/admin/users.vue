@@ -724,7 +724,7 @@ const showCreateUserModal = ref(false)
 const showTempPasswordModal = ref(false)
 const isCreatingUser = ref(false)
 const createdTempPassword = ref('')
-const newUser = ref({ username: '', role: '', organizationId: null, departmentId: null })
+const newUser = ref({ username: '', email: '', role: '', organizationId: null, departmentId: null })
 const isUsernameChecked = ref(false)
 const isCheckingUsername = ref(false)
 const checkedUsername = ref('')
@@ -819,6 +819,7 @@ const createUser = async () => {
       headers: { Authorization: `Bearer ${token.value}` },
       body: {
         username: newUser.value.username,
+        email: newUser.value.email ? newUser.value.email.trim() : null,
         role: roleStr,
         organizationId: newUser.value.organizationId,
         departmentId: newUser.value.departmentId
@@ -827,7 +828,7 @@ const createUser = async () => {
     createdTempPassword.value = res.tempPassword
     showCreateUserModal.value = false
     showTempPasswordModal.value = true
-    newUser.value = { username: '', role: '', organizationId: null, departmentId: null }
+    newUser.value = { username: '', email: '', role: '', organizationId: null, departmentId: null }
     isUsernameChecked.value = false
     checkedUsername.value = ''
     await fetchUsers()

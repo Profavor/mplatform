@@ -165,12 +165,30 @@ public class UserService {
             throw new IllegalArgumentException("Username already exists");
         }
         
+        // Resolve email fallback with Organization email domain
+        String resolvedEmail = email != null ? email.trim() : "";
+        if (resolvedEmail.isEmpty()) {
+            String orgDomain = null;
+            if (organizationId != null) {
+                orgDomain = organizationRepository.findById(organizationId)
+                        .map(com.classification.domain_system.entity.Organization::getEmailDomain)
+                        .filter(d -> d != null && !d.trim().isEmpty())
+                        .map(d -> d.trim().replaceAll("^@", ""))
+                        .orElse(null);
+            }
+            if (orgDomain != null && !orgDomain.isEmpty()) {
+                resolvedEmail = username + "@" + orgDomain;
+            } else {
+                resolvedEmail = username + "@example.com";
+            }
+        }
+
         // Generate temporary password
         String tempPassword = java.util.UUID.randomUUID().toString().substring(0, 8);
         
         com.classification.domain_system.entity.User user = new com.classification.domain_system.entity.User();
         user.setUsername(username);
-        user.setEmail(email);
+        user.setEmail(resolvedEmail);
         user.setPassword(passwordEncoder.encode(tempPassword));
         user.setEncryptedTempPassword(fieldEncryptionService.encrypt(tempPassword));
         user.setRole(role != null && !role.trim().isEmpty() ? role : "ROLE_USER");
@@ -183,7 +201,7 @@ public class UserService {
         
         // Sync to Keycloak
         try {
-            keycloakAdminService.createUser(username, tempPassword, email != null && !email.trim().isEmpty() ? email : username + "@example.com", username);
+            keycloakAdminService.createUser(username, tempPassword, resolvedEmail, username);
         } catch (Exception e) {
             org.slf4j.LoggerFactory.getLogger(UserService.class).error("Failed to sync user creation to Keycloak: {}", username, e);
         }

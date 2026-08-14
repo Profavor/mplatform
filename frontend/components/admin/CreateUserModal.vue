@@ -28,6 +28,14 @@
         </template>
       </va-input>
 
+      <va-input
+        v-model="newUser.email"
+        :label="t('label_email', '이메일 주소')"
+        :placeholder="selectedOrgEmailDomain ? `${newUser.username || 'user'}@${selectedOrgEmailDomain}` : t('placeholder_email', '예: user@company.com')"
+        outline
+        :messages="[emailHintMessage]"
+      />
+
       <UserRoleSelect v-model="newUser.role" :label="t('user_role', '사용자 역할')" />
 
       <va-select
@@ -64,6 +72,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import UserRoleSelect from '~/components/UserRoleSelect.vue'
 
@@ -86,6 +95,26 @@ const emit = defineEmits<{
   (e: 'check-username'): void
   (e: 'create'): void
 }>()
+
+const selectedOrg = computed(() => {
+  if (!props.newUser?.organizationId || !props.organizations) return null
+  return props.organizations.find((o: any) => o.id === props.newUser.organizationId)
+})
+
+const selectedOrgEmailDomain = computed(() => {
+  const domain = selectedOrg.value?.emailDomain
+  if (domain && typeof domain === 'string' && domain.trim()) {
+    return domain.trim().replace(/^@/, '')
+  }
+  return ''
+})
+
+const emailHintMessage = computed(() => {
+  if (selectedOrgEmailDomain.value) {
+    return t('email_domain_auto_hint', { domain: '@' + selectedOrgEmailDomain.value })
+  }
+  return t('email_default_fallback_hint')
+})
 
 const getI18nText = (nameObj: any) => {
   if (!nameObj) return ''

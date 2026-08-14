@@ -32,6 +32,9 @@ public class Organization {
     @Column(length = 100)
     private String icon;
 
+    @Column(name = "email_domain", length = 255)
+    private String emailDomain;
+
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
