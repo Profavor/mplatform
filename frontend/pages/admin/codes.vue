@@ -165,8 +165,9 @@ const { t } = useI18n()
 usePageTitle('code_management.title')
 
 const { init } = useToast()
-const { currentPresetName } = useColors()
-const isDark = computed(() => currentPresetName.value === 'dark')
+const colors = useColors()
+const currentPresetName = colors?.currentPresetName
+const isDark = computed(() => currentPresetName?.value === 'dark')
 const token = useCookie('auth_token')
 const locale = useCookie('locale', { default: () => 'ko' })
 const codeStore = useCodeStore()

@@ -19,7 +19,28 @@ spec:
             name: frontend
             port:
               number: 3000
-      - path: /auth
+      - path: /auth/realms
+        pathType: Prefix
+        backend:
+          service:
+            name: keycloak
+            port:
+              number: 8080
+      - path: /auth/admin
+        pathType: Prefix
+        backend:
+          service:
+            name: keycloak
+            port:
+              number: 8080
+      - path: /auth/resources
+        pathType: Prefix
+        backend:
+          service:
+            name: keycloak
+            port:
+              number: 8080
+      - path: /auth/js
         pathType: Prefix
         backend:
           service:
@@ -31,13 +52,6 @@ spec:
         backend:
           service:
             name: grafana
-            port:
-              number: 3000
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: frontend
             port:
               number: 3000
       - path: /api/_auth
@@ -61,3 +75,10 @@ spec:
             name: backend
             port:
               number: 8080
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 3000

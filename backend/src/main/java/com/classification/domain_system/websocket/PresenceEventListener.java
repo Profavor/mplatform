@@ -9,8 +9,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionConnectedEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @RequiredArgsConstructor
@@ -19,10 +22,11 @@ public class PresenceEventListener {
 
     private final SimpMessagingTemplate messagingTemplate;
     
-    private final java.util.Set<String> onlineUsers = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    // username -> Set<sessionId>
+    private final Map<String, Set<String>> userSessions = new ConcurrentHashMap<>();
 
-    public java.util.Set<String> getOnlineUsers() {
-        return onlineUsers;
+    public Set<String> getOnlineUsers() {
+        return Collections.unmodifiableSet(userSessions.keySet());
     }
 
     @EventListener
@@ -35,9 +39,19 @@ public class PresenceEventListener {
                 String userId = details.get("userId");
                 
                 if (username != null) {
-                    onlineUsers.add(username);
-                    log.info("[STOMP] User Connected: {}", username);
-                    broadcastPresence(userId, username, "ONLINE");
+                    String sessionId = extractSessionId(event);
+                    Set<String> sessions = userSessions.computeIfAbsent(username, k -> ConcurrentHashMap.newKeySet());
+                    boolean wasEmpty = sessions.isEmpty();
+                    if (sessionId != null) {
+                        sessions.add(sessionId);
+                    } else {
+                        sessions.add("default");
+                    }
+                    
+                    if (wasEmpty) {
+                        log.info("[STOMP] User Connected: {}", username);
+                        broadcastPresence(userId, username, "ONLINE");
+                    }
                 }
             }
         }
@@ -53,12 +67,32 @@ public class PresenceEventListener {
                 String userId = details.get("userId");
                 
                 if (username != null) {
-                    onlineUsers.remove(username);
-                    log.info("[STOMP] User Disconnected: {}", username);
-                    broadcastPresence(userId, username, "OFFLINE");
+                    String sessionId = event.getSessionId();
+                    if (sessionId == null) {
+                        sessionId = extractSessionId(event);
+                    }
+                    
+                    Set<String> sessions = userSessions.get(username);
+                    if (sessions != null) {
+                        if (sessionId != null) {
+                            sessions.remove(sessionId);
+                        }
+                        if (sessions.isEmpty() || sessionId == null) {
+                            userSessions.remove(username);
+                            log.info("[STOMP] User Disconnected: {}", username);
+                            broadcastPresence(userId, username, "OFFLINE");
+                        }
+                    }
                 }
             }
         }
+    }
+
+    private String extractSessionId(org.springframework.web.socket.messaging.AbstractSubProtocolEvent event) {
+        if (event.getMessage() != null && event.getMessage().getHeaders() != null) {
+            return SimpMessageHeaderAccessor.getSessionId(event.getMessage().getHeaders());
+        }
+        return null;
     }
 
     private void broadcastPresence(String userId, String username, String status) {

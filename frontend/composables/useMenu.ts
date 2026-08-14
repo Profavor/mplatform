@@ -1,9 +1,10 @@
+import { storeToRefs } from 'pinia'
 import { useMenuStore } from '~/stores/useMenuStore'
-import { useCookie } from '#app'
 
 export const useMenu = () => {
   const store = useMenuStore()
-  const { customFetch } = useCustomFetch()
+  const { menuTree, flatMenuList, isInitialized, isLoading } = storeToRefs(store)
+  const { customFetch, getAuthToken } = useCustomFetch()
 
   const fetchMenus = async (forceRefresh: boolean = false, includeInactive: boolean = false) => {
     return await store.fetchMenuTree(forceRefresh)
@@ -15,8 +16,8 @@ export const useMenu = () => {
     try {
       if (!menuPath || menuPath === '/install' || menuPath === '/login') return
 
-      const token = useCookie('auth_token')
-      if (!token.value) return
+      const token = getAuthToken()
+      if (!token) return
 
       const menuInfo = store.getMenuByPath(menuPath)
       const menuId = menuInfo?.raw?.id || null
@@ -31,7 +32,10 @@ export const useMenu = () => {
   }
 
   return {
-    menus: store.menuTree,
+    menus: menuTree,
+    flatMenuList,
+    isInitialized,
+    isLoading,
     fetchMenus,
     fetchMenuTree,
     refreshMenus: store.refreshMenus,

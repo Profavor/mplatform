@@ -78,8 +78,8 @@ export const useMenuStore = defineStore('menu', () => {
     isLoading.value = true
     fetchPromise = (async () => {
       try {
-        const headers = token.value ? { Authorization: `Bearer ${token.value}` } : {}
-        const res = await $fetch<MenuItem[]>('/api/menus/tree', { headers })
+        const { customFetch } = useCustomFetch()
+        const res = await customFetch<MenuItem[]>('/api/menus/tree')
         menuTree.value = res || []
         flatMenuList.value = flattenTree(menuTree.value)
         isInitialized.value = true

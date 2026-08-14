@@ -325,8 +325,9 @@ const { gridTheme, autoSizeStrategy } = useAgGridTheme()
 const { hasPermission } = usePermission()
 const { downloadFileWithAuth } = useFileDownloader()
 
-const { currentPresetName } = useColors()
-const isDark = computed(() => currentPresetName.value === 'dark')
+const colors = useColors()
+const currentPresetName = colors?.currentPresetName
+const isDark = computed(() => currentPresetName?.value === 'dark')
 
 const currentLocale = useCookie('locale', { default: () => 'ko' })
 const token = useCookie('auth_token', { default: () => '' })

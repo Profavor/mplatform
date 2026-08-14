@@ -29,6 +29,12 @@ public class AuthController {
             return ResponseEntity.status(401).body("Unauthenticated");
         }
         User user = authService.findByUsername(authentication.getName());
+        if (user == null) {
+            user = authService.autoProvisionUser(authentication);
+        }
+        if (user == null) {
+            return ResponseEntity.status(401).body("User not found");
+        }
         var perms = permissionService.getAuthoritiesForUser(user.getUsername(), user.getRole()).stream()
             .map(a -> a.getAuthority())
             .filter(auth -> !auth.startsWith("ROLE_"))

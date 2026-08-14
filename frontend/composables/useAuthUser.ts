@@ -18,12 +18,13 @@ export const useAuthUser = defineStore('authUser', () => {
   const currentUserState = ref<AuthUser | null>(null)
   const isLoadingUser = ref(false)
   
-  const { customFetch } = useCustomFetch()
+  const { customFetch, getAuthToken } = useCustomFetch()
   const tokenCookie = useCookie('auth_token')
   const timezoneCookie = useCookie('timezone', { default: () => 'Asia/Seoul' })
 
   const fetchCurrentUser = async (force = false) => {
-    if (!tokenCookie.value) {
+    const token = getAuthToken()
+    if (!token) {
       currentUserState.value = null
       return null
     }

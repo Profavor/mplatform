@@ -16,9 +16,10 @@ import { useCookie } from '#app'
  *   <ag-grid-vue :theme="gridTheme" :autoSizeStrategy="autoSizeStrategy" ... />
  */
 export function useAgGridTheme() {
-  const { currentPresetName } = useColors()
+  const colors = useColors()
+  const currentPresetName = colors?.currentPresetName
 
-  const isDark = computed(() => currentPresetName.value === 'dark')
+  const isDark = computed(() => currentPresetName?.value === 'dark')
   const savedFontSize = useCookie('fontSize', { default: () => '14px' })
 
   const gridTheme = computed(() => {

@@ -252,7 +252,9 @@ import ChangePasswordForm from '~/components/auth/ChangePasswordForm.vue'
 import { useRoles } from '~/composables/useRoles'
 
 const { t, locale, setLocale } = useI18n()
-const { applyPreset, currentPresetName } = useColors()
+const colors = useColors()
+const applyPreset = colors?.applyPreset || (() => {})
+const currentPresetName = colors?.currentPresetName
 const { getRoleBadgeStyle: getStoreRoleBadgeStyle, formatRoleText, initGlobalRoles } = useRoles()
 
 const router = useRouter()
@@ -260,6 +262,22 @@ const tokenCookie = useCookie('auth_token')
 const userCookie = useCookie('user_data')
 const currentLocale = useCookie('locale', { default: () => 'ko' })
 const savedTheme = useCookie('theme', { default: () => 'light' })
+const userPermissionsCookie = useCookie('user_permissions')
+const authUserStore = useAuthUser()
+
+const currentUser = computed(() => {
+  if (authUserStore?.currentUser) {
+    return authUserStore.currentUser
+  }
+  if (userCookie.value) {
+    try {
+      return typeof userCookie.value === 'string' ? JSON.parse(userCookie.value) : userCookie.value
+    } catch (e) {
+      return null
+    }
+  }
+  return null
+})
 
 const showSettingsModal = ref(false)
 const showRadioDjModal = ref(false)
@@ -306,11 +324,10 @@ const deptNameMap = ref({})
 const deptIconMap = ref({})
 
 const fetchDepartmentRoles = async () => {
-  if (!tokenCookie.value || !currentUser.value?.organizationId) return
+  if (!currentUser.value?.organizationId) return
   try {
-    const depts = await $fetch(`/api/organizations/${currentUser.value.organizationId}/departments`, {
-      headers: { Authorization: `Bearer ${tokenCookie.value}` }
-    })
+    const { customFetch } = useCustomFetch()
+    const depts = await customFetch(`/api/organizations/${currentUser.value.organizationId}/departments`)
     if (depts && Array.isArray(depts)) {
       const map = {}
       const nameMap = {}
@@ -468,7 +485,7 @@ const handleSaveTimezone = async () => {
   }
 }
 
-const isDark = computed(() => currentPresetName.value === 'dark')
+const isDark = computed(() => currentPresetName?.value === 'dark')
 
 if (setLocale) setLocale(currentLocale.value || 'ko')
 else locale.value = currentLocale.value || 'ko'
@@ -505,12 +522,9 @@ const isMobile = ref(false)
 const route = useRoute()
 
 const isMounted = ref(false)
-const userPermissionsCookie = useCookie('user_permissions')
-const { currentUser, fetchCurrentUser } = useAuthUser()
 
 const syncCurrentUserInfo = async () => {
-  if (!tokenCookie.value) return
-  const me = await fetchCurrentUser(true)
+  const me = await authUserStore?.fetchCurrentUser?.(true)
   if (me && Array.isArray(me.permissions)) {
     userPermissionsCookie.value = me.permissions
   }
@@ -558,11 +572,9 @@ watch(route, () => {
 const userOrgNameMap = ref({})
 
 const fetchUserOrganizationName = async () => {
-  if (!tokenCookie.value) return
   try {
-    const orgs = await $fetch('/api/organizations', {
-      headers: { Authorization: `Bearer ${tokenCookie.value}` }
-    })
+    const { customFetch } = useCustomFetch()
+    const orgs = await customFetch('/api/organizations')
     if (orgs && Array.isArray(orgs)) {
       const map = {}
       orgs.forEach(o => {
