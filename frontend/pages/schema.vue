@@ -286,6 +286,7 @@ const isDark = computed(() => currentPresetName?.value === 'dark')
 import { usePermission } from '~/composables/usePermission'
 
 const { t, locale } = useI18n()
+const currentLocale = useCookie('locale', { default: () => 'ko' })
 const { hasPermission } = usePermission()
 import { ref, computed, onMounted, watch } from 'vue'
 import { useCookie, useState } from '#app'
