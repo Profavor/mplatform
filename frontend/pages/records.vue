@@ -2258,8 +2258,10 @@ const promptDraftComment = async (action, eventPayload) => {
 
   const formattedData = formatDataForSave(targetData)
 
+  dqValidationResult.value = null
   dqValidating.value = true
   showDqValidationModal.value = true
+
   try {
     const recIdQuery = action === 'UPDATE' && selectedRecordId.value ? `&recordId=${selectedRecordId.value}` : ''
     const res = await customFetch(`/api/dq-rules/validate?nodeId=${selectedNode.value.id}${recIdQuery}`, {

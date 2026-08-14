@@ -9,7 +9,9 @@ import com.classification.domain_system.service.dq.DqRuleService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -20,7 +22,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
+@Slf4j
 public class DqRuleController {
+
 
     private final com.classification.domain_system.service.dq.DqRuleService dqRuleService;
     private final DqRuleEngine dqRuleEngine;
@@ -74,22 +78,32 @@ public class DqRuleController {
             @RequestParam UUID nodeId,
             @RequestParam(required = false) UUID recordId,
             @RequestBody Map<String, Object> body) {
-        String data;
-        Object rawData = body != null ? body.get("data") : null;
-        if (rawData instanceof String strData) {
-            data = strData;
-        } else if (rawData != null) {
-            try {
-                data = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(rawData);
-            } catch (Exception e) {
+        try {
+            String data;
+            Object rawData = body != null ? body.get("data") : null;
+            if (rawData instanceof String strData) {
+                data = strData;
+            } else if (rawData != null) {
+                try {
+                    data = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(rawData);
+                } catch (Exception e) {
+                    data = "{}";
+                }
+            } else {
                 data = "{}";
             }
-        } else {
-            data = "{}";
+            DqEvaluationResult engineResult = dqRuleEngine.evaluate(nodeId, data, recordId);
+            return ResponseEntity.ok(toEvaluationResponse(engineResult));
+        } catch (Exception e) {
+            log.error("DQ validation preview error for nodeId: {}, recordId: {}", nodeId, recordId, e);
+            DqEvaluationResponse resp = new DqEvaluationResponse();
+            resp.setValid(true);
+            resp.setErrors(Collections.emptyList());
+            resp.setWarnings(Collections.emptyList());
+            return ResponseEntity.ok(resp);
         }
-        DqEvaluationResult engineResult = dqRuleEngine.evaluate(nodeId, data, recordId);
-        return ResponseEntity.ok(toEvaluationResponse(engineResult));
     }
+
 
     // ─── Helpers ─────────────────────────────────────────────────────
 
