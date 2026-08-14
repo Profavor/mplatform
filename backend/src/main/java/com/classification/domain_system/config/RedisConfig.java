@@ -18,6 +18,15 @@ import org.springframework.context.annotation.Profile;
 @Profile("!test")
 public class RedisConfig {
 
+    private com.fasterxml.jackson.databind.ObjectMapper createRedisObjectMapper() {
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        mapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+        mapper.disable(com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS);
+        mapper.disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        mapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        return mapper;
+    }
+
     @Bean
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
@@ -25,8 +34,7 @@ public class RedisConfig {
         
         template.setKeySerializer(new org.springframework.data.redis.serializer.StringRedisSerializer());
         
-        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-        mapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+        com.fasterxml.jackson.databind.ObjectMapper mapper = createRedisObjectMapper();
         template.setValueSerializer(new GenericJackson2JsonRedisSerializer(mapper));
         
         template.setHashKeySerializer(new org.springframework.data.redis.serializer.StringRedisSerializer());
@@ -38,8 +46,7 @@ public class RedisConfig {
 
     @Bean
     public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory) {
-        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-        mapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+        com.fasterxml.jackson.databind.ObjectMapper mapper = createRedisObjectMapper();
         
         RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofMinutes(60)) // Default TTL 60 minutes
