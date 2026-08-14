@@ -324,11 +324,10 @@ const deptNameMap = ref({})
 const deptIconMap = ref({})
 
 const fetchDepartmentRoles = async () => {
-  if (!tokenCookie.value || !currentUser.value?.organizationId) return
+  if (!currentUser.value?.organizationId) return
   try {
-    const depts = await $fetch(`/api/organizations/${currentUser.value.organizationId}/departments`, {
-      headers: { Authorization: `Bearer ${tokenCookie.value}` }
-    })
+    const { customFetch } = useCustomFetch()
+    const depts = await customFetch(`/api/organizations/${currentUser.value.organizationId}/departments`)
     if (depts && Array.isArray(depts)) {
       const map = {}
       const nameMap = {}
@@ -525,7 +524,6 @@ const route = useRoute()
 const isMounted = ref(false)
 
 const syncCurrentUserInfo = async () => {
-  if (!tokenCookie.value) return
   const me = await authUserStore?.fetchCurrentUser?.(true)
   if (me && Array.isArray(me.permissions)) {
     userPermissionsCookie.value = me.permissions
@@ -574,11 +572,9 @@ watch(route, () => {
 const userOrgNameMap = ref({})
 
 const fetchUserOrganizationName = async () => {
-  if (!tokenCookie.value) return
   try {
-    const orgs = await $fetch('/api/organizations', {
-      headers: { Authorization: `Bearer ${tokenCookie.value}` }
-    })
+    const { customFetch } = useCustomFetch()
+    const orgs = await customFetch('/api/organizations')
     if (orgs && Array.isArray(orgs)) {
       const map = {}
       orgs.forEach(o => {
