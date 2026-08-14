@@ -1,67 +1,139 @@
 package com.classification.domain_system.controller;
 
+import com.classification.domain_system.dto.PageResponse;
 import com.classification.domain_system.entity.MatchCandidate;
-import com.classification.domain_system.security.JwtUtil;
+import com.classification.domain_system.entity.Record;
 import com.classification.domain_system.service.MatchCandidateService;
-import com.classification.domain_system.service.PermissionService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
+import java.util.List;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.Mockito.*;
 
-@WebMvcTest(controllers = MatchCandidateController.class)
-@org.springframework.context.annotation.Import({com.classification.domain_system.config.SecurityConfig.class, com.classification.domain_system.config.TestSecurityConfig.class})
-@AutoConfigureMockMvc(addFilters = false)
+@ExtendWith(MockitoExtension.class)
 class MatchCandidateControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Mock
+    private MatchCandidateService candidateService;
 
-    @MockitoBean
-    private MatchCandidateService matchCandidateService;
+    @InjectMocks
+    private MatchCandidateController matchCandidateController;
 
-    @MockitoBean
-    private JwtUtil jwtUtil;
-
-    @MockitoBean
-    private PermissionService permissionService;
-
-    @MockitoBean
-    private com.classification.domain_system.context.AuthContext authContext;
-
-    @Test
-    @DisplayName("P0-1: POST /api/match-candidates/{id}/ignore 엔드포인트가 200 OK 및 candidateService.ignoreCandidate 호출 결과를 반환한다")
-    void ignoreCandidate_Success() throws Exception {
-        UUID candidateId = UUID.randomUUID();
+    private MatchCandidate createMockCandidate() {
         MatchCandidate candidate = new MatchCandidate();
-        candidate.setId(candidateId);
-        candidate.setStatus("IGNORED");
-
-        when(matchCandidateService.ignoreCandidate(eq(candidateId), any())).thenReturn(candidate);
-
-        mockMvc.perform(post("/api/match-candidates/" + candidateId + "/ignore"))
-                .andExpect(status().isOk());
+        candidate.setId(UUID.randomUUID());
+        candidate.setDomainId(UUID.randomUUID());
+        candidate.setStatus("PENDING");
+        return candidate;
     }
 
     @Test
-    @DisplayName("GET /api/match-candidates 엔드포인트가 200 OK를 반환한다")
-    void getAllCandidates_Success() throws Exception {
-        when(matchCandidateService.getAllCandidates(any(), any(Integer.class), any(Integer.class)))
-                .thenReturn(com.classification.domain_system.dto.PageResponse.of(org.springframework.data.domain.Page.empty()));
+    @DisplayName("도메인별 매칭 후보 페이징 조회 성공")
+    void testGetCandidates_Success() {
+        UUID domainId = UUID.randomUUID();
+        MatchCandidate candidate = createMockCandidate();
+        Page<MatchCandidate> page = new PageImpl<>(List.of(candidate));
+        PageResponse<MatchCandidate> pageResponse = PageResponse.of(page);
 
-        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/match-candidates")
-                .param("status", "PENDING"))
-                .andExpect(status().isOk());
+        when(candidateService.getCandidatesByDomain(domainId, "PENDING", 0, 10))
+                .thenReturn(pageResponse);
+
+        ResponseEntity<PageResponse<MatchCandidate>> response = matchCandidateController.getCandidates(domainId, "PENDING", 0, 10);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().totalElements());
+    }
+
+    @Test
+    @DisplayName("전체 매칭 후보 페이징 조회 성공")
+    void testGetAllCandidates_Success() {
+        MatchCandidate candidate = createMockCandidate();
+        Page<MatchCandidate> page = new PageImpl<>(List.of(candidate));
+        PageResponse<MatchCandidate> pageResponse = PageResponse.of(page);
+
+        when(candidateService.getAllCandidates("PENDING", 0, 10)).thenReturn(pageResponse);
+
+        ResponseEntity<PageResponse<MatchCandidate>> response = matchCandidateController.getAllCandidates("PENDING", 0, 10);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().totalElements());
+    }
+
+    @Test
+    @DisplayName("매칭 후보 승인(확정) 성공")
+    void testConfirmCandidate_Success() {
+        UUID id = UUID.randomUUID();
+        MatchCandidate candidate = createMockCandidate();
+        candidate.setStatus("CONFIRMED_MERGE");
+
+        when(candidateService.confirmCandidate(eq(id), any(), eq("admin"))).thenReturn(candidate);
+
+        ResponseEntity<MatchCandidate> response = matchCandidateController.confirm(id, null, "admin");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("CONFIRMED_MERGE", response.getBody().getStatus());
+    }
+
+    @Test
+    @DisplayName("매칭 후보 거절 성공")
+    void testRejectCandidate_Success() {
+        UUID id = UUID.randomUUID();
+        Record record = new Record();
+        record.setId(UUID.randomUUID());
+
+        when(candidateService.rejectCandidate(eq(id), eq("admin"))).thenReturn(record);
+
+        ResponseEntity<Record> response = matchCandidateController.reject(id, "admin");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+    }
+
+    @Test
+    @DisplayName("매칭 후보 무시 성공")
+    void testIgnoreCandidate_Success() {
+        UUID id = UUID.randomUUID();
+        MatchCandidate candidate = createMockCandidate();
+        candidate.setStatus("IGNORED");
+
+        when(candidateService.ignoreCandidate(eq(id), eq("admin"))).thenReturn(candidate);
+
+        ResponseEntity<MatchCandidate> response = matchCandidateController.ignore(id, "admin");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("IGNORED", response.getBody().getStatus());
+    }
+
+    @Test
+    @DisplayName("매칭 후보 일괄 승인 및 일괄 거절 성공")
+    void testBatchOperations_Success() {
+        UUID domainId = UUID.randomUUID();
+        List<UUID> ids = List.of(UUID.randomUUID(), UUID.randomUUID());
+        MatchCandidateController.BatchRequest batchRequest = new MatchCandidateController.BatchRequest(ids, domainId);
+
+        ResponseEntity<Void> confirmResponse = matchCandidateController.batchConfirm(batchRequest, "admin");
+        assertEquals(HttpStatus.OK, confirmResponse.getStatusCode());
+        verify(candidateService).batchConfirmCandidates(ids, domainId, "admin");
+
+        ResponseEntity<Void> rejectResponse = matchCandidateController.batchReject(batchRequest, "admin");
+        assertEquals(HttpStatus.OK, rejectResponse.getStatusCode());
+        verify(candidateService).batchRejectCandidates(ids, "admin");
     }
 }

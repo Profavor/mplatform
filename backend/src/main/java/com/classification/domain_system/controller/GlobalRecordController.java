@@ -1,7 +1,6 @@
 package com.classification.domain_system.controller;
 
 import com.classification.domain_system.entity.Record;
-import com.classification.domain_system.repository.RecordRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +18,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 @RequestMapping("/api/records")
 @RequiredArgsConstructor
 public class GlobalRecordController {
-    private final RecordRepository recordRepository;
     private final com.classification.domain_system.service.ApprovalService approvalService;
     private final com.classification.domain_system.service.RecordService recordService;
     private final com.classification.domain_system.service.MultiAxisRecordService multiAxisRecordService;
@@ -27,8 +25,7 @@ public class GlobalRecordController {
     @GetMapping("/{id}")
     @PreAuthorize("hasPermission(null, 'record:read')")
     public ResponseEntity<Record> getRecord(@PathVariable UUID id) {
-        return recordRepository.findById(id)
-                .map(recordService::prepareRecordForRead)
+        return recordService.getRecordById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -39,7 +36,7 @@ public class GlobalRecordController {
             @PathVariable UUID id, 
             @RequestBody com.classification.domain_system.dto.RecordRequest request) {
         if (request != null && request.getData() != null) {
-            Record record = recordRepository.findById(id).orElse(null);
+            Record record = recordService.findRawById(id).orElse(null);
             if (record != null && record.getNode() != null) {
                 request.setData(recordService.processDataForSave(record.getNode().getId(), request.getData()));
             }
@@ -85,9 +82,8 @@ public class GlobalRecordController {
             sort = org.springframework.data.domain.Sort.by(dir, sortField);
         }
 
-        Page<Record> records = recordRepository.findDynamicRecordsByDomain(
+        Page<Record> records = recordService.findDynamicRecordsByDomain(
                 domainId, searchParams, PageRequest.of(page, size, sort));
-        records = recordService.prepareRecordsForRead(records);
         return ResponseEntity.ok(PageResponse.of(records));
     }
 

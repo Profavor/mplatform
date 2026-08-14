@@ -21,17 +21,22 @@ public class CodeManagementController {
 
     @PostMapping
     @org.springframework.security.access.prepost.PreAuthorize("hasPermission(null, 'admin:write')")
-    public ResponseEntity<CodeGroup> createGroup(@RequestBody CodeGroupRequest request) {
-        return ResponseEntity.ok(codeManagementService.createGroup(request));
+    public ResponseEntity<com.classification.domain_system.dto.CodeGroupResponse> createGroup(@RequestBody CodeGroupRequest request) {
+        CodeGroup group = codeManagementService.createGroup(request);
+        return ResponseEntity.ok(com.classification.domain_system.dto.CodeGroupResponse.from(group));
     }
 
     @GetMapping
-    public ResponseEntity<List<CodeGroup>> getGroups() {
-        return ResponseEntity.ok(codeManagementService.getGroups());
+    public ResponseEntity<List<com.classification.domain_system.dto.CodeGroupResponse>> getGroups() {
+        List<CodeGroup> groups = codeManagementService.getGroups();
+        List<com.classification.domain_system.dto.CodeGroupResponse> response = groups.stream()
+                .map(com.classification.domain_system.dto.CodeGroupResponse::from)
+                .toList();
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/page")
-    public ResponseEntity<org.springframework.data.domain.Page<CodeGroup>> getGroupsPaged(
+    public ResponseEntity<org.springframework.data.domain.Page<com.classification.domain_system.dto.CodeGroupResponse>> getGroupsPaged(
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -39,18 +44,21 @@ public class CodeManagementController {
         String[] sortParams = sort.split(",");
         org.springframework.data.domain.Sort.Direction direction = sortParams.length > 1 && sortParams[1].equalsIgnoreCase("desc") ? org.springframework.data.domain.Sort.Direction.DESC : org.springframework.data.domain.Sort.Direction.ASC;
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size, org.springframework.data.domain.Sort.by(direction, sortParams[0]));
-        return ResponseEntity.ok(codeManagementService.getGroupsPaged(keyword, pageable));
+        org.springframework.data.domain.Page<CodeGroup> pageResult = codeManagementService.getGroupsPaged(keyword, pageable);
+        return ResponseEntity.ok(pageResult.map(com.classification.domain_system.dto.CodeGroupResponse::from));
     }
 
     @GetMapping("/{groupCode}")
-    public ResponseEntity<CodeGroup> getGroupByCode(@PathVariable String groupCode) {
-        return ResponseEntity.ok(codeManagementService.getGroupByCode(groupCode));
+    public ResponseEntity<com.classification.domain_system.dto.CodeGroupResponse> getGroupByCode(@PathVariable String groupCode) {
+        CodeGroup group = codeManagementService.getGroupByCode(groupCode);
+        return ResponseEntity.ok(com.classification.domain_system.dto.CodeGroupResponse.from(group));
     }
 
     @PutMapping("/{id}")
     @org.springframework.security.access.prepost.PreAuthorize("hasPermission(null, 'admin:write')")
-    public ResponseEntity<CodeGroup> updateGroup(@PathVariable UUID id, @RequestBody CodeGroupRequest request) {
-        return ResponseEntity.ok(codeManagementService.updateGroup(id, request));
+    public ResponseEntity<com.classification.domain_system.dto.CodeGroupResponse> updateGroup(@PathVariable UUID id, @RequestBody CodeGroupRequest request) {
+        CodeGroup group = codeManagementService.updateGroup(id, request);
+        return ResponseEntity.ok(com.classification.domain_system.dto.CodeGroupResponse.from(group));
     }
 
     @DeleteMapping("/{id}")
@@ -62,19 +70,25 @@ public class CodeManagementController {
 
     @PostMapping("/{groupId}/details")
     @org.springframework.security.access.prepost.PreAuthorize("hasPermission(null, 'admin:write')")
-    public ResponseEntity<CodeDetail> createDetail(@PathVariable UUID groupId, @RequestBody CodeDetailRequest request) {
-        return ResponseEntity.ok(codeManagementService.createDetail(groupId, request));
+    public ResponseEntity<com.classification.domain_system.dto.CodeDetailResponse> createDetail(@PathVariable UUID groupId, @RequestBody CodeDetailRequest request) {
+        CodeDetail detail = codeManagementService.createDetail(groupId, request);
+        return ResponseEntity.ok(com.classification.domain_system.dto.CodeDetailResponse.from(detail));
     }
 
     @GetMapping("/{groupId}/details")
-    public ResponseEntity<List<CodeDetail>> getDetailsByGroup(@PathVariable UUID groupId) {
-        return ResponseEntity.ok(codeManagementService.getDetailsByGroup(groupId));
+    public ResponseEntity<List<com.classification.domain_system.dto.CodeDetailResponse>> getDetailsByGroup(@PathVariable UUID groupId) {
+        List<CodeDetail> details = codeManagementService.getDetailsByGroup(groupId);
+        List<com.classification.domain_system.dto.CodeDetailResponse> response = details.stream()
+                .map(com.classification.domain_system.dto.CodeDetailResponse::from)
+                .toList();
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/details/{detailId}")
     @org.springframework.security.access.prepost.PreAuthorize("hasPermission(null, 'admin:write')")
-    public ResponseEntity<CodeDetail> updateDetail(@PathVariable UUID detailId, @RequestBody CodeDetailRequest request) {
-        return ResponseEntity.ok(codeManagementService.updateDetail(detailId, request));
+    public ResponseEntity<com.classification.domain_system.dto.CodeDetailResponse> updateDetail(@PathVariable UUID detailId, @RequestBody CodeDetailRequest request) {
+        CodeDetail detail = codeManagementService.updateDetail(detailId, request);
+        return ResponseEntity.ok(com.classification.domain_system.dto.CodeDetailResponse.from(detail));
     }
 
     @DeleteMapping("/details/{detailId}")
@@ -85,8 +99,12 @@ public class CodeManagementController {
     }
 
     @GetMapping("/code/{groupCode}/details")
-    public ResponseEntity<List<CodeDetail>> getActiveDetailsByGroupCode(@PathVariable String groupCode) {
-        return ResponseEntity.ok(codeManagementService.getActiveDetailsByGroupCode(groupCode));
+    public ResponseEntity<List<com.classification.domain_system.dto.CodeDetailResponse>> getActiveDetailsByGroupCode(@PathVariable String groupCode) {
+        List<CodeDetail> details = codeManagementService.getActiveDetailsByGroupCode(groupCode);
+        List<com.classification.domain_system.dto.CodeDetailResponse> response = details.stream()
+                .map(com.classification.domain_system.dto.CodeDetailResponse::from)
+                .toList();
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/export")

@@ -19,11 +19,25 @@ import java.util.UUID;
 @Slf4j
 public class RecordService {
 
+    private final com.classification.domain_system.repository.RecordRepository recordRepository;
     private final FieldEncryptionService fieldEncryptionService;
     private final DataMaskingService dataMaskingService;
     private final FieldDefinitionService fieldDefinitionService;
     private final AuthContext authContext;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    public java.util.Optional<Record> getRecordById(UUID id) {
+        return recordRepository.findById(id).map(this::prepareRecordForRead);
+    }
+
+    public java.util.Optional<Record> findRawById(UUID id) {
+        return recordRepository.findById(id);
+    }
+
+    public Page<Record> findDynamicRecordsByDomain(UUID domainId, Map<String, String> searchParams, org.springframework.data.domain.Pageable pageable) {
+        Page<Record> records = recordRepository.findDynamicRecordsByDomain(domainId, searchParams, pageable);
+        return prepareRecordsForRead(records);
+    }
 
     public String processDataForSave(UUID nodeId, String dataJson) {
         if (dataJson == null || dataJson.isBlank() || nodeId == null) {

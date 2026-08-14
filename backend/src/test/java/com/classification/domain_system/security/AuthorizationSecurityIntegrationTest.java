@@ -49,6 +49,9 @@ class AuthorizationSecurityIntegrationTest {
     private AuthContext authContext;
 
     @MockitoBean
+    private SecurityUtils securityUtils;
+
+    @MockitoBean
     private JwtDecoder jwtDecoder;
 
     private String userToken;
@@ -83,6 +86,7 @@ class AuthorizationSecurityIntegrationTest {
         user.setTimezone("Asia/Seoul");
 
         given(authContext.getUserId()).willReturn("user-1");
+        given(securityUtils.getCurrentUserIdOrThrow()).willReturn("regular_user");
         given(userRepository.findById("user-1")).willReturn(Optional.of(user));
         given(userRepository.findByUsername("regular_user")).willReturn(Optional.of(user));
         given(userRepository.save(any(User.class))).willAnswer(inv -> inv.getArgument(0));

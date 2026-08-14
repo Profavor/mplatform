@@ -10,9 +10,13 @@ import lombok.RequiredArgsConstructor;
 public class WebMvcConfig implements WebMvcConfigurer {
 
     private final RateLimitInterceptor rateLimitInterceptor;
+    private final TimezoneInterceptor timezoneInterceptor;
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(timezoneInterceptor)
+                .addPathPatterns("/**");
+
         registry.addInterceptor(rateLimitInterceptor)
                 .addPathPatterns("/api/**")
                 .excludePathPatterns("/api/auth/**", "/api/system/health", "/api/integration/inbound/**");

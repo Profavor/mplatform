@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
-import Codes from '../pages/admin/codes.vue'
+import Codes from '../../pages/admin/codes.vue'
 import { AgGridVue } from 'ag-grid-vue3'
 
 // Mock dependencies

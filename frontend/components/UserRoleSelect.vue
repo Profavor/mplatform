@@ -5,7 +5,7 @@
       v-model="tempSelectedRole"
       :options="formattedOptions"
       :label="label"
-      :placeholder="placeholder || getLabel('select_role_to_add', '역할을 선택하여 추가하세요')"
+      :placeholder="placeholder || t('select_role_to_add')"
       :clearable="clearable"
       :disabled="disabled"
       :size="size"
@@ -38,6 +38,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoles } from '~/composables/useRoles'
 
 const props = defineProps({
@@ -82,10 +83,6 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'change'])
 
 const { t, locale } = useI18n()
-const getLabel = (key, fallback) => {
-  const res = t(key)
-  return (!res || res === key) ? fallback : res
-}
 
 const { fetchRolesForOrg, formatRoleText, getRoleColor, getUserOrgId, initGlobalRoles } = useRoles()
 

@@ -23,18 +23,16 @@ import static org.mockito.Mockito.mock;
 class DqRuleControllerSecurityTest {
 
     private DqRuleController controller;
-    private DqRuleRepository dqRuleRepository;
-    private FieldDefinitionRepository fieldDefinitionRepository;
+    private com.classification.domain_system.service.dq.DqRuleService dqRuleService;
     private DqRuleEngine dqRuleEngine;
 
     @BeforeEach
     void setUp() {
-        dqRuleRepository = mock(DqRuleRepository.class);
-        fieldDefinitionRepository = mock(FieldDefinitionRepository.class);
+        dqRuleService = mock(com.classification.domain_system.service.dq.DqRuleService.class);
         dqRuleEngine = mock(DqRuleEngine.class);
         com.classification.domain_system.security.CustomPermissionEvaluator permissionEvaluator = new com.classification.domain_system.security.CustomPermissionEvaluator();
 
-        controller = new DqRuleController(dqRuleRepository, fieldDefinitionRepository, dqRuleEngine, permissionEvaluator);
+        controller = new DqRuleController(dqRuleService, dqRuleEngine, permissionEvaluator);
     }
 
     private void setSecurityContext(String role) {

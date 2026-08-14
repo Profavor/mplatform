@@ -1,7 +1,6 @@
 package com.classification.domain_system.controller;
 
 import com.classification.domain_system.entity.IntegrationLog;
-import com.classification.domain_system.repository.IntegrationLogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -17,7 +16,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 @RequiredArgsConstructor
 public class IntegrationLogController {
 
-    private final IntegrationLogRepository repository;
     private final com.classification.domain_system.integration.IntegrationLogService logService;
     private final com.classification.domain_system.integration.IntegrationRetryService retryService;
 
@@ -28,16 +26,13 @@ public class IntegrationLogController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
         PageRequest pr = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        if (channelId != null) {
-            return repository.findByChannelId(channelId, pr);
-        }
-        return repository.findAll(pr);
+        return logService.getLogs(channelId, pr);
     }
 
     @GetMapping("/by-record/{recordId}")
     @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'log:read')")
     public java.util.List<IntegrationLog> getLogsByRecordId(@PathVariable UUID recordId) {
-        return repository.findByRecordIdOrderByCreatedAtDesc(recordId);
+        return logService.getLogsByRecordId(recordId);
     }
 
     @PostMapping("/{logId}/retry")

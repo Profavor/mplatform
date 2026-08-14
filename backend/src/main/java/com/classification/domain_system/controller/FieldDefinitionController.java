@@ -52,7 +52,10 @@ public class FieldDefinitionController {
     public ResponseEntity<List<FieldDefinition>> getEffectiveFieldsAsOf(
             @PathVariable UUID nodeId,
             @RequestParam String asOf) {
-        java.time.LocalDateTime targetAsOf = parseDateTime(asOf);
+        java.time.LocalDateTime targetAsOf = com.classification.domain_system.utils.DateTimeUtils.parseDateTime(asOf);
+        if (targetAsOf == null) {
+            targetAsOf = java.time.LocalDateTime.now();
+        }
         List<FieldDefinition> result = schemaHistoryService != null
                 ? schemaHistoryService.getEffectiveFieldsAsOf(nodeId, targetAsOf)
                 : fieldService.getEffectiveFields(nodeId);
@@ -76,22 +79,5 @@ public class FieldDefinitionController {
             @RequestParam(required = false) String reason) {
         fieldService.deleteDomainField(null, fieldId, false, reason);
         return ResponseEntity.noContent().build();
-    }
-
-    private java.time.LocalDateTime parseDateTime(String asOfStr) {
-        if (asOfStr == null || asOfStr.isBlank()) {
-            return java.time.LocalDateTime.now();
-        }
-        try {
-            if (asOfStr.contains("T")) {
-                if (asOfStr.contains("+") || asOfStr.endsWith("Z")) {
-                    return java.time.ZonedDateTime.parse(asOfStr).toLocalDateTime();
-                }
-                return java.time.LocalDateTime.parse(asOfStr);
-            }
-            return java.time.LocalDate.parse(asOfStr).atStartOfDay();
-        } catch (Exception e) {
-            return java.time.LocalDateTime.now();
-        }
     }
 }

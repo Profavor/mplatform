@@ -20,7 +20,7 @@ public class ApprovalStep {
     private UUID id;
 
     @JsonIgnoreProperties("steps")
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "request_id", nullable = false)
     private ApprovalRequest approvalRequest;
 
@@ -30,7 +30,7 @@ public class ApprovalStep {
     @Column(name = "assignee_id", length = 100)
     private String assigneeId;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assignee_id", insertable = false, updatable = false, foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
     @org.hibernate.annotations.NotFound(action = org.hibernate.annotations.NotFoundAction.IGNORE)
     @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "password"})

@@ -3,71 +3,92 @@ package com.classification.domain_system.controller;
 import com.classification.domain_system.context.AuthContext;
 import com.classification.domain_system.entity.BatchJob;
 import com.classification.domain_system.service.BatchImportService;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-import com.classification.domain_system.security.JwtUtil;
-import com.classification.domain_system.service.PermissionService;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
-import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.Mockito.*;
 
-@WebMvcTest(BatchController.class)
-@org.springframework.context.annotation.Import({com.classification.domain_system.config.SecurityConfig.class, com.classification.domain_system.config.TestSecurityConfig.class})
-@AutoConfigureMockMvc(addFilters = false)
+@ExtendWith(MockitoExtension.class)
 class BatchControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @MockitoBean
+    @Mock
     private BatchImportService batchImportService;
 
-    @MockitoBean
+    @Mock
     private AuthContext authContext;
 
-    @MockitoBean
-    private JwtUtil jwtUtil;
+    @InjectMocks
+    private BatchController batchController;
 
-    @MockitoBean
-    private PermissionService permissionService;
-
-    @BeforeEach
-    void setUp() {
-        Mockito.when(authContext.getUserId()).thenReturn("test-user");
-        Mockito.when(authContext.hasPermission("record:write")).thenReturn(true);
+    private BatchJob createMockBatchJob(UUID domainId) {
+        BatchJob job = new BatchJob();
+        job.setId(UUID.randomUUID());
+        job.setDomainId(domainId);
+        job.setJobType("IMPORT");
+        job.setStatus("QUEUED");
+        job.setTotalRecords(100);
+        return job;
     }
 
     @Test
-    void createBatch_Success_WithPermission() throws Exception {
+    @DisplayName("대용량 배치 임포트 작업 생성 성공")
+    void testCreateBatch_Success() {
         UUID domainId = UUID.randomUUID();
         UUID nodeId = UUID.randomUUID();
+        List<Map<String, Object>> records = List.of(Map.of("field1", "val1"));
 
-        BatchJob mockJob = new BatchJob();
-        mockJob.setId(UUID.randomUUID());
-        Mockito.when(batchImportService.createBatch(eq(domainId), eq(nodeId), any(), eq("TEST"), eq("test-user")))
-               .thenReturn(mockJob);
+        when(authContext.getUserId()).thenReturn("user01");
+        BatchJob job = createMockBatchJob(domainId);
+        when(batchImportService.createBatch(eq(domainId), eq(nodeId), eq(records), eq("ERP"), eq("user01")))
+                .thenReturn(job);
 
-        mockMvc.perform(post("/api/batch/import")
-                .param("domainId", domainId.toString())
-                .param("nodeId", nodeId.toString())
-                .param("sourceSystem", "TEST")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("[{}]"))
-               // Will return 403 if MethodSecurity evaluates @PreAuthorize, 
-               // but wait, @WebMvcTest usually needs extra config to enable MethodSecurity.
-               // For this unit test, it will return 200 if the controller runs.
-               .andExpect(status().isOk());
+        ResponseEntity<BatchJob> response = batchController.createBatch(domainId, nodeId, "ERP", records);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(domainId, response.getBody().getDomainId());
+        verify(batchImportService).createBatch(eq(domainId), eq(nodeId), eq(records), eq("ERP"), eq("user01"));
+    }
+
+    @Test
+    @DisplayName("배치 임포트 데이터 유효성 검증 성공")
+    void testValidateBatch_Success() {
+        UUID batchId = UUID.randomUUID();
+
+        ResponseEntity<Void> response = batchController.validateBatch(batchId);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(batchImportService).validateBatch(batchId);
+    }
+
+    @Test
+    @DisplayName("배치 임포트 최종 커밋 반영 성공")
+    void testCommitBatch_Success() {
+        UUID batchId = UUID.randomUUID();
+        BatchJob job = createMockBatchJob(UUID.randomUUID());
+        job.setId(batchId);
+        job.setStatus("COMPLETED");
+
+        when(batchImportService.commitBatch(batchId)).thenReturn(job);
+
+        ResponseEntity<BatchJob> response = batchController.commitBatch(batchId);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("COMPLETED", response.getBody().getStatus());
+        verify(batchImportService).commitBatch(batchId);
     }
 }

@@ -40,15 +40,19 @@
     <!-- Right Column: Record List & Data Grid -->
     <div class="right-content records-detail-column">
       <!-- Grid Title & Action Bar -->
-      <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.85rem; margin-bottom: 0; background: var(--va-background-element, #f4f6f9); border: 1px solid var(--va-background-border); border-bottom: none; border-top-left-radius: 8px; border-top-right-radius: 8px;">
-        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-          <va-icon name="table_chart" color="primary" size="1.1rem" />
-          <span style="font-weight: 700; font-size: 0.95rem; color: var(--va-text-primary);">
-            {{ selectedNode ? getTranslatedName(selectedNode.name) : $t('master_data_record_list') }}
-          </span>
-          <va-chip v-if="selectedNode" size="small" color="primary" style="font-weight: 600;">
-            {{ selectedNode.isDomain ? $t('domain') : $t('node') }}
-          </va-chip>
+      <RecordToolbar
+        :selected-node="selectedNode"
+        :selected-record-rows="selectedRecordRows"
+        :has-create-workflow="hasCreateWorkflow"
+        @create="openCreateModal"
+        @upload-excel="showExcelUploader = true"
+        @open-lineage="showLineageModal = true"
+        @open-compare="showCompareModal = true"
+        @open-export="showAsyncExportModal = true"
+        @reset-filters="clearFilters"
+        @refresh="refreshRecords"
+      >
+        <template #search-chips>
           <va-button v-if="searchableFields.length > 0" preset="secondary" size="small" @click="showAdvancedSearch = !showAdvancedSearch">
             <va-icon :name="showAdvancedSearch ? 'expand_less' : 'expand_more'" size="small" />
             {{ $t('advanced_search') }}
@@ -80,135 +84,19 @@
           >
             {{ $t('reset_all') }}
           </va-button>
-        </div>
-
-        <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
-          <template v-if="selectedNode && !selectedNode.isDomain">
-            <va-button v-if="hasPermission('record:write') || hasPermission('workflow:request')" size="small" color="primary" @click="openCreateModal">
-              <va-icon name="add" class="mr-1"/> {{ hasCreateWorkflow ? $t('create_request') : $t('create_record') }}
-            </va-button>
-            <va-button v-if="hasPermission('record:write') || hasPermission('workflow:request')" size="small" color="success" outline @click="showExcelUploader = true">
-              <va-icon name="upload" class="mr-1"/> {{ $t('bulk_upload') }}
-            </va-button>
-          </template>
-          <va-button size="small" color="info" outline :disabled="(selectedRecordRows?.length || 0) !== 1" @click="showLineageModal = true">
-            <va-icon name="account_tree" class="mr-1"/> {{ $t('data_lineage') }}
-          </va-button>
-          <va-button size="small" color="warning" outline :disabled="(selectedRecordRows?.length || 0) < 2" @click="showCompareModal = true">
-            <va-icon name="scale" class="mr-1"/> {{ $t('compare_records') }} ({{ selectedRecordRows?.length || 0 }})
-          </va-button>
-          <va-button size="small" color="warning" outline @click="showAsyncExportModal = true">
-            <va-icon name="cloud_download" class="mr-1"/> {{ $t('async_export') }}
-          </va-button>
-          <va-button preset="plain" color="secondary" size="small" @click="clearFilters" icon="restart_alt">
-            {{ $t('reset') }}
-          </va-button>
-          <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshRecords">
-            {{ $t('refresh') }}
-          </va-button>
-        </div>
-      </div>
+        </template>
+      </RecordToolbar>
 
       <!-- Advanced Search Panel -->
-      <va-card v-if="showAdvancedSearch" class="mb-4" style="background-color: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 8px;">
-        <va-card-content style="padding: 1.25rem;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px dashed var(--va-background-border);">
-            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-              <va-icon name="tune" color="primary" size="18px" />
-              <span style="font-weight: 700; font-size: 0.9rem; color: var(--va-primary);">{{ $t('advanced_search_condition') }}</span>
-            </div>
-            <va-badge v-if="Object.keys(activeFilters).filter(k => activeFilters[k]).length > 0" :text="$t('applied_filters_count', { count: Object.keys(activeFilters).filter(k => activeFilters[k]).length })" color="primary" />
-          </div>
-
-          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.25rem; align-items: start;">
-            <div v-for="field in searchableFields" :key="field.id" style="display: flex; flex-direction: column; gap: 0.4rem;">
-              <span style="font-size: 0.75rem; color: var(--va-text-secondary); font-weight: 600; text-transform: uppercase;">{{ getTranslatedName(field.name) }}</span>
-              
-              <va-select
-                v-if="['SELECT', 'MULTI_SELECT'].includes(field.type)"
-                v-model="draftFilters[field.key]"
-                :options="parseOptions(field.options)"
-                value-by="value"
-                :placeholder="$t('op.select_option')"
-                clearable
-                class="w-full"
-              />
-              <va-select
-                v-else-if="field.type === 'BOOLEAN'"
-                v-model="draftFilters[field.key]"
-                :options="['true', 'false']"
-                :placeholder="$t('op.select_option')"
-                clearable
-                class="w-full"
-              />
-              <div v-else-if="['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type)" style="display: flex; flex-direction: column; gap: 0.4rem; width: 100%;">
-                <va-input
-                  v-model="draftFilters[field.key]"
-                  type="number"
-                  :placeholder="$t('op.enter_number')"
-                  clearable
-                  class="w-full"
-                  @keydown="onFilterKeydown"
-                >
-                  <template #prependInner>
-                    <select 
-                      :value="draftFiltersOp[field.key] || 'EQ'" 
-                      @change="draftFiltersOp[field.key] = $event.target.value"
-                      @click.stop
-                      @mousedown.stop
-                      style="border: none; outline: none; background: transparent; font-weight: bold; color: var(--va-primary); cursor: pointer; padding-right: 0.2rem; margin-right: 0.5rem; border-right: 1px solid var(--va-background-border); font-size: 0.85rem;"
-                    >
-                      <option value="EQ">=</option>
-                      <option value="GT">&gt;</option>
-                      <option value="GTE">&gt;=</option>
-                      <option value="LT">&lt;</option>
-                      <option value="LTE">&lt;=</option>
-                      <option value="BETWEEN">{{ $t('op.range') }}</option>
-                    </select>
-                  </template>
-                </va-input>
-                <va-input
-                  v-if="draftFiltersOp[field.key] === 'BETWEEN'"
-                  v-model="draftFiltersMax[field.key]"
-                  type="number"
-                  :placeholder="$t('op.max_value')"
-                  clearable
-                  class="w-full"
-                  @keydown="onFilterKeydown"
-                >
-                  <template #prependInner>
-                    <span style="font-weight: bold; color: #666; margin-right: 0.5rem; border-right: 1px solid #ccc; padding-right: 0.5rem; font-size: 0.8rem;">~ {{ $t('op.below') }}</span>
-                  </template>
-                </va-input>
-              </div>
-              <va-input
-                v-else
-                v-model="draftFilters[field.key]"
-                :placeholder="$t('op.enter_keyword')"
-                clearable
-                class="w-full"
-                @keydown="onFilterKeydown"
-              >
-                <template #prependInner>
-                  <select 
-                    :value="draftFiltersOp[field.key] || 'EQ'" 
-                    @change="draftFiltersOp[field.key] = $event.target.value"
-                    @click.stop
-                    @mousedown.stop
-                    style="border: none; outline: none; background: transparent; font-weight: bold; color: var(--va-primary); cursor: pointer; padding-right: 0.2rem; margin-right: 0.5rem; border-right: 1px solid var(--va-background-border); font-size: 0.85rem;"
-                  >
-                    <option value="EQ">{{ $t('op.eq') }}</option>
-                    <option value="CONTAINS">{{ $t('op.contains') }}</option>
-                    <option value="STARTS_WITH">{{ $t('op.starts_with') }}</option>
-                    <option value="ENDS_WITH">{{ $t('op.ends_with') }}</option>
-                  </select>
-                </template>
-              </va-input>
-            </div>
-          </div>
-
-        </va-card-content>
-      </va-card>
+      <RecordAdvancedSearch
+        v-if="showAdvancedSearch"
+        :searchable-fields="searchableFields"
+        v-model:draft-filters="draftFilters"
+        v-model:draft-filters-op="draftFiltersOp"
+        v-model:draft-filters-max="draftFiltersMax"
+        :active-filters="activeFilters"
+        @filter-keydown="onFilterKeydown"
+      />
       
       <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
         <va-card v-if="selectedNode" style="width: 100%; flex: 1; display: flex; flex-direction: column; min-height: 0;">
@@ -376,20 +264,11 @@
       :selected-diffs="selectedDiffs"
     />
 
-    <!-- Approval / Integration History Modal -->
-    <va-modal v-model="showApprovalHistoryModal" :title="selectedApprovalRequest?.isIntegration ? ($t('integration.channels.integration_detail_title') || $t('integration_detail_title')) : ($t('integration.channels.approval_detail_title') || $t('approval_detail_title'))" hide-default-actions size="large" :prevent-click-outside="true" :no-outside-dismiss="true">
-      <div style="max-height: 60vh; overflow-y: auto; padding: 1rem; box-sizing: border-box; width: 100%;">
-        <div v-if="!selectedApprovalRequest" style="text-align: center; color: #777;">
-          {{ $t('loading_data') }}
-        </div>
-        <div v-else>
-          <ApprovalDetailsViewer :request="selectedApprovalRequest" />
-        </div>
-      </div>
-      <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
-        <va-button @click="showApprovalHistoryModal = false">{{ $t('close') }}</va-button>
-      </div>
-    </va-modal>
+    <!-- Approval / Integration History Modal (Decoupled Component) -->
+    <ApprovalViewerModal
+      v-model="showApprovalHistoryModal"
+      :request="selectedApprovalRequest"
+    />
 
     <RecordsDomainRefModal
       v-model="showDomainRefModal"
@@ -426,11 +305,14 @@ const { customFetch } = useCustomFetch()
 import { useCookie } from '#app'
 import { AgGridVue } from 'ag-grid-vue3'
 import ExcelUploader from '~/components/ExcelUploader.vue'
+import RecordToolbar from '~/components/records/RecordToolbar.vue'
+import RecordAdvancedSearch from '~/components/records/RecordAdvancedSearch.vue'
 import RecordFormModal from '~/components/records/RecordFormModal.vue'
 import RecordDetailDrawer from '~/components/records/RecordDetailDrawer.vue'
 import RecordCompareModal from '~/components/records/RecordCompareModal.vue'
 import RecordLineageModal from '~/components/RecordLineageModal.vue'
 import AsyncBatchExportModal from '~/components/AsyncBatchExportModal.vue'
+import ApprovalViewerModal from '~/components/ApprovalViewerModal.vue'
 
 import { useColors, useModal, useToast } from 'vuestic-ui'
 import { useI18n } from 'vue-i18n'

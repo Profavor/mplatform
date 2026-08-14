@@ -16,247 +16,33 @@
       </div>
     </div>
 
-    <!-- 4 Core KPI Metric Cards -->
-    <div class="kpi-grid">
-      <!-- Total Domains -->
-      <div class="kpi-card">
-        <div class="kpi-card-header">
-          <span class="kpi-title">{{ t('total_domains') }}</span>
-          <div class="kpi-icon-pill blue-pill">
-            <va-icon name="domain" size="medium" />
-          </div>
-        </div>
-        <div class="metric-body">
-          <div class="metric-value blue-text">
-            {{ stats?.totalDomains?.toLocaleString() ?? 0 }}
-          </div>
-          <div class="metric-subtext">{{ t('registered_domains') }}</div>
-        </div>
-      </div>
+    <!-- 4 Core KPI Metric Cards (Decoupled Component) -->
+    <DashboardKpiCards :stats="stats" />
 
-      <!-- Pending Approvals -->
-      <div class="kpi-card">
-        <div class="kpi-card-header">
-          <span class="kpi-title">{{ t('pending_approvals') }}</span>
-          <div class="kpi-icon-pill red-pill">
-            <va-icon name="pending_actions" size="medium" />
-          </div>
-        </div>
-        <div class="metric-body">
-          <div class="metric-value red-text">
-            {{ stats?.pendingApprovals?.toLocaleString() ?? 0 }}
-          </div>
-          <div class="metric-subtext" :class="{ 'has-pending': (stats?.pendingApprovals || 0) > 0 }">
-            {{ (stats?.pendingApprovals || 0) > 0 ? t('action_required') : t('all_tasks_cleared') }}
-          </div>
-        </div>
-      </div>
+    <!-- Real Analytics & Distribution Charts Section (Decoupled Component) -->
+    <DashboardApprovalCharts
+      :trend-chart-option="trendChartOption"
+      :distribution-chart-option="distributionChartOption"
+    />
 
-      <!-- Active Records -->
-      <div class="kpi-card">
-        <div class="kpi-card-header">
-          <span class="kpi-title">{{ t('active_records') }}</span>
-          <div class="kpi-icon-pill green-pill">
-            <va-icon name="inventory_2" size="medium" />
-          </div>
-        </div>
-        <div class="metric-body">
-          <div class="metric-value green-text">
-            {{ stats?.activeRecords?.toLocaleString() ?? 0 }}
-          </div>
-          <div class="metric-subtext">{{ t('managed_master_records') }}</div>
-        </div>
-      </div>
-
-      <!-- Pending Match Candidates -->
-      <div class="kpi-card">
-        <div class="kpi-card-header">
-          <span class="kpi-title">{{ t('pending_match_candidates') }}</span>
-          <div class="kpi-icon-pill purple-pill">
-            <va-icon name="fact_check" size="medium" />
-          </div>
-        </div>
-        <div class="metric-body">
-          <div class="metric-value purple-text">
-            {{ stats?.pendingMatches?.toLocaleString() ?? 0 }}
-          </div>
-          <div class="metric-subtext">{{ t('potential_duplicates') }}</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Real Analytics & Distribution Charts Section -->
-    <div class="content-grid">
-      <!-- 7-Day Approval Requests Trend Chart -->
-      <va-card class="section-card chart-card">
-        <va-card-title class="card-header-title">
-          <va-icon name="show_chart" size="small" color="primary" />
-          {{ t('approval_trend_title') }}
-        </va-card-title>
-        <va-card-content>
-          <ClientOnly>
-            <v-chart style="height: 330px; width: 100%;" :option="trendChartOption" autoresize />
-          </ClientOnly>
-        </va-card-content>
-      </va-card>
-
-      <!-- Master Record Distribution Donut Chart -->
-      <va-card class="section-card chart-card">
-        <va-card-title class="card-header-title">
-          <va-icon name="pie_chart" size="small" color="info" />
-          {{ t('domain_distribution_title') }}
-        </va-card-title>
-        <va-card-content>
-          <ClientOnly>
-            <v-chart style="height: 330px; width: 100%;" :option="distributionChartOption" autoresize />
-          </ClientOnly>
-        </va-card-content>
-      </va-card>
-    </div>
-
-    <!-- Phase 3: Data Quality Analytics Grid -->
-    <div class="content-grid" style="margin-bottom: 1.75rem;">
-      <!-- DQ Violation Trend Chart -->
-      <va-card class="section-card chart-card">
-        <va-card-title class="card-header-title">
-          <va-icon name="trending_up" size="small" color="danger" />
-          {{ t('dq_violation_trend') || 'DQ Violation Trend' }}
-        </va-card-title>
-        <va-card-content>
-          <ClientOnly>
-            <v-chart style="height: 330px; width: 100%;" :option="dqTrendChartOption" autoresize />
-          </ClientOnly>
-        </va-card-content>
-      </va-card>
-
-      <!-- DQ Severity Distribution Chart -->
-      <va-card class="section-card chart-card">
-        <va-card-title class="card-header-title">
-          <va-icon name="warning" size="small" color="warning" />
-          {{ t('dq_severity_distribution') || 'DQ Severity Distribution' }}
-        </va-card-title>
-        <va-card-content>
-          <ClientOnly>
-            <v-chart style="height: 330px; width: 100%;" :option="dqSeverityChartOption" autoresize />
-          </ClientOnly>
-        </va-card-content>
-      </va-card>
-    </div>
+    <!-- Data Quality Analytics Grid (Decoupled Component) -->
+    <DashboardDqCharts
+      :dq-trend-chart-option="dqTrendChartOption"
+      :dq-severity-chart-option="dqSeverityChartOption"
+    />
 
     <!-- Bottom Section: My To-Do List & Governance/DQ Health -->
     <div class="bottom-grid">
-      <!-- My To-Do List -->
-      <va-card class="section-card todo-card">
-        <va-card-title class="card-header-title">
-          <va-icon name="task" size="small" color="warning" />
-          {{ t('my_to_do_list') }}
-        </va-card-title>
-        <va-card-content>
-          <div v-if="!todos || todos.length === 0" class="empty-todo-state">
-            <va-icon name="check_circle_outline" size="2.5rem" color="success" />
-            <p>{{ t('no_pending_tasks_you') }}</p>
-          </div>
-          <div v-else class="todo-list">
-            <div v-for="todo in todos" :key="todo.id" class="todo-item-card">
-              <div class="todo-item-main">
-                <div class="todo-badges">
-                  <va-badge :text="getStepTypeLabel(todo.stepType)" :color="todo.stepType === 'CONSENSUS' ? 'warning' : 'danger'" class="badge-bold" />
-                  <va-badge :text="getActionTypeLabel(todo.approvalRequest?.changes)" color="info" outline class="badge-bold" />
-                </div>
+      <!-- My To-Do List (Decoupled Component) -->
+      <DashboardTodoList
+        :todos="todos"
+        :display-info="displayInfo"
+        :current-locale="currentLocale"
+        @review="goToApprovals"
+      />
 
-                <div class="todo-details">
-                  <div v-if="todo.approvalRequest?.classificationNode" class="todo-node-info">
-                    <span><strong>{{ t('domain') }}:</strong> {{ todo.approvalRequest.classificationNode.domainName?.[currentLocale] || todo.approvalRequest.classificationNode.domainName?.['en'] || 'Unknown' }}</span>
-                    <span><strong>{{ t('classification') }}:</strong> {{ todo.approvalRequest.classificationNode.name?.[currentLocale] || todo.approvalRequest.classificationNode.name?.['en'] || 'Unknown' }}</span>
-                  </div>
-                  <div class="todo-requester">
-                    <strong>{{ t('requester') }}:</strong> {{ todo.approvalRequest?.requesterName || getUserName(todo.approvalRequest?.requesterId) }}
-                  </div>
-                  <div class="todo-date">
-                    <strong>{{ t('date') }}:</strong> {{ formatDate(todo.approvalRequest?.createdAt) }}
-                  </div>
-                </div>
-              </div>
-
-              <!-- Display info snippet -->
-              <div class="todo-info-box">
-                <div v-if="displayInfo[todo.id]?.displayId || displayInfo[todo.id]?.displayName" class="info-snippet">
-                  <div v-if="displayInfo[todo.id]?.displayId" class="info-id">
-                    {{ displayInfo[todo.id].idField?.name?.[currentLocale] || displayInfo[todo.id].idField?.name?.ko || displayInfo[todo.id].idField?.name?.en || 'ID' }}: {{ displayInfo[todo.id].displayId }}
-                  </div>
-                  <div v-if="displayInfo[todo.id]?.displayName" class="info-name">
-                    {{ displayInfo[todo.id].nameField?.name?.[currentLocale] || displayInfo[todo.id].nameField?.name?.ko || displayInfo[todo.id].nameField?.name?.en || 'Name' }}: {{ displayInfo[todo.id].displayName }}
-                  </div>
-                </div>
-                <div v-else class="info-snippet-fallback">
-                  <em>{{ t('waiting_for_field_data') }}</em>
-                </div>
-              </div>
-
-              <div class="todo-action">
-                <va-button size="small" color="primary" class="review-btn" @click="goToApprovals(todo)">
-                  {{ t('review') }}
-                </va-button>
-              </div>
-            </div>
-          </div>
-        </va-card-content>
-      </va-card>
-
-      <!-- Governance & Data Quality Status Card -->
-      <va-card class="section-card governance-card">
-        <va-card-title class="card-header-title">
-          <va-icon name="health_and_safety" size="small" color="success" />
-          {{ t('governance_health_title') }}
-        </va-card-title>
-        <va-card-content>
-          <div class="health-indicators-grid">
-            <!-- Open DQ Violations -->
-            <div class="health-item-card">
-              <div class="health-item-header">
-                <va-icon name="warning_amber" color="danger" size="1.5rem" />
-                <span class="health-item-title">{{ t('open_dq_violations') }}</span>
-              </div>
-              <div class="health-item-body">
-                <span class="health-value text-danger">{{ stats?.openDqViolations ?? 0 }}</span>
-                <va-button size="small" color="danger" preset="secondary" icon="arrow_forward" @click="router.push('/dq-dashboard')">
-                  {{ t('go_to_dq_dashboard') }}
-                </va-button>
-              </div>
-            </div>
-
-            <!-- Pending Match Candidates -->
-            <div class="health-item-card">
-              <div class="health-item-header">
-                <va-icon name="find_in_page" color="warning" size="1.5rem" />
-                <span class="health-item-title">{{ t('pending_match_candidates') }}</span>
-              </div>
-              <div class="health-item-body">
-                <span class="health-value text-warning">{{ stats?.pendingMatches ?? 0 }}</span>
-                <va-button size="small" color="warning" preset="secondary" icon="arrow_forward" @click="router.push('/admin/match-review')">
-                  {{ t('go_to_match_review') }}
-                </va-button>
-              </div>
-            </div>
-
-            <!-- Approval Success Rate -->
-            <div class="health-item-card">
-              <div class="health-item-header">
-                <va-icon name="verified" color="primary" size="1.5rem" />
-                <span class="health-item-title">{{ t('approval_success_rate') }}</span>
-              </div>
-              <div class="health-item-body">
-                <span class="health-value text-primary">
-                  {{ getApprovalRate() }}%
-                </span>
-                <span class="health-subtext">
-                  {{ t('approval_stats_summary', { approved: stats?.approvedApprovals ?? 0, rejected: stats?.rejectedApprovals ?? 0 }) }}
-                </span>
-              </div>
-            </div>
-          </div>
-        </va-card-content>
-      </va-card>
+      <!-- Governance & Data Quality Status Card (Decoupled Component) -->
+      <DashboardGovernanceCard :stats="stats" />
     </div>
   </div>
 </template>
@@ -264,6 +50,11 @@
 <script setup>
 import { useI18n } from 'vue-i18n'
 import { usePageTitle } from '~/composables/usePageTitle'
+import DashboardKpiCards from '~/components/dashboard/DashboardKpiCards.vue'
+import DashboardGovernanceCard from '~/components/dashboard/DashboardGovernanceCard.vue'
+import DashboardTodoList from '~/components/dashboard/DashboardTodoList.vue'
+import DashboardApprovalCharts from '~/components/dashboard/DashboardApprovalCharts.vue'
+import DashboardDqCharts from '~/components/dashboard/DashboardDqCharts.vue'
 const { t } = useI18n()
 const { pageTitle } = usePageTitle('dashboard', '홈')
 import { ref, computed, onMounted } from 'vue'

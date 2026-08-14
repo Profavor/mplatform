@@ -357,7 +357,7 @@ public class ApprovalService {
 
         // 1. Data Quality Check
         DataQualityService.DQResult dq = dqService.validateData(nodeId, request.getData(), null, editableFields);
-        if (!dq.isValid) {
+        if (dq != null && !dq.isValid) {
             throw new BusinessException(ErrorCode.DATA_QUALITY_CHECK_FAILED, "Data Quality Check Failed: " + String.join(", ", dq.errors));
         }
 
@@ -478,7 +478,7 @@ public class ApprovalService {
 
         // 1. Data Quality Check
         DataQualityService.DQResult dq = dqService.validateData(nodeId, request.getData(), recordId, editableFields);
-        if (!dq.isValid) {
+        if (dq != null && !dq.isValid) {
             throw new BusinessException(ErrorCode.DATA_QUALITY_CHECK_FAILED, "Data Quality Check Failed: " + String.join(", ", dq.errors));
         }
 

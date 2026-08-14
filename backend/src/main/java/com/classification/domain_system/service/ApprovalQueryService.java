@@ -178,28 +178,19 @@ public class ApprovalQueryService {
                                 String dateFromStr = filterInfo.get("dateFrom").asText();
                                 String dateToStr = filterInfo.has("dateTo") && !filterInfo.get("dateTo").isNull() ? filterInfo.get("dateTo").asText() : null;
                                 
-                                DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-                                if (dateFromStr.length() == 10) dateFromStr += " 00:00:00";
-                                if (dateFromStr.contains("T")) dateFromStr = dateFromStr.replace("T", " ");
-                                if (dateFromStr.length() > 19) dateFromStr = dateFromStr.substring(0, 19);
-                                LocalDateTime dateFrom = LocalDateTime.parse(dateFromStr, dtf);
+                                LocalDateTime dateFrom = com.classification.domain_system.utils.DateTimeUtils.parseDateTime(dateFromStr);
+                                LocalDateTime dateTo = dateToStr != null ? com.classification.domain_system.utils.DateTimeUtils.parseDateTime(dateToStr) : null;
                                 
-                                LocalDateTime dateTo = null;
-                                if (dateToStr != null) {
-                                    if (dateToStr.length() == 10) dateToStr += " 23:59:59";
-                                    if (dateToStr.contains("T")) dateToStr = dateToStr.replace("T", " ");
-                                    if (dateToStr.length() > 19) dateToStr = dateToStr.substring(0, 19);
-                                    dateTo = LocalDateTime.parse(dateToStr, dtf);
-                                }
-                                
-                                if ("equals".equals(type)) {
-                                    predicates.add(cb.between(root.get(fieldKey), dateFrom, dateFrom.plusDays(1).minusSeconds(1)));
-                                } else if ("greaterThan".equals(type)) {
-                                    predicates.add(cb.greaterThan(root.get(fieldKey), dateFrom));
-                                } else if ("lessThan".equals(type)) {
-                                    predicates.add(cb.lessThan(root.get(fieldKey), dateFrom));
-                                } else if ("inRange".equals(type) && dateTo != null) {
-                                    predicates.add(cb.between(root.get(fieldKey), dateFrom, dateTo));
+                                if (dateFrom != null) {
+                                    if ("equals".equals(type)) {
+                                        predicates.add(cb.between(root.get(fieldKey), dateFrom, dateFrom.plusDays(1).minusSeconds(1)));
+                                    } else if ("greaterThan".equals(type)) {
+                                        predicates.add(cb.greaterThan(root.get(fieldKey), dateFrom));
+                                    } else if ("lessThan".equals(type)) {
+                                        predicates.add(cb.lessThan(root.get(fieldKey), dateFrom));
+                                    } else if ("inRange".equals(type) && dateTo != null) {
+                                        predicates.add(cb.between(root.get(fieldKey), dateFrom, dateTo));
+                                    }
                                 }
                             }
                         }
