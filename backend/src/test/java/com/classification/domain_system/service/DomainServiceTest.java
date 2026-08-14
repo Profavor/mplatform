@@ -15,6 +15,7 @@ import java.util.*;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 
 class DomainServiceTest extends BaseServiceTest {
@@ -99,7 +100,7 @@ class DomainServiceTest extends BaseServiceTest {
             admin.setUsername("adminUser");
             admin.setRole("ROLE_ADMIN");
             
-            given(userRepository.findByUsername("adminUser")).willReturn(Optional.of(admin));
+            lenient().when(userRepository.findByUsername("adminUser")).thenReturn(Optional.of(admin));
             given(domainRepository.findAllByOrderBySortOrderAsc()).willReturn(domains);
 
             // when
@@ -135,7 +136,7 @@ class DomainServiceTest extends BaseServiceTest {
             multiRoleUser.setUsername("profavor");
             multiRoleUser.setRole("ROLE_DATA_STEWARD,ROLE_ADMIN");
             
-            given(userRepository.findByUsername("profavor")).willReturn(Optional.of(multiRoleUser));
+            lenient().when(userRepository.findByUsername("profavor")).thenReturn(Optional.of(multiRoleUser));
             given(domainRepository.findAllByOrderBySortOrderAsc()).willReturn(domains);
 
             // when

@@ -44,19 +44,24 @@ public class DomainService {
         
         org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         
-        com.classification.domain_system.entity.User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-                
-        boolean hasFullAccess = auth.getAuthorities().stream()
+        boolean hasFullAccess = auth != null && auth.getAuthorities() != null && auth.getAuthorities().stream()
                 .anyMatch(a -> "*:*".equals(a.getAuthority()) 
                             || "*".equals(a.getAuthority()) 
                             || "domain:*".equalsIgnoreCase(a.getAuthority())
                             || "admin:read".equalsIgnoreCase(a.getAuthority())
                             || "ROLE_ADMIN".equalsIgnoreCase(a.getAuthority())
-                            || "ROLE_SYSTEM_ADMIN".equalsIgnoreCase(a.getAuthority()));
+                            || "ROLE_SYSTEM_ADMIN".equalsIgnoreCase(a.getAuthority())
+                            || "ROLE_SUPERADMIN".equalsIgnoreCase(a.getAuthority())
+                            || "ROLE_SYSTEM".equalsIgnoreCase(a.getAuthority()));
 
         if (hasFullAccess) {
             return domainRepository.findAllByOrderBySortOrderAsc();
+        }
+
+        com.classification.domain_system.entity.User user = userRepository.findByUsername(username)
+                .orElse(null);
+        if (user == null) {
+            return java.util.Collections.emptyList();
         }
         
         return domainRepository.findAllByUserIdOrderBySortOrderAsc(user.getId());

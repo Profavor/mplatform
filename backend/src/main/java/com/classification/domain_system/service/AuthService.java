@@ -217,6 +217,33 @@ public class AuthService {
         return userRepository.findByUsername(username).orElse(null);
     }
 
+    @org.springframework.transaction.annotation.Transactional
+    public User autoProvisionUser(org.springframework.security.core.Authentication authentication) {
+        if (authentication == null || authentication.getName() == null) {
+            return null;
+        }
+        String username = authentication.getName();
+        User existing = userRepository.findByUsername(username).orElse(null);
+        if (existing != null) {
+            return existing;
+        }
+
+        String dynamicRole = "";
+        if (authentication.getAuthorities() != null && !authentication.getAuthorities().isEmpty()) {
+            dynamicRole = authentication.getAuthorities().stream()
+                    .map(org.springframework.security.core.GrantedAuthority::getAuthority)
+                    .filter(a -> a != null && !a.isBlank())
+                    .collect(java.util.stream.Collectors.joining(","));
+        }
+
+        User newUser = new User();
+        newUser.setUsername(username);
+        newUser.setPassword(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
+        newUser.setRole(dynamicRole);
+        newUser.setTimezone("Asia/Seoul");
+        return userRepository.save(newUser);
+    }
+
     public org.springframework.data.domain.Page<com.classification.domain_system.entity.LoginLog> getLoginLogs(org.springframework.data.domain.Pageable pageable) {
         return loginLogRepository.findAll(pageable);
     }
