@@ -328,6 +328,9 @@ const handleIncomingNotification = (rawPayload) => {
   }
 }
 
+let sseRetryCount = 0
+const MAX_SSE_RETRIES = 5
+
 const connectSSE = () => {
   if (!process.client || typeof window === 'undefined' || !window.EventSource) return
   if (eventSource) {
@@ -336,12 +339,18 @@ const connectSSE = () => {
   }
 
   const token = tokenCookie.value || ''
-  const sseUrl = token
-    ? `/api/notifications/subscribe?token=${encodeURIComponent(token)}`
-    : '/api/notifications/subscribe'
+  if (!token) {
+    return
+  }
+
+  const sseUrl = `/api/notifications/subscribe?token=${encodeURIComponent(token)}`
 
   try {
     eventSource = new EventSource(sseUrl, { withCredentials: true })
+
+    eventSource.onopen = () => {
+      sseRetryCount = 0
+    }
 
     const onMessageReceived = (event) => {
       if (event && event.data) {
@@ -353,22 +362,28 @@ const connectSSE = () => {
     eventSource.addEventListener('message', onMessageReceived)
 
     eventSource.onerror = (err) => {
-      console.warn('SSE connection disconnected. Reconnecting in 5s...', err)
       if (eventSource) {
         eventSource.close()
         eventSource = null
       }
       if (isComponentMounted) {
+        sseRetryCount++
+        if (sseRetryCount > MAX_SSE_RETRIES) {
+          console.warn(`SSE connection failed ${MAX_SSE_RETRIES} times. Halting reconnect until token refresh.`)
+          return
+        }
+        const delay = Math.min(30000, 3000 * Math.pow(1.5, sseRetryCount - 1))
         if (reconnectTimer) clearTimeout(reconnectTimer)
         reconnectTimer = setTimeout(() => {
           connectSSE()
-        }, 5000)
+        }, delay)
       }
     }
   } catch (e) {
     console.error('Error creating EventSource:', e)
   }
 }
+
 
 const handleNotificationClick = async (item) => {
   item.read = true

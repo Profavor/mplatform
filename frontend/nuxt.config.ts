@@ -83,6 +83,7 @@ export default defineNuxtConfig({
         baseUrl: process.env.OAUTH2_ISSUER_URI || 'http://localhost:8081/realms/mplatform',
         clientId: 'mdm-frontend',
         exposeAccessToken: true,
+        scope: ['openid', 'profile', 'email', 'offline_access'],
         clientSecret: 'secret',
         authenticationScheme: 'body',
         pkce: false,
@@ -95,12 +96,13 @@ export default defineNuxtConfig({
       secure: false
     },
     session: {
-      expirationCheck: false,
-      automaticRefresh: false,
+      expirationCheck: true,
+      automaticRefresh: true,
       cookie: {
         secure: false
       }
     },
+
     middleware: {
       globalMiddlewareEnabled: false,
       customLoginPage: true,
