@@ -23,7 +23,7 @@
                 {{ formatData(res.data) }}
               </div>
               <div class="text-xs" style="color: var(--va-text-secondary); margin-top: 4px;">
-                ID: {{ res.id }}
+                {{ formatRecordCode(res.id) }}
               </div>
             </va-list-item-section>
           </va-list-item>
@@ -44,6 +44,7 @@ import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCookie } from '#app'
 import { useI18n } from 'vue-i18n'
+import { formatRecordCode } from '~/utils/formatters'
 
 const { t } = useI18n()
 const { customFetch } = useCustomFetch()

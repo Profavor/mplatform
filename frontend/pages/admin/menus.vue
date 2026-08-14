@@ -50,99 +50,45 @@
             </va-tree-view>
           </div>
 
-          <!-- Edit Form -->
+          <!-- Edit Form (Decoupled Component) -->
           <div style="flex: 2;">
-            <div v-if="selectedMenu" class="edit-form">
-              <h3 class="mb-4">{{ $t('edit_menu') }}</h3>
-              
-              <!-- Multilingual Name Input Component -->
-              <MultilingualInput
-                v-model:ko="selectedMenuNameKo"
-                v-model:en="selectedMenuNameEn"
-                :label="`${$t('name')}`"
-                required
-              />
-
-              <va-input v-model="selectedMenu.path" :label="$t('path')" class="mb-4 w-100" />
-              
-              <div class="mb-4">
-                <label style="font-size: 0.8rem; color: var(--va-text-primary); margin-bottom: 0.5rem; display: block;">{{ $t('menu_icon') }}</label>
-                <div class="d-flex align-center" style="gap: 1rem;">
-                  <va-icon :name="selectedMenu.icon || 'help_outline'" size="large" color="primary" />
-                  <va-button preset="secondary" border-color="primary" @click="openIconPicker('edit')">{{ $t('select_icon') }}</va-button>
-                </div>
-              </div>
-
-              <!-- Active Status Switch -->
-              <div class="mb-4">
-                <va-switch v-model="selectedMenu.isActive" :label="$t('is_active_label') || $t('is_active')" color="success" />
-              </div>
-              
-              <div class="mb-4 w-100">
-                <UserRoleSelect
-                  v-model="selectedMenuRoles"
-                  :label="$t('required_roles')"
-                  class="w-100"
-                  multiple
-                  clearable
-                  include-role-prefix
-                  :disabled="selectedMenuHasChildren"
-                />
-                <div v-if="selectedMenuHasChildren" style="font-size: 0.78rem; color: #c2410c; margin-top: 0.35rem; display: flex; align-items: center; gap: 0.25rem; font-weight: 600;">
-                  <va-icon name="info" size="small" color="warning" />
-                  <span>하위 메뉴가 존재하여 하위 메뉴의 필요 역할들이 자동으로 합집합(Union)되어 적용됩니다 (수동 변경 불가).</span>
-                </div>
-              </div>
-              
-              <div class="d-flex justify-end mt-4">
-                <va-button @click="saveMenu">{{ $t('save_changes') }}</va-button>
-              </div>
-            </div>
-            <div v-else class="text-center mt-5" style="color: var(--va-secondary); padding: 3rem 0;">
-              <va-icon name="info" size="large" color="secondary" class="mb-2" />
-              <div>{{ $t('select_menu_prompt') }}</div>
-            </div>
+            <MenuEditForm
+              :selected-menu="selectedMenu"
+              :selected-menu-name-ko="selectedMenuNameKo"
+              :selected-menu-name-en="selectedMenuNameEn"
+              :selected-menu-roles="selectedMenuRoles"
+              :selected-menu-has-children="selectedMenuHasChildren"
+              @update:selected-menu-name-ko="val => selectedMenuNameKo = val"
+              @update:selected-menu-name-en="val => selectedMenuNameEn = val"
+              @update:selected-menu-roles="val => selectedMenuRoles = val"
+              @open-icon-picker="openIconPicker('edit')"
+              @save="saveMenu"
+            />
           </div>
         </div>
       </va-card-content>
     </va-card>
 
-    <!-- Add Modal -->
-    <va-modal v-model="showAddModal" :title="$t('add_menu')" :ok-text="$t('save')" @ok="addMenu">
-      <!-- Multilingual Name Input Component -->
-      <MultilingualInput
-        v-model:ko="newMenuNameKo"
-        v-model:en="newMenuNameEn"
-        :label="`${$t('name')}`"
-        required
-      />
-
-      <va-input v-model="newMenu.path" :label="$t('path')" class="mb-4 w-100" />
-      
-      <div class="mb-4">
-        <label style="font-size: 0.8rem; color: var(--va-text-primary); margin-bottom: 0.5rem; display: block;">{{ $t('menu_icon') }}</label>
-        <div class="d-flex align-center" style="gap: 1rem;">
-          <va-icon :name="newMenu.icon || 'help_outline'" size="large" color="primary" />
-          <va-button preset="secondary" border-color="primary" @click="openIconPicker('add')">{{ $t('select_icon') }}</va-button>
-        </div>
-      </div>
-      
-      <va-input v-model="newMenu.sortOrder" :label="$t('sort_order')" type="number" class="mb-4 w-100" />
-      
-      <!-- Active Status Switch in Modal -->
-      <div class="mb-4">
-        <va-switch v-model="newMenu.isActive" :label="$t('is_active_label') || $t('is_active')" color="success" />
-      </div>
-
-      <UserRoleSelect v-model="newMenuRoles" :label="$t('required_roles')" class="mb-4 w-100" multiple clearable include-role-prefix />
-    </va-modal>
+    <!-- Add Modal (Decoupled Component) -->
+    <AddMenuModal
+      v-model="showAddModal"
+      :new-menu="newMenu"
+      :new-menu-name-ko="newMenuNameKo"
+      :new-menu-name-en="newMenuNameEn"
+      :new-menu-roles="newMenuRoles"
+      @update:new-menu-name-ko="val => newMenuNameKo = val"
+      @update:new-menu-name-en="val => newMenuNameEn = val"
+      @update:new-menu-roles="val => newMenuRoles = val"
+      @open-icon-picker="openIconPicker('add')"
+      @save="addMenu"
+    />
 
     <!-- Icon Picker Modal -->
     <va-modal v-model="showIconPickerModal" :title="$t('select_icon')" hide-default-actions>
       <IconPicker v-model="tempIcon" />
       <div class="d-flex justify-end mt-4" style="gap: 1rem;">
-        <va-button preset="plain" color="secondary" @click="showIconPickerModal = false">Cancel</va-button>
-        <va-button @click="confirmIconSelection">Select</va-button>
+        <va-button preset="plain" color="secondary" @click="showIconPickerModal = false">{{ $t('cancel') }}</va-button>
+        <va-button @click="confirmIconSelection">{{ $t('select') }}</va-button>
       </div>
     </va-modal>
   </div>
@@ -150,9 +96,12 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useMenu } from '~/composables/useMenu'
 import { usePageTitle } from '~/composables/usePageTitle'
 import { usePermission } from '~/composables/usePermission'
+import AddMenuModal from '~/components/admin/AddMenuModal.vue'
+import MenuEditForm from '~/components/admin/MenuEditForm.vue'
 
 const { pageTitle } = usePageTitle('menu_management', '메뉴 관리')
 import { useToast } from 'vuestic-ui'
@@ -163,32 +112,32 @@ const { hasPermission } = usePermission()
 const { init } = useToast()
 
 const dumpMenuSeed = async () => {
-  if (!window.confirm('현재 메뉴 설정(순서, 활성화 여부, 필요 권한 등)을 기본 시드 파일로 백업하시겠습니까? (이 기능은 관리자 전용입니다)')) return
+  if (!window.confirm(t('menu_dump_seed_confirm'))) return
   try {
     const token = useCookie('auth_token')
     await $fetch('/api/menus/dump-seed', {
       method: 'POST',
       headers: token.value ? { Authorization: `Bearer ${token.value}` } : {}
     })
-    init({ message: '메뉴 시드 파일 백업이 완료되었습니다.', color: 'success' })
+    init({ message: t('menu_dump_seed_success'), color: 'success' })
   } catch (error) {
-    init({ message: '메뉴 시드 파일 백업에 실패했습니다.', color: 'danger' })
+    init({ message: t('menu_dump_seed_failed'), color: 'danger' })
     console.error(error)
   }
 }
 
 const syncMenuSeed = async () => {
-  if (!window.confirm('시드 파일(default_menus.json)의 내용으로 현재 메뉴 체계를 동기화하시겠습니까? (없는 메뉴는 추가되고 기존 메뉴는 업데이트됩니다)')) return
+  if (!window.confirm(t('menu_sync_seed_confirm'))) return
   try {
     const token = useCookie('auth_token')
     await $fetch('/api/menus/sync-seed', {
       method: 'POST',
       headers: token.value ? { Authorization: `Bearer ${token.value}` } : {}
     })
-    init({ message: '메뉴 동기화가 완료되었습니다.', color: 'success' })
+    init({ message: t('menu_sync_seed_success'), color: 'success' })
     fetchMenus(true, true)
   } catch (error) {
-    init({ message: '메뉴 동기화에 실패했습니다.', color: 'danger' })
+    init({ message: t('menu_sync_seed_failed'), color: 'danger' })
     console.error(error)
   }
 }

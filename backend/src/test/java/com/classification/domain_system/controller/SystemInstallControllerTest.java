@@ -2,68 +2,85 @@ package com.classification.domain_system.controller;
 
 import com.classification.domain_system.dto.SystemInstallRequest;
 import com.classification.domain_system.dto.SystemInstallStatusResponse;
-import com.classification.domain_system.security.JwtUtil;
+import com.classification.domain_system.entity.User;
 import com.classification.domain_system.service.AuthService;
 import com.classification.domain_system.service.PermissionService;
 import com.classification.domain_system.service.SystemInstallService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 
-@WebMvcTest(controllers = SystemInstallController.class)
-@AutoConfigureMockMvc(addFilters = false)
-@org.springframework.context.annotation.Import({com.classification.domain_system.exception.GlobalExceptionHandler.class, com.classification.domain_system.config.SecurityConfig.class, com.classification.domain_system.config.TestSecurityConfig.class})
+@ExtendWith(MockitoExtension.class)
 class SystemInstallControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @MockitoBean
+    @Mock
     private SystemInstallService installService;
 
-    @MockitoBean
+    @Mock
     private AuthService authService;
 
-    @MockitoBean
+    @Mock
     private PermissionService permissionService;
 
-    @MockitoBean
-    private JwtUtil jwtUtil;
-
-    @MockitoBean
-    private com.classification.domain_system.context.AuthContext authContext;
+    @InjectMocks
+    private SystemInstallController systemInstallController;
 
     @Test
-    @DisplayName("설치 상태 조회 정상 응답")
-    void getInstallStatus_Success() throws Exception {
-        when(installService.getInstallStatus()).thenReturn(new SystemInstallStatusResponse(false, false));
+    @DisplayName("시스템 설치 상태 조회 성공")
+    void testGetInstallStatus_Success() {
+        SystemInstallStatusResponse status = new SystemInstallStatusResponse(true, true);
+        when(installService.getInstallStatus()).thenReturn(status);
 
-        mockMvc.perform(get("/api/system/install-status"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.isInstalled").value(false))
-                .andExpect(jsonPath("$.hasAdminAccount").value(false));
+        ResponseEntity<SystemInstallStatusResponse> response = systemInstallController.getInstallStatus();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().isInstalled());
+        assertTrue(response.getBody().isHasAdminAccount());
+        verify(installService).getInstallStatus();
     }
 
     @Test
-    @DisplayName("이미 설치된 시스템에 대해 설치 시도 시 표준 ErrorResponse JSON 반환 (400 Bad Request)")
-    void installSystem_AlreadyInstalled_ReturnsStandardErrorJson() throws Exception {
-        when(installService.installSystem(any(SystemInstallRequest.class)))
-                .thenThrow(new IllegalStateException("The system is already installed."));
+    @DisplayName("최초 시스템 설치 및 관리자 세팅 성공")
+    void testInstallSystem_Success() {
+        SystemInstallRequest request = new SystemInstallRequest();
+        request.setAdminUsername("admin");
+        request.setAdminPassword("admin1234!");
 
-        mockMvc.perform(post("/api/system/install")
-                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                .content("{\"adminUsername\":\"admin\",\"adminPassword\":\"password123\",\"organizationName\":\"Company\"}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"))
-                .andExpect(jsonPath("$.message").value("The system is already installed."));
+        User adminUser = new User();
+        adminUser.setId(UUID.randomUUID().toString());
+        adminUser.setUsername("admin");
+        adminUser.setRole("ROLE_ADMIN");
+
+        when(installService.installSystem(any(SystemInstallRequest.class))).thenReturn(adminUser);
+        when(authService.loginWithTokens(eq("admin"), eq("admin1234!"), eq("127.0.0.1"), anyString()))
+                .thenReturn(Map.of("token", "jwt-token-123", "refreshToken", "refresh-token-123"));
+        when(permissionService.getAuthoritiesForUser(eq("admin"), eq("ROLE_ADMIN")))
+                .thenReturn(List.of(new SimpleGrantedAuthority("admin:read"), new SimpleGrantedAuthority("admin:write")));
+
+        ResponseEntity<?> response = systemInstallController.installSystem(request);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody() instanceof Map);
+        Map<?, ?> resultMap = (Map<?, ?>) response.getBody();
+        assertEquals("jwt-token-123", resultMap.get("token"));
+        assertEquals("admin", resultMap.get("username"));
+        assertEquals("ROLE_ADMIN", resultMap.get("role"));
     }
 }

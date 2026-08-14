@@ -47,56 +47,14 @@
       </div>
     </div>
 
-    <!-- Unified Strategy Guidance & KPI Panel -->
-    <div class="executive-panel">
-      <!-- Strategy Header & KPI Badges -->
-      <div class="panel-header">
-        <div class="panel-title-group">
-          <va-icon name="auto_awesome" color="warning" size="20px" />
-          <span class="panel-title-text">
-            {{ $t('survivorship.guide_title') }}
-          </span>
-        </div>
-
-        <div v-if="selectedDomainId" class="panel-kpi-group">
-          <div class="kpi-chip">
-            <va-icon name="rule" size="16px" color="primary" />
-            <span class="kpi-chip-label">{{ $t('survivorship.kpi_rules', 'Rules:') }}</span>
-            <span class="kpi-chip-value primary-val">{{ rules.length }}</span>
-          </div>
-
-          <div class="kpi-chip">
-            <va-icon name="category" size="16px" color="info" />
-            <span class="kpi-chip-label">{{ $t('survivorship.kpi_fields', 'Domain Fields:') }}</span>
-            <span class="kpi-chip-value info-val">{{ domainFields.length }}</span>
-          </div>
-
-          <div class="kpi-chip">
-            <va-icon name="verified" size="16px" color="success" />
-            <span class="kpi-chip-label">{{ $t('survivorship.kpi_domain', 'Domain:') }}</span>
-            <span class="kpi-chip-value success-val">{{ currentDomainName }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Strategy Cards Grid -->
-      <div class="strategy-cards-grid">
-        <div class="strategy-card" :class="'border-' + getStrategyColor(opt.value)" v-for="opt in strategyOptions" :key="opt.value">
-          <div class="strategy-icon-box" :class="'bg-' + getStrategyColor(opt.value) + '-subtle'">
-            <va-icon :name="getStrategyIcon(opt.value)" :color="getStrategyColor(opt.value)" size="20px" />
-          </div>
-          <div class="strategy-body">
-            <div class="strategy-title">
-              <span>{{ opt.value }}</span>
-              <span class="badge-tag" :class="'tag-' + getStrategyColor(opt.value)">{{ opt.text }}</span>
-            </div>
-            <p class="strategy-desc">
-              {{ getStrategyDesc(opt.value) }}
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Unified Strategy Guidance & KPI Panel (Decoupled Component) -->
+    <SurvivorshipGuidePanel
+      :selected-domain-id="selectedDomainId"
+      :rules-count="rules.length"
+      :domain-fields-count="domainFields.length"
+      :current-domain-name="currentDomainName"
+      :strategy-options="strategyOptions"
+    />
 
     <!-- AG-Grid Table Card Section -->
     <div class="grid-card-container">
@@ -125,6 +83,9 @@
             :row-height="54"
             :header-height="46"
             :suppress-cell-focus="true"
+            :pagination="true"
+            :pagination-page-size="10"
+            :pagination-page-size-selector="[5, 10, 20, 50]"
           />
         </div>
 
@@ -157,6 +118,7 @@ import { usePageTitle } from '~/composables/usePageTitle'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { useDomainStore } from '~/stores/useDomainStore'
 import { useCodeStore } from '~/stores/useCodeStore'
+import SurvivorshipGuidePanel from '~/components/admin/SurvivorshipGuidePanel.vue'
 import { useCookie } from '#app'
 
 const { t, locale } = useI18n()
@@ -180,33 +142,6 @@ const currentDomainName = computed(() => {
 })
 
 const strategyOptions = computed(() => codeStore.getDropdownOptions('SURVIVORSHIP_STRATEGY'))
-
-const getStrategyColor = (strategy) => {
-  if (strategy === 'SOURCE_PRIORITY') return 'primary'
-  if (strategy === 'MOST_RECENT') return 'warning'
-  if (strategy === 'MOST_COMPLETE') return 'success'
-  return 'info'
-}
-
-const getStrategyIcon = (strategy) => {
-  if (strategy === 'SOURCE_PRIORITY') return 'hub'
-  if (strategy === 'MOST_RECENT') return 'history'
-  if (strategy === 'MOST_COMPLETE') return 'verified'
-  return 'rule'
-}
-
-const getStrategyDesc = (strategy) => {
-  if (strategy === 'SOURCE_PRIORITY') {
-    return locale.value === 'ko' ? '지정된 원천 소스 시스템(Legacy ERP, CRM 등)의 데이터 필드값을 최우선으로 채택합니다.' : 'Prioritizes data field values from the designated source system (e.g., Legacy ERP, CRM).';
-  }
-  if (strategy === 'MOST_RECENT') {
-    return locale.value === 'ko' ? '가장 최근 시점에 생성되거나 수정 업데이트된 레코드의 필드값을 채택합니다.' : 'Adopts the field value of the record that was most recently created or updated.';
-  }
-  if (strategy === 'MOST_COMPLETE') {
-    return locale.value === 'ko' ? 'Null이 아니며 가장 많은 정보와 긴 데이터 길이를 보유한 유효 필드값을 채택합니다.' : 'Adopts the valid field value with the most information and longest data length, not Null.';
-  }
-  return '';
-}
 
 const fieldOptions = computed(() => {
   return domainFields.value.map((f: any) => {

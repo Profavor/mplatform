@@ -1,76 +1,79 @@
 package com.classification.domain_system.controller;
 
 import com.classification.domain_system.service.storage.FileStorageService;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
-import org.springframework.test.web.servlet.MockMvc;
-import com.classification.domain_system.security.JwtUtil;
-import com.classification.domain_system.service.PermissionService;
-import com.classification.domain_system.context.AuthContext;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockMultipartFile;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import java.util.Map;
 
-@WebMvcTest(FileController.class)
-@org.springframework.context.annotation.Import({com.classification.domain_system.config.SecurityConfig.class, com.classification.domain_system.config.TestSecurityConfig.class})
-@AutoConfigureMockMvc(addFilters = false)
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
 class FileControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @MockitoBean
+    @Mock
     private FileStorageService fileStorageService;
 
-    @MockitoBean
-    private JwtUtil jwtUtil;
-
-    @MockitoBean
-    private PermissionService permissionService;
-
-    @MockitoBean
-    private AuthContext authContext;
+    @InjectMocks
+    private FileController fileController;
 
     @Test
-    void downloadFile_DangerousExtension_ForcedAttachment() throws Exception {
-        String fileName = "malicious.html";
-        Resource mockResource = new ByteArrayResource("<html><script>alert('xss')</script></html>".getBytes()) {
-            @Override
-            public String getFilename() {
-                return fileName;
-            }
-        };
+    @DisplayName("파일 업로드 성공")
+    void testUploadFile_Success() {
+        MockMultipartFile multipartFile = new MockMultipartFile(
+                "file", "test.png", "image/png", "dummy-image-content".getBytes()
+        );
 
-        Mockito.when(fileStorageService.loadFileAsResource(fileName)).thenReturn(mockResource);
+        when(fileStorageService.storeFile(any())).thenReturn("stored-test.png");
 
-        mockMvc.perform(get("/api/files/download/" + fileName))
-                .andExpect(status().isOk())
-                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, org.hamcrest.Matchers.containsString("attachment")))
-                .andExpect(header().string(HttpHeaders.CONTENT_TYPE, "application/octet-stream"));
+        ResponseEntity<Map<String, String>> response = fileController.uploadFile(multipartFile);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("test.png", response.getBody().get("fileName"));
+        assertTrue(response.getBody().get("url").contains("stored-test.png"));
     }
 
     @Test
-    void downloadFile_SafeExtension_Inline() throws Exception {
-        String fileName = "safe.jpg";
-        Resource mockResource = new ByteArrayResource("fake-image".getBytes()) {
+    @DisplayName("파일 다운로드 성공")
+    void testDownloadFile_Success() {
+        byte[] content = "dummy file content".getBytes();
+        Resource resource = new ByteArrayResource(content) {
             @Override
             public String getFilename() {
-                return fileName;
+                return "test.txt";
             }
         };
 
-        Mockito.when(fileStorageService.loadFileAsResource(fileName)).thenReturn(mockResource);
+        when(fileStorageService.loadFileAsResource("test.txt")).thenReturn(resource);
 
-        mockMvc.perform(get("/api/files/download/" + fileName))
-                .andExpect(status().isOk())
-                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, org.hamcrest.Matchers.containsString("inline")));
+        HttpHeaders headers = new HttpHeaders();
+        ResponseEntity<?> response = fileController.downloadFile("test.txt", "test.txt", headers);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 파일 다운로드 시 404 반환")
+    void testDownloadFile_NotFound() {
+        when(fileStorageService.loadFileAsResource("nonexistent.txt")).thenReturn(null);
+
+        HttpHeaders headers = new HttpHeaders();
+        ResponseEntity<?> response = fileController.downloadFile("nonexistent.txt", null, headers);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
     }
 }

@@ -131,127 +131,33 @@
       </va-card>
     </div>
 
-    <!-- Modals -->
-    <va-modal v-model="showGroupModal" hide-default-actions size="small" no-padding>
-      <template #header>
-        <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--va-background-border); display: flex; align-items: center; gap: 0.75rem;">
-          <div style="background: var(--va-primary); padding: 0.5rem; border-radius: 8px;">
-            <va-icon :name="editingGroup ? 'edit' : 'add_circle'" color="white" size="small" />
-          </div>
-          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700;">
-            {{ editingGroup ? t('code_management.edit_group') : t('code_management.add_group') }}
-          </h3>
-        </div>
-      </template>
-      <div style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; overflow-x: hidden; box-sizing: border-box; width: 100%;">
-        <va-input v-model="groupForm.groupCode" :label="t('code_management.group_code')" :disabled="!!editingGroup" outline />
-        <div style="display: flex; gap: 1rem;">
-          <va-input v-model="groupForm.nameKo" :label="t('code_management.name_ko')" outline style="flex: 1;">
-            <template #appendInner>
-              <va-dropdown :close-on-content-click="false" trigger="click" placement="bottom-end">
-                <template #anchor>
-                  <va-icon name="sentiment_satisfied_alt" size="small" style="cursor: pointer" />
-                </template>
-                <ClientOnly>
-                  <EmojiPicker :native="true" @select="(e) => onEmojiSelect(e, groupForm, 'nameKo')" />
-                </ClientOnly>
-              </va-dropdown>
-            </template>
-          </va-input>
-          <va-input v-model="groupForm.nameEn" :label="t('code_management.name_en')" outline style="flex: 1;">
-            <template #appendInner>
-              <va-dropdown :close-on-content-click="false" trigger="click" placement="bottom-end">
-                <template #anchor>
-                  <va-icon name="sentiment_satisfied_alt" size="small" style="cursor: pointer" />
-                </template>
-                <ClientOnly>
-                  <EmojiPicker :native="true" @select="(e) => onEmojiSelect(e, groupForm, 'nameEn')" />
-                </ClientOnly>
-              </va-dropdown>
-            </template>
-          </va-input>
-        </div>
-        <div style="display: flex; gap: 1rem;">
-          <va-input v-model="groupForm.descKo" :label="t('code_management.desc_ko')" outline style="flex: 1;" />
-          <va-input v-model="groupForm.descEn" :label="t('code_management.desc_en')" outline style="flex: 1;" />
-        </div>
-        <div style="background: var(--va-background-element); padding: 1rem; border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
-          <span style="font-weight: 600; font-size: 0.9rem;">{{ t('code_management.active') }}</span>
-          <va-switch v-model="groupForm.isActive" size="small" />
-        </div>
-      </div>
-      <template #footer>
-        <div style="padding: 1rem 1.5rem; border-top: 1px solid var(--va-background-border); display: flex; justify-content: flex-end; gap: 0.75rem; background: var(--va-background-element);">
-          <va-button preset="secondary" color="secondary" @click="showGroupModal = false">{{ t('code_management.cancel') }}</va-button>
-          <va-button @click="saveGroup">{{ t('code_management.save') }}</va-button>
-        </div>
-      </template>
-    </va-modal>
+    <!-- Modals (Decoupled Components) -->
+    <CodeGroupModal
+      v-model="showGroupModal"
+      :group-form="groupForm"
+      :editing-group="editingGroup"
+      @save="saveGroup"
+    />
 
-    <va-modal v-model="showDetailModal" hide-default-actions size="small" no-padding>
-      <template #header>
-        <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--va-background-border); display: flex; align-items: center; gap: 0.75rem;">
-          <div style="background: var(--va-info); padding: 0.5rem; border-radius: 8px;">
-            <va-icon :name="editingDetail ? 'edit' : 'playlist_add'" color="white" size="small" />
-          </div>
-          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700;">
-            {{ editingDetail ? t('code_management.edit_detail') : t('code_management.add_detail') }}
-          </h3>
-        </div>
-      </template>
-      <div style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; overflow-x: hidden; box-sizing: border-box; width: 100%;">
-        <va-input v-model="detailForm.detailCode" :label="t('code_management.detail_code')" :disabled="!!editingDetail" outline />
-        <div style="display: flex; gap: 1rem;">
-          <va-input v-model="detailForm.nameKo" :label="t('code_management.name_ko')" outline style="flex: 1;">
-            <template #appendInner>
-              <va-dropdown :close-on-content-click="false" trigger="click" placement="bottom-end">
-                <template #anchor>
-                  <va-icon name="sentiment_satisfied_alt" size="small" style="cursor: pointer" />
-                </template>
-                <ClientOnly>
-                  <EmojiPicker :native="true" @select="(e) => onEmojiSelect(e, detailForm, 'nameKo')" />
-                </ClientOnly>
-              </va-dropdown>
-            </template>
-          </va-input>
-          <va-input v-model="detailForm.nameEn" :label="t('code_management.name_en')" outline style="flex: 1;">
-            <template #appendInner>
-              <va-dropdown :close-on-content-click="false" trigger="click" placement="bottom-end">
-                <template #anchor>
-                  <va-icon name="sentiment_satisfied_alt" size="small" style="cursor: pointer" />
-                </template>
-                <ClientOnly>
-                  <EmojiPicker :native="true" @select="(e) => onEmojiSelect(e, detailForm, 'nameEn')" />
-                </ClientOnly>
-              </va-dropdown>
-            </template>
-          </va-input>
-        </div>
-        <va-input v-model="detailForm.sortOrder" type="number" :label="t('code_management.sort_order')" outline />
-        <div style="background: var(--va-background-element); padding: 1rem; border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
-          <span style="font-weight: 600; font-size: 0.9rem;">{{ t('code_management.active') }}</span>
-          <va-switch v-model="detailForm.isActive" size="small" />
-        </div>
-      </div>
-      <template #footer>
-        <div style="padding: 1rem 1.5rem; border-top: 1px solid var(--va-background-border); display: flex; justify-content: flex-end; gap: 0.75rem; background: var(--va-background-element);">
-          <va-button preset="secondary" color="secondary" @click="showDetailModal = false">{{ t('code_management.cancel') }}</va-button>
-          <va-button @click="saveDetail">{{ t('code_management.save') }}</va-button>
-        </div>
-      </template>
-    </va-modal>
+    <CodeDetailModal
+      v-model="showDetailModal"
+      :detail-form="detailForm"
+      :editing-detail="editingDetail"
+      @save="saveDetail"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, h, defineAsyncComponent } from 'vue'
+import { ref, onMounted, computed, h } from 'vue'
 import { usePageTitle } from '~/composables/usePageTitle'
 import { useI18n } from 'vue-i18n'
 import { useToast, useColors } from 'vuestic-ui'
 import { useCookie } from '#app'
 import { AgGridVue } from 'ag-grid-vue3'
 import { useCodeStore } from '~/stores/useCodeStore'
-const EmojiPicker = defineAsyncComponent(() => import('vue3-emoji-picker'))
+import CodeGroupModal from '~/components/admin/CodeGroupModal.vue'
+import CodeDetailModal from '~/components/admin/CodeDetailModal.vue'
 import 'vue3-emoji-picker/css'
 import 'ag-grid-enterprise'
 

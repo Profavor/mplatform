@@ -1,16 +1,17 @@
 import { useMenuStore } from '~/stores/useMenuStore'
+import { useCookie } from '#app'
 
 export const useMenu = () => {
   const store = useMenuStore()
   const { customFetch } = useCustomFetch()
 
-  const fetchMenus = async (forceRefresh = false, includeInactive = false) => {
+  const fetchMenus = async (forceRefresh: boolean = false, includeInactive: boolean = false) => {
     return await store.fetchMenuTree(forceRefresh)
   }
 
   const fetchMenuTree = fetchMenus
 
-  const logAccess = async (menuPath) => {
+  const logAccess = async (menuPath: string) => {
     try {
       if (!menuPath || menuPath === '/install' || menuPath === '/login') return
 

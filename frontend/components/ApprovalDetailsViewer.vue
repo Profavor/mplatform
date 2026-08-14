@@ -270,50 +270,7 @@
 
     <!-- Simple Approval Line Summary & Status (일반 결재 건) -->
     <template v-else>
-      <!-- Simple Approval Line Summary -->
-      <div style="margin-bottom: 1.5rem; padding: 0.75rem; background-color: var(--va-background-secondary); border-radius: 4px; border-left: 4px solid var(--va-primary); overflow-x: auto;">
-        <div style="font-size: 0.85rem; color: var(--va-text-secondary); margin-bottom: 0.75rem;">{{ t('approvalLineSummary') }}</div>
-        
-        <div v-if="request?.steps && request.steps.length > 0" 
-             style="display: flex; align-items: center; width: 100%; overflow-x: auto; padding: 0.25rem 0;">
-          <template v-for="(s, idx) in getStepperSteps(request)" :key="idx">
-            <!-- Step Node -->
-            <div style="display: flex; flex-direction: row; align-items: center; gap: 0.5rem; flex-shrink: 0;">
-              <div 
-                :class="{'step-flash': s.isPending}"
-                :style="{
-                  width: '32px', height: '32px', borderRadius: '50%', 
-                  backgroundColor: s.hasError ? 'var(--va-danger)' : (s.isPending ? 'var(--va-warning)' : (idx < getCurrentStepIndex(request) ? 'var(--va-primary)' : 'var(--va-background-element)')),
-                  border: idx <= getCurrentStepIndex(request) ? 'none' : '2px solid var(--va-background-border)',
-                  color: s.isPending ? '#262824' : (idx < getCurrentStepIndex(request) ? 'white' : 'var(--va-text-secondary)'),
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.9rem',
-                  boxShadow: s.isPending ? '0 0 0 rgba(255, 212, 58, 0.4)' : 'none'
-                }"
-              >
-                {{ s.stepOrder }}
-              </div>
-              <div style="font-size: 0.85rem; color: var(--va-text-primary); white-space: nowrap; display: flex; flex-direction: column; justify-content: center;">
-                <div>{{ s.name }} <span style="color: var(--va-text-secondary); font-size: 0.8rem;">({{ s.statusText }})</span></div>
-                <div v-if="s.processedDate" style="font-size: 0.72rem; color: var(--va-text-secondary); opacity: 0.8; margin-top: 2px;">
-                  {{ s.processedDate }}
-                </div>
-              </div>
-            </div>
-            <!-- Line -->
-            <div v-if="idx < getStepperSteps(request).length - 1" 
-                 style="flex-grow: 1; min-width: 40px; height: 2px; margin: 0 1rem;"
-                 :style="{ backgroundColor: idx < getCurrentStepIndex(request) - 0.5 ? 'var(--va-primary)' : 'var(--va-background-border)' }">
-            </div>
-          </template>
-        </div>
-        <div v-else style="font-weight: bold; color: var(--va-primary);">{{ t('noApprovalLine') }}</div>
-      </div>
-
-      <!-- Approval Line Status -->
-      <div v-if="request?.steps && request.steps.length > 0" style="margin-bottom: 1.5rem; padding-top: 0.5rem; border-top: 1px solid var(--va-background-border);">
-        <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem; color: var(--va-text-primary);">{{ t('approvalLineStatus') }}</div>
-        <ApprovalSteps :request="request" />
-      </div>
+      <ApprovalHistoryTimeline :request="request" />
     </template>
 
     <UnmaskReasonModal
@@ -328,6 +285,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useCookie } from '#app'
 import { useI18n } from 'vue-i18n'
 import ApprovalSteps from './ApprovalSteps.vue'
+import ApprovalHistoryTimeline from './approval/ApprovalHistoryTimeline.vue'
 import UnmaskReasonModal from './UnmaskReasonModal.vue'
 import { useToast } from 'vuestic-ui'
 import { useCustomFetch } from '~/composables/useCustomFetch'

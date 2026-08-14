@@ -41,7 +41,6 @@ class DomainServiceTest extends BaseServiceTest {
             // given
             DomainRequest request = createTestDomainRequest("인사", "HR");
             Domain saved = createTestDomain(UUID.randomUUID(), "인사", "HR");
-            given(securityUtils.getCurrentUserId()).willReturn("tester");
             given(domainRepository.save(any(Domain.class))).willReturn(saved);
 
             // when
@@ -61,7 +60,6 @@ class DomainServiceTest extends BaseServiceTest {
             request.setAutoDqScanEnabled(true);
             Domain saved = createTestDomain(UUID.randomUUID(), "인사", "HR");
             saved.setAutoDqScanEnabled(true);
-            given(securityUtils.getCurrentUserId()).willReturn("tester");
             given(domainRepository.save(any(Domain.class))).willReturn(saved);
 
             // when
@@ -87,13 +85,13 @@ class DomainServiceTest extends BaseServiceTest {
                 createTestDomain(UUID.randomUUID(), "재무", "Finance")
             );
             
+            given(securityUtils.getCurrentUserId()).willReturn("adminUser");
+            
             org.springframework.security.core.Authentication auth = org.mockito.Mockito.mock(org.springframework.security.core.Authentication.class);
             org.springframework.security.core.context.SecurityContext ctx = org.mockito.Mockito.mock(org.springframework.security.core.context.SecurityContext.class);
             given(ctx.getAuthentication()).willReturn(auth);
             org.springframework.security.core.context.SecurityContextHolder.setContext(ctx);
             
-            given(auth.isAuthenticated()).willReturn(true);
-            given(auth.getName()).willReturn("adminUser");
             given(auth.getAuthorities()).willReturn((Collection) List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN")));
             
             com.classification.domain_system.entity.User admin = new com.classification.domain_system.entity.User();
@@ -123,13 +121,13 @@ class DomainServiceTest extends BaseServiceTest {
                 createTestDomain(UUID.randomUUID(), "재무", "Finance")
             );
             
+            given(securityUtils.getCurrentUserId()).willReturn("profavor");
+            
             org.springframework.security.core.Authentication auth = org.mockito.Mockito.mock(org.springframework.security.core.Authentication.class);
             org.springframework.security.core.context.SecurityContext ctx = org.mockito.Mockito.mock(org.springframework.security.core.context.SecurityContext.class);
             given(ctx.getAuthentication()).willReturn(auth);
             org.springframework.security.core.context.SecurityContextHolder.setContext(ctx);
             
-            given(auth.isAuthenticated()).willReturn(true);
-            given(auth.getName()).willReturn("profavor");
             given(auth.getAuthorities()).willReturn((Collection) List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN")));
             
             com.classification.domain_system.entity.User multiRoleUser = new com.classification.domain_system.entity.User();
@@ -161,7 +159,6 @@ class DomainServiceTest extends BaseServiceTest {
             // given
             UUID domainId = UUID.randomUUID();
             Domain saved = createTestDomain(domainId, "인사", "HR");
-            given(securityUtils.getCurrentUserId()).willReturn("tester");
             given(domainRepository.findById(domainId)).willReturn(Optional.of(saved));
 
             // when

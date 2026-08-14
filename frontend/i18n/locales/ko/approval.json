@@ -75,5 +75,11 @@
   "view_approval_history": "결재 내역 보기",
   "approval_inbox": "결재함",
   "pending_count": "{count}건 대기",
-  "item_count": "{count}건"
+  "item_count": "{count}건",
+  "consensus": "합의",
+  "draft": "기안",
+  "draft_completed": "기안완료",
+  "processed": "처리됨",
+  "no_comment": "의견 없음",
+  "observers_list": "참조자 목록"
 }

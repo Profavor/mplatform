@@ -328,26 +328,20 @@
       </div>
     </va-modal>
 
-    <!-- Create User Modal -->
-    <va-modal v-model="showCreateUserModal" :title="$t('create_user')" hide-default-actions>
-      <div style="padding: 1rem; min-width: 400px; display: flex; flex-direction: column; gap: 1.25rem;">
-        <va-input v-model="newUser.username" :label="$t('label_username')" outline @update:modelValue="isUsernameChecked = false" :success="isUsernameChecked && checkedUsername === newUser.username">
-          <template #appendInner>
-            <va-button size="small" color="primary" preset="secondary" @click="checkUsernameDuplicate" :loading="isCheckingUsername" :disabled="!newUser.username || (isUsernameChecked && checkedUsername === newUser.username)" style="white-space: nowrap;">
-              {{ $t('check_duplicate') }}
-            </va-button>
-          </template>
-        </va-input>
-        <UserRoleSelect v-model="newUser.role" :label="$t('user_role')" />
-        <va-select v-model="newUser.organizationId" :options="organizations" value-by="id" :text-by="o => getI18nText(o.displayName) || o.name" :label="$t('organization')" clearable outline />
-        <va-select v-model="newUser.departmentId" :options="departmentsForNewUser" value-by="id" text-by="name" :label="$t('department')" clearable outline :disabled="!newUser.organizationId" />
-        
-        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem;">
-          <va-button preset="secondary" @click="showCreateUserModal = false">{{ $t('cancel') }}</va-button>
-          <va-button color="success" @click="createUser" :loading="isCreatingUser">{{ $t('create') }}</va-button>
-        </div>
-      </div>
-    </va-modal>
+    <!-- Create User Modal (Decoupled Component) -->
+    <CreateUserModal
+      v-model="showCreateUserModal"
+      :new-user="newUser"
+      :organizations="organizations"
+      :departments="departmentsForNewUser"
+      :is-username-checked="isUsernameChecked"
+      :checked-username="checkedUsername"
+      :is-checking-username="isCheckingUsername"
+      :is-creating-user="isCreatingUser"
+      @username-changed="isUsernameChecked = false"
+      @check-username="checkUsernameDuplicate"
+      @create="createUser"
+    />
 
     <!-- Temp Password Alert Modal -->
     <va-modal v-model="showTempPasswordModal" :title="$t('user_created')" hide-default-actions :prevent-click-outside="true" :no-outside-dismiss="true">
@@ -365,7 +359,7 @@
     </va-modal>
 
     <!-- View Temp Password Modal -->
-    <va-modal v-model="showViewTempPasswordModal" :title="$t('temp_password')" hide-default-actions>
+    <va-modal v-model="showViewTempPasswordModal" :title="$t('view_temp_password')" hide-default-actions>
       <div style="padding: 1.5rem; text-align: center;">
         <va-icon name="key" color="warning" size="3.5rem" style="margin-bottom: 1rem;" />
         <h3 style="margin-bottom: 1rem; font-weight: 800; font-size: 1.3rem;">{{ $t('temp_password_check') }}</h3>
@@ -384,6 +378,7 @@
 <script setup>
 import { usePermission } from '~/composables/usePermission'
 import { usePageTitle } from '~/composables/usePageTitle'
+import CreateUserModal from '~/components/admin/CreateUserModal.vue'
 
 const { pageTitle } = usePageTitle('user_management', '사용자 및 권한 관리')
 
@@ -745,28 +740,28 @@ const viewTempPassword = async (userId) => {
       fetchedTempPassword.value = res.tempPassword
       showViewTempPasswordModal.value = true
     } else {
-      showCustomAlert('임시 비밀번호를 조회할 수 없습니다.', '오류', '알림', 'error')
+      showCustomAlert(t('user_temp_password_not_found'), t('error'), t('notification'), 'error')
     }
   } catch (e) {
-    showCustomAlert('조회 실패: 해당 사용자의 임시 비밀번호가 존재하지 않거나 권한이 없습니다.', '오류', '알림', 'error')
+    showCustomAlert(t('user_temp_password_query_failed'), t('error'), t('notification'), 'error')
   }
 }
 
 const confirmDeleteUser = async (user) => {
-  if (confirm(`정말로 사용자 '${user.username}'를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`)) {
+  if (confirm(t('user_delete_confirm', { username: user.username }))) {
     try {
       await $fetch(`/api/users/${user.id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token.value}` }
       })
-      showCustomAlert('사용자가 성공적으로 삭제되었습니다.', '삭제 완료', '알림', 'success')
+      showCustomAlert(t('user_delete_success'), t('delete_complete', '삭제 완료'), t('notification'), 'success')
       selectedUser.value = null
       fetchUsers()
     } catch (e) {
       if (e.response?.status === 409) {
-        showCustomAlert('해당 사용자가 생성한 레코드나 결재 이력 등 연결된 데이터가 존재하여 삭제할 수 없습니다.', '삭제 불가', '알림', 'error')
+        showCustomAlert(t('user_delete_conflict_error'), t('delete_unavailable', '삭제 불가'), t('notification'), 'error')
       } else {
-        showCustomAlert('사용자 삭제 중 오류가 발생했습니다: ' + (e.response?._data || e.message), '오류', '알림', 'error')
+        showCustomAlert(t('user_delete_failed', { error: e.response?._data || e.message }), t('error'), t('notification'), 'error')
       }
     }
   }

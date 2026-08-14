@@ -14,7 +14,7 @@
         <span style="font-weight: 700; font-size: 0.95rem; color: var(--va-text-primary);">
           {{ getI18nText(node.name) }}
         </span>
-        <va-chip size="small" color="info" outline>{{ getLabel('dept', '부서') }}</va-chip>
+        <va-chip size="small" color="info" outline>{{ t('dept') }}</va-chip>
         <va-badge v-for="r in nodeRoles" :key="r" :text="r" color="warning" size="small" style="font-weight: bold; margin-left: 0.2rem;" />
         <span v-if="node.description" style="font-size: 0.8rem; color: var(--va-text-secondary); margin-left: 0.5rem;">
           {{ getI18nText(node.description) }}
@@ -24,17 +24,17 @@
       <!-- Actions -->
       <div style="display: flex; gap: 0.4rem; align-items: center;">
         <va-button size="small" preset="secondary" color="info" icon="people" @click="$emit('manage-members', node)">
-          {{ getLabel('manage_members', '구성원 관리') }}
+          {{ t('manage_members') }}
           <va-badge v-if="node.memberCount" :text="String(node.memberCount)" color="primary" size="small" style="margin-left: 0.25rem;" />
         </va-button>
         <va-button size="small" preset="secondary" icon="add" @click="$emit('add-subdept', node.id)">
-          + {{ getLabel('add_subdept', '하위 부서 추가') }}
+          + {{ t('add_subdept') }}
         </va-button>
         <va-button size="small" preset="secondary" color="warning" icon="edit" @click="$emit('edit-dept', node)">
-          {{ getLabel('edit', '수정') }}
+          {{ t('edit') }}
         </va-button>
         <va-button size="small" preset="secondary" color="danger" icon="delete" @click="$emit('delete-dept', node)">
-          {{ getLabel('delete', '삭제') }}
+          {{ t('delete') }}
         </va-button>
       </div>
     </div>
@@ -57,6 +57,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const { t, locale } = useI18n()
 
@@ -67,11 +68,6 @@ const props = defineProps({
 defineEmits(['add-subdept', 'edit-dept', 'delete-dept', 'manage-members'])
 
 const isOpen = ref(true)
-
-const getLabel = (key, fallback) => {
-  const res = t(key)
-  return (!res || res === key) ? fallback : res
-}
 
 const getI18nText = (textStr) => {
   if (!textStr) return ''
@@ -86,8 +82,6 @@ const getI18nText = (textStr) => {
     return textStr
   }
 }
-
-
 
 const hasChildren = computed(() => {
   return (props.node.subDepts && props.node.subDepts.length > 0)

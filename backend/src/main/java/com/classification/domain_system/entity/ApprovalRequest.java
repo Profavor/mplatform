@@ -30,7 +30,7 @@ public class ApprovalRequest {
     @Column(name = "requester_id", nullable = false, length = 100)
     private String requesterId;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "requester_id", insertable = false, updatable = false, foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
     @org.hibernate.annotations.NotFound(action = org.hibernate.annotations.NotFoundAction.IGNORE)
     @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "password"})
@@ -51,7 +51,7 @@ public class ApprovalRequest {
         return getRequesterName();
     }
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "node_id")
     private ClassificationNode classificationNode;
 

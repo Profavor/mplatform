@@ -78,10 +78,10 @@ class GlobalRecordControllerTest {
 
         Page<Record> page = new PageImpl<>(List.of(record), PageRequest.of(0, 100), 1);
 
-        when(recordRepository.findDynamicRecordsByDomain(
+        when(recordService.findDynamicRecordsByDomain(
                 eq(domainId),
                 any(Map.class),
-                any(PageRequest.class)
+                any(org.springframework.data.domain.Pageable.class)
         )).thenReturn(page);
 
         mockMvc.perform(get("/api/records/domain/{domainId}", domainId)
@@ -100,7 +100,7 @@ class GlobalRecordControllerTest {
         record.setData("{\"key\":\"value\"}");
         record.setStatus("APPROVED");
 
-        when(recordRepository.findById(recordId)).thenReturn(Optional.of(record));
+        when(recordService.getRecordById(recordId)).thenReturn(Optional.of(record));
 
         mockMvc.perform(get("/api/records/{id}", recordId))
                 .andExpect(status().isOk())
@@ -110,7 +110,7 @@ class GlobalRecordControllerTest {
     @Test
     @DisplayName("존재하지 않는 레코드 조회 시 404 반환")
     void getRecord_NotFound() throws Exception {
-        when(recordRepository.findById(recordId)).thenReturn(Optional.empty());
+        when(recordService.getRecordById(recordId)).thenReturn(Optional.empty());
 
         mockMvc.perform(get("/api/records/{id}", recordId))
                 .andExpect(status().isNotFound());

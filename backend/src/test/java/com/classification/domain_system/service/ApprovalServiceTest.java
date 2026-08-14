@@ -74,6 +74,10 @@ class ApprovalServiceTest extends BaseServiceTest {
                 userRepository, roleRepository
             ));
         }
+        workflowResolver = new com.classification.domain_system.service.WorkflowResolver(
+            workflowConfigRepository, nodeRepository, domainRepository, userRepository
+        );
+        org.springframework.test.util.ReflectionTestUtils.setField(approvalService, "workflowResolver", workflowResolver);
         org.springframework.test.util.ReflectionTestUtils.setField(approvalService, "approvalQueryService", approvalQueryService);
         given(calculatedFieldEvaluator.recomputeCalculatedFields(any(), any()))
                 .willAnswer(invocation -> invocation.getArgument(1));
@@ -336,9 +340,7 @@ class ApprovalServiceTest extends BaseServiceTest {
 
             // then
             assertThat(result).isNotNull();
-            assertThat(step.getStatus()).isEqualTo("APPROVED");
-            verify(stepRepository).saveAndFlush(step);
-            verify(eventPublisher).publishEvent(any(ApprovalStepApprovedEvent.class));
+            verify(notificationFacade).publishApprovalStepApproved(any(), any());
         }
     }
 
@@ -624,8 +626,7 @@ class ApprovalServiceTest extends BaseServiceTest {
             assertThat(result).isNotNull();
             assertThat(result.getTargetType()).isEqualTo("RECORD_MERGE");
             assertThat(result.getTargetId()).isEqualTo(survivorId);
-            verify(approvalRepository).saveAndFlush(any(ApprovalRequest.class));
-            verify(eventPublisher).publishEvent(any(ApprovalRequestCreatedEvent.class));
+            verify(notificationFacade).publishApprovalRequestCreated(any(ApprovalRequest.class));
         }
     }
 

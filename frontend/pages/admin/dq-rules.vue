@@ -42,14 +42,14 @@
               <div style="display: flex; justify-content: space-between; align-items: flex-end;">
                 <div style="flex: 1; max-width: 400px;">
                   <div style="font-size: 0.85rem; font-weight: 600; color: var(--va-text-secondary); margin-bottom: 0.25rem;">
-                    대상 필드 (Target Field)
+                    {{ $t('dq_target_field') }}
                   </div>
                   <va-select
                     v-model="selectedFieldId"
                     :options="fieldOptions"
                     value-by="id"
                     text-by="text"
-                    placeholder="트리에서 노드를 선택한 후 필드를 선택하세요."
+                    :placeholder="$t('dq_select_field_placeholder')"
                     :disabled="!selectedNode"
                     @update:modelValue="onFieldSelected"
                   />
@@ -68,7 +68,7 @@
           <va-card-content style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 1rem;">
             <div v-if="!selectedFieldId" style="flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; color: var(--va-text-secondary);">
               <va-icon name="playlist_add_check" size="4rem" color="secondary" style="opacity: 0.5; margin-bottom: 1rem;" />
-              <div style="font-size: 1.1rem; font-weight: 600;">좌측 트리에서 노드를 선택하고 필드를 지정해주세요.</div>
+              <div style="font-size: 1.1rem; font-weight: 600;">{{ $t('dq_select_node_field_guide') }}</div>
             </div>
             <div v-else :class="{ 'ag-theme-quartz-dark': isDark }" style="flex: 1; width: 100%; height: 100%;">
               <ag-grid-vue
@@ -77,7 +77,9 @@
                 :columnDefs="columnDefs"
                 :rowData="rules"
                 :rowSelection="{ mode: 'singleRow', headerCheckbox: false }"
-                :pagination="false"
+                :pagination="true"
+                :pagination-page-size="10"
+                :pagination-page-size-selector="[5, 10, 20, 50]"
               />
             </div>
           </va-card-content>
@@ -85,58 +87,15 @@
       </div>
     </div>
 
-    <!-- Rule Edit Modal -->
-    <va-modal
+    <!-- Rule Edit Modal (Decoupled Component) -->
+    <DqRuleModal
       v-model="showRuleModal"
-      :title="editingRuleId ? ($t('edit_dq_rule')) : ($t('add_dq_rule'))"
-      size="medium"
-      @ok="saveRule"
-      @cancel="showRuleModal = false"
-    >
-      <div style="padding: 1rem 0; display: flex; flex-direction: column; gap: 1.25rem;">
-        <va-select
-          v-model="ruleFormData.ruleType"
-          :options="ruleTypeOptions"
-          :label="$t('dq_rule_type')"
-          required
-        />
-        
-        <va-select
-          v-model="ruleFormData.severity"
-          :options="severityOptions"
-          :label="$t('dq_severity')"
-          required
-        />
-
-        <va-input
-          v-model="ruleFormData.params"
-          :label="$t('dq_params')"
-          placeholder="e.g. ^[0-9]+$"
-          type="textarea"
-          :min-rows="2"
-        />
-
-        <va-input
-          v-model="ruleFormData.message"
-          :label="$t('dq_error_message')"
-          placeholder="e.g. 숫자만 입력 가능합니다."
-        />
-
-        <div style="display: flex; gap: 1rem;">
-          <va-input
-            v-model="ruleFormData.sortOrder"
-            :label="$t('dq_sort_order')"
-            type="number"
-            style="flex: 1;"
-          />
-          <va-checkbox
-            v-model="ruleFormData.isActive"
-            label="활성화 (Active)"
-            style="flex: 1; margin-top: 1.25rem;"
-          />
-        </div>
-      </div>
-    </va-modal>
+      :is-edit="!!editingRuleId"
+      :form-data="ruleFormData"
+      :rule-type-options="ruleTypeOptions"
+      :severity-options="severityOptions"
+      @save="saveRule"
+    />
   </div>
 </template>
 
@@ -146,6 +105,7 @@ import { AgGridVue } from 'ag-grid-vue3'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vuestic-ui'
+import DqRuleModal from '~/components/admin/DqRuleModal.vue'
 
 const { t } = useI18n()
 const { init } = useToast()
@@ -336,28 +296,28 @@ const saveRule = async () => {
           domainId: selectedNode.value.domainId || (selectedNode.value.type === 'domain' ? selectedNode.value.id : null)
         }
       })
-      init({ message: '규칙이 추가되었습니다.', color: 'success' })
+      init({ message: t('dq_rule_saved_success', '규칙이 추가되었습니다.'), color: 'success' })
     }
     showRuleModal.value = false
     await onFieldSelected()
   } catch (e) {
     console.error('Failed to save rule', e)
-    init({ message: '규칙 저장에 실패했습니다.', color: 'danger' })
+    init({ message: t('dq_rule_save_failed'), color: 'danger' })
   }
 }
 
 const deleteRule = async (id) => {
-  if (!confirm('정말로 이 규칙을 삭제하시겠습니까?')) return
+  if (!confirm(t('dq_rule_delete_confirm'))) return
   try {
     await $fetch(`/api/dq-rules/${id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token.value}` }
     })
-    init({ message: '규칙이 삭제되었습니다.', color: 'success' })
+    init({ message: t('dq_rule_deleted_success'), color: 'success' })
     await onFieldSelected()
   } catch (e) {
     console.error('Failed to delete rule', e)
-    init({ message: '규칙 삭제에 실패했습니다.', color: 'danger' })
+    init({ message: t('dq_rule_delete_failed'), color: 'danger' })
   }
 }
 

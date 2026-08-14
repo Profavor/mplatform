@@ -1,11 +1,11 @@
 spring:
   datasource:
-    url: jdbc:tc:postgresql:15-alpine:///testdb
-    username: test
-    password: test
-    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password: ''
+    driver-class-name: org.h2.Driver
   jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    database-platform: org.hibernate.dialect.H2Dialect
     open-in-view: false
     hibernate:
       ddl-auto: create-drop
@@ -26,6 +26,9 @@ spring:
     type: simple
   opensearch:
     uris: http://localhost:9200
+  integration:
+    jdbc:
+      initialize-schema: never
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
@@ -34,6 +37,7 @@ spring:
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
       - org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration
+      - org.springframework.boot.autoconfigure.integration.IntegrationAutoConfiguration
 
 keycloak:
   server-url: http://localhost:8080

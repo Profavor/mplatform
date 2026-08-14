@@ -10,7 +10,7 @@
             <va-badge text="Deduplication" color="primary" size="small" />
           </h2>
           <span class="header-sub-title">
-            도메인별 중복 레코드 판별을 위한 EXACT / FUZZY 매칭 규칙 및 유사도 임계값을 설정합니다.
+            {{ t('matchingRules.subtitle') }}
           </span>
         </div>
       </div>
@@ -21,7 +21,7 @@
           :options="domainOptions"
           value-by="value"
           text-by="text"
-          placeholder="도메인 선택"
+          :placeholder="t('matchingRules.select_domain_placeholder')"
           style="min-width: 220px;"
           dense
           @update:modelValue="onDomainChange"
@@ -32,7 +32,7 @@
           :disabled="!selectedDomainId"
           @click="openCreateModal"
         >
-          규칙 추가
+          {{ t('matchingRules.add_rule') }}
         </va-button>
         <va-button
           preset="secondary"
@@ -40,7 +40,7 @@
           :disabled="!selectedDomainId"
           @click="fetchData"
         >
-          새로고침
+          {{ t('matchingRules.refresh') }}
         </va-button>
       </div>
     </div>
@@ -55,16 +55,16 @@
           </va-card-title>
           <va-card-content>
             <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.85rem;">
-              <span>총 검토 건수: <strong>{{ stats.totalReviewed || 0 }}건</strong></span>
-              <span>정탐률: <strong>{{ ((stats.precision || 0) * 100).toFixed(1) }}%</strong></span>
+              <span>{{ t('matchingRules.total_reviewed') }}: <strong>{{ stats.totalReviewed || 0 }}</strong></span>
+              <span>{{ t('matchingRules.precision') }}: <strong>{{ ((stats.precision || 0) * 100).toFixed(1) }}%</strong></span>
             </div>
             <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem; font-size: 0.8rem;">
-              <va-chip color="success" size="small">정탐(Confirmed): {{ stats.confirmedCount || 0 }}</va-chip>
-              <va-chip color="danger" size="small">오탐(Rejected): {{ stats.rejectedCount || 0 }}</va-chip>
+              <va-chip color="success" size="small">{{ t('matchingRules.confirmed') }}: {{ stats.confirmedCount || 0 }}</va-chip>
+              <va-chip color="danger" size="small">{{ t('matchingRules.rejected') }}: {{ stats.rejectedCount || 0 }}</va-chip>
             </div>
             <div style="font-size: 0.8rem; color: var(--va-text-secondary); background: var(--va-background-element); padding: 0.5rem; border-radius: 6px; margin-top: 0.5rem;">
-              <div>현재 Threshold: <strong>{{ stats.currentThreshold }}</strong></div>
-              <div v-if="stats.recommendedThreshold">추천 Threshold: <strong style="color: var(--va-primary);">{{ stats.recommendedThreshold }}</strong></div>
+              <div>{{ t('matchingRules.current_threshold') }}: <strong>{{ stats.currentThreshold }}</strong></div>
+              <div v-if="stats.recommendedThreshold">{{ t('matchingRules.recommended_threshold') }}: <strong style="color: var(--va-primary);">{{ stats.recommendedThreshold }}</strong></div>
               <div v-if="stats.recommendation" style="margin-top: 0.25rem; font-weight: 600; color: var(--va-primary);">💡 {{ stats.recommendation }}</div>
             </div>
           </va-card-content>
@@ -77,8 +77,10 @@
       <va-card-title class="flex justify-between items-center" style="padding: 1rem 1.25rem;">
         <div class="flex items-center gap-2 font-bold text-lg">
           <va-icon name="table_chart" color="primary" />
-          <span style="color: var(--va-text-primary);">매칭 규칙 목록</span>
-          <va-chip v-if="selectedDomainId" size="small" color="primary">{{ rules.length }}개 항목</va-chip>
+          <span style="color: var(--va-text-primary);">{{ t('matchingRules.rule_list') }}</span>
+          <va-chip v-if="selectedDomainId" size="small" color="primary">
+            {{ t('matchingRules.items_count', { count: rules.length }) }}
+          </va-chip>
         </div>
       </va-card-title>
 
@@ -94,6 +96,9 @@
             :row-height="54"
             :header-height="46"
             :suppress-cell-focus="true"
+            :pagination="true"
+            :pagination-page-size="10"
+            :pagination-page-size-selector="[5, 10, 20, 50]"
           />
         </div>
 
@@ -101,87 +106,28 @@
         <div v-else class="empty-state-box">
           <va-icon name="compare" size="52px" color="secondary" class="mb-3" />
           <h3 class="empty-state-title">
-            {{ selectedDomainId ? '등록된 매칭 규칙이 없습니다.' : '상단 드롭다운에서 도메인을 먼저 선택해 주세요.' }}
+            {{ selectedDomainId ? t('matchingRules.empty_no_rules') : t('matchingRules.empty_select_domain') }}
           </h3>
           <p class="empty-state-desc">
-            {{ selectedDomainId ? '우측 상단의 "+ 규칙 추가" 버튼을 클릭하여 중복 레코드 판별을 위한 새로운 매칭 규칙을 생성하세요.' : '도메인을 선택하면 해당 도메인의 중복 레코드 판단 규칙 목록이 AG-Grid에 표시됩니다.' }}
+            {{ selectedDomainId ? t('matchingRules.empty_no_rules_desc') : t('matchingRules.empty_select_domain_desc') }}
           </p>
           <va-button v-if="selectedDomainId" color="primary" icon="add" size="small" @click="openCreateModal">
-            첫 번째 매칭 규칙 추가하기
+            {{ t('matchingRules.add_first_rule') }}
           </va-button>
         </div>
       </va-card-content>
     </va-card>
 
-    <!-- Rule Form Modal -->
-    <va-modal
+    <!-- Rule Form Modal (Decoupled Component) -->
+    <MatchingRuleModal
       v-model="showModal"
-      :title="isEditMode ? '매칭 규칙 수정' : '새 매칭 규칙 추가'"
-      hide-default-actions
-      size="medium"
-      no-outside-dismiss
-    >
-      <div style="padding: 0.5rem 0;">
-        <va-input
-          v-model="form.ruleName"
-          label="규칙명 (Rule Name)"
-          placeholder="예: 이름 및 연락처 일치 규칙"
-          class="mb-3"
-          required
-        />
-
-        <va-select
-          v-model="form.matchType"
-          :options="matchTypeOptions"
-          value-by="value"
-          text-by="text"
-          label="매칭 방식 (Match Type)"
-          class="mb-3"
-        />
-
-        <va-select
-          v-if="domainFieldOptions.length > 0"
-          v-model="form.selectedFields"
-          :options="domainFieldOptions"
-          value-by="value"
-          text-by="text"
-          multiple
-          label="대상 필드 다중 선택 (Target Fields)"
-          class="mb-3"
-        />
-        <va-input
-          v-else
-          v-model="form.targetFieldKeysInput"
-          label="대상 필드 키 (comma separated)"
-          placeholder="email, phone"
-          class="mb-3"
-        />
-
-        <va-input
-          v-if="form.matchType === 'FUZZY'"
-          v-model.number="form.similarityThreshold"
-          type="number"
-          step="0.05"
-          min="0.5"
-          max="1.0"
-          label="유사도 임계값 (Similarity Threshold 0.5 ~ 1.0)"
-          class="mb-3"
-        />
-
-        <va-checkbox
-          v-model="form.isActive"
-          label="규칙 활성화 여부 (Is Active)"
-          class="mt-2"
-        />
-      </div>
-
-      <template #footer>
-        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
-          <va-button preset="secondary" @click="showModal = false">취소</va-button>
-          <va-button color="primary" :loading="isSaving" @click="saveRule">저장</va-button>
-        </div>
-      </template>
-    </va-modal>
+      :is-edit-mode="isEditMode"
+      :is-saving="isSaving"
+      :form="form"
+      :match-type-options="matchTypeOptions"
+      :domain-field-options="domainFieldOptions"
+      @save="saveRule"
+    />
   </div>
 </template>
 
@@ -194,16 +140,16 @@ import { useCustomFetch } from '~/composables/useCustomFetch'
 import { usePageTitle } from '~/composables/usePageTitle'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { useCodeStore } from '~/stores/useCodeStore'
-import { useCookie } from '#app'
+import { useDomain } from '~/composables/useDomain'
+import MatchingRuleModal from '~/components/admin/MatchingRuleModal.vue'
 
-const { t, locale } = useI18n()
-const { pageTitle } = usePageTitle('matching_rules.title', '매칭 규칙 관리')
+const { t } = useI18n()
+const { pageTitle } = usePageTitle('matchingRules.title', '매칭 규칙 관리')
 const { init } = useToast()
 const { confirm } = useModal()
 const { customFetch } = useCustomFetch()
 const { gridTheme, isDark } = useAgGridTheme()
 const codeStore = useCodeStore()
-const token = useCookie('auth_token')
 
 const domainStore = useDomain()
 const selectedDomainId = ref('')
@@ -260,7 +206,6 @@ const MatchTypeCellRenderer = (params: any) => {
       : 'background: rgba(237, 108, 2, 0.12); color: var(--va-warning); border: 1px solid rgba(237, 108, 2, 0.3);'
   }`
   
-  // Use CodeStore to map the value to name
   const localizedName = codeStore.getCodeName('MATCH_TYPE', params.value, params.value)
   pill.textContent = localizedName
 
@@ -317,7 +262,7 @@ const IsActiveCellRenderer = (params: any) => {
       ? 'background: rgba(46, 125, 50, 0.12); color: var(--va-success); border: 1px solid rgba(46, 125, 50, 0.3);'
       : 'background: rgba(158, 158, 158, 0.12); color: var(--va-text-secondary); border: 1px solid rgba(158, 158, 158, 0.3);'
   }`
-  pill.textContent = isActive ? '활성 (Active)' : '비활성'
+  pill.textContent = isActive ? t('matchingRules.active') : t('matchingRules.inactive')
 
   div.appendChild(pill)
   return div
@@ -350,37 +295,37 @@ const defaultColDef = {
 const columnDefs = computed(() => [
   {
     field: 'ruleName',
-    headerName: '규칙명',
+    headerName: t('matchingRules.rule_name'),
     flex: 1.2,
     cellRenderer: RuleNameCellRenderer
   },
   {
     field: 'matchType',
-    headerName: '매칭 방식',
+    headerName: t('matchingRules.match_type'),
     width: 130,
     cellRenderer: MatchTypeCellRenderer
   },
   {
     field: 'targetFieldKeys',
-    headerName: '대상 필드',
+    headerName: t('matchingRules.target_fields'),
     flex: 1.5,
     cellRenderer: TargetFieldsCellRenderer
   },
   {
     field: 'similarityThreshold',
-    headerName: '유사도 Threshold',
+    headerName: t('matchingRules.similarity_threshold'),
     width: 160,
     cellRenderer: SimilarityCellRenderer
   },
   {
     field: 'isActive',
-    headerName: '상태',
+    headerName: t('matchingRules.is_active'),
     width: 140,
     cellRenderer: IsActiveCellRenderer
   },
   {
     field: 'actions',
-    headerName: '작업',
+    headerName: t('common.action', '작업'),
     width: 100,
     sortable: false,
     cellRenderer: ActionsCellRenderer
@@ -488,7 +433,7 @@ const openEditModal = (rule: any) => {
 
 const saveRule = async () => {
   if (!form.value.ruleName) {
-    init({ message: '규칙명을 입력해주세요.', color: 'warning' })
+    init({ message: t('matchingRules.rule_name_placeholder'), color: 'warning' })
     return
   }
 
@@ -515,18 +460,18 @@ const saveRule = async () => {
         method: 'PUT',
         body: payload
       })
-      init({ message: '매칭 규칙이 수정되었습니다.', color: 'success' })
+      init({ message: t('matchingRules.save_success'), color: 'success' })
     } else {
       await customFetch(`/api/domains/${selectedDomainId.value}/matching-rules`, {
         method: 'POST',
         body: payload
       })
-      init({ message: '새 매칭 규칙이 생성되었습니다.', color: 'success' })
+      init({ message: t('matchingRules.save_success'), color: 'success' })
     }
     showModal.value = false
     fetchData()
   } catch (e) {
-    init({ message: '매칭 규칙 저장에 실패했습니다.', color: 'danger' })
+    init({ message: t('matchingRules.save_failed'), color: 'danger' })
   } finally {
     isSaving.value = false
   }
@@ -534,10 +479,10 @@ const saveRule = async () => {
 
 const deleteRule = async (rule: any) => {
   const isConfirmed = await confirm({
-    title: '매칭 규칙 삭제',
-    message: `[${rule.ruleName}] 규칙을 정말 삭제하시겠습니까?`,
-    okText: '삭제',
-    cancelText: '취소'
+    title: t('matchingRules.delete_confirm', { name: rule.ruleName }),
+    message: t('matchingRules.delete_confirm', { name: rule.ruleName }),
+    okText: t('matchingRules.delete_success', '삭제'),
+    cancelText: t('matchingRules.cancel')
   })
   if (!isConfirmed) return
 
@@ -545,10 +490,10 @@ const deleteRule = async (rule: any) => {
     await customFetch(`/api/domains/${selectedDomainId.value}/matching-rules/${rule.id}`, {
       method: 'DELETE'
     })
-    init({ message: '매칭 규칙이 삭제되었습니다.', color: 'success' })
+    init({ message: t('matchingRules.delete_success'), color: 'success' })
     fetchData()
   } catch (e) {
-    init({ message: '매칭 규칙 삭제 실패', color: 'danger' })
+    init({ message: t('matchingRules.delete_failed'), color: 'danger' })
   }
 }
 

@@ -73,7 +73,6 @@ class FieldNodeTransferTest {
         request.setTargetNodeId(newNodeId);
 
         when(fieldRepository.findById(fieldId)).thenReturn(Optional.of(field));
-        when(nodeRepository.findById(oldNodeId)).thenReturn(Optional.of(oldNode));
         when(nodeRepository.findById(newNodeId)).thenReturn(Optional.of(newNode));
         when(fieldRepository.save(any(FieldDefinition.class))).thenAnswer(i -> i.getArgument(0));
 

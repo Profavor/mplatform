@@ -39,26 +39,33 @@ public class DomainController {
     
     @PostMapping
     @PreAuthorize("hasPermission(null, 'domain:write')")
-    public ResponseEntity<Domain> createDomain(@RequestBody DomainRequest request) {
-        return ResponseEntity.ok(domainService.createDomain(request));
+    public ResponseEntity<com.classification.domain_system.dto.DomainResponse> createDomain(@RequestBody DomainRequest request) {
+        Domain domain = domainService.createDomain(request);
+        return ResponseEntity.ok(com.classification.domain_system.dto.DomainResponse.from(domain));
     }
     
     @GetMapping
     @PreAuthorize("hasPermission(null, 'domain:read')")
-    public ResponseEntity<List<Domain>> getAllDomains() {
-        return ResponseEntity.ok(domainService.getAllDomains());
+    public ResponseEntity<List<com.classification.domain_system.dto.DomainResponse>> getAllDomains() {
+        List<Domain> domains = domainService.getAllDomains();
+        List<com.classification.domain_system.dto.DomainResponse> response = domains.stream()
+                .map(com.classification.domain_system.dto.DomainResponse::from)
+                .toList();
+        return ResponseEntity.ok(response);
     }
     
     @PutMapping("/{id}")
     @PreAuthorize("hasPermission(null, 'domain:write')")
-    public ResponseEntity<Domain> updateDomain(@PathVariable UUID id, @RequestBody DomainRequest request) {
-        return ResponseEntity.ok(domainService.updateDomain(id, request));
+    public ResponseEntity<com.classification.domain_system.dto.DomainResponse> updateDomain(@PathVariable UUID id, @RequestBody DomainRequest request) {
+        Domain domain = domainService.updateDomain(id, request);
+        return ResponseEntity.ok(com.classification.domain_system.dto.DomainResponse.from(domain));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasPermission(null, 'domain:read')")
-    public ResponseEntity<Domain> getDomain(@PathVariable UUID id) {
-        return ResponseEntity.ok(domainService.getDomain(id));
+    public ResponseEntity<com.classification.domain_system.dto.DomainResponse> getDomain(@PathVariable UUID id) {
+        Domain domain = domainService.getDomain(id);
+        return ResponseEntity.ok(com.classification.domain_system.dto.DomainResponse.from(domain));
     }
     
     

@@ -198,14 +198,12 @@
       @save-sector-group-changes="saveSectorGroupChanges"
     />
 
-    <!-- Icon Picker Modal -->
-    <va-modal v-model="showIconPickerModal" :title="$t('select_icon')" size="medium" hide-default-actions>
-      <IconPicker v-model="tempIcon" />
-      <div style="display: flex; justify-content: flex-end; margin-top: 1rem; gap: 0.5rem;">
-        <va-button preset="secondary" @click="showIconPickerModal = false">{{ $t('cancel') }}</va-button>
-        <va-button @click="applyIcon">{{ $t('confirm') }}</va-button>
-      </div>
-    </va-modal>
+    <!-- Icon Picker Modal (Decoupled Component) -->
+    <IconPickerModal
+      v-model="showIconPickerModal"
+      v-model:icon="tempIcon"
+      @confirm="applyIcon"
+    />
 
     <!-- Pre-change Impact Review Modal -->
     <SchemaImpactReportModal
@@ -225,60 +223,14 @@
       :fieldId="dqTargetFieldId"
       :fieldName="dqTargetFieldName"
     />
-    <!-- System Notification Modal -->
-    <va-modal
+    <!-- System Notification Modal (Decoupled Component) -->
+    <SystemNotificationModal
       v-model="showErrorAlertModal"
-      :title="errorAlertTitle || $t('system_notification')"
-      hide-default-actions
-      size="small"
-      :prevent-click-outside="true"
-      :no-outside-dismiss="true"
-    >
-      <div style="padding: 1.25rem 0; text-align: center;">
-        <div
-          v-if="errorAlertType === 'success'"
-          style="width: 60px; height: 60px; border-radius: 50%; background: rgba(30, 203, 114, 0.12); color: #15803d; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto;"
-        >
-          <va-icon name="check_circle" size="2.5rem" color="success" />
-        </div>
-        <div
-          v-else-if="errorAlertType === 'warning'"
-          style="width: 60px; height: 60px; border-radius: 50%; background: rgba(232, 139, 36, 0.12); color: #c2410c; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto;"
-        >
-          <va-icon name="warning" size="2.5rem" color="warning" />
-        </div>
-        <div
-          v-else
-          style="width: 60px; height: 60px; border-radius: 50%; background: rgba(229, 57, 53, 0.12); color: #b91c1c; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto;"
-        >
-          <va-icon name="error" size="2.5rem" color="danger" />
-        </div>
-
-        <h3
-          style="margin: 0 0 0.75rem 0; font-weight: 700; font-size: 1.25rem;"
-          :style="{
-            color: errorAlertType === 'success' ? '#15803d' : (errorAlertType === 'warning' ? '#c2410c' : '#b91c1c')
-          }"
-        >
-          {{ errorAlertHeader || $t('system_notification') }}
-        </h3>
-
-        <div style="background: var(--va-background-secondary); border: 1px solid var(--va-background-border); border-radius: 8px; padding: 1rem 1.25rem; text-align: left; font-size: 0.92rem; color: var(--va-text-primary); max-height: 200px; overflow-y: auto; margin-bottom: 1.5rem; word-break: break-word; white-space: pre-wrap;">
-          {{ errorAlertMessage }}
-        </div>
-
-        <div style="display: flex; justify-content: center;">
-          <va-button
-            :color="errorAlertType === 'success' ? 'success' : (errorAlertType === 'warning' ? 'warning' : 'primary')"
-            preset="solid"
-            style="min-width: 120px;"
-            @click="showErrorAlertModal = false"
-          >
-            {{ $t('close') }}
-          </va-button>
-        </div>
-      </div>
-    </va-modal>
+      :type="errorAlertType"
+      :title="errorAlertTitle"
+      :header="errorAlertHeader"
+      :message="errorAlertMessage"
+    />
 
     <!-- Submission Comment Modal (공통 상신 의견 작성 모달) -->
     <SubmissionCommentModal
@@ -295,57 +247,20 @@
       @confirm="handleImpactAnalysisConfirm"
     />
 
-    <!-- Approval Details Viewer Modal -->
-    <va-modal
+    <!-- Approval Details Viewer Modal (Decoupled Component) -->
+    <ApprovalViewerModal
       v-model="showApprovalViewer"
-      size="large"
-      close-button
-      hide-default-actions
-    >
-      <template #header>
-        <div v-if="selectedApprovalRequest" style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%; padding-right: 2.5rem;">
-          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-            <div style="display: flex; align-items: center; gap: 0.65rem;">
-              <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-                <va-icon name="rate_review" color="primary" />
-                {{ $t('approval_history') }}
-              </h3>
-              <va-badge 
-                v-if="selectedApprovalRequest?.targetType"
-                :text="selectedApprovalRequest.targetType.startsWith('SCHEMA_') ? ($t('schema_change')) : selectedApprovalRequest.targetType" 
-                color="primary" 
-              />
-            </div>
-
-            <div style="font-size: 0.85rem; color: var(--va-text-secondary); display: flex; align-items: center; gap: 0.75rem;">
-              <span>
-                <va-icon name="person" size="small" style="margin-right: 2px;" />
-                {{ t('requester') }}: <strong>{{ selectedApprovalRequest?.requesterName || selectedApprovalRequest?.requesterId || 'Unknown' }}</strong>
-              </span>
-              <span>
-                <va-icon name="schedule" size="small" style="margin-right: 2px;" />
-                {{ selectedApprovalRequest?.createdAt ? new Date(selectedApprovalRequest.createdAt).toLocaleString() : '' }}
-              </span>
-            </div>
-          </div>
-        </div>
-      </template>
-
-      <div style="padding: 1rem 0 0 0;">
-        <ApprovalDetailsViewer
-          v-if="selectedApprovalRequest"
-          :request="selectedApprovalRequest"
-          @close="showApprovalViewer = false"
-        />
-      </div>
-    </va-modal>
+      :request="selectedApprovalRequest"
+    />
   </div>
 </template>
 
 <script setup>
 import { usePageTitle } from '~/composables/usePageTitle'
 import SchemaImpactReportModal from '~/components/SchemaImpactReportModal.vue'
-import ApprovalDetailsViewer from '~/components/ApprovalDetailsViewer.vue'
+import ApprovalViewerModal from '~/components/ApprovalViewerModal.vue'
+import SystemNotificationModal from '~/components/common/SystemNotificationModal.vue'
+import IconPickerModal from '~/components/common/IconPickerModal.vue'
 
 const { customFetch } = useCustomFetch()
 
@@ -360,7 +275,7 @@ const openApprovalViewer = async (requestId) => {
     showApprovalViewer.value = true
   } catch (e) {
     console.error('Failed to load approval request:', e)
-    showCustomAlert(e.data?.message || '결재 내역을 불러오는데 실패했습니다.', 'Error', 'Error', 'danger')
+    showCustomAlert(e.data?.message || t('approval_load_failed', '결재 내역을 불러오는데 실패했습니다.'), 'Error', 'Error', 'danger')
   }
 }
 

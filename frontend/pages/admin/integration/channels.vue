@@ -44,6 +44,9 @@
             :row-data="channels"
             :default-col-def="{ sortable: true, resizable: true }"
             :animate-rows="true"
+            :pagination="true"
+            :pagination-page-size="10"
+            :pagination-page-size-selector="[5, 10, 20, 50]"
             :row-height="54"
             :header-height="46"
             :suppress-cell-focus="true"
@@ -73,6 +76,9 @@
             :row-data="recentLogs"
             :default-col-def="{ sortable: true, resizable: true }"
             :animate-rows="true"
+            :pagination="true"
+            :pagination-page-size="10"
+            :pagination-page-size-selector="[5, 10, 20, 50]"
             :row-height="50"
             :header-height="46"
             :suppress-cell-focus="true"
@@ -81,287 +87,49 @@
       </va-card-content>
     </va-card>
 
-    <!-- Create/Edit Modal (Premium Standardized Design) -->
-    <va-modal
+    <!-- Create/Edit Modal (Decoupled Component) -->
+    <ChannelConfigModal
       v-model="showModal"
-      :title="isEdit ? ($t('integration.channels.edit')) : ($t('integration.channels.add'))"
-      size="large"
-      hide-default-actions
-    >
-      <div style="min-width: 750px; max-width: 900px; padding: 0.5rem 0.25rem;">
-        <!-- Navigation Tabs -->
-        <va-tabs v-model="activeModalTab" class="mb-4" style="border-bottom: 1px solid var(--va-background-border);">
-          <template #tabs>
-            <va-tab name="basic" style="font-weight: 700;">
-              <va-icon name="tune" class="mr-2" /> {{ $t('integration.channels.basic_config') }}
-            </va-tab>
-            <va-tab name="mapping" style="font-weight: 700;">
-              <va-icon name="swap_horiz" class="mr-2" /> {{ $t('integration.channels.field_mapping') }}
-            </va-tab>
-          </template>
-        </va-tabs>
-
-        <va-form ref="form" @submit.prevent="submitForm">
-          <!-- TAB 1: Basic Config -->
-          <div v-show="activeModalTab === 'basic'" style="display: flex; flex-direction: column; gap: 1.25rem;">
-            <!-- Multilingual Channel Name -->
-            <MultilingualInput
-              v-model:ko="channelNameKo"
-              v-model:en="channelNameEn"
-              :label="$t('integration.channels.name')"
-              required
-            />
-
-            <!-- Direction & Type & Active -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr 130px; gap: 1rem; align-items: flex-end;">
-              <va-select
-                v-model="formData.direction"
-                :options="directionOptions"
-                value-by="value"
-                text-by="text"
-                :label="$t('integration.channels.direction')"
-                @update:modelValue="onDirectionChanged"
-                required
-              />
-              <va-select
-                v-model="formData.type"
-                :options="typeOptions"
-                value-by="value"
-                text-by="text"
-                :label="$t('integration.channels.type')"
-                :disabled="formData.direction === 'INBOUND'"
-                required
-              />
-              <div style="padding-bottom: 0.5rem;">
-                <va-checkbox v-model="formData.isActive" :label="$t('integration.channels.is_active')" />
-              </div>
-            </div>
-
-            <!-- INBOUND Auth & Webhook Info -->
-            <template v-if="formData.direction === 'INBOUND'">
-              <div style="background: var(--va-background-element); border-radius: 12px; padding: 1.25rem; border: 1px solid var(--va-background-border); display: flex; flex-direction: column; gap: 1rem;">
-                <div style="font-weight: 700; font-size: 0.95rem; color: var(--va-primary); display: flex; align-items: center; gap: 0.4rem;">
-                  <va-icon name="security" size="small" color="primary" />
-                  {{ $t('integration.channels.auth_type') }}
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                  <va-select
-                    v-model="uiConfig.inboundAuthType"
-                    :options="authTypeOptions"
-                    value-by="value"
-                    text-by="text"
-                    :label="$t('integration.channels.auth_type')"
-                  />
-                  <div v-if="uiConfig.inboundAuthType !== 'NONE'" style="display: flex; gap: 0.5rem; align-items: flex-end;">
-                    <va-input v-model="uiConfig.inboundSecretToken" :label="$t('integration.channels.secret_token')" placeholder="sec_token_..." style="flex: 1;" required />
-                    <va-button preset="secondary" color="primary" icon="autorenew" @click="generateSecretToken" style="white-space: nowrap;">
-                      {{ $t('integration.channels.generate_token') }}
-                    </va-button>
-                  </div>
-                </div>
-                <div>
-                  <va-checkbox v-model="formData.requiresApproval" :label="`${$t('integration.channels.requires_approval')}`" />
-                </div>
-              </div>
-
-              <!-- Webhook Guide Card (Dynamic Theme Compatible) -->
-              <div style="background: var(--va-background-element); border-radius: 12px; padding: 1.25rem; border: 1px solid var(--va-background-border); display: flex; flex-direction: column; gap: 0.75rem;">
-                <div style="font-weight: 700; font-size: 0.9rem; color: var(--va-primary); display: flex; align-items: center; justify-content: space-between;">
-                  <span style="display: flex; align-items: center; gap: 0.4rem;">
-                    <va-icon name="link" size="small" color="primary" /> {{ $t('integration.channels.webhook_url') }}
-                  </span>
-                  <va-button size="small" color="primary" icon="content_copy" @click="copyWebhookUrl">
-                    {{ $t('integration.channels.webhook_copy') }}
-                  </va-button>
-                </div>
-                <div style="font-size: 0.83rem; color: var(--va-text-secondary); line-height: 1.4;">
-                  {{ $t('integration.channels.inbound_notice') }}
-                </div>
-                <va-input :model-value="getWebhookUrl()" readonly style="font-family: monospace; font-size: 0.85rem;" />
-                <div v-if="uiConfig.inboundAuthType !== 'NONE'" style="font-size: 0.8rem; background: var(--va-background-primary); padding: 0.6rem 0.85rem; border-radius: 8px; border: 1px solid var(--va-background-border); color: var(--va-text-primary); display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                  <div style="display: flex; align-items: center; gap: 0.6rem;">
-                    <va-chip size="small" color="primary" outline style="font-weight: 700;">
-                      Header
-                    </va-chip>
-                    <div style="display: flex; align-items: center; gap: 0.4rem; font-family: monospace;">
-                      <span style="font-weight: 700; color: var(--va-text-primary);">
-                        {{ uiConfig.inboundAuthType === 'BEARER_TOKEN' ? 'Authorization' : 'X-API-KEY' }}:
-                      </span>
-                      <code style="color: var(--va-primary); font-weight: bold; background: var(--va-background-element); border: 1px solid var(--va-background-border); padding: 2px 6px; border-radius: 4px;">
-                        {{ uiConfig.inboundAuthType === 'BEARER_TOKEN' ? `Bearer ${uiConfig.inboundSecretToken || 'secretToken'}` : (uiConfig.inboundSecretToken || 'secretToken') }}
-                      </code>
-                    </div>
-                  </div>
-                  <va-button size="small" preset="secondary" color="primary" icon="content_copy" @click="copyAuthHeaderValue">
-                    {{ $t('integration.channels.copy_value') }}
-                  </va-button>
-                </div>
-
-                <!-- Real-time JSON Payload Sample Box -->
-                <div style="font-size: 0.8rem; background: var(--va-background-primary); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--va-background-border); color: var(--va-text-primary); display: flex; flex-direction: column; gap: 0.6rem;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-                    <strong style="display: flex; align-items: center; gap: 0.35rem; color: var(--va-text-primary);">
-                      <va-icon name="code" size="small" color="primary" />
-                      {{ $t('integration.channels.sample_payload_title') }}
-                    </strong>
-                    <div style="display: flex; gap: 0.4rem;">
-                      <va-button size="small" preset="secondary" color="primary" icon="terminal" @click="copyCurlSample">
-                        {{ $t('integration.channels.copy_curl') }}
-                      </va-button>
-                      <va-button size="small" preset="secondary" color="primary" icon="content_copy" @click="copySampleJsonPayload">
-                        {{ $t('integration.channels.copy_json') }}
-                      </va-button>
-                    </div>
-                  </div>
-                  <pre style="margin: 0; font-family: 'Fira Code', 'Consolas', 'Courier New', monospace; font-size: 0.82rem; background: #0f172a; color: #38bdf8; padding: 0.75rem 1rem; border-radius: 6px; overflow-x: auto; max-height: 220px; line-height: 1.45; border: 1px solid #1e293b;">{{ sampleJsonPayload }}</pre>
-                  <div style="font-size: 0.75rem; color: var(--va-text-secondary); display: flex; align-items: center; gap: 0.3rem;">
-                    <va-icon name="info" size="extra-small" color="secondary" />
-                    <span>{{ $t('integration.channels.sample_payload_notice') }}</span>
-                  </div>
-                </div>
-              </div>
-            </template>
-
-            <!-- OUTBOUND Detailed Config -->
-            <template v-else-if="formData.direction === 'OUTBOUND'">
-              <div style="background: var(--va-background-element); border-radius: 12px; padding: 1.25rem; border: 1px solid var(--va-background-border); display: flex; flex-direction: column; gap: 1rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <div style="font-weight: 700; font-size: 0.95rem; color: var(--va-primary); display: flex; align-items: center; gap: 0.4rem;">
-                    <va-icon name="settings_remote" size="small" color="primary" />
-                    {{ $t('integration.channels.detail_config') }}
-                  </div>
-                  <va-button size="small" preset="secondary" color="info" icon="cloud_done" @click="testConnection" :loading="isTesting">
-                    {{ $t('integration.channels.test_connection') }}
-                  </va-button>
-                </div>
-
-                <template v-if="formData.type === 'WEB_SERVICE'">
-                  <va-input v-model="uiConfig.wsUrl" :label="$t('integration.channels.ws_url')" placeholder="http://api.example.com/webhook" required class="w-full" />
-                  <va-select 
-                    v-model="uiConfig.wsMethod" 
-                    :options="methodOptions" 
-                    value-by="value"
-                    text-by="text"
-                    :label="$t('integration.channels.ws_method')" 
-                    class="w-full" 
-                  />
-                  <div style="margin-top: 0.5rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                      <span style="font-size: 0.85rem; font-weight: 700;">HTTP Headers</span>
-                      <va-button size="small" preset="secondary" icon="add" @click="addWsHeader">{{ $t('integration.channels.add_header') }}</va-button>
-                    </div>
-                    <div v-if="uiConfig.wsHeaders.length === 0" style="font-size: 0.8rem; color: #888;">{{ $t('integration.channels.no_headers') }}</div>
-                    <div v-for="(header, index) in uiConfig.wsHeaders" :key="index" style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center;">
-                      <va-input v-model="header.key" placeholder="Header Name" style="flex: 1;" required />
-                      <va-input v-model="header.value" placeholder="Header Value" style="flex: 1;" required />
-                      <va-button preset="plain" color="danger" icon="remove_circle" @click="removeWsHeader(index)" />
-                    </div>
-                  </div>
-                </template>
-                <template v-else-if="formData.type === 'JDBC'">
-                  <va-input v-model="uiConfig.jdbcUrl" :label="$t('integration.channels.db_url')" placeholder="jdbc:mysql://localhost:3306/db" required class="w-full" />
-                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                    <va-input v-model="uiConfig.jdbcUser" :label="$t('integration.channels.db_user')" />
-                    <va-input v-model="uiConfig.jdbcPassword" type="password" :label="$t('integration.channels.db_password')" />
-                  </div>
-                  <va-input v-model="uiConfig.jdbcTable" :label="$t('integration.channels.db_table')" placeholder="integration_data" required class="w-full" />
-                </template>
-                <template v-else-if="formData.type === 'MESSAGE_QUEUE'">
-                  <va-input v-model="uiConfig.mqBroker" :label="$t('integration.channels.mq_broker')" placeholder="kafka://localhost:9092" required class="w-full" />
-                  <va-input v-model="uiConfig.mqTopic" :label="$t('integration.channels.mq_topic')" placeholder="events.data.changed" required class="w-full" />
-                </template>
-              </div>
-            </template>
-
-            <!-- Domain & Node Target Selection -->
-            <div style="background: var(--va-background-element); border-radius: 12px; padding: 1.25rem; border: 1px solid var(--va-background-border); display: flex; flex-direction: column; gap: 1rem;">
-              <div style="font-weight: 700; font-size: 0.95rem; color: var(--va-primary); display: flex; align-items: center; gap: 0.4rem;">
-                <va-icon name="account_tree" size="small" color="primary" />
-                {{ $t('integration.channels.select_domain_node') }}
-              </div>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                <va-select
-                  v-model="selectedDomainId"
-                  :options="domains"
-                  value-by="id"
-                  text-by="name"
-                  :label="$t('integration.channels.select_domain') + (formData.direction === 'INBOUND' ? ' *' : '')"
-                  :rules="[v => formData.direction !== 'INBOUND' || !!v || $t('integration.channels.domain_required_for_inbound')]"
-                  @update:modelValue="onDomainSelected"
-                  clearable
-                />
-                <va-select
-                  v-model="formData.nodeId"
-                  :options="nodes"
-                  value-by="id"
-                  text-by="name"
-                  :label="$t('integration.channels.select_node') + (formData.direction === 'INBOUND' ? ' *' : '')"
-                  :rules="[v => formData.direction !== 'INBOUND' || !!v || $t('integration.channels.node_required_for_inbound')]"
-                  :disabled="!selectedDomainId"
-                  clearable
-                />
-              </div>
-            </div>
-          </div>
-
-          <!-- TAB 2: Field Mapping -->
-          <div v-show="activeModalTab === 'mapping'" style="display: flex; flex-direction: column; gap: 1rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <h4 style="margin: 0; font-weight: 700; color: var(--va-text-primary);">
-                  {{ $t('integration.channels.field_mapping') }}
-                </h4>
-                <p style="margin: 0.25rem 0 0 0; font-size: 0.82rem; color: var(--va-text-secondary);">
-                  * {{ formData.direction === 'INBOUND' ? $t('integration.channels.mapping_desc_inbound') : $t('integration.channels.mapping_desc') }}
-                </p>
-              </div>
-              <div style="display: flex; gap: 0.5rem; align-items: center;">
-                <va-button preset="secondary" size="small" icon="auto_awesome" :disabled="!selectedDomainId && rawFields.length === 0" @click="autoGenerateMappings">
-                  ⚡ {{ $t('integration.channels.auto_map_fields') }}
-                </va-button>
-                <va-button size="small" color="primary" icon="add" @click="addMapping">
-                  + {{ $t('integration.channels.add_field') }}
-                </va-button>
-              </div>
-            </div>
-
-            <va-input 
-              v-if="formData.direction === 'INBOUND'" 
-              v-model="uiMappingRootPath" 
-              :label="$t('integration.channels.mapping_root_path')" 
-              :placeholder="$t('integration.channels.mapping_root_path_placeholder')" 
-              clearable 
-            />
-
-            <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 360px; width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid var(--va-background-border);">
-              <client-only>
-                <ag-grid-vue
-                  v-if="showModal"
-                  style="width: 100%; height: 100%;"
-                  :theme="gridTheme"
-                  :columnDefs="mappingColumnDefs"
-                  :rowData="uiMappings"
-                  @grid-ready="onMappingGridReady"
-                  @cell-value-changed="onMappingCellValueChanged"
-                >
-                </ag-grid-vue>
-              </client-only>
-            </div>
-          </div>
-        </va-form>
-      </div>
-
-      <template #footer>
-        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; width: 100%; padding-top: 1rem; border-top: 1px solid var(--va-background-border);">
-          <va-button preset="secondary" color="secondary" @click="showModal = false">
-            {{ $t('close') }}
-          </va-button>
-          <va-button color="primary" icon="save" @click="submitForm">
-            {{ $t('save') }}
-          </va-button>
-        </div>
-      </template>
-    </va-modal>
+      :is-edit="isEdit"
+      :form-data="formData"
+      :ui-config="uiConfig"
+      :channel-name-ko="channelNameKo"
+      :channel-name-en="channelNameEn"
+      :direction-options="directionOptions"
+      :type-options="typeOptions"
+      :auth-type-options="authTypeOptions"
+      :method-options="methodOptions"
+      :domains="domains"
+      :nodes="nodes"
+      :selected-domain-id="selectedDomainId"
+      :raw-fields="rawFields"
+      :ui-mapping-root-path="uiMappingRootPath"
+      :ui-mappings="uiMappings"
+      :mapping-column-defs="mappingColumnDefs"
+      :grid-theme="gridTheme"
+      :is-dark="isDark"
+      :is-testing="isTesting"
+      :webhook-url="getWebhookUrl()"
+      :sample-json-payload="sampleJsonPayload"
+      @update:channel-name-ko="val => channelNameKo = val"
+      @update:channel-name-en="val => channelNameEn = val"
+      @update:selected-domain-id="onDomainSelected"
+      @update:ui-mapping-root-path="val => uiMappingRootPath = val"
+      @direction-changed="onDirectionChanged"
+      @generate-token="generateSecretToken"
+      @copy-webhook-url="copyWebhookUrl"
+      @copy-auth-header="copyAuthHeaderValue"
+      @copy-curl="copyCurlSample"
+      @copy-json-payload="copySampleJsonPayload"
+      @test-connection="testConnection"
+      @add-ws-header="addWsHeader"
+      @remove-ws-header="removeWsHeader"
+      @auto-generate-mappings="autoGenerateMappings"
+      @add-mapping="addMapping"
+      @mapping-grid-ready="onMappingGridReady"
+      @mapping-cell-changed="onMappingCellValueChanged"
+      @submit="submitForm"
+    />
   </div>
 </template>
 
@@ -377,6 +145,7 @@ import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { useI18n } from 'vue-i18n'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useCodeStore } from '~/stores/useCodeStore'
+import ChannelConfigModal from '~/components/admin/ChannelConfigModal.vue'
 
 const { t, locale } = useI18n()
 const { gridTheme, isDark } = useAgGridTheme()

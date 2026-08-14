@@ -282,7 +282,33 @@ const formattedRecordTitle = computed(() => {
   return lineageData.value.recordCode || `REC-${lineageData.value.recordId}`
 })
 
-const formatNodeLabel = (node: any) => {
+export interface LineageNode {
+  id: string
+  label: string
+  type: 'SOURCE' | 'RECORD_VERSION' | 'RECORD' | 'OUTBOUND' | string
+  timestamp?: string
+  details?: Record<string, any>
+  recordId?: string
+  versionId?: string
+}
+
+export interface LineageEdge {
+  source: string
+  target: string
+  label?: string
+}
+
+export interface LineageData {
+  recordId: string
+  recordCode?: string
+  empNo?: string
+  recordNameObj?: any
+  nodes: LineageNode[]
+  edges: LineageEdge[]
+  fieldLabels?: Record<string, any>
+}
+
+const formatNodeLabel = (node: LineageNode | any) => {
   if (!node) return ''
   if (node.type === 'RECORD') {
     return `Golden Master Record (${formattedRecordTitle.value})`
@@ -292,11 +318,11 @@ const formatNodeLabel = (node: any) => {
 
 const show = ref(props.modelValue)
 const loading = ref(false)
-const lineageData = ref<any>(null)
+const lineageData = ref<LineageData | null>(null)
 const viewMode = ref<'graph' | 'timeline'>('graph')
 
 const showDiffModal = ref(false)
-const selectedNode = ref<any>(null)
+const selectedNode = ref<LineageNode | null>(null)
 
 const decryptedValues = ref<Record<string, any>>({})
 const decryptingFields = ref<Record<string, boolean>>({})

@@ -71,250 +71,54 @@
       />
     </div>
 
-    <!-- Create Organization Modal -->
-    <va-modal v-model="showCreateOrgModalFlag" :title="t('create_new_org')" hide-default-actions size="small" :prevent-click-outside="true" :no-outside-dismiss="true">
-      <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
-        <va-input v-model="newOrgForm.name" :label="t('org_code_placeholder')" required />
-        <div>
-          <div style="font-size: 0.6rem; font-weight: 700; color: var(--va-primary); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.4px;">
-            {{ t('org_display_name_placeholder') }}
-          </div>
-          <div style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
-            <va-input v-model="newOrgForm.displayNameKo" style="flex: 1; min-width: 0;" required>
-              <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">Korean</span></template>
-            </va-input>
-            <va-input v-model="newOrgForm.displayNameEn" style="flex: 1; min-width: 0;" required>
-              <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">English</span></template>
-            </va-input>
-          </div>
-        </div>
-        <div>
-          <div style="font-size: 0.6rem; font-weight: 700; color: var(--va-primary); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.4px;">
-            {{ t('org_description') }}
-          </div>
-          <div style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
-            <va-textarea v-model="newOrgForm.descriptionKo" style="flex: 1; min-width: 0;" :min-rows="2">
-              <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap; margin-top: 0.25rem;">Korean</span></template>
-            </va-textarea>
-            <va-textarea v-model="newOrgForm.descriptionEn" style="flex: 1; min-width: 0;" :min-rows="2">
-              <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap; margin-top: 0.25rem;">English</span></template>
-            </va-textarea>
-          </div>
-        </div>
-        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
-          <va-button preset="secondary" @click="showCreateOrgModalFlag = false">{{ t('cancel') }}</va-button>
-          <va-button color="primary" @click="saveNewOrg">{{ t('create_organization') }}</va-button>
-        </div>
-      </div>
-    </va-modal>
+    <!-- Create Organization Modal (Decoupled Component) -->
+    <CreateOrgModal
+      v-model="showCreateOrgModalFlag"
+      :form="newOrgForm"
+      @save="saveNewOrg"
+    />
 
     <!-- Create Department Modal -->
-    <va-modal v-model="showCreateDeptModalFlag" :title="getLabel('add_new_dept', '부서 신규 등록')" hide-default-actions size="small" :prevent-click-outside="true" :no-outside-dismiss="true">
-      <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
-        <va-select
-          v-model="newDeptForm.parentDepartmentId"
-          :options="allDeptOptions"
-          value-by="id"
-          text-by="displayNameText"
-          :label="getLabel('parent_dept', '상위 부서 (미선택 시 최상위 부서)')"
-          clearable
-        />
-        <div>
-          <div style="font-size: 0.6rem; font-weight: 700; color: var(--va-primary); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.4px;">
-            {{ t('dept_name') }} <span style="color: var(--va-danger);">*</span>
-          </div>
-          <div style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
-            <va-input v-model="newDeptForm.nameKo" style="flex: 1; min-width: 0;" required>
-              <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">Korean</span></template>
-            </va-input>
-            <va-input v-model="newDeptForm.nameEn" style="flex: 1; min-width: 0;" required>
-              <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">English</span></template>
-            </va-input>
-          </div>
-        </div>
-        <div>
-          <label style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--va-text-primary); margin-bottom: 0.5rem;">
-            {{ getLabel('node_icon', '부서 아이콘') }}
-          </label>
-          <div style="display: flex; align-items: center; gap: 1rem; background: var(--va-background-element); padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid var(--va-background-border);">
-            <va-icon :name="newDeptForm.icon || 'folder'" color="primary" size="medium" />
-            <va-button preset="primary" outline icon="palette" size="small" @click="openIconPicker('new')">
-              {{ getLabel('select_icon', '아이콘 선택') }}
-            </va-button>
-          </div>
-        </div>
-        <UserRoleSelect
-          v-model="newDeptForm.roles"
-          multiple
-          :org-id="selectedOrgId"
-          :label="getLabel('dept_roles', '부서 역할 (다중 선택 가능)')"
-          clearable
-        />
-        <div>
-          <div style="font-size: 0.6rem; font-weight: 700; color: var(--va-primary); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.4px;">
-            {{ getLabel('description', '설명') }}
-          </div>
-          <div style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
-            <va-textarea v-model="newDeptForm.descriptionKo" style="flex: 1; min-width: 0;" :min-rows="2">
-              <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap; margin-top: 0.25rem;">Korean</span></template>
-            </va-textarea>
-            <va-textarea v-model="newDeptForm.descriptionEn" style="flex: 1; min-width: 0;" :min-rows="2">
-              <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap; margin-top: 0.25rem;">English</span></template>
-            </va-textarea>
-          </div>
-        </div>
-        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
-          <va-button preset="secondary" @click="showCreateDeptModalFlag = false">{{ getLabel('cancel', '취소') }}</va-button>
-          <va-button color="primary" @click="saveNewDept">{{ getLabel('add_department', '부서 등록') }}</va-button>
-        </div>
-      </div>
-    </va-modal>
+    <DepartmentModal
+      v-model="showCreateDeptModalFlag"
+      mode="create"
+      :dept-form="newDeptForm"
+      :dept-options="allDeptOptions"
+      :org-id="selectedOrgId"
+      :loading="isCreatingDept"
+      @open-icon-picker="openIconPicker"
+      @save="saveNewDept"
+    />
 
     <!-- Edit Department Modal -->
-    <va-modal v-model="showEditDeptModalFlag" :title="getLabel('edit_dept', '부서/조직 정보 수정')" hide-default-actions size="small" :prevent-click-outside="true" :no-outside-dismiss="true">
-      <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
-        <va-select
-          v-model="editDeptForm.parentDepartmentId"
-          :options="availableParentDeptOptions"
-          value-by="id"
-          text-by="displayNameText"
-          :label="getLabel('parent_dept', '상위 부서 (미선택 시 최상위 부서)')"
-          clearable
-        />
-        <div>
-          <div style="font-size: 0.6rem; font-weight: 700; color: var(--va-primary); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.4px;">
-            {{ getLabel('dept_name', '부서/조직명') }} <span style="color: var(--va-danger);">*</span>
-          </div>
-          <div style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
-            <va-input v-model="editDeptForm.nameKo" style="flex: 1; min-width: 0;" required>
-              <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">Korean</span></template>
-            </va-input>
-            <va-input v-model="editDeptForm.nameEn" style="flex: 1; min-width: 0;" required>
-              <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">English</span></template>
-            </va-input>
-          </div>
-        </div>
-        <div>
-          <label style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--va-text-primary); margin-bottom: 0.5rem;">
-            {{ getLabel('node_icon', '부서 아이콘') }}
-          </label>
-          <div style="display: flex; align-items: center; gap: 1rem; background: var(--va-background-element); padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid var(--va-background-border);">
-            <va-icon :name="editDeptForm.icon || 'folder'" color="primary" size="medium" />
-            <va-button preset="primary" outline icon="palette" size="small" @click="openIconPicker('edit')">
-              {{ getLabel('select_icon', '아이콘 선택') }}
-            </va-button>
-          </div>
-        </div>
-        <UserRoleSelect
-          v-model="editDeptForm.roles"
-          multiple
-          :org-id="selectedOrgId"
-          :label="getLabel('dept_roles', '부서 역할 (다중 선택 가능)')"
-          clearable
-        />
-        <div>
-          <div style="font-size: 0.6rem; font-weight: 700; color: var(--va-primary); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.4px;">
-            {{ getLabel('description', '설명') }}
-          </div>
-          <div style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
-            <va-textarea v-model="editDeptForm.descriptionKo" style="flex: 1; min-width: 0;" :min-rows="2">
-              <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap; margin-top: 0.25rem;">Korean</span></template>
-            </va-textarea>
-            <va-textarea v-model="editDeptForm.descriptionEn" style="flex: 1; min-width: 0;" :min-rows="2">
-              <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap; margin-top: 0.25rem;">English</span></template>
-            </va-textarea>
-          </div>
-        </div>
-        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
-          <va-button preset="secondary" @click="showEditDeptModalFlag = false">{{ getLabel('cancel', '취소') }}</va-button>
-          <va-button color="primary" @click="saveEditDept">{{ getLabel('save', '저장') }}</va-button>
-        </div>
-      </div>
-    </va-modal>
+    <DepartmentModal
+      v-model="showEditDeptModalFlag"
+      mode="edit"
+      :dept-form="editDeptForm"
+      :dept-options="availableParentDeptOptions"
+      :org-id="selectedOrgId"
+      :loading="isUpdatingDept"
+      @open-icon-picker="openIconPicker"
+      @save="saveEditDept"
+    />
 
     <!-- Create Role Modal -->
-    <va-modal v-model="showCreateRoleModalFlag" :title="getLabel('create_role_title', '조직 RBAC 역할 신규 등록')" hide-default-actions size="medium" :prevent-click-outside="true" :no-outside-dismiss="true">
-      <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1.1rem;">
-        <va-input v-model="newRoleForm.name" :label="getLabel('role_code_label', '역할 코드명 (예: CUSTOM_MANAGER, DQ_OPERATOR)')" placeholder="영문 대문자" required />
-        <div>
-          <div style="font-size: 0.6rem; font-weight: 700; color: var(--va-primary); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.4px;">
-            {{ getLabel('role_display_name_label', 'ROLE DISPLAY NAME (역할 표시명)') }} <span style="color: var(--va-danger);">*</span>
-          </div>
-          <div style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
-            <va-input v-model="newRoleForm.displayNameKo" style="flex: 1; min-width: 0;" required>
-              <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">Korean</span></template>
-            </va-input>
-            <va-input v-model="newRoleForm.displayNameEn" style="flex: 1; min-width: 0;" required>
-              <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">English</span></template>
-            </va-input>
-          </div>
-        </div>
-        <div>
-          <div style="font-size: 0.6rem; font-weight: 700; color: var(--va-primary); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.4px;">
-            {{ getLabel('role_description_label', 'ROLE DESCRIPTION (역할 상세 설명)') }}
-          </div>
-          <div style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
-            <va-textarea v-model="newRoleForm.descriptionKo" style="flex: 1; min-width: 0;" :min-rows="2">
-              <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap; margin-top: 0.25rem;">Korean</span></template>
-            </va-textarea>
-            <va-textarea v-model="newRoleForm.descriptionEn" style="flex: 1; min-width: 0;" :min-rows="2">
-              <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap; margin-top: 0.25rem;">English</span></template>
-            </va-textarea>
-          </div>
-        </div>
-        <PermissionMatrix
-          v-model="newRoleForm.permissions"
-          :groups="customPermissionGroups"
-          :editable="false"
-        />
-        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
-          <va-button preset="secondary" @click="showCreateRoleModalFlag = false">{{ getLabel('cancel', '취소') }}</va-button>
-          <va-button color="primary" @click="saveNewRole">{{ getLabel('register_role_btn', '역할 등록') }}</va-button>
-        </div>
-      </div>
-    </va-modal>
+    <RoleModal
+      v-model="showCreateRoleModalFlag"
+      mode="create"
+      :role-form="newRoleForm"
+      :loading="isCreatingRole"
+      @save="saveNewRole"
+    />
 
     <!-- Edit Role Modal -->
-    <va-modal v-model="showEditRoleModalFlag" :title="getLabel('edit_role_title', '조직 RBAC 역할 정보 수정')" hide-default-actions size="medium" :prevent-click-outside="true" :no-outside-dismiss="true">
-      <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1.1rem;">
-        <va-input v-model="editRoleForm.name" :label="getLabel('role_code_label', '역할 코드명')" readonly class="readonly-sys-code" />
-        <div>
-          <div style="font-size: 0.6rem; font-weight: 700; color: var(--va-primary); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.4px;">
-            {{ getLabel('role_display_name_label', 'ROLE DISPLAY NAME (역할 표시명)') }} <span style="color: var(--va-danger);">*</span>
-          </div>
-          <div style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
-            <va-input v-model="editRoleForm.displayNameKo" style="flex: 1; min-width: 0;" required>
-              <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">Korean</span></template>
-            </va-input>
-            <va-input v-model="editRoleForm.displayNameEn" style="flex: 1; min-width: 0;" required>
-              <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">English</span></template>
-            </va-input>
-          </div>
-        </div>
-        <div>
-          <div style="font-size: 0.6rem; font-weight: 700; color: var(--va-primary); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.4px;">
-            {{ getLabel('role_description_label', 'ROLE DESCRIPTION (역할 상세 설명)') }}
-          </div>
-          <div style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
-            <va-textarea v-model="editRoleForm.descriptionKo" style="flex: 1; min-width: 0;" :min-rows="2">
-              <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap; margin-top: 0.25rem;">Korean</span></template>
-            </va-textarea>
-            <va-textarea v-model="editRoleForm.descriptionEn" style="flex: 1; min-width: 0;" :min-rows="2">
-              <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap; margin-top: 0.25rem;">English</span></template>
-            </va-textarea>
-          </div>
-        </div>
-        <PermissionMatrix
-          v-model="editRoleForm.permissions"
-          :groups="customPermissionGroups"
-          :editable="false"
-        />
-        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
-          <va-button preset="secondary" @click="showEditRoleModalFlag = false">{{ getLabel('cancel', '취소') }}</va-button>
-          <va-button color="primary" @click="saveEditRole">{{ getLabel('save', '저장') }}</va-button>
-        </div>
-      </div>
-    </va-modal>
+    <RoleModal
+      v-model="showEditRoleModalFlag"
+      mode="edit"
+      :role-form="editRoleForm"
+      :loading="isUpdatingRole"
+      @save="saveEditRole"
+    />
 
     <!-- Delete Role Confirm Modal -->
     <va-modal v-model="showDeleteRoleModalFlag" title="역할 삭제 확인" hide-default-actions size="small" :prevent-click-outside="true" :no-outside-dismiss="true">
@@ -624,60 +428,14 @@
       </div>
     </va-modal>
 
-    <!-- System Notification Modal -->
-    <va-modal
+    <!-- System Notification Modal (Decoupled Component) -->
+    <SystemNotificationModal
       v-model="showErrorAlertModal"
-      :title="errorAlertTitle || $t('system_notification')"
-      hide-default-actions
-      size="small"
-      :prevent-click-outside="true"
-      :no-outside-dismiss="true"
-    >
-      <div style="padding: 1.25rem 0; text-align: center;">
-        <div
-          v-if="errorAlertType === 'success'"
-          style="width: 60px; height: 60px; border-radius: 50%; background: rgba(30, 203, 114, 0.12); color: #15803d; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto;"
-        >
-          <va-icon name="check_circle" size="2.5rem" color="success" />
-        </div>
-        <div
-          v-else-if="errorAlertType === 'warning'"
-          style="width: 60px; height: 60px; border-radius: 50%; background: rgba(232, 139, 36, 0.12); color: #c2410c; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto;"
-        >
-          <va-icon name="warning" size="2.5rem" color="warning" />
-        </div>
-        <div
-          v-else
-          style="width: 60px; height: 60px; border-radius: 50%; background: rgba(229, 57, 53, 0.12); color: #b91c1c; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto;"
-        >
-          <va-icon name="error" size="2.5rem" color="danger" />
-        </div>
-
-        <h3
-          style="margin: 0 0 0.75rem 0; font-weight: 700; font-size: 1.25rem;"
-          :style="{
-            color: errorAlertType === 'success' ? '#15803d' : (errorAlertType === 'warning' ? '#c2410c' : '#b91c1c')
-          }"
-        >
-          {{ errorAlertHeader || $t('system_notification') }}
-        </h3>
-
-        <div style="background: var(--va-background-secondary); border: 1px solid var(--va-background-border); border-radius: 8px; padding: 1rem 1.25rem; text-align: left; font-size: 0.92rem; color: var(--va-text-primary); max-height: 200px; overflow-y: auto; margin-bottom: 1.5rem; word-break: break-word; white-space: pre-wrap;">
-          {{ errorAlertMessage }}
-        </div>
-
-        <div style="display: flex; justify-content: center;">
-          <va-button
-            :color="errorAlertType === 'success' ? 'success' : (errorAlertType === 'warning' ? 'warning' : 'primary')"
-            preset="solid"
-            style="min-width: 120px;"
-            @click="showErrorAlertModal = false"
-          >
-            {{ $t('close') }}
-          </va-button>
-        </div>
-      </div>
-    </va-modal>
+      :type="errorAlertType"
+      :title="errorAlertTitle"
+      :header="errorAlertHeader"
+      :message="errorAlertMessage"
+    />
 
     <!-- Organization Delete Confirm Modal -->
     <va-modal
@@ -702,11 +460,16 @@
 <script setup>
 import OrgTreeSidebar from '~/components/org/OrgTreeSidebar.vue'
 import OrgDetailForm from '~/components/org/OrgDetailForm.vue'
+import DepartmentModal from '~/components/org/DepartmentModal.vue'
+import RoleModal from '~/components/org/RoleModal.vue'
+import CreateOrgModal from '~/components/admin/CreateOrgModal.vue'
+import SystemNotificationModal from '~/components/common/SystemNotificationModal.vue'
 import { usePageTitle } from '~/composables/usePageTitle'
 
 const { pageTitle } = usePageTitle('org_tenant_management', '조직 및 부서 관리')
 const { customFetch } = useCustomFetch()
 import { ref, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useCookie } from '#app'
 import { AgGridVue } from 'ag-grid-vue3'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
@@ -788,8 +551,8 @@ const handleDumpSeedFiles = async () => {
   const targetOrgId = selectedOrg.value?.id
   const targetName = selectedOrg.value ? (getI18nText(selectedOrg.value.displayName) || selectedOrg.value.name) : ''
   const msg = targetOrgId 
-    ? `현재 '${targetName}' 조직에 셋팅된 모든 역할 상태를 시스템 기본값(Seed) JSON 파일로 백업/덮어쓰시겠습니까?\n(이 작업은 소스코드 디렉토리 내의 파일을 직접 수정합니다)`
-    : '현재 전체 DB에 저장된 모든 역할 상태를 시스템 기본값(Seed) JSON 파일로 백업/덮어쓰시겠습니까?\n(이 작업은 소스코드 디렉토리 내의 파일을 직접 수정합니다)'
+    ? t('dump_seed_files_confirm_org', { name: targetName })
+    : t('dump_seed_files_confirm_all')
 
   if (!confirm(msg)) return
 
@@ -798,17 +561,17 @@ const handleDumpSeedFiles = async () => {
     const success = await roleStore.dumpSeedFiles(targetOrgId)
     if (success) {
       if (typeof initToast === 'function') {
-        initToast({ message: '기본 시드(Seed) 파일 갱신 완료', color: 'success' })
+        initToast({ message: t('dump_seed_files_success'), color: 'success' })
       }
     } else {
       if (typeof initToast === 'function') {
-        initToast({ message: '기본 시드 파일 갱신 실패', color: 'danger' })
+        initToast({ message: t('dump_seed_files_fail'), color: 'danger' })
       }
     }
   } catch (e) {
     console.error(e)
     if (typeof initToast === 'function') {
-      initToast({ message: '기본 시드 파일 갱신 중 오류 발생', color: 'danger' })
+      initToast({ message: t('dump_seed_files_error'), color: 'danger' })
     }
   } finally {
     isSyncingRoles.value = false

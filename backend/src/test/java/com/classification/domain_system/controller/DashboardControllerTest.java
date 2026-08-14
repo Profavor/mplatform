@@ -1,90 +1,97 @@
 package com.classification.domain_system.controller;
 
-import com.classification.domain_system.security.JwtUtil;
 import com.classification.domain_system.service.DashboardService;
-import com.classification.domain_system.service.PermissionService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
+import java.util.List;
 import java.util.Map;
 
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-@WebMvcTest(controllers = DashboardController.class)
-@org.springframework.context.annotation.Import({com.classification.domain_system.config.SecurityConfig.class, com.classification.domain_system.config.TestSecurityConfig.class})
-@AutoConfigureMockMvc(addFilters = false)
+@ExtendWith(MockitoExtension.class)
 class DashboardControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @MockitoBean
+    @Mock
     private DashboardService dashboardService;
 
-    @MockitoBean
-    private JwtUtil jwtUtil;
-
-    @MockitoBean
-    private PermissionService permissionService;
-
-    @MockitoBean
-    private com.classification.domain_system.context.AuthContext authContext;
+    @InjectMocks
+    private DashboardController dashboardController;
 
     @Test
-    @DisplayName("getStats - DashboardService에서 반환된 통계 데이터 응답")
-    void getStats_ReturnsStatsMap() throws Exception {
-        Map<String, Object> stats = Map.of(
-                "totalDomains", 5L,
-                "pendingApprovals", 2L,
-                "activeRecords", 100L,
-                "pendingMatches", 3L,
-                "openDqViolations", 1L
-        );
+    @DisplayName("대시보드 KPI 통계 조회 성공")
+    void testGetStats_Success() {
+        Map<String, Object> stats = Map.of("totalDomains", 10, "totalRecords", 5000);
         when(dashboardService.getStats()).thenReturn(stats);
 
-        mockMvc.perform(get("/api/dashboard/stats"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalDomains").value(5))
-                .andExpect(jsonPath("$.pendingApprovals").value(2))
-                .andExpect(jsonPath("$.activeRecords").value(100))
-                .andExpect(jsonPath("$.pendingMatches").value(3))
-                .andExpect(jsonPath("$.openDqViolations").value(1));
+        ResponseEntity<Map<String, Object>> response = dashboardController.getStats();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(10, response.getBody().get("totalDomains"));
+        verify(dashboardService).getStats();
     }
 
     @Test
-    @DisplayName("getApprovalTrends - 최근 7일 결재 추이 데이터 응답 검증")
-    void getApprovalTrends_ReturnsList() throws Exception {
-        java.util.List<Map<String, Object>> trends = java.util.List.of(
-                Map.of("date", "2026-07-24", "count", 5L),
-                Map.of("date", "2026-07-25", "count", 10L)
-        );
+    @DisplayName("대시보드 결재 추이 트렌드 조회 성공")
+    void testGetApprovalTrends_Success() {
+        List<Map<String, Object>> trends = List.of(Map.of("date", "2026-08-01", "count", 15));
         when(dashboardService.getApprovalTrends()).thenReturn(trends);
 
-        mockMvc.perform(get("/api/dashboard/trends"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].count").value(5));
+        ResponseEntity<List<Map<String, Object>>> response = dashboardController.getApprovalTrends();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().size());
+        verify(dashboardService).getApprovalTrends();
     }
 
     @Test
-    @DisplayName("getDomainDistribution - 도메인별 레코드 분포 응답 검증")
-    void getDomainDistribution_ReturnsList() throws Exception {
-        java.util.List<Map<String, Object>> list = java.util.List.of(
-                Map.of("domainName", "고객", "recordCount", 50L)
-        );
-        when(dashboardService.getDomainDistribution()).thenReturn(list);
+    @DisplayName("대시보드 도메인별 데이터 분포 조회 성공")
+    void testGetDomainDistribution_Success() {
+        List<Map<String, Object>> dist = List.of(Map.of("domainName", "금융", "recordCount", 1200));
+        when(dashboardService.getDomainDistribution()).thenReturn(dist);
 
-        mockMvc.perform(get("/api/dashboard/domain-distribution"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].domainName").value("고객"));
+        ResponseEntity<List<Map<String, Object>>> response = dashboardController.getDomainDistribution();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().size());
+        verify(dashboardService).getDomainDistribution();
+    }
+
+    @Test
+    @DisplayName("대시보드 데이터 품질(DQ) 검증 추이 조회 성공")
+    void testGetDqTrends_Success() {
+        List<Map<String, Object>> dqTrends = List.of(Map.of("date", "2026-08-01", "errorCount", 3));
+        when(dashboardService.getDqTrends()).thenReturn(dqTrends);
+
+        ResponseEntity<List<Map<String, Object>>> response = dashboardController.getDqTrends();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().size());
+        verify(dashboardService).getDqTrends();
+    }
+
+    @Test
+    @DisplayName("대시보드 DQ 심각도 분포 조회 성공")
+    void testGetDqSeverityDistribution_Success() {
+        List<Map<String, Object>> severityDist = List.of(Map.of("severity", "CRITICAL", "count", 5));
+        when(dashboardService.getDqSeverityDistribution()).thenReturn(severityDist);
+
+        ResponseEntity<List<Map<String, Object>>> response = dashboardController.getDqSeverityDistribution();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().size());
+        verify(dashboardService).getDqSeverityDistribution();
     }
 }

@@ -4,18 +4,28 @@ import { formatMultilingual } from './useMultilingual'
 import { useI18n } from 'vue-i18n'
 import { useUserStore } from '~/stores/useUserStore'
 import { useCodeStore } from '~/stores/useCodeStore'
+import { formatWithTimezone } from '~/composables/useTimezoneDate'
+
+export interface EnrichedApprovalRequest {
+  [key: string]: any
+  domainName?: string
+  classificationName?: string
+  idAttribute?: string
+  nameAttribute?: string
+  summary?: string
+}
 
 export const useApprovalEnricher = () => {
   const { t } = useI18n()
   const userStore = useUserStore()
   const codeStore = useCodeStore()
   const { customFetch } = useCustomFetch()
-  const localeCookie = useCookie('locale', { default: () => 'ko' })
-  const domains = ref({})
-  const domainsFull = ref({})
-  const nodes = ref({})
-  const nodeToDomainMap = ref({})
-  const fieldSchemas = ref({})
+  const localeCookie = useCookie<string>('locale', { default: () => 'ko' })
+  const domains = ref<Record<string, any>>({})
+  const domainsFull = ref<Record<string, any>>({})
+  const nodes = ref<Record<string, any>>({})
+  const nodeToDomainMap = ref<Record<string, string>>({})
+  const fieldSchemas = ref<Record<string, any[]>>({})
 
   const loadMetadata = async () => {
     try {
@@ -24,39 +34,45 @@ export const useApprovalEnricher = () => {
       
       const domRes = await customFetch('/api/domains')
       
-      const dMap = {}
-      const dFullMap = {}
-      domRes.forEach(d => {
-        dMap[d.id] = d.name
-        dFullMap[d.id] = d
-      })
+      const dMap: Record<string, any> = {}
+      const dFullMap: Record<string, any> = {}
+      if (Array.isArray(domRes)) {
+        domRes.forEach((d: any) => {
+          dMap[d.id] = d.name
+          dFullMap[d.id] = d
+        })
+      }
       domains.value = dMap
       domainsFull.value = dFullMap
       
-      const nMap = {}
-      const dMapping = {}
+      const nMap: Record<string, any> = {}
+      const dMapping: Record<string, string> = {}
       
-      const flatten = (list, currentDomainId) => {
-        list.forEach(n => {
+      const flatten = (list: any[], currentDomainId: string) => {
+        list.forEach((n: any) => {
           nMap[n.id] = n.name
           dMapping[n.id] = currentDomainId
           if (n.children) flatten(n.children, currentDomainId)
         })
       }
       
-      const treePromises = domRes.map(d => 
-        customFetch(`/api/domains/${d.id}/nodes/tree`)
-          .catch(e => {
-            console.error(`Failed to load tree for domain ${d.id}`, e)
-            return []
-          })
-      )
-      
-      const treeResults = await Promise.all(treePromises)
-      
-      treeResults.forEach((treeRes, idx) => {
-        flatten(treeRes, domRes[idx].id)
-      })
+      if (Array.isArray(domRes)) {
+        const treePromises = domRes.map((d: any) => 
+          customFetch(`/api/domains/${d.id}/nodes/tree`)
+            .catch((e: any) => {
+              console.error(`Failed to load tree for domain ${d.id}`, e)
+              return []
+            })
+        )
+        
+        const treeResults = await Promise.all(treePromises)
+        
+        treeResults.forEach((treeRes: any, idx: number) => {
+          if (Array.isArray(treeRes)) {
+            flatten(treeRes, domRes[idx].id)
+          }
+        })
+      }
       
       nodes.value = nMap
       nodeToDomainMap.value = dMapping
@@ -65,8 +81,8 @@ export const useApprovalEnricher = () => {
     }
   }
 
-  const inFlightNodeRequests = {}
-  const getFieldsForNode = async (nodeId) => {
+  const inFlightNodeRequests: Record<string, Promise<any[]>> = {}
+  const getFieldsForNode = async (nodeId: string): Promise<any[]> => {
     if (!nodeId) return []
     if (fieldSchemas.value[nodeId]) return fieldSchemas.value[nodeId]
     if (inFlightNodeRequests[nodeId]) return await inFlightNodeRequests[nodeId]
@@ -87,7 +103,7 @@ export const useApprovalEnricher = () => {
     return await inFlightNodeRequests[nodeId]
   }
   
-  const getTranslatedName = (nameObj) => {
+  const getTranslatedName = (nameObj: any): string => {
     if (!nameObj) return ''
     let obj = nameObj
     if (typeof nameObj === 'string') {
@@ -97,18 +113,18 @@ export const useApprovalEnricher = () => {
         return nameObj
       }
     }
-    if (typeof obj !== 'object' || obj === null) return obj
+    if (typeof obj !== 'object' || obj === null) return String(obj)
     const locale = localeCookie.value || 'ko'
     return obj[locale] || obj.en || obj.ko || JSON.stringify(obj)
   }
 
-  const enrichRequest = async (req) => {
-    const enriched = { ...req, domainName: '', classificationName: '', idAttribute: '', nameAttribute: '', summary: '' }
+  const enrichRequest = async (req: any): Promise<EnrichedApprovalRequest> => {
+    const enriched: EnrichedApprovalRequest = { ...req, domainName: '', classificationName: '', idAttribute: '', nameAttribute: '', summary: '' }
     
     // In approvals.vue, changes is used. In admin.vue, requestedData is used.
     const rawData = req.changes || req.requestedData
     
-    let parsed = {}
+    let parsed: any = {}
     if (rawData) {
       try {
         parsed = typeof rawData === 'string' ? JSON.parse(rawData) : rawData
@@ -131,8 +147,8 @@ export const useApprovalEnricher = () => {
     
     if (nodeId) {
       try {
-        let recordData = {}
-        let previousData = {}
+        let recordData: Record<string, any> = {}
+        let previousData: Record<string, any> = {}
         
         if (req.targetType === 'RECORD_UPDATE') {
           recordData = parsed.after || {}
@@ -147,8 +163,8 @@ export const useApprovalEnricher = () => {
         const idFieldId = fullDomain.identifierFieldId
         const nameFieldId = fullDomain.displayNameFieldId
         
-        const idField = fields.find(f => f.id === idFieldId)
-        const nameField = fields.find(f => f.id === nameFieldId)
+        const idField = fields.find((f: any) => f.id === idFieldId)
+        const nameField = fields.find((f: any) => f.id === nameFieldId)
         
         if (idField && recordData[idField.key] !== undefined) {
           enriched.idAttribute = formatMultilingual(recordData[idField.key])
@@ -159,9 +175,9 @@ export const useApprovalEnricher = () => {
         
         // Summary logic
         if (req.targetType === 'RECORD_CREATE' || req.targetType === 'RECORD') {
-          const parts = []
+          const parts: string[] = []
           for (const key in recordData) {
-            const field = fields.find(f => f.key === key)
+            const field = fields.find((f: any) => f.key === key)
             const fName = field ? getTranslatedName(field.name) : key
             let val = recordData[key]
             if (typeof val === 'object' && val !== null) val = getTranslatedName(val)
@@ -169,10 +185,10 @@ export const useApprovalEnricher = () => {
           }
           enriched.summary = parts.join(', ')
         } else if (req.targetType === 'RECORD_UPDATE') {
-          const parts = []
+          const parts: string[] = []
           for (const key in recordData) {
             if (JSON.stringify(recordData[key]) !== JSON.stringify(previousData[key])) {
-              const field = fields.find(f => f.key === key)
+              const field = fields.find((f: any) => f.key === key)
               const fName = field ? getTranslatedName(field.name) : key
               let oldVal = previousData[key]
               let newVal = recordData[key]
@@ -191,7 +207,7 @@ export const useApprovalEnricher = () => {
         if (!enriched.idAttribute || !enriched.nameAttribute) {
           // 1st pass: try to find by common keywords
           for (const key in recordData) {
-            const field = fields.find(f => f.key === key)
+            const field = fields.find((f: any) => f.key === key)
             const fName = field ? getTranslatedName(field.name) : key
             const fNameLower = String(fName).toLowerCase()
             const keyLower = String(key).toLowerCase()
@@ -226,66 +242,44 @@ export const useApprovalEnricher = () => {
     return enriched
   }
 
-  const getRequesterName = (req) => {
-    if (!req) return t('unknown');
-    return userStore.getUserName(req.requesterId, req.requesterName || req.requesterUsername);
+  const getRequesterName = (req: any): string => {
+    if (!req) return t('unknown')
+    return userStore.getUserName(req.requesterId, req.requesterName || req.requesterUsername)
   }
 
-  const getClassificationName = (node, field) => {
+  const getClassificationName = (node: any, field: string): string => {
     const unclassified = t('unclassified')
-    if (!node || !node[field]) return unclassified;
-    const nameObj = node[field];
-    if (typeof nameObj === 'string') return nameObj;
-    return nameObj[localeCookie.value || 'ko'] || nameObj['ko'] || nameObj['en'] || unclassified;
+    if (!node || !node[field]) return unclassified
+    const nameObj = node[field]
+    if (typeof nameObj === 'string') return nameObj
+    return nameObj[localeCookie.value || 'ko'] || nameObj['ko'] || nameObj['en'] || unclassified
   }
 
-  const getRequestTypeLabel = (type) => {
-    if (!type) return t('other_request');
-    const i18nKey = `target_type_${type}`;
-    const translated = t(i18nKey);
-    if (translated && translated !== i18nKey) return translated;
+  const getRequestTypeLabel = (type: string): string => {
+    if (!type) return t('other_request')
+    const i18nKey = `target_type_${type}`
+    const translated = t(i18nKey)
+    if (translated && translated !== i18nKey) return translated
 
     const codeName = codeStore.getCodeName('TARGET_TYPE', type, null)
     if (codeName && codeName !== type) return codeName
 
-    if (type === 'RECORD_CREATE') return t('record_create');
-    if (type === 'RECORD_UPDATE') return t('record_update');
-    if (type === 'RECORD_DELETE') return t('record_delete');
-    if (type === 'DOMAIN_RECORD_CREATE') return t('domain_record_create');
-    return type || t('other_request');
+    if (type === 'RECORD_CREATE') return t('record_create')
+    if (type === 'RECORD_UPDATE') return t('record_update')
+    if (type === 'RECORD_DELETE') return t('record_delete')
+    if (type === 'DOMAIN_RECORD_CREATE') return t('domain_record_create')
+    return type || t('other_request')
   }
 
-  const getRequestTypeColor = (type) => {
-    if (type === 'RECORD_CREATE' || type === 'DOMAIN_RECORD_CREATE') return 'success';
-    if (type === 'RECORD_UPDATE') return 'warning';
-    if (type === 'RECORD_DELETE') return 'danger';
-    return 'primary';
+  const getRequestTypeColor = (type: string): string => {
+    if (type === 'RECORD_CREATE' || type === 'DOMAIN_RECORD_CREATE') return 'success'
+    if (type === 'RECORD_UPDATE') return 'warning'
+    if (type === 'RECORD_DELETE') return 'danger'
+    return 'primary'
   }
 
-  const parseDate = (dateString) => {
-    if (!dateString) return null
-    let str = String(dateString).trim()
-    if (/^\d+$/.test(str)) {
-      return new Date(parseInt(str, 10))
-    }
-    if (!str.endsWith('Z') && !str.includes('+') && !/[-+]\d{2}:\d{2}$/.test(str)) {
-      if (str.includes(' ') && !str.includes('T')) {
-        str = str.replace(' ', 'T')
-      }
-      const serverOffset = useCookie('server_offset', { default: () => '+09:00' }).value
-      str += serverOffset
-    }
-    const d = new Date(str)
-    return isNaN(d.getTime()) ? new Date(dateString) : d
-  }
-
-  const formatDate = (dateString) => {
-    if (!dateString) return ''
-    const date = parseDate(dateString)
-    if (!date) return ''
-    const tz = useCookie('timezone', { default: () => 'Asia/Seoul' }).value
-    const formatted = date.toLocaleString(undefined, { timeZone: tz })
-    return formatted.replace(/\s*(GMT|UTC|KST|PST|EST|CET)[-+0-9:]*/gi, '').trim()
+  const formatDate = (dateString: string | Date | null | undefined): string => {
+    return formatWithTimezone(dateString)
   }
 
   return {

@@ -270,144 +270,13 @@
         </va-card-content>
       </va-card>
 
-      <!-- Integration Details Modal (Premium Modern Redesign) -->
-      <va-modal v-model="showIntegrationDetailsModal" size="large" hide-default-actions style="--va-modal-padding: 0;">
-        <div v-if="selectedIntegrationLog" class="integration-modal-container">
-          <!-- Modal Header Bar -->
-          <div class="modal-header-banner">
-            <div class="flex items-center gap-2">
-              <va-icon name="hub" size="medium" color="primary" />
-              <h3 class="modal-title-text">{{ $t('integration_log_detail') }}</h3>
-            </div>
-          </div>
-
-          <div class="modal-body-content">
-            <!-- Metric Status Summary Cards -->
-            <div class="metrics-grid">
-              <div class="metric-card" :class="selectedIntegrationLog.status === 'SUCCESS' ? 'status-success' : 'status-fail'">
-                <span class="metric-label">Status</span>
-                <div class="flex items-center gap-2 mt-1">
-                  <span class="status-indicator-dot"></span>
-                  <span class="metric-value font-bold">{{ selectedIntegrationLog.status }}</span>
-                </div>
-              </div>
-
-              <div class="metric-card">
-                <span class="metric-label">Direction</span>
-                <div class="metric-value mt-1">
-                  <va-badge
-                    :text="selectedIntegrationLog.direction === 'INBOUND' ? ($t('integration.channels.inbound')) : ($t('integration.channels.outbound'))"
-                    :color="selectedIntegrationLog.direction === 'INBOUND' ? 'warning' : 'info'"
-                  />
-                </div>
-              </div>
-
-              <div class="metric-card">
-                <span class="metric-label">Event Type</span>
-                <div class="metric-value mt-1 text-primary flex items-center gap-1">
-                  <va-icon name="event" size="small" />
-                  <span>{{ selectedIntegrationLog.eventType }}</span>
-                </div>
-              </div>
-
-              <div class="metric-card">
-                <span class="metric-label">Retry Count</span>
-                <div class="metric-value mt-1">
-                  <span class="retry-badge">{{ selectedIntegrationLog.retryCount }} Retry</span>
-                </div>
-              </div>
-
-              <div class="metric-card">
-                <span class="metric-label">Logged At</span>
-                <div class="metric-value mt-1 date-text flex items-center gap-1">
-                  <va-icon name="schedule" size="small" />
-                  <span>{{ selectedIntegrationLog.createdAt }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Error Message & Stack Trace Section (Shown only on error) -->
-            <div v-if="selectedIntegrationLog.errorMessage" class="error-panel">
-              <div class="error-panel-header">
-                <va-icon name="error" color="danger" size="small" />
-                <span>Error Message</span>
-              </div>
-              <div class="error-message-body">
-                {{ selectedIntegrationLog.errorMessage }}
-              </div>
-            </div>
-
-            <div v-if="selectedIntegrationLog.stackTrace" class="error-panel mt-3">
-              <div class="error-panel-header">
-                <va-icon name="bug_report" color="danger" size="small" />
-                <span>Stack Trace Exception</span>
-              </div>
-              <div class="stack-trace-terminal">
-                <code>{{ selectedIntegrationLog.stackTrace }}</code>
-              </div>
-            </div>
-
-            <!-- Payload Viewers (Mac Terminal Shell Style - Direction aware) -->
-            <div class="payload-section mt-4">
-              <!-- First Terminal (Incoming or Outgoing Payload) -->
-              <div class="terminal-card">
-                <div class="terminal-header">
-                  <div class="terminal-dots">
-                    <span class="dot dot-red"></span>
-                    <span class="dot dot-yellow"></span>
-                    <span class="dot dot-green"></span>
-                  </div>
-                  <span class="terminal-title">
-                    {{ selectedIntegrationLog.direction === 'INBOUND' ? ($t('incoming_payload_title')) : ($t('outgoing_payload_title')) }}
-                  </span>
-                  <button class="copy-btn" @click="copyPayload(selectedIntegrationLog.originalPayload, 'original')">
-                    <va-icon name="content_copy" size="small" /> {{ copySuccess === 'original' ? 'Copied!' : 'Copy' }}
-                  </button>
-                </div>
-                <div class="terminal-body">
-                  <pre><code>{{ formatJson(selectedIntegrationLog.originalPayload) }}</code></pre>
-                </div>
-              </div>
-
-              <!-- Second Terminal (Mapped Record or Response Result) -->
-              <div class="terminal-card mt-4">
-                <div class="terminal-header">
-                  <div class="terminal-dots">
-                    <span class="dot dot-red"></span>
-                    <span class="dot dot-yellow"></span>
-                    <span class="dot dot-green"></span>
-                  </div>
-                  <span class="terminal-title">
-                    {{ selectedIntegrationLog.direction === 'INBOUND' ? ($t('mapped_payload_title')) : ($t('response_result_title')) }}
-                  </span>
-                  <button class="copy-btn" @click="copyPayload(selectedIntegrationLog.mappedPayload, 'mapped')">
-                    <va-icon name="content_copy" size="small" /> {{ copySuccess === 'mapped' ? 'Copied!' : 'Copy' }}
-                  </button>
-                </div>
-                <div class="terminal-body">
-                  <pre><code>{{ formatJson(selectedIntegrationLog.mappedPayload) }}</code></pre>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Modal Footer Actions -->
-          <div class="modal-footer-bar">
-            <va-button
-              v-if="selectedIntegrationLog.status === 'FAIL' && (hasPermission('integration:write') || hasPermission('integration:*'))"
-              color="warning"
-              gradient
-              icon="replay"
-              @click="retryIntegrationLog(selectedIntegrationLog.id)"
-            >
-              {{ $t('retry_integration') }}
-            </va-button>
-            <va-button preset="secondary" border-color="secondary" @click="showIntegrationDetailsModal = false">
-              {{ $t('close') }}
-            </va-button>
-          </div>
-        </div>
-      </va-modal>
+      <!-- Integration Details Modal (Decoupled Component) -->
+      <IntegrationLogDetailModal
+        v-model="showIntegrationDetailsModal"
+        :log="selectedIntegrationLog"
+        :has-permission="hasPermission"
+        @retry="retryIntegrationLog"
+      />
     </div>
 
     <!-- Stack Trace Detail Modal -->
@@ -420,7 +289,7 @@
           <strong>Error Message: </strong> <span class="text-danger">{{ selectedError.errorMessage }}</span>
         </div>
         <div class="mb-4">
-          <strong>Logged At: </strong> {{ new Date(selectedError.loggedAt).toLocaleString(locale === 'ko' ? 'ko-KR' : 'en-US') }} (User: {{ selectedError.userId }})
+          <strong>Logged At: </strong> {{ formatWithTimezone(selectedError.loggedAt) }} (User: {{ selectedError.userId }})
         </div>
         <div>
           <strong>Stack Trace:</strong>
@@ -499,6 +368,9 @@ import { useToast } from 'vuestic-ui'
 import { usePermission } from '~/composables/usePermission'
 import { getMultilingualText } from '~/utils/multilingual'
 import { useCodeStore } from '~/stores/useCodeStore'
+import IntegrationLogDetailModal from '~/components/admin/IntegrationLogDetailModal.vue'
+import { formatWithTimezone } from '~/composables/useTimezoneDate'
+import { formatEntityId } from '~/utils/formatters'
 
 const { hasPermission } = usePermission()
 
@@ -527,7 +399,7 @@ const sensitiveLogColDefs = computed(() => [
   {
     headerValueGetter: () => t('access_log_time'),
     field: 'accessedAt',
-    valueFormatter: params => params.value ? new Date(params.value).toLocaleString(locale.value === 'ko' ? 'ko-KR' : 'en-US') : '',
+    valueFormatter: params => formatWithTimezone(params.value),
     sortable: true,
     width: 170
   },
@@ -760,8 +632,8 @@ const gridApi = ref(null)
 const accessChartPeriod = ref('daily')
 
 const columnDefs = ref([
-  { field: 'id', headerName: 'ID', width: 100 },
-  { field: 'userId', headerName: 'User ID', flex: 1 },
+  { field: 'id', headerName: 'ID', width: 120, valueFormatter: (params) => formatEntityId(params.value, 'LOG') },
+  { field: 'userId', headerName: 'User ID', flex: 1, valueFormatter: (params) => formatEntityId(params.value, 'USR') },
   { 
     field: 'menuName', 
     headerName: 'Menu Name', 
@@ -778,10 +650,7 @@ const columnDefs = ref([
     field: 'accessedAt', 
     headerName: 'Accessed At', 
     flex: 1.2,
-    valueFormatter: (params) => {
-      if (!params.value) return ''
-      return new Date(params.value).toLocaleString(locale.value === 'ko' ? 'ko-KR' : 'en-US')
-    }
+    valueFormatter: (params) => formatWithTimezone(params.value)
   }
 ])
 
@@ -914,8 +783,8 @@ const loginGridApi = ref(null)
 const loginChartPeriod = ref('daily')
 
 const loginColumnDefs = ref([
-  { field: 'id', headerName: 'ID', width: 100 },
-  { field: 'userId', headerName: 'User UUID', flex: 1.5 },
+  { field: 'id', headerName: 'ID', width: 120, valueFormatter: (params) => formatEntityId(params.value, 'LOG') },
+  { field: 'userId', headerName: 'User UUID', flex: 1.5, valueFormatter: (params) => formatEntityId(params.value, 'USR') },
   { field: 'username', headerName: 'Username', flex: 1 },
   { field: 'userAgent', headerName: 'User Agent', flex: 2 },
   { field: 'clientIp', headerName: 'Client IP', flex: 1 },
@@ -923,10 +792,7 @@ const loginColumnDefs = ref([
     field: 'loginAt', 
     headerName: 'Login At', 
     flex: 1,
-    valueFormatter: (params) => {
-      if (!params.value) return ''
-      return new Date(params.value).toLocaleString(locale.value === 'ko' ? 'ko-KR' : 'en-US')
-    }
+    valueFormatter: (params) => formatWithTimezone(params.value)
   }
 ])
 

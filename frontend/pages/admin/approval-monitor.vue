@@ -42,69 +42,13 @@
       </va-card-content>
     </va-card>
 
-    <!-- Details Modal -->
-    <va-modal v-model="showDetailsModal" :title="t('workflowDetails')" size="large" hide-default-actions>
-      <div v-if="selectedFlow" style="display: flex; flex-direction: column; gap: 1rem; max-height: 80vh; overflow-y: auto;">
-        
-        <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
-          <div style="font-weight: bold; font-size: 1.1rem;">
-            {{ t('requestType') }}: {{ formatTargetType(selectedFlow.targetType) }}
-          </div>
-          <div>
-            <va-badge :text="getStatusText(selectedFlow.status)" :color="selectedFlow.status === 'PENDING' ? 'warning' : (selectedFlow.status === 'APPROVED' ? 'success' : 'danger')" />
-          </div>
-        </div>
-
-        <div style="font-size: 0.9rem; color: #555; margin-bottom: 1.5rem;">
-          <strong>{{ t('requester') }}:</strong> {{ getRequesterName(selectedFlow) }} <br/>
-          <strong>{{ t('createdAt') }}:</strong> {{ formatDate(selectedFlow.createdAt) }}
-        </div>
-
-        <!-- Pipeline Visualizer -->
-        <div style="display: flex; align-items: flex-start; justify-content: space-between; background: var(--va-background-element); padding: 1.5rem 1rem; border-radius: 8px; min-height: 120px; overflow-x: auto;">
-          <!-- Steps -->
-          <template v-for="(step, idx) in selectedFlow.steps" :key="step.id">
-            <div style="text-align: center; flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; min-width: 90px;">
-              <va-icon 
-                :name="step.status === 'SUBMITTED' ? 'send' : (step.status === 'APPROVED' ? 'check_circle' : (step.status === 'REJECTED' ? 'cancel' : 'radio_button_unchecked'))" 
-                :color="step.status === 'SUBMITTED' ? 'primary' : (step.status === 'APPROVED' ? 'success' : (step.status === 'REJECTED' ? 'danger' : (step.status === 'PENDING' ? 'warning' : 'secondary')))" 
-                size="large" 
-              />
-              <div style="font-size: 0.8rem; margin-top: 0.5rem; font-weight: bold; white-space: nowrap;">
-                {{ step.status === 'SUBMITTED' ? t('draft') : (step.stepType === 'CONSENSUS' ? t('consensus') : t('approval')) }}
-              </div>
-              <div style="font-size: 0.75rem; color: var(--va-text-secondary); margin-top: 0.2rem; min-height: 1.1rem; white-space: nowrap;">
-                {{ getStatusText(step.status) }}
-              </div>
-              <div style="font-size: 0.75rem; color: var(--va-text-primary); margin-top: 0.2rem; min-height: 1.1rem; font-weight: bold; white-space: nowrap;" :title="step.assigneeId">
-                {{ formatStepAssignee(step, selectedFlow) }}
-              </div>
-              <div style="font-size: 0.7rem; color: var(--va-text-secondary); margin-top: 0.1rem; min-height: 1rem; white-space: nowrap;">
-                <span v-if="step.updatedAt && step.status !== 'PENDING'">{{ formatShortDate(step.updatedAt) }}</span>
-                <span v-else-if="step.status === 'SUBMITTED'">{{ formatShortDate(step.createdAt || selectedFlow.createdAt) }}</span>
-                <span v-else>&nbsp;</span>
-              </div>
-              
-              <div v-if="step.status === 'PENDING'" style="margin-top: 0.5rem; display: flex; gap: 0.2rem; justify-content: center;">
-                <va-button size="small" preset="secondary" color="success" icon="check" @click="proxyApprove(step.id)" :title="t('proxyApprove')"></va-button>
-                <va-button size="small" preset="secondary" color="danger" icon="close" @click="proxyReject(step.id)" :title="t('proxyReject')"></va-button>
-              </div>
-            </div>
-            
-            <div v-if="idx < selectedFlow.steps.length - 1" style="flex: 1; height: 2px; background: var(--va-background-border); margin: 20px 10px 0 10px; min-width: 30px;"></div>
-          </template>
-        </div>
-        
-        <va-accordion style="margin-top: 1rem;" :multiple="true">
-          <va-collapse :header="t('viewDataChanges')">
-            <div style="padding: 1rem; background: var(--va-background-primary); border: 1px solid var(--va-background-border); border-radius: 4px;">
-              <ApprovalDetailsViewer :request="selectedFlow" />
-            </div>
-          </va-collapse>
-        </va-accordion>
-        
-      </div>
-    </va-modal>
+    <!-- Details Modal (Decoupled Component) -->
+    <ApprovalMonitorDetailModal
+      v-model="showDetailsModal"
+      :selected-flow="selectedFlow"
+      @proxy-approve="proxyApprove"
+      @proxy-reject="proxyReject"
+    />
 
   </div>
 </template>
@@ -118,7 +62,7 @@ import { useCookie } from '#app'
 import { AgGridVue } from 'ag-grid-vue3'
 import { useI18n } from 'vue-i18n'
 import { useModal } from 'vuestic-ui'
-import ApprovalDetailsViewer from '~/components/ApprovalDetailsViewer.vue'
+import ApprovalMonitorDetailModal from '~/components/admin/ApprovalMonitorDetailModal.vue'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { useApprovalEnricher } from '~/composables/useApprovalEnricher'
 import { useUserStore } from '~/stores/useUserStore'

@@ -17,6 +17,17 @@ public class IntegrationLogService {
     private final org.springframework.context.ApplicationContext applicationContext;
     private final IntegrationRetryService retryService;
 
+    public org.springframework.data.domain.Page<IntegrationLog> getLogs(UUID channelId, org.springframework.data.domain.Pageable pageable) {
+        if (channelId != null) {
+            return logRepository.findByChannelId(channelId, pageable);
+        }
+        return logRepository.findAll(pageable);
+    }
+
+    public java.util.List<IntegrationLog> getLogsByRecordId(UUID recordId) {
+        return logRepository.findByRecordIdOrderByCreatedAtDesc(recordId);
+    }
+
     @Transactional
     public void logSuccess(UUID channelId, UUID recordId, String eventType, String originalPayload, String mappedPayload) {
         IntegrationLog log = new IntegrationLog();
