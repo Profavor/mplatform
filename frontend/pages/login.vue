@@ -46,7 +46,13 @@ const colors = useColors()
 const currentPresetName = colors?.currentPresetName
 const isDark = computed(() => currentPresetName?.value === 'dark')
 
+const { loggedIn, login } = useOidcAuth()
+
 onMounted(() => {
+  if (loggedIn.value) {
+    navigateTo('/')
+    return
+  }
   if (route.query.error) {
     initToast({
       message: t('auth_login_error_message') || '인증에 실패했습니다. 계정 정보를 다시 확인해주세요.',
@@ -57,7 +63,6 @@ onMounted(() => {
   }
 })
 
-const { login } = useOidcAuth()
 
 const handleLogin = async () => {
   try {
