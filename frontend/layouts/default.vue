@@ -262,6 +262,8 @@ const tokenCookie = useCookie('auth_token')
 const userCookie = useCookie('user_data')
 const currentLocale = useCookie('locale', { default: () => 'ko' })
 const savedTheme = useCookie('theme', { default: () => 'light' })
+const userPermissionsCookie = useCookie('user_permissions')
+const { currentUser, fetchCurrentUser } = useAuthUser()
 
 const showSettingsModal = ref(false)
 const showRadioDjModal = ref(false)
@@ -507,8 +509,6 @@ const isMobile = ref(false)
 const route = useRoute()
 
 const isMounted = ref(false)
-const userPermissionsCookie = useCookie('user_permissions')
-const { currentUser, fetchCurrentUser } = useAuthUser()
 
 const syncCurrentUserInfo = async () => {
   if (!tokenCookie.value) return
