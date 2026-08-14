@@ -82,20 +82,34 @@ public class DqRuleEngine {
         ClassificationNode node = nodeRepository.findById(nodeId).orElse(null);
         UUID domainId = node != null && node.getDomain() != null ? node.getDomain().getId() : null;
 
-        List<FieldDefinition> effectiveFields;
+        List<?> rawFields;
         if (nodeFieldsCache != null && nodeFieldsCache.containsKey(nodeId)) {
-            effectiveFields = nodeFieldsCache.get(nodeId);
+            rawFields = nodeFieldsCache.get(nodeId);
         } else {
-            effectiveFields = fieldDefinitionService.getEffectiveFields(nodeId);
-            if (nodeFieldsCache != null) {
-                nodeFieldsCache.put(nodeId, effectiveFields);
+            rawFields = fieldDefinitionService.getEffectiveFields(nodeId);
+        }
+
+        List<FieldDefinition> effectiveFields = new java.util.ArrayList<>();
+        if (rawFields != null) {
+            for (Object item : rawFields) {
+                if (item instanceof FieldDefinition fd) {
+                    effectiveFields.add(fd);
+                } else if (item instanceof java.util.Map) {
+                    try {
+                        effectiveFields.add(objectMapper.convertValue(item, FieldDefinition.class));
+                    } catch (Exception ignored) {}
+                }
             }
+        }
+        if (nodeFieldsCache != null && !nodeFieldsCache.containsKey(nodeId)) {
+            nodeFieldsCache.put(nodeId, effectiveFields);
         }
 
         List<UUID> fieldIds = effectiveFields.stream()
                 .map(FieldDefinition::getId)
                 .filter(Objects::nonNull)
                 .toList();
+
 
         // Batch load all active rules for these fields in one query
         List<DqRule> allRules = fieldIds.isEmpty()
