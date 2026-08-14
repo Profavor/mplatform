@@ -263,7 +263,21 @@ const userCookie = useCookie('user_data')
 const currentLocale = useCookie('locale', { default: () => 'ko' })
 const savedTheme = useCookie('theme', { default: () => 'light' })
 const userPermissionsCookie = useCookie('user_permissions')
-const { currentUser, fetchCurrentUser } = useAuthUser()
+const authUserStore = useAuthUser()
+
+const currentUser = computed(() => {
+  if (authUserStore?.currentUser) {
+    return authUserStore.currentUser
+  }
+  if (userCookie.value) {
+    try {
+      return typeof userCookie.value === 'string' ? JSON.parse(userCookie.value) : userCookie.value
+    } catch (e) {
+      return null
+    }
+  }
+  return null
+})
 
 const showSettingsModal = ref(false)
 const showRadioDjModal = ref(false)
@@ -512,7 +526,7 @@ const isMounted = ref(false)
 
 const syncCurrentUserInfo = async () => {
   if (!tokenCookie.value) return
-  const me = await fetchCurrentUser(true)
+  const me = await authUserStore?.fetchCurrentUser?.(true)
   if (me && Array.isArray(me.permissions)) {
     userPermissionsCookie.value = me.permissions
   }
