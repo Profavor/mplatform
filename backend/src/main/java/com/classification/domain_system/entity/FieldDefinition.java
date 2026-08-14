@@ -18,6 +18,7 @@ import com.classification.domain_system.entity.enums.RecordStatus;
 @Getter
 @Setter
 @NoArgsConstructor
+@com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class FieldDefinition {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

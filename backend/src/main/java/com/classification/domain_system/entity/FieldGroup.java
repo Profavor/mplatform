@@ -15,6 +15,7 @@ import org.hibernate.type.SqlTypes;
 @Getter
 @Setter
 @NoArgsConstructor
+@com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class FieldGroup {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
