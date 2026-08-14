@@ -68,7 +68,6 @@ public class DomainService {
     }
     
     @Transactional(readOnly = true)
-    @Cacheable(value = "domains", key = "#id")
     public Domain getDomainById(UUID id) {
         return domainRepository.findById(id).orElseThrow(() -> new RuntimeException("Domain not found"));
     }
@@ -79,7 +78,6 @@ public class DomainService {
     }
     
     @Transactional
-    @CacheEvict(value = "domains", key = "#id")
     public Domain updateDomain(UUID id, DomainRequest request) {
         Domain domain = getDomain(id);
         if (request.getName() != null && !request.getName().isEmpty()) {
