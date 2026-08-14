@@ -130,7 +130,7 @@ const { gridTheme, isDark } = useAgGridTheme()
 const domainStore = useDomainStore()
 const codeStore = useCodeStore()
 const selectedDomainId = ref<string | null>(null)
-const domainOptions = computed(() => domainStore.domainOptions.value)
+const domainOptions = computed(() => domainStore.domainOptions || [])
 
 const rules = ref<any[]>([])
 const domainFields = ref<any[]>([])

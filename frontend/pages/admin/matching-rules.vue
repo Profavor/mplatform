@@ -153,7 +153,7 @@ const codeStore = useCodeStore()
 
 const domainStore = useDomain()
 const selectedDomainId = ref('')
-const domainOptions = computed(() => domainStore.domainOptions.value)
+const domainOptions = computed(() => domainStore.domainOptions || [])
 const domainFieldOptions = ref<any[]>([])
 
 const rules = ref<any[]>([])
