@@ -63,6 +63,9 @@ public class SchemaApprovalIntegrationTest {
         ClassificationNodeRequest nodeReq = new ClassificationNodeRequest();
         nodeReq.setName(Map.of("en", "Test Node"));
         testNode = classificationNodeService.createNode(testDomain.getId(), nodeReq);
+        approvalStepRepository.deleteAll();
+        approvalRequestRepository.deleteAll();
+        workflowConfigRepository.deleteAll();
         schemaHistoryRepository.deleteAll();
     }
 
@@ -189,7 +192,7 @@ public class SchemaApprovalIntegrationTest {
         fieldDefinitionService.addField(testNode.getId(), req);
 
         ApprovalRequest request = approvalRequestRepository.findAll().stream()
-            .filter(r -> "SCHEMA_FIELD_ADD".equals(r.getTargetType()))
+            .filter(r -> "SCHEMA_FIELD_ADD".equals(r.getTargetType()) && "PENDING".equals(r.getStatus()))
             .findFirst().orElseThrow();
 
         ApprovalStep step = approvalStepRepository.findAll().stream()
@@ -223,7 +226,7 @@ public class SchemaApprovalIntegrationTest {
         fieldDefinitionService.addField(testNode.getId(), req);
 
         ApprovalRequest request = approvalRequestRepository.findAll().stream()
-            .filter(r -> "SCHEMA_FIELD_ADD".equals(r.getTargetType()))
+            .filter(r -> "SCHEMA_FIELD_ADD".equals(r.getTargetType()) && "PENDING".equals(r.getStatus()))
             .findFirst().orElseThrow();
 
         ApprovalStep step = approvalStepRepository.findAll().stream()

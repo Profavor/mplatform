@@ -372,6 +372,9 @@ public class ApprovalQueryService {
         boolean canUnmask = false;
         String maskedChanges = dataMaskingService.maskChangesJson(approval.getChanges(), fields, canUnmask);
         approval.setChanges(maskedChanges);
+        if (approval.getSteps() == null || approval.getSteps().isEmpty()) {
+            approval.setSteps(stepRepository.findByApprovalRequestIdOrderByStepOrderAsc(approval.getId()));
+        }
         return approval;
     }
 

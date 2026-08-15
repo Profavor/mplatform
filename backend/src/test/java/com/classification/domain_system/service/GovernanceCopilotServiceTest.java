@@ -1,19 +1,30 @@
 package com.classification.domain_system.service;
 
 import com.classification.domain_system.dto.GovernanceCopilotDto;
+import com.classification.domain_system.repository.DomainRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
 
+@ExtendWith(MockitoExtension.class)
 public class GovernanceCopilotServiceTest {
 
+    @Mock
+    private DomainRepository domainRepository;
+
+    @InjectMocks
     private GovernanceCopilotService copilotService;
 
     @BeforeEach
     void setUp() {
-        copilotService = new GovernanceCopilotService();
+        given(domainRepository.count()).willReturn(5L);
     }
 
     @Test
@@ -28,20 +39,20 @@ public class GovernanceCopilotServiceTest {
         assertThat(res).isNotNull();
         assertThat(res.getReply()).contains("96.8점");
         assertThat(res.getSuggestedActions()).isNotEmpty();
-        assertThat(res.getMetricCards()).containsKeys("전사 DQ 점수", "완전성 지표");
+        assertThat(res.getMetricCards()).containsKeys("전사 DQ 점수", "관리 도메인");
     }
 
     @Test
-    @DisplayName("askCopilot: SLA 관련 거버넌스 질의 응답")
-    void testAskCopilotSla() {
+    @DisplayName("askCopilot: MCP 연동 관련 거버넌스 질의 응답")
+    void testAskCopilotMcp() {
         GovernanceCopilotDto.CopilotChatRequest req = GovernanceCopilotDto.CopilotChatRequest.builder()
-                .prompt("SLA 지연시간 상태 알려줘")
+                .prompt("이거 MCP 연동해야 하는거 아니냐?")
                 .build();
 
         GovernanceCopilotDto.CopilotChatResponse res = copilotService.askCopilot(req);
 
         assertThat(res).isNotNull();
-        assertThat(res.getReply()).contains("100%");
-        assertThat(res.getMetricCards()).containsKey("SLA 준수율");
+        assertThat(res.getReply()).contains("Model Context Protocol");
+        assertThat(res.getMetricCards()).containsKey("MCP 호환성");
     }
 }

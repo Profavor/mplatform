@@ -186,7 +186,41 @@ public class AuthService {
     }
 
     public Map<String, String> refreshTokens(String refreshToken) {
-        if (refreshToken == null || !jwtUtil.isTokenValid(refreshToken)) {
+        if (refreshToken == null || refreshToken.trim().isEmpty()) {
+            throw new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.INVALID_CREDENTIALS,
+                    "Invalid refresh token"
+            );
+        }
+
+        // 1. Keycloak OIDC refresh 시도
+        if (keycloakTokenUri != null && !keycloakTokenUri.trim().isEmpty()) {
+            try {
+                org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+                org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+                headers.setContentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED);
+
+                org.springframework.util.MultiValueMap<String, String> mapConfig = new org.springframework.util.LinkedMultiValueMap<>();
+                mapConfig.add("client_id", keycloakClientId != null ? keycloakClientId : "mdm-frontend");
+                mapConfig.add("grant_type", "refresh_token");
+                mapConfig.add("refresh_token", refreshToken);
+
+                org.springframework.http.HttpEntity<org.springframework.util.MultiValueMap<String, String>> kcRequest = new org.springframework.http.HttpEntity<>(mapConfig, headers);
+                org.springframework.http.ResponseEntity<Map> kcResponse = restTemplate.postForEntity(keycloakTokenUri, kcRequest, Map.class);
+                Map body = kcResponse.getBody();
+                if (body != null && body.containsKey("access_token")) {
+                    Map<String, String> map = new HashMap<>();
+                    map.put("token", (String) body.get("access_token"));
+                    map.put("refreshToken", (String) body.getOrDefault("refresh_token", refreshToken));
+                    return map;
+                }
+            } catch (Exception e) {
+                System.err.println("Keycloak token refresh failed, falling back to local DB JWT check: " + e.getMessage());
+            }
+        }
+
+        // 2. Local JWT refresh
+        if (!jwtUtil.isTokenValid(refreshToken)) {
             throw new com.classification.domain_system.exception.BusinessException(
                     com.classification.domain_system.exception.ErrorCode.INVALID_CREDENTIALS,
                     "Invalid refresh token"

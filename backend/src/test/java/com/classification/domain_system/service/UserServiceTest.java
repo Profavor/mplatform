@@ -149,4 +149,26 @@ public class UserServiceTest {
                 eq("fallbackuser")
         );
     }
+
+    @Test
+    void testChangePassword_ByUserId() {
+        String userId = "4d06f8c8-54a3-43fe-89da-d794cbff7f5a";
+        User user = new User();
+        user.setId(userId);
+        user.setUsername("test2");
+        user.setPassword("encodedOld");
+        user.setMustChangePassword(true);
+
+        when(userRepository.findByUsername(userId)).thenReturn(java.util.Optional.empty());
+        when(userRepository.findById(userId)).thenReturn(java.util.Optional.of(user));
+        when(passwordEncoder.matches("OldPass!", "encodedOld")).thenReturn(true);
+        when(passwordEncoder.encode("NewPass1234!")).thenReturn("encodedNew");
+
+        userService.changePassword(userId, "OldPass!", "NewPass1234!");
+
+        assertThat(user.getPassword()).isEqualTo("encodedNew");
+        assertThat(user.getMustChangePassword()).isFalse();
+        verify(userRepository).save(user);
+        verify(keycloakAdminService).resetPassword("test2", "NewPass1234!");
+    }
 }

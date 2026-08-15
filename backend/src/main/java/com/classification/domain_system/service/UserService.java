@@ -210,9 +210,10 @@ public class UserService {
     }
 
     @Transactional
-    public void changePassword(String username, String oldPassword, String newPassword) {
-        com.classification.domain_system.entity.User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
+    public void changePassword(String userIdentifier, String oldPassword, String newPassword) {
+        com.classification.domain_system.entity.User user = userRepository.findByUsername(userIdentifier)
+                .or(() -> userRepository.findById(userIdentifier))
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userIdentifier));
                 
         if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
             throw new IllegalArgumentException("Old password does not match");
@@ -225,9 +226,9 @@ public class UserService {
         
         // Sync to Keycloak
         try {
-            keycloakAdminService.resetPassword(username, newPassword);
+            keycloakAdminService.resetPassword(user.getUsername(), newPassword);
         } catch (Exception e) {
-            org.slf4j.LoggerFactory.getLogger(UserService.class).error("Failed to sync password change to Keycloak: {}", username, e);
+            org.slf4j.LoggerFactory.getLogger(UserService.class).error("Failed to sync password change to Keycloak: {}", user.getUsername(), e);
         }
     }
 

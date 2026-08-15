@@ -162,8 +162,9 @@ public class WorkflowResolver {
                         ApprovalStep step = new ApprovalStep();
                         step.setApprovalRequest(approval);
                         step.setStepType(stepNode.has("stepType") ? stepNode.get("stepType").asText() : "APPROVAL");
-                        step.setStepOrder(stepNode.has("stepOrder") ? stepNode.get("stepOrder").asInt() : (steps.size() + 1));
-                        step.setStatus(step.getStepOrder() == 1 ? ApprovalStatus.PENDING.name() : ApprovalStatus.WAITING.name());
+                        int defaultOrder = (approval.getSteps() != null ? approval.getSteps().size() + 1 : 1);
+                        step.setStepOrder(stepNode.has("stepOrder") && !stepNode.get("stepOrder").isNull() ? stepNode.get("stepOrder").asInt(defaultOrder) : defaultOrder);
+                        step.setStatus(step.getStepOrder() != null && step.getStepOrder() == 1 ? ApprovalStatus.PENDING.name() : ApprovalStatus.WAITING.name());
                         
                         if (stepNode.has("assigneeId") && !stepNode.get("assigneeId").asText().isBlank() && !"null".equalsIgnoreCase(stepNode.get("assigneeId").asText())) {
                             step.setAssigneeId(stepNode.get("assigneeId").asText());
@@ -171,7 +172,7 @@ public class WorkflowResolver {
                         if (stepNode.has("assigneeRole") && !stepNode.get("assigneeRole").asText().isBlank() && !"null".equalsIgnoreCase(stepNode.get("assigneeRole").asText())) {
                             step.setAssigneeRole(stepNode.get("assigneeRole").asText());
                         }
-                        steps.add(step);
+                        approval.addStep(step);
                     }
                 }
                 
@@ -187,7 +188,6 @@ public class WorkflowResolver {
             approval.setObserverIds("[]");
             log.error("Failed to parse observerIds / stepsConfig", e);
         }
-        approval.getSteps().addAll(steps);
     }
 
     public void enrichUserNames(ApprovalRequest request) {

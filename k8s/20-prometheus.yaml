@@ -1,3 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: mdm-system
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    scrape_configs:
+      - job_name: 'mdm-backend'
+        metrics_path: '/actuator/prometheus'
+        static_configs:
+          - targets: ['backend:8080']
+            labels:
+              application: 'domain-system'
+              environment: 'kubernetes'
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:

@@ -4,7 +4,9 @@ import com.classification.domain_system.context.AuthContext;
 import com.classification.domain_system.dto.AdminUserUpdateDto;
 import com.classification.domain_system.dto.SelfUserUpdateDto;
 import com.classification.domain_system.entity.User;
+import com.classification.domain_system.entity.Role;
 import com.classification.domain_system.repository.UserRepository;
+import com.classification.domain_system.repository.RoleRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -17,6 +19,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
+import java.util.Set;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -46,6 +50,9 @@ class AuthorizationSecurityIntegrationTest {
     private UserRepository userRepository;
 
     @MockitoBean
+    private RoleRepository roleRepository;
+
+    @MockitoBean
     private AuthContext authContext;
 
     @MockitoBean
@@ -59,6 +66,16 @@ class AuthorizationSecurityIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        Role adminRole = new Role();
+        adminRole.setName("ROLE_ADMIN");
+        adminRole.setPermissions(Set.of("*"));
+
+        Role userRole = new Role();
+        userRole.setName("ROLE_USER");
+        userRole.setPermissions(Set.of("user:read"));
+
+        given(roleRepository.findAll()).willReturn(List.of(adminRole, userRole));
+
         userToken = jwtUtil.generateToken("regular_user", "ROLE_USER", "user-1");
         adminToken = jwtUtil.generateToken("admin_user", "ROLE_ADMIN", "admin-1");
     }

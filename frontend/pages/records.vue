@@ -39,29 +39,30 @@
 
     <!-- Right Column: Record List & Data Grid -->
     <div class="right-content records-detail-column">
-      <!-- Grid Title & Action Bar -->
-      <RecordToolbar
-        :selected-node="selectedNode"
-        :selected-record-rows="selectedRecordRows"
-        :has-create-workflow="hasCreateWorkflow"
-        @create="openCreateModal"
-        @upload-excel="showExcelUploader = true"
-        @open-lineage="showLineageModal = true"
-        @open-compare="showCompareModal = true"
-        @open-bulk-reclassify="showBulkReclassifyModal = true"
-        @open-export="showAsyncExportModal = true"
-        @open-autonomous-cleansing="showAutonomousCleansingModal = true"
-        @open-ai-structurizer="showAiStructurizerModal = true"
-        @open-business-rule-builder="showBusinessRuleBuilderModal = true"
-        @open-cdc-stream="showCdcStreamModal = true"
-        @reset-filters="clearFilters"
-        @refresh="refreshRecords"
-      >
-        <template #search-chips>
-          <va-button v-if="searchableFields.length > 0" preset="secondary" size="small" @click="showAdvancedSearch = !showAdvancedSearch">
+      <!-- 1. Top Context & Search Chips Header Bar (Wide & spacious) -->
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.55rem 0.85rem; background: var(--va-background-element, #f4f6f9); border: 1px solid var(--va-background-border); border-radius: 8px; margin-bottom: 0.5rem; gap: 0.75rem; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; flex: 1;">
+          <va-icon name="folder_open" color="primary" size="1.2rem" />
+          <span style="font-weight: 700; font-size: 0.95rem; color: var(--va-text-primary);">
+            {{ selectedNode ? formatNodeName(selectedNode.name) : $t('master_data_record_list') }}
+          </span>
+          <va-chip v-if="selectedNode" size="small" color="primary" style="font-weight: 600;">
+            {{ selectedNode.isDomain ? $t('domain') : $t('node') }}
+          </va-chip>
+
+          <!-- Advanced Search Toggle Button -->
+          <va-button
+            v-if="searchableFields.length > 0"
+            preset="secondary"
+            size="small"
+            style="margin-left: 0.3rem;"
+            @click="showAdvancedSearch = !showAdvancedSearch"
+          >
             <va-icon :name="showAdvancedSearch ? 'expand_less' : 'expand_more'" size="small" />
             {{ $t('advanced_search') }}
           </va-button>
+
+          <!-- Active Filter Chips -->
           <va-chip
             v-for="(val, key) in activeFilters"
             :key="key"
@@ -79,6 +80,7 @@
               @click.stop="removeFilter(key)"
             />
           </va-chip>
+          
           <va-button
             v-if="Object.keys(activeFilters).some(k => activeFilters[k])"
             preset="secondary"
@@ -89,10 +91,10 @@
           >
             {{ $t('reset_all') }}
           </va-button>
-        </template>
-      </RecordToolbar>
+        </div>
+      </div>
 
-      <!-- Advanced Search Panel -->
+      <!-- 2. Advanced Search Panel (Full Width) -->
       <RecordAdvancedSearch
         v-if="showAdvancedSearch"
         :searchable-fields="searchableFields"
@@ -103,8 +105,25 @@
         @filter-keydown="onFilterKeydown"
       />
       
+      <!-- 3. Grid Container with RecordToolbar directly on top of AG-Grid -->
       <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
-        <va-card v-if="selectedNode" style="width: 100%; flex: 1; display: flex; flex-direction: column; min-height: 0;">
+        <RecordToolbar
+          :selected-node="selectedNode"
+          :selected-record-rows="selectedRecordRows"
+          :has-create-workflow="hasCreateWorkflow"
+          @create="openCreateModal"
+          @upload-excel="showExcelUploader = true"
+          @open-lineage="showLineageModal = true"
+          @open-compare="showCompareModal = true"
+          @open-bulk-reclassify="showBulkReclassifyModal = true"
+          @download-template="handleDownloadTemplate"
+          @open-export="showAsyncExportModal = true"
+          @open-cdc-stream="showCdcStreamModal = true"
+          @reset-filters="clearFilters"
+          @refresh="refreshRecords"
+        />
+
+        <va-card v-if="selectedNode" style="width: 100%; flex: 1; display: flex; flex-direction: column; min-height: 0; border-top-left-radius: 0; border-top-right-radius: 0; border-top: none;">
           <va-card-content style="padding: 0; flex: 1; display: flex; flex-direction: column; min-height: 0;">
             <div class="records-grid-wrapper" :class="{ 'ag-theme-quartz-dark': isDark }">
               <ag-grid-vue
@@ -306,28 +325,11 @@
       :gridApi="gridApi"
     />
 
-    <!-- AI Autonomous Cleansing Modal -->
-    <AutonomousCleansingModal
-      v-model="showAutonomousCleansingModal"
-      :domainId="selectedDomainId"
-    />
-
-    <!-- AI Unstructured Data Structurizer Modal -->
-    <UnstructuredDataModal
-      v-model="showAiStructurizerModal"
-      :domainId="selectedDomainId"
-    />
-
-    <!-- Business Rule Builder Modal -->
-    <BusinessRuleBuilderModal
-      v-model="showBusinessRuleBuilderModal"
-      :domainId="selectedDomainId"
-    />
-
     <!-- CDC Stream Inspector Modal -->
     <CdcStreamModal
       v-model="showCdcStreamModal"
       :domainId="selectedDomainId"
+      :recordId="selectedRecordRows?.length === 1 ? selectedRecordRows[0].id : null"
     />
   </div>
 </div>
@@ -336,6 +338,8 @@
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { usePageTitle } from '~/composables/usePageTitle'
+
+import ExcelJS from 'exceljs'
 
 const { pageTitle } = usePageTitle('records_management', '마스터 데이터 레코드 관리')
 const { customFetch } = useCustomFetch()
@@ -351,19 +355,12 @@ import RecordLineageModal from '~/components/RecordLineageModal.vue'
 import AsyncBatchExportModal from '~/components/AsyncBatchExportModal.vue'
 import ApprovalViewerModal from '~/components/ApprovalViewerModal.vue'
 import BulkReclassifyModal from '~/components/records/BulkReclassifyModal.vue'
-import AutonomousCleansingModal from '~/components/records/AutonomousCleansingModal.vue'
-import UnstructuredDataModal from '~/components/records/UnstructuredDataModal.vue'
-import BusinessRuleBuilderModal from '~/components/records/BusinessRuleBuilderModal.vue'
 import CdcStreamModal from '~/components/records/CdcStreamModal.vue'
-
-const showAutonomousCleansingModal = ref(false)
-const showAiStructurizerModal = ref(false)
-const showBusinessRuleBuilderModal = ref(false)
-const showCdcStreamModal = ref(false)
 
 import { useColors, useModal, useToast } from 'vuestic-ui'
 import { useI18n } from 'vue-i18n'
 import { usePermission } from '~/composables/usePermission'
+import { formatMultilingual } from '~/composables/useMultilingual'
 
 const { t } = useI18n()
 const { confirm } = useModal()
@@ -371,6 +368,131 @@ const { init: initToast } = useToast()
 const { gridTheme, autoSizeStrategy } = useAgGridTheme()
 const { hasPermission } = usePermission()
 const { downloadFileWithAuth } = useFileDownloader()
+
+const showCdcStreamModal = ref(false)
+
+const formatNodeName = (nameObj) => {
+  if (!nameObj) return ''
+  return formatMultilingual(nameObj)
+}
+
+const handleDownloadTemplate = async () => {
+  if (!selectedNode.value) {
+    initToast({ message: t('select_node_first', '노드를 먼저 선택해주세요.'), color: 'warning' })
+    return
+  }
+
+  try {
+    let targetFields = fields.value || []
+    if (targetFields.length === 0 && selectedNode.value.id) {
+      const fieldUrl = selectedNode.value.isDomain
+        ? `/api/domains/${selectedNode.value.id}/fields`
+        : `/api/nodes/${selectedNode.value.id}/fields/effective`
+      targetFields = await customFetch(fieldUrl).catch(() => [])
+    }
+
+    const workbook = new ExcelJS.Workbook()
+    const sheet = workbook.addWorksheet('Template')
+
+    const headers = []
+    const validations = []
+    const colWidths = []
+
+    let colIndex = 1
+    targetFields.forEach(f => {
+      if (f.type === 'CALCULATED') return
+
+      let fieldName = ''
+      if (typeof f.name === 'object' && f.name !== null) {
+        fieldName = f.name[currentLocale.value] || f.name.ko || f.name.en || f.key || ''
+      } else {
+        fieldName = f.name || f.key || ''
+      }
+
+      let parsedOpts = []
+      if (['SELECT', 'MULTI_SELECT'].includes(f.type) && f.options) {
+        try {
+          const arr = typeof f.options === 'string' ? JSON.parse(f.options) : f.options
+          const list = Array.isArray(arr) ? arr : (arr.optionsList || [])
+          parsedOpts = list.map(a => {
+            if (typeof a === 'object') {
+              const labelStr = a.label ? (a.label[currentLocale.value] || a.label.ko || a.label.en || a.label) : a.value
+              return labelStr || a.key || JSON.stringify(a)
+            }
+            return a
+          })
+        } catch (e) {}
+      }
+
+      const excelWidth = (f.gridWidth && f.gridWidth > 0) ? (f.gridWidth / 8) : 25
+
+      if (f.type === 'MULTILINGUAL') {
+        headers.push(`${fieldName} (ko)`)
+        headers.push(`${fieldName} (en)`)
+        colWidths.push(excelWidth, excelWidth)
+        colIndex += 2
+      } else {
+        headers.push(fieldName)
+        colWidths.push(excelWidth)
+        if (parsedOpts.length > 0) {
+          validations.push({ colIndex, options: parsedOpts })
+        }
+        colIndex++
+      }
+    })
+
+    sheet.addRow(headers)
+    sheet.getRow(1).font = { bold: true }
+    sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEEEEE' } }
+
+    const getColLetter = (idx) => {
+      let temp, letter = ''
+      while (idx > 0) {
+        temp = (idx - 1) % 26
+        letter = String.fromCharCode(temp + 65) + letter
+        idx = Math.floor((idx - temp - 1) / 26)
+      }
+      return letter
+    }
+
+    validations.forEach(val => {
+      const colLetter = getColLetter(val.colIndex)
+      const formulaStr = '"' + val.options.join(',').replace(/"/g, '') + '"'
+      sheet.dataValidations.add(`${colLetter}2:${colLetter}500`, {
+        type: 'list',
+        allowBlank: true,
+        showErrorMessage: true,
+        errorStyle: 'warning',
+        errorTitle: 'Invalid Selection',
+        error: 'Please select a value from the drop-down list.',
+        formulae: [formulaStr]
+      })
+    })
+
+    sheet.columns.forEach((column, idx) => {
+      column.width = colWidths[idx] || 25
+    })
+
+    const buffer = await workbook.xlsx.writeBuffer()
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const nodeName = typeof selectedNode.value.name === 'object' 
+      ? (selectedNode.value.name[currentLocale.value] || selectedNode.value.name.ko || selectedNode.value.name.en || 'template')
+      : (selectedNode.value.name || 'template')
+    a.download = `template_${nodeName}.xlsx`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    window.URL.revokeObjectURL(url)
+
+    initToast({ message: t('download_template_success', '템플릿 다운로드가 완료되었습니다.'), color: 'success' })
+  } catch (e) {
+    console.error('Failed to generate template:', e)
+    initToast({ message: t('download_template_failed', '템플릿 다운로드에 실패했습니다.'), color: 'danger' })
+  }
+}
 
 const colors = useColors()
 const currentPresetName = colors?.currentPresetName
@@ -1116,7 +1238,17 @@ const formatDate = (dateString) => {
 
 const buildColumnDefs = (fields, showNodeColumn = false) => {
   const defs = [
-    { field: 'id', headerName: 'ID', sortable: true, width: 100 },
+    { 
+      field: 'id', 
+      headerName: 'ID', 
+      sortable: true, 
+      width: 140,
+      valueFormatter: (params) => {
+        if (!params || !params.value) return '';
+        const v = String(params.value);
+        return v.length > 8 ? 'REC-' + v.substring(0, 8) : v;
+      }
+    },
 
 
     { 

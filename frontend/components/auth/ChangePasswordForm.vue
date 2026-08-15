@@ -10,21 +10,21 @@
       :label="$t('old_password')" 
       type="password" 
       outline 
-      :rules="[v => !!v || '필수 항목입니다']"
+      :rules="[v => !!v || t('required_field')]"
     />
     <va-input 
       v-model="newPassword" 
       :label="$t('new_password')" 
       type="password" 
       outline 
-      :rules="[v => !!v || '필수 항목입니다', v => v.length >= 8 || '8자 이상 입력해주세요']"
+      :rules="[v => !!v || t('required_field'), v => (v && v.length >= 8) || t('min_8_chars')]"
     />
     <va-input 
       v-model="confirmPassword" 
       :label="$t('confirm_new_password')" 
       type="password" 
       outline 
-      :rules="[v => !!v || '필수 항목입니다', v => v === newPassword || '비밀번호가 일치하지 않습니다']"
+      :rules="[v => !!v || t('required_field'), v => v === newPassword || t('passwords_do_not_match')]"
     />
     
     <va-alert v-if="errorMessage" color="danger" class="mb-4 text-sm" outline>
@@ -41,7 +41,10 @@
 <script setup>
 import { ref } from 'vue'
 import { useCookie } from '#app'
+import { useI18n } from 'vue-i18n'
 import { useCustomFetch } from '~/composables/useCustomFetch'
+
+const { t } = useI18n()
 
 const props = defineProps({
   forceMode: {
@@ -62,15 +65,15 @@ const { customFetch } = useCustomFetch()
 
 const handleSubmit = async () => {
   if (!oldPassword.value || !newPassword.value || !confirmPassword.value) {
-    errorMessage.value = '모든 필드를 입력해주세요.'
+    errorMessage.value = t('fill_all_fields')
     return
   }
   if (newPassword.value !== confirmPassword.value) {
-    errorMessage.value = '새 비밀번호가 일치하지 않습니다.'
+    errorMessage.value = t('passwords_do_not_match')
     return
   }
   if (newPassword.value.length < 8) {
-    errorMessage.value = '새 비밀번호는 8자 이상이어야 합니다.'
+    errorMessage.value = t('min_8_chars')
     return
   }
   
@@ -96,7 +99,7 @@ const handleSubmit = async () => {
     
     emit('success')
   } catch (e) {
-    errorMessage.value = e.response?._data || e.message || '비밀번호 변경에 실패했습니다.'
+    errorMessage.value = e.response?._data || e.message || t('password_change_failed')
   } finally {
     isSubmitting.value = false
   }

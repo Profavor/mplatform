@@ -58,9 +58,15 @@ public class ApprovalRequest {
     @Column(name = "current_step_order")
     private Integer currentStepOrder;
 
-    @OneToMany(mappedBy = "approvalRequest", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("stepOrder ASC")
+    @Transient
     private List<ApprovalStep> steps = new ArrayList<>();
+
+    public void addStep(ApprovalStep step) {
+        if (step != null) {
+            this.steps.add(step);
+            step.setApprovalRequest(this);
+        }
+    }
 
     @Column(nullable = false, length = 20)
     private String status; // PENDING, APPROVED, REJECTED

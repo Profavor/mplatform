@@ -42,7 +42,7 @@
         v-model="newUser.organizationId"
         :options="organizations"
         value-by="id"
-        :text-by="o => getI18nText(o.displayName) || o.name"
+        :text-by="getOrgDisplayName"
         :label="t('organization', '소속 조직')"
         clearable
         outline
@@ -52,7 +52,7 @@
         v-model="newUser.departmentId"
         :options="departments"
         value-by="id"
-        text-by="name"
+        :text-by="getDeptDisplayName"
         :label="t('department', '소속 부서')"
         clearable
         outline
@@ -75,6 +75,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import UserRoleSelect from '~/components/UserRoleSelect.vue'
+import { formatMultilingual } from '~/composables/useMultilingual'
 
 const { t, locale } = useI18n()
 
@@ -116,13 +117,19 @@ const emailHintMessage = computed(() => {
   return t('email_default_fallback_hint')
 })
 
+const getOrgDisplayName = (org: any) => {
+  if (!org) return ''
+  return formatMultilingual(org.displayName) || formatMultilingual(org.name) || org.name || org.id || ''
+}
+
+const getDeptDisplayName = (dept: any) => {
+  if (!dept) return ''
+  return formatMultilingual(dept.name) || dept.name || dept.id || ''
+}
+
 const getI18nText = (nameObj: any) => {
   if (!nameObj) return ''
-  if (typeof nameObj === 'object') {
-    const current = locale.value || 'ko'
-    return nameObj[current] || nameObj.ko || nameObj.en || ''
-  }
-  return String(nameObj)
+  return formatMultilingual(nameObj) || String(nameObj)
 }
 
 const onCheckDuplicate = () => {

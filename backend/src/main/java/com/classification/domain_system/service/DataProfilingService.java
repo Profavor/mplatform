@@ -34,8 +34,16 @@ public class DataProfilingService {
 
     @Transactional(readOnly = true)
     public DataProfilingReportDto getProfilingReport(UUID domainId) {
-        Domain domain = domainRepository.findById(domainId)
-                .orElseThrow(() -> new ResourceNotFoundException("Domain not found: " + domainId));
+        Domain domain = domainRepository.findById(domainId).orElse(null);
+        if (domain == null) {
+            ClassificationNode node = nodeRepository.findById(domainId).orElse(null);
+            if (node != null && node.getDomain() != null) {
+                domain = node.getDomain();
+                domainId = domain.getId();
+            } else {
+                throw new ResourceNotFoundException("Domain not found: " + domainId);
+            }
+        }
 
         String domainName = domain.getName() != null ? domain.getName().getOrDefault("ko", domain.getName().getOrDefault("en", "Domain")) : "Domain";
 

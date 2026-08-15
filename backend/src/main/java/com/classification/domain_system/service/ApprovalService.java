@@ -404,9 +404,15 @@ public class ApprovalService {
         draftStep.setStepOrder(0);
         draftStep.setStatus(ApprovalStatus.SUBMITTED.name());
         draftStep.setComment(request.getComment());
-        approval.getSteps().add(draftStep);
+        approval.addStep(draftStep);
         
-        ApprovalRequest saved = approvalRepository.saveAndFlush(approval);
+        ApprovalRequest saved = approvalRepository.save(approval);
+        if (approval.getSteps() != null && !approval.getSteps().isEmpty()) {
+            for (ApprovalStep s : approval.getSteps()) {
+                s.setApprovalRequest(saved);
+            }
+            stepRepository.saveAll(approval.getSteps());
+        }
         notificationFacade.publishApprovalRequestCreated(saved);
         return saved;
     }
@@ -450,9 +456,15 @@ public class ApprovalService {
         draftStep.setStepOrder(0);
         draftStep.setStatus(ApprovalStatus.SUBMITTED.name());
         draftStep.setComment("Batch Import: " + recordIds.size() + " records");
-        approval.getSteps().add(draftStep);
+        approval.addStep(draftStep);
         
-        ApprovalRequest saved = approvalRepository.saveAndFlush(approval);
+        ApprovalRequest saved = approvalRepository.save(approval);
+        if (approval.getSteps() != null && !approval.getSteps().isEmpty()) {
+            for (ApprovalStep s : approval.getSteps()) {
+                s.setApprovalRequest(saved);
+            }
+            stepRepository.saveAll(approval.getSteps());
+        }
         notificationFacade.publishApprovalRequestCreated(saved);
         return saved;
     }
@@ -526,8 +538,14 @@ public class ApprovalService {
         draftStep.setStepOrder(0);
         draftStep.setStatus(ApprovalStatus.SUBMITTED.name());
         draftStep.setComment(request.getComment());
-        approval.getSteps().add(draftStep);
-        ApprovalRequest saved = approvalRepository.saveAndFlush(approval);
+        approval.addStep(draftStep);
+        ApprovalRequest saved = approvalRepository.save(approval);
+        if (approval.getSteps() != null && !approval.getSteps().isEmpty()) {
+            for (ApprovalStep s : approval.getSteps()) {
+                s.setApprovalRequest(saved);
+            }
+            stepRepository.saveAll(approval.getSteps());
+        }
         notificationFacade.publishApprovalRequestCreated(saved);
         return saved;
     }
@@ -578,13 +596,19 @@ public class ApprovalService {
         draftStep.setStepOrder(0);
         draftStep.setStatus(ApprovalStatus.SUBMITTED.name());
         draftStep.setComment(request.getComment() != null ? request.getComment() : "Deletion requested");
-        approval.getSteps().add(draftStep);
+        approval.addStep(draftStep);
         
         // Update record status to PENDING_APPROVAL
         record.setStatus(RecordStatus.PENDING_APPROVAL.name());
         recordRepository.save(record);
         
-        ApprovalRequest saved = approvalRepository.saveAndFlush(approval);
+        ApprovalRequest saved = approvalRepository.save(approval);
+        if (approval.getSteps() != null && !approval.getSteps().isEmpty()) {
+            for (ApprovalStep s : approval.getSteps()) {
+                s.setApprovalRequest(saved);
+            }
+            stepRepository.saveAll(approval.getSteps());
+        }
         notificationFacade.publishApprovalRequestCreated(saved);
         return saved;
     }
@@ -882,7 +906,13 @@ public class ApprovalService {
         workflowResolver.buildDynamicSteps(approval, config);
         approval.setCurrentStepOrder(1);
 
-        ApprovalRequest saved = approvalRepository.saveAndFlush(approval);
+        ApprovalRequest saved = approvalRepository.save(approval);
+        if (approval.getSteps() != null && !approval.getSteps().isEmpty()) {
+            for (ApprovalStep s : approval.getSteps()) {
+                s.setApprovalRequest(saved);
+            }
+            stepRepository.saveAll(approval.getSteps());
+        }
         notificationFacade.publishApprovalRequestCreated(saved);
         return saved;
     }

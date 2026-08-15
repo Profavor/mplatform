@@ -1,10 +1,17 @@
 package com.classification.domain_system.service;
 
 import com.classification.domain_system.dto.DataFreshnessHeatmapDto;
+import com.classification.domain_system.entity.Domain;
+import com.classification.domain_system.entity.Record;
+import com.classification.domain_system.repository.DomainRepository;
+import com.classification.domain_system.repository.RecordRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,68 +20,68 @@ import java.util.List;
 @Slf4j
 public class DataFreshnessHeatmapService {
 
+    private final DomainRepository domainRepository;
+    private final RecordRepository recordRepository;
+
+    @Transactional(readOnly = true)
     public DataFreshnessHeatmapDto.FreshnessHeatmapResponse getFreshnessHeatmap() {
         List<DataFreshnessHeatmapDto.DomainFreshnessItem> items = new ArrayList<>();
+        List<Domain> domains = domainRepository.findAll();
+        LocalDateTime now = LocalDateTime.now();
 
-        items.add(DataFreshnessHeatmapDto.DomainFreshnessItem.builder()
-                .domainCode("DOM-CUST")
-                .domainName("고객 (Customer Master)")
-                .lastUpdatedTime("방금 전 (3분 전)")
-                .freshnessSlaMinutes(10)
-                .delayMinutes(3)
-                .freshnessScore(99)
-                .status("FRESH")
-                .build());
+        for (Domain d : domains) {
+            String domName = (d.getName() != null && !d.getName().isEmpty())
+                    ? d.getName().getOrDefault("ko", d.getName().values().iterator().next())
+                    : "도메인";
+            String domCode = "DOM-" + (d.getId() != null ? d.getId().toString().substring(0, 8).toUpperCase() : "00000000");
 
-        items.add(DataFreshnessHeatmapDto.DomainFreshnessItem.builder()
-                .domainCode("DOM-PROD")
-                .domainName("제품·자재 (Product Master)")
-                .lastUpdatedTime("15분 전")
-                .freshnessSlaMinutes(30)
-                .delayMinutes(15)
-                .freshnessScore(95)
-                .status("FRESH")
-                .build());
+            List<Record> records = recordRepository.findAllByDomainId(d.getId());
+            LocalDateTime lastUpdated = d.getUpdatedAt() != null ? d.getUpdatedAt() : (d.getCreatedAt() != null ? d.getCreatedAt() : now);
 
-        items.add(DataFreshnessHeatmapDto.DomainFreshnessItem.builder()
-                .domainCode("DOM-ORDER")
-                .domainName("주문·거래 (Order Master)")
-                .lastUpdatedTime("실시간 (1분 전)")
-                .freshnessSlaMinutes(5)
-                .delayMinutes(1)
-                .freshnessScore(100)
-                .status("FRESH")
-                .build());
+            if (!records.isEmpty() && records.get(0).getCreatedAt() != null) {
+                lastUpdated = records.get(0).getCreatedAt();
+            }
 
-        items.add(DataFreshnessHeatmapDto.DomainFreshnessItem.builder()
-                .domainCode("DOM-ORG")
-                .domainName("조직·인사 (Organization Master)")
-                .lastUpdatedTime("45분 전")
-                .freshnessSlaMinutes(60)
-                .delayMinutes(45)
-                .freshnessScore(92)
-                .status("FRESH")
-                .build());
+            long delayMins = Math.max(1, Duration.between(lastUpdated, now).toMinutes());
+            int slaMinutes = 60; // 기본 1시간 SLA
+            int score = Math.max(70, Math.min(100, 100 - (int) (delayMins / 2)));
+            String status = delayMins <= slaMinutes ? "FRESH" : "STALE";
 
-        items.add(DataFreshnessHeatmapDto.DomainFreshnessItem.builder()
-                .domainCode("DOM-SUPP")
-                .domainName("협력사·공급망 (Supplier Master)")
-                .lastUpdatedTime("2시간 전")
-                .freshnessSlaMinutes(180)
-                .delayMinutes(120)
-                .freshnessScore(88)
-                .status("FRESH")
-                .build());
+            String timeDesc;
+            if (delayMins < 5) {
+                timeDesc = "방금 전 (실시간)";
+            } else if (delayMins < 60) {
+                timeDesc = delayMins + "분 전";
+            } else if (delayMins < 1440) {
+                timeDesc = (delayMins / 60) + "시간 전";
+            } else {
+                timeDesc = (delayMins / 1440) + "일 전";
+            }
+
+            items.add(DataFreshnessHeatmapDto.DomainFreshnessItem.builder()
+                    .domainCode(domCode)
+                    .domainName(domName)
+                    .lastUpdatedTime(timeDesc)
+                    .freshnessSlaMinutes(slaMinutes)
+                    .delayMinutes((int) delayMins)
+                    .freshnessScore(score)
+                    .status(status)
+                    .build());
+        }
 
         double avgScore = items.stream().mapToInt(DataFreshnessHeatmapDto.DomainFreshnessItem::getFreshnessScore).average().orElse(100.0);
         long stale = items.stream().filter(i -> "STALE".equals(i.getStatus())).count();
+
+        String summary = items.isEmpty()
+                ? "등록된 마스터 데이터 도메인이 없어 신선도 분석 대기 중입니다."
+                : String.format("전사 %d개 핵심 도메인의 데이터 신선도가 종합 %d점으로 실시간 초신선(Fresh) 상태를 유지하고 있습니다.", items.size(), (int) Math.round(avgScore));
 
         return DataFreshnessHeatmapDto.FreshnessHeatmapResponse.builder()
                 .overallFreshnessScore((int) Math.round(avgScore))
                 .totalDomains(items.size())
                 .staleCount((int) stale)
                 .domains(items)
-                .summary(String.format("전사 5개 핵심 도메인의 데이터 신선도가 종합 %d점으로 실시간 초신선(Fresh) 상태를 유지하고 있습니다.", (int) Math.round(avgScore)))
+                .summary(summary)
                 .build();
     }
 }

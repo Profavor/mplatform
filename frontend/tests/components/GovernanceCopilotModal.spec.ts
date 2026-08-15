@@ -3,9 +3,13 @@ import { mount } from '@vue/test-utils'
 import GovernanceCopilotModal from '../../components/admin/GovernanceCopilotModal.vue'
 
 const mockCustomFetch = vi.fn()
-vi.mock('~/composables/useCustomFetch', () => ({
-  useCustomFetch: (...args: any[]) => mockCustomFetch(...args)
-}))
+vi.mock('~/composables/useCustomFetch', () => {
+  const fn = (...args: any[]) => mockCustomFetch(...args)
+  fn.customFetch = (...args: any[]) => mockCustomFetch(...args)
+  return {
+    useCustomFetch: () => fn
+  }
+})
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -19,14 +23,10 @@ describe('GovernanceCopilotModal.vue', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockCustomFetch.mockResolvedValue({
-      data: {
-        value: {
-          reply: '품질 점수는 96.8점입니다.',
-          suggestedActions: ['품질 대시보드 열기'],
-          metricCards: { 'DQ 점수': '96.8점' },
-          timestamp: '14:39:00'
-        }
-      }
+      reply: '품질 점수는 96.8점입니다.',
+      suggestedActions: ['품질 대시보드 열기'],
+      metricCards: { 'DQ 점수': '96.8점' },
+      timestamp: '14:39:00'
     })
   })
 

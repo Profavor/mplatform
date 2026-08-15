@@ -92,6 +92,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { customFetch } = useCustomFetch()
 
 const show = computed({
   get: () => props.modelValue,
@@ -104,9 +105,10 @@ const loading = ref(false)
 const loadRadar = async () => {
   loading.value = true
   try {
-    const res = await useCustomFetch('/system/volume-radar')
-    if (res.data?.value) {
-      radarData.value = res.data.value
+    const res = await customFetch('/api/system/volume-radar')
+    const payload = res?.spikes ? res : res?.data?.value
+    if (payload) {
+      radarData.value = payload
     }
   } catch (e: any) {
     console.error('Failed to load volume radar data', e)
@@ -117,5 +119,5 @@ const loadRadar = async () => {
 
 watch(() => props.modelValue, (val) => {
   if (val) loadRadar()
-})
+}, { immediate: true })
 </script>

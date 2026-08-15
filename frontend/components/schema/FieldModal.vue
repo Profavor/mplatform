@@ -2,7 +2,7 @@
   <va-modal
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
-    :title="isEditMode ? `Edit Field` : `Add Field to ${selectedNode?.label}`"
+    :title="isEditMode ? t('edit_field') : t('add_field_to_node', { name: formatNodeTitle(selectedNode) })"
     hide-default-actions
     size="large"
   >
@@ -10,12 +10,12 @@
       ⚠️ {{ t('pending_field_approval_warning') }}
     </va-alert>
     <div style="display: flex; gap: 1rem;">
-      <va-input v-model="newField.name.ko" label="Field Name (KO)" class="mb-4" style="flex: 1; min-width: 0;" />
-      <va-input v-model="newField.name.en" label="Field Name (EN)" class="mb-4" style="flex: 1; min-width: 0;" />
+      <va-input v-model="newField.name.ko" :label="t('field_name_ko')" class="mb-4" style="flex: 1; min-width: 0;" />
+      <va-input v-model="newField.name.en" :label="t('field_name_en')" class="mb-4" style="flex: 1; min-width: 0;" />
     </div>
     <div style="display: flex; gap: 1rem;">
-      <va-input v-model="newField.hint.ko" label="Field Hint / Tooltip (KO)" class="mb-4" style="flex: 1; min-width: 0;" />
-      <va-input v-model="newField.hint.en" label="Field Hint / Tooltip (EN)" class="mb-4" style="flex: 1; min-width: 0;" />
+      <va-input v-model="newField.hint.ko" :label="t('field_hint_ko')" class="mb-4" style="flex: 1; min-width: 0;" />
+      <va-input v-model="newField.hint.en" :label="t('field_hint_en')" class="mb-4" style="flex: 1; min-width: 0;" />
     </div>
     
     <div style="display: flex; gap: 1rem; align-items: center;" class="mb-4">
@@ -36,15 +36,15 @@
       v-model="newField.fieldGroupId" 
       :options="groupOptions" 
       value-by="value"
-      label="Group (Sector is mapped automatically)" 
+      :label="t('group_sector_mapped')" 
       class="mb-4 w-full" 
     />
     <div style="display: flex; gap: 1rem;">
-      <va-input v-model="newField.key" label="Field Key" class="mb-4" style="flex: 1; min-width: 0;" />
-      <va-input v-model="newField.order" type="number" label="Sort Order" class="mb-4" style="flex: 1; min-width: 0;" />
+      <va-input v-model="newField.key" :label="t('field_key')" class="mb-4" style="flex: 1; min-width: 0;" />
+      <va-input v-model="newField.order" type="number" :label="t('sort_order')" class="mb-4" style="flex: 1; min-width: 0;" />
     </div>
     
-    <va-select v-model="newField.type" :options="fieldTypes" value-by="value" label="Field Type" class="mb-4 w-full" />
+    <va-select v-model="newField.type" :options="fieldTypes" value-by="value" :label="t('field_type')" class="mb-4 w-full" />
 
     <va-select
       v-if="newField.isEncrypted"
@@ -60,7 +60,7 @@
       v-model="newField.targetDomainId" 
       :options="domainOptions" 
       value-by="value"
-      label="Target Domain" 
+      :label="t('target_domain')" 
       class="mb-4 w-full" 
     />
     
@@ -285,8 +285,8 @@
     </div>
 
     <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
-      <va-button preset="secondary" @click="$emit('update:modelValue', false)">Cancel</va-button>
-      <va-button v-if="canEdit" :disabled="isCurrentFieldPendingApproval" @click="$emit('save')">{{ isEditMode ? 'Save' : 'Create' }}</va-button>
+      <va-button preset="secondary" @click="$emit('update:modelValue', false)">{{ t('cancel') }}</va-button>
+      <va-button v-if="canEdit" :disabled="isCurrentFieldPendingApproval" @click="$emit('save')">{{ isEditMode ? t('save') : t('create') }}</va-button>
     </div>
   </va-modal>
 </template>
@@ -294,8 +294,15 @@
 <script setup>
 import { useI18n } from 'vue-i18n'
 import { AgGridVue } from 'ag-grid-vue3'
+import { formatMultilingual } from '~/composables/useMultilingual'
 
 const { t } = useI18n()
+
+const formatNodeTitle = (node) => {
+  if (!node) return ''
+  if (node.name) return formatMultilingual(node.name)
+  return node.label || ''
+}
 
 defineProps({
   modelValue: { type: Boolean, default: false },

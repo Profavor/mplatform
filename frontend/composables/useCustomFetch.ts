@@ -17,7 +17,42 @@ export function prepareFetchOptions(options: any = {}, token?: string | null, ti
   }
 }
 
-export function useCustomFetch() {
+export function wrapResponse(data: any): any {
+  if (data === null || data === undefined) return data
+  if (typeof data !== 'object') return data
+  if (typeof Blob !== 'undefined' && data instanceof Blob) return data
+  if (typeof ArrayBuffer !== 'undefined' && data instanceof ArrayBuffer) return data
+  if (typeof FormData !== 'undefined' && data instanceof FormData) return data
+  if (data.constructor && data.constructor.name !== 'Object' && data.constructor.name !== 'Array') return data
+
+  return new Proxy(data, {
+    get(target, prop, receiver) {
+      if (Object.prototype.hasOwnProperty.call(target, prop) || (typeof prop === 'string' && prop in target)) {
+        const val = Reflect.get(target, prop, receiver)
+        if (typeof val === 'function') {
+          return val.bind(target)
+        }
+        return val
+      }
+      if (prop === 'data') {
+        return { value: target }
+      }
+      if (prop === 'status') {
+        return { value: 'success' }
+      }
+      if (prop === 'error') {
+        return { value: null }
+      }
+      const val = Reflect.get(target, prop, receiver)
+      if (typeof val === 'function') {
+        return val.bind(target)
+      }
+      return val
+    }
+  })
+}
+
+export function useCustomFetch(urlOrOptions?: any, options?: any): any {
   const getAuthToken = (): string | null => {
     try {
       const cookieToken = useCookie('auth_token').value || useCookie('token').value
@@ -37,20 +72,27 @@ export function useCustomFetch() {
   const timezone = useCookie('timezone', { default: () => 'Asia/Seoul' }).value
   const { handleError } = useApiError()
 
-  const customFetch = async <T = any>(url: string, options: any = {}): Promise<T> => {
+  const customFetch = async <T = any>(url: string, opts: any = {}): Promise<T> => {
     const token = getAuthToken()
-    const prepared = prepareFetchOptions(options, token, timezone)
+    const prepared = prepareFetchOptions(opts, token, timezone)
+    const normalizedUrl = url.startsWith('/api') || url.startsWith('http') ? url : `/api${url.startsWith('/') ? '' : '/'}${url}`
     try {
-      return await $fetch<T>(url, prepared)
+      const rawRes = await $fetch<any>(normalizedUrl, prepared)
+      return wrapResponse(rawRes) as T
     } catch (err: any) {
       handleError(err)
       throw err
     }
   }
 
-  return {
-    customFetch,
-    prepareFetchOptions,
-    getAuthToken,
+  if (typeof urlOrOptions === 'string') {
+    return customFetch(urlOrOptions, options)
   }
+
+  const resultObj: any = (url: string, opts?: any) => customFetch(url, opts)
+  resultObj.customFetch = customFetch
+  resultObj.prepareFetchOptions = prepareFetchOptions
+  resultObj.getAuthToken = getAuthToken
+
+  return resultObj
 }

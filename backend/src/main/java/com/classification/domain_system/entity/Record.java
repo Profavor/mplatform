@@ -43,8 +43,8 @@ public class Record {
     private ApprovalRequest approvalRequest;
 
     @jakarta.persistence.Version
-    @Column(name = "version", nullable = false, columnDefinition = "integer default 1")
-    private Integer version = 1;
+    @Column(name = "version")
+    private Integer version;
 
     @Column(name = "source_system", length = 100)
     private String sourceSystem;
@@ -67,24 +67,10 @@ public class Record {
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = this.createdAt;
-        updateSearchableData();
     }
 
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
-        updateSearchableData();
-    }
-
-    private void updateSearchableData() {
-        try {
-            if (this.node != null && this.data != null) {
-                com.classification.domain_system.service.RecordService recordService = 
-                    com.classification.domain_system.context.ApplicationContextProvider.getApplicationContext().getBean(com.classification.domain_system.service.RecordService.class);
-                this.searchableData = recordService.generateSearchableData(this.node.getId(), this.data);
-            }
-        } catch (Exception e) {
-            // Ignore if context is not ready (e.g. during tests) or if there's an error.
-        }
     }
 }

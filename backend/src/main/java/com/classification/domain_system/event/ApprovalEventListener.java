@@ -60,15 +60,21 @@ public class ApprovalEventListener {
         ApprovalRequest approval = event.getApprovalRequest();
         log.info("[EVENT_DRIVEN] Received ApprovalRequestCreatedEvent for Request ID: {}", approval.getId());
         
-        long realStepCount = approval.getSteps().stream().filter(s -> s.getStepOrder() > 0).count();
+        if (approval.getSteps() == null || approval.getSteps().isEmpty()) {
+            approval.setSteps(stepRepository.findByApprovalRequestIdOrderByStepOrderAsc(approval.getId()));
+        }
+
+        long realStepCount = approval.getSteps() != null 
+                ? approval.getSteps().stream().filter(s -> s.getStepOrder() != null && s.getStepOrder() > 0).count()
+                : 0;
         if (realStepCount == 0) {
             approval.setStatus(ApprovalStatus.APPROVED.name());
-            approval.getSteps().stream().filter(s -> s.getStepOrder() == 0).forEach(s -> {
-                s.setStatus(ApprovalStatus.APPROVED.name());
-                s.setComment("시스템 자동 승인 (결재선 미설정)");
-                stepRepository.saveAndFlush(s);
-            });
-            approvalRepository.saveAndFlush(approval);
+            if (approval.getSteps() != null) {
+                approval.getSteps().stream().filter(s -> s.getStepOrder() != null && s.getStepOrder() == 0).forEach(s -> {
+                    s.setStatus(ApprovalStatus.APPROVED.name());
+                    s.setComment("시스템 자동 승인 (결재선 미설정)");
+                });
+            }
             applyFinalApproval(approval);
             return;
         }
@@ -83,7 +89,7 @@ public class ApprovalEventListener {
             String summary = extractChangeSummary(approval);
 
             approval.getSteps().stream()
-                    .filter(s -> s.getStepOrder().equals(approval.getCurrentStepOrder()))
+                    .filter(s -> s.getStepOrder() != null && s.getStepOrder().equals(approval.getCurrentStepOrder()))
                     .forEach(s -> sendPendingStepNotification(s, actionLabel, requesterName, domainName, classificationName, summary, approval.getId(), approval.getTargetType()));
         }
 
@@ -101,6 +107,10 @@ public class ApprovalEventListener {
         try {
             ApprovalRequest approval = approvalRepository.findByIdWithLock(requestFromEvent.getId())
                     .orElse(requestFromEvent);
+            List<ApprovalStep> latestSteps = stepRepository.findByApprovalRequestIdOrderByStepOrderAsc(approval.getId());
+            if (latestSteps != null && !latestSteps.isEmpty()) {
+                approval.setSteps(latestSteps);
+            }
 
             if (!ApprovalStatus.PENDING.name().equals(approval.getStatus())) {
                 log.info("ApprovalRequest {} status is already {}, skipping advancement.", approval.getId(), approval.getStatus());
@@ -108,13 +118,13 @@ public class ApprovalEventListener {
             }
 
             boolean allApproved = approval.getSteps().stream()
-                    .filter(s -> s.getStepOrder().equals(approval.getCurrentStepOrder()))
+                    .filter(s -> s.getStepOrder() != null && s.getStepOrder().equals(approval.getCurrentStepOrder()))
                     .allMatch(s -> ApprovalStatus.APPROVED.name().equals(s.getStatus()));
                     
             if (allApproved) {
                 Integer nextOrder = approval.getSteps().stream()
                         .map(ApprovalStep::getStepOrder)
-                        .filter(order -> order > approval.getCurrentStepOrder())
+                        .filter(order -> order != null && approval.getCurrentStepOrder() != null && order > approval.getCurrentStepOrder())
                         .min(Integer::compareTo)
                         .orElse(null);
                         
@@ -127,7 +137,7 @@ public class ApprovalEventListener {
                             notificationService.createNotification(
                                     approval.getRequesterId(),
                                     "@i18n:notifications.approval_step_approved",
-                                    buildStepApprovedMessage(actionLabel, approvedStep.getStepOrder(), domainName, classificationName, approval.getTargetType()),
+                                    buildStepApprovedMessage(actionLabel, approvedStep.getStepOrder() != null ? approvedStep.getStepOrder() : 1, domainName, classificationName, approval.getTargetType()),
                                     "APPROVAL",
                                     "/approvals?requestId=" + approval.getId()
                             );
@@ -137,10 +147,9 @@ public class ApprovalEventListener {
                     }
 
                     approval.getSteps().stream()
-                            .filter(s -> s.getStepOrder().equals(nextOrder))
+                            .filter(s -> s.getStepOrder() != null && s.getStepOrder().equals(nextOrder))
                             .forEach(s -> s.setStatus("PENDING"));
                     approval.setCurrentStepOrder(nextOrder);
-                    approvalRepository.saveAndFlush(approval);
                     
                     autoApproveStepsIfRequesterIsAssignee(approval);
 
@@ -152,12 +161,11 @@ public class ApprovalEventListener {
                         String nextSummary = extractChangeSummary(approval);
 
                         approval.getSteps().stream()
-                                .filter(s -> s.getStepOrder().equals(approval.getCurrentStepOrder()))
+                                .filter(s -> s.getStepOrder() != null && s.getStepOrder().equals(approval.getCurrentStepOrder()))
                                 .forEach(s -> sendPendingStepNotification(s, nextActionLabel, nextRequesterName, nextDomainName, nextClassificationName, nextSummary, approval.getId(), approval.getTargetType()));
                     }
                 } else {
                     approval.setStatus(ApprovalStatus.APPROVED.name());
-                    approvalRepository.saveAndFlush(approval);
                     applyFinalApproval(approval);
 
                     if (notificationService != null && approval.getRequesterId() != null) {
@@ -173,7 +181,7 @@ public class ApprovalEventListener {
                                     "/approvals?requestId=" + approval.getId()
                             );
                         } catch (Exception ex) {
-                            log.warn("Failed to create final approval notification for requester {}", approval.getRequesterId(), ex);
+                            log.warn("Failed to send final approval notification for requester {}", approval.getRequesterId(), ex);
                         }
                     }
                 }
@@ -201,35 +209,31 @@ public class ApprovalEventListener {
                             && s.getAssigneeId().equals(approval.getRequesterId()))
                     .toList();
 
-            
             if (!pendingAutoSteps.isEmpty()) {
                 for (ApprovalStep step : pendingAutoSteps) {
                     step.setStatus(ApprovalStatus.APPROVED.name());
                     step.setComment("시스템 자동 승인 (기안자 자동 전결)");
-                    stepRepository.saveAndFlush(step);
                 }
                 
                 boolean allApproved = approval.getSteps().stream()
-                        .filter(s -> s.getStepOrder().equals(currentOrder))
+                        .filter(s -> s.getStepOrder() != null && s.getStepOrder().equals(currentOrder))
                         .allMatch(s -> ApprovalStatus.APPROVED.name().equals(s.getStatus()));
                 
                 if (allApproved) {
                     Integer nextOrder = approval.getSteps().stream()
                             .map(ApprovalStep::getStepOrder)
-                            .filter(order -> order > currentOrder)
+                            .filter(order -> order != null && order > currentOrder)
                             .min(Integer::compareTo)
                             .orElse(null);
                     
                     if (nextOrder != null) {
                         approval.getSteps().stream()
-                                .filter(s -> s.getStepOrder().equals(nextOrder))
+                                .filter(s -> s.getStepOrder() != null && s.getStepOrder().equals(nextOrder))
                                 .forEach(s -> s.setStatus("PENDING"));
                         approval.setCurrentStepOrder(nextOrder);
-                        approvalRepository.saveAndFlush(approval);
                         progress = true;
                     } else {
                         approval.setStatus(ApprovalStatus.APPROVED.name());
-                        approvalRepository.saveAndFlush(approval);
                         applyFinalApproval(approval);
                     }
                 }
@@ -264,7 +268,6 @@ public class ApprovalEventListener {
 
             String finalData = recomputeCalculatedFields(record.getNode().getId(), changesJson);
             record.setData(finalData);
-            recordRepository.save(record);
             logHistory(record, "CREATE", approval.getRequesterId(), null, finalData, approval.getId());
             applicationEventPublisher.publishEvent(new MasterDataChangedEvent(this, record.getId(), record.getNode().getId(), "CREATE", finalData));
         } else if (ApprovalTargetType.RECORD_UPDATE.name().equals(approval.getTargetType())) {
@@ -279,7 +282,6 @@ public class ApprovalEventListener {
                     record.setData(afterData);
                 }
                 record.setStatus(RecordStatus.ACTIVE.name());
-                recordRepository.save(record);
                 logHistory(record, "UPDATE", approval.getRequesterId(), prevData, record.getData(), approval.getId());
                 applicationEventPublisher.publishEvent(new MasterDataChangedEvent(this, record.getId(), record.getNode().getId(), "UPDATE", record.getData()));
             } catch (Exception e) {

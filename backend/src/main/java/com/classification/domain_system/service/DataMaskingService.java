@@ -79,24 +79,61 @@ public class DataMaskingService {
     }
 
     public String maskJsonData(String dataJson, List<FieldDefinition> fields, boolean canUnmask) {
-        if (dataJson == null || dataJson.isBlank() || canUnmask) {
+        if (dataJson == null || dataJson.isBlank()) {
             return dataJson;
         }
         try {
             Map<String, Object> map = objectMapper.readValue(dataJson, new TypeReference<Map<String, Object>>() {});
-            Map<String, Object> masked = new LinkedHashMap<>();
-            for (Map.Entry<String, Object> entry : map.entrySet()) {
-                String valStr = entry.getValue() != null ? String.valueOf(entry.getValue()) : null;
-                masked.put(entry.getKey(), valStr != null ? maskValue(entry.getKey(), valStr) : null);
+            Map<String, FieldDefinition> fieldMap = new HashMap<>();
+            if (fields != null) {
+                for (FieldDefinition f : fields) {
+                    if (f.getKey() != null) {
+                        fieldMap.put(f.getKey().toLowerCase(), f);
+                    }
+                }
             }
-            return objectMapper.writeValueAsString(masked);
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                String key = entry.getKey();
+                Object val = entry.getValue();
+
+                FieldDefinition fd = fieldMap.get(key.toLowerCase());
+
+                // 1. Encrypted field handling
+                if (fd != null && Boolean.TRUE.equals(fd.getIsEncrypted()) && val instanceof String valStr && fieldEncryptionService != null) {
+                    String decrypted = fieldEncryptionService.decrypt(valStr);
+                    if (canUnmask) {
+                        result.put(key, decrypted);
+                    } else {
+                        result.put(key, maskValue(key, decrypted));
+                    }
+                    continue;
+                }
+
+                // 2. Explicit masking pattern configured
+                if (fd != null && fd.getMaskingPattern() != null && !fd.getMaskingPattern().isBlank()) {
+                    if (canUnmask) {
+                        result.put(key, val);
+                    } else if (val instanceof String valStr) {
+                        result.put(key, maskValue(key, valStr));
+                    } else {
+                        result.put(key, val);
+                    }
+                    continue;
+                }
+
+                // 3. Normal fields remain unmasked and untouched (preserves JSON, multilingual, numbers)
+                result.put(key, val);
+            }
+            return objectMapper.writeValueAsString(result);
         } catch (Exception e) {
             return dataJson;
         }
     }
 
     public String maskChangesJson(String changesJson, List<FieldDefinition> fields, boolean canUnmask) {
-        if (changesJson == null || changesJson.isBlank() || canUnmask) {
+        if (changesJson == null || changesJson.isBlank()) {
             return changesJson;
         }
         try {
@@ -104,12 +141,8 @@ public class DataMaskingService {
             if (changes.containsKey("data") && changes.get("data") instanceof Map) {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> dataMap = (Map<String, Object>) changes.get("data");
-                Map<String, Object> maskedData = new LinkedHashMap<>();
-                for (Map.Entry<String, Object> entry : dataMap.entrySet()) {
-                    String valStr = entry.getValue() != null ? String.valueOf(entry.getValue()) : null;
-                    maskedData.put(entry.getKey(), valStr != null ? maskValue(entry.getKey(), valStr) : null);
-                }
-                changes.put("data", maskedData);
+                String maskedDataStr = maskJsonData(objectMapper.writeValueAsString(dataMap), fields, canUnmask);
+                changes.put("data", objectMapper.readValue(maskedDataStr, Map.class));
                 return objectMapper.writeValueAsString(changes);
             } else {
                 return maskJsonData(changesJson, fields, canUnmask);

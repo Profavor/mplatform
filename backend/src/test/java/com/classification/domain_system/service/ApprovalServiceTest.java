@@ -84,6 +84,14 @@ class ApprovalServiceTest extends BaseServiceTest {
         org.springframework.test.util.ReflectionTestUtils.setField(approvalService, "approvalQueryService", approvalQueryService);
         given(calculatedFieldEvaluator.recomputeCalculatedFields(any(), any()))
                 .willAnswer(invocation -> invocation.getArgument(1));
+        given(approvalRepository.save(any(ApprovalRequest.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+        given(approvalRepository.saveAndFlush(any(ApprovalRequest.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+        given(recordRepository.save(any(Record.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+        given(recordRepository.saveAndFlush(any(Record.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
     }
 
     private RecordRequest createRecordRequest(String data, String requesterId) {
@@ -136,7 +144,7 @@ class ApprovalServiceTest extends BaseServiceTest {
             given(recordRepository.save(any(Record.class))).willReturn(savedRecord);
             given(workflowConfigRepository.findByNodeIdAndActionType(any(), eq("CREATE"))).willReturn(Collections.emptyList());
             given(workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(any(), eq("CREATE"))).willReturn(Collections.emptyList());
-            given(approvalRepository.saveAndFlush(any(ApprovalRequest.class))).willReturn(savedApproval);
+            given(approvalRepository.save(any(ApprovalRequest.class))).willReturn(savedApproval);
 
             // when
             ApprovalRequest result = approvalService.requestRecordCreation(nodeId, request);
@@ -144,7 +152,7 @@ class ApprovalServiceTest extends BaseServiceTest {
             // then
             assertThat(result).isNotNull();
             verify(recordRepository).save(any(Record.class));
-            verify(approvalRepository).saveAndFlush(any(ApprovalRequest.class));
+            verify(approvalRepository).save(any(ApprovalRequest.class));
         }
 
         @Test
@@ -451,12 +459,12 @@ class ApprovalServiceTest extends BaseServiceTest {
             given(fieldDefinitionRepository.findByType("DOMAIN_REFERENCE")).willReturn(Collections.emptyList());
             given(workflowConfigRepository.findByNodeIdAndActionType(nodeId, "DELETE")).willReturn(Collections.emptyList());
             given(workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(any(), eq("DELETE"))).willReturn(Collections.emptyList());
-            given(approvalRepository.saveAndFlush(any(ApprovalRequest.class))).willReturn(savedApproval);
+            given(approvalRepository.save(any(ApprovalRequest.class))).willReturn(savedApproval);
 
             ApprovalRequest result = approvalService.requestRecordDeletion(recordId, createRecordRequest("{}", UUID.randomUUID().toString()));
 
             assertThat(result).isSameAs(savedApproval);
-            verify(approvalRepository).saveAndFlush(any(ApprovalRequest.class));
+            verify(approvalRepository).save(any(ApprovalRequest.class));
         }
     }
 

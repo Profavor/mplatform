@@ -22,6 +22,7 @@ import com.classification.domain_system.entity.ApprovalStep;
 import com.classification.domain_system.entity.WorkflowConfig;
 import com.classification.domain_system.repository.WorkflowConfigRepository;
 import com.classification.domain_system.repository.ApprovalRequestRepository;
+import com.classification.domain_system.repository.ApprovalStepRepository;
 import com.classification.domain_system.event.ApprovalRequestCreatedEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -58,6 +59,9 @@ public class FieldDefinitionService {
     
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private ApprovalRequestRepository approvalRequestRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private ApprovalStepRepository approvalStepRepository;
     
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private ApplicationEventPublisher eventPublisher;
@@ -177,7 +181,7 @@ public class FieldDefinitionService {
             defaultStep.setStepType("APPROVAL");
             defaultStep.setAssigneeRole("SYSTEM_ADMIN");
             defaultStep.setStatus(ApprovalStatus.PENDING.name());
-            approval.getSteps().add(defaultStep);
+            approval.addStep(defaultStep);
         }
         
         // Add Requester's DRAFT Step (stepOrder = 0)
@@ -196,9 +200,16 @@ public class FieldDefinitionService {
         draftStep.setStepOrder(0);
         draftStep.setStatus(ApprovalStatus.APPROVED.name());
         draftStep.setComment(reason);
-        approval.getSteps().add(0, draftStep);
+        approval.addStep(draftStep);
         
-        ApprovalRequest saved = approvalRequestRepository.saveAndFlush(approval);
+        ApprovalRequest saved = approvalRequestRepository.save(approval);
+        if (approval.getSteps() != null && !approval.getSteps().isEmpty() && approvalStepRepository != null) {
+            for (ApprovalStep s : approval.getSteps()) {
+                s.setApprovalRequest(saved);
+            }
+            approvalStepRepository.saveAll(approval.getSteps());
+        }
+        saved.setSteps(approval.getSteps());
         eventPublisher.publishEvent(new ApprovalRequestCreatedEvent(saved));
         return saved;
     }

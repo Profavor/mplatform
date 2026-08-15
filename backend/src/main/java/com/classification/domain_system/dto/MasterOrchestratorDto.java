@@ -15,9 +15,12 @@ public class MasterOrchestratorDto {
     public static class FeatureModuleStatus {
         private int featureNo;
         private String category; // DQ_QUALITY, SECURITY_COMPLIANCE, WORKFLOW_APPROVAL, INTEGRATION_PIPELINE, SCHEMA_LIFECYCLE, AI_INNOVATION
-        private String featureName;
-        private String status; // ONLINE_HEALTHY, ACTIVE
+        private String featureNameKey; // Use i18n key instead of hardcoded featureName
+        private String status; // ONLINE_HEALTHY, ACTIVE, DEGRADED
         private int healthScore;
+        private boolean isGovernanceCore;
+        private String iconName;
+        private String colorTheme;
     }
 
     @Getter

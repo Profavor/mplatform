@@ -25,7 +25,7 @@ public class DynamicRoutingController {
     }
 
     @PostMapping
-    @PreAuthorize("hasPermission(null, 'workflow:write') or hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasPermission(null, 'workflow:write')")
     public ResponseEntity<ApprovalRoutingDto.TemplateResponse> createTemplate(
             @RequestBody ApprovalRoutingDto.TemplateCreateRequest request) {
         return ResponseEntity.ok(dynamicRoutingService.createTemplate(request));

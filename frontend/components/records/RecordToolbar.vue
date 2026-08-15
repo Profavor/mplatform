@@ -1,18 +1,20 @@
 <template>
-  <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.85rem; margin-bottom: 0; background: var(--va-background-element, #f4f6f9); border: 1px solid var(--va-background-border); border-bottom: none; border-top-left-radius: 8px; border-top-right-radius: 8px;">
-    <!-- Left Title & Selected Node Info -->
+  <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.85rem; margin-bottom: 0; background: var(--va-background-element, #f4f6f9); border: 1px solid var(--va-background-border); border-bottom: none; border-top-left-radius: 8px; border-top-right-radius: 8px; gap: 0.5rem; flex-wrap: wrap;">
+    <!-- Left: Selected State / Records Sub Info -->
     <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-      <va-icon name="table_chart" color="primary" size="1.1rem" />
-      <span style="font-weight: 700; font-size: 0.95rem; color: var(--va-text-primary);">
+      <va-icon name="list_alt" color="primary" size="1.1rem" />
+      <span style="font-weight: 600; font-size: 0.88rem; color: var(--va-text-primary);">
         {{ selectedNode ? formatNodeName(selectedNode.name) : t('master_data_record_list') }}
       </span>
-      <va-chip v-if="selectedNode" size="small" color="primary" style="font-weight: 600;">
-        {{ selectedNode.isDomain ? t('domain') : t('node') }}
-      </va-chip>
-      <slot name="search-chips" />
+      <va-badge
+        v-if="selectedRecordRows && selectedRecordRows.length > 0"
+        :text="`${selectedRecordRows.length} ${t('items_selected', '선택됨')}`"
+        color="info"
+        size="small"
+      />
     </div>
 
-    <!-- Right Action Buttons -->
+    <!-- Right Action Buttons directly above AG-Grid -->
     <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
       <template v-if="selectedNode && !selectedNode.isDomain">
         <va-button
@@ -84,33 +86,6 @@
 
       <va-button
         size="small"
-        color="primary"
-        outline
-        @click="$emit('openAutonomousCleansing')"
-      >
-        <va-icon name="auto_fix_high" class="mr-1" /> {{ t('autonomous_cleansing') }}
-      </va-button>
-
-      <va-button
-        size="small"
-        color="info"
-        outline
-        @click="$emit('openAiStructurizer')"
-      >
-        <va-icon name="psychology" class="mr-1" /> {{ t('ai_structurizer') }}
-      </va-button>
-
-      <va-button
-        size="small"
-        color="secondary"
-        outline
-        @click="$emit('openBusinessRuleBuilder')"
-      >
-        <va-icon name="rule" class="mr-1" /> {{ t('business_rule_builder') }}
-      </va-button>
-
-      <va-button
-        size="small"
         color="warning"
         outline
         @click="$emit('openCdcStream')"
@@ -148,9 +123,6 @@ defineEmits<{
   (e: 'openBulkReclassify'): void
   (e: 'downloadTemplate'): void
   (e: 'openExport'): void
-  (e: 'openAutonomousCleansing'): void
-  (e: 'openAiStructurizer'): void
-  (e: 'openBusinessRuleBuilder'): void
   (e: 'openCdcStream'): void
   (e: 'resetFilters'): void
   (e: 'refresh'): void

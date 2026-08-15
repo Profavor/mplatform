@@ -3,9 +3,13 @@ import { mount } from '@vue/test-utils'
 import DataFreshnessHeatmapModal from '../../components/admin/DataFreshnessHeatmapModal.vue'
 
 const mockCustomFetch = vi.fn()
-vi.mock('~/composables/useCustomFetch', () => ({
-  useCustomFetch: (...args: any[]) => mockCustomFetch(...args)
-}))
+vi.mock('~/composables/useCustomFetch', () => {
+  const fn = (...args: any[]) => mockCustomFetch(...args)
+  fn.customFetch = (...args: any[]) => mockCustomFetch(...args)
+  return {
+    useCustomFetch: () => fn
+  }
+})
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -19,25 +23,21 @@ describe('DataFreshnessHeatmapModal.vue', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockCustomFetch.mockResolvedValue({
-      data: {
-        value: {
-          overallFreshnessScore: 95,
-          totalDomains: 5,
-          staleCount: 0,
-          summary: '데이터 신선도 최상',
-          domains: [
-            {
-              domainCode: 'DOM-01',
-              domainName: '고객 마스터',
-              lastUpdatedTime: '3분 전',
-              freshnessSlaMinutes: 10,
-              delayMinutes: 3,
-              freshnessScore: 99,
-              status: 'FRESH'
-            }
-          ]
+      overallFreshnessScore: 96,
+      totalDomains: 5,
+      staleCount: 0,
+      summary: '전사 5개 도메인 신선도 양호',
+      domains: [
+        {
+          domainCode: 'DOM-CUST',
+          domainName: '고객 마스터',
+          lastUpdatedTime: '방금 전',
+          freshnessSlaMinutes: 10,
+          delayMinutes: 3,
+          freshnessScore: 99,
+          status: 'FRESH'
         }
-      }
+      ]
     })
   })
 

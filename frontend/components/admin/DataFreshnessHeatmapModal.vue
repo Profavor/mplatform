@@ -110,6 +110,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { customFetch } = useCustomFetch()
 
 const show = computed({
   get: () => props.modelValue,
@@ -122,9 +123,10 @@ const loading = ref(false)
 const loadHeatmap = async () => {
   loading.value = true
   try {
-    const res = await useCustomFetch('/system/freshness-heatmap')
-    if (res.data?.value) {
-      heatmapData.value = res.data.value
+    const res = await customFetch('/api/system/freshness-heatmap')
+    const payload = res?.heatmapEntries ? res : res?.data?.value
+    if (payload) {
+      heatmapData.value = payload
     }
   } catch (e: any) {
     console.error('Failed to load freshness heatmap', e)
@@ -135,5 +137,5 @@ const loadHeatmap = async () => {
 
 watch(() => props.modelValue, (val) => {
   if (val) loadHeatmap()
-})
+}, { immediate: true })
 </script>
