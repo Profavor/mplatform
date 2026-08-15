@@ -18,15 +18,9 @@ public class CdcStreamController {
 
     @GetMapping("/stream")
     @PreAuthorize("hasPermission(null, 'domain:read') or hasPermission(null, 'record:read')")
-    public ResponseEntity<CdcStreamDto.CdcStreamResponse> getLiveCdcEvents(@PathVariable UUID domainId) {
-        return ResponseEntity.ok(cdcStreamingService.getLiveCdcEvents(domainId));
-    }
-
-    @PostMapping("/simulate")
-    @PreAuthorize("hasPermission(null, 'domain:write') or hasPermission(null, 'record:write')")
-    public ResponseEntity<CdcStreamDto.CdcEventItem> simulateCdcEvent(
+    public ResponseEntity<CdcStreamDto.CdcStreamResponse> getLiveCdcEvents(
             @PathVariable UUID domainId,
-            @RequestBody CdcStreamDto.SimulateCdcRequest request) {
-        return ResponseEntity.ok(cdcStreamingService.simulateCdcEvent(domainId, request));
+            @RequestParam(required = false) UUID recordId) {
+        return ResponseEntity.ok(cdcStreamingService.getLiveCdcEvents(domainId, recordId));
     }
 }

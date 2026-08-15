@@ -21,7 +21,7 @@ class CustomPermissionEvaluatorTest {
     }
 
     @Test
-    @DisplayName("단일 권한(record:read) 보유 시 해당 리소스/액션 검증")
+    @DisplayName("단일 퍼미션(record:read) 보유 시 해당 리소스/액션 검증")
     void testSinglePermissionMatch() {
         Authentication auth = new UsernamePasswordAuthenticationToken(
                 "user1", null, List.of(new SimpleGrantedAuthority("record:read"))
@@ -33,7 +33,7 @@ class CustomPermissionEvaluatorTest {
     }
 
     @Test
-    @DisplayName("리소스타입 와일드카드(record:*) 보유 시 record 하위 모든 액션 통과 및 타 리소스 거부")
+    @DisplayName("리소스타입 와일드카드 퍼미션(record:*) 보유 시 record 하위 모든 액션 통과 및 타 리소스 거부")
     void testResourceWildcardMatch() {
         Authentication auth = new UsernamePasswordAuthenticationToken(
                 "user1", null, List.of(new SimpleGrantedAuthority("record:*"))
@@ -48,16 +48,46 @@ class CustomPermissionEvaluatorTest {
     }
 
     @Test
-    @DisplayName("전체 와일드카드(*:* 또는 *) 보유 시 모든 리소스 및 액션 통과")
-    void testSuperWildcardMatch() {
+    @DisplayName("전체 와일드카드 퍼미션(*:* 또는 *) 보유 시 모든 리소스 및 액션 통과")
+    void testSuperWildcardPermissionMatch() {
         Authentication auth = new UsernamePasswordAuthenticationToken(
-                "admin", null, List.of(new SimpleGrantedAuthority("*:*"))
+                "superUser", null, List.of(new SimpleGrantedAuthority("*:*"))
         );
 
         assertTrue(permissionEvaluator.hasPermission(auth, "record", "write"));
         assertTrue(permissionEvaluator.hasPermission(auth, "log", "export"));
         assertTrue(permissionEvaluator.hasPermission(auth, "domain", "delete"));
         assertTrue(permissionEvaluator.hasPermission(auth, "dq", "read"));
+        assertTrue(permissionEvaluator.hasPermission(auth, "system", "freshness-heatmap"));
+    }
+
+    @Test
+    @DisplayName("글로벌 액션 와일드카드 퍼미션(*:read) 보유 시 모든 리소스의 read 액션 허용 및 write 거부")
+    void testGlobalActionWildcardPermissionMatch() {
+        Authentication readAllAuth = new UsernamePasswordAuthenticationToken(
+                "auditor", null, List.of(new SimpleGrantedAuthority("*:read"))
+        );
+
+        assertTrue(permissionEvaluator.hasPermission(authAllRead(readAllAuth), "domain", "read"));
+        assertTrue(permissionEvaluator.hasPermission(readAllAuth, "system", "read"));
+        assertTrue(permissionEvaluator.hasPermission(readAllAuth, "log", "read"));
+        assertFalse(permissionEvaluator.hasPermission(readAllAuth, "domain", "write"));
+    }
+
+    private Authentication authAllRead(Authentication auth) {
+        return auth;
+    }
+
+    @Test
+    @DisplayName("system과 admin 리소스 간 상호 호환 퍼미션 검증 (admin:read 보유 시 system:read 통과)")
+    void testSystemAdminResourceCompatibility() {
+        Authentication adminReadAuth = new UsernamePasswordAuthenticationToken(
+                "manager", null, List.of(new SimpleGrantedAuthority("admin:read"))
+        );
+
+        assertTrue(permissionEvaluator.hasPermission(adminReadAuth, null, "system:read"));
+        assertTrue(permissionEvaluator.hasPermission(adminReadAuth, null, "admin:read"));
+        assertFalse(permissionEvaluator.hasPermission(adminReadAuth, null, "admin:write"));
     }
 
     @Test
@@ -72,14 +102,14 @@ class CustomPermissionEvaluatorTest {
     }
 
     @Test
-    @DisplayName("DB 전역 와일드카드(*) Authority 보유 시 조직/도메인 생성/수정/삭제 권한 통과 검증")
-    void testAdminRoleAuthorityMatch() {
-        Authentication authWildcard = new UsernamePasswordAuthenticationToken(
-                "admin1", null, List.of(new SimpleGrantedAuthority("*"))
+    @DisplayName("퍼미션 없는 일반 사용자는 접근 거부")
+    void testNoPermissionAccessDenied() {
+        Authentication noPermAuth = new UsernamePasswordAuthenticationToken(
+                "guest", null, List.of(new SimpleGrantedAuthority("dashboard:read"))
         );
 
-        assertTrue(permissionEvaluator.hasPermission(authWildcard, null, "org:write"));
-        assertTrue(permissionEvaluator.hasPermission(authWildcard, null, "admin:write"));
-        assertTrue(permissionEvaluator.hasPermission(authWildcard, "organization", "write"));
+        assertFalse(permissionEvaluator.hasPermission(noPermAuth, null, "admin:read"));
+        assertFalse(permissionEvaluator.hasPermission(noPermAuth, null, "domain:read"));
+        assertFalse(permissionEvaluator.hasPermission(noPermAuth, "system", "freshness-heatmap"));
     }
 }

@@ -2,6 +2,8 @@ package com.classification.domain_system.repository;
 
 import com.classification.domain_system.entity.RecordHistory;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -11,4 +13,7 @@ import java.util.UUID;
 public interface RecordHistoryRepository extends JpaRepository<RecordHistory, UUID> {
     List<RecordHistory> findByRecordIdOrderByChangedAtDesc(UUID recordId);
     List<RecordHistory> findByRecordIdOrderByVersionAsc(UUID recordId);
+
+    @Query("SELECT h FROM RecordHistory h JOIN h.record r JOIN r.node n WHERE n.domain.id = :domainId ORDER BY h.changedAt DESC")
+    List<RecordHistory> findTop50ByDomainIdOrderByChangedAtDesc(@Param("domainId") UUID domainId);
 }

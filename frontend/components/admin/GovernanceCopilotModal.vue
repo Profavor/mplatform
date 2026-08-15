@@ -141,6 +141,8 @@ const messages = ref<any[]>([
   }
 ])
 
+const { customFetch } = useCustomFetch()
+
 const sendPrompt = (prompt: string) => {
   inputPrompt.value = prompt
   send()
@@ -159,17 +161,18 @@ const send = async () => {
   loading.value = true
 
   try {
-    const res = await useCustomFetch('/governance/copilot/chat', {
+    const res = await customFetch('/api/governance/copilot/chat', {
       method: 'POST',
       body: { prompt: text, history: [] }
     })
-    if (res.data?.value) {
+    const payload = res?.reply ? res : res?.data?.value
+    if (payload) {
       messages.value.push({
         role: 'COPILOT',
-        content: res.data.value.reply,
-        metricCards: res.data.value.metricCards,
-        suggestedActions: res.data.value.suggestedActions,
-        timestamp: res.data.value.timestamp || new Date().toTimeString().slice(0, 5)
+        content: payload.reply,
+        metricCards: payload.metricCards,
+        suggestedActions: payload.suggestedActions,
+        timestamp: payload.timestamp || new Date().toTimeString().slice(0, 5)
       })
     }
   } catch (e: any) {

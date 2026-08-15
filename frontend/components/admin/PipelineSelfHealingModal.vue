@@ -95,6 +95,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { customFetch } = useCustomFetch()
 
 const show = computed({
   get: () => props.modelValue,
@@ -108,9 +109,10 @@ const triggering = ref<string | null>(null)
 const loadHealing = async () => {
   loading.value = true
   try {
-    const res = await useCustomFetch('/system/pipeline-healing')
-    if (res.data?.value) {
-      healingReport.value = res.data.value
+    const res = await customFetch('/api/system/pipeline-healing')
+    const payload = res?.activeIncidents ? res : res?.data?.value
+    if (payload) {
+      healingReport.value = payload
     }
   } catch (e: any) {
     console.error('Failed to load pipeline self-healing report', e)
@@ -122,11 +124,11 @@ const loadHealing = async () => {
 const trigger = async (channel: string) => {
   triggering.value = channel
   try {
-    const res = await useCustomFetch('/system/pipeline-healing/trigger', {
+    const res = await customFetch('/api/system/pipeline-healing/trigger', {
       method: 'POST',
       body: { pipelineChannel: channel }
     })
-    if (res.data?.value) {
+    if (res) {
       alert(t('healing_triggered'))
       loadHealing()
     }
@@ -139,5 +141,5 @@ const trigger = async (channel: string) => {
 
 watch(() => props.modelValue, (val) => {
   if (val) loadHealing()
-})
+}, { immediate: true })
 </script>

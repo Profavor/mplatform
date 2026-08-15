@@ -33,9 +33,24 @@ export default defineNuxtPlugin((nuxtApp) => {
     isRefreshing = true
     refreshPromise = (async () => {
       try {
+        // 1. OIDC (Keycloak SSO) 로그인 방식인 경우 useOidcAuth().refresh() 우선 시도
+        try {
+          const { refresh, user, loggedIn } = useOidcAuth()
+          if (loggedIn.value) {
+            await refresh()
+            if (loggedIn.value && user.value?.accessToken) {
+              const newAccessToken = user.value.accessToken
+              const newRefreshToken = user.value.refreshToken || (user.value as any)?.providerInfo?.refreshToken
+              setAuthCookies(newAccessToken, newRefreshToken)
+              return newAccessToken
+            }
+          }
+        } catch (oidcErr) {
+          console.warn('Fetch Interceptor: OIDC token refresh failed', oidcErr)
+        }
+
+        // 2. 백엔드 내부 리프레시 토큰(/api/auth/refresh) 시도
         const internalRefreshToken = getCookieValue('refresh_token')
-        
-        // 1. 내부 로그인(username/password) 방식의 리프레시 토큰이 있는 경우
         if (internalRefreshToken) {
           try {
             const res = await fetch('/api/auth/refresh', {
@@ -53,24 +68,6 @@ export default defineNuxtPlugin((nuxtApp) => {
           } catch (internalErr) {
             console.warn('Fetch Interceptor: Internal token refresh failed', internalErr)
           }
-          return null
-        }
-
-        // 2. OIDC (Keycloak SSO) 로그인 방식인 경우
-        const { refresh, user, loggedIn } = useOidcAuth()
-        if (loggedIn.value) {
-          try {
-            await refresh()
-            if (loggedIn.value && user.value?.accessToken) {
-              const newAccessToken = user.value.accessToken
-              const newRefreshToken = user.value.refreshToken || (user.value as any)?.providerInfo?.refreshToken
-              setAuthCookies(newAccessToken, newRefreshToken)
-              return newAccessToken
-            }
-          } catch (oidcErr) {
-            console.warn('Fetch Interceptor: OIDC token refresh failed', oidcErr)
-          }
-
         }
         
         return null

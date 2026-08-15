@@ -63,11 +63,14 @@ public class KeycloakAdminService {
             user.setEmail(email);
             user.setEnabled(true);
             user.setEmailVerified(true);
-            
-            if (fullName != null) {
-                String[] parts = fullName.split(" ", 2);
-                if (parts.length > 0) user.setFirstName(parts[0]);
-                if (parts.length > 1) user.setLastName(parts[1]);
+            user.setRequiredActions(java.util.Collections.emptyList());
+            if (fullName != null && !fullName.trim().isEmpty()) {
+                String[] parts = fullName.trim().split("\\s+", 2);
+                user.setFirstName(parts[0]);
+                user.setLastName(parts.length > 1 ? parts[1] : parts[0]);
+            } else {
+                user.setFirstName(username);
+                user.setLastName(username);
             }
 
             Response response = getUsersResource().create(user);
@@ -79,7 +82,16 @@ public class KeycloakAdminService {
                 // Set password
                 resetPassword(username, password);
             } else if (response.getStatus() == 409) {
-                log.warn("User {} already exists in Keycloak. Syncing password.", username);
+                log.warn("User {} already exists in Keycloak. Syncing profile and password.", username);
+                List<UserRepresentation> existing = getUsersResource().search(username, true);
+                if (!existing.isEmpty()) {
+                    UserRepresentation exUser = existing.get(0);
+                    exUser.setFirstName(user.getFirstName());
+                    exUser.setLastName(user.getLastName());
+                    exUser.setEmailVerified(true);
+                    exUser.setRequiredActions(java.util.Collections.emptyList());
+                    getUsersResource().get(exUser.getId()).update(exUser);
+                }
                 resetPassword(username, password);
             } else {
                 log.error("Failed to create Keycloak user. Status: {}, Info: {}", response.getStatus(), response.getStatusInfo());

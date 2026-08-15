@@ -36,7 +36,7 @@ public class DomainSnapshotController {
     }
 
     @PostMapping("/snapshots/{snapshotId}/restore")
-    @PreAuthorize("hasPermission(null, 'domain:write') or hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasPermission(null, 'domain:write')")
     public ResponseEntity<DomainSnapshotDto.SnapshotRestoreResponse> restoreSnapshot(
             @PathVariable UUID snapshotId) {
         return ResponseEntity.ok(domainSnapshotService.restoreSnapshot(snapshotId));

@@ -97,6 +97,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { customFetch } = useCustomFetch()
 
 const show = computed({
   get: () => props.modelValue,
@@ -109,9 +110,10 @@ const loading = ref(false)
 const loadAudit = async () => {
   loading.value = true
   try {
-    const res = await useCustomFetch('/compliance/regulatory-audit')
-    if (res.data?.value) {
-      report.value = res.data.value
+    const res = await customFetch('/api/compliance/regulatory-audit')
+    const payload = res?.checklist ? res : res?.data?.value
+    if (payload) {
+      report.value = payload
     }
   } catch (e: any) {
     console.error('Failed to load regulatory audit report', e)
@@ -122,5 +124,5 @@ const loadAudit = async () => {
 
 watch(() => props.modelValue, (val) => {
   if (val) loadAudit()
-})
+}, { immediate: true })
 </script>

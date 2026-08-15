@@ -163,13 +163,13 @@ export const useApprovalEnricher = () => {
         const idFieldId = fullDomain.identifierFieldId
         const nameFieldId = fullDomain.displayNameFieldId
         
-        const idField = fields.find((f: any) => f.id === idFieldId)
-        const nameField = fields.find((f: any) => f.id === nameFieldId)
+        const idField = fields.find((f: any) => f.id === idFieldId || f.isIdentifier === true)
+        const nameField = fields.find((f: any) => f.id === nameFieldId || f.isDisplayName === true)
         
-        if (idField && recordData[idField.key] !== undefined) {
+        if (idField && recordData[idField.key] !== undefined && recordData[idField.key] !== null && recordData[idField.key] !== '') {
           enriched.idAttribute = formatMultilingual(recordData[idField.key])
         }
-        if (nameField && recordData[nameField.key] !== undefined) {
+        if (nameField && recordData[nameField.key] !== undefined && recordData[nameField.key] !== null && recordData[nameField.key] !== '') {
           enriched.nameAttribute = formatMultilingual(recordData[nameField.key])
         }
         
@@ -201,38 +201,6 @@ export const useApprovalEnricher = () => {
           enriched.summary = parts.join(', ')
         } else if (req.targetType === 'RECORD_DELETE') {
           enriched.summary = t('record_delete')
-        }
-
-        // Fallback: If ID or Name is still empty, infer from record data keys (Summary Data)
-        if (!enriched.idAttribute || !enriched.nameAttribute) {
-          // 1st pass: try to find by common keywords
-          for (const key in recordData) {
-            const field = fields.find((f: any) => f.key === key)
-            const fName = field ? getTranslatedName(field.name) : key
-            const fNameLower = String(fName).toLowerCase()
-            const keyLower = String(key).toLowerCase()
-            
-            if (!enriched.idAttribute && (
-                fNameLower.includes('코드') || fNameLower.includes('번호') || fNameLower.includes('사번') || 
-                fNameLower.includes('id') || fNameLower.includes('code') || fNameLower.includes('ticker') || fNameLower.includes('no') ||
-                keyLower.includes('id') || keyLower.includes('code') || keyLower.includes('ticker') || keyLower.includes('no')
-            )) {
-              enriched.idAttribute = recordData[key]
-            }
-            if (!enriched.nameAttribute && (
-                fNameLower.includes('명') || fNameLower.includes('이름') || fNameLower.includes('name') || fNameLower.includes('title') ||
-                keyLower.includes('name') || keyLower.includes('title')
-            )) {
-              enriched.nameAttribute = formatMultilingual(recordData[key])
-            }
-          }
-          
-          // 2nd pass: if still empty, pick the first available non-object value for ID and second for Name
-          if (!enriched.idAttribute || !enriched.nameAttribute) {
-            const keys = Object.keys(recordData)
-            if (!enriched.idAttribute && keys.length > 0) enriched.idAttribute = formatMultilingual(recordData[keys[0]])
-            if (!enriched.nameAttribute && keys.length > 1) enriched.nameAttribute = formatMultilingual(recordData[keys[1]])
-          }
         }
       } catch(e) {
         console.error('Failed to enrich summary', e)

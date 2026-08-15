@@ -92,6 +92,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { customFetch } = useCustomFetch()
 
 const show = computed({
   get: () => props.modelValue,
@@ -104,9 +105,10 @@ const loading = ref(false)
 const loadSla = async () => {
   loading.value = true
   try {
-    const res = await useCustomFetch('/system/sla-contracts')
-    if (res.data?.value) {
-      slaData.value = res.data.value
+    const res = await customFetch('/api/system/sla-contracts')
+    const payload = res?.contracts ? res : res?.data?.value
+    if (payload) {
+      slaData.value = payload
     }
   } catch (e: any) {
     console.error('Failed to load SLA contracts', e)
@@ -117,5 +119,5 @@ const loadSla = async () => {
 
 watch(() => props.modelValue, (val) => {
   if (val) loadSla()
-})
+}, { immediate: true })
 </script>

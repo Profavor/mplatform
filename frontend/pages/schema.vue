@@ -88,6 +88,14 @@
 
                 <div style="display: flex; align-items: center; gap: 0.4rem;">
                   <va-button v-if="hasPermission('field:write') || hasPermission('field:*')" size="small" icon="add" @click="openFieldModal(null)">{{ $t('add_field') }}</va-button>
+                  <va-button
+                    size="small"
+                    color="secondary"
+                    outline
+                    @click="showBusinessRuleBuilderModal = true"
+                  >
+                    <va-icon name="rule" class="mr-1" /> {{ $t('business_rule_builder') }}
+                  </va-button>
                   <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshSchemaData">{{ $t('refresh') }}</va-button>
                 </div>
               </div>
@@ -118,13 +126,13 @@
             </div>
 
             <!-- Classification Axes Tab (Domain Only) -->
-            <div v-show="activeTab === 2 && selectedNode && selectedNode.type === 'domain'" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 1rem;">
-              <ClassificationAxisTab :domain-id="selectedNode?.id" />
+            <div v-if="selectedNode && selectedNode.type === 'domain'" v-show="activeTab === 2" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 1rem;">
+              <ClassificationAxisTab :domain-id="selectedNode.id" />
             </div>
 
             <!-- Data Profiling Tab (Domain Only) -->
-            <div v-show="activeTab === 3 && selectedNode && selectedNode.type === 'domain'" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
-              <DataProfilingTab :domain-id="selectedNode?.id" />
+            <div v-if="selectedNode && selectedNode.type === 'domain'" v-show="activeTab === 3" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+              <DataProfilingTab :domain-id="selectedNode.id" />
             </div>
           </va-card-content>
         </va-card>
@@ -281,6 +289,12 @@
       v-model="showCompatibilityModal"
       :domainId="selectedDomainId"
     />
+
+    <!-- Business Rule Builder Modal -->
+    <BusinessRuleBuilderModal
+      v-model="showBusinessRuleBuilderModal"
+      :domainId="selectedDomainId"
+    />
   </div>
 </template>
 
@@ -293,10 +307,12 @@ import IconPickerModal from '~/components/common/IconPickerModal.vue'
 import SchemaPackageModal from '~/components/schema/SchemaPackageModal.vue'
 import SemanticOntologyModal from '~/components/schema/SemanticOntologyModal.vue'
 import SchemaCompatibilityModal from '~/components/schema/SchemaCompatibilityModal.vue'
+import BusinessRuleBuilderModal from '~/components/records/BusinessRuleBuilderModal.vue'
 
 const { customFetch } = useCustomFetch()
 
 const showApprovalViewer = ref(false)
+const showBusinessRuleBuilderModal = ref(false)
 const selectedApprovalRequest = ref(null)
 const showPackageModal = ref(false)
 const showOntologyModal = ref(false)
@@ -714,17 +730,26 @@ const onGroupGridReady = (params) => groupGridApi.value = params.api
 
 const sectorOptions = computed(() => {
   return domainSectors.value.map(s => ({
-    text: s.name?.[currentLocale.value] || s.name?.ko || s.name?.en || 'Unknown',
+    text: formatMultilingual(s.name) || s.id,
     value: s.id
   }))
 })
 
 const groupOptions = computed(() => {
   return domainGroups.value.map(g => {
-    const sName = g.sector?.name?.[currentLocale.value] || g.sector?.name?.ko || g.sector?.name?.en || 'Unknown Sector';
-    const gName = g.name?.[currentLocale.value] || g.name?.ko || g.name?.en || 'Unknown Group';
+    let sName = ''
+    if (g.sector?.name) {
+      sName = formatMultilingual(g.sector.name)
+    } else if (g.sectorId || g.sector?.id) {
+      const secId = g.sectorId || g.sector?.id
+      const foundSector = domainSectors.value.find(s => s.id === secId)
+      if (foundSector) {
+        sName = formatMultilingual(foundSector.name)
+      }
+    }
+    const gName = formatMultilingual(g.name) || g.id
     return {
-      text: `[${sName}] ${gName}`,
+      text: sName ? `[${sName}] ${gName}` : gName,
       value: g.id
     }
   })
@@ -1605,8 +1630,8 @@ const executePendingFieldSave = async () => {
       tableColumnWidth: newField.value.tableColumnWidth ? Number(newField.value.tableColumnWidth) : null,
       isMultiValue: newField.value.isMultiValue,
       isTable: newField.value.isTable,
-      isEncrypted: newField.value.isEncrypted,
-      maskingPattern: newField.value.maskingPattern || 'GENERIC',
+      isEncrypted: Boolean(newField.value.isEncrypted),
+      maskingPattern: newField.value.isEncrypted ? (newField.value.maskingPattern || 'GENERIC') : (newField.value.maskingPattern || null),
       isSearchable: newField.value.isSearchable,
       isReadOnly: newField.value.isReadOnly,
       isImmutable: newField.value.isImmutable,

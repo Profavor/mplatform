@@ -83,6 +83,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { customFetch } = useCustomFetch()
 
 const show = computed({
   get: () => props.modelValue,
@@ -95,9 +96,10 @@ const loading = ref(false)
 const loadConflicts = async () => {
   loading.value = true
   try {
-    const res = await useCustomFetch('/system/multi-region-conflicts')
-    if (res.data?.value) {
-      conflictReport.value = res.data.value
+    const res = await customFetch('/api/system/multi-region-conflicts')
+    const payload = res?.regions ? res : res?.data?.value
+    if (payload) {
+      conflictReport.value = payload
     }
   } catch (e: any) {
     console.error('Failed to load multi-region conflicts', e)
@@ -108,5 +110,5 @@ const loadConflicts = async () => {
 
 watch(() => props.modelValue, (val) => {
   if (val) loadConflicts()
-})
+}, { immediate: true })
 </script>

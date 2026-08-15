@@ -92,6 +92,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { customFetch } = useCustomFetch()
 
 const show = computed({
   get: () => props.modelValue,
@@ -107,9 +108,10 @@ const simulatingId = ref<string | null>(null)
 const loadArchives = async () => {
   loading.value = true
   try {
-    const res = await useCustomFetch('/system/archives')
-    if (res.data?.value) {
-      archives.value = res.data.value
+    const res = await customFetch('/api/system/archives')
+    const payload = Array.isArray(res) ? res : res?.data?.value
+    if (payload) {
+      archives.value = payload
     }
   } catch (e: any) {
     console.error('Failed to load archives', e)
@@ -121,14 +123,14 @@ const loadArchives = async () => {
 const createArchive = async () => {
   creating.value = true
   try {
-    const res = await useCustomFetch('/system/archives', {
+    const res = await customFetch('/api/system/archives', {
       method: 'POST',
       body: {
         archiveName: '전사 마스터 데이터 원클릭 동결 아카이브',
         encrypt: true
       }
     })
-    if (res.data?.value) {
+    if (res) {
       await loadArchives()
     }
   } catch (e: any) {
@@ -142,11 +144,12 @@ const simulateDr = async (archiveId: string) => {
   simulatingId.value = archiveId
   drResult.value = null
   try {
-    const res = await useCustomFetch(`/system/archives/${archiveId}/dr-simulate`, {
+    const res = await customFetch(`/api/system/archives/${archiveId}/dr-simulate`, {
       method: 'POST'
     })
-    if (res.data?.value) {
-      drResult.value = res.data.value
+    const payload = res?.status ? res : res?.data?.value
+    if (payload) {
+      drResult.value = payload
     }
   } catch (e: any) {
     console.error('Failed to simulate DR', e)
@@ -160,5 +163,5 @@ watch(() => props.modelValue, (val) => {
     drResult.value = null
     loadArchives()
   }
-})
+}, { immediate: true })
 </script>

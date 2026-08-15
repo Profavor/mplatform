@@ -17,16 +17,16 @@
       <div v-else style="display: flex; flex-direction: column; gap: 1rem;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span style="font-weight: 600; font-size: 0.95rem;">{{ $t('export_progress') }}</span>
-          <va-badge :text="taskInfo.status" :color="taskInfo.status === 'COMPLETED' ? 'success' : 'primary'" />
+          <va-badge :text="taskStatusText" :color="taskStatus === 'COMPLETED' ? 'success' : (taskStatus === 'FAILED' ? 'danger' : 'primary')" />
         </div>
 
         <va-progress-bar :model-value="taskInfo.progressPercent" color="primary" animated />
 
         <div style="font-size: 0.85rem; color: var(--va-text-secondary); text-align: center;">
-          {{ taskInfo.processedCount.toLocaleString() }} / {{ taskInfo.totalCount.toLocaleString() }} {{ $t('records_count_suffix') }} ({{ taskInfo.progressPercent }}%)
+          {{ taskInfo.processedCount?.toLocaleString() || 0 }} / {{ taskInfo.totalCount?.toLocaleString() || 0 }} {{ $t('records_count_suffix') }} ({{ taskInfo.progressPercent || 0 }}%)
         </div>
 
-        <div v-if="taskInfo.status === 'COMPLETED'" style="margin-top: 0.5rem; text-align: center;">
+        <div v-if="taskStatus === 'COMPLETED'" style="margin-top: 0.5rem; text-align: center;">
           <va-button color="success" icon="file_download" :loading="downloading" @click="downloadFile">
             {{ $t('download_file') }}
           </va-button>
@@ -41,7 +41,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 
 const props = defineProps<{
@@ -52,11 +53,27 @@ const props = defineProps<{
 
 const emit = defineEmits(['update:modelValue'])
 
+const { t } = useI18n()
 const { customFetch } = useCustomFetch()
 
 const show = ref(props.modelValue)
 const taskInfo = ref<any>(null)
 let pollTimer: any = null
+
+const taskStatus = computed(() => {
+  if (!taskInfo.value) return ''
+  const st = taskInfo.value.status
+  if (typeof st === 'object' && st !== null) {
+    return String(st.value || 'PROCESSING')
+  }
+  return String(st || 'PROCESSING')
+})
+
+const taskStatusText = computed(() => {
+  if (taskStatus.value === 'COMPLETED') return t('status_completed', '완료')
+  if (taskStatus.value === 'FAILED') return t('status_failed', '실패')
+  return t('status_processing', '진행 중')
+})
 
 watch(() => props.modelValue, (val) => {
   show.value = val
@@ -185,7 +202,8 @@ const startPolling = (taskId: string) => {
     try {
       const res = await customFetch(`/api/batch/tasks/${taskId}`)
       taskInfo.value = res
-      if (res.status === 'COMPLETED' || res.status === 'FAILED') {
+      const st = typeof res?.status === 'object' ? res?.status?.value : res?.status
+      if (st === 'COMPLETED' || st === 'FAILED') {
         stopPolling()
       }
     } catch (e) {
@@ -207,9 +225,13 @@ const downloadFile = async () => {
   if (!taskInfo.value?.downloadUrl) return
   downloading.value = true
   try {
-    const blob: Blob = await customFetch(taskInfo.value.downloadUrl, {
+    const rawData: any = await customFetch(taskInfo.value.downloadUrl, {
       responseType: 'blob'
     })
+    const blob = rawData instanceof Blob 
+      ? rawData 
+      : new Blob([rawData], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url

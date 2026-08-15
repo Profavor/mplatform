@@ -3,9 +3,13 @@ import { mount } from '@vue/test-utils'
 import SemanticOntologyModal from '../../components/schema/SemanticOntologyModal.vue'
 
 const mockCustomFetch = vi.fn()
-vi.mock('~/composables/useCustomFetch', () => ({
-  useCustomFetch: (...args: any[]) => mockCustomFetch(...args)
-}))
+vi.mock('~/composables/useCustomFetch', () => {
+  const fn = (...args: any[]) => mockCustomFetch(...args)
+  fn.customFetch = (...args: any[]) => mockCustomFetch(...args)
+  return {
+    useCustomFetch: () => fn
+  }
+})
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -19,17 +23,13 @@ describe('SemanticOntologyModal.vue', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockCustomFetch.mockResolvedValue({
-      data: {
-        value: {
-          summary: '전사 온톨로지 정상',
-          nodes: [
-            { id: 'NODE-CUST', label: '고객 마스터', domainCode: 'DOM-CUST' }
-          ],
-          edges: [
-            { sourceId: 'NODE-ORD', targetId: 'NODE-CUST', relationType: 'PURCHASED_BY', weight: 1.0 }
-          ]
-        }
-      }
+      summary: '전사 온톨로지 정상',
+      nodes: [
+        { id: 'NODE-CUST', label: '고객 마스터', domainCode: 'DOM-CUST' }
+      ],
+      edges: [
+        { sourceId: 'NODE-ORD', targetId: 'NODE-CUST', relationType: 'PURCHASED_BY', weight: 1.0 }
+      ]
     })
   })
 
@@ -49,6 +49,7 @@ describe('SemanticOntologyModal.vue', () => {
           },
           'va-alert': true,
           'va-input': true,
+          'va-chip': true,
           'va-inner-loading': {
             template: '<div><slot /></div>'
           },

@@ -17,38 +17,15 @@
 
       <!-- Governance & Orchestration Action Group -->
       <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
-        <va-button color="primary" size="small" icon="smart_toy" @click="showCopilot = true">
-          {{ $t('governance_copilot') }}
-        </va-button>
-        <va-button color="warning" size="small" icon="military_tech" @click="showMasterOrchestrator = true">
-          {{ $t('master_orchestrator') }}
-        </va-button>
-        <va-button color="danger" size="small" outline icon="healing" @click="showSelfHealing = true">
-          {{ $t('pipeline_self_healing') }}
-        </va-button>
-        <va-button color="success" size="small" outline icon="thermostat" @click="showFreshness = true">
-          {{ $t('freshness_heatmap') }}
-        </va-button>
-        <va-button color="info" size="small" outline icon="public" @click="showMultiRegion = true">
-          {{ $t('multi_region_conflict') }}
-        </va-button>
-        <va-button color="primary" size="small" outline icon="domain" @click="showMultiTenant = true">
-          {{ $t('multi_tenant') }}
-        </va-button>
-        <va-button color="info" size="small" outline icon="handshake" @click="showDataSla = true">
-          {{ $t('data_sla') }}
-        </va-button>
-        <va-button color="success" size="small" outline icon="emoji_events" @click="showMaturity = true">
-          {{ $t('governance_maturity') }}
-        </va-button>
-        <va-button color="danger" size="small" outline icon="radar" @click="showVolumeRadar = true">
-          {{ $t('volume_radar') }}
-        </va-button>
-        <va-button color="secondary" size="small" outline icon="policy" @click="showRegulatory = true">
-          {{ $t('regulatory_compliance') }}
-        </va-button>
-        <va-button color="info" size="small" outline icon="ac_unit" @click="showColdStorage = true">
-          {{ $t('cold_storage') }}
+        <va-button 
+          v-for="feature in governanceFeatures" 
+          :key="feature.featureNo"
+          :color="feature.colorTheme.replace('-outline', '')" 
+          size="small" 
+          :outline="feature.colorTheme.includes('-outline')"
+          :icon="feature.iconName" 
+          @click="openFeatureModal(feature.featureNameKey)">
+          {{ $t(feature.featureNameKey) }}
         </va-button>
       </div>
     </div>
@@ -442,6 +419,24 @@ const showMaturity = ref(false)
 const showVolumeRadar = ref(false)
 const showRegulatory = ref(false)
 const showColdStorage = ref(false)
+
+const governanceFeatures = ref([])
+
+const openFeatureModal = (featureKey) => {
+  switch (featureKey) {
+    case 'governance_copilot': showCopilot.value = true; break;
+    case 'pipeline_self_healing': showSelfHealing.value = true; break;
+    case 'freshness_heatmap': showFreshness.value = true; break;
+    case 'multi_region_conflict': showMultiRegion.value = true; break;
+    case 'master_orchestrator': showMasterOrchestrator.value = true; break;
+    case 'multi_tenant': showMultiTenant.value = true; break;
+    case 'data_sla': showDataSla.value = true; break;
+    case 'governance_maturity': showMaturity.value = true; break;
+    case 'volume_radar': showVolumeRadar.value = true; break;
+    case 'regulatory_compliance': showRegulatory.value = true; break;
+    case 'cold_storage': showColdStorage.value = true; break;
+  }
+}
 import { formatWithTimezone } from '~/composables/useTimezoneDate'
 import { formatEntityId } from '~/utils/formatters'
 
@@ -458,6 +453,25 @@ const { init } = useToast()
 const activeTab = ref('access')
 const isMounted = ref(false)
 const codeStore = useCodeStore()
+
+const fetchGovernanceCoreFeatures = async () => {
+  try {
+    const res = await $fetch('/api/system/master-orchestrator', {
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    const payload = res?.modules ? res : res?.data?.value
+    if (payload && payload.modules) {
+      // Sort by featureNo (or any preferred order) and filter core features
+      governanceFeatures.value = payload.modules.filter(m => m.governanceCore).sort((a, b) => a.featureNo - b.featureNo)
+    }
+  } catch (err) {
+    console.error('Failed to load core governance features', err)
+  }
+}
+
+onMounted(() => {
+  fetchGovernanceCoreFeatures()
+})
 
 const sensitiveLogs = ref([])
 const sensitiveLogLoading = ref(false)

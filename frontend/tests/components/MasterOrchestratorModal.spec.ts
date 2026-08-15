@@ -3,9 +3,13 @@ import { mount } from '@vue/test-utils'
 import MasterOrchestratorModal from '../../components/admin/MasterOrchestratorModal.vue'
 
 const mockCustomFetch = vi.fn()
-vi.mock('~/composables/useCustomFetch', () => ({
-  useCustomFetch: (...args: any[]) => mockCustomFetch(...args)
-}))
+vi.mock('~/composables/useCustomFetch', () => {
+  const fn = (...args: any[]) => mockCustomFetch(...args)
+  fn.customFetch = (...args: any[]) => mockCustomFetch(...args)
+  return {
+    useCustomFetch: () => fn
+  }
+})
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -19,23 +23,19 @@ describe('MasterOrchestratorModal.vue', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockCustomFetch.mockResolvedValue({
-      data: {
-        value: {
-          totalFeatures: 50,
-          healthyFeatures: 50,
-          systemMaturityLevel: 'Level 5 - Autonomous Master',
-          summary: '50대 기능 정상 가동 중',
-          modules: [
-            {
-              featureNo: 1,
-              category: 'SCHEMA_LIFECYCLE',
-              featureName: '레코드 롤백',
-              status: 'ONLINE_HEALTHY',
-              healthScore: 100
-            }
-          ]
+      totalFeatures: 50,
+      healthyFeatures: 50,
+      systemMaturityLevel: 'Level 5 - Autonomous Master',
+      summary: '50대 기능 정상 가동 중',
+      modules: [
+        {
+          featureNo: 1,
+          category: 'SCHEMA_LIFECYCLE',
+          featureName: '레코드 롤백',
+          status: 'ONLINE_HEALTHY',
+          healthScore: 100
         }
-      }
+      ]
     })
   })
 

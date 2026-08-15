@@ -2,11 +2,14 @@ package com.classification.domain_system.controller;
 
 import com.classification.domain_system.dto.NotificationDto;
 import com.classification.domain_system.service.NotificationService;
+import com.classification.domain_system.service.SseNotificationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.Map;
@@ -18,6 +21,13 @@ import java.util.UUID;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final SseNotificationService sseNotificationService;
+
+    @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter subscribe(Authentication authentication) {
+        String userId = authentication != null ? authentication.getName() : "anonymous";
+        return sseNotificationService.subscribe(userId);
+    }
 
     @GetMapping
     public ResponseEntity<List<NotificationDto.NotificationResponse>> getMyNotifications(Authentication authentication) {
@@ -48,7 +58,7 @@ public class NotificationController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('SYSTEM')")
+    @PreAuthorize("hasPermission(null, 'notification:write')")
     public ResponseEntity<NotificationDto.NotificationResponse> createNotification(
             @RequestBody NotificationDto.NotificationCreateRequest request) {
         return ResponseEntity.ok(notificationService.createNotification(request));

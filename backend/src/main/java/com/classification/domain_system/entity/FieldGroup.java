@@ -40,4 +40,18 @@ public class FieldGroup {
 
     @Column(name = "is_default_open", columnDefinition = "boolean default true")
     private Boolean isDefaultOpen = true;
+
+    @com.fasterxml.jackson.annotation.JsonProperty("sectorId")
+    public UUID getSectorId() {
+        return sector != null ? sector.getId() : null;
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("sector")
+    public Map<String, Object> getSectorSummary() {
+        if (sector == null) return null;
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", sector.getId());
+        map.put("name", sector.getName());
+        return map;
+    }
 }

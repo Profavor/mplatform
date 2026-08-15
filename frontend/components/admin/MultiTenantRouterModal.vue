@@ -86,6 +86,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { customFetch } = useCustomFetch()
 
 const show = computed({
   get: () => props.modelValue,
@@ -98,9 +99,10 @@ const loading = ref(false)
 const loadRouting = async () => {
   loading.value = true
   try {
-    const res = await useCustomFetch('/admin/multi-tenant/routing-rules')
-    if (res.data?.value) {
-      routingData.value = res.data.value
+    const res = await customFetch('/api/admin/multi-tenant/routing-rules')
+    const payload = res?.rules ? res : res?.data?.value
+    if (payload) {
+      routingData.value = payload
     }
   } catch (e: any) {
     console.error('Failed to load multi-tenant routing rules', e)
@@ -111,7 +113,7 @@ const loadRouting = async () => {
 
 const toggle = async (rule: any) => {
   try {
-    await useCustomFetch(`/admin/multi-tenant/routing-rules/${rule.tenantCode}/toggle?active=${rule.active}`, {
+    await customFetch(`/api/admin/multi-tenant/routing-rules/${rule.tenantCode}/toggle?active=${rule.active}`, {
       method: 'POST'
     })
   } catch (e: any) {
@@ -122,5 +124,5 @@ const toggle = async (rule: any) => {
 
 watch(() => props.modelValue, (val) => {
   if (val) loadRouting()
-})
+}, { immediate: true })
 </script>

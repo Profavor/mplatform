@@ -28,5 +28,7 @@ public interface ApprovalStepRepository extends JpaRepository<ApprovalStep, UUID
     @org.springframework.data.jpa.repository.Query("SELECT s FROM ApprovalStep s WHERE ((s.assigneeId = :assigneeId) OR (:userRole IS NOT NULL AND (s.assigneeRole = :userRole OR s.assigneeRole = REPLACE(:userRole, 'ROLE_', '') OR CONCAT('ROLE_', s.assigneeRole) = :userRole))) AND s.status = :status ORDER BY s.approvalRequest.createdAt DESC")
     Page<ApprovalStep> findMyPendingSteps(@org.springframework.data.repository.query.Param("assigneeId") String assigneeId, @org.springframework.data.repository.query.Param("userRole") String userRole, @org.springframework.data.repository.query.Param("status") String status, Pageable pageable);
 
+    List<ApprovalStep> findByApprovalRequestIdOrderByStepOrderAsc(UUID approvalRequestId);
+
     List<ApprovalStep> findByStatusAndSlaDueAtBeforeAndIsEscalatedFalse(String status, java.time.LocalDateTime now);
 }

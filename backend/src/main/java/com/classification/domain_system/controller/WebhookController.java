@@ -24,14 +24,14 @@ public class WebhookController {
     }
 
     @PostMapping
-    @PreAuthorize("hasPermission(null, 'integration:write') or hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasPermission(null, 'integration:write')")
     public ResponseEntity<WebhookDto.SubscriptionResponse> createSubscription(
             @RequestBody WebhookDto.SubscriptionCreateRequest request) {
         return ResponseEntity.ok(webhookDispatcherService.createSubscription(request));
     }
 
     @PostMapping("/{id}/test")
-    @PreAuthorize("hasPermission(null, 'integration:write') or hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasPermission(null, 'integration:write')")
     public ResponseEntity<WebhookDto.WebhookTestResult> testWebhook(
             @PathVariable UUID id) {
         return ResponseEntity.ok(webhookDispatcherService.testWebhook(id));

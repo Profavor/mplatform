@@ -104,6 +104,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { customFetch } = useCustomFetch()
 
 const show = computed({
   get: () => props.modelValue,
@@ -116,9 +117,10 @@ const loading = ref(false)
 const loadMaturity = async () => {
   loading.value = true
   try {
-    const res = await useCustomFetch('/governance/maturity-evaluation')
-    if (res.data?.value) {
-      maturityReport.value = res.data.value
+    const res = await customFetch('/api/governance/maturity-evaluation')
+    const payload = res?.dimensions ? res : res?.data?.value
+    if (payload) {
+      maturityReport.value = payload
     }
   } catch (e: any) {
     console.error('Failed to load governance maturity', e)
@@ -129,5 +131,5 @@ const loadMaturity = async () => {
 
 watch(() => props.modelValue, (val) => {
   if (val) loadMaturity()
-})
+}, { immediate: true })
 </script>
