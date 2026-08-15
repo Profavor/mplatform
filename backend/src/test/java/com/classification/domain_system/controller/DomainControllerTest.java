@@ -73,6 +73,9 @@ class DomainControllerTest {
     @MockitoBean
     private com.classification.domain_system.service.DqScoreSnapshotService dqScoreSnapshotService;
 
+    @MockitoBean
+    private com.classification.domain_system.service.DomainPackageService domainPackageService;
+
     private Domain createTestDomain(UUID id, String koName, String enName) {
         Domain domain = new Domain();
         domain.setId(id);

@@ -15,6 +15,11 @@
         </div>
       </div>
 
+      <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <va-button preset="outline" color="primary" icon="how_to_reg" size="small" @click="showDelegationModal = true">
+          {{ t('approval_delegation') }}
+        </va-button>
+      </div>
     </div>
     
     <!-- Card 1: Pending Approvals -->
@@ -94,6 +99,10 @@
       v-model="showDetailsModal"
       :selected-request="selectedRequest"
     />
+
+    <ApprovalDelegationModal
+      v-model="showDelegationModal"
+    />
   </div>
 </template>
 
@@ -105,9 +114,12 @@ import { usePageTitle } from '~/composables/usePageTitle'
 const { pageTitle } = usePageTitle('approvals_title', '결재 및 승인 관리')
 import { useApprovalEnricher } from '~/composables/useApprovalEnricher'
 import ApprovalDetailsViewer from '~/components/ApprovalDetailsViewer.vue'
+import ApprovalDelegationModal from '~/components/approvals/ApprovalDelegationModal.vue'
 import { usePermission } from '~/composables/usePermission'
 import { useUserStore } from '~/stores/useUserStore'
 import { useRoleStore } from '~/stores/useRoleStore'
+
+const showDelegationModal = ref(false)
 
 const { hasPermission } = usePermission()
 

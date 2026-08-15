@@ -234,9 +234,9 @@ public class MatchingService {
                                         Object v1 = data.get(field);
                                         Object v2 = candData.get(field);
                                         if (v1 != null && v2 != null) {
-                                            String s1 = v1.toString().trim().toLowerCase().replaceAll("[^a-zA-Z0-9가-힣]", "");
-                                            String s2 = v2.toString().trim().toLowerCase().replaceAll("[^a-zA-Z0-9가-힣]", "");
-                                            double sim = similarityAlgo.apply(s1, s2);
+                                            String str1 = v1.toString();
+                                            String str2 = v2.toString();
+                                            double sim = com.classification.domain_system.utils.KoreanTextMatcher.calculateKoreanFuzzySimilarity(str1, str2);
                                             totalScore += sim;
                                             count++;
                                         }

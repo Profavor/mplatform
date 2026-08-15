@@ -808,5 +808,14 @@
   "workflow_center_title": "워크플로우 & 권한 관리 센터",
   "workflow_management": "워크플로우 관리",
   "workflow_management_desc": "워크플로우 서식을 AG-Grid 테이블로 빠르게 탐색하고, 전용 모달 대화상자에서 손쉽게 생성 및 편집합니다.",
-  "workflow_name_col": "서식 명칭"
+  "workflow_name_col": "서식 명칭",
+  "data_lineage": "데이터 계보 (Data Lineage)",
+  "data_lineage_desc": "도메인, 분류 노드, 외부 연계 채널 간의 상호 참조 및 데이터 흐름 계보를 시각화합니다.",
+  "lineage_nodes": "계보 구성 노드",
+  "lineage_relationships": "데이터 연계 흐름",
+  "notifications": "알림 센터",
+  "mark_all_read": "모두 읽음",
+  "no_notifications": "새로운 알림이 없습니다.",
+  "download_template": "엑셀 템플릿 다운로드",
+  "export_excel_csv": "레코드 데이터 내보내기 (CSV/Excel)"
 }

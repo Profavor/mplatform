@@ -41,6 +41,8 @@ public class ApprovalQueryService {
     private final DataMaskingService dataMaskingService;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    @org.springframework.context.annotation.Lazy
+    private final ApprovalDelegationService delegationService;
 
     private static final Set<String> ALLOWED_FILTER_KEYS = Set.of(
             "domainName", "classificationName", "requesterId", "changes", "summary",
@@ -318,6 +320,11 @@ public class ApprovalQueryService {
 
     @Transactional(readOnly = true)
     public Page<ApprovalStep> getMyTodos(String assigneeId, String username, Collection<String> userRoles, Pageable pageable) {
+        List<String> delegatorIds = delegationService != null ? delegationService.getActiveDelegatorIdsForDelegatee(assigneeId) : Collections.emptyList();
+        if (delegatorIds != null && !delegatorIds.isEmpty()) {
+            return stepRepository.findMyPendingStepsForUserAndRolesAndDelegators(
+                    assigneeId, username, userRoles != null ? userRoles : Collections.emptyList(), delegatorIds, ApprovalStatus.PENDING.name(), pageable);
+        }
         if (userRoles != null && !userRoles.isEmpty()) {
             return stepRepository.findMyPendingStepsForUserAndRoles(assigneeId, username, userRoles, ApprovalStatus.PENDING.name(), pageable);
         }

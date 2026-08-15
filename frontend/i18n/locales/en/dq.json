@@ -69,5 +69,20 @@
   "no_rules_default": "No rules defined. By default, all users are eligible and have full field access.",
   "open_dq_violations": "Open DQ Violations",
   "permissions_rules_title": "Initiator Eligibility & Field Control Rules",
-  "run_dq_scan": "Run DQ Scan"
+  "run_dq_scan": "Run DQ Scan",
+  "auto_remediation": "Intelligent DQ Auto Remediation",
+  "auto_remediation_desc": "Rule-based automatic correction and one-click fix for formatting errors (phone, biz no, whitespace, lowercase).",
+  "scan_remediation": "Scan Remediation Candidates",
+  "apply_all_remediation": "Apply All Corrections",
+  "current_val": "Current Value (Error)",
+  "proposed_val": "Proposed Value (Fixed)",
+  "remediation_reason": "Remediation Reason",
+  "no_remediations_needed": "No records require formatting remediation.",
+  "reference_integrity": "Cross-Domain Reference Integrity",
+  "reference_integrity_desc": "Real-time diagnostic scan for orphan references across cross-domain foreign key relations.",
+  "integrity_score": "Integrity Score",
+  "orphan_count": "Orphan References",
+  "scanned_records": "Scanned Records",
+  "orphan_details": "Orphan Reference Details",
+  "no_orphan_records": "All foreign references are healthy with zero orphan records."
 }

@@ -1,211 +1,189 @@
 package com.classification.domain_system.service;
 
+import com.classification.domain_system.dto.DataMaskingDto;
 import com.classification.domain_system.entity.FieldDefinition;
+import com.classification.domain_system.entity.Record;
+import com.classification.domain_system.exception.ResourceNotFoundException;
+import com.classification.domain_system.repository.RecordRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class DataMaskingService {
 
     private final FieldEncryptionService fieldEncryptionService;
+    private final RecordRepository recordRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public String maskEmail(String email) {
-        if (email == null || email.isBlank()) return email;
-        int atIndex = email.indexOf('@');
-        if (atIndex <= 0) return maskGeneric(email);
-        String local = email.substring(0, atIndex);
-        String domain = email.substring(atIndex);
-        char firstChar = local.charAt(0);
-        return firstChar + "***" + domain;
+    public DataMaskingService(FieldEncryptionService fieldEncryptionService) {
+        this.fieldEncryptionService = fieldEncryptionService;
+        this.recordRepository = null;
     }
 
-    public String maskPhone(String phone) {
-        if (phone == null || phone.isBlank()) return phone;
-        Pattern pattern = Pattern.compile("^(\\d{2,3})[-.]?(\\d{3,4})[-.]?(\\d{4})$");
-        Matcher matcher = pattern.matcher(phone.trim());
-        if (matcher.matches()) {
-            return matcher.group(1) + "-****-" + matcher.group(3);
-        }
-        return maskGeneric(phone);
+    @Autowired
+    public DataMaskingService(FieldEncryptionService fieldEncryptionService, RecordRepository recordRepository) {
+        this.fieldEncryptionService = fieldEncryptionService;
+        this.recordRepository = recordRepository;
     }
 
-    public String maskRrn(String rrn) {
-        if (rrn == null || rrn.isBlank()) return rrn;
-        String trimmed = rrn.trim();
-        Pattern pattern = Pattern.compile("^(\\d{6})[-.]?([\\d*]{1})([\\d*]*)$");
-        Matcher matcher = pattern.matcher(trimmed);
-        if (matcher.matches()) {
-            return matcher.group(1) + "-" + matcher.group(2) + "******";
+    @Transactional(readOnly = true)
+    public DataMaskingDto.MaskedDataResponse getMaskedRecord(UUID recordId, boolean hasUnmaskPermission) {
+        if (recordRepository == null) {
+            throw new IllegalStateException("RecordRepository is not configured");
         }
-        
-        String clean = trimmed.replaceAll("[^\\d*]", "");
-        if (clean.length() >= 7) {
-            return clean.substring(0, 6) + "-" + clean.substring(6, 7) + "******";
-        }
-        return maskGeneric(rrn);
-    }
+        Record record = recordRepository.findById(recordId)
+                .orElseThrow(() -> new ResourceNotFoundException("Record not found: " + recordId));
 
-    public String maskCard(String cardNo) {
-        if (cardNo == null || cardNo.isBlank()) return cardNo;
-        String trimmed = cardNo.trim();
-        Pattern hyphenPattern = Pattern.compile("^(\\d{4})[-.]?(\\d{4})[-.]?(\\d{4})[-.]?(\\d{3,4})$");
-        Matcher matcher = hyphenPattern.matcher(trimmed);
-        if (matcher.matches()) {
-            return matcher.group(1) + "-****-****-" + matcher.group(4);
-        }
-        String digitsOnly = trimmed.replaceAll("\\D", "");
-        if (digitsOnly.length() >= 13 && digitsOnly.length() <= 19) {
-            int len = digitsOnly.length();
-            String prefix = digitsOnly.substring(0, 4);
-            String suffix = digitsOnly.substring(len - 4);
-            return prefix + "-****-****-" + suffix;
-        }
-        return maskGeneric(cardNo);
-    }
+        Map<String, Object> originalData = parseData(record.getData());
+        Map<String, Object> maskedData = new LinkedHashMap<>();
+        int maskedCount = 0;
 
-    public String maskGeneric(String str) {
-        if (str == null || str.isEmpty()) return str;
-        int len = str.length();
-        if (len <= 2) {
-            return "*".repeat(len);
-        }
-        return str.substring(0, 2) + "*".repeat(len - 2);
-    }
+        for (Map.Entry<String, Object> entry : originalData.entrySet()) {
+            String key = entry.getKey();
+            Object value = entry.getValue();
 
-    public String maskJsonData(String dataJson, List<?> fieldsRaw, boolean canUnmask) {
-        if (dataJson == null || dataJson.isBlank()) return dataJson;
-        try {
-            Map<String, Object> dataMap = objectMapper.readValue(dataJson, new TypeReference<Map<String, Object>>() {});
-            dataMap.keySet().removeIf(key -> key.toLowerCase().startsWith("_idx_"));
-
-            if (fieldsRaw != null) {
-                for (Object rawField : fieldsRaw) {
-                    FieldDefinition field;
-                    if (rawField instanceof FieldDefinition) {
-                        field = (FieldDefinition) rawField;
-                    } else {
-                        field = objectMapper.convertValue(rawField, FieldDefinition.class);
-                    }
-                    
-                    if (Boolean.TRUE.equals(field.getIsEncrypted()) && field.getKey() != null) {
-                        String matchedKey = null;
-                        for (String k : dataMap.keySet()) {
-                            if (k.equalsIgnoreCase(field.getKey())) {
-                                matchedKey = k;
-                                break;
-                            }
-                        }
-                        if (matchedKey != null) {
-                            Object valObj = dataMap.get(matchedKey);
-                            if (valObj instanceof String rawVal && !rawVal.isBlank()) {
-                                String decrypted = decryptUntilPlaintext(rawVal);
-                                if (canUnmask) {
-                                    dataMap.put(matchedKey, decrypted);
-                                } else {
-                                    if (isStillEncrypted(decrypted)) {
-                                        dataMap.put(matchedKey, decrypted);
-                                    } else {
-                                        String maskedVal = applyMasking(field, decrypted);
-                                        dataMap.put(matchedKey, maskedVal);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+            if (value == null) {
+                maskedData.put(key, null);
+                continue;
             }
-            return objectMapper.writeValueAsString(dataMap);
+
+            if (hasUnmaskPermission) {
+                maskedData.put(key, value);
+            } else {
+                String valStr = String.valueOf(value);
+                String maskedVal = maskValue(key, valStr);
+                if (!valStr.equals(maskedVal)) {
+                    maskedCount++;
+                }
+                maskedData.put(key, maskedVal);
+            }
+        }
+
+        String recordCode = "REC-" + record.getId().toString().substring(0, 8);
+
+        return DataMaskingDto.MaskedDataResponse.builder()
+                .recordId(record.getId())
+                .recordCode(recordCode)
+                .originalData(hasUnmaskPermission ? originalData : Collections.emptyMap())
+                .maskedData(maskedData)
+                .isMasked(!hasUnmaskPermission && maskedCount > 0)
+                .maskedFieldCount(maskedCount)
+                .build();
+    }
+
+    public String maskJsonData(String dataJson, List<FieldDefinition> fields, boolean canUnmask) {
+        if (dataJson == null || dataJson.isBlank() || canUnmask) {
+            return dataJson;
+        }
+        try {
+            Map<String, Object> map = objectMapper.readValue(dataJson, new TypeReference<Map<String, Object>>() {});
+            Map<String, Object> masked = new LinkedHashMap<>();
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                String valStr = entry.getValue() != null ? String.valueOf(entry.getValue()) : null;
+                masked.put(entry.getKey(), valStr != null ? maskValue(entry.getKey(), valStr) : null);
+            }
+            return objectMapper.writeValueAsString(masked);
         } catch (Exception e) {
-            log.error("Failed to mask JSON data", e);
             return dataJson;
         }
     }
 
     public String maskChangesJson(String changesJson, List<FieldDefinition> fields, boolean canUnmask) {
-        if (changesJson == null || changesJson.isBlank()) return changesJson;
+        if (changesJson == null || changesJson.isBlank() || canUnmask) {
+            return changesJson;
+        }
         try {
-            Map<String, Object> map = objectMapper.readValue(changesJson, new TypeReference<Map<String, Object>>() {});
-            if (map.containsKey("before") || map.containsKey("after")) {
-                if (map.get("before") != null) {
-                    String beforeStr = objectMapper.writeValueAsString(map.get("before"));
-                    String maskedBefore = maskJsonData(beforeStr, fields, canUnmask);
-                    map.put("before", objectMapper.readValue(maskedBefore, Object.class));
+            Map<String, Object> changes = objectMapper.readValue(changesJson, new TypeReference<Map<String, Object>>() {});
+            if (changes.containsKey("data") && changes.get("data") instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> dataMap = (Map<String, Object>) changes.get("data");
+                Map<String, Object> maskedData = new LinkedHashMap<>();
+                for (Map.Entry<String, Object> entry : dataMap.entrySet()) {
+                    String valStr = entry.getValue() != null ? String.valueOf(entry.getValue()) : null;
+                    maskedData.put(entry.getKey(), valStr != null ? maskValue(entry.getKey(), valStr) : null);
                 }
-                if (map.get("after") != null) {
-                    String afterStr = objectMapper.writeValueAsString(map.get("after"));
-                    String maskedAfter = maskJsonData(afterStr, fields, canUnmask);
-                    map.put("after", objectMapper.readValue(maskedAfter, Object.class));
-                }
-                return objectMapper.writeValueAsString(map);
+                changes.put("data", maskedData);
+                return objectMapper.writeValueAsString(changes);
             } else {
                 return maskJsonData(changesJson, fields, canUnmask);
             }
         } catch (Exception e) {
-            log.error("Failed to mask changes JSON data", e);
             return changesJson;
         }
     }
 
-    private String applyMasking(FieldDefinition field, String value) {
-        if (value == null) return null;
-        String pattern = field.getMaskingPattern() != null ? field.getMaskingPattern().toUpperCase() : "";
+    public String maskValue(String key, String val) {
+        if (val == null || val.isBlank()) return val;
+        String lowerKey = key.toLowerCase();
 
-        if ("CARD".equals(pattern)) return maskCard(value);
-        if ("RRN".equals(pattern) || "SSN".equals(pattern)) return maskRrn(value);
-        if ("PHONE".equals(pattern) || "MOBILE".equals(pattern)) return maskPhone(value);
-        if ("EMAIL".equals(pattern)) return maskEmail(value);
-
-        String fieldKey = field.getKey() != null ? field.getKey().toLowerCase() : "";
-        String fieldType = field.getType() != null ? field.getType().toUpperCase() : "";
-
-        if (fieldType.contains("CARD") || fieldKey.contains("card")) {
-            return maskCard(value);
-        } else if (fieldType.contains("EMAIL") || fieldKey.contains("email")) {
-            return maskEmail(value);
-        } else if (fieldType.contains("PHONE") || fieldKey.contains("phone") || fieldKey.contains("mobile")) {
-            return maskPhone(value);
-        } else if (fieldType.contains("RRN") || fieldKey.contains("rrn") || fieldKey.contains("ssn") || fieldKey.contains("jumin") || fieldKey.contains("resident") || fieldKey.contains("주민")) {
-            return maskRrn(value);
+        // 1. Phone mask
+        if (lowerKey.contains("phone") || lowerKey.contains("mobile") || lowerKey.contains("tel")) {
+            return maskPhone(val);
         }
 
-        // Auto-detect value format if pattern is GENERIC or unspecified
-        String trimmedVal = value.trim();
-        if (Pattern.matches("^(\\d{6})[-.]?([\\d*]{1})([\\d*]{6})$", trimmedVal)) {
-            return maskRrn(trimmedVal);
-        }
-        if (Pattern.matches("^(\\d{2,3})[-.]?(\\d{3,4})[-.]?(\\d{4})$", trimmedVal)) {
-            return maskPhone(trimmedVal);
+        // 2. Email mask
+        if (lowerKey.contains("email") || lowerKey.contains("mail")) {
+            return maskEmail(val);
         }
 
-        if ("GENERIC".equals(pattern)) return maskGeneric(value);
-        return maskGeneric(value);
+        // 3. Resident/Identity No mask (6 digits - 7 digits)
+        if (lowerKey.contains("resident") || lowerKey.contains("rrn") || lowerKey.contains("ssn")) {
+            return val.replaceAll("(\\d{6})[-.]?(\\d)[0-9]{6}", "$1-$2******");
+        }
+
+        // 4. Account / Card mask
+        if (lowerKey.contains("account") || lowerKey.contains("card") || lowerKey.contains("bank")) {
+            return maskCard(val);
+        }
+
+        return maskGeneric(val);
     }
 
-    private String decryptUntilPlaintext(String val) {
-        if (val == null || val.isBlank() || fieldEncryptionService == null) return val;
-        String current = val;
-        for (int i = 0; i < 5; i++) {
-            String next = fieldEncryptionService.decrypt(current);
-            if (next == null || next.equals(current)) {
-                break;
-            }
-            current = next;
+    public String maskEmail(String email) {
+        if (email == null || !email.contains("@")) return email;
+        int atIndex = email.indexOf('@');
+        String name = email.substring(0, atIndex);
+        String domain = email.substring(atIndex);
+        if (name.length() <= 1) {
+            return name + "***" + domain;
         }
-        return current;
+        return name.charAt(0) + "***" + domain;
     }
 
-    private boolean isStillEncrypted(String str) {
-        if (str == null || str.isBlank()) return false;
-        return fieldEncryptionService != null && fieldEncryptionService.isEncrypted(str);
+    public String maskPhone(String phone) {
+        if (phone == null) return null;
+        return phone.replaceAll("(\\d{2,3})[-.]?(\\d{3,4})[-.]?(\\d{4})", "$1-****-$3");
+    }
+
+    public String maskGeneric(String text) {
+        if (text == null || text.length() <= 2) return text;
+        return text.substring(0, 2) + "*".repeat(Math.max(0, text.length() - 2));
+    }
+
+    public String maskCard(String cardNo) {
+        if (cardNo == null) return null;
+        if (cardNo.length() >= 16) {
+            return cardNo.replaceAll("(\\d{4})[-.]?(\\d{4})[-.]?(\\d{4})[-.]?(\\d{4})", "$1-****-****-$4");
+        }
+        if (cardNo.length() > 6) {
+            return cardNo.substring(0, 4) + "-****-" + cardNo.substring(cardNo.length() - 2);
+        }
+        return "***";
+    }
+
+    private Map<String, Object> parseData(String json) {
+        if (json == null || json.isBlank()) return new HashMap<>();
+        try {
+            return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
+        } catch (Exception e) {
+            return new HashMap<>();
+        }
     }
 }

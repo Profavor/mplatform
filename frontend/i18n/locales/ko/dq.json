@@ -69,5 +69,20 @@
   "no_rules_default": "규칙이 등록되지 않았습니다. 기본적으로 모든 사용자가 신청 가능하며 전체 필드 접근 권한이 적용됩니다.",
   "open_dq_violations": "미조치 품질 위반",
   "permissions_rules_title": "신청 자격 및 필드 권한 제어 규칙",
-  "run_dq_scan": "DQ 검증 스캔 실행"
+  "run_dq_scan": "DQ 검증 스캔 실행",
+  "auto_remediation": "지능형 DQ 데이터 자동 정제 & 원클릭 보정",
+  "auto_remediation_desc": "전화번호/사업자번호 하이픈 누락, 앞뒤 공백 등 품질 오류가 발생한 레코드를 룰 기반으로 자동 보정합니다.",
+  "scan_remediation": "보정 대상 데이터 자동 탐색",
+  "apply_all_remediation": "보정 일괄 반영",
+  "current_val": "현재 값 (오류)",
+  "proposed_val": "보정 제안 값 (정상)",
+  "remediation_reason": "보정 사유",
+  "no_remediations_needed": "보정이 필요한 품질 오류 데이터가 없습니다.",
+  "reference_integrity": "도메인 간 참조 무결성 자동 검증",
+  "reference_integrity_desc": "다른 도메인 또는 상위 레코드를 참조하는 외래키 관계에서 고아(Orphan) 데이터 발생 여부를 실시간 진단합니다.",
+  "integrity_score": "참조 무결성 지수",
+  "orphan_count": "고아 참조 위반 건수",
+  "scanned_records": "검사 완료 레코드",
+  "orphan_details": "고아 참조 위반 내역",
+  "no_orphan_records": "모든 외래 참조 관계가 유효하며 고아 레코드가 없습니다."
 }

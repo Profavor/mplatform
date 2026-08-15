@@ -25,6 +25,7 @@ public interface ApprovalRequestRepository extends JpaRepository<ApprovalRequest
     @Query("SELECT r FROM ApprovalRequest r WHERE (r.requesterId = :requesterId OR r.requesterId = :username OR r.requesterId NOT IN (SELECT u.id FROM User u)) ORDER BY r.createdAt DESC")
     Page<ApprovalRequest> findMyRequestsForUser(@Param("requesterId") String requesterId, @Param("username") String username, Pageable pageable);
     List<ApprovalRequest> findByTargetIdAndStatus(UUID targetId, String status);
+    List<ApprovalRequest> findByTargetIdOrderByCreatedAtAsc(UUID targetId);
     List<ApprovalRequest> findByCreatedAtAfter(java.time.LocalDateTime createdAt);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

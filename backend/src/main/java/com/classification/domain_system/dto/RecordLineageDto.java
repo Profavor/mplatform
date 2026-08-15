@@ -101,4 +101,30 @@ public class RecordLineageDto {
         public Map<String, Map<String, String>> getFieldLabels() { return fieldLabels; }
         public void setFieldLabels(Map<String, Map<String, String>> fieldLabels) { this.fieldLabels = fieldLabels; }
     }
+
+    public static class DomainLineageResponse {
+        private UUID domainId;
+        private String domainName;
+        private List<LineageNode> nodes = new ArrayList<>();
+        private List<LineageEdge> edges = new ArrayList<>();
+
+        public DomainLineageResponse() {}
+
+        public DomainLineageResponse(UUID domainId, String domainName) {
+            this.domainId = domainId;
+            this.domainName = domainName;
+        }
+
+        public UUID getDomainId() { return domainId; }
+        public void setDomainId(UUID domainId) { this.domainId = domainId; }
+
+        public String getDomainName() { return domainName; }
+        public void setDomainName(String domainName) { this.domainName = domainName; }
+
+        public List<LineageNode> getNodes() { return nodes; }
+        public void setNodes(List<LineageNode> nodes) { this.nodes = nodes; }
+
+        public List<LineageEdge> getEdges() { return edges; }
+        public void setEdges(List<LineageEdge> edges) { this.edges = edges; }
+    }
 }

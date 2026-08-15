@@ -58,6 +58,9 @@ class ApprovalServiceTest extends BaseServiceTest {
     @Mock private com.classification.domain_system.service.WorkflowResolver workflowResolver;
     @Mock private com.classification.domain_system.service.ApprovalNotificationFacade notificationFacade;
 
+    @Mock
+    private ApprovalDelegationService delegationService;
+
     @org.mockito.Spy
     @InjectMocks
     private ApprovalQueryService approvalQueryService;
@@ -71,7 +74,7 @@ class ApprovalServiceTest extends BaseServiceTest {
             approvalQueryService = org.mockito.Mockito.spy(new ApprovalQueryService(
                 approvalRepository, stepRepository, domainRepository, fieldDefinitionRepository,
                 fieldDefinitionService, recordRepository, nodeRepository, dataMaskingService,
-                userRepository, roleRepository
+                userRepository, roleRepository, delegationService
             ));
         }
         workflowResolver = new com.classification.domain_system.service.WorkflowResolver(

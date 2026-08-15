@@ -33,17 +33,26 @@ public class RecordLineageService {
     private final IntegrationLogRepository integrationLogRepository;
     private final UserRepository userRepository;
     private final RecordService recordService;
+    private final com.classification.domain_system.repository.DomainRepository domainRepository;
+    private final com.classification.domain_system.repository.ClassificationNodeRepository nodeRepository;
+    private final com.classification.domain_system.repository.IntegrationChannelRepository channelRepository;
 
     public RecordLineageService(RecordRepository recordRepository,
                                 RecordHistoryRepository recordHistoryRepository,
                                 IntegrationLogRepository integrationLogRepository,
                                 UserRepository userRepository,
-                                RecordService recordService) {
+                                RecordService recordService,
+                                com.classification.domain_system.repository.DomainRepository domainRepository,
+                                com.classification.domain_system.repository.ClassificationNodeRepository nodeRepository,
+                                com.classification.domain_system.repository.IntegrationChannelRepository channelRepository) {
         this.recordRepository = recordRepository;
         this.recordHistoryRepository = recordHistoryRepository;
         this.integrationLogRepository = integrationLogRepository;
         this.userRepository = userRepository;
         this.recordService = recordService;
+        this.domainRepository = domainRepository;
+        this.nodeRepository = nodeRepository;
+        this.channelRepository = channelRepository;
     }
 
     public RecordLineageDto.RecordLineageResponse getRecordLineage(UUID recordId) {
@@ -212,5 +221,36 @@ public class RecordLineageService {
             return byName.get().getUsername();
         }
         return rawUser.length() > 8 ? rawUser.substring(0, 8) + "..." : rawUser;
+    }
+
+    public RecordLineageDto.DomainLineageResponse getDomainLineage(UUID domainId) {
+        com.classification.domain_system.entity.Domain domain = domainRepository.findById(domainId)
+                .orElseThrow(() -> new ResourceNotFoundException("Domain not found: " + domainId));
+
+        String domainName = domain.getName() != null ? domain.getName().getOrDefault("ko", domain.getName().getOrDefault("en", "도메인")) : "도메인";
+        RecordLineageDto.DomainLineageResponse response = new RecordLineageDto.DomainLineageResponse(domain.getId(), domainName);
+
+        String domainNodeId = "DOMAIN_" + domain.getId();
+        RecordLineageDto.LineageNode rootNode = new RecordLineageDto.LineageNode(domainNodeId, domainName, "DOMAIN", formatDateTime(domain.getCreatedAt()));
+        response.getNodes().add(rootNode);
+
+        List<com.classification.domain_system.entity.ClassificationNode> nodes = nodeRepository.findByDomain_Id(domainId);
+        for (com.classification.domain_system.entity.ClassificationNode n : nodes) {
+            String nNodeId = "NODE_" + n.getId();
+            String nName = n.getName() != null ? n.getName().getOrDefault("ko", n.getName().getOrDefault("en", "분류 노드")) : "분류 노드";
+            RecordLineageDto.LineageNode childNode = new RecordLineageDto.LineageNode(nNodeId, nName, "NODE", formatDateTime(n.getCreatedAt()));
+            response.getNodes().add(childNode);
+            response.getEdges().add(new RecordLineageDto.LineageEdge(domainNodeId, nNodeId, "CONTAINS"));
+        }
+
+        List<com.classification.domain_system.entity.IntegrationChannel> channels = channelRepository.findAll();
+        for (com.classification.domain_system.entity.IntegrationChannel ch : channels) {
+            String chNodeId = "CHANNEL_" + ch.getId();
+            RecordLineageDto.LineageNode chNode = new RecordLineageDto.LineageNode(chNodeId, ch.getName(), "CHANNEL", formatDateTime(ch.getCreatedAt()));
+            response.getNodes().add(chNode);
+            response.getEdges().add(new RecordLineageDto.LineageEdge(chNodeId, domainNodeId, "SYNC_PIPELINE"));
+        }
+
+        return response;
     }
 }

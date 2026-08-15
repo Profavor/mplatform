@@ -1,181 +1,196 @@
 <template>
-  <div class="profiling-container">
+  <div class="profiling-container" style="padding: 1rem 0;">
     <va-inner-loading :loading="loading">
-      <div v-if="stats && stats.length > 0" class="stats-grid">
-        <va-card v-for="stat in stats" :key="stat.fieldName" class="stat-card">
-          <va-card-title class="stat-header">
-            <va-icon name="analytics" color="primary" class="mr-2"/>
-            {{ stat.fieldName }}
-          </va-card-title>
-          <va-card-content>
-            <div class="stat-row">
-              <span class="stat-label">Total Records:</span>
-              <span class="stat-value font-bold">{{ stat.totalCount }}</span>
+      <!-- Header Controls -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem; background: var(--va-background-element); padding: 1rem; border-radius: 8px; border: 1px solid var(--va-background-border);">
+        <div>
+          <h4 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+            <va-icon name="insights" color="primary" />
+            {{ $t('profiling_title') }}
+          </h4>
+          <p style="margin: 0.25rem 0 0 0; font-size: 0.82rem; color: var(--va-text-secondary);">
+            {{ $t('profiling_desc') }}
+          </p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <span v-if="report?.scannedAt" style="font-size: 0.8rem; color: var(--va-text-secondary);">
+            분석 일시: {{ formatWithTimezone(report.scannedAt) }}
+          </span>
+          <va-button
+            preset="primary"
+            icon="refresh"
+            size="small"
+            :loading="loading"
+            @click="runScan"
+          >
+            {{ $t('run_scan') }}
+          </va-button>
+        </div>
+      </div>
+
+      <!-- Outliers Alert Box if any -->
+      <va-alert
+        v-if="report?.outliers && report.outliers.length > 0"
+        color="warning"
+        outline
+        style="margin-bottom: 1.25rem;"
+      >
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: 700; font-size: 0.9rem;">
+            ⚠️ {{ $t('outliers_found', { count: report.outliers.length }) }}
+          </span>
+        </div>
+        <div style="margin-top: 0.5rem; max-height: 140px; overflow-y: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
+            <thead>
+              <tr style="text-align: left; border-bottom: 1px solid var(--va-background-border);">
+                <th style="padding: 0.3rem 0.5rem;">필드</th>
+                <th style="padding: 0.3rem 0.5rem;">이상치 값</th>
+                <th style="padding: 0.3rem 0.5rem;">탐지 사유</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(out, idx) in report.outliers" :key="idx" style="border-bottom: 1px solid var(--va-background-border);">
+                <td style="padding: 0.3rem 0.5rem; font-weight: 600;">{{ out.fieldKey }}</td>
+                <td style="padding: 0.3rem 0.5rem; color: var(--va-danger); font-weight: bold;">{{ out.value }}</td>
+                <td style="padding: 0.3rem 0.5rem;">{{ out.reason }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </va-alert>
+
+      <!-- Field Profiles Grid -->
+      <div v-if="report?.fieldProfiles && report.fieldProfiles.length > 0" class="stats-grid">
+        <va-card v-for="fp in report.fieldProfiles" :key="fp.fieldKey" class="stat-card">
+          <va-card-title class="stat-header" style="padding-bottom: 0.5rem;">
+            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+              <span style="font-weight: 700; font-size: 0.95rem;">
+                {{ fp.fieldName }} <span style="font-size: 0.8rem; font-weight: normal; color: var(--va-text-secondary);">({{ fp.fieldKey }})</span>
+              </span>
+              <va-badge :text="fp.fieldType" color="info" size="small" />
             </div>
-            
-            <div class="stat-row mt-2">
-              <span class="stat-label">Null Ratio:</span>
-              <span class="stat-value font-bold" :class="getNullColorClass(stat.nullRatio)">
-                {{ (stat.nullRatio * 100).toFixed(1) }}% ({{stat.nullCount}})
+          </va-card-title>
+          <va-card-content style="font-size: 0.85rem; display: flex; flex-direction: column; gap: 0.5rem;">
+            <!-- Null Rate -->
+            <div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+                <span style="color: var(--va-text-secondary);">{{ $t('null_rate') }}:</span>
+                <span :style="{ color: fp.nullRate > 20 ? 'var(--va-danger)' : 'var(--va-text-primary)', fontWeight: 'bold' }">
+                  {{ fp.nullRate }}% ({{ fp.nullCount }}건)
+                </span>
+              </div>
+              <va-progress-bar
+                :model-value="fp.nullRate"
+                :color="fp.nullRate > 30 ? 'danger' : (fp.nullRate > 10 ? 'warning' : 'success')"
+                size="small"
+              />
+            </div>
+
+            <!-- Uniqueness -->
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--va-text-secondary);">{{ $t('uniqueness') }}:</span>
+              <span style="font-weight: bold; color: var(--va-primary);">
+                {{ fp.uniquenessRatio }}% ({{ fp.distinctCount }} 고유값)
               </span>
             </div>
-            <va-progress-bar 
-              :model-value="stat.nullRatio * 100" 
-              :color="getNullColor(stat.nullRatio)" 
-              size="small" 
-              class="mt-1 mb-2" 
-            />
 
-            <div class="stat-row">
-              <span class="stat-label">Cardinality:</span>
-              <span class="stat-value font-bold text-primary">{{ stat.cardinality }} unique</span>
-            </div>
-
-            <!-- Top Values -->
-            <div class="top-values-container mt-3" v-if="stat.topValues && Object.keys(stat.topValues).length > 0">
-              <div class="stat-label mb-1" style="font-size: 0.8rem;">Top Values:</div>
-              <div v-for="(count, val) in stat.topValues" :key="val" class="top-value-row">
-                <span class="top-value-name" :title="val">{{ val }}</span>
-                <span class="top-value-count">{{ count }}</span>
+            <!-- Numeric range if available -->
+            <div v-if="fp.minValue !== null && fp.maxValue !== null" style="background: var(--va-background-secondary); padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; margin-top: 0.25rem;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+                <span>범위 (Min ~ Max):</span>
+                <b>{{ fp.minValue }} ~ {{ fp.maxValue }}</b>
+              </div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+                <span>평균 (Avg):</span>
+                <b>{{ fp.avgValue }}</b>
+              </div>
+              <div v-if="fp.iqrLowerBound !== null" style="display: flex; justify-content: space-between; color: var(--va-text-secondary);">
+                <span>IQR 정상한계:</span>
+                <span>{{ fp.iqrLowerBound }} ~ {{ fp.iqrUpperBound }}</span>
               </div>
             </div>
           </va-card-content>
         </va-card>
       </div>
-      <div v-else-if="!loading" class="empty-state">
-        <va-icon name="info" size="large" color="secondary" />
-        <p class="mt-2 text-secondary">No data available for profiling yet.</p>
+      <div v-else-if="!loading" style="text-align: center; padding: 3rem; color: var(--va-text-secondary);">
+        <va-icon name="analytics" size="large" style="margin-bottom: 0.5rem; opacity: 0.5;" />
+        <p>{{ $t('no_data_available', '프로파일링 가능한 데이터가 없습니다.') }}</p>
       </div>
     </va-inner-loading>
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
-import { useCookie } from '#app'
+import { useI18n } from 'vue-i18n'
+import { useToast } from 'vuestic-ui'
+import { useCustomFetch } from '~/composables/useCustomFetch'
+import { formatWithTimezone } from '~/composables/useTimezoneDate'
 
-const { customFetch } = useCustomFetch()
+const props = defineProps<{
+  domainId: string
+}>()
 
-const props = defineProps({
-  domainId: {
-    type: String,
-    required: true
-  }
-})
+const { t } = useI18n()
+const toast = useToast()
 
-const stats = ref([])
+const report = ref<any>(null)
 const loading = ref(false)
 
 const fetchProfiling = async () => {
   if (!props.domainId) return
   loading.value = true
   try {
-    const res = await customFetch(`/api/v1/domains/${props.domainId}/profiling`)
-    stats.value = res || []
-  } catch (e) {
+    const res = await useCustomFetch(`/domains/${props.domainId}/profiling/report`)
+    if (res.data?.value) {
+      report.value = res.data.value
+    }
+  } catch (e: any) {
     console.error('Failed to fetch profiling data', e)
-    stats.value = []
   } finally {
     loading.value = false
   }
 }
 
-const getNullColorClass = (ratio) => {
-  if (ratio > 0.5) return 'text-danger'
-  if (ratio > 0.1) return 'text-warning'
-  return 'text-success'
+const runScan = async () => {
+  if (!props.domainId) return
+  loading.value = true
+  try {
+    const res = await useCustomFetch(`/domains/${props.domainId}/profiling/scan`, {
+      method: 'POST'
+    })
+    if (res.data?.value) {
+      report.value = res.data.value
+      toast.init({
+        message: '데이터 프로파일링 및 이상치 분석이 완료되었습니다.',
+        color: 'success'
+      })
+    }
+  } catch (e: any) {
+    toast.init({
+      message: '프로파일링 스캔 실패: ' + (e.message || ''),
+      color: 'danger'
+    })
+  } finally {
+    loading.value = false
+  }
 }
 
-const getNullColor = (ratio) => {
-  if (ratio > 0.5) return 'danger'
-  if (ratio > 0.1) return 'warning'
-  return 'success'
-}
-
-watch(() => props.domainId, () => {
-  fetchProfiling()
-})
-
-onMounted(() => {
-  fetchProfiling()
-})
+watch(() => props.domainId, (val) => {
+  if (val) fetchProfiling()
+}, { immediate: true })
 </script>
 
 <style scoped>
-.profiling-container {
-  padding: 1rem;
-  height: 100%;
-  overflow-y: auto;
-}
-
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1rem;
 }
-
 .stat-card {
-  border-radius: 12px;
   border: 1px solid var(--va-background-border);
-  box-shadow: 0 4px 10px rgba(0,0,0,0.03);
-  transition: transform 0.2s;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 15px rgba(0,0,0,0.06);
-}
-
-.stat-header {
-  font-size: 1rem;
-  font-weight: 700;
-  border-bottom: 1px solid var(--va-background-border);
-  padding: 0.75rem 1rem;
-}
-
-.stat-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.9rem;
-}
-
-.stat-label {
-  color: var(--va-text-secondary);
-  font-weight: 500;
-}
-
-.top-values-container {
-  background: var(--va-background-element);
   border-radius: 8px;
-  padding: 0.5rem;
-}
-
-.top-value-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.8rem;
-  padding: 2px 0;
-}
-
-.top-value-name {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 180px;
-  color: var(--va-text-primary);
-}
-
-.top-value-count {
-  font-weight: 600;
-  color: var(--va-text-secondary);
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 300px;
+  background: var(--va-background-element);
 }
 </style>

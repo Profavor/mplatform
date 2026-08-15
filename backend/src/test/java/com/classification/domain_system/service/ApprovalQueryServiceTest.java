@@ -38,6 +38,7 @@ class ApprovalQueryServiceTest {
     @Mock private DataMaskingService dataMaskingService;
     @Mock private UserRepository userRepository;
     @Mock private RoleRepository roleRepository;
+    @Mock private ApprovalDelegationService delegationService;
 
     @InjectMocks
     private ApprovalQueryService approvalQueryService;

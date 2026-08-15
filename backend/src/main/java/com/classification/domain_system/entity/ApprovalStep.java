@@ -68,12 +68,30 @@ public class ApprovalStep {
     @Column(columnDefinition = "bigint default 0")
     private Long version = 0L;
 
+    @Column(name = "sla_hours")
+    private Integer slaHours = 48;
+
+    @Column(name = "sla_due_at")
+    private LocalDateTime slaDueAt;
+
+    @Column(name = "is_escalated", nullable = false)
+    private Boolean isEscalated = false;
+
+    @Column(name = "escalated_from_user_id", length = 100)
+    private String escalatedFromUserId;
+
+    @Column(name = "escalated_at")
+    private LocalDateTime escalatedAt;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = this.createdAt;
         if (this.status == null) {
             this.status = ApprovalStatus.WAITING.name();
+        }
+        if (this.slaDueAt == null) {
+            this.slaDueAt = this.createdAt.plusHours(this.slaHours != null ? this.slaHours : 48);
         }
     }
 

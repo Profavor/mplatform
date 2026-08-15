@@ -111,7 +111,7 @@ const isOpen = computed({
 
 const modalTitle = computed(() => `DQ Rules: ${props.fieldName || 'Field'}`)
 
-const ruleTypeOptions = ['NOT_NULL', 'REGEX', 'RANGE', 'LENGTH', 'ENUM', 'DATE_RANGE', 'UNIQUE', 'CROSS_FIELD', 'CUSTOM_SPEL']
+const ruleTypeOptions = ['NOT_NULL', 'REGEX', 'RANGE', 'LENGTH', 'ENUM', 'DATE_RANGE', 'UNIQUE', 'CROSS_FIELD', 'CUSTOM_SPEL', 'BUSINESS_NO_CHECKSUM', 'CORPORATE_NO_CHECKSUM']
 
 const rules = ref([])
 const loading = ref(false)
@@ -224,7 +224,7 @@ function resetEditParams() {
 
 function buildParams() {
   const type = editForm.ruleType
-  if (type === 'NOT_NULL' || type === 'UNIQUE') return null
+  if (type === 'NOT_NULL' || type === 'UNIQUE' || type === 'BUSINESS_NO_CHECKSUM' || type === 'CORPORATE_NO_CHECKSUM') return null
   if (type === 'REGEX') return JSON.stringify({ pattern: editParams.pattern })
   if (type === 'RANGE') {
     const p = {}

@@ -130,6 +130,13 @@
       @mapping-cell-changed="onMappingCellValueChanged"
       @submit="submitForm"
     />
+
+    <!-- Channel Realtime Metrics & Health Modal -->
+    <ChannelMetricsModal
+      v-model="showMetricsModal"
+      :channel-id="selectedMetricsChannel?.id"
+      :channel-name="parseI18nName(selectedMetricsChannel?.name)"
+    />
   </div>
 </template>
 
@@ -143,6 +150,7 @@ import { useToast } from 'vuestic-ui'
 import { AgGridVue } from 'ag-grid-vue3'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { useI18n } from 'vue-i18n'
+import ChannelMetricsModal from '~/components/integration/ChannelMetricsModal.vue'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useCodeStore } from '~/stores/useCodeStore'
 import ChannelConfigModal from '~/components/admin/ChannelConfigModal.vue'
@@ -205,9 +213,16 @@ const domainFields = computed(() => {
 const isLoading = ref(false)
 const isTesting = ref(false)
 const showModal = ref(false)
+const showMetricsModal = ref(false)
+const selectedMetricsChannel = ref(null)
 const activeModalTab = ref('basic')
 const isEdit = ref(false)
 const form = ref(null)
+
+const openMetricsModal = (channel) => {
+  selectedMetricsChannel.value = channel
+  showMetricsModal.value = true
+}
 
 const directionOptions = computed(() => codeStore.getDropdownOptions('INTEGRATION_DIRECTION'))
 const typeOptions = computed(() => codeStore.getDropdownOptions('INTEGRATION_TYPE'))
@@ -916,11 +931,17 @@ const channelColumnDefs = computed(() => [
   {
     field: 'actions',
     headerName: t('actions'),
-    width: 100,
+    width: 140,
     sortable: false,
     cellRenderer: (params) => {
       const div = document.createElement('div')
       div.style.cssText = 'display: flex; align-items: center; justify-content: center; gap: 0.35rem; height: 100%;'
+
+      const metricsBtn = document.createElement('button')
+      metricsBtn.style.cssText = 'border: none; background: rgba(76, 175, 80, 0.12); color: var(--va-success); border-radius: 6px; padding: 4px 8px; cursor: pointer; display: flex; align-items: center; font-weight: 600; font-size: 0.78rem;'
+      metricsBtn.title = t('channel_metrics')
+      metricsBtn.innerHTML = `<span class="material-icons" style="font-size: 16px;">analytics</span>`
+      metricsBtn.addEventListener('click', () => openMetricsModal(params.data))
 
       const editBtn = document.createElement('button')
       editBtn.style.cssText = 'border: none; background: rgba(25, 118, 210, 0.1); color: var(--va-primary); border-radius: 6px; padding: 4px 8px; cursor: pointer; display: flex; align-items: center; font-weight: 600; font-size: 0.78rem;'
@@ -932,6 +953,7 @@ const channelColumnDefs = computed(() => [
       deleteBtn.innerHTML = `<span class="material-icons" style="font-size: 16px;">delete</span>`
       deleteBtn.addEventListener('click', () => confirmDelete(params.data.id))
 
+      div.appendChild(metricsBtn)
       div.appendChild(editBtn)
       div.appendChild(deleteBtn)
       return div

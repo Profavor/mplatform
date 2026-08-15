@@ -193,8 +193,18 @@
           </tbody>
         </table>
 
-        <div style="display: flex; justify-content: flex-end; margin-top: 1.25rem;">
-          <va-button preset="secondary" @click="showDiffModal = false">닫기</va-button>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.25rem;">
+          <va-button
+            v-if="selectedRollbackVersion"
+            color="warning"
+            size="small"
+            icon="history"
+            @click="showRollbackModal = true"
+          >
+            {{ $t('rollback_btn') }}
+          </va-button>
+          <div v-else></div>
+          <va-button preset="secondary" @click="showDiffModal = false">{{ $t('close') }}</va-button>
         </div>
       </div>
     </va-modal>
@@ -202,6 +212,15 @@
     <UnmaskReasonModal
       v-model="showUnmaskReasonModal"
       @confirm="executePendingDecrypt"
+    />
+
+    <RecordRollbackModal
+      v-model="showRollbackModal"
+      :record-id="String(props.recordId || '')"
+      :record-display-code="formattedRecordTitle"
+      :target-version="selectedRollbackVersion || 1"
+      :diff-rows="diffRows"
+      @success="onRollbackSuccess"
     />
   </va-modal>
 </template>
@@ -213,6 +232,7 @@ import { useCustomFetch } from '~/composables/useCustomFetch'
 import { formatWithTimezone } from '~/composables/useTimezoneDate'
 import { useCookie } from '#app'
 import UnmaskReasonModal from './UnmaskReasonModal.vue'
+import RecordRollbackModal from './records/RecordRollbackModal.vue'
 
 const props = defineProps<{
   modelValue: boolean
@@ -715,6 +735,19 @@ const diffRows = computed(() => {
 
   return rows
 })
+
+const showRollbackModal = ref(false)
+const selectedRollbackVersion = computed(() => {
+  if (selectedNode.value?.details?.version) {
+    return Number(selectedNode.value.details.version)
+  }
+  return null
+})
+
+const onRollbackSuccess = () => {
+  showDiffModal.value = false
+  fetchLineage()
+}
 </script>
 
 <style scoped>
