@@ -63,4 +63,49 @@ class CalculatedFieldEvaluatorTest {
 
         assertThat(outputJson).contains("\"TARGET\":30");
     }
+
+    @Test
+    @DisplayName("recomputeCalculatedFields - DAG 위상 정렬을 통해 정의 순서와 무관하게 다단계 계산 필드를 올바르게 계산한다")
+    void recomputeCalculatedFields_TopologicalOrder() {
+        // C depends on B, B depends on A (역순 정의: C, B)
+        FieldDefinition fieldC = new FieldDefinition();
+        fieldC.setType("CALCULATED");
+        fieldC.setKey("TOTAL");
+        fieldC.setOptions("{\"formula\":\"${SUBTOTAL} + 5000\"}");
+
+        FieldDefinition fieldB = new FieldDefinition();
+        fieldB.setType("CALCULATED");
+        fieldB.setKey("SUBTOTAL");
+        fieldB.setOptions("{\"formula\":\"${UNIT_PRICE} * ${QTY}\"}");
+
+        when(fieldDefinitionService.getEffectiveFields(eq(nodeId))).thenReturn(List.of(fieldC, fieldB));
+
+        String inputJson = "{\"UNIT_PRICE\": 1000, \"QTY\": 3}";
+        String outputJson = evaluator.recomputeCalculatedFields(nodeId, inputJson);
+
+        assertThat(outputJson).contains("\"SUBTOTAL\":3000");
+        assertThat(outputJson).contains("\"TOTAL\":8000");
+    }
+
+    @Test
+    @DisplayName("recomputeCalculatedFields - 순환 참조(A -> B -> A) 감지 시 무한 루프 없이 안전하게 처리한다")
+    void recomputeCalculatedFields_CircularDependencyProtection() {
+        FieldDefinition fieldA = new FieldDefinition();
+        fieldA.setType("CALCULATED");
+        fieldA.setKey("FIELD_A");
+        fieldA.setOptions("{\"formula\":\"${FIELD_B} + 10\"}");
+
+        FieldDefinition fieldB = new FieldDefinition();
+        fieldB.setType("CALCULATED");
+        fieldB.setKey("FIELD_B");
+        fieldB.setOptions("{\"formula\":\"${FIELD_A} * 2\"}");
+
+        when(fieldDefinitionService.getEffectiveFields(eq(nodeId))).thenReturn(List.of(fieldA, fieldB));
+
+        String inputJson = "{\"BASE\": 100}";
+        // 순환 참조 시 예외 없이 원래 데이터 또는 안전한 결과 반환
+        String outputJson = evaluator.recomputeCalculatedFields(nodeId, inputJson);
+        assertThat(outputJson).isNotNull();
+    }
 }
+

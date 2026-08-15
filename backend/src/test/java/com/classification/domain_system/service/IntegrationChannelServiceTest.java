@@ -20,15 +20,17 @@ public class IntegrationChannelServiceTest {
 
     private IntegrationChannelService service;
     private IntegrationChannelRepository repository;
+    private com.classification.domain_system.repository.IntegrationLogRepository logRepository;
     private FieldEncryptionService encryptionService;
     private JdbcDynamicExecutionService jdbcService;
 
     @BeforeEach
     void setUp() {
         repository = mock(IntegrationChannelRepository.class);
+        logRepository = mock(com.classification.domain_system.repository.IntegrationLogRepository.class);
         encryptionService = mock(FieldEncryptionService.class);
         jdbcService = mock(JdbcDynamicExecutionService.class);
-        service = new IntegrationChannelService(repository, encryptionService, jdbcService);
+        service = new IntegrationChannelService(repository, logRepository, encryptionService, jdbcService);
     }
 
     @Test

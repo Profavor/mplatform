@@ -48,7 +48,12 @@
         @upload-excel="showExcelUploader = true"
         @open-lineage="showLineageModal = true"
         @open-compare="showCompareModal = true"
+        @open-bulk-reclassify="showBulkReclassifyModal = true"
         @open-export="showAsyncExportModal = true"
+        @open-autonomous-cleansing="showAutonomousCleansingModal = true"
+        @open-ai-structurizer="showAiStructurizerModal = true"
+        @open-business-rule-builder="showBusinessRuleBuilderModal = true"
+        @open-cdc-stream="showCdcStreamModal = true"
         @reset-filters="clearFilters"
         @refresh="refreshRecords"
       >
@@ -258,6 +263,14 @@
       @submit="executePendingSave"
     />
 
+    <!-- Bulk Reclassify Modal (대량 분류 이동) -->
+    <BulkReclassifyModal
+      v-model="showBulkReclassifyModal"
+      :selected-record-ids="selectedRecordRows.map(r => r.id || r.recordId)"
+      :domain-id="selectedDomainId"
+      @reclassified="onRecordsReclassified"
+    />
+
     <!-- Diff Modal -->
     <RecordsDiffModal
       v-model="showDiffModal"
@@ -292,6 +305,30 @@
       :domainId="selectedDomainId"
       :gridApi="gridApi"
     />
+
+    <!-- AI Autonomous Cleansing Modal -->
+    <AutonomousCleansingModal
+      v-model="showAutonomousCleansingModal"
+      :domainId="selectedDomainId"
+    />
+
+    <!-- AI Unstructured Data Structurizer Modal -->
+    <UnstructuredDataModal
+      v-model="showAiStructurizerModal"
+      :domainId="selectedDomainId"
+    />
+
+    <!-- Business Rule Builder Modal -->
+    <BusinessRuleBuilderModal
+      v-model="showBusinessRuleBuilderModal"
+      :domainId="selectedDomainId"
+    />
+
+    <!-- CDC Stream Inspector Modal -->
+    <CdcStreamModal
+      v-model="showCdcStreamModal"
+      :domainId="selectedDomainId"
+    />
   </div>
 </div>
 </template>
@@ -313,6 +350,16 @@ import RecordCompareModal from '~/components/records/RecordCompareModal.vue'
 import RecordLineageModal from '~/components/RecordLineageModal.vue'
 import AsyncBatchExportModal from '~/components/AsyncBatchExportModal.vue'
 import ApprovalViewerModal from '~/components/ApprovalViewerModal.vue'
+import BulkReclassifyModal from '~/components/records/BulkReclassifyModal.vue'
+import AutonomousCleansingModal from '~/components/records/AutonomousCleansingModal.vue'
+import UnstructuredDataModal from '~/components/records/UnstructuredDataModal.vue'
+import BusinessRuleBuilderModal from '~/components/records/BusinessRuleBuilderModal.vue'
+import CdcStreamModal from '~/components/records/CdcStreamModal.vue'
+
+const showAutonomousCleansingModal = ref(false)
+const showAiStructurizerModal = ref(false)
+const showBusinessRuleBuilderModal = ref(false)
+const showCdcStreamModal = ref(false)
 
 import { useColors, useModal, useToast } from 'vuestic-ui'
 import { useI18n } from 'vue-i18n'
@@ -335,7 +382,13 @@ const token = useCookie('auth_token', { default: () => '' })
 const showCompareModal = ref(false)
 const showLineageModal = ref(false)
 const showAsyncExportModal = ref(false)
+const showBulkReclassifyModal = ref(false)
 const selectedRecordRows = ref([])
+
+const onRecordsReclassified = (result) => {
+  fetchRecords()
+  selectedRecordRows.value = []
+}
 
 const selectedDomainId = computed(() => {
   return selectedNode.value?.domainId || selectedNode.value?.id || null
@@ -2258,8 +2311,10 @@ const promptDraftComment = async (action, eventPayload) => {
 
   const formattedData = formatDataForSave(targetData)
 
+  dqValidationResult.value = null
   dqValidating.value = true
   showDqValidationModal.value = true
+
   try {
     const recIdQuery = action === 'UPDATE' && selectedRecordId.value ? `&recordId=${selectedRecordId.value}` : ''
     const res = await customFetch(`/api/dq-rules/validate?nodeId=${selectedNode.value.id}${recIdQuery}`, {

@@ -80,9 +80,38 @@ class SystemInstallServiceTest {
         assertNotNull(installedUser);
         assertEquals("superadmin", installedUser.getUsername());
         assertEquals("ROLE_ADMIN", installedUser.getRole());
+        assertEquals("superadmin@example.com", installedUser.getEmail());
 
         verify(configRepository, times(1)).save(any(SystemConfig.class));
         verify(roleInitializer, times(1)).createDefaultRolesForOrg(any(UUID.class));
+    }
+
+    @Test
+    @DisplayName("조직 이메일 도메인 입력 시 조직에 저장되고 관리자 이메일이 자동 조합된다")
+    void testInstallSystemWithEmailDomain() {
+        SystemInstallRequest request = new SystemInstallRequest();
+        request.setAdminUsername("admin01");
+        request.setAdminPassword("Password123!");
+        request.setOrganizationNameKo("본사");
+        request.setEmailDomain("@profavor.com");
+
+        when(configRepository.findById("IS_INSTALLED")).thenReturn(Optional.empty());
+        when(userRepository.findByUsername("admin01")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode("Password123!")).thenReturn("encoded_pwd");
+        
+        org.mockito.ArgumentCaptor<Organization> orgCaptor = org.mockito.ArgumentCaptor.forClass(Organization.class);
+        when(organizationRepository.save(orgCaptor.capture())).thenAnswer(i -> {
+            Organization o = i.getArgument(0);
+            o.setId(UUID.randomUUID());
+            return o;
+        });
+        when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
+
+        User installedUser = installService.installSystem(request);
+
+        assertNotNull(installedUser);
+        assertEquals("admin01@profavor.com", installedUser.getEmail());
+        assertEquals("profavor.com", orgCaptor.getValue().getEmailDomain());
     }
 
     @Test

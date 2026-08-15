@@ -57,7 +57,9 @@ public class ApprovalService {
     private final RecordHistoryRepository recordHistoryRepository;
     private final FieldDefinitionService fieldDefinitionService;
     private final MatchingService matchingService;
-        private final UserRepository userRepository;
+    private final UserRepository userRepository;
+    @org.springframework.context.annotation.Lazy
+    private final ApprovalDelegationService delegationService;
         private final com.classification.domain_system.repository.DomainRepository domainRepository;
     private final com.classification.domain_system.repository.FieldDefinitionRepository fieldDefinitionRepository;
     private final CalculatedFieldEvaluator calculatedFieldEvaluator;
@@ -615,6 +617,13 @@ public class ApprovalService {
                 return true;
             }
         }
+
+        // 4. Check Active Delegation Match (Proxy Approver)
+        if (step.getAssigneeId() != null && delegationService != null) {
+            if (delegationService.isDelegatedApprover(approverId, step.getAssigneeId())) {
+                return true;
+            }
+        }
         return false;
     }
 
@@ -630,8 +639,11 @@ public class ApprovalService {
             throw new BusinessException(ErrorCode.STEP_NOT_PENDING, "Step is not pending");
         }
         
+        boolean isProxy = step.getAssigneeId() != null && !approverId.equals(step.getAssigneeId()) && delegationService != null && delegationService.isDelegatedApprover(approverId, step.getAssigneeId());
+        String finalComment = (isProxy ? "[대결] " : "") + (comment != null ? comment : "");
+
         step.setStatus(ApprovalStatus.APPROVED.name());
-        step.setComment(comment);
+        step.setComment(finalComment);
         stepRepository.saveAndFlush(step);
         
         ApprovalRequest approval = step.getApprovalRequest();
@@ -657,9 +669,12 @@ public class ApprovalService {
         if (!ApprovalStatus.PENDING.name().equals(step.getStatus())) {
             throw new BusinessException(ErrorCode.STEP_NOT_PENDING, "Step is not pending");
         }
+
+        boolean isProxy = step.getAssigneeId() != null && !approverId.equals(step.getAssigneeId()) && delegationService != null && delegationService.isDelegatedApprover(approverId, step.getAssigneeId());
+        String finalComment = (isProxy ? "[대결] " : "") + (comment != null ? comment : "");
         
         step.setStatus(ApprovalStatus.REJECTED.name());
-        step.setComment(comment);
+        step.setComment(finalComment);
         stepRepository.saveAndFlush(step);
         
         ApprovalRequest approval = step.getApprovalRequest();

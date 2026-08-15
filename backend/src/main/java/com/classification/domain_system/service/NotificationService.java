@@ -1,27 +1,16 @@
 package com.classification.domain_system.service;
 
-import com.classification.domain_system.entity.ApprovalRequest;
+import com.classification.domain_system.dto.NotificationDto;
 import com.classification.domain_system.entity.Notification;
-import com.classification.domain_system.entity.User;
-import com.classification.domain_system.repository.ApprovalRequestRepository;
 import com.classification.domain_system.repository.NotificationRepository;
-import com.classification.domain_system.repository.UserRepository;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import com.classification.domain_system.entity.enums.ApprovalStatus;
-import com.classification.domain_system.entity.enums.ApprovalTargetType;
-import com.classification.domain_system.entity.enums.RecordStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -29,127 +18,12 @@ import java.util.UUID;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
-    private final SseNotificationService sseNotificationService;
-    private final com.classification.domain_system.websocket.WebSocketPublisher webSocketPublisher;
-    private final ApprovalRequestRepository approvalRepository;
-    private final UserRepository userRepository;
-
-    @Transactional
-    public Notification createNotification(String userId, String title, String message, String type, String linkUrl) {
-        Notification notification = new Notification();
-        notification.setUserId(userId);
-        notification.setTitle(title);
-        notification.setMessage(message);
-        notification.setType(type);
-        notification.setLinkUrl(linkUrl);
-        notification.setIsRead(false);
-
-        Notification saved = notificationRepository.save(notification);
-
-        if (sseNotificationService != null) {
-            try {
-                sseNotificationService.sendNotification(userId, saved);
-                User targetUser = userRepository.findById(userId).orElse(null);
-                if (targetUser != null && targetUser.getUsername() != null && !targetUser.getUsername().equals(userId)) {
-                    sseNotificationService.sendNotification(targetUser.getUsername(), saved);
-                }
-            } catch (Exception e) {
-                log.error("Failed to push SSE notification for user {}", userId, e);
-            }
-        }
-
-        if (webSocketPublisher != null) {
-            try {
-                webSocketPublisher.publishNotification(userId, saved);
-                User targetUser = userRepository.findById(userId).orElse(null);
-                if (targetUser != null && targetUser.getUsername() != null && !targetUser.getUsername().equals(userId)) {
-                    webSocketPublisher.publishNotification(targetUser.getUsername(), saved);
-                }
-            } catch (Exception e) {
-                log.error("Failed to push WebSocket notification for user {}", userId, e);
-            }
-        }
-
-        return saved;
-    }
-
-    @Transactional
-    public Notification markAsRead(UUID id, String currentUserId) {
-        Notification notification = notificationRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Notification not found with ID: " + id));
-        if (!notification.getUserId().equals(currentUserId)) {
-            throw new org.springframework.security.access.AccessDeniedException("User does not have permission to mark this notification as read");
-        }
-        notification.setIsRead(true);
-        return notificationRepository.save(notification);
-    }
-
-    @Transactional
-    public int markAllAsRead(String userId) {
-        return notificationRepository.markAllAsRead(userId);
-    }
-
-    @Transactional
-    public void deleteNotification(UUID id, String currentUserId) {
-        Notification notification = notificationRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Notification not found with ID: " + id));
-        if (!notification.getUserId().equals(currentUserId)) {
-            throw new org.springframework.security.access.AccessDeniedException("User does not have permission to delete this notification");
-        }
-        notificationRepository.deleteById(id);
-    }
-
-    @Transactional
-    public int deleteAllUserNotifications(String userId) {
-        return notificationRepository.deleteByUserId(userId);
-    }
-
-    @Transactional
-    public void markApprovalNotificationsAsRead(UUID approvalRequestId) {
-        if (approvalRequestId == null) return;
-        try {
-            List<Notification> pendingNotifs = notificationRepository.findByLinkUrlContainingAndIsReadFalse(approvalRequestId.toString());
-            for (Notification n : pendingNotifs) {
-                n.setIsRead(true);
-                notificationRepository.save(n);
-            }
-        } catch (Exception e) {
-            log.warn("Failed to mark approval notifications as read for request {}", approvalRequestId, e);
-        }
-    }
-
-    @Transactional
-    public void updateApprovalNotificationsToProcessed(UUID approvalId, String approverName, String actionType) {
-        if (approvalId == null) return;
-        try {
-            String linkUrlPart = "requestId=" + approvalId;
-            List<Notification> list = notificationRepository.findByLinkUrlContaining(linkUrlPart);
-            String actionLabel = ApprovalStatus.REJECTED.name().equalsIgnoreCase(actionType) ? "반려" : "승인";
-            String statusPrefix = "[처리 완료] ";
-            String statusText = (approverName != null && !approverName.isBlank() ? approverName : "담당자") + "님에 의해 " + actionLabel + " 처리되었습니다.";
-
-            for (Notification n : list) {
-                String origMsg = n.getMessage() != null ? n.getMessage() : "";
-                if (!origMsg.startsWith(statusPrefix)) {
-                    n.setMessage(statusPrefix + statusText + " (" + origMsg + ")");
-                    notificationRepository.save(n);
-                    if (webSocketPublisher != null) {
-                        try {
-                            webSocketPublisher.publishNotification(n.getUserId(), n);
-                        } catch (Exception ignored) {}
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Failed to update approval notifications to processed for request: {}", approvalId, e);
-        }
-    }
 
     @Transactional(readOnly = true)
-    public Page<Notification> getUserNotifications(String userId, Pageable pageable) {
-        Page<Notification> page = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
-        page.getContent().forEach(this::enrichNotification);
-        return page;
+    public List<NotificationDto.NotificationResponse> getMyNotifications(String userId) {
+        return notificationRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
@@ -157,165 +31,71 @@ public class NotificationService {
         return notificationRepository.countByUserIdAndIsReadFalse(userId);
     }
 
-    private void enrichNotification(Notification notification) {
-        if (notification == null) return;
-        String message = notification.getMessage();
-        String linkUrl = notification.getLinkUrl();
-
-        UUID approvalId = null;
-        if (linkUrl != null && linkUrl.contains("requestId=")) {
-            try {
-                String reqIdStr = linkUrl.split("requestId=")[1].split("&")[0];
-                approvalId = UUID.fromString(reqIdStr);
-            } catch (Exception ignored) {}
-        } else if (linkUrl != null && linkUrl.startsWith("/approvals/")) {
-            try {
-                approvalId = UUID.fromString(linkUrl.substring("/approvals/".length()));
-            } catch (Exception ignored) {}
+    @Transactional
+    public boolean markAsRead(UUID id, String userId) {
+        Notification n = notificationRepository.findById(id).orElse(null);
+        if (n != null && n.getUserId().equals(userId)) {
+            n.setRead(true);
+            notificationRepository.save(n);
+            return true;
         }
-
-        if (approvalId == null && message != null && message.contains(":")) {
-            String[] parts = message.split(":");
-            if (parts.length > 1) {
-                try {
-                    approvalId = UUID.fromString(parts[1].trim());
-                } catch (Exception ignored) {}
-            }
-        }
-
-        if (approvalId != null) {
-            final UUID targetApprovalId = approvalId;
-            approvalRepository.findById(targetApprovalId).ifPresent(approval -> {
-                String actionLabel = resolveActionLabel(approval.getTargetType());
-                String requesterName = resolveUserName(approval.getRequesterId());
-                String domainName = resolveDomainName(approval);
-                String classificationName = resolveClassificationName(approval);
-                String summary = extractChangeSummary(approval);
-
-                boolean isProcessed = notification.getMessage() != null && notification.getMessage().contains("[처리 완료]");
-                String prefix = isProcessed ? "[처리 완료] " : "";
-
-                notification.setTitle("@i18n:notifications.approval_pending");
-                notification.setMessage(prefix + buildNotificationMessage(actionLabel, requesterName, domainName, classificationName, summary, approval.getTargetType()));
-                notification.setLinkUrl("/approvals?requestId=" + targetApprovalId);
-            });
-        }
+        return false;
     }
 
-    private String resolveActionLabel(String targetType) {
-        if (targetType == null) return "결재";
-        switch (targetType) {
-            case "RECORD": return "신규 등록";
-            case "RECORD_UPDATE": return "정보 변경";
-            case "RECORD_DELETE": return "삭제/폐기";
-            default:
-                if (targetType.startsWith("SCHEMA_")) return "스키마 변경";
-                return "결재";
-        }
+    @Transactional
+    public int markAllAsRead(String userId) {
+        return notificationRepository.markAllAsReadByUserId(userId);
     }
 
-    private String resolveUserName(String userId) {
-        if (userId == null) return "사용자";
-        return userRepository.findById(userId)
-                .map(User::getUsername)
-                .orElse("사용자");
+    @Transactional
+    public NotificationDto.NotificationResponse createNotification(NotificationDto.NotificationCreateRequest request) {
+        if (request == null || request.getUserId() == null) {
+            return null;
+        }
+        return createNotification(
+                request.getUserId(),
+                request.getTitle(),
+                request.getMessage(),
+                request.getType(),
+                request.getLinkUrl()
+        );
     }
 
-    private String resolveDomainName(ApprovalRequest approval) {
-        if (approval.getClassificationNode() != null && approval.getClassificationNode().getDomain() != null) {
-            Map<String, String> nameMap = approval.getClassificationNode().getDomain().getName();
-            if (nameMap != null && nameMap.containsKey("ko")) return nameMap.get("ko");
-            if (nameMap != null && !nameMap.isEmpty()) return nameMap.values().iterator().next();
+    @Transactional
+    public NotificationDto.NotificationResponse createNotification(String userId, String title, String message, String type, String linkUrl) {
+        if (userId == null) {
+            log.warn("Notification skipped: userId is null");
+            return null;
         }
-        if (approval.getChanges() != null && !approval.getChanges().isBlank()) {
-            try {
-                ObjectMapper mapper = new ObjectMapper();
-                JsonNode root = mapper.readTree(approval.getChanges());
-                if (root.has("domainName") && root.get("domainName").isValueNode()) {
-                    return root.get("domainName").asText();
-                }
-            } catch (Exception ignored) {}
-        }
-        return "도메인";
+        Notification notification = Notification.builder()
+                .userId(userId)
+                .title(title != null ? title : "알림")
+                .message(message != null ? message : "")
+                .type(type != null ? type : "SYSTEM")
+                .linkUrl(linkUrl)
+                .isRead(false)
+                .build();
+
+        Notification saved = notificationRepository.save(notification);
+        return toResponse(saved);
     }
 
-    private String resolveClassificationName(ApprovalRequest approval) {
-        if (approval.getClassificationNode() != null) {
-            Map<String, String> nameMap = approval.getClassificationNode().getName();
-            if (nameMap != null && nameMap.containsKey("ko")) return nameMap.get("ko");
-            if (nameMap != null && !nameMap.isEmpty()) return nameMap.values().iterator().next();
-        }
-        return "분류";
+    @Transactional
+    public void updateApprovalNotificationsToProcessed(UUID approvalRequestId, String approverName, String status) {
+        log.info("Approval notification processed for request {}: approver={}, status={}", approvalRequestId, approverName, status);
     }
 
-    private String extractChangeSummary(ApprovalRequest approval) {
-        if (approval.getChanges() == null || approval.getChanges().isBlank()) return "";
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode root = mapper.readTree(approval.getChanges());
-            List<String> summaryParts = new ArrayList<>();
-
-            // 0. Include domainName for schema changes
-            if (approval.getTargetType() != null && approval.getTargetType().startsWith("SCHEMA_")) {
-                String domainName = resolveDomainName(approval);
-                if (domainName != null && !domainName.isBlank() && !"도메인".equals(domainName)) {
-                    summaryParts.add("domainName: " + domainName);
-                }
-            }
-
-            List<String> ignoreKeys = List.of("id", "version", "fieldGroupId", "domainId", "nodeId", "requesterId", "domainName", "classificationName");
-
-            if (root.has("before") && root.has("after")) {
-                JsonNode beforeNode = root.get("before");
-                JsonNode afterNode = root.get("after");
-                afterNode.fieldNames().forEachRemaining(key -> {
-                    if (summaryParts.size() < 4 && !key.startsWith("_") && !ignoreKeys.contains(key)) {
-                        String bVal = beforeNode.has(key) && beforeNode.get(key).isValueNode() ? beforeNode.get(key).asText() : "";
-                        String aVal = afterNode.has(key) && afterNode.get(key).isValueNode() ? afterNode.get(key).asText() : "";
-                        if (!bVal.equals(aVal)) {
-                            summaryParts.add(key + ": " + (bVal.isBlank() ? "N/A" : bVal) + " ➔ " + (aVal.isBlank() ? "N/A" : aVal));
-                        }
-                    }
-                });
-            } else {
-                JsonNode dataNode = root;
-                if (dataNode.has("after")) dataNode = dataNode.get("after");
-                if (dataNode.has("request")) dataNode = dataNode.get("request");
-                
-                final JsonNode targetNode = dataNode;
-                List<String> priorityKeys = List.of("name", "key", "code", "title", "empNo", "userName", "idAttr");
-                for (String pKey : priorityKeys) {
-                    if (targetNode.has(pKey) && targetNode.get(pKey).isValueNode()) {
-                        summaryParts.add(pKey + ": " + targetNode.get(pKey).asText());
-                    }
-                }
-
-                targetNode.fieldNames().forEachRemaining(key -> {
-                    if (summaryParts.size() < 4 && !priorityKeys.contains(key) && !key.startsWith("_") && !ignoreKeys.contains(key)) {
-                        JsonNode val = targetNode.get(key);
-                        if (val.isValueNode()) {
-                            summaryParts.add(key + ": " + val.asText());
-                        }
-                    }
-                });
-            }
-            return String.join(", ", summaryParts);
-        } catch (Exception e) {
-            return "";
-        }
-    }
-
-    private String buildNotificationMessage(String actionLabel, String requesterName, String domainName, String classificationName, String summary, String targetType) {
-        StringBuilder sb = new StringBuilder();
-        if (targetType != null && targetType.startsWith("SCHEMA_")) {
-            sb.append("[스키마 변경] ");
-        } else {
-            sb.append("[").append(domainName).append(" > ").append(classificationName).append("] ");
-        }
-        sb.append(requesterName).append(" | ").append(actionLabel);
-        if (!summary.isBlank()) {
-            sb.append(" (").append(summary).append(")");
-        }
-        return sb.toString();
+    private NotificationDto.NotificationResponse toResponse(Notification n) {
+        if (n == null) return null;
+        return NotificationDto.NotificationResponse.builder()
+                .id(n.getId())
+                .userId(n.getUserId())
+                .title(n.getTitle())
+                .message(n.getMessage())
+                .type(n.getType())
+                .linkUrl(n.getLinkUrl())
+                .isRead(n.isRead())
+                .createdAt(n.getCreatedAt())
+                .build();
     }
 }

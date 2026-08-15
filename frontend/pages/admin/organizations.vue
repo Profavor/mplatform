@@ -603,7 +603,7 @@ const teams = ref([])
 const roles = ref([])
 
 const showCreateOrgModalFlag = ref(false)
-const newOrgForm = ref({ name: '', displayNameKo: '', displayNameEn: '', descriptionKo: '', descriptionEn: '', icon: 'corporate_fare' })
+const newOrgForm = ref({ name: '', displayNameKo: '', displayNameEn: '', descriptionKo: '', descriptionEn: '', emailDomain: '', icon: 'corporate_fare' })
 
 const showCreateDeptModalFlag = ref(false)
 const newDeptForm = ref({ parentDepartmentId: null, nameKo: '', nameEn: '', descriptionKo: '', descriptionEn: '', roles: [], icon: 'folder' })
@@ -1159,7 +1159,7 @@ const confirmDeleteOrganization = async () => {
 }
 
 const openCreateOrgModal = () => {
-  newOrgForm.value = { name: '', displayNameKo: '', displayNameEn: '', descriptionKo: '', descriptionEn: '', icon: 'corporate_fare' }
+  newOrgForm.value = { name: '', displayNameKo: '', displayNameEn: '', descriptionKo: '', descriptionEn: '', emailDomain: '', icon: 'corporate_fare' }
   showCreateOrgModalFlag.value = true
 }
 
@@ -1172,6 +1172,7 @@ const saveNewOrg = async () => {
         name: newOrgForm.value.name.trim(),
         displayName: JSON.stringify({ ko: newOrgForm.value.displayNameKo || newOrgForm.value.name, en: newOrgForm.value.displayNameEn || newOrgForm.value.displayNameKo || newOrgForm.value.name }),
         description: JSON.stringify({ ko: newOrgForm.value.descriptionKo, en: newOrgForm.value.descriptionEn }),
+        emailDomain: newOrgForm.value.emailDomain ? newOrgForm.value.emailDomain.trim() : null,
         icon: newOrgForm.value.icon || 'corporate_fare'
       }
     })
@@ -1198,6 +1199,7 @@ const saveOrgInfo = async (editOrgFormData) => {
         name: editOrgFormData.name,
         displayName: JSON.stringify({ ko: editOrgFormData.displayNameKo || editOrgFormData.name, en: editOrgFormData.displayNameEn || editOrgFormData.displayNameKo || editOrgFormData.name }),
         description: JSON.stringify({ ko: editOrgFormData.descriptionKo, en: editOrgFormData.descriptionEn }),
+        emailDomain: editOrgFormData.emailDomain ? editOrgFormData.emailDomain.trim() : null,
         icon: editOrgFormData.icon
       }
     })

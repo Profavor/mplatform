@@ -61,6 +61,14 @@
             :min-rows="2"
           />
         </div>
+        <div>
+          <va-input
+            v-model="editOrgForm.emailDomain"
+            :label="t('email_domain', '이메일 도메인')"
+            :placeholder="t('placeholder_email_domain', '예: company.com')"
+            :messages="[t('org_email_domain_desc', '조직의 기본 이메일 도메인을 설정합니다.')]"
+          />
+        </div>
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
           <va-button
             v-if="organization && organization.id !== '00000000-0000-0000-0000-000000000001'"
@@ -208,6 +216,7 @@ const editOrgForm = ref({
   displayNameEn: '',
   descriptionKo: '',
   descriptionEn: '',
+  emailDomain: '',
   icon: 'corporate_fare'
 })
 
@@ -257,6 +266,7 @@ watch(
       displayNameEn: parsedDn.en,
       descriptionKo: parsedDesc.ko,
       descriptionEn: parsedDesc.en,
+      emailDomain: org.emailDomain || '',
       icon: org.icon || 'corporate_fare'
     }
   },

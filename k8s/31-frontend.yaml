@@ -19,7 +19,7 @@ spec:
         - "mplatform.local"
       containers:
       - name: frontend
-        image: mplatform-frontend:latest
+        image: mplatform-frontend:v6
         imagePullPolicy: Never
         ports:
         - containerPort: 3000

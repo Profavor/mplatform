@@ -44,6 +44,9 @@ public class OrganizationServiceImpl implements OrganizationService {
     @Override
     @Transactional
     public Organization createOrganization(Organization org) {
+        if (org.getEmailDomain() != null) {
+            org.setEmailDomain(org.getEmailDomain().trim().replaceAll("^@", ""));
+        }
         Organization saved = organizationRepository.save(org);
         roleInitializer.createDefaultRolesForOrg(saved.getId());
         return saved;
@@ -57,6 +60,9 @@ public class OrganizationServiceImpl implements OrganizationService {
                     existing.setDisplayName(req.getDisplayName());
                     existing.setDescription(req.getDescription());
                     existing.setIcon(req.getIcon());
+                    if (req.getEmailDomain() != null) {
+                        existing.setEmailDomain(req.getEmailDomain().trim().replaceAll("^@", ""));
+                    }
                     return organizationRepository.save(existing);
                 });
     }

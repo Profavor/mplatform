@@ -11,6 +11,7 @@ import java.util.UUID;
 @Repository
 public interface IntegrationLogRepository extends JpaRepository<IntegrationLog, UUID> {
     Page<IntegrationLog> findByChannelId(UUID channelId, Pageable pageable);
+    java.util.List<IntegrationLog> findByChannelIdAndCreatedAtAfter(UUID channelId, java.time.LocalDateTime since);
     java.util.List<IntegrationLog> findByRecordIdOrderByCreatedAtDesc(UUID recordId);
     Page<IntegrationLog> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);
     java.util.List<IntegrationLog> findByStatus(String status);

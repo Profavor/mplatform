@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -56,5 +57,27 @@ public class IntegrationChannelController {
             return ResponseEntity.ok().build();
         }
         return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/{id}/metrics")
+    @PreAuthorize("hasPermission(null, 'integration:read')")
+    public ResponseEntity<com.classification.domain_system.dto.IntegrationMetricsDto> getChannelMetrics(@PathVariable UUID id) {
+        return ResponseEntity.ok(service.getChannelMetrics(id));
+    }
+
+    @PostMapping("/{id}/ping")
+    @PreAuthorize("hasPermission(null, 'integration:read') or hasPermission(null, 'integration:write')")
+    public ResponseEntity<com.classification.domain_system.dto.IntegrationMetricsDto> pingChannel(@PathVariable UUID id) {
+        return ResponseEntity.ok(service.pingChannel(id));
+    }
+
+    @PostMapping("/smart-mapping-recommend")
+    @PreAuthorize("hasPermission(null, 'integration:read') or hasPermission(null, 'integration:write')")
+    public ResponseEntity<List<com.classification.domain_system.dto.SmartMappingRecommendationDto>> getSmartMappingRecommendations(
+            @RequestBody Map<String, Object> requestBody,
+            @org.springframework.beans.factory.annotation.Autowired com.classification.domain_system.service.SmartMappingService smartMappingService) {
+        UUID domainId = UUID.fromString(String.valueOf(requestBody.get("domainId")));
+        String samplePayload = String.valueOf(requestBody.get("samplePayload"));
+        return ResponseEntity.ok(smartMappingService.recommendMappings(domainId, samplePayload));
     }
 }

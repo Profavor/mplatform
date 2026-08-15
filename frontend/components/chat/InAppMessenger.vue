@@ -491,7 +491,7 @@
           <div style="display: flex; align-items: center; gap: 12px;">
             <!-- Avatar with Presence Status Dot -->
             <div style="position: relative; display: inline-flex;">
-              <va-avatar size="small" color="primary">{{ (m.username || 'U').charAt(0).toUpperCase() }}</va-avatar>
+              <va-avatar size="small" color="primary">{{ (formatMemberDisplay(m) || 'U').charAt(0).toUpperCase() }}</va-avatar>
               <span
                 :style="{
                   position: 'absolute',
@@ -510,12 +510,12 @@
 
             <div>
               <div style="font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
-                <span>{{ m.username }}</span>
+                <span>{{ formatMemberDisplay(m) }}</span>
                 <va-badge v-if="isMe(m)" color="success" size="small">{{ $t('messenger.meBadge') }}</va-badge>
                 <va-badge v-if="isCreator(m)" color="warning" size="small">{{ $t('messenger.creatorBadge') }}</va-badge>
               </div>
               <div style="font-size: 0.75rem; color: var(--va-text-secondary); margin-top: 1px;">
-                {{ m.role || 'USER' }}
+                {{ m.role || 'ROLE_USER' }}
               </div>
             </div>
           </div>
@@ -759,11 +759,13 @@ import TableDataViewerModal from '~/components/chat/TableDataViewerModal.vue'
 import UserGridSelectModal from './UserGridSelectModal.vue'
 import { getMultilingualText } from '~/utils/multilingual'
 import { useCustomFetch } from '~/composables/useCustomFetch'
+import { useAuthUser } from '~/composables/useAuthUser'
 const EmojiPicker = defineAsyncComponent(() => import('vue3-emoji-picker'))
 import 'vue3-emoji-picker/css'
 
 const { t } = useI18n()
 const { customFetch } = useCustomFetch()
+const authUserStore = useAuthUser()
 
 // Drag & Resize Position State
 const messengerPanelRef = ref<HTMLElement | null>(null)
@@ -1377,6 +1379,9 @@ const parseJwtUserId = (token: any) => {
 }
 
 const currentUser = computed(() => {
+  if (authUserStore?.currentUser) {
+    return authUserStore.currentUser
+  }
   if (userCookie.value) {
     try {
       return typeof userCookie.value === 'string' ? JSON.parse(userCookie.value) : userCookie.value
@@ -1388,10 +1393,32 @@ const currentUser = computed(() => {
 })
 
 const myUuid = computed(() => {
+  if (authUserStore?.currentUserId) return String(authUserStore.currentUserId)
   if (currentUser.value?.id) return String(currentUser.value.id)
   if (currentUser.value?.uuid) return String(currentUser.value.uuid)
   return parseJwtUserId(tokenCookie.value) || ''
 })
+
+const isUuid = (str: string) => {
+  if (!str) return false
+  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(str)
+}
+
+const formatMemberDisplay = (member: any) => {
+  if (!member) return ''
+  const rawUsername = member.username || member.userId || ''
+  if (isUuid(rawUsername)) {
+    const matched = availableUsers.value?.find((u: any) => u.id === rawUsername || u.uuid === rawUsername)
+    if (matched && matched.username) {
+      return matched.username
+    }
+    if (isMe(member) && (authUserStore?.currentUsername || currentUser.value?.username)) {
+      return authUserStore?.currentUsername || currentUser.value?.username
+    }
+    return `USER-${rawUsername.substring(0, 8)}`
+  }
+  return rawUsername
+}
 
 const selectableUsers = computed(() => {
   return availableUsers.value || []
@@ -1405,8 +1432,15 @@ const inviteableUsers = computed(() => {
 
 const isRoomCreator = computed(() => {
   if (!activeRoom.value) return false
-  const creatorId = activeRoom.value.createdBy
-  return (!!myUuid.value && creatorId === myUuid.value) || (!!currentUser.value?.username && creatorId === currentUser.value.username)
+  const creatorId = String(activeRoom.value.createdBy || '')
+  const myId = String(authUserStore?.currentUserId || currentUser.value?.id || currentUser.value?.uuid || myUuid.value || '')
+  const myName = String(authUserStore?.currentUsername || currentUser.value?.username || '')
+  const jwtSub = parseJwtUserId(tokenCookie.value) || ''
+
+  if (myId && creatorId === myId) return true
+  if (myName && creatorId === myName) return true
+  if (jwtSub && creatorId === jwtSub) return true
+  return false
 })
 
 const { connect: connectWS } = useWebSocket()
@@ -1564,14 +1598,27 @@ const showMembersModal = async () => {
 const isMe = (member: any) => {
   if (!member) return false
   const mId = String(member.userId || member.id || '')
-  return (!!myUuid.value && mId === myUuid.value) || (!!currentUser.value?.username && member.username === currentUser.value.username)
+  const mUsername = String(member.username || '')
+  const myId = String(authUserStore?.currentUserId || currentUser.value?.id || currentUser.value?.uuid || myUuid.value || '')
+  const myName = String(authUserStore?.currentUsername || currentUser.value?.username || '')
+  const jwtSub = parseJwtUserId(tokenCookie.value) || ''
+
+  if (myId && mId === myId) return true
+  if (myName && (mUsername === myName || mId === myName)) return true
+  if (jwtSub && (mId === jwtSub || mUsername === jwtSub)) return true
+  return false
 }
 
 const isCreator = (member: any) => {
   if (!activeRoom.value || !member) return false
   const cId = String(activeRoom.value.createdBy || '')
   const mId = String(member.userId || member.id || '')
-  return cId === mId
+  const mUsername = String(member.username || '')
+  
+  if (cId === mId) return true
+  if (cId === mUsername) return true
+  if (isRoomCreator.value && isMe(member)) return true
+  return false
 }
 
 const leaveRoom = async () => {

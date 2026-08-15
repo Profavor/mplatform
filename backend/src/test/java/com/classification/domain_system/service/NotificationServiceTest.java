@@ -1,5 +1,6 @@
 package com.classification.domain_system.service;
 
+import com.classification.domain_system.dto.NotificationDto;
 import com.classification.domain_system.entity.Notification;
 import com.classification.domain_system.repository.NotificationRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -9,10 +10,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -21,95 +18,61 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class NotificationServiceTest {
+public class NotificationServiceTest {
 
-    @Mock
-    private NotificationRepository notificationRepository;
-
-    @Mock
-    private SseNotificationService sseNotificationService;
+    @Mock private NotificationRepository notificationRepository;
 
     @InjectMocks
     private NotificationService notificationService;
 
     private String userId;
+    private UUID notificationId;
+    private Notification notification;
 
     @BeforeEach
     void setUp() {
-        userId = UUID.randomUUID().toString();
+        userId = "admin@example.com";
+        notificationId = UUID.randomUUID();
+        notification = Notification.builder()
+                .id(notificationId)
+                .userId(userId)
+                .title("결재 승인 요청")
+                .message("신규 레코드 등록 요청이 도착했습니다.")
+                .type("APPROVAL")
+                .isRead(false)
+                .createdAt(LocalDateTime.now())
+                .build();
     }
 
     @Test
-    @DisplayName("testCreateNotification: Creates notification for user")
-    void testCreateNotification() {
-        Notification notification = new Notification();
-        notification.setId(UUID.randomUUID());
-        notification.setUserId(userId);
-        notification.setTitle("Test Title");
-        notification.setMessage("Test Message");
-        notification.setType("INFO");
-        notification.setLinkUrl("/test");
-        notification.setIsRead(false);
-        notification.setCreatedAt(LocalDateTime.now());
+    @DisplayName("getMyNotifications & getUnreadCount: 사용자 알림 조회 및 미확인 카운트 확인")
+    void testGetNotificationsAndUnreadCount() {
+        when(notificationRepository.findByUserIdOrderByCreatedAtDesc(userId)).thenReturn(List.of(notification));
+        when(notificationRepository.countByUserIdAndIsReadFalse(userId)).thenReturn(1L);
 
-        when(notificationRepository.save(any(Notification.class))).thenReturn(notification);
+        List<NotificationDto.NotificationResponse> list = notificationService.getMyNotifications(userId);
+        long unreadCount = notificationService.getUnreadCount(userId);
 
-        Notification result = notificationService.createNotification(userId, "Test Title", "Test Message", "INFO", "/test");
-
-        assertThat(result).isNotNull();
-        assertThat(result.getUserId()).isEqualTo(userId);
-        assertThat(result.getTitle()).isEqualTo("Test Title");
-        assertThat(result.getMessage()).isEqualTo("Test Message");
-        verify(notificationRepository).save(any(Notification.class));
-        verify(sseNotificationService).sendNotification(eq(userId), any(Notification.class));
+        assertThat(list).hasSize(1);
+        assertThat(list.get(0).getTitle()).isEqualTo("결재 승인 요청");
+        assertThat(unreadCount).isEqualTo(1L);
     }
 
     @Test
-    @DisplayName("testMarkAsRead: Marks single notification as read")
+    @DisplayName("markAsRead & markAllAsRead: 단건 및 전체 읽음 처리 검증")
     void testMarkAsRead() {
-        UUID notificationId = UUID.randomUUID();
-        Notification notification = new Notification();
-        notification.setId(notificationId);
-        notification.setUserId(userId);
-        notification.setIsRead(false);
-
         when(notificationRepository.findById(notificationId)).thenReturn(Optional.of(notification));
-        when(notificationRepository.save(any(Notification.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(notificationRepository.markAllAsReadByUserId(userId)).thenReturn(1);
 
-        Notification result = notificationService.markAsRead(notificationId, userId);
+        boolean marked = notificationService.markAsRead(notificationId, userId);
+        int allMarked = notificationService.markAllAsRead(userId);
 
-        assertThat(result.getIsRead()).isTrue();
-        verify(notificationRepository).save(notification);
-    }
-
-    @Test
-    @DisplayName("testMarkAllAsRead: Marks all notifications for user as read")
-    void testMarkAllAsRead() {
-        when(notificationRepository.markAllAsRead(userId)).thenReturn(5);
-
-        int updatedCount = notificationService.markAllAsRead(userId);
-
-        assertThat(updatedCount).isEqualTo(5);
-        verify(notificationRepository).markAllAsRead(userId);
-    }
-
-    @Test
-    @DisplayName("testGetUserNotifications: Paginated user notifications ordered by createdAt desc")
-    void testGetUserNotifications() {
-        Pageable pageable = PageRequest.of(0, 10);
-        Notification notification = new Notification();
-        notification.setUserId(userId);
-        Page<Notification> page = new PageImpl<>(List.of(notification));
-
-        when(notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable)).thenReturn(page);
-
-        Page<Notification> result = notificationService.getUserNotifications(userId, pageable);
-
-        assertThat(result.getContent()).hasSize(1);
-        verify(notificationRepository).findByUserIdOrderByCreatedAtDesc(userId, pageable);
+        assertThat(marked).isTrue();
+        assertThat(notification.isRead()).isTrue();
+        assertThat(allMarked).isEqualTo(1);
+        verify(notificationRepository, times(1)).save(notification);
     }
 }

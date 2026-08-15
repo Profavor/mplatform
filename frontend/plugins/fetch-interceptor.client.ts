@@ -62,11 +62,15 @@ export default defineNuxtPlugin((nuxtApp) => {
           try {
             await refresh()
             if (loggedIn.value && user.value?.accessToken) {
-              return user.value.accessToken
+              const newAccessToken = user.value.accessToken
+              const newRefreshToken = user.value.refreshToken || (user.value as any)?.providerInfo?.refreshToken
+              setAuthCookies(newAccessToken, newRefreshToken)
+              return newAccessToken
             }
           } catch (oidcErr) {
             console.warn('Fetch Interceptor: OIDC token refresh failed', oidcErr)
           }
+
         }
         
         return null

@@ -69,6 +69,17 @@
           </va-textarea>
         </div>
       </div>
+      <div>
+        <div class="field-label-header">
+          {{ t('email_domain', '이메일 도메인') }}
+        </div>
+        <va-input
+          :model-value="form.emailDomain"
+          @update:model-value="val => form.emailDomain = val"
+          :placeholder="t('placeholder_email_domain', '예: company.com')"
+          :messages="[t('org_email_domain_desc', '조직의 기본 이메일 도메인을 설정합니다.')]"
+        />
+      </div>
       <div class="modal-footer">
         <va-button preset="secondary" @click="onCancel">
           {{ t('cancel', '취소') }}
@@ -94,6 +105,7 @@ const props = defineProps<{
     displayNameEn: string
     descriptionKo: string
     descriptionEn: string
+    emailDomain?: string
   }
 }>()
 

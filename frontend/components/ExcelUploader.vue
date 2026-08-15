@@ -3,7 +3,7 @@
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-3xl flex flex-col max-h-[90vh]">
       <!-- Header -->
       <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Excel Bulk Upload</h3>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ t('excel_uploader.title') }}</h3>
         <button @click="$emit('close')" class="text-gray-400 hover:text-gray-500 focus:outline-none">
           <span class="text-2xl">&times;</span>
         </button>
@@ -20,18 +20,18 @@
         <div v-if="step === 1" class="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-10 bg-gray-50 dark:bg-gray-900">
           
           <div class="mb-6 flex flex-col items-center">
-            <p class="text-sm text-gray-500 mb-2">Need a template? Download a pre-formatted Excel file.</p>
+            <p class="text-sm text-gray-500 mb-2">{{ t('excel_uploader.supported_formats') }}</p>
             <button @click="downloadTemplate" class="text-sm text-blue-600 hover:text-blue-800 underline flex items-center gap-1">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-              Download Template
+              {{ t('excel_uploader.download_template') }}
             </button>
           </div>
 
           <svg class="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-          <p class="text-gray-700 dark:text-gray-300 mb-4 text-center">Drag and drop an Excel (.xlsx) file here, or click to select</p>
+          <p class="text-gray-700 dark:text-gray-300 mb-4 text-center">{{ t('excel_uploader.drag_drop_file') }}</p>
           <input type="file" ref="fileInput" accept=".xlsx, .xls, .csv" class="hidden" @change="handleFileUpload" />
           <button @click="$refs.fileInput.click()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors">
-            Select File
+            {{ t('excel_uploader.selected_file') }}
           </button>
         </div>
 
@@ -39,7 +39,7 @@
         <div v-else-if="step === 2" class="space-y-6">
           <div class="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-md">
             <p class="text-sm text-blue-700 dark:text-blue-300">
-              Found <strong>{{ parsedData.length }}</strong> rows. Please map the Excel columns to the system fields.
+              {{ t('excel_uploader.step2') }} ({{ parsedData.length }} rows)
             </p>
           </div>
 
@@ -47,15 +47,15 @@
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead class="bg-gray-50 dark:bg-gray-800">
                 <tr>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">System Field</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Excel Column</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{{ t('excel_uploader.target_field') }}</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{{ t('excel_uploader.source_column') }}</th>
                 </tr>
               </thead>
               <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                 <tr v-for="field in nodeFields" :key="field.id">
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
                     {{ getTranslatedName(field.name) }}
-                    <span v-if="field.type === 'MULTILINGUAL'" class="text-xs font-normal text-blue-500 bg-blue-100 px-2 py-0.5 rounded ml-2">(다국어)</span>
+                    <span v-if="field.type === 'MULTILINGUAL'" class="text-xs font-normal text-blue-500 bg-blue-100 px-2 py-0.5 rounded ml-2">(i18n)</span>
                     <span v-if="field.required" class="text-red-500">*</span>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -63,20 +63,20 @@
                       <div class="flex items-center gap-2">
                         <span class="text-xs font-bold w-6">ko:</span>
                         <select v-model="mapping[field.key + '_ko']" class="block w-full pl-3 pr-10 py-1 text-base border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md transition-colors">
-                          <option :value="null">-- Ignore --</option>
+                          <option :value="null">{{ t('excel_uploader.ignore_column') }}</option>
                           <option v-for="header in excelHeaders" :key="header" :value="header">{{ header }}</option>
                         </select>
                       </div>
                       <div class="flex items-center gap-2">
                         <span class="text-xs font-bold w-6">en:</span>
                         <select v-model="mapping[field.key + '_en']" class="block w-full pl-3 pr-10 py-1 text-base border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md transition-colors">
-                          <option :value="null">-- Ignore --</option>
+                          <option :value="null">{{ t('excel_uploader.ignore_column') }}</option>
                           <option v-for="header in excelHeaders" :key="header" :value="header">{{ header }}</option>
                         </select>
                       </div>
                     </div>
                     <select v-else v-model="mapping[field.key]" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md transition-colors">
-                      <option :value="null">-- Ignore (Do not map) --</option>
+                      <option :value="null">{{ t('excel_uploader.ignore_column') }}</option>
                       <option v-for="header in excelHeaders" :key="header" :value="header">
                         {{ header }}
                       </option>
@@ -95,7 +95,7 @@
             <div class="w-full bg-gray-200 rounded-full h-3 dark:bg-gray-700 overflow-hidden">
               <div class="bg-indigo-500 h-3 rounded-full animate-pulse" style="width: 60%"></div>
             </div>
-            <p class="text-sm font-medium text-gray-600 dark:text-gray-300">행 단위 DQ 검증 중...</p>
+            <p class="text-sm font-medium text-gray-600 dark:text-gray-300">{{ t('excel_uploader.row_validating') }}</p>
           </div>
 
           <!-- Validation Result -->
@@ -108,10 +108,14 @@
               <div class="text-3xl">{{ validationResult.invalidRows === 0 ? '✅' : '⚠️' }}</div>
               <div>
                 <p class="font-semibold text-sm" :class="validationResult.invalidRows === 0 ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'">
-                  {{ validationResult.invalidRows === 0 ? '모든 행이 DQ 검증을 통과했습니다!' : `${validationResult.invalidRows}건의 행에서 DQ 위반이 발견되었습니다.` }}
+                  {{ validationResult.invalidRows === 0 ? t('excel_uploader.all_rows_valid') : t('excel_uploader.violations_found', { count: validationResult.invalidRows }) }}
                 </p>
                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  전체 {{ validationResult.totalRows }}행 중 통과 {{ validationResult.validRows }}행 · 실패 {{ validationResult.invalidRows }}행
+                  {{ t('excel_uploader.validation_summary', {
+                    total: validationResult.totalRows,
+                    valid: validationResult.validRows,
+                    invalid: validationResult.invalidRows
+                  }) }}
                 </p>
               </div>
             </div>
@@ -120,7 +124,7 @@
             <div v-if="validationResult.invalidRows > 0" class="flex items-center gap-2">
               <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none">
                 <input type="checkbox" v-model="showOnlyErrors" class="rounded border-gray-300 text-red-600 focus:ring-red-500" />
-                위반 행만 보기
+                {{ t('excel_uploader.show_only_errors') }}
               </label>
             </div>
 
@@ -129,12 +133,12 @@
               <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                 <thead class="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10">
                   <tr>
-                    <th class="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300 w-16">행</th>
-                    <th class="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300 w-20">결과</th>
-                    <th class="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300">위반 필드</th>
-                    <th class="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300">심각도</th>
-                    <th class="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300">위반 사유</th>
-                    <th class="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300">입력값</th>
+                    <th class="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300 w-16">{{ t('excel_uploader.col_row') }}</th>
+                    <th class="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300 w-20">{{ t('excel_uploader.col_result') }}</th>
+                    <th class="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300">{{ t('excel_uploader.col_violated_field') }}</th>
+                    <th class="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300">{{ t('excel_uploader.col_severity') }}</th>
+                    <th class="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300">{{ t('excel_uploader.col_violation_reason') }}</th>
+                    <th class="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300">{{ t('excel_uploader.col_input_value') }}</th>
                   </tr>
                 </thead>
                 <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800">
@@ -203,21 +207,21 @@
       <!-- Footer -->
       <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 bg-gray-50 dark:bg-gray-800">
         <button v-if="step !== 4" @click="$emit('close')" class="px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600 transition-colors">
-          Cancel
+          {{ t('excel_uploader.btn_cancel') }}
         </button>
         <button v-if="step === 2" @click="runValidation" class="px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
-          검증 후 업로드
+          {{ t('excel_uploader.btn_validate_upload') }}
         </button>
         <button v-if="step === 3 && !validating && validationResult" @click="step = 2" class="px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600 transition-colors">
-          ← 매핑 수정
+          {{ t('excel_uploader.btn_edit_mapping') }}
         </button>
         <button v-if="step === 3 && !validating && validationResult" @click="proceedUpload" class="px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white transition-colors"
                 :class="validationResult.invalidRows === 0 ? 'bg-green-600 hover:bg-green-700' : 'bg-orange-500 hover:bg-orange-600'"
-                :title="validationResult.invalidRows > 0 ? '위반 행은 제외하고 유효한 행만 업로드합니다' : ''">
-          {{ validationResult.invalidRows === 0 ? '업로드 시작' : `유효한 ${validationResult.validRows}행만 업로드` }}
+                :title="validationResult.invalidRows > 0 ? t('excel_uploader.tooltip_valid_only') : ''">
+          {{ validationResult.invalidRows === 0 ? t('excel_uploader.btn_start_upload') : t('excel_uploader.btn_upload_valid_only', { count: validationResult.validRows }) }}
         </button>
         <button v-if="step === 4 && progress === 100" @click="$emit('close')" class="px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors">
-          Done
+          {{ t('excel_uploader.btn_done') }}
         </button>
       </div>
     </div>
@@ -231,6 +235,8 @@ import { saveAs } from 'file-saver';
 import { useI18n } from 'vue-i18n';
 import { useCookie } from '#app';
 import { useCustomFetch } from '~/composables/useCustomFetch';
+
+const { t, locale } = useI18n();
 
 const props = defineProps({
   nodeId: { type: String, required: true },
@@ -251,6 +257,7 @@ const currentUser = computed(() => {
   return null;
 });
 
+
 const step = ref(1);
 const uploadErrorMsg = ref('');
 const parsedData = ref([]);
@@ -264,9 +271,8 @@ const validating = ref(false);
 const validationResult = ref(null);
 const showOnlyErrors = ref(true);
 
-const { locale } = useI18n();
-
 const getTranslatedName = (nameObj) => {
+
   if (!nameObj) return '';
   if (typeof nameObj === 'string') return nameObj;
   return nameObj[locale.value] || nameObj.ko || nameObj.en || '';

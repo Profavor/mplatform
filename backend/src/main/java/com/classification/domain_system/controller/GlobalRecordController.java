@@ -108,4 +108,17 @@ public class GlobalRecordController {
         int count = recordService.migrateSearchableData();
         return ResponseEntity.ok("Successfully migrated " + count + " records.");
     }
+
+    @PostMapping("/bulk-reclassify")
+    @PreAuthorize("hasPermission(null, 'record:write') or hasPermission(null, 'admin:write')")
+    public ResponseEntity<com.classification.domain_system.dto.RecordBulkReclassifyResult> bulkReclassify(
+            @RequestBody com.classification.domain_system.dto.RecordBulkReclassifyRequest request) {
+        String currentUserId = "system";
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getName() != null) {
+            currentUserId = auth.getName();
+        }
+        com.classification.domain_system.dto.RecordBulkReclassifyResult result = recordService.bulkReclassifyRecords(request, currentUserId);
+        return ResponseEntity.ok(result);
+    }
 }

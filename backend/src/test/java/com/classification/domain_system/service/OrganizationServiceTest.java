@@ -95,4 +95,20 @@ class OrganizationServiceTest {
         assertThat(deleted).isTrue();
         verify(organizationRepository).delete(organization);
     }
+
+    @Test
+    @DisplayName("조직 수정 시 이메일 도메인 앞의 @가 정규화되어 저장된다")
+    void updateOrganization_normalizesEmailDomain() {
+        given(organizationRepository.findById(orgId)).willReturn(Optional.of(organization));
+        given(organizationRepository.save(any(Organization.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        Organization updateReq = new Organization();
+        updateReq.setDisplayName("수정된 조직명");
+        updateReq.setEmailDomain("@profavor.com");
+
+        Optional<Organization> updated = organizationService.updateOrganization(orgId, updateReq);
+
+        assertThat(updated).isPresent();
+        assertThat(updated.get().getEmailDomain()).isEqualTo("profavor.com");
+    }
 }

@@ -14,6 +14,12 @@
           </span>
         </div>
       </div>
+
+      <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <va-button preset="outline" color="primary" icon="inventory_2" size="small" @click="showPackageModal = true">
+          {{ $t('schema_package') }}
+        </va-button>
+      </div>
     </div>
     
     <div class="schema-layout" style="flex: 1; min-height: 0;">
@@ -39,6 +45,10 @@
             <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; padding: 0 0.5rem; flex-wrap: wrap;">
               <va-button v-if="hasPermission('domain:write') || hasPermission('domain:*')" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="create_new_folder" @click="openDomainModal()" color="primary">{{ $t('domain') }}</va-button>
               <va-button v-if="hasPermission('node:write') || hasPermission('node:*')" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="note_add" @click="openNodeModal()" :disabled="!selectedNode" color="primary" :preset="selectedNode ? 'primary' : 'secondary'">{{ $t('node') }}</va-button>
+            </div>
+            <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem; padding: 0 0.5rem;">
+              <va-button style="flex: 1; border-radius: 8px;" color="info" icon="hub" @click="showOntologyModal = true" size="small">{{ $t('semantic_ontology') }}</va-button>
+              <va-button style="flex: 1; border-radius: 8px;" color="warning" icon="published_with_changes" @click="showCompatibilityModal = true" size="small">{{ $t('schema_compatibility') }}</va-button>
             </div>
             <div style="margin-top: 0.75rem; padding: 0 0.5rem;">
               <va-button preset="secondary" style="width: 100%;" @click="showRequestAccessModal = true">{{ $t('request_domain_access') }}</va-button>
@@ -252,6 +262,25 @@
       v-model="showApprovalViewer"
       :request="selectedApprovalRequest"
     />
+
+    <!-- Domain Schema Package Modal (Export / Import) -->
+    <SchemaPackageModal
+      v-model="showPackageModal"
+      :domain-id="selectedDomainId"
+      :domain-name="selectedDomainName"
+      @imported="handlePackageImported"
+    />
+
+    <!-- Semantic Ontology Modal -->
+    <SemanticOntologyModal
+      v-model="showOntologyModal"
+    />
+
+    <!-- Schema Backward Compatibility Modal -->
+    <SchemaCompatibilityModal
+      v-model="showCompatibilityModal"
+      :domainId="selectedDomainId"
+    />
   </div>
 </template>
 
@@ -261,11 +290,23 @@ import SchemaImpactReportModal from '~/components/SchemaImpactReportModal.vue'
 import ApprovalViewerModal from '~/components/ApprovalViewerModal.vue'
 import SystemNotificationModal from '~/components/common/SystemNotificationModal.vue'
 import IconPickerModal from '~/components/common/IconPickerModal.vue'
+import SchemaPackageModal from '~/components/schema/SchemaPackageModal.vue'
+import SemanticOntologyModal from '~/components/schema/SemanticOntologyModal.vue'
+import SchemaCompatibilityModal from '~/components/schema/SchemaCompatibilityModal.vue'
 
 const { customFetch } = useCustomFetch()
 
 const showApprovalViewer = ref(false)
 const selectedApprovalRequest = ref(null)
+const showPackageModal = ref(false)
+const showOntologyModal = ref(false)
+const showCompatibilityModal = ref(false)
+
+const handlePackageImported = (result) => {
+  if (treeRef.value?.loadTree) {
+    treeRef.value.loadTree()
+  }
+}
 
 const openApprovalViewer = async (requestId) => {
   if (!requestId) return

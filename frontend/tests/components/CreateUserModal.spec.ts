@@ -89,4 +89,43 @@ describe('CreateUserModal.vue (TDD Component Test)', () => {
     wrapper.vm.onCreate()
     expect(wrapper.emitted('create')).toBeTruthy()
   })
+
+  it('조직 선택 시 이메일 도메인 힌트가 올바르게 계산되는지 검증', async () => {
+    const orgWithDomain = [
+      { id: 'org-1', name: '본사', emailDomain: 'profavor.com' }
+    ]
+    const newUser = {
+      username: 'newuser01',
+      email: '',
+      role: 'ROLE_USER',
+      organizationId: 'org-1',
+      departmentId: 'dept-1'
+    }
+
+    const wrapper = mount(CreateUserModal, {
+      props: {
+        modelValue: true,
+        newUser: newUser,
+        organizations: orgWithDomain,
+        departments: mockDepartments,
+        isUsernameChecked: true,
+        checkedUsername: 'newuser01',
+        isCheckingUsername: false,
+        isCreatingUser: false
+      },
+      global: {
+        stubs: {
+          'va-modal': {
+            template: '<div class="va-modal-stub"><slot /></div>'
+          },
+          'va-input': true,
+          'va-select': true,
+          UserRoleSelect: true,
+          'va-button': true
+        }
+      }
+    })
+
+    expect((wrapper.vm as any).selectedOrgEmailDomain).toBe('profavor.com')
+  })
 })

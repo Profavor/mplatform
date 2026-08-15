@@ -13,22 +13,27 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const { isLoading, loadingText } = useLoading()
 
+let translate = (k) => '데이터 처리 중입니다...'
+try {
+  const i18n = useI18n()
+  if (i18n?.t) {
+    translate = (k) => i18n.t(k)
+  }
+} catch {
+  // test environment fallback
+}
+
 const displayText = computed(() => {
   if (loadingText.value) return loadingText.value
-  try {
-    const nuxtApp = useNuxtApp()
-    if (nuxtApp?.$i18n?.t) {
-      return nuxtApp.$i18n.t('common_loading')
-    }
-  } catch {
-    // fallback if Nuxt context is not present
-  }
-  return '데이터 처리 중입니다...'
+  return translate('common_loading')
 })
 </script>
+
+
 
 <style scoped>
 .glass-overlay {

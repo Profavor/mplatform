@@ -4,6 +4,7 @@ import com.classification.domain_system.service.DomainService;
 import com.classification.domain_system.service.FieldDefinitionService;
 import com.classification.domain_system.service.FieldGroupService;
 import com.classification.domain_system.service.SectorService;
+import com.classification.domain_system.service.DomainPackageService;
 import com.classification.domain_system.service.DqScoreSnapshotService;
 import com.classification.domain_system.service.dq.DqRuleEngine;
 import com.classification.domain_system.repository.DqRuleRepository;
@@ -35,13 +36,14 @@ class DomainControllerDqTest {
         fieldService = mock(FieldDefinitionService.class);
         sectorService = mock(SectorService.class);
         fieldGroupService = mock(FieldGroupService.class);
+        DomainPackageService domainPackageService = mock(DomainPackageService.class);
         dqRuleEngine = mock(DqRuleEngine.class);
         dqRuleRepository = mock(DqRuleRepository.class);
         dqScoreSnapshotService = mock(DqScoreSnapshotService.class);
 
         controller = new DomainController(
                 domainService, fieldService, sectorService, fieldGroupService,
-                dqRuleEngine, dqRuleRepository, dqScoreSnapshotService
+                domainPackageService, dqRuleEngine, dqRuleRepository, dqScoreSnapshotService
         );
     }
 

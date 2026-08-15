@@ -9,5 +9,7 @@ public enum DqRuleType {
     DATE_RANGE,
     UNIQUE,
     CROSS_FIELD,
-    CUSTOM_SPEL
+    CUSTOM_SPEL,
+    BUSINESS_NO_CHECKSUM,
+    CORPORATE_NO_CHECKSUM
 }

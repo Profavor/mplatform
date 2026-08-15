@@ -56,11 +56,66 @@
 
       <va-button
         size="small"
+        color="secondary"
+        outline
+        :disabled="!selectedRecordRows || selectedRecordRows.length === 0"
+        @click="$emit('openBulkReclassify')"
+      >
+        <va-icon name="drive_file_move" class="mr-1" /> {{ t('bulk_reclassify') }} ({{ selectedRecordRows?.length || 0 }})
+      </va-button>
+
+      <va-button
+        size="small"
+        color="success"
+        outline
+        @click="$emit('downloadTemplate')"
+      >
+        <va-icon name="download" class="mr-1" /> {{ t('download_template') }}
+      </va-button>
+
+      <va-button
+        size="small"
         color="warning"
         outline
         @click="$emit('openExport')"
       >
         <va-icon name="cloud_download" class="mr-1" /> {{ t('async_export') }}
+      </va-button>
+
+      <va-button
+        size="small"
+        color="primary"
+        outline
+        @click="$emit('openAutonomousCleansing')"
+      >
+        <va-icon name="auto_fix_high" class="mr-1" /> {{ t('autonomous_cleansing') }}
+      </va-button>
+
+      <va-button
+        size="small"
+        color="info"
+        outline
+        @click="$emit('openAiStructurizer')"
+      >
+        <va-icon name="psychology" class="mr-1" /> {{ t('ai_structurizer') }}
+      </va-button>
+
+      <va-button
+        size="small"
+        color="secondary"
+        outline
+        @click="$emit('openBusinessRuleBuilder')"
+      >
+        <va-icon name="rule" class="mr-1" /> {{ t('business_rule_builder') }}
+      </va-button>
+
+      <va-button
+        size="small"
+        color="warning"
+        outline
+        @click="$emit('openCdcStream')"
+      >
+        <va-icon name="sensors" class="mr-1" /> {{ t('cdc_stream') }}
       </va-button>
 
       <va-button preset="plain" color="secondary" size="small" icon="restart_alt" @click="$emit('resetFilters')">
@@ -90,7 +145,13 @@ defineEmits<{
   (e: 'uploadExcel'): void
   (e: 'openLineage'): void
   (e: 'openCompare'): void
+  (e: 'openBulkReclassify'): void
+  (e: 'downloadTemplate'): void
   (e: 'openExport'): void
+  (e: 'openAutonomousCleansing'): void
+  (e: 'openAiStructurizer'): void
+  (e: 'openBusinessRuleBuilder'): void
+  (e: 'openCdcStream'): void
   (e: 'resetFilters'): void
   (e: 'refresh'): void
 }>()

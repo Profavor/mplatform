@@ -803,10 +803,17 @@
   },
   "waiting_for": "Waiting",
   "warning_channels": "Please review mapping settings for {count} active integration channel(s).",
-  "welcome": "Welcome",
-  "workflowDetails": "Workflow Details",
   "workflow_center_title": "Workflow & Permission Management Center",
   "workflow_management": "Workflow Management",
   "workflow_management_desc": "Easily explore workflow templates with AG-Grid and manage or edit them using the dedicated modal dialog.",
-  "workflow_name_col": "Form Name"
+  "workflow_name_col": "Form Name",
+  "data_lineage": "Data Lineage",
+  "data_lineage_desc": "Visualize reference and data flow lineage between domains, taxonomy nodes, and external channels.",
+  "lineage_nodes": "Lineage Nodes",
+  "lineage_relationships": "Data Pipeline Flows",
+  "notifications": "Notification Center",
+  "mark_all_read": "Mark All as Read",
+  "no_notifications": "No new notifications.",
+  "download_template": "Download Excel Template",
+  "export_excel_csv": "Export Records (CSV/Excel)"
 }

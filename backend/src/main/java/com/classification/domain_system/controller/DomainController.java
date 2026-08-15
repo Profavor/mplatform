@@ -36,6 +36,7 @@ public class DomainController {
     private final FieldDefinitionService fieldService;
     private final SectorService sectorService;
     private final FieldGroupService fieldGroupService;
+    private final com.classification.domain_system.service.DomainPackageService domainPackageService;
     
     @PostMapping
     @PreAuthorize("hasPermission(null, 'domain:write')")
@@ -240,5 +241,32 @@ public class DomainController {
     public ResponseEntity<java.util.List<com.classification.domain_system.entity.DqScoreSnapshot>> getDqScoreRecent(
             @PathVariable UUID domainId) {
         return ResponseEntity.ok(dqScoreSnapshotService.getRecentSnapshots(domainId));
+    }
+
+    @GetMapping("/{domainId}/package/export")
+    @PreAuthorize("hasPermission(null, 'domain:read')")
+    public ResponseEntity<com.classification.domain_system.dto.DomainPackageDto> exportDomainPackage(
+            @PathVariable UUID domainId) {
+        String currentUserId = "system";
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getName() != null) {
+            currentUserId = auth.getName();
+        }
+        com.classification.domain_system.dto.DomainPackageDto pkg = domainPackageService.exportDomainPackage(domainId, currentUserId);
+        return ResponseEntity.ok(pkg);
+    }
+
+    @PostMapping("/package/import")
+    @PreAuthorize("hasPermission(null, 'domain:write') or hasPermission(null, 'admin:write')")
+    public ResponseEntity<com.classification.domain_system.dto.DomainPackageImportResult> importDomainPackage(
+            @RequestBody com.classification.domain_system.dto.DomainPackageDto pkg,
+            @RequestParam(defaultValue = "false") boolean overwrite) {
+        String currentUserId = "system";
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getName() != null) {
+            currentUserId = auth.getName();
+        }
+        com.classification.domain_system.dto.DomainPackageImportResult result = domainPackageService.importDomainPackage(pkg, currentUserId, overwrite);
+        return ResponseEntity.ok(result);
     }
 }

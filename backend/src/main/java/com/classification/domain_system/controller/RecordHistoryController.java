@@ -103,4 +103,26 @@ public class RecordHistoryController {
 
         return ResponseEntity.ok(result);
     }
+
+    @Autowired
+    private com.classification.domain_system.context.AuthContext authContext;
+
+    @PostMapping("/{id}/rollback")
+    @PreAuthorize("hasPermission(null, 'record:update')")
+    public ResponseEntity<?> rollbackRecord(@PathVariable UUID id, @RequestBody Map<String, Object> body) {
+        Integer targetVersion = body.get("targetVersion") != null ? Integer.valueOf(body.get("targetVersion").toString()) : null;
+        if (targetVersion == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "targetVersion is required"));
+        }
+        String reason = body.get("reason") != null ? body.get("reason").toString() : null;
+        String requestedBy = authContext != null && authContext.getUserId() != null ? authContext.getUserId() : "SYSTEM";
+        
+        com.classification.domain_system.entity.ApprovalRequest approval = recordService.rollbackRecord(id, targetVersion, reason, requestedBy);
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("success", true);
+        resp.put("approvalRequestId", approval.getId());
+        resp.put("status", approval.getStatus());
+        resp.put("targetVersion", targetVersion);
+        return ResponseEntity.ok(resp);
+    }
 }

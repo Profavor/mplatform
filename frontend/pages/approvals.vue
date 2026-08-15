@@ -15,6 +15,11 @@
         </div>
       </div>
 
+      <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <va-button preset="outline" color="primary" icon="how_to_reg" size="small" @click="showDelegationModal = true">
+          {{ t('approval_delegation') }}
+        </va-button>
+      </div>
     </div>
     
     <!-- Card 1: Pending Approvals -->
@@ -94,6 +99,10 @@
       v-model="showDetailsModal"
       :selected-request="selectedRequest"
     />
+
+    <ApprovalDelegationModal
+      v-model="showDelegationModal"
+    />
   </div>
 </template>
 
@@ -105,9 +114,12 @@ import { usePageTitle } from '~/composables/usePageTitle'
 const { pageTitle } = usePageTitle('approvals_title', '결재 및 승인 관리')
 import { useApprovalEnricher } from '~/composables/useApprovalEnricher'
 import ApprovalDetailsViewer from '~/components/ApprovalDetailsViewer.vue'
+import ApprovalDelegationModal from '~/components/approvals/ApprovalDelegationModal.vue'
 import { usePermission } from '~/composables/usePermission'
 import { useUserStore } from '~/stores/useUserStore'
 import { useRoleStore } from '~/stores/useRoleStore'
+
+const showDelegationModal = ref(false)
 
 const { hasPermission } = usePermission()
 
@@ -182,7 +194,11 @@ const messages = {
     colClassification: '분류',
     colIdAttr: 'ID 속성',
     colNameAttr: '이름 속성',
-    colSummary: '요약'
+    colSummary: '요약',
+    action_approve: '승인',
+    action_reject: '반려',
+    action_processing: '{action} 처리 중입니다...',
+    action_success: '결재가 성공적으로 {action} 되었습니다.'
   },
   en: {
     title: 'My Pending Approvals',
@@ -251,7 +267,11 @@ const messages = {
     colClassification: 'Classification',
     colIdAttr: 'ID Value',
     colNameAttr: 'Name Value',
-    colSummary: 'Summary'
+    colSummary: 'Summary',
+    action_approve: 'Approved',
+    action_reject: 'Rejected',
+    action_processing: 'Processing {action}...',
+    action_success: 'Request has been successfully {action}.'
   }
 }
 const { t, locale } = useI18n({ messages, useScope: 'local', inheritLocale: true })
@@ -261,6 +281,8 @@ import { useRoute } from 'vue-router'
 import { useCookie } from '#app'
 import { useToast } from 'vuestic-ui'
 import { AgGridVue } from 'ag-grid-vue3'
+import { formatApprovalCode } from '../utils/formatters'
+
 
 const route = useRoute()
 const { loadMetadata, enrichRequest } = useApprovalEnricher()
@@ -468,8 +490,9 @@ const showDetailsModal = ref(false)
 const selectedRequest = ref(null)
 
 const getMyRequestsColumnDefs = () => [
-  { colId: 'm_id', field: 'id', headerName: t('id'), width: 110, minWidth: 90, valueFormatter: params => params.value ? params.value.substring(0, 8) + '...' : '' },
+  { colId: 'm_id', field: 'id', headerName: t('id'), width: 110, minWidth: 90, valueFormatter: params => formatApprovalCode(params.value) },
   { colId: 'm_targetType', field: 'targetType', headerName: t('target_type'), width: 130, minWidth: 120 },
+
   { colId: 'm_domainName', field: 'domainName', headerName: t('colDomain'), width: 140, valueFormatter: params => formatMultilingual(params.value) },
   { colId: 'm_classificationName', field: 'classificationName', headerName: t('colClassification'), width: 150, valueFormatter: params => formatMultilingual(params.value) },
   { colId: 'm_idAttribute', field: 'idAttribute', headerName: t('colIdAttr'), width: 150, valueFormatter: params => formatMultilingual(params.value) },
@@ -1236,9 +1259,9 @@ const loadRequests = async () => {
 }
 const handleAction = async (stepId, action, isBulk = false) => {
   const comment = commentData.value[stepId] || ''
-  const actionName = action === 'approve' ? '승인' : '반려'
+  const actionLabel = action === 'approve' ? t('action_approve') : t('action_reject')
   
-  showLoading(`${actionName} 처리 중입니다...`)
+  showLoading(t('action_processing', { action: actionLabel }))
   try {
     let url = `/api/approval-requests/steps/${stepId}/${action}?approverId=${myUuid.value}`
     if (hasPermission('admin:write')) {
@@ -1260,8 +1283,9 @@ const handleAction = async (stepId, action, isBulk = false) => {
       headers: { Authorization: `Bearer ${token.value}` },
       body: { comment }
     })
-    init({ message: `결재가 성공적으로 ${actionName} 되었습니다.`, color: 'success' })
+    init({ message: t('action_success', { action: actionLabel }), color: 'success' })
     if (!isBulk) {
+
       await loadRequests()
     }
   } catch (error) {

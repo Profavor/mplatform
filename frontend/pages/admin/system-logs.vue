@@ -1,7 +1,7 @@
 <template>
   <div style="display: flex; flex-direction: column; gap: 1.25rem; padding-bottom: 2rem;">
     <!-- Top Action Bar -->
-    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04); flex-wrap: wrap; gap: 0.75rem;">
       <div style="display: flex; align-items: center; gap: 0.75rem;">
         <va-icon name="terminal" size="large" color="primary" />
         <div>
@@ -13,6 +13,43 @@
             {{ $t('system_logs_desc') }}
           </span>
         </div>
+      </div>
+
+      <!-- Governance & Orchestration Action Group -->
+      <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+        <va-button color="primary" size="small" icon="smart_toy" @click="showCopilot = true">
+          {{ $t('governance_copilot') }}
+        </va-button>
+        <va-button color="warning" size="small" icon="military_tech" @click="showMasterOrchestrator = true">
+          {{ $t('master_orchestrator') }}
+        </va-button>
+        <va-button color="danger" size="small" outline icon="healing" @click="showSelfHealing = true">
+          {{ $t('pipeline_self_healing') }}
+        </va-button>
+        <va-button color="success" size="small" outline icon="thermostat" @click="showFreshness = true">
+          {{ $t('freshness_heatmap') }}
+        </va-button>
+        <va-button color="info" size="small" outline icon="public" @click="showMultiRegion = true">
+          {{ $t('multi_region_conflict') }}
+        </va-button>
+        <va-button color="primary" size="small" outline icon="domain" @click="showMultiTenant = true">
+          {{ $t('multi_tenant') }}
+        </va-button>
+        <va-button color="info" size="small" outline icon="handshake" @click="showDataSla = true">
+          {{ $t('data_sla') }}
+        </va-button>
+        <va-button color="success" size="small" outline icon="emoji_events" @click="showMaturity = true">
+          {{ $t('governance_maturity') }}
+        </va-button>
+        <va-button color="danger" size="small" outline icon="radar" @click="showVolumeRadar = true">
+          {{ $t('volume_radar') }}
+        </va-button>
+        <va-button color="secondary" size="small" outline icon="policy" @click="showRegulatory = true">
+          {{ $t('regulatory_compliance') }}
+        </va-button>
+        <va-button color="info" size="small" outline icon="ac_unit" @click="showColdStorage = true">
+          {{ $t('cold_storage') }}
+        </va-button>
       </div>
     </div>
 
@@ -346,6 +383,19 @@
       </va-card>
     </div>
   </div>
+
+  <!-- Governance & System Orchestration Modals -->
+  <GovernanceCopilotModal v-model="showCopilot" />
+  <PipelineSelfHealingModal v-model="showSelfHealing" />
+  <DataFreshnessHeatmapModal v-model="showFreshness" />
+  <MultiRegionConflictModal v-model="showMultiRegion" />
+  <MasterOrchestratorModal v-model="showMasterOrchestrator" />
+  <MultiTenantRouterModal v-model="showMultiTenant" />
+  <DataSlaContractModal v-model="showDataSla" />
+  <GovernanceMaturityModal v-model="showMaturity" />
+  <VolumeAnomalyRadarModal v-model="showVolumeRadar" />
+  <RegulatoryComplianceModal v-model="showRegulatory" />
+  <ColdStorageArchiveModal v-model="showColdStorage" />
 </div>
 </template>
 
@@ -369,6 +419,29 @@ import { usePermission } from '~/composables/usePermission'
 import { getMultilingualText } from '~/utils/multilingual'
 import { useCodeStore } from '~/stores/useCodeStore'
 import IntegrationLogDetailModal from '~/components/admin/IntegrationLogDetailModal.vue'
+import MasterOrchestratorModal from '~/components/admin/MasterOrchestratorModal.vue'
+import MultiTenantRouterModal from '~/components/admin/MultiTenantRouterModal.vue'
+import DataSlaContractModal from '~/components/admin/DataSlaContractModal.vue'
+import GovernanceMaturityModal from '~/components/admin/GovernanceMaturityModal.vue'
+import VolumeAnomalyRadarModal from '~/components/admin/VolumeAnomalyRadarModal.vue'
+import RegulatoryComplianceModal from '~/components/admin/RegulatoryComplianceModal.vue'
+import ColdStorageArchiveModal from '~/components/admin/ColdStorageArchiveModal.vue'
+import GovernanceCopilotModal from '~/components/admin/GovernanceCopilotModal.vue'
+import PipelineSelfHealingModal from '~/components/admin/PipelineSelfHealingModal.vue'
+import DataFreshnessHeatmapModal from '~/components/admin/DataFreshnessHeatmapModal.vue'
+import MultiRegionConflictModal from '~/components/admin/MultiRegionConflictModal.vue'
+
+const showCopilot = ref(false)
+const showSelfHealing = ref(false)
+const showFreshness = ref(false)
+const showMultiRegion = ref(false)
+const showMasterOrchestrator = ref(false)
+const showMultiTenant = ref(false)
+const showDataSla = ref(false)
+const showMaturity = ref(false)
+const showVolumeRadar = ref(false)
+const showRegulatory = ref(false)
+const showColdStorage = ref(false)
 import { formatWithTimezone } from '~/composables/useTimezoneDate'
 import { formatEntityId } from '~/utils/formatters'
 

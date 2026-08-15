@@ -49,6 +49,10 @@ public class JwtFilter extends OncePerRequestFilter {
         return new JwtFilter(jwtUtil, permissionService, authContext, new SimpleObjectProvider<>(userRepository), new SimpleObjectProvider<>(null));
     }
 
+    public static JwtFilter createForTest(JwtUtil jwtUtil, PermissionService permissionService, AuthContext authContext, UserRepository userRepository, JwtDecoder jwtDecoder) {
+        return new JwtFilter(jwtUtil, permissionService, authContext, new SimpleObjectProvider<>(userRepository), new SimpleObjectProvider<>(jwtDecoder));
+    }
+
     private static class SimpleObjectProvider<T> implements ObjectProvider<T> {
         private final T instance;
         SimpleObjectProvider(T instance) { this.instance = instance; }
@@ -144,7 +148,16 @@ public class JwtFilter extends OncePerRequestFilter {
             String sub = jwt.getSubject();
             if (preferredUsername == null) return false;
 
-            authContext.setUserId(sub != null ? sub : preferredUsername);
+            UserRepository repo = userRepositoryProvider != null ? userRepositoryProvider.getIfAvailable() : null;
+            String effectiveUserId = sub;
+            if (repo != null) {
+                var userOpt = repo.findByUsername(preferredUsername);
+                if (userOpt.isPresent() && userOpt.get().getId() != null) {
+                    effectiveUserId = userOpt.get().getId();
+                }
+            }
+
+            authContext.setUserId(effectiveUserId != null ? effectiveUserId : preferredUsername);
 
             // realm_access.roles → GrantedAuthority
             List<GrantedAuthority> authorities = new java.util.ArrayList<>();

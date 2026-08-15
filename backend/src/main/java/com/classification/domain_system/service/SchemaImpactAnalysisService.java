@@ -240,4 +240,96 @@ public class SchemaImpactAnalysisService {
         }
         return String.valueOf(obj);
     }
+
+    public com.classification.domain_system.dto.SchemaImpactSimulationDto.SimulationResponse simulateImpact(
+            UUID domainId, com.classification.domain_system.dto.SchemaImpactSimulationDto.SimulationRequest request) {
+        Domain domain = domainRepository.findById(domainId)
+                .orElseThrow(() -> new ResourceNotFoundException("Domain not found: " + domainId));
+
+        String fieldKey = request.getFieldKey();
+        String action = request.getAction() != null ? request.getAction() : "DELETE";
+
+        List<Record> records = recordRepository.findAllByDomainId(domainId);
+        long totalRecords = records.size();
+        long populatedCount = 0;
+        long nullCount = 0;
+
+        for (Record r : records) {
+            String val = extractValueFromJson(r.getData(), fieldKey);
+            if (val != null && !val.equals("-") && !val.isBlank()) {
+                populatedCount++;
+            } else {
+                nullCount++;
+            }
+        }
+
+        List<IntegrationChannel> channels = integrationChannelRepository.findByIsActiveTrue();
+        List<String> affectedChannels = new ArrayList<>();
+        for (IntegrationChannel ch : channels) {
+            if (ch.getMappingConfigJson() != null && ch.getMappingConfigJson().contains(fieldKey)) {
+                affectedChannels.add(ch.getName());
+            }
+        }
+
+        List<DqRule> dqRules = dqRuleRepository.findByDomainIdAndIsActiveTrueOrderBySortOrderAsc(domainId);
+        List<String> affectedDqRules = new ArrayList<>();
+        for (DqRule rule : dqRules) {
+            if (rule.getFieldDefinition() != null && fieldKey.equals(rule.getFieldDefinition().getKey())) {
+                String ruleName = rule.getRuleType() != null ? rule.getRuleType().name() : "DQ_RULE";
+                affectedDqRules.add(ruleName);
+            }
+        }
+
+        int score = 100;
+        List<String> recommendations = new ArrayList<>();
+
+        if ("DELETE".equalsIgnoreCase(action)) {
+            if (populatedCount > 0) {
+                score -= 40;
+                recommendations.add(String.format("총 %d건의 기존 레코드 데이터가 영구 유실될 수 있습니다. 사전 백업을 권장합니다.", populatedCount));
+            }
+            if (!affectedChannels.isEmpty()) {
+                score -= 30;
+                recommendations.add(String.format("%d개 연계 채널의 매핑 설정에서 해당 필드를 제거해야 연계 오류를 방지할 수 있습니다.", affectedChannels.size()));
+            }
+            if (!affectedDqRules.isEmpty()) {
+                score -= 20;
+                recommendations.add(String.format("%d개의 종속 DQ 검증 규칙이 함께 삭제 또는 비활성화됩니다.", affectedDqRules.size()));
+            }
+        } else if ("SET_REQUIRED".equalsIgnoreCase(action)) {
+            if (nullCount > 0) {
+                score -= 50;
+                recommendations.add(String.format("기존 데이터 중 %d건이 필수값 누락(Null)으로 즉시 무결성 위반 처리됩니다. 기본값 채우기를 권장합니다.", nullCount));
+            }
+        } else {
+            if (populatedCount > 0) {
+                score -= 20;
+                recommendations.add("타입 변경 시 기존 데이터와의 호환성을 사전 검증하세요.");
+            }
+        }
+
+        score = Math.max(0, score);
+        String riskLevel;
+        if (score >= 90) riskLevel = "SAFE";
+        else if (score >= 70) riskLevel = "LOW";
+        else if (score >= 50) riskLevel = "MEDIUM";
+        else if (score >= 30) riskLevel = "HIGH";
+        else riskLevel = "CRITICAL";
+
+        String summary = String.format("스키마 %s 시뮬레이션 결과: 안전 점수 %d점 (%s)", action, score, riskLevel);
+
+        return com.classification.domain_system.dto.SchemaImpactSimulationDto.SimulationResponse.builder()
+                .fieldKey(fieldKey)
+                .action(action)
+                .safetyScore(score)
+                .riskLevel(riskLevel)
+                .populatedRecordCount(populatedCount)
+                .nullRecordCount(nullCount)
+                .totalRecordCount(totalRecords)
+                .affectedChannels(affectedChannels)
+                .affectedDqRules(affectedDqRules)
+                .riskSummary(summary)
+                .recommendations(recommendations)
+                .build();
+    }
 }

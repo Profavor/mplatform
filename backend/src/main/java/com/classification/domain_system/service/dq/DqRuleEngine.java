@@ -87,15 +87,20 @@ public class DqRuleEngine {
             effectiveFields = nodeFieldsCache.get(nodeId);
         } else {
             effectiveFields = fieldDefinitionService.getEffectiveFields(nodeId);
-            if (nodeFieldsCache != null) {
+            if (nodeFieldsCache != null && effectiveFields != null) {
                 nodeFieldsCache.put(nodeId, effectiveFields);
             }
+        }
+        if (effectiveFields == null) {
+            effectiveFields = Collections.emptyList();
         }
 
         List<UUID> fieldIds = effectiveFields.stream()
                 .map(FieldDefinition::getId)
                 .filter(Objects::nonNull)
                 .toList();
+
+
 
         // Batch load all active rules for these fields in one query
         List<DqRule> allRules = fieldIds.isEmpty()

@@ -20,11 +20,94 @@ import java.util.UUID;
 public class RecordService {
 
     private final com.classification.domain_system.repository.RecordRepository recordRepository;
+    private final com.classification.domain_system.repository.RecordHistoryRepository recordHistoryRepository;
+    private final com.classification.domain_system.repository.ClassificationNodeRepository nodeRepository;
+    @org.springframework.context.annotation.Lazy
+    private final ApprovalService approvalService;
     private final FieldEncryptionService fieldEncryptionService;
     private final DataMaskingService dataMaskingService;
     private final FieldDefinitionService fieldDefinitionService;
     private final AuthContext authContext;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @org.springframework.transaction.annotation.Transactional
+    public com.classification.domain_system.dto.RecordBulkReclassifyResult bulkReclassifyRecords(
+            com.classification.domain_system.dto.RecordBulkReclassifyRequest req, String requestedBy) {
+        if (req == null || req.getRecordIds() == null || req.getRecordIds().isEmpty()) {
+            throw new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.INVALID_INPUT, "Record IDs are required for bulk reclassification.");
+        }
+        if (req.getTargetNodeId() == null) {
+            throw new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.INVALID_INPUT, "Target node ID is required.");
+        }
+
+        com.classification.domain_system.entity.ClassificationNode targetNode = nodeRepository.findById(req.getTargetNodeId())
+                .orElseThrow(() -> new com.classification.domain_system.exception.ResourceNotFoundException("Target classification node not found: " + req.getTargetNodeId()));
+
+        List<com.classification.domain_system.entity.Record> records = recordRepository.findAllById(req.getRecordIds());
+        int successCount = 0;
+        int failureCount = 0;
+        List<String> errorMessages = new java.util.ArrayList<>();
+
+        for (com.classification.domain_system.entity.Record record : records) {
+            try {
+                com.classification.domain_system.entity.ClassificationNode previousNode = record.getNode();
+                record.setNode(targetNode);
+                recordRepository.save(record);
+
+                com.classification.domain_system.entity.RecordHistory history = new com.classification.domain_system.entity.RecordHistory();
+                history.setRecordId(record.getId());
+                history.setChangeType("RECLASSIFY");
+                history.setChangedBy(requestedBy != null ? requestedBy : "system");
+                history.setSourceSystem("Reclassify [" + (previousNode != null ? previousNode.getName() : "None") + 
+                        "] -> [" + targetNode.getName() + "]" + (req.getReason() != null && !req.getReason().isBlank() ? " (" + req.getReason() + ")" : ""));
+                history.setPreviousData(record.getData());
+                history.setNewData(record.getData());
+                history.setVersion(record.getVersion() != null ? record.getVersion() : 1);
+                recordHistoryRepository.save(history);
+
+                successCount++;
+            } catch (Exception e) {
+                failureCount++;
+                errorMessages.add("Failed to reclassify record " + record.getId() + ": " + e.getMessage());
+                log.error("Error reclassifying record {}", record.getId(), e);
+            }
+        }
+
+        return com.classification.domain_system.dto.RecordBulkReclassifyResult.builder()
+                .totalCount(req.getRecordIds().size())
+                .successCount(successCount)
+                .failureCount(failureCount)
+                .errorMessages(errorMessages)
+                .build();
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public com.classification.domain_system.entity.ApprovalRequest rollbackRecord(UUID recordId, Integer targetVersion, String reason, String requestedBy) {
+        Record record = recordRepository.findById(recordId)
+                .orElseThrow(() -> new com.classification.domain_system.exception.ResourceNotFoundException("Record not found: " + recordId));
+
+        List<com.classification.domain_system.entity.RecordHistory> histories = recordHistoryRepository.findByRecordIdOrderByVersionAsc(recordId);
+        com.classification.domain_system.entity.RecordHistory targetHistory = histories.stream()
+                .filter(h -> h.getVersion() != null && h.getVersion().equals(targetVersion))
+                .findFirst()
+                .orElseThrow(() -> new com.classification.domain_system.exception.BusinessException(
+                        com.classification.domain_system.exception.ErrorCode.RESOURCE_NOT_FOUND,
+                        "Target version not found: " + targetVersion));
+
+        String targetData = targetHistory.getNewData();
+        if (targetData == null || targetData.isBlank()) {
+            targetData = targetHistory.getPreviousData();
+        }
+
+        com.classification.domain_system.dto.RecordRequest req = new com.classification.domain_system.dto.RecordRequest();
+        req.setData(targetData);
+        req.setRequesterId(requestedBy);
+        req.setComment("Rollback to version " + targetVersion + (reason != null && !reason.isBlank() ? " (" + reason + ")" : ""));
+
+        return approvalService.requestRecordUpdate(recordId, req);
+    }
 
     public java.util.Optional<Record> getRecordById(UUID id) {
         return recordRepository.findById(id).map(this::prepareRecordForRead);

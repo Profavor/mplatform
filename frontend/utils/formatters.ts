@@ -48,6 +48,14 @@ export function formatUserCode(id: string | null | undefined): string {
 }
 
 /**
+ * 결재 요청 ID 전용 포맷터 (APP-340a0917)
+ */
+export function formatApprovalCode(id: string | null | undefined): string {
+  return formatEntityId(id, 'APP')
+}
+
+
+/**
  * 표준 UUID 형식인지 검증하는 헬퍼 함수
  */
 function isValidUuid(str: string): boolean {
