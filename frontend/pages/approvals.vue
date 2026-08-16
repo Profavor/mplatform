@@ -110,14 +110,14 @@
 import { useColors } from 'vuestic-ui'
 import { useI18n } from 'vue-i18n'
 import { usePageTitle } from '~/composables/usePageTitle'
-
-const { pageTitle } = usePageTitle('approvals_title', '결재 및 승인 관리')
 import { useApprovalEnricher } from '~/composables/useApprovalEnricher'
-import ApprovalDetailsViewer from '~/components/ApprovalDetailsViewer.vue'
-import ApprovalDelegationModal from '~/components/approvals/ApprovalDelegationModal.vue'
 import { usePermission } from '~/composables/usePermission'
 import { useUserStore } from '~/stores/useUserStore'
 import { useRoleStore } from '~/stores/useRoleStore'
+import ApprovalDetailsViewer from '~/components/ApprovalDetailsViewer.vue'
+import ApprovalDelegationModal from '~/components/approvals/ApprovalDelegationModal.vue'
+
+const { pageTitle } = usePageTitle('approvals_title', '결재 및 승인 관리')
 
 const showDelegationModal = ref(false)
 

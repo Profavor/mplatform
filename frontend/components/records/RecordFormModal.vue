@@ -182,7 +182,7 @@
                           readonly
                           style="flex: 1;"
                         />
-                        <va-button icon="search" @click="$emit('openDomainRef', { fieldKey: field.key, isCreate: !isEdit })" />
+                        <va-button icon="search" @click="openDomainRefPicker(field.key)" />
                       </div>
 
                       <!-- Checkbox / Boolean -->
@@ -223,6 +223,136 @@
                             </div>
                           </div>
                         </transition-group>
+                      </div>
+
+                      <!-- JSON Table / Sub-Schema Grid -->
+                      <div v-else-if="field.type === 'JSON'" class="w-full">
+                        <!-- Sub-table with schema definition -->
+                        <div v-if="getTableColumns(field).length > 0" style="border: 1px solid var(--va-background-border); border-radius: 8px; overflow: hidden; background: var(--va-background-element);">
+                          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
+                            <span style="font-size: 0.8rem; font-weight: 700; color: var(--va-text-primary);">
+                              {{ $t('total_rows_count', { count: (localRecord[field.key] || []).length }) }}
+                            </span>
+                            <div style="display: flex; gap: 0.5rem;">
+                              <va-button size="small" icon="add" @click="addTableRow(field.key, getTableColumns(field))" :disabled="evalConditionRule(field, localRecord).disabled || evalConditionRule(field, localRecord).readOnly">
+                                {{ $t('add_row') }}
+                              </va-button>
+                              <va-button v-if="(localRecord[field.key] || []).length > 0" preset="secondary" color="danger" size="small" @click="clearTableRows(field.key)" :disabled="evalConditionRule(field, localRecord).disabled || evalConditionRule(field, localRecord).readOnly">
+                                {{ $t('clear_all_rows') }}
+                              </va-button>
+                            </div>
+                          </div>
+
+                          <div v-if="!localRecord[field.key] || localRecord[field.key].length === 0" style="padding: 1.5rem; text-align: center; font-size: 0.85rem; color: var(--va-text-secondary);">
+                            {{ $t('empty_table_data') }}
+                          </div>
+
+                          <div v-else style="overflow-x: auto; max-height: 350px;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                              <thead>
+                                <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
+                                  <th style="padding: 0.5rem; width: 40px; text-align: center; color: var(--va-text-secondary);">#</th>
+                                  <th 
+                                    v-for="col in getTableColumns(field)" 
+                                    :key="col.key" 
+                                    :style="{ padding: '0.5rem 0.75rem', textAlign: 'left', minWidth: (col.width || 120) + 'px', color: 'var(--va-text-primary)', fontWeight: 600 }"
+                                  >
+                                    {{ getTranslatedColName(col.name) }}
+                                    <span v-if="col.required" style="color: var(--va-danger);">*</span>
+                                  </th>
+                                  <th style="padding: 0.5rem; width: 50px; text-align: center;"></th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr 
+                                  v-for="(row, rIdx) in localRecord[field.key]" 
+                                  :key="rIdx"
+                                  style="border-bottom: 1px solid var(--va-background-border);"
+                                >
+                                  <td style="padding: 0.5rem; text-align: center; color: var(--va-text-secondary); font-size: 0.75rem;">
+                                    {{ rIdx + 1 }}
+                                  </td>
+                                  <td 
+                                    v-for="col in getTableColumns(field)" 
+                                    :key="col.key" 
+                                    style="padding: 0.35rem 0.5rem;"
+                                  >
+                                    <!-- SELECT in subtable -->
+                                    <va-select
+                                      v-if="col.type === 'SELECT'"
+                                      v-model="row[col.key]"
+                                      :options="getColSelectOptions(col.options)"
+                                      value-by="value"
+                                      text-by="text"
+                                      dense
+                                      class="w-full"
+                                      :readonly="evalConditionRule(field, localRecord).readOnly"
+                                      :disabled="evalConditionRule(field, localRecord).disabled"
+                                    />
+                                    <!-- DATE in subtable -->
+                                    <va-input
+                                      v-else-if="col.type === 'DATE'"
+                                      v-model="row[col.key]"
+                                      type="date"
+                                      dense
+                                      class="w-full"
+                                      :readonly="evalConditionRule(field, localRecord).readOnly"
+                                      :disabled="evalConditionRule(field, localRecord).disabled"
+                                    />
+                                    <!-- NUMBER in subtable -->
+                                    <va-input
+                                      v-else-if="col.type === 'NUMBER'"
+                                      v-model.number="row[col.key]"
+                                      type="number"
+                                      dense
+                                      class="w-full"
+                                      :readonly="evalConditionRule(field, localRecord).readOnly"
+                                      :disabled="evalConditionRule(field, localRecord).disabled"
+                                    />
+                                    <!-- BOOLEAN in subtable -->
+                                    <div v-else-if="col.type === 'BOOLEAN'" style="display: flex; justify-content: center;">
+                                      <va-checkbox
+                                        v-model="row[col.key]"
+                                        :readonly="evalConditionRule(field, localRecord).readOnly"
+                                        :disabled="evalConditionRule(field, localRecord).disabled"
+                                      />
+                                    </div>
+                                    <!-- Default TEXT in subtable -->
+                                    <va-input
+                                      v-else
+                                      v-model="row[col.key]"
+                                      dense
+                                      class="w-full"
+                                      :readonly="evalConditionRule(field, localRecord).readOnly"
+                                      :disabled="evalConditionRule(field, localRecord).disabled"
+                                    />
+                                  </td>
+                                  <td style="padding: 0.35rem; text-align: center;">
+                                    <va-button 
+                                      preset="plain" 
+                                      icon="delete" 
+                                      color="danger" 
+                                      size="small" 
+                                      @click="deleteTableRow(field.key, rIdx)"
+                                      :disabled="evalConditionRule(field, localRecord).disabled || evalConditionRule(field, localRecord).readOnly"
+                                    />
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                        <!-- Generic JSON Textarea fallback -->
+                        <div v-else>
+                          <va-textarea
+                            :model-value="typeof localRecord[field.key] === 'object' ? JSON.stringify(localRecord[field.key], null, 2) : localRecord[field.key]"
+                            @update:model-value="(val) => { try { localRecord[field.key] = JSON.parse(val) } catch(e) { localRecord[field.key] = val } }"
+                            :min-rows="3"
+                            style="font-family: monospace; font-size: 0.85rem;"
+                            class="w-full"
+                            placeholder="{}"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -392,10 +522,68 @@ const handleMaskedInput = (field, val) => {
   })
 }
 
+const openDomainRefPicker = (fieldKey) => {
+  emit('openDomainRef', {
+    fieldKey,
+    isCreate: !props.isEdit,
+    currentData: { ...localRecord.value }
+  })
+}
+
+watch(
+  () => props.show,
+  (isOpen) => {
+    if (isOpen) {
+      localRecord.value = props.record ? { ...props.record } : {}
+      if (props.fields) {
+        props.fields.forEach(f => {
+          if (f.type === 'JSON') {
+            const val = localRecord.value[f.key]
+            if (typeof val === 'string') {
+              try {
+                localRecord.value[f.key] = JSON.parse(val)
+              } catch (e) {
+                localRecord.value[f.key] = []
+              }
+            } else if (!val) {
+              localRecord.value[f.key] = []
+            }
+          }
+        })
+      }
+    }
+  }
+)
+
 watch(
   () => props.record,
   (newVal) => {
-    localRecord.value = newVal || {}
+    if (!newVal) {
+      if (!props.show) localRecord.value = {}
+      return
+    }
+    if (props.show && Object.keys(localRecord.value).length > 0) {
+      localRecord.value = { ...localRecord.value, ...newVal }
+    } else {
+      localRecord.value = { ...newVal }
+    }
+    // Parse JSON fields if they come as string or null
+    if (props.fields) {
+      props.fields.forEach(f => {
+        if (f.type === 'JSON') {
+          const val = localRecord.value[f.key]
+          if (typeof val === 'string') {
+            try {
+              localRecord.value[f.key] = JSON.parse(val)
+            } catch (e) {
+              localRecord.value[f.key] = []
+            }
+          } else if (!val) {
+            localRecord.value[f.key] = []
+          }
+        }
+      })
+    }
     // Reset secondary node selections when record changes
     localSecondaryNodeSelections.value = {}
     if (newVal && newVal._secondaryNodeIds) {
@@ -413,6 +601,75 @@ watch(
   },
   { immediate: true, deep: true }
 )
+
+const getTableColumns = (field) => {
+  if (!field || !field.options) return []
+  try {
+    const opts = typeof field.options === 'string' ? JSON.parse(field.options) : field.options
+    if (opts && opts.tableSchema && Array.isArray(opts.tableSchema.columns)) {
+      return opts.tableSchema.columns
+    }
+  } catch (e) {}
+  return []
+}
+
+const getTranslatedColName = (name) => {
+  if (!name) return ''
+  if (typeof name === 'object') {
+    return name[locale.value] || name.ko || name.en || ''
+  }
+  return String(name)
+}
+
+const getColSelectOptions = (options) => {
+  if (!options || !Array.isArray(options)) return []
+  return options.map(opt => {
+    if (typeof opt === 'object' && opt !== null) {
+      const key = opt.key || opt.value || ''
+      let label = ''
+      if (opt.label) {
+        if (typeof opt.label === 'object') {
+          label = opt.label[locale.value] || opt.label.ko || opt.label.en || key
+        } else {
+          label = String(opt.label)
+        }
+      } else {
+        label = opt.text || key
+      }
+      return { text: label, value: key }
+    }
+    if (typeof opt === 'string' && opt.includes(':')) {
+      const parts = opt.split(':').map(s => s.trim())
+      const key = parts[0]
+      const ko = parts[1] || key
+      const en = parts[2] || ko
+      const label = locale.value === 'en' ? en : ko
+      return { text: label, value: key }
+    }
+    return { text: opt, value: opt }
+  })
+}
+
+const addTableRow = (fieldKey, columns) => {
+  if (!Array.isArray(localRecord.value[fieldKey])) {
+    localRecord.value[fieldKey] = []
+  }
+  const newRow = {}
+  columns.forEach(col => {
+    newRow[col.key] = col.type === 'BOOLEAN' ? false : (col.type === 'NUMBER' ? null : '')
+  })
+  localRecord.value[fieldKey].push(newRow)
+}
+
+const deleteTableRow = (fieldKey, idx) => {
+  if (Array.isArray(localRecord.value[fieldKey])) {
+    localRecord.value[fieldKey].splice(idx, 1)
+  }
+}
+
+const clearTableRows = (fieldKey) => {
+  localRecord.value[fieldKey] = []
+}
 
 const handleClose = () => {
   emit('close')
@@ -535,12 +792,60 @@ const parseOptions = (opts) => {
   return opts
 }
 
+const domainRefResolvedCache = ref({})
+const resolvingRefMap = {}
+
+const resolveDomainRefAsync = async (fieldKey, recordId) => {
+  if (resolvingRefMap[recordId]) return
+  resolvingRefMap[recordId] = true
+
+  try {
+    const recRes = await customFetch(`/api/records/${recordId}`)
+    if (recRes && recRes.data) {
+      const data = typeof recRes.data === 'string' ? JSON.parse(recRes.data) : recRes.data
+      const refInfo = props.domainReferences?.[fieldKey]
+      const idFieldId = refInfo?.domainInfo?.identifierFieldId
+      const dFieldId = refInfo?.domainInfo?.displayNameFieldId || idFieldId
+      const idF = refInfo?.fields?.find((x) => x.id === idFieldId)
+      const nameF = refInfo?.fields?.find((x) => x.id === dFieldId)
+
+      const extractVal = (d, key) => {
+        if (!d || !key) return null
+        const v = d[key]
+        if (v && typeof v === 'object') return v[locale.value] || v.ko || v.en || JSON.stringify(v)
+        return v ? String(v) : null
+      }
+
+      let idStr = extractVal(data, idF?.key)
+      let nameStr = extractVal(data, nameF?.key)
+
+      if (!idStr) idStr = data.EP_NO || data.id || data.code
+      if (!nameStr) nameStr = data.EP_NAME || data.name || data.title
+
+      let res = ''
+      if (idStr && nameStr && idStr !== nameStr) res = `[${idStr}] ${nameStr}`
+      else if (nameStr) res = nameStr
+      else if (idStr) res = `[${idStr}]`
+      else res = recordId
+
+      domainRefResolvedCache.value[recordId] = res
+    }
+  } catch (e) {
+    console.error('Failed to resolve domain reference display name:', e)
+  }
+}
+
 const getDomainRefDisplayName = (fieldKey, recordId) => {
   if (!recordId) return ''
+  if (domainRefResolvedCache.value[recordId]) {
+    return domainRefResolvedCache.value[recordId]
+  }
+
   const refInfo = props.domainReferences?.[fieldKey]
   if (!refInfo) return recordId
 
-  const record = refInfo.records?.find((r) => r.id === recordId)
+  const recList = Array.isArray(refInfo.records) ? refInfo.records : (refInfo.records?.content || [])
+  const record = recList.find((r) => r.id === recordId)
   if (record) {
     const data = typeof record.data === 'string' ? JSON.parse(record.data) : record.data
     const idFieldId = refInfo.domainInfo?.identifierFieldId
@@ -558,10 +863,20 @@ const getDomainRefDisplayName = (fieldKey, recordId) => {
     const idStr = extractVal(data, idF?.key)
     const nameStr = extractVal(data, nameF?.key)
 
-    if (idStr && nameStr && idStr !== nameStr) return `[${idStr}] ${nameStr}`
-    if (nameStr) return nameStr
-    if (idStr) return `[${idStr}]`
+    let res = ''
+    if (idStr && nameStr && idStr !== nameStr) res = `[${idStr}] ${nameStr}`
+    else if (nameStr) res = nameStr
+    else if (idStr) res = `[${idStr}]`
+    else res = recordId
+
+    domainRefResolvedCache.value[recordId] = res
+    return res
   }
+
+  if (typeof recordId === 'string' && (recordId.length >= 32 || recordId.includes('-'))) {
+    resolveDomainRefAsync(fieldKey, recordId)
+  }
+
   return recordId
 }
 

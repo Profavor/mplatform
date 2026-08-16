@@ -23,8 +23,11 @@
         {{ node.label }}
       </span>
 
-      <!-- Edit Button -->
-      <va-button v-if="showEdit" class="edit-btn" icon="edit" size="small" @click.stop="handleNodeEdit(node)" preset="plain" :color="node.id === selectedNode?.id ? '#ffffff' : 'primary'" />
+      <!-- Action Buttons -->
+      <div class="node-actions" v-if="showEdit">
+        <va-button class="action-btn" icon="edit" size="small" @click.stop="handleNodeEdit(node)" preset="plain" :color="node.id === selectedNode?.id ? '#ffffff' : 'primary'" />
+        <va-button v-if="!node.isDomain" class="action-btn delete-btn" icon="delete" size="small" @click.stop="handleNodeDelete(node)" preset="plain" :color="node.id === selectedNode?.id ? '#ffffff' : 'danger'" />
+      </div>
     </div>
 
     <!-- Children -->
@@ -39,6 +42,7 @@
           :showEdit="showEdit"
           @select="onNodeSelected" 
           @edit="handleNodeEdit" 
+          @delete="handleNodeDelete"
         />
       </div>
     </transition>
@@ -60,7 +64,7 @@ const props = defineProps({
     default: true
   }
 })
-const emit = defineEmits(['select', 'edit'])
+const emit = defineEmits(['select', 'edit', 'delete'])
 
 const isExpanded = ref(props.node.expanded !== false)
 
@@ -72,6 +76,7 @@ const toggleExpand = () => {
 
 const onNodeSelected = (n) => emit('select', n)
 const handleNodeEdit = (n) => emit('edit', n)
+const handleNodeDelete = (n) => emit('delete', n)
 </script>
 
 <style scoped>
@@ -131,7 +136,7 @@ const handleNodeEdit = (n) => emit('edit', n)
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  padding-right: 40px;
+  padding-right: 60px;
   font-weight: 500;
   font-size: 0.95rem;
   letter-spacing: 0.3px;
@@ -139,20 +144,26 @@ const handleNodeEdit = (n) => emit('edit', n)
 .selected-node .node-label {
   font-weight: 700;
 }
-.node-wrapper .edit-btn {
+.node-wrapper .node-actions {
   position: absolute;
-  right: 10px;
+  right: 8px;
   top: 50%;
   transform: translateY(-50%);
   opacity: 0;
   visibility: hidden;
+  display: flex;
+  align-items: center;
+  gap: 2px;
   transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
   z-index: 10;
 }
-.node-wrapper:hover .edit-btn {
+.node-wrapper:hover .node-actions {
   opacity: 1;
   visibility: visible;
-  transform: translateY(-50%) scale(1.1);
+  transform: translateY(-50%) scale(1.05);
+}
+.node-actions :deep(.va-button) {
+  padding: 2px !important;
 }
 .tree-slide-enter-active,
 .tree-slide-leave-active {

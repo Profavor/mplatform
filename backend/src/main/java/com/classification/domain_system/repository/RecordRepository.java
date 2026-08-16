@@ -21,7 +21,7 @@ public interface RecordRepository extends JpaRepository<Record, UUID>, CustomRec
 
     @org.springframework.data.jpa.repository.Query(value = "SELECT * FROM record r "
             + "WHERE r.id <> :excludedRecordId "
-            + "AND r.data ->> CAST(:fieldKey AS text) = :recordId "
+            + "AND CAST(r.data AS jsonb) ->> CAST(:fieldKey AS text) = :recordId "
             + "AND r.status NOT IN ('REJECTED', 'MERGED')", nativeQuery = true)
     List<Record> findReferencingRecords(
             @org.springframework.data.repository.query.Param("fieldKey") String fieldKey,
@@ -45,7 +45,7 @@ public interface RecordRepository extends JpaRepository<Record, UUID>, CustomRec
     @org.springframework.data.jpa.repository.Query(value = "SELECT EXISTS (SELECT 1 FROM record r " +
             "JOIN classification_node n ON r.node_id = n.id " +
             "WHERE n.domain_id = :domainId " +
-            "AND r.data ->> CAST(:fieldKey AS text) = :recordId " +
+            "AND CAST(r.data AS jsonb) ->> CAST(:fieldKey AS text) = :recordId " +
             "AND r.status NOT IN ('REJECTED', 'MERGED'))", nativeQuery = true)
     boolean existsReferencingRecord(
             @org.springframework.data.repository.query.Param("domainId") UUID domainId,

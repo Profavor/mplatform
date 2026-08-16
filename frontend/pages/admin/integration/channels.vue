@@ -142,19 +142,18 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { usePageTitle } from '~/composables/usePageTitle'
-
-const { pageTitle } = usePageTitle('integration.channels.title', '외부 연동 채널 관리')
 import { useCookie } from '#app'
 import { useToast } from 'vuestic-ui'
 import { AgGridVue } from 'ag-grid-vue3'
-import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { useI18n } from 'vue-i18n'
-import ChannelMetricsModal from '~/components/integration/ChannelMetricsModal.vue'
+import { usePageTitle } from '~/composables/usePageTitle'
+import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useCodeStore } from '~/stores/useCodeStore'
 import ChannelConfigModal from '~/components/admin/ChannelConfigModal.vue'
+import ChannelMetricsModal from '~/components/integration/ChannelMetricsModal.vue'
 
+const { pageTitle } = usePageTitle('integration.channels.title', '외부 연동 채널 관리')
 const { t, locale } = useI18n()
 const { gridTheme, isDark } = useAgGridTheme()
 const { init } = useToast()

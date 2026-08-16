@@ -1,6 +1,14 @@
 {
   "advanced_search": "Advanced Search",
   "advanced_search_condition": "Advanced Search",
+  "no_fields_to_export": "No field definitions found to export.",
+  "download_template_success": "Template downloaded successfully.",
+  "download_template_failed": "Failed to download template.",
+  "add_row": "+ Add Row",
+  "delete_row": "Delete Row",
+  "empty_table_data": "No rows defined. Click '+ Add Row' to insert a record row.",
+  "clear_all_rows": "Clear All Rows",
+  "total_rows_count": "Total {count} rows",
   "master_data_record_list": "Master Data Record List",
   "reset_all": "Reset All",
   "create_request": "Request Creation",
@@ -259,5 +267,21 @@
   "recommended_value": "Recommended Value",
   "cleansing_strategy": "Strategy",
   "apply_cleansing": "Apply Cleansing",
-  "cleansing_success": "Autonomous anomaly cleansing applied successfully."
+  "cleansing_success": "Autonomous anomaly cleansing applied successfully.",
+  "btn_save": "Save",
+  "btn_close": "Close",
+  "btn_edit": "Edit",
+  "btn_delete": "Delete",
+  "view_original": "View Original",
+  "hide_original": "Hide Original",
+  "decrypt_failed": "Failed to decrypt value.",
+  "domain_ref_modal": {
+    "title": "Select Reference Record",
+    "guide": "Please double click the desired record from the list to select it.",
+    "search_placeholder": "Search by ID or Name attribute...",
+    "search_btn": "Search",
+    "reset_btn": "Reset",
+    "total_count": "Total {count} items",
+    "no_results": "No records found."
+  }
 }

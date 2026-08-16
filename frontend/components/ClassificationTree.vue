@@ -31,6 +31,7 @@
           :showEdit="showEdit"
           @select="onNodeSelected" 
           @edit="handleNodeEdit" 
+          @delete="handleNodeDelete"
         />
       </div>
     </div>
@@ -61,7 +62,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['select', 'edit', 'loaded'])
+const emit = defineEmits(['select', 'edit', 'delete', 'loaded'])
 
 const { t } = useI18n()
 const token = useCookie('auth_token')
@@ -194,6 +195,10 @@ const onNodeSelected = (node) => {
 
 const handleNodeEdit = (node) => {
   emit('edit', node)
+}
+
+const handleNodeDelete = (node) => {
+  emit('delete', node)
 }
 
 onMounted(() => {

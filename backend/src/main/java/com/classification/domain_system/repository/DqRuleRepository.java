@@ -17,6 +17,8 @@ public interface DqRuleRepository extends JpaRepository<DqRule, UUID> {
 
     List<DqRule> findByDomainIdAndIsActiveTrueOrderBySortOrderAsc(UUID domainId);
 
+    List<DqRule> findByDomainId(UUID domainId);
+
     @org.springframework.data.jpa.repository.Query(
         "SELECT COUNT(r) FROM DqRule r " +
         "LEFT JOIN r.fieldDefinition f " +

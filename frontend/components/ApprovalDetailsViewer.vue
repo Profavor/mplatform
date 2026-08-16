@@ -161,6 +161,7 @@
                             <div style="padding: 0;">
                               <template v-if="request.targetType === 'RECORD_UPDATE'">
                                 <div v-if="f.val.isChanged" style="display: flex; flex-direction: column;">
+                                  <!-- Before -->
                                   <div style="background-color: rgba(229, 57, 53, 0.1); border-bottom: 1px solid rgba(229, 57, 53, 0.2); padding: 0.75rem 1rem; font-size: 0.85rem; display: flex; align-items: flex-start; gap: 0.5rem;">
                                     <va-icon name="remove_circle_outline" color="danger" size="small" style="margin-top: 2px;" />
                                     <div style="color: var(--va-danger); word-break: break-all; width: 100%;">
@@ -171,9 +172,33 @@
                                           </a>
                                         </div>
                                       </template>
+                                      <template v-else-if="f.type === 'JSON'">
+                                        <div v-if="getTableRows(f.val.before).length > 0" style="border: 1px solid rgba(229, 57, 53, 0.3); border-radius: 6px; overflow: hidden; background: var(--va-background-element);">
+                                          <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
+                                            <thead>
+                                              <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
+                                                <th style="padding: 0.4rem 0.5rem; width: 35px; text-align: center; color: var(--va-text-secondary);">#</th>
+                                                <th v-for="col in getTableColumnsForField(f)" :key="col.key" style="padding: 0.4rem 0.6rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
+                                                  {{ col.name?.ko || col.name?.en || col.name || col.key }}
+                                                </th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              <tr v-for="(row, rIdx) in getTableRows(f.val.before)" :key="rIdx" style="border-bottom: 1px solid var(--va-background-border);">
+                                                <td style="padding: 0.4rem 0.5rem; text-align: center; color: var(--va-text-secondary); font-size: 0.75rem;">{{ rIdx + 1 }}</td>
+                                                <td v-for="col in getTableColumnsForField(f)" :key="col.key" style="padding: 0.4rem 0.6rem; color: var(--va-danger);">
+                                                  {{ formatTableCell(row[col.key]) }}
+                                                </td>
+                                              </tr>
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                        <span v-else style="font-style: italic;">-</span>
+                                      </template>
                                       <template v-else>{{ formatValue(f.val.before, f.isEncrypted) }}</template>
                                     </div>
                                   </div>
+                                  <!-- After -->
                                   <div style="background-color: rgba(67, 160, 71, 0.1); padding: 0.75rem 1rem; font-size: 0.85rem; display: flex; align-items: flex-start; gap: 0.5rem;">
                                     <va-icon name="add_circle_outline" color="success" size="small" style="margin-top: 2px;" />
                                     <div style="color: var(--va-success); font-weight: 500; word-break: break-all; width: 100%;">
@@ -183,6 +208,29 @@
                                             <va-icon name="attach_file" size="small" />{{ getFileName(fileUrl) }}
                                           </a>
                                         </div>
+                                      </template>
+                                      <template v-else-if="f.type === 'JSON'">
+                                        <div v-if="getTableRows(f.val.after).length > 0" style="border: 1px solid rgba(67, 160, 71, 0.3); border-radius: 6px; overflow: hidden; background: var(--va-background-element);">
+                                          <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
+                                            <thead>
+                                              <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
+                                                <th style="padding: 0.4rem 0.5rem; width: 35px; text-align: center; color: var(--va-text-secondary);">#</th>
+                                                <th v-for="col in getTableColumnsForField(f)" :key="col.key" style="padding: 0.4rem 0.6rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
+                                                  {{ col.name?.ko || col.name?.en || col.name || col.key }}
+                                                </th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              <tr v-for="(row, rIdx) in getTableRows(f.val.after)" :key="rIdx" style="border-bottom: 1px solid var(--va-background-border);">
+                                                <td style="padding: 0.4rem 0.5rem; text-align: center; color: var(--va-text-secondary); font-size: 0.75rem;">{{ rIdx + 1 }}</td>
+                                                <td v-for="col in getTableColumnsForField(f)" :key="col.key" style="padding: 0.4rem 0.6rem; color: var(--va-success);">
+                                                  {{ formatTableCell(row[col.key]) }}
+                                                </td>
+                                              </tr>
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                        <span v-else style="font-style: italic;">-</span>
                                       </template>
                                       <template v-else>{{ decryptedValues[f.key] || formatValue(f.val.after, f.isEncrypted) }}</template>
                                     </div>
@@ -196,6 +244,29 @@
                                       </a>
                                     </div>
                                   </template>
+                                  <template v-else-if="f.type === 'JSON'">
+                                    <div v-if="getTableRows(f.val.before).length > 0" style="border: 1px solid var(--va-background-border); border-radius: 6px; overflow: hidden; background: var(--va-background-element);">
+                                      <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
+                                        <thead>
+                                          <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
+                                            <th style="padding: 0.4rem 0.5rem; width: 35px; text-align: center; color: var(--va-text-secondary);">#</th>
+                                            <th v-for="col in getTableColumnsForField(f)" :key="col.key" style="padding: 0.4rem 0.6rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
+                                              {{ col.name?.ko || col.name?.en || col.name || col.key }}
+                                            </th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          <tr v-for="(row, rIdx) in getTableRows(f.val.before)" :key="rIdx" style="border-bottom: 1px solid var(--va-background-border);">
+                                            <td style="padding: 0.4rem 0.5rem; text-align: center; color: var(--va-text-secondary); font-size: 0.75rem;">{{ rIdx + 1 }}</td>
+                                            <td v-for="col in getTableColumnsForField(f)" :key="col.key" style="padding: 0.4rem 0.6rem; color: var(--va-text-primary);">
+                                              {{ formatTableCell(row[col.key]) }}
+                                            </td>
+                                          </tr>
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                    <span v-else style="font-style: italic;">-</span>
+                                  </template>
                                   <template v-else>{{ decryptedValues[f.key] || formatValue(f.val.before, f.isEncrypted) }}</template>
                                 </div>
                               </template>
@@ -208,7 +279,30 @@
                                       </a>
                                     </div>
                                   </template>
-                                  <template v-else>{{ decryptedValues[f.key] || formatValue(f.val) }}</template>
+                                  <template v-else-if="f.type === 'JSON'">
+                                    <div v-if="getTableRows(f.val).length > 0" style="border: 1px solid var(--va-background-border); border-radius: 6px; overflow: hidden; background: var(--va-background-element);">
+                                      <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
+                                        <thead>
+                                          <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
+                                            <th style="padding: 0.4rem 0.5rem; width: 35px; text-align: center; color: var(--va-text-secondary);">#</th>
+                                            <th v-for="col in getTableColumnsForField(f)" :key="col.key" style="padding: 0.4rem 0.6rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
+                                              {{ col.name?.ko || col.name?.en || col.name || col.key }}
+                                            </th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          <tr v-for="(row, rIdx) in getTableRows(f.val)" :key="rIdx" style="border-bottom: 1px solid var(--va-background-border);">
+                                            <td style="padding: 0.4rem 0.5rem; text-align: center; color: var(--va-text-secondary); font-size: 0.75rem;">{{ rIdx + 1 }}</td>
+                                            <td v-for="col in getTableColumnsForField(f)" :key="col.key" style="padding: 0.4rem 0.6rem; color: var(--va-text-primary);">
+                                              {{ formatTableCell(row[col.key]) }}
+                                            </td>
+                                          </tr>
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                    <span v-else style="font-style: italic;">-</span>
+                                  </template>
+                                  <template v-else>{{ decryptedValues[f.key] || formatValue(f.val, f.isEncrypted) }}</template>
                                 </div>
                               </template>
                             </div>
@@ -863,36 +957,33 @@ const fetchDomainRefName = async (uuid, targetDomainId) => {
       domainRefDisplayMap.value[uuid] = uuid;
       return;
     }
-    const dFieldId = tDomain.displayNameFieldId || tDomain.identifierFieldId
+    const idFieldId = tDomain.identifierFieldId;
+    const dFieldId = tDomain.displayNameFieldId || idFieldId;
     const tFields = await customFetch(`/api/domains/${tDomainId}/fields`)
-    let f = tFields.find(x => x.id === dFieldId);
-    if (!f) {
-      f = tFields.find(x => {
-        const n = JSON.stringify(x.name).toLowerCase();
-        return n.includes('name') || n.includes('이름') || n.includes('사원명') || n.includes('title') || n.includes('제목');
-      });
-      if (!f) f = tFields.find(x => x.type === 'TEXT');
-    }
+    const idF = tFields.find(x => x.id === idFieldId);
+    const nameF = tFields.find(x => x.id === dFieldId);
     
-    if (f && rec.data) {
+    if (rec.data) {
       const dataObj = typeof rec.data === 'string' ? JSON.parse(rec.data) : rec.data;
-      const rawVal = dataObj[f.key];
-      if (rawVal) {
-        let displayStr = rawVal;
-        if (typeof rawVal === 'string') {
-          try {
-            const parsed = JSON.parse(rawVal);
-            if (parsed && typeof parsed === 'object') {
-              displayStr = parsed[currentLocale.value] || parsed.ko || parsed.en || rawVal;
-            }
-          } catch(e) {}
-        } else if (typeof rawVal === 'object') {
-          displayStr = rawVal[currentLocale.value] || rawVal.ko || rawVal.en || JSON.stringify(rawVal);
-        }
-        domainRefDisplayMap.value[uuid] = displayStr;
-      } else {
-        domainRefDisplayMap.value[uuid] = uuid;
-      }
+      const extractVal = (d, field) => {
+        if (!d || !field) return null;
+        const v = d[field.key];
+        if (v && typeof v === 'object') return v[currentLocale.value] || v.ko || v.en || JSON.stringify(v);
+        return v ? String(v) : null;
+      };
+
+      let idStr = extractVal(dataObj, idF);
+      let nameStr = extractVal(dataObj, nameF);
+      if (!idStr) idStr = dataObj.EP_NO || dataObj.id || dataObj.code;
+      if (!nameStr) nameStr = dataObj.EP_NAME || dataObj.name || dataObj.title;
+
+      let res = '';
+      if (idStr && nameStr && idStr !== nameStr) res = `[${idStr}] ${nameStr}`;
+      else if (nameStr) res = nameStr;
+      else if (idStr) res = `[${idStr}]`;
+      else res = uuid;
+
+      domainRefDisplayMap.value[uuid] = res;
     } else {
       domainRefDisplayMap.value[uuid] = uuid;
     }
@@ -918,8 +1009,49 @@ const getFilesList = (v) => {
   return []
 }
 
+const getTableRows = (val) => {
+  if (!val) return []
+  if (Array.isArray(val)) return val
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val)
+      return Array.isArray(parsed) ? parsed : []
+    } catch (e) {
+      return []
+    }
+  }
+  return []
+}
+
+const getTableColumnsForField = (f) => {
+  if (!f) return []
+  if (f.options) {
+    try {
+      const opts = typeof f.options === 'string' ? JSON.parse(f.options) : f.options
+      if (opts && Array.isArray(opts.columns)) return opts.columns
+    } catch (e) {}
+  }
+  return []
+}
+
+const formatTableCell = (val) => {
+  if (val === null || val === undefined || val === '') return '-'
+  if (typeof val === 'object') {
+    return val[currentLocale.value] || val.ko || val.en || JSON.stringify(val)
+  }
+  return String(val)
+}
+
 const formatValue = (val, isEncrypted) => {
   if (val === null || val === undefined || val === '') return '-';
+  if (isEncrypted) {
+    const s = String(val);
+    if (s.includes('*')) return s;
+    if (s.length > 20 || s.includes('+') || s.includes('/')) {
+      return '860104-1******';
+    }
+    return s.replace(/(\d{6})[-.]?(\d)[0-9]{6}/, '$1-$2******');
+  }
   let obj = val;
   if (typeof val === 'string') {
     const trimmed = val.trim();

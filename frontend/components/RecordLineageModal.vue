@@ -151,18 +151,62 @@
               </td>
             </tr>
             <tr v-for="row in diffRows" :key="row.key" style="border-bottom: 1px solid var(--va-background-border);">
-              <td style="padding: 0.6rem 0.8rem; font-weight: 600; color: var(--va-text-primary);">
+              <td style="padding: 0.6rem 0.8rem; font-weight: 600; color: var(--va-text-primary); vertical-align: top;">
                 {{ getFieldLabel(row.key) }}
               </td>
-              <td style="padding: 0.6rem 0.8rem; color: #b91c1c; background: rgba(239, 68, 68, 0.04);">
-                <template v-if="isFieldEncrypted(row.key)">
+              <td style="padding: 0.6rem 0.8rem; color: #b91c1c; background: rgba(239, 68, 68, 0.04); vertical-align: top;">
+                <template v-if="getFieldByKey(row.key)?.type === 'JSON' && getTableRows(row.rawBefore).length > 0">
+                  <div style="border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; overflow: hidden; background: var(--va-background-element);">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.78rem;">
+                      <thead>
+                        <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
+                          <th style="padding: 0.3rem 0.4rem; width: 30px; text-align: center; color: var(--va-text-secondary);">#</th>
+                          <th v-for="col in getTableColumnsForField(getFieldByKey(row.key))" :key="col.key" style="padding: 0.3rem 0.5rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
+                            {{ col.name?.ko || col.name?.en || col.name || col.key }}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="(subRow, rIdx) in getTableRows(row.rawBefore)" :key="rIdx" style="border-bottom: 1px solid var(--va-background-border);">
+                          <td style="padding: 0.3rem 0.4rem; text-align: center; color: var(--va-text-secondary);">{{ rIdx + 1 }}</td>
+                          <td v-for="col in getTableColumnsForField(getFieldByKey(row.key))" :key="col.key" style="padding: 0.3rem 0.5rem; color: #b91c1c;">
+                            {{ formatTableCell(subRow[col.key]) }}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </template>
+                <template v-else-if="isFieldEncrypted(row.key)">
                   <span v-if="row.before === $t('none') || row.before === '(없음)'">{{ row.before }}</span>
                   <span v-else>{{ decryptedValues[row.key]?.before || row.before }}</span>
                 </template>
                 <template v-else>{{ row.before }}</template>
               </td>
-              <td style="padding: 0.6rem 0.8rem; color: #15803d; background: rgba(34, 197, 94, 0.04); font-weight: 600;">
-                <div style="display:flex; align-items:center; justify-content:space-between;">
+              <td style="padding: 0.6rem 0.8rem; color: #15803d; background: rgba(34, 197, 94, 0.04); font-weight: 600; vertical-align: top;">
+                <template v-if="getFieldByKey(row.key)?.type === 'JSON' && getTableRows(row.rawAfter).length > 0">
+                  <div style="border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px; overflow: hidden; background: var(--va-background-element);">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.78rem;">
+                      <thead>
+                        <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
+                          <th style="padding: 0.3rem 0.4rem; width: 30px; text-align: center; color: var(--va-text-secondary);">#</th>
+                          <th v-for="col in getTableColumnsForField(getFieldByKey(row.key))" :key="col.key" style="padding: 0.3rem 0.5rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
+                            {{ col.name?.ko || col.name?.en || col.name || col.key }}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="(subRow, rIdx) in getTableRows(row.rawAfter)" :key="rIdx" style="border-bottom: 1px solid var(--va-background-border);">
+                          <td style="padding: 0.3rem 0.4rem; text-align: center; color: var(--va-text-secondary);">{{ rIdx + 1 }}</td>
+                          <td v-for="col in getTableColumnsForField(getFieldByKey(row.key))" :key="col.key" style="padding: 0.3rem 0.5rem; color: #15803d;">
+                            {{ formatTableCell(subRow[col.key]) }}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </template>
+                <div v-else style="display:flex; align-items:center; justify-content:space-between;">
                   <template v-if="isFieldEncrypted(row.key)">
                     <span>
                       <template v-if="row.after === $t('none') || row.after === '(없음)'">{{ row.after }}</template>
@@ -701,8 +745,107 @@ const parseJsonIfNeeded = (val: any) => {
   }
 }
 
-const formatDisplayValue = (val: any): string => {
+const getFieldByKey = (key: string) => {
+  if (!key) return null
+  return props.fields?.find((f: any) => f.key === key || String(f.id) === String(key) || (f.key && String(f.key).toLowerCase() === String(key).toLowerCase()))
+}
+
+const getTableRows = (val: any) => {
+  if (!val) return []
+  if (Array.isArray(val)) return val
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val)
+      return Array.isArray(parsed) ? parsed : []
+    } catch (e) {
+      return []
+    }
+  }
+  return []
+}
+
+const getTableColumnsForField = (f: any) => {
+  if (!f) return []
+  if (f.options) {
+    try {
+      const opts = typeof f.options === 'string' ? JSON.parse(f.options) : f.options
+      if (opts && Array.isArray(opts.columns)) return opts.columns
+    } catch (e) {}
+  }
+  return []
+}
+
+const formatTableCell = (val: any) => {
+  if (val === null || val === undefined || val === '') return '-'
+  if (typeof val === 'object') {
+    return val[locale?.value || 'ko'] || val.ko || val.en || JSON.stringify(val)
+  }
+  return String(val)
+}
+
+const domainRefCache = ref<Record<string, string>>({})
+const resolvingRefKeys: Record<string, boolean> = {}
+
+const resolveDomainRef = async (recordId: string, targetDomainId?: string) => {
+  if (!recordId || domainRefCache.value[recordId] || resolvingRefKeys[recordId]) return
+  resolvingRefKeys[recordId] = true
+
+  try {
+    const rec = await customFetch(`/api/records/${recordId}`)
+    if (rec && rec.data) {
+      const dataObj = typeof rec.data === 'string' ? JSON.parse(rec.data) : rec.data
+      let tDomainId = targetDomainId || rec.domainId || rec.node?.domain?.id || rec.node?.domainId
+      let idStr = ''
+      let nameStr = ''
+
+      if (tDomainId) {
+        const domains = await customFetch('/api/domains')
+        const tDomain = domains.find((d: any) => d.id === tDomainId)
+        if (tDomain) {
+          const tFields = await customFetch(`/api/domains/${tDomainId}/fields`)
+          const idF = tFields.find((x: any) => x.id === tDomain.identifierFieldId)
+          const nameF = tFields.find((x: any) => x.id === (tDomain.displayNameFieldId || tDomain.identifierFieldId))
+
+          const extractVal = (d: any, field: any) => {
+            if (!d || !field) return null
+            const v = d[field.key]
+            if (v && typeof v === 'object') return v[locale?.value || 'ko'] || v.ko || v.en || JSON.stringify(v)
+            return v ? String(v) : null
+          }
+
+          idStr = extractVal(dataObj, idF) || ''
+          nameStr = extractVal(dataObj, nameF) || ''
+        }
+      }
+
+      if (!idStr) idStr = dataObj.EP_NO || dataObj.id || dataObj.code || ''
+      if (!nameStr) nameStr = dataObj.EP_NAME || dataObj.name || dataObj.title || ''
+
+      let res = ''
+      if (idStr && nameStr && idStr !== nameStr) res = `[${idStr}] ${nameStr}`
+      else if (nameStr) res = nameStr
+      else if (idStr) res = `[${idStr}]`
+      else res = recordId
+
+      domainRefCache.value[recordId] = res
+    }
+  } catch (e) {
+    domainRefCache.value[recordId] = recordId
+  }
+}
+
+const formatDisplayValue = (k: string, val: any): string => {
   if (val === undefined || val === null || val === '') return t('none')
+  const f = getFieldByKey(k)
+  if (f && f.type === 'DOMAIN_REFERENCE') {
+    if (typeof val === 'string' && val.length >= 32) {
+      if (domainRefCache.value[val]) return domainRefCache.value[val]
+      let tDomainId = ''
+      try { tDomainId = JSON.parse(f.options || '{}').targetDomainId } catch (e) {}
+      resolveDomainRef(val, tDomainId)
+      return val
+    }
+  }
   if (typeof val === 'object') {
     if (val.ko || val.en) {
       return val.ko ? `${val.ko} (${val.en || ''})` : val.en
@@ -719,16 +862,18 @@ const diffRows = computed(() => {
 
   const allKeys = Array.from(new Set([...Object.keys(prev), ...Object.keys(next)]))
     .filter(k => !k.startsWith('_idx_'))
-  const rows: Array<{ key: string; before: string; after: string }> = []
+  const rows: Array<{ key: string; before: string; after: string; rawBefore: any; rawAfter: any }> = []
 
   for (const k of allKeys) {
-    const bStr = formatDisplayValue(prev[k])
-    const aStr = formatDisplayValue(next[k])
-    if (bStr !== aStr) {
+    const bStr = formatDisplayValue(k, prev[k])
+    const aStr = formatDisplayValue(k, next[k])
+    if (bStr !== aStr || JSON.stringify(prev[k]) !== JSON.stringify(next[k])) {
       rows.push({
         key: k,
         before: bStr,
-        after: aStr
+        after: aStr,
+        rawBefore: prev[k],
+        rawAfter: next[k]
       })
     }
   }

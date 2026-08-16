@@ -116,10 +116,13 @@ public class DomainPackageService {
         List<WorkflowConfig> workflows = workflowConfigRepository.findByDomainId(domainId);
         List<DomainPackageDto.WorkflowInfo> workflowInfos = workflows.stream()
                 .map(w -> DomainPackageDto.WorkflowInfo.builder()
+                        .nodeKey(w.getNode() != null ? nodeKeyMap.get(w.getNode().getId()) : null)
+                        .actionType(w.getActionType() != null ? w.getActionType() : "CREATE")
                         .name(w.getName())
                         .description(w.getDescription())
                         .stepsConfig(w.getStepsConfig())
                         .isDefault(w.getIsDefault())
+                        .isActive(w.getIsActive())
                         .build())
                 .collect(Collectors.toList());
 
@@ -189,23 +192,38 @@ public class DomainPackageService {
         }
 
         // 2. Nodes
+        List<ClassificationNode> existingNodes = nodeRepository.findByDomain_Id(domainId);
         Map<String, ClassificationNode> nodeMap = new HashMap<>();
         int nodeCount = 0;
         if (pkg.getNodes() != null) {
             for (DomainPackageDto.NodeInfo n : pkg.getNodes()) {
-                ClassificationNode node = new ClassificationNode();
-                node.setDomain(domain);
-                node.setName(n.getName() != null ? n.getName() : Map.of("ko", "Node"));
-                node.setOrder(n.getSortOrder() != null ? n.getSortOrder() : 0);
-                node.setDepth(0);
-                node.setPath("/");
-                node.setIsDeleted(false);
+                Optional<ClassificationNode> matchedNode = existingNodes.stream()
+                        .filter(en -> isSameNodeName(en.getName(), n.getName()))
+                        .findFirst();
+
+                ClassificationNode node;
+                if (matchedNode.isPresent()) {
+                    node = matchedNode.get();
+                    if (n.getName() != null) node.setName(n.getName());
+                    if (n.getSortOrder() != null) node.setOrder(n.getSortOrder());
+                } else {
+                    node = new ClassificationNode();
+                    node.setDomain(domain);
+                    node.setName(n.getName() != null ? n.getName() : Map.of("ko", "Node"));
+                    node.setOrder(n.getSortOrder() != null ? n.getSortOrder() : 0);
+                    node.setDepth(0);
+                    node.setPath("/");
+                    node.setIsDeleted(false);
+                }
+
                 if (n.getAxisCode() != null && axisMap.containsKey(n.getAxisCode())) {
                     node.setAxis(axisMap.get(n.getAxisCode()));
                 }
                 node = nodeRepository.save(node);
-                node.setPath("/" + node.getId());
-                node = nodeRepository.save(node);
+                if (node.getPath() == null || node.getPath().equals("/") || node.getPath().isBlank()) {
+                    node.setPath("/" + node.getId());
+                    node = nodeRepository.save(node);
+                }
 
                 nodeMap.put(n.getNodeKey(), node);
                 nodeCount++;
@@ -216,7 +234,7 @@ public class DomainPackageService {
                 if (n.getParentNodeKey() != null && nodeMap.containsKey(n.getParentNodeKey())) {
                     ClassificationNode child = nodeMap.get(n.getNodeKey());
                     ClassificationNode parent = nodeMap.get(n.getParentNodeKey());
-                    if (child != null && parent != null) {
+                    if (child != null && parent != null && !Objects.equals(child.getId(), parent.getId())) {
                         child.setParent(parent);
                         child.setDepth(parent.getDepth() != null ? parent.getDepth() + 1 : 1);
                         child.setPath((parent.getPath() != null ? parent.getPath() : "") + "/" + child.getId());
@@ -227,16 +245,36 @@ public class DomainPackageService {
         }
 
         // 3. Fields
+        List<FieldDefinition> existingDomainFields = fieldDefinitionRepository.findByDomain_Id(domainId);
         Map<String, FieldDefinition> fieldMap = new HashMap<>();
         int fieldCount = 0;
         if (pkg.getFields() != null) {
             for (DomainPackageDto.FieldInfo f : pkg.getFields()) {
-                FieldDefinition fd = new FieldDefinition();
-                fd.setDomain(domain);
-                if (f.getNodeKey() != null && nodeMap.containsKey(f.getNodeKey())) {
-                    fd.setDefinedAtNode(nodeMap.get(f.getNodeKey()));
+                if (f.getKey() == null || f.getKey().isBlank()) continue;
+                ClassificationNode targetNode = (f.getNodeKey() != null && nodeMap.containsKey(f.getNodeKey()))
+                        ? nodeMap.get(f.getNodeKey()) : null;
+                UUID targetNodeId = targetNode != null ? targetNode.getId() : null;
+
+                Optional<FieldDefinition> matchedField = existingDomainFields.stream()
+                        .filter(ef -> f.getKey().equalsIgnoreCase(ef.getKey()))
+                        .filter(ef -> {
+                            UUID efNodeId = ef.getDefinedAtNode() != null ? ef.getDefinedAtNode().getId() : null;
+                            return Objects.equals(efNodeId, targetNodeId);
+                        })
+                        .findFirst();
+
+                FieldDefinition fd;
+                if (matchedField.isPresent()) {
+                    fd = matchedField.get();
+                } else {
+                    fd = new FieldDefinition();
+                    fd.setDomain(domain);
+                    fd.setKey(f.getKey());
                 }
-                fd.setKey(f.getKey());
+
+                if (targetNode != null) {
+                    fd.setDefinedAtNode(targetNode);
+                }
                 fd.setName(f.getName() != null ? f.getName() : Map.of("ko", f.getKey()));
                 fd.setType(f.getType() != null ? f.getType() : "STRING");
                 fd.setRequired(Boolean.TRUE.equals(f.getRequired()));
@@ -252,16 +290,27 @@ public class DomainPackageService {
         }
 
         // 4. DQ Rules
+        List<DqRule> existingDqRules = dqRuleRepository.findByDomainId(domainId);
         int dqRuleCount = 0;
         if (pkg.getDqRules() != null) {
             for (DomainPackageDto.DqRuleInfo r : pkg.getDqRules()) {
                 if (r.getFieldKey() != null && fieldMap.containsKey(r.getFieldKey())) {
-                    DqRule rule = new DqRule();
-                    rule.setFieldDefinition(fieldMap.get(r.getFieldKey()));
-                    rule.setDomainId(domainId);
+                    FieldDefinition fd = fieldMap.get(r.getFieldKey());
+                    DqRuleType rType = null;
                     try {
-                        rule.setRuleType(DqRuleType.valueOf(r.getRuleType()));
+                        rType = DqRuleType.valueOf(r.getRuleType());
                     } catch (Exception ignored) {}
+
+                    final DqRuleType finalRType = rType;
+                    Optional<DqRule> matchedDq = existingDqRules.stream()
+                            .filter(er -> er.getFieldDefinition() != null && Objects.equals(er.getFieldDefinition().getId(), fd.getId()))
+                            .filter(er -> er.getRuleType() == finalRType)
+                            .findFirst();
+
+                    DqRule rule = matchedDq.orElseGet(DqRule::new);
+                    rule.setFieldDefinition(fd);
+                    rule.setDomainId(domainId);
+                    rule.setRuleType(rType);
                     rule.setParams(r.getParams());
                     try {
                         rule.setSeverity(DqSeverity.valueOf(r.getSeverity()));
@@ -277,10 +326,15 @@ public class DomainPackageService {
         }
 
         // 5. Matching Rules
+        List<MatchingRule> existingMatchingRules = matchingRuleRepository.findByDomainId(domainId);
         int matchingRuleCount = 0;
         if (pkg.getMatchingRules() != null) {
             for (DomainPackageDto.MatchingRuleInfo m : pkg.getMatchingRules()) {
-                MatchingRule rule = new MatchingRule();
+                Optional<MatchingRule> matched = existingMatchingRules.stream()
+                        .filter(em -> Objects.equals(em.getRuleName(), m.getRuleName()))
+                        .findFirst();
+
+                MatchingRule rule = matched.orElseGet(MatchingRule::new);
                 rule.setDomainId(domainId);
                 rule.setRuleName(m.getRuleName());
                 rule.setMatchType(m.getMatchType());
@@ -293,16 +347,31 @@ public class DomainPackageService {
         }
 
         // 6. Workflows
+        List<WorkflowConfig> existingWorkflows = workflowConfigRepository.findByDomainId(domainId);
         int workflowCount = 0;
         if (pkg.getWorkflows() != null) {
             for (DomainPackageDto.WorkflowInfo w : pkg.getWorkflows()) {
-                WorkflowConfig wf = new WorkflowConfig();
+                String actionType = w.getActionType() != null && !w.getActionType().isBlank() ? w.getActionType() : "CREATE";
+                ClassificationNode node = (w.getNodeKey() != null && nodeMap.containsKey(w.getNodeKey()))
+                        ? nodeMap.get(w.getNodeKey()) : null;
+                UUID targetNodeId = node != null ? node.getId() : null;
+
+                Optional<WorkflowConfig> matched = existingWorkflows.stream()
+                        .filter(ew -> Objects.equals(ew.getActionType(), actionType) && Objects.equals(ew.getNodeId(), targetNodeId))
+                        .findFirst();
+
+                WorkflowConfig wf = matched.orElseGet(WorkflowConfig::new);
                 wf.setDomain(domain);
+                if (node != null) {
+                    wf.setNode(node);
+                    wf.setNodeId(node.getId());
+                }
+                wf.setActionType(actionType);
                 wf.setName(w.getName());
                 wf.setDescription(w.getDescription());
                 wf.setStepsConfig(w.getStepsConfig());
                 wf.setIsDefault(Boolean.TRUE.equals(w.getIsDefault()));
-                wf.setIsActive(true);
+                wf.setIsActive(w.getIsActive() != null ? w.getIsActive() : true);
                 workflowConfigRepository.save(wf);
                 workflowCount++;
             }
@@ -320,5 +389,24 @@ public class DomainPackageService {
                 .success(true)
                 .message("Domain package imported successfully.")
                 .build();
+    }
+
+    private boolean isSameNodeName(Map<String, String> name1, Map<String, String> name2) {
+        if (name1 == null || name2 == null) return false;
+        for (Map.Entry<String, String> e : name1.entrySet()) {
+            String val1 = e.getValue();
+            String val2 = name2.get(e.getKey());
+            if (val1 != null && val2 != null && val1.trim().equalsIgnoreCase(val2.trim())) {
+                return true;
+            }
+        }
+        for (String v1 : name1.values()) {
+            for (String v2 : name2.values()) {
+                if (v1 != null && v2 != null && v1.trim().equalsIgnoreCase(v2.trim())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

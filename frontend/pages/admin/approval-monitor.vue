@@ -55,18 +55,18 @@
 
 <script setup>
 import { ref, onMounted, computed, h } from 'vue'
-import { usePageTitle } from '~/composables/usePageTitle'
-
-const { pageTitle } = usePageTitle('approval_monitor_title', '결재 진행 모니터링')
 import { useCookie } from '#app'
 import { AgGridVue } from 'ag-grid-vue3'
 import { useI18n } from 'vue-i18n'
 import { useModal } from 'vuestic-ui'
 import ApprovalMonitorDetailModal from '~/components/admin/ApprovalMonitorDetailModal.vue'
+import { usePageTitle } from '~/composables/usePageTitle'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { useApprovalEnricher } from '~/composables/useApprovalEnricher'
 import { useUserStore } from '~/stores/useUserStore'
 import { useRoleStore } from '~/stores/useRoleStore'
+
+const { pageTitle } = usePageTitle('approval_monitor_title', '결재 진행 모니터링')
 
 const messages = {
   ko: {

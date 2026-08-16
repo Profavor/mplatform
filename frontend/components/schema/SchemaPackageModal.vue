@@ -46,20 +46,34 @@
           💡 {{ $t('package_export_desc') }}
         </va-alert>
 
+        <div v-if="domainOptions && domainOptions.length > 1">
+          <label style="display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.35rem;">
+            {{ $t('target_domain') }}
+          </label>
+          <va-select
+            v-model="currentDomainId"
+            :options="domainOptions"
+            value-by="value"
+            text-by="text"
+            style="width: 100%;"
+          />
+        </div>
+
         <va-card flat bordered style="padding: 1rem;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <div>
               <div style="font-weight: 700; font-size: 1.1rem; color: var(--va-text-primary);">
-                {{ domainName || $t('domain') }}
+                {{ currentDomainName || $t('domain') }}
               </div>
               <div style="font-size: 0.85rem; color: var(--va-text-secondary); margin-top: 0.25rem;">
-                분류 노드, 필드 정의, DQ 검칙, 중복 매칭 룰, 결재 서식 전체가 패키징됩니다.
+                {{ $t('package_export_subtext') }}
               </div>
             </div>
             <va-button
               color="primary"
               icon="download"
               :loading="exporting"
+              :disabled="!currentDomainId || exporting"
               @click="downloadPackage"
             >
               {{ $t('export_download_json') }}
@@ -69,7 +83,7 @@
 
         <div v-if="previewJson" style="display: flex; flex-direction: column; gap: 0.5rem;">
           <div style="font-weight: 600; font-size: 0.85rem; color: var(--va-text-secondary);">
-            패키지 JSON 미리보기:
+            {{ $t('package_preview_label') }}
           </div>
           <pre style="background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 8px; padding: 1rem; font-size: 0.8rem; max-height: 250px; overflow: auto;">{{ previewJson }}</pre>
         </div>
@@ -83,7 +97,7 @@
 
         <div>
           <label style="display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.35rem;">
-            JSON 패키지 파일 선택 (.json)
+            {{ $t('package_file_select_label') }}
           </label>
           <input
             type="file"
@@ -99,12 +113,12 @@
 
         <div v-if="importPreview" style="display: flex; flex-direction: column; gap: 0.5rem;">
           <div style="font-weight: 600; font-size: 0.85rem; color: var(--va-text-secondary);">
-            불러온 패키지 정보:
+            {{ $t('package_preview_info_label') }}
           </div>
           <va-card flat bordered style="padding: 0.75rem 1rem; background: var(--va-background-element);">
-            <div><b>도메인명:</b> {{ importPreview.domain?.name?.ko || importPreview.domain?.name?.en || '-' }}</div>
+            <div><b>{{ $t('domain_label') }}:</b> {{ importPreview.domain?.name?.ko || importPreview.domain?.name?.en || '-' }}</div>
             <div style="font-size: 0.82rem; color: var(--va-text-secondary); margin-top: 0.25rem;">
-              분류 노드 {{ importPreview.nodes?.length || 0 }}개 · 필드 {{ importPreview.fields?.length || 0 }}개 · DQ 룰 {{ importPreview.dqRules?.length || 0 }}개
+              {{ $t('package_summary_counts', { nodes: importPreview.nodes?.length || 0, fields: importPreview.fields?.length || 0, rules: importPreview.dqRules?.length || 0 }) }}
             </div>
           </va-card>
         </div>
@@ -144,6 +158,7 @@ const props = defineProps<{
   modelValue: boolean
   domainId?: string
   domainName?: string
+  domainOptions?: Array<{ value: string; text: string }>
 }>()
 
 const emit = defineEmits<{
@@ -167,11 +182,40 @@ const previewJson = ref<string>('')
 const importPackageData = ref<any>(null)
 const importPreview = ref<any>(null)
 
+const currentDomainId = ref<string>(props.domainId || (props.domainOptions && props.domainOptions.length > 0 ? props.domainOptions[0].value : ''))
+
+const currentDomainName = computed(() => {
+  if (props.domainOptions && props.domainOptions.length > 0) {
+    const found = props.domainOptions.find(d => d.value === currentDomainId.value)
+    if (found) return found.text
+  }
+  return props.domainName || t('domain')
+})
+
+watch(() => props.domainId, (val) => {
+  if (val) {
+    currentDomainId.value = val
+  }
+})
+
+watch(() => props.domainOptions, (opts) => {
+  if (!currentDomainId.value && opts && opts.length > 0) {
+    currentDomainId.value = opts[0].value
+  }
+})
+
 const downloadPackage = async () => {
-  if (!props.domainId) return
+  const targetId = currentDomainId.value || props.domainId
+  if (!targetId) {
+    toast.init({
+      message: t('please_select_a_target_domain'),
+      color: 'warning'
+    })
+    return
+  }
   exporting.value = true
   try {
-    const res = await useCustomFetch(`/domains/${props.domainId}/package/export`)
+    const res = await useCustomFetch(`/domains/${targetId}/package/export`)
     if (res.data?.value) {
       const dataStr = JSON.stringify(res.data.value, null, 2)
       previewJson.value = dataStr
@@ -181,18 +225,18 @@ const downloadPackage = async () => {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `domain_package_${props.domainId}_${new Date().toISOString().slice(0, 10)}.json`
+      a.download = `domain_package_${targetId}_${new Date().toISOString().slice(0, 10)}.json`
       a.click()
       URL.revokeObjectURL(url)
 
       toast.init({
-        message: '도메인 패키지 다운로드가 완료되었습니다.',
+        message: t('package_download_success'),
         color: 'success'
       })
     }
   } catch (e: any) {
     toast.init({
-      message: e.message || 'Export failed',
+      message: e.message || t('import_failed'),
       color: 'danger'
     })
   } finally {
@@ -212,7 +256,7 @@ const handleFileSelected = (event: any) => {
       importPreview.value = json
     } catch (err) {
       toast.init({
-        message: '올바른 JSON 패키지 파일이 아닙니다.',
+        message: t('invalid_json_package_file'),
         color: 'danger'
       })
     }
@@ -250,6 +294,11 @@ const submitImport = async () => {
 
 watch(() => props.modelValue, (val) => {
   if (val) {
+    if (props.domainId) {
+      currentDomainId.value = props.domainId
+    } else if (props.domainOptions && props.domainOptions.length > 0) {
+      currentDomainId.value = props.domainOptions[0].value
+    }
     previewJson.value = ''
     importPackageData.value = null
     importPreview.value = null

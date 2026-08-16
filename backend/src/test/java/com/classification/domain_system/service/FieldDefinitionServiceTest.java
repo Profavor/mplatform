@@ -379,6 +379,74 @@ class FieldDefinitionServiceTest {
                     .isInstanceOf(RuntimeException.class)
                     .hasMessageContaining("Field does not belong to the specified node");
         }
+
+        @Test
+        @DisplayName("암호화 활성화(false -> true) 시 기존 레코드 데이터 일괄 암호화 저장 검증")
+        void updateField_EnableEncryption_MigratesRecords() {
+            FieldDefinition field = existingField(false);
+            field.setIsEncrypted(false);
+            field.setKey("ssn");
+
+            when(fieldRepository.findById(fieldId)).thenReturn(Optional.of(field));
+            when(fieldRepository.save(any())).thenReturn(field);
+
+            com.classification.domain_system.repository.RecordRepository recordRepo = mock(com.classification.domain_system.repository.RecordRepository.class);
+            FieldEncryptionService encService = mock(FieldEncryptionService.class);
+            org.springframework.test.util.ReflectionTestUtils.setField(fieldDefinitionService, "recordRepository", recordRepo);
+            org.springframework.test.util.ReflectionTestUtils.setField(fieldDefinitionService, "fieldEncryptionService", encService);
+
+            com.classification.domain_system.entity.Record rec1 = new com.classification.domain_system.entity.Record();
+            rec1.setId(UUID.randomUUID());
+            rec1.setData("{\"ssn\":\"860104-1234567\",\"name\":\"홍길동\"}");
+
+            when(recordRepo.findAllByDomainId(domainId)).thenReturn(List.of(rec1));
+            when(encService.encrypt("860104-1234567")).thenReturn("ENC_860104_1234567");
+
+            FieldDefinitionRequest req = new FieldDefinitionRequest();
+            req.setIsEncrypted(true);
+            req.setKey("ssn");
+
+            fieldDefinitionService.updateField(nodeId, fieldId, req);
+
+            verify(encService).encrypt("860104-1234567");
+            ArgumentCaptor<List<com.classification.domain_system.entity.Record>> captor = ArgumentCaptor.forClass(List.class);
+            verify(recordRepo).saveAll(captor.capture());
+            assertThat(captor.getValue().get(0).getData()).contains("ENC_860104_1234567");
+        }
+
+        @Test
+        @DisplayName("암호화 해제(true -> false) 시 기존 레코드 데이터 일괄 복호화 저장 검증")
+        void updateField_DisableEncryption_MigratesRecords() {
+            FieldDefinition field = existingField(false);
+            field.setIsEncrypted(true);
+            field.setKey("ssn");
+
+            when(fieldRepository.findById(fieldId)).thenReturn(Optional.of(field));
+            when(fieldRepository.save(any())).thenReturn(field);
+
+            com.classification.domain_system.repository.RecordRepository recordRepo = mock(com.classification.domain_system.repository.RecordRepository.class);
+            FieldEncryptionService encService = mock(FieldEncryptionService.class);
+            org.springframework.test.util.ReflectionTestUtils.setField(fieldDefinitionService, "recordRepository", recordRepo);
+            org.springframework.test.util.ReflectionTestUtils.setField(fieldDefinitionService, "fieldEncryptionService", encService);
+
+            com.classification.domain_system.entity.Record rec1 = new com.classification.domain_system.entity.Record();
+            rec1.setId(UUID.randomUUID());
+            rec1.setData("{\"ssn\":\"ENC_860104_1234567\",\"name\":\"홍길동\"}");
+
+            when(recordRepo.findAllByDomainId(domainId)).thenReturn(List.of(rec1));
+            when(encService.decrypt("ENC_860104_1234567")).thenReturn("860104-1234567");
+
+            FieldDefinitionRequest req = new FieldDefinitionRequest();
+            req.setIsEncrypted(false);
+            req.setKey("ssn");
+
+            fieldDefinitionService.updateField(nodeId, fieldId, req);
+
+            verify(encService).decrypt("ENC_860104_1234567");
+            ArgumentCaptor<List<com.classification.domain_system.entity.Record>> captor = ArgumentCaptor.forClass(List.class);
+            verify(recordRepo).saveAll(captor.capture());
+            assertThat(captor.getValue().get(0).getData()).contains("860104-1234567");
+        }
     }
 
     @Nested

@@ -1,10 +1,10 @@
 & minikube -p minikube docker-env | Invoke-Expression
 
 echo "Building Backend Image..."
-docker build --no-cache -t mplatform-backend:v35 -f c:\dev\ai\backend\Dockerfile c:\dev\ai\backend
+docker build --no-cache -t mplatform-backend:v57 -f c:\dev\ai\backend\Dockerfile c:\dev\ai\backend
 
 echo "Building Frontend Image..."
-docker build -t mplatform-frontend:v35 -f c:\dev\ai\frontend\Dockerfile c:\dev\ai\frontend
+docker build -t mplatform-frontend:v57 -f c:\dev\ai\frontend\Dockerfile c:\dev\ai\frontend
 
 echo "Applying Kubernetes configs..."
 kubectl apply -f c:\dev\ai\k8s\30-backend.yaml

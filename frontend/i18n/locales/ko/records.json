@@ -1,6 +1,14 @@
 {
   "advanced_search": "상세 검색",
   "advanced_search_condition": "상세 검색 조건 (Advanced Search)",
+  "no_fields_to_export": "내보낼 필드 정의가 존재하지 않습니다.",
+  "download_template_success": "템플릿 다운로드가 완료되었습니다.",
+  "download_template_failed": "템플릿 다운로드에 실패했습니다.",
+  "add_row": "+ 행 추가",
+  "delete_row": "행 삭제",
+  "empty_table_data": "등록된 데이터 행이 없습니다. '+ 행 추가' 버튼을 눌러 데이터를 입력하세요.",
+  "clear_all_rows": "전체 행 삭제",
+  "total_rows_count": "총 {count}건",
   "master_data_record_list": "마스터 데이터 레코드 목록",
   "reset_all": "전체 초기화",
   "create_request": "신규 등록 요청",
@@ -259,5 +267,21 @@
   "recommended_value": "AI 추천 교정값",
   "cleansing_strategy": "보정 전략",
   "apply_cleansing": "추천 교정값 일괄 적용",
-  "cleansing_success": "이상치 자율 정제가 성공적으로 완료되었습니다."
+  "cleansing_success": "이상치 자율 정제가 성공적으로 완료되었습니다.",
+  "btn_save": "저장",
+  "btn_close": "닫기",
+  "btn_edit": "수정",
+  "btn_delete": "삭제",
+  "view_original": "원문 보기",
+  "hide_original": "원문 숨기기",
+  "decrypt_failed": "복호화에 실패했습니다.",
+  "domain_ref_modal": {
+    "title": "참조 레코드 선택",
+    "guide": "원하시는 레코드를 목록에서 더블 클릭하여 선택해 주세요.",
+    "search_placeholder": "아이디 또는 이름 속성으로 검색...",
+    "search_btn": "검색",
+    "reset_btn": "초기화",
+    "total_count": "총 {count}건",
+    "no_results": "조회된 레코드가 없습니다."
+  }
 }

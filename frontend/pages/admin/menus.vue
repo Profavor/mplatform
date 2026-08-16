@@ -97,6 +97,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useToast } from 'vuestic-ui'
 import { useMenu } from '~/composables/useMenu'
 import { usePageTitle } from '~/composables/usePageTitle'
 import { usePermission } from '~/composables/usePermission'
@@ -104,8 +105,6 @@ import AddMenuModal from '~/components/admin/AddMenuModal.vue'
 import MenuEditForm from '~/components/admin/MenuEditForm.vue'
 
 const { pageTitle } = usePageTitle('menu_management', '메뉴 관리')
-import { useToast } from 'vuestic-ui'
-
 const { t, te, locale } = useI18n()
 const { menus, fetchMenus, refreshMenus } = useMenu()
 const { hasPermission } = usePermission()

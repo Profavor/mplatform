@@ -64,7 +64,7 @@
       class="mb-4 w-full" 
     />
     
-    <div v-if="['SELECT', 'MULTI_SELECT'].includes(newField.type)" class="mb-4 w-full" style="border: 1px solid #ccc; padding: 1rem; border-radius: 8px;">
+    <div v-if="['SELECT', 'MULTI_SELECT', 'ENUM'].includes(newField.type)" class="mb-4 w-full" style="border: 1px solid #ccc; padding: 1rem; border-radius: 8px;">
       <label style="font-weight: bold; margin-bottom: 0.5rem; display: block;">{{ t('options_settings') }}</label>
       
       <div style="margin-bottom: 0.5rem; display: flex; gap: 0.5rem; justify-content: flex-end;">
@@ -106,6 +106,101 @@
           &nbsp;&nbsp;• <code>ABS(값)</code> : 절대값<br/>
         <span style="color: #d9534f; font-weight: bold;">주의:</span> 참조하는 필드는 반드시 숫자(NUMBER, DECIMAL, FLOAT, INTEGER)이거나 다른 계산 필드(CALCULATED)여야 합니다.
       </va-alert>
+    </div>
+
+    <!-- JSON Table Sub-Schema Builder -->
+    <div v-else-if="newField.type === 'JSON'" class="mb-4 w-full" style="border: 1px solid var(--va-background-border); padding: 1rem; border-radius: 8px; background: var(--va-background-element);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+        <label style="font-weight: bold; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
+          <va-icon name="table_chart" size="small" color="primary" />
+          {{ t('table_schema_settings') }}
+        </label>
+        <va-button size="small" icon="add" @click="$emit('add-table-column')">{{ t('add_column') }}</va-button>
+      </div>
+      <p style="font-size: 0.8rem; color: var(--va-text-secondary); margin-bottom: 1rem;">
+        {{ t('table_schema_guide') }}
+      </p>
+
+      <div v-if="!newFieldTableColumns || newFieldTableColumns.length === 0" style="padding: 1.5rem; text-align: center; color: var(--va-text-secondary); border: 1px dashed var(--va-background-border); border-radius: 6px; font-size: 0.85rem;">
+        {{ t('no_table_columns_defined') }}
+      </div>
+
+      <div v-else style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <div 
+          v-for="(col, cIdx) in newFieldTableColumns" 
+          :key="cIdx"
+          style="display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; background: var(--va-background-secondary); border: 1px solid var(--va-background-border); border-radius: 6px;"
+        >
+          <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            <va-input 
+              v-model="col.key" 
+              :label="t('column_key')" 
+              placeholder="e.g. school_name" 
+              style="flex: 1.5; min-width: 130px;" 
+              dense 
+            />
+            <va-input 
+              v-model="col.name.ko" 
+              :label="t('column_name_ko')" 
+              placeholder="e.g. 학교명" 
+              style="flex: 1.5; min-width: 120px;" 
+              dense 
+            />
+            <va-input 
+              v-model="col.name.en" 
+              :label="t('column_name_en')" 
+              placeholder="e.g. School Name" 
+              style="flex: 1.5; min-width: 120px;" 
+              dense 
+            />
+            <va-select 
+              v-model="col.type" 
+              :options="[
+                { label: 'TEXT', value: 'TEXT' },
+                { label: 'NUMBER', value: 'NUMBER' },
+                { label: 'DATE', value: 'DATE' },
+                { label: 'SELECT', value: 'SELECT' },
+                { label: 'BOOLEAN', value: 'BOOLEAN' }
+              ]"
+              value-by="value"
+              text-by="label"
+              :label="t('column_type')" 
+              style="flex: 1.2; min-width: 110px;" 
+              dense 
+            />
+            <va-input 
+              v-model="col.width" 
+              type="number" 
+              :label="t('column_width')" 
+              placeholder="150" 
+              style="width: 80px;" 
+              dense 
+            />
+            <div style="display: flex; align-items: center; gap: 0.25rem; margin-top: 1rem;">
+              <va-checkbox v-model="col.required" :label="t('required')" />
+              <va-button 
+                preset="secondary" 
+                color="danger" 
+                icon="delete" 
+                size="small" 
+                @click="$emit('remove-table-column', cIdx)" 
+                style="margin-left: 0.5rem;" 
+              />
+            </div>
+          </div>
+          <!-- SELECT type extra options -->
+          <div v-if="col.type === 'SELECT'" style="width: 100%; margin-top: 0.25rem; box-sizing: border-box;">
+            <va-input 
+              v-model="col.optionsStr" 
+              :label="t('column_options')" 
+              :placeholder="t('column_options_placeholder')" 
+              class="full-width-option-input"
+              style="width: 100%; min-width: 100%;" 
+              dense 
+            />
+          </div>
+        </div>
+      </div>
     </div>
 
     <div v-if="['DATE', 'DATE_RANGE'].includes(newField.type)" class="mb-4 w-full">
@@ -160,8 +255,13 @@
           <span style="flex: 1;">{{ t('searchable') }}</span>
         </div>
 
-        <div class="option-pill" :class="{ active: newField.isEncrypted }" @click="newField.isEncrypted = !newField.isEncrypted">
-          <va-checkbox v-model="newField.isEncrypted" @click.stop />
+        <div 
+          class="option-pill" 
+          :class="{ active: newField.isEncrypted, disabled: newField.type !== 'TEXT' }" 
+          :style="{ opacity: newField.type === 'TEXT' ? 1 : 0.45, cursor: newField.type === 'TEXT' ? 'pointer' : 'not-allowed' }"
+          @click="newField.type === 'TEXT' && (newField.isEncrypted = !newField.isEncrypted)"
+        >
+          <va-checkbox v-model="newField.isEncrypted" :disabled="newField.type !== 'TEXT'" @click.stop />
           <va-icon name="lock" size="small" :color="newField.isEncrypted ? 'warning' : 'secondary'" />
           <span style="flex: 1;">{{ t('encrypted') }}</span>
         </div>
@@ -304,7 +404,9 @@ const formatNodeTitle = (node) => {
   return node.label || ''
 }
 
-defineProps({
+import { watch } from 'vue'
+
+const props = defineProps({
   modelValue: { type: Boolean, default: false },
   isEditMode: { type: Boolean, default: false },
   selectedNode: { type: Object, default: null },
@@ -322,8 +424,15 @@ defineProps({
   optionsColumnDefs: { type: Array, default: () => [] },
   newFieldOptionsList: { type: Array, default: () => [] },
   optionsDefaultColDef: { type: Object, default: () => ({}) },
+  newFieldTableColumns: { type: Array, default: () => [] },
   availableConditionFields: { type: Array, default: () => [] },
   canEdit: { type: Boolean, default: true }
+})
+
+watch(() => props.newField?.type, (newType) => {
+  if (newType !== 'TEXT' && props.newField) {
+    props.newField.isEncrypted = false
+  }
 })
 
 defineEmits([
@@ -333,6 +442,8 @@ defineEmits([
   'add-grid-option',
   'remove-selected-grid-option',
   'options-grid-ready',
+  'add-table-column',
+  'remove-table-column',
   'save'
 ])
 </script>
@@ -361,5 +472,15 @@ defineEmits([
   border-color: var(--va-primary);
   color: var(--va-text-primary);
   font-weight: 600;
+}
+
+:deep(.full-width-option-input) {
+  width: 100% !important;
+  display: block !important;
+}
+
+:deep(.full-width-option-input .va-input-wrapper) {
+  width: 100% !important;
+  max-width: 100% !important;
 }
 </style>
