@@ -162,7 +162,7 @@
                         <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
                           <th style="padding: 0.3rem 0.4rem; width: 30px; text-align: center; color: var(--va-text-secondary);">#</th>
                           <th v-for="col in getTableColumnsForField(getFieldByKey(row.key), row.rawBefore)" :key="col.key" style="padding: 0.3rem 0.5rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
-                            {{ col.name?.ko || col.name?.en || col.name || col.key }}
+                            {{ getColLabel(col) }}
                           </th>
                         </tr>
                       </thead>
@@ -170,7 +170,7 @@
                         <tr v-for="(subRow, rIdx) in getTableRows(row.rawBefore)" :key="rIdx" style="border-bottom: 1px solid var(--va-background-border);">
                           <td style="padding: 0.3rem 0.4rem; text-align: center; color: var(--va-text-secondary);">{{ rIdx + 1 }}</td>
                           <td v-for="col in getTableColumnsForField(getFieldByKey(row.key), row.rawBefore)" :key="col.key" style="padding: 0.3rem 0.5rem; color: #b91c1c;">
-                            {{ formatTableCell(subRow[col.key]) }}
+                            {{ formatTableCell(subRow[col.key], col) }}
                           </td>
                         </tr>
                       </tbody>
@@ -191,7 +191,7 @@
                         <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
                           <th style="padding: 0.3rem 0.4rem; width: 30px; text-align: center; color: var(--va-text-secondary);">#</th>
                           <th v-for="col in getTableColumnsForField(getFieldByKey(row.key), row.rawAfter)" :key="col.key" style="padding: 0.3rem 0.5rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
-                            {{ col.name?.ko || col.name?.en || col.name || col.key }}
+                            {{ getColLabel(col) }}
                           </th>
                         </tr>
                       </thead>
@@ -199,7 +199,7 @@
                         <tr v-for="(subRow, rIdx) in getTableRows(row.rawAfter)" :key="rIdx" style="border-bottom: 1px solid var(--va-background-border);">
                           <td style="padding: 0.3rem 0.4rem; text-align: center; color: var(--va-text-secondary);">{{ rIdx + 1 }}</td>
                           <td v-for="col in getTableColumnsForField(getFieldByKey(row.key), row.rawAfter)" :key="col.key" style="padding: 0.3rem 0.5rem; color: #15803d;">
-                            {{ formatTableCell(subRow[col.key]) }}
+                            {{ formatTableCell(subRow[col.key], col) }}
                           </td>
                         </tr>
                       </tbody>
@@ -626,12 +626,27 @@ watch(show, (val) => {
   emit('update:modelValue', val)
 })
 
+const internalFields = ref<any[]>([])
+
 const fetchLineage = async () => {
   if (!props.recordId) return
   loading.value = true
   try {
     const res = await customFetch(`/api/records/${props.recordId}/lineage`)
     lineageData.value = res
+
+    if (!props.fields || props.fields.length === 0) {
+      try {
+        const rec = await customFetch(`/api/records/${props.recordId}`)
+        const nodeId = rec?.nodeId || rec?.node?.id
+        if (nodeId) {
+          const fList = await customFetch(`/api/nodes/${nodeId}/fields/effective`)
+          if (Array.isArray(fList)) {
+            internalFields.value = fList
+          }
+        }
+      } catch (err) {}
+    }
   } catch (e) {
     console.error('Failed to fetch lineage:', e)
   } finally {
@@ -747,7 +762,8 @@ const parseJsonIfNeeded = (val: any) => {
 
 const getFieldByKey = (key: string) => {
   if (!key) return null
-  return props.fields?.find((f: any) => f.key === key || String(f.id) === String(key) || (f.key && String(f.key).toLowerCase() === String(key).toLowerCase()))
+  const combined = [...(props.fields || []), ...internalFields.value]
+  return combined.find((f: any) => f.key === key || String(f.id) === String(key) || (f.key && String(f.key).toLowerCase() === String(key).toLowerCase()))
 }
 
 const getTableRows = (val: any) => {
@@ -786,8 +802,33 @@ const getTableColumnsForField = (f: any, rowData?: any) => {
   return []
 }
 
-const formatTableCell = (val: any) => {
+const getColLabel = (col: any) => {
+  if (!col) return ''
+  const name = col.name || col.label || col.key
+  if (typeof name === 'object' && name !== null) {
+    return name[locale?.value || 'ko'] || name.ko || name.en || col.key || ''
+  }
+  return String(name)
+}
+
+const formatTableCell = (val: any, col?: any) => {
   if (val === null || val === undefined || val === '') return '-'
+  if (col && (col.type === 'SELECT' || col.options)) {
+    let opts: any[] = []
+    if (typeof col.options === 'string') {
+      try { opts = JSON.parse(col.options) } catch (e) {}
+    } else if (Array.isArray(col.options)) {
+      opts = col.options
+    }
+    if (Array.isArray(opts)) {
+      const found = opts.find((o: any) => o && (String(o.value) === String(val) || String(o.key) === String(val) || String(o.code) === String(val)))
+      if (found) {
+        if (typeof found.label === 'object') return found.label[locale?.value || 'ko'] || found.label.ko || found.label.en || val
+        if (typeof found.name === 'object') return found.name[locale?.value || 'ko'] || found.name.ko || found.name.en || val
+        return found.label || found.name || val
+      }
+    }
+  }
   if (typeof val === 'object') {
     return val[locale?.value || 'ko'] || val.ko || val.en || JSON.stringify(val)
   }
