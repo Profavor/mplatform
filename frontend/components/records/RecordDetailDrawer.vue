@@ -691,7 +691,7 @@
         v-if="activeMainTab === 'details' && isEditing && !isSnapshotMode && canWrite"
         color="success"
         :disabled="!hasUpdateWorkflow"
-        @click="$emit('save', localRecord)"
+        @click="$emit('save', { ...localRecord })"
       >
         {{ t('btn_save') }}
       </va-button>
