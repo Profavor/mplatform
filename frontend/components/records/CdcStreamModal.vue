@@ -34,9 +34,9 @@
 
       <!-- Live Stream Events & Inspection -->
       <va-inner-loading :loading="loading">
-        <div v-if="streamData?.events?.length > 0" style="display: grid; grid-template-columns: 1.1fr 1fr; gap: 1rem;">
+        <div v-if="streamData?.events?.length > 0" style="display: grid; grid-template-columns: 1fr 1.3fr; gap: 1rem;">
           <!-- Event List -->
-          <div style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; border: 1px solid var(--va-background-border); border-radius: 8px; padding: 0.5rem;">
+          <div style="max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; border: 1px solid var(--va-background-border); border-radius: 8px; padding: 0.5rem;">
             <div
               v-for="evt in streamData.events"
               :key="evt.eventId"
@@ -51,7 +51,7 @@
                     :color="evt.operation === 'c' ? 'success' : (evt.operation === 'u' ? 'info' : 'danger')"
                     size="small"
                   />
-                  <span>{{ evt.recordCode }}</span>
+                  <span>{{ formatRecordIdentifier(evt.recordCode, evt.recordId) }}</span>
                 </div>
                 <span style="font-size: 0.72rem; color: var(--va-text-secondary); font-family: monospace;">{{ evt.eventId }}</span>
               </div>
@@ -60,7 +60,7 @@
           </div>
 
           <!-- Payload Inspector -->
-          <div style="max-height: 340px; overflow-y: auto; border: 1px solid var(--va-background-border); border-radius: 8px; padding: 0.75rem; background: var(--va-background-element); display: flex; flex-direction: column; gap: 0.75rem;">
+          <div style="max-height: 380px; overflow-y: auto; border: 1px solid var(--va-background-border); border-radius: 8px; padding: 0.75rem; background: var(--va-background-element); display: flex; flex-direction: column; gap: 0.75rem;">
             <div v-if="selectedEvent" style="display: flex; flex-direction: column; gap: 0.75rem;">
               <!-- Header & View Mode Switcher -->
               <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -90,14 +90,14 @@
                 </div>
               </div>
 
-              <!-- Table View: Friendly Field Diff -->
+              <!-- Table View: Friendly 3-Column Field Diff -->
               <div v-if="viewMode === 'table'">
-                <table v-if="diffItems.length > 0" style="width: 100%; border-collapse: collapse; font-size: 0.8rem; background: var(--va-background-card); border-radius: 6px; overflow: hidden;">
+                <table v-if="diffItems.length > 0" style="width: 100%; border-collapse: collapse; font-size: 0.8rem; background: var(--va-background-card); border-radius: 6px; overflow: hidden; border: 1px solid var(--va-background-border);">
                   <thead>
                     <tr style="background: var(--va-background-element); border-bottom: 1px solid var(--va-background-border); text-align: left;">
-                      <th style="padding: 0.5rem 0.6rem; font-weight: 600; width: 30%;">{{ $t('diff_field_name') }}</th>
-                      <th style="padding: 0.5rem 0.6rem; font-weight: 600; width: 35%;">{{ $t('diff_before') }}</th>
-                      <th style="padding: 0.5rem 0.6rem; font-weight: 600; width: 35%;">{{ $t('diff_after') }}</th>
+                      <th style="padding: 0.5rem 0.6rem; font-weight: 600; width: 28%; color: var(--va-text-secondary);">{{ $t('property_field_name') || '속성 / 필드명' }}</th>
+                      <th style="padding: 0.5rem 0.6rem; font-weight: 600; width: 36%; color: #ef4444;">{{ $t('previous_value') || '변경 전 (Previous Value)' }}</th>
+                      <th style="padding: 0.5rem 0.6rem; font-weight: 600; width: 36%; color: #22c55e;">{{ $t('new_value') || '변경 후 (New Value)' }}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -105,19 +105,109 @@
                       v-for="item in diffItems"
                       :key="item.key"
                       style="border-bottom: 1px solid var(--va-background-border); transition: background 0.15s;"
-                      :style="{ background: item.isChanged ? 'rgba(33, 150, 243, 0.06)' : 'transparent' }"
+                      :style="{ background: item.isChanged ? 'rgba(33, 150, 243, 0.04)' : 'transparent' }"
                     >
-                      <td style="padding: 0.5rem 0.6rem; font-weight: 600; color: var(--va-text-primary);">
+                      <!-- Field Name -->
+                      <td style="padding: 0.5rem 0.6rem; font-weight: 600; color: var(--va-text-primary); vertical-align: top;">
                         {{ item.label }}
-                        <span v-if="item.key !== item.label" style="font-size: 0.7rem; color: var(--va-text-secondary); margin-left: 0.2rem; font-family: monospace;">({{ item.key }})</span>
                       </td>
-                      <td style="padding: 0.5rem 0.6rem; color: var(--va-text-secondary); word-break: break-all;">
-                        <span :style="{ textDecoration: item.isChanged && item.before !== '-' ? 'line-through' : 'none', color: item.isChanged ? 'var(--va-danger)' : 'inherit' }">
-                          {{ item.before }}
-                        </span>
+
+                      <!-- Previous Value -->
+                      <td style="padding: 0.5rem 0.6rem; color: #b91c1c; background: rgba(239, 68, 68, 0.04); vertical-align: top; word-break: break-all;">
+                        <!-- If FILE Type -->
+                        <template v-if="getFieldByKey(item.key)?.type === 'FILE'">
+                          <div v-if="getFilesList(item.rawBefore).length > 0" style="display: flex; flex-direction: column; gap: 4px;">
+                            <a
+                              v-for="(fUrl, idx) in getFilesList(item.rawBefore)"
+                              :key="idx"
+                              href="#"
+                              @click.prevent="downloadFileWithAuth(fUrl.url || fUrl, fUrl.name || extractFilename(fUrl.url || fUrl))"
+                              style="color: #b91c1c; text-decoration: underline; font-weight: 600; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 4px;"
+                            >
+                              📎 {{ fUrl.name || extractFilename(fUrl.url || fUrl) }}
+                            </a>
+                          </div>
+                          <span v-else>{{ $t('none') || '-' }}</span>
+                        </template>
+
+                        <!-- If JSON Type -->
+                        <template v-else-if="getFieldByKey(item.key)?.type === 'JSON' && getTableRows(item.rawBefore).length > 0">
+                          <div style="border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; overflow: hidden; background: var(--va-background-element);">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem;">
+                              <thead>
+                                <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
+                                  <th style="padding: 0.25rem 0.35rem; width: 25px; text-align: center; color: var(--va-text-secondary);">#</th>
+                                  <th v-for="col in getTableColumnsForField(getFieldByKey(item.key), item.rawBefore)" :key="col.key" style="padding: 0.25rem 0.4rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
+                                    {{ getColLabel(col) }}
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr v-for="(row, rIdx) in getTableRows(item.rawBefore)" :key="rIdx" style="border-bottom: 1px solid var(--va-background-border);">
+                                  <td style="padding: 0.25rem 0.35rem; text-align: center; color: var(--va-text-secondary);">{{ rIdx + 1 }}</td>
+                                  <td v-for="col in getTableColumnsForField(getFieldByKey(item.key), item.rawBefore)" :key="col.key" style="padding: 0.25rem 0.4rem; color: #b91c1c;">
+                                    {{ formatTableCell(row[col.key], col) }}
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </template>
+
+                        <!-- Other Field -->
+                        <template v-else>
+                          <span :style="{ textDecoration: item.isChanged && item.before !== '-' ? 'line-through' : 'none' }">
+                            {{ item.before }}
+                          </span>
+                        </template>
                       </td>
-                      <td style="padding: 0.5rem 0.6rem; font-weight: 500; word-break: break-all;" :style="{ color: item.isChanged ? 'var(--va-primary)' : 'inherit' }">
-                        {{ item.after }}
+
+                      <!-- New Value -->
+                      <td style="padding: 0.5rem 0.6rem; color: #15803d; background: rgba(34, 197, 94, 0.04); font-weight: 600; vertical-align: top; word-break: break-all;">
+                        <!-- If FILE Type -->
+                        <template v-if="getFieldByKey(item.key)?.type === 'FILE'">
+                          <div v-if="getFilesList(item.rawAfter).length > 0" style="display: flex; flex-direction: column; gap: 4px;">
+                            <a
+                              v-for="(fUrl, idx) in getFilesList(item.rawAfter)"
+                              :key="idx"
+                              href="#"
+                              @click.prevent="downloadFileWithAuth(fUrl.url || fUrl, fUrl.name || extractFilename(fUrl.url || fUrl))"
+                              style="color: #15803d; text-decoration: underline; font-weight: 600; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 4px;"
+                            >
+                              📎 {{ fUrl.name || extractFilename(fUrl.url || fUrl) }}
+                            </a>
+                          </div>
+                          <span v-else>{{ $t('none') || '-' }}</span>
+                        </template>
+
+                        <!-- If JSON Type -->
+                        <template v-else-if="getFieldByKey(item.key)?.type === 'JSON' && getTableRows(item.rawAfter).length > 0">
+                          <div style="border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px; overflow: hidden; background: var(--va-background-element);">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem;">
+                              <thead>
+                                <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
+                                  <th style="padding: 0.25rem 0.35rem; width: 25px; text-align: center; color: var(--va-text-secondary);">#</th>
+                                  <th v-for="col in getTableColumnsForField(getFieldByKey(item.key), item.rawAfter)" :key="col.key" style="padding: 0.25rem 0.4rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
+                                    {{ getColLabel(col) }}
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr v-for="(row, rIdx) in getTableRows(item.rawAfter)" :key="rIdx" style="border-bottom: 1px solid var(--va-background-border);">
+                                  <td style="padding: 0.25rem 0.35rem; text-align: center; color: var(--va-text-secondary);">{{ rIdx + 1 }}</td>
+                                  <td v-for="col in getTableColumnsForField(getFieldByKey(item.key), item.rawAfter)" :key="col.key" style="padding: 0.25rem 0.4rem; color: #15803d;">
+                                    {{ formatTableCell(row[col.key], col) }}
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </template>
+
+                        <!-- Other Field -->
+                        <template v-else>
+                          {{ item.after }}
+                        </template>
                       </td>
                     </tr>
                   </tbody>
@@ -161,7 +251,7 @@ import { useI18n } from 'vue-i18n'
 import { useCookie } from '#app'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useTimezoneDate } from '~/composables/useTimezoneDate'
-import { formatMultilingual } from '~/composables/useMultilingual'
+import { useFileDownloader } from '~/composables/useFileDownloader'
 
 const props = defineProps<{
   modelValue: boolean
@@ -175,7 +265,9 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const { formatWithTimezone } = useTimezoneDate()
+const { downloadFileWithAuth } = useFileDownloader()
 const localeCookie = useCookie<string>('locale', { default: () => 'ko' })
+const domainRefCache = ref<Record<string, string>>({})
 
 const show = computed({
   get: () => props.modelValue,
@@ -207,6 +299,15 @@ const formatTime = (ts: string) => {
   return formatWithTimezone(ts, 'YYYY-MM-DD HH:mm:ss')
 }
 
+const formatRecordIdentifier = (code: string | null, id: string | null) => {
+  if (code) return code
+  if (id) {
+    if (id.startsWith('REC-')) return id
+    return `REC-${id.substring(0, 8)}`
+  }
+  return '-'
+}
+
 const getOperationLabel = (op: string) => {
   if (op === 'c') return t('record_create')
   if (op === 'u') return t('record_update')
@@ -214,8 +315,12 @@ const getOperationLabel = (op: string) => {
   return op ? op.toUpperCase() : ''
 }
 
+const getFieldByKey = (key: string) => {
+  return fieldDefinitions.value.find(f => f.key === key || (f.key && f.key.toLowerCase() === key.toLowerCase()) || String(f.id) === String(key))
+}
+
 const getFieldLabel = (key: string): string => {
-  const fd = fieldDefinitions.value.find(f => f.key === key)
+  const fd = getFieldByKey(key)
   if (!fd) return key
   if (typeof fd.name === 'object' && fd.name !== null) {
     const loc = localeCookie.value || 'ko'
@@ -224,11 +329,169 @@ const getFieldLabel = (key: string): string => {
   return fd.name || fd.key || key
 }
 
-const formatValue = (val: any): string => {
-  if (val === undefined || val === null || val === '') return '-'
-  if (typeof val === 'object') {
-    return formatMultilingual(val) || JSON.stringify(val)
+const getFilesList = (v: any): any[] => {
+  if (!v) return []
+  if (Array.isArray(v)) return v.filter(Boolean)
+  if (typeof v === 'string') {
+    const trimmed = v.trim()
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        return Array.isArray(parsed) ? parsed.filter(Boolean) : []
+      } catch (e) {
+        return [v]
+      }
+    }
+    return [v]
   }
+  if (typeof v === 'object' && v !== null) return [v]
+  return []
+}
+
+const extractFilename = (input: any): string => {
+  if (!input) return ''
+  if (typeof input === 'object') {
+    if (input.name && input.name !== 'Download') return input.name
+    if (input.originalName) return input.originalName
+    if (input.url) input = input.url
+    else return ''
+  }
+  let str = String(input).trim()
+  if (!str || str === '-' || str === '[]' || str === '{}' || str === 'null' || str === 'undefined') return ''
+  try {
+    if (str.startsWith('{') || str.startsWith('[')) {
+      const parsed = JSON.parse(str)
+      if (Array.isArray(parsed) && parsed.length > 0) return extractFilename(parsed[0])
+      if (typeof parsed === 'object' && (parsed.name || parsed.originalName)) return parsed.name || parsed.originalName
+    }
+  } catch (e) {}
+  try {
+    if (str.includes('?name=')) return decodeURIComponent(str.split('?name=')[1].split('&')[0])
+    if (str.includes('?filename=')) return decodeURIComponent(str.split('?filename=')[1].split('&')[0])
+    const fname = decodeURIComponent(str.split('/').pop()?.split('?')[0] || '')
+    if (fname && fname !== '-' && fname !== 'null') return fname
+  } catch (e) {}
+  return str
+}
+
+const getTableRows = (val: any): any[] => {
+  if (!val) return []
+  if (Array.isArray(val)) return val
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val)
+      return Array.isArray(parsed) ? parsed : []
+    } catch (e) {
+      return []
+    }
+  }
+  return []
+}
+
+const getTableColumnsForField = (field: any, val: any) => {
+  if (field && field.options) {
+    try {
+      const opts = typeof field.options === 'string' ? JSON.parse(field.options) : field.options
+      if (opts?.tableSchema?.columns?.length > 0) return opts.tableSchema.columns
+      if (opts?.columns?.length > 0) return opts.columns
+    } catch (e) {}
+  }
+  const rows = getTableRows(val)
+  if (rows.length > 0 && typeof rows[0] === 'object' && rows[0] !== null) {
+    return Object.keys(rows[0]).map(k => ({ key: k, name: k, type: 'TEXT' }))
+  }
+  return []
+}
+
+const getColLabel = (col: any) => {
+  if (!col) return ''
+  if (typeof col.name === 'object' && col.name !== null) {
+    const loc = localeCookie.value || 'ko'
+    return col.name[loc] || col.name.ko || col.name.en || col.key
+  }
+  return col.name || col.key
+}
+
+const formatTableCell = (val: any, col: any) => {
+  if (val === null || val === undefined || val === '') return '-'
+  if (col && col.type === 'SELECT' && col.options) {
+    let opts = []
+    if (typeof col.options === 'string') {
+      try { opts = JSON.parse(col.options) } catch (e) {}
+    } else if (Array.isArray(col.options)) {
+      opts = col.options
+    }
+    const found = opts.find((o: any) => (o.value || o.key || o.code) === val)
+    if (found) {
+      if (typeof found.label === 'object') {
+        const loc = localeCookie.value || 'ko'
+        return found.label[loc] || found.label.ko || found.label.en || found.label
+      }
+      return found.label || found.name || val
+    }
+  }
+  if (typeof val === 'object') {
+    const loc = localeCookie.value || 'ko'
+    return val[loc] || val.ko || val.en || JSON.stringify(val)
+  }
+  return String(val)
+}
+
+const resolveDomainRef = async (recordId: string, targetDomainId?: string) => {
+  if (!recordId || domainRefCache.value[recordId]) return
+  try {
+    const res = await useCustomFetch(`/domains/${targetDomainId || props.domainId}/records/${recordId}`)
+    const rec = res.data?.value || res
+    if (rec && rec.data) {
+      const dataObj = typeof rec.data === 'string' ? JSON.parse(rec.data) : rec.data
+      const idStr = rec.code || dataObj.EP_NO || dataObj.code || recordId.substring(0, 8)
+      const nameStr = dataObj.EP_NAME || dataObj.name || dataObj.title || ''
+      domainRefCache.value[recordId] = nameStr ? `[${idStr}] ${nameStr}` : `REC-${idStr}`
+    } else {
+      domainRefCache.value[recordId] = `REC-${recordId.substring(0, 8)}`
+    }
+  } catch (e) {
+    domainRefCache.value[recordId] = `REC-${recordId.substring(0, 8)}`
+  }
+}
+
+const formatValue = (val: any, fieldKey?: string): string => {
+  if (val === undefined || val === null || val === '') return '-'
+  
+  const f = fieldKey ? getFieldByKey(fieldKey) : null
+  if (f && f.type === 'DOMAIN_REFERENCE') {
+    if (typeof val === 'string' && val.length >= 32) {
+      if (domainRefCache.value[val]) return domainRefCache.value[val]
+      let tDomainId = ''
+      try { tDomainId = JSON.parse(f.options || '{}').targetDomainId } catch (e) {}
+      resolveDomainRef(val, tDomainId)
+      return `REC-${val.substring(0, 8)}`
+    }
+  }
+
+  // Raw UUID string pattern
+  if (typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
+    return `REC-${val.substring(0, 8)}`
+  }
+
+  let obj = val
+  if (typeof val === 'string' && val.trim().startsWith('{') && val.trim().endsWith('}')) {
+    try { obj = JSON.parse(val) } catch (e) {}
+  }
+
+  if (typeof obj === 'object' && obj !== null) {
+    if ('ko' in obj || 'en' in obj) {
+      const loc = localeCookie.value === 'en' ? 'en' : 'ko'
+      const primary = obj[loc] || obj.ko || obj.en
+      const secondary = loc === 'ko' ? obj.en : obj.ko
+      if (primary && secondary && primary !== secondary) {
+        return `${primary} (${secondary})`
+      }
+      return primary || secondary || '-'
+    }
+    return JSON.stringify(obj)
+  }
+
   return String(val)
 }
 
@@ -238,20 +501,24 @@ const diffItems = computed(() => {
   const after = selectedEvent.value.afterPayload || {}
 
   const allKeys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)]))
+    .filter(k => !k.startsWith('_idx_') && k !== 'id' && k !== 'domainId' && k !== 'nodeId' && k !== 'createdAt' && k !== 'updatedAt')
+
   if (allKeys.length === 0) return []
 
   return allKeys.map(k => {
     const bVal = before[k]
     const aVal = after[k]
-    const bFormatted = formatValue(bVal)
-    const aFormatted = formatValue(aVal)
-    const isChanged = bFormatted !== aFormatted
+    const bFormatted = formatValue(bVal, k)
+    const aFormatted = formatValue(aVal, k)
+    const isChanged = bFormatted !== aFormatted || JSON.stringify(bVal) !== JSON.stringify(aVal)
 
     return {
       key: k,
       label: getFieldLabel(k),
       before: bFormatted,
       after: aFormatted,
+      rawBefore: bVal,
+      rawAfter: aVal,
       isChanged
     }
   })
