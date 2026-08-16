@@ -11,10 +11,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -32,6 +35,9 @@ class ChatMessageControllerTest {
 
     @Mock
     private PresenceEventListener presenceEventListener;
+
+    @Mock
+    private com.classification.domain_system.service.storage.FileStorageService fileStorageService;
 
     @InjectMocks
     private ChatMessageController chatMessageController;
@@ -161,5 +167,60 @@ class ChatMessageControllerTest {
         assertThrows(CustomAccessDeniedException.class, () -> {
             chatMessageController.getMyRooms();
         });
+    }
+
+    @Test
+    @DisplayName("채팅 파일 업로드 성공")
+    void testUploadChatFile_Success() {
+        org.springframework.mock.web.MockMultipartFile file = new org.springframework.mock.web.MockMultipartFile(
+                "file", "image.png", "image/png", "test content".getBytes()
+        );
+        when(fileStorageService.storeFile(file)).thenReturn("hashed_image.png");
+
+        ResponseEntity<Map<String, Object>> response = chatMessageController.uploadChatFile(file);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("/api/chat/files/hashed_image.png", response.getBody().get("fileUrl"));
+        assertEquals("image.png", response.getBody().get("fileName"));
+        assertEquals((long) "test content".getBytes().length, response.getBody().get("fileSize"));
+        verify(fileStorageService).storeFile(file);
+    }
+
+    @Test
+    @DisplayName("채팅 빈 파일 업로드 시 400 Bad Request 반환")
+    void testUploadChatFile_EmptyFile() {
+        org.springframework.mock.web.MockMultipartFile emptyFile = new org.springframework.mock.web.MockMultipartFile(
+                "file", "", "text/plain", new byte[0]
+        );
+
+        ResponseEntity<Map<String, Object>> response = chatMessageController.uploadChatFile(emptyFile);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        verifyNoInteractions(fileStorageService);
+    }
+
+    @Test
+    @DisplayName("채팅 파일 조회 성공")
+    void testGetChatFile_Success() {
+        Resource mockResource = mock(Resource.class);
+        when(fileStorageService.loadFileAsResource("sample.png")).thenReturn(mockResource);
+        when(mockResource.exists()).thenReturn(true);
+
+        ResponseEntity<Resource> response = chatMessageController.getChatFile("sample.png");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(mockResource, response.getBody());
+        assertEquals("image/png", response.getHeaders().getFirst(HttpHeaders.CONTENT_TYPE));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 채팅 파일 조회 시 404 Not Found 반환")
+    void testGetChatFile_NotFound() {
+        when(fileStorageService.loadFileAsResource("nonexistent.png")).thenReturn(null);
+
+        ResponseEntity<Resource> response = chatMessageController.getChatFile("nonexistent.png");
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
     }
 }

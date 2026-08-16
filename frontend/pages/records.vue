@@ -332,6 +332,7 @@
       v-model="showCdcStreamModal"
       :domainId="selectedDomainId"
       :recordId="selectedRecordRows?.length === 1 ? selectedRecordRows[0].id : null"
+      :domain-references="domainReferences"
     />
   </div>
 </div>

@@ -257,6 +257,7 @@ const props = defineProps<{
   modelValue: boolean
   domainId: string
   recordId?: string | null
+  domainReferences?: Record<string, any>
 }>()
 
 const emit = defineEmits<{
@@ -437,35 +438,19 @@ const formatTableCell = (val: any, col: any) => {
   return String(val)
 }
 
-const resolveDomainRef = async (recordId: string, targetDomainId?: string) => {
-  if (!recordId || domainRefCache.value[recordId]) return
-  try {
-    const res = await useCustomFetch(`/domains/${targetDomainId || props.domainId}/records/${recordId}`)
-    const rec = res.data?.value || res
-    if (rec && rec.data) {
-      const dataObj = typeof rec.data === 'string' ? JSON.parse(rec.data) : rec.data
-      const idStr = rec.code || dataObj.EP_NO || dataObj.code || recordId.substring(0, 8)
-      const nameStr = dataObj.EP_NAME || dataObj.name || dataObj.title || ''
-      domainRefCache.value[recordId] = nameStr ? `[${idStr}] ${nameStr}` : `REC-${idStr}`
-    } else {
-      domainRefCache.value[recordId] = `REC-${recordId.substring(0, 8)}`
-    }
-  } catch (e) {
-    domainRefCache.value[recordId] = `REC-${recordId.substring(0, 8)}`
-  }
-}
-
 const formatValue = (val: any, fieldKey?: string): string => {
   if (val === undefined || val === null || val === '') return '-'
   
   const f = fieldKey ? getFieldByKey(fieldKey) : null
-  if (f && f.type === 'DOMAIN_REFERENCE') {
-    if (typeof val === 'string' && val.length >= 32) {
-      if (domainRefCache.value[val]) return domainRefCache.value[val]
-      let tDomainId = ''
-      try { tDomainId = JSON.parse(f.options || '{}').targetDomainId } catch (e) {}
-      resolveDomainRef(val, tDomainId)
-      return `REC-${val.substring(0, 8)}`
+  if (f && f.type === 'DOMAIN_REFERENCE' && props.domainReferences) {
+    const refData = props.domainReferences[fieldKey || ''] || props.domainReferences[f.key]
+    if (refData && refData.records) {
+      const rec = refData.records.find((r: any) => String(r.id) === String(val) || String(r.code) === String(val))
+      if (rec) {
+        const idStr = rec.code || (rec.data && (rec.data.code || rec.data.EP_NO || rec.data.empNo)) || rec.id?.substring(0, 8)
+        const nameStr = (rec.data && (rec.data.name || rec.data.EP_NAME || rec.data.empName || rec.data.title)) || ''
+        return nameStr ? `[${idStr}] ${nameStr}` : `REC-${idStr}`
+      }
     }
   }
 
