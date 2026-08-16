@@ -126,188 +126,144 @@
                   
                   <div style="width: 100%; margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
                     <div v-for="group in sector.groups" :key="group.key" style="border: 1px solid var(--va-background-border); border-radius: 4px; overflow: hidden; background: var(--va-background-element);">
-                      <div style="background: var(--va-background-secondary); padding: 0.75rem 1rem; font-weight: bold; font-size: 0.95rem; color: var(--va-text-primary); border-bottom: 1px solid var(--va-background-border);">
+                      <div style="background: var(--va-background-secondary); padding: 0.6rem 1rem; font-weight: bold; font-size: 0.9rem; color: var(--va-text-primary); border-bottom: 1px solid var(--va-background-border);">
                         {{ group.label }}
                       </div>
-                      <div style="display: grid; grid-template-columns: repeat(12, 1fr); gap: 1rem; padding: 0.75rem;">
-                        <template v-for="f in group.fields" :key="f.key">
-                          <div v-if="request.targetType !== 'RECORD_UPDATE' || (f.val.isChanged || (f.val.before !== f.val.after))" :style="{ gridColumn: 'span ' + (f.gridWidth || 12), border: '1px solid var(--va-background-border)', borderRadius: '8px', overflow: 'hidden', background: 'var(--va-background-element)', boxShadow: 'var(--va-box-shadow)' }">
-                            <div style="background: var(--va-background-secondary); padding: 0.75rem 1rem; border-bottom: 1px solid var(--va-background-border); font-weight: 600; font-size: 0.85rem; color: var(--va-text-primary); display: flex; justify-content: space-between; align-items: center;">
-                              <span>
-                                {{ f.label }}
+                      <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                          <thead>
+                            <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
+                              <th style="padding: 0.6rem 0.8rem; width: 25%; text-align: left; font-weight: 600; color: var(--va-text-secondary);">{{ $t('property_field_name') || '속성 / 필드명' }}</th>
+                              <th style="padding: 0.6rem 0.8rem; width: 37.5%; text-align: left; font-weight: 600; color: #ef4444;">{{ $t('previous_value') || '변경 전 (Previous Value)' }}</th>
+                              <th style="padding: 0.6rem 0.8rem; width: 37.5%; text-align: left; font-weight: 600; color: #22c55e;">{{ $t('new_value') || '변경 후 (New Value)' }}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr v-if="group.fields.length === 0">
+                              <td colspan="3" style="text-align: center; padding: 1.5rem; color: var(--va-text-secondary); font-style: italic;">
+                                {{ $t('no_diff_or_initial_version') || '변경된 항목이 없습니다.' }}
+                              </td>
+                            </tr>
+                            <tr v-for="f in group.fields" :key="f.key" style="border-bottom: 1px solid var(--va-background-border);">
+                              <!-- Column 1: 속성 / 필드명 -->
+                              <td style="padding: 0.6rem 0.8rem; font-weight: 600; color: var(--va-text-primary); vertical-align: top; width: 25%;">
+                                <span>{{ f.label }}</span>
                                 <va-icon v-if="f.isEncrypted" name="lock" size="small" color="warning" style="margin-left: 4px;" :title="t('encrypted_field')" />
-                              </span>
-                              <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <va-button
-                                  v-if="f.isEncrypted && hasPermission('record:unmask') && !decryptedValues[f.key]"
-                                  size="small"
-                                  preset="plain"
-                                  icon="visibility"
-                                  color="warning"
-                                  :loading="decryptingFields[f.key]"
-                                  @click="requestDecryptApprovalField(f.key)"
-                                >{{ t('view_original') }}</va-button>
-                                <va-button
-                                  v-if="f.isEncrypted && decryptedValues[f.key]"
-                                  size="small"
-                                  preset="plain"
-                                  icon="visibility_off"
-                                  color="secondary"
-                                  @click="hideDecryptedField(f.key)"
-                                >{{ t('hide_original') }} <span v-if="decryptRemainingTime[f.key]" style="margin-left:4px; font-variant-numeric: tabular-nums;">(00:{{ String(decryptRemainingTime[f.key]).padStart(2, '0') }})</span></va-button>
-                                <va-badge v-if="request.targetType === 'RECORD_UPDATE' && f.val.isChanged" color="warning" size="small">{{ t('modified') }}</va-badge>
-                              </div>
-                            </div>
-                            <div style="padding: 0;">
-                              <template v-if="request.targetType === 'RECORD_UPDATE'">
-                                <div v-if="f.val.isChanged" style="display: flex; flex-direction: column;">
-                                  <!-- Before -->
-                                  <div style="background-color: rgba(229, 57, 53, 0.1); border-bottom: 1px solid rgba(229, 57, 53, 0.2); padding: 0.75rem 1rem; font-size: 0.85rem; display: flex; align-items: flex-start; gap: 0.5rem;">
-                                    <va-icon name="remove_circle_outline" color="danger" size="small" style="margin-top: 2px;" />
-                                    <div style="color: var(--va-danger); word-break: break-all; width: 100%;">
-                                      <template v-if="f.type === 'FILE' && getFilesList(f.val.before).length > 0">
-                                        <div v-for="(fileUrl, idx) in getFilesList(f.val.before)" :key="idx" style="margin-bottom: 4px;">
-                                          <a href="#" @click.prevent="downloadFileWithAuth(fileUrl, getFileName(fileUrl))" style="color: var(--va-danger); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
-                                            <va-icon name="attach_file" size="small" />{{ getFileName(fileUrl) }}
-                                          </a>
-                                        </div>
-                                      </template>
-                                      <template v-else-if="f.type === 'JSON'">
-                                        <div v-if="getTableRows(f.val.before).length > 0" style="border: 1px solid rgba(229, 57, 53, 0.3); border-radius: 6px; overflow: hidden; background: var(--va-background-element);">
-                                          <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
-                                            <thead>
-                                              <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
-                                                <th style="padding: 0.4rem 0.5rem; width: 35px; text-align: center; color: var(--va-text-secondary);">#</th>
-                                                <th v-for="col in getTableColumnsForField(f, f.val.before)" :key="col.key" style="padding: 0.4rem 0.6rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
-                                                  {{ getColLabel(col) }}
-                                                </th>
-                                              </tr>
-                                            </thead>
-                                            <tbody>
-                                              <tr v-for="(row, rIdx) in getTableRows(f.val.before)" :key="rIdx" style="border-bottom: 1px solid var(--va-background-border);">
-                                                <td style="padding: 0.4rem 0.5rem; text-align: center; color: var(--va-text-secondary); font-size: 0.75rem;">{{ rIdx + 1 }}</td>
-                                                <td v-for="col in getTableColumnsForField(f, f.val.before)" :key="col.key" style="padding: 0.4rem 0.6rem; color: var(--va-danger);">
-                                                  {{ formatTableCell(row[col.key], col) }}
-                                                </td>
-                                              </tr>
-                                            </tbody>
-                                          </table>
-                                        </div>
-                                        <span v-else style="font-style: italic;">-</span>
-                                      </template>
-                                      <template v-else>{{ formatValue(f.val.before, f.isEncrypted) }}</template>
-                                    </div>
-                                  </div>
-                                  <!-- After -->
-                                  <div style="background-color: rgba(67, 160, 71, 0.1); padding: 0.75rem 1rem; font-size: 0.85rem; display: flex; align-items: flex-start; gap: 0.5rem;">
-                                    <va-icon name="add_circle_outline" color="success" size="small" style="margin-top: 2px;" />
-                                    <div style="color: var(--va-success); font-weight: 500; word-break: break-all; width: 100%;">
-                                      <template v-if="f.type === 'FILE' && getFilesList(f.val.after).length > 0">
-                                        <div v-for="(fileUrl, idx) in getFilesList(f.val.after)" :key="idx" style="margin-bottom: 4px;">
-                                          <a href="#" @click.prevent="downloadFileWithAuth(fileUrl, getFileName(fileUrl))" style="color: var(--va-success); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
-                                            <va-icon name="attach_file" size="small" />{{ getFileName(fileUrl) }}
-                                          </a>
-                                        </div>
-                                      </template>
-                                      <template v-else-if="f.type === 'JSON'">
-                                        <div v-if="getTableRows(f.val.after).length > 0" style="border: 1px solid rgba(67, 160, 71, 0.3); border-radius: 6px; overflow: hidden; background: var(--va-background-element);">
-                                          <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
-                                            <thead>
-                                              <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
-                                                <th style="padding: 0.4rem 0.5rem; width: 35px; text-align: center; color: var(--va-text-secondary);">#</th>
-                                                <th v-for="col in getTableColumnsForField(f, f.val.after)" :key="col.key" style="padding: 0.4rem 0.6rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
-                                                  {{ getColLabel(col) }}
-                                                </th>
-                                              </tr>
-                                            </thead>
-                                            <tbody>
-                                              <tr v-for="(row, rIdx) in getTableRows(f.val.after)" :key="rIdx" style="border-bottom: 1px solid var(--va-background-border);">
-                                                <td style="padding: 0.4rem 0.5rem; text-align: center; color: var(--va-text-secondary); font-size: 0.75rem;">{{ rIdx + 1 }}</td>
-                                                <td v-for="col in getTableColumnsForField(f, f.val.after)" :key="col.key" style="padding: 0.4rem 0.6rem; color: var(--va-success);">
-                                                  {{ formatTableCell(row[col.key], col) }}
-                                                </td>
-                                              </tr>
-                                            </tbody>
-                                          </table>
-                                        </div>
-                                        <span v-else style="font-style: italic;">-</span>
-                                      </template>
-                                      <template v-else>{{ decryptedValues[f.key] || formatValue(f.val.after, f.isEncrypted) }}</template>
-                                    </div>
-                                  </div>
-                                </div>
-                                <div v-else style="padding: 0.75rem 1rem; font-size: 0.85rem; color: var(--va-text-secondary); background: var(--va-background-primary);">
-                                  <template v-if="f.type === 'FILE' && getFilesList(f.val.before).length > 0">
-                                    <div v-for="(fileUrl, idx) in getFilesList(f.val.before)" :key="idx" style="margin-bottom: 4px;">
-                                      <a href="#" @click.prevent="downloadFileWithAuth(fileUrl, getFileName(fileUrl))" style="color: var(--va-primary); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
+                              </td>
+
+                              <!-- Column 2: 변경 전 (Previous Value) -->
+                              <td style="padding: 0.6rem 0.8rem; color: #b91c1c; background: rgba(239, 68, 68, 0.04); vertical-align: top; width: 37.5%;">
+                                <template v-if="request.targetType === 'RECORD_CREATE'">
+                                  <span>{{ t('none') || '(없음)' }}</span>
+                                </template>
+                                <template v-else>
+                                  <template v-if="f.type === 'FILE' && getFilesList(f.val?.before !== undefined ? f.val.before : f.val).length > 0">
+                                    <div v-for="(fileUrl, idx) in getFilesList(f.val?.before !== undefined ? f.val.before : f.val)" :key="idx" style="margin-bottom: 4px;">
+                                      <a href="#" @click.prevent="downloadFileWithAuth(fileUrl, getFileName(fileUrl))" style="color: #b91c1c; text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
                                         <va-icon name="attach_file" size="small" />{{ getFileName(fileUrl) }}
                                       </a>
                                     </div>
                                   </template>
-                                  <template v-else-if="f.type === 'JSON'">
-                                    <div v-if="getTableRows(f.val.before).length > 0" style="border: 1px solid var(--va-background-border); border-radius: 6px; overflow: hidden; background: var(--va-background-element);">
-                                      <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
+                                  <template v-else-if="f.type === 'JSON' && getTableRows(f.val?.before !== undefined ? f.val.before : f.val).length > 0">
+                                    <div style="border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; overflow: hidden; background: var(--va-background-element);">
+                                      <table style="width: 100%; border-collapse: collapse; font-size: 0.78rem;">
                                         <thead>
                                           <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
-                                            <th style="padding: 0.4rem 0.5rem; width: 35px; text-align: center; color: var(--va-text-secondary);">#</th>
-                                            <th v-for="col in getTableColumnsForField(f, f.val.before)" :key="col.key" style="padding: 0.4rem 0.6rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
+                                            <th style="padding: 0.3rem 0.4rem; width: 30px; text-align: center; color: var(--va-text-secondary);">#</th>
+                                            <th v-for="col in getTableColumnsForField(f, f.val?.before !== undefined ? f.val.before : f.val)" :key="col.key" style="padding: 0.3rem 0.5rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
                                               {{ getColLabel(col) }}
                                             </th>
                                           </tr>
                                         </thead>
                                         <tbody>
-                                          <tr v-for="(row, rIdx) in getTableRows(f.val.before)" :key="rIdx" style="border-bottom: 1px solid var(--va-background-border);">
-                                            <td style="padding: 0.4rem 0.5rem; text-align: center; color: var(--va-text-secondary); font-size: 0.75rem;">{{ rIdx + 1 }}</td>
-                                            <td v-for="col in getTableColumnsForField(f, f.val.before)" :key="col.key" style="padding: 0.4rem 0.6rem; color: var(--va-text-primary);">
+                                          <tr v-for="(row, rIdx) in getTableRows(f.val?.before !== undefined ? f.val.before : f.val)" :key="rIdx" style="border-bottom: 1px solid var(--va-background-border);">
+                                            <td style="padding: 0.3rem 0.4rem; text-align: center; color: var(--va-text-secondary);">{{ rIdx + 1 }}</td>
+                                            <td v-for="col in getTableColumnsForField(f, f.val?.before !== undefined ? f.val.before : f.val)" :key="col.key" style="padding: 0.3rem 0.5rem; color: #b91c1c;">
                                               {{ formatTableCell(row[col.key], col) }}
                                             </td>
                                           </tr>
                                         </tbody>
                                       </table>
                                     </div>
-                                    <span v-else style="font-style: italic;">-</span>
                                   </template>
-                                  <template v-else>{{ decryptedValues[f.key] || formatValue(f.val.before, f.isEncrypted) }}</template>
-                                </div>
-                              </template>
-                              <template v-else>
-                                <div style="padding: 0.75rem 1rem; font-size: 0.85rem; color: var(--va-text-primary);">
-                                  <template v-if="f.type === 'FILE' && getFilesList(f.val).length > 0">
-                                    <div v-for="(fileUrl, idx) in getFilesList(f.val)" :key="idx" style="margin-bottom: 4px;">
-                                      <a href="#" @click.prevent="downloadFileWithAuth(fileUrl, getFileName(fileUrl))" style="color: var(--va-primary); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
+                                  <template v-else-if="f.isEncrypted">
+                                    <span v-if="(f.val?.before ?? f.val) === null || (f.val?.before ?? f.val) === undefined || (f.val?.before ?? f.val) === ''">{{ t('none') || '(없음)' }}</span>
+                                    <span v-else>{{ decryptedValues[f.key]?.before || formatValue(f.val?.before ?? f.val, f.isEncrypted) }}</span>
+                                  </template>
+                                  <template v-else>
+                                    {{ formatValue(f.val?.before ?? f.val, f.isEncrypted) }}
+                                  </template>
+                                </template>
+                              </td>
+
+                              <!-- Column 3: 변경 후 (New Value) -->
+                              <td style="padding: 0.6rem 0.8rem; color: #15803d; background: rgba(34, 197, 94, 0.04); font-weight: 600; vertical-align: top; width: 37.5%;">
+                                <template v-if="request.targetType === 'RECORD_DELETE'">
+                                  <span>{{ t('deleted') || '(삭제됨)' }}</span>
+                                </template>
+                                <template v-else>
+                                  <template v-if="f.type === 'FILE' && getFilesList(f.val?.after !== undefined ? f.val.after : f.val).length > 0">
+                                    <div v-for="(fileUrl, idx) in getFilesList(f.val?.after !== undefined ? f.val.after : f.val)" :key="idx" style="margin-bottom: 4px;">
+                                      <a href="#" @click.prevent="downloadFileWithAuth(fileUrl, getFileName(fileUrl))" style="color: #15803d; text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
                                         <va-icon name="attach_file" size="small" />{{ getFileName(fileUrl) }}
                                       </a>
                                     </div>
                                   </template>
-                                  <template v-else-if="f.type === 'JSON'">
-                                    <div v-if="getTableRows(f.val).length > 0" style="border: 1px solid var(--va-background-border); border-radius: 6px; overflow: hidden; background: var(--va-background-element);">
-                                      <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
+                                  <template v-else-if="f.type === 'JSON' && getTableRows(f.val?.after !== undefined ? f.val.after : f.val).length > 0">
+                                    <div style="border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px; overflow: hidden; background: var(--va-background-element);">
+                                      <table style="width: 100%; border-collapse: collapse; font-size: 0.78rem;">
                                         <thead>
                                           <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
-                                            <th style="padding: 0.4rem 0.5rem; width: 35px; text-align: center; color: var(--va-text-secondary);">#</th>
-                                            <th v-for="col in getTableColumnsForField(f)" :key="col.key" style="padding: 0.4rem 0.6rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
-                                              {{ col.name?.ko || col.name?.en || col.name || col.key }}
+                                            <th style="padding: 0.3rem 0.4rem; width: 30px; text-align: center; color: var(--va-text-secondary);">#</th>
+                                            <th v-for="col in getTableColumnsForField(f, f.val?.after !== undefined ? f.val.after : f.val)" :key="col.key" style="padding: 0.3rem 0.5rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
+                                              {{ getColLabel(col) }}
                                             </th>
                                           </tr>
                                         </thead>
                                         <tbody>
-                                          <tr v-for="(row, rIdx) in getTableRows(f.val)" :key="rIdx" style="border-bottom: 1px solid var(--va-background-border);">
-                                            <td style="padding: 0.4rem 0.5rem; text-align: center; color: var(--va-text-secondary); font-size: 0.75rem;">{{ rIdx + 1 }}</td>
-                                            <td v-for="col in getTableColumnsForField(f)" :key="col.key" style="padding: 0.4rem 0.6rem; color: var(--va-text-primary);">
-                                              {{ formatTableCell(row[col.key]) }}
+                                          <tr v-for="(row, rIdx) in getTableRows(f.val?.after !== undefined ? f.val.after : f.val)" :key="rIdx" style="border-bottom: 1px solid var(--va-background-border);">
+                                            <td style="padding: 0.3rem 0.4rem; text-align: center; color: var(--va-text-secondary);">{{ rIdx + 1 }}</td>
+                                            <td v-for="col in getTableColumnsForField(f, f.val?.after !== undefined ? f.val.after : f.val)" :key="col.key" style="padding: 0.3rem 0.5rem; color: #15803d;">
+                                              {{ formatTableCell(row[col.key], col) }}
                                             </td>
                                           </tr>
                                         </tbody>
                                       </table>
                                     </div>
-                                    <span v-else style="font-style: italic;">-</span>
                                   </template>
-                                  <template v-else>{{ decryptedValues[f.key] || formatValue(f.val, f.isEncrypted) }}</template>
-                                </div>
-                              </template>
-                            </div>
-                          </div>
-                        </template>
+                                  <div v-else style="display:flex; align-items:center; justify-content:space-between; gap: 8px;">
+                                    <template v-if="f.isEncrypted">
+                                      <span style="word-break: break-all;">
+                                        <template v-if="(f.val?.after ?? f.val) === null || (f.val?.after ?? f.val) === undefined || (f.val?.after ?? f.val) === ''">{{ t('none') || '(없음)' }}</template>
+                                        <template v-else>{{ decryptedValues[f.key] || formatValue(f.val?.after ?? f.val, f.isEncrypted) }}</template>
+                                      </span>
+                                      <span v-if="hasPermission('record:unmask')" style="display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; color:#888; white-space:nowrap; flex-shrink:0;">
+                                        <va-icon name="lock" size="small" />
+                                        <template v-if="!decryptedValues[f.key]">
+                                          <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary); font-weight:normal;" @click.stop="requestDecryptApprovalField(f.key)">
+                                            {{ t('view_original') }}
+                                          </span>
+                                          <va-icon v-if="decryptingFields[f.key]" name="sync" size="small" spin />
+                                        </template>
+                                        <template v-else>
+                                          <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary); font-weight:normal;" @click.stop="hideDecryptedField(f.key)">
+                                            {{ t('hide_original') }}
+                                          </span>
+                                          <span v-if="decryptRemainingTime[f.key]" style="margin-left:4px; font-variant-numeric: tabular-nums;">
+                                            (00:{{ String(decryptRemainingTime[f.key]).padStart(2, '0') }})
+                                          </span>
+                                        </template>
+                                      </span>
+                                    </template>
+                                    <template v-else>
+                                      {{ formatValue(f.val?.after ?? f.val, f.isEncrypted) }}
+                                    </template>
+                                  </div>
+                                </template>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
                       </div>
                     </div>
                   </div>
@@ -1087,7 +1043,7 @@ const formatTableCell = (val, col) => {
 }
 
 const formatValue = (val, isEncrypted) => {
-  if (val === null || val === undefined || val === '') return '-';
+  if (val === null || val === undefined || val === '' || val === '(null)' || val === '{null}') return t('none') || '(없음)';
   if (isEncrypted) {
     const s = String(val);
     if (s.includes('*')) return s;
@@ -1113,7 +1069,7 @@ const formatValue = (val, isEncrypted) => {
       if (primary && secondary && primary !== secondary) {
         return `${primary} (${secondary})`;
       }
-      return primary || secondary || '-';
+      return primary || secondary || (t('none') || '(없음)');
     }
     return JSON.stringify(obj);
   }

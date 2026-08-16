@@ -2442,8 +2442,21 @@ const focusFirstMissingField = () => {
 const pendingSecondaryNodes = ref([])
 
 const promptDraftComment = async (action, eventPayload) => {
-  if (eventPayload && eventPayload.secondaryNodes) {
-    pendingSecondaryNodes.value = eventPayload.secondaryNodes
+  if (eventPayload) {
+    const raw = (eventPayload && typeof eventPayload === 'object' && 'value' in eventPayload) ? eventPayload.value : eventPayload
+    if (raw && typeof raw === 'object') {
+      if (raw.secondaryNodes) {
+        pendingSecondaryNodes.value = raw.secondaryNodes
+      } else {
+        pendingSecondaryNodes.value = []
+      }
+      const dataToMerge = (raw.record && typeof raw.record === 'object') ? raw.record : raw
+      if (action === 'UPDATE') {
+        selectedRecordData.value = { ...selectedRecordData.value, ...dataToMerge }
+      } else if (action === 'CREATE') {
+        recordFormData.value = { ...recordFormData.value, ...dataToMerge }
+      }
+    }
   } else {
     pendingSecondaryNodes.value = []
   }
@@ -2457,9 +2470,26 @@ const promptDraftComment = async (action, eventPayload) => {
   }
 
   if (action === 'UPDATE') {
-    const orig = JSON.stringify(formatDataForSave(originalRecordData.value))
-    const curr = JSON.stringify(formatDataForSave(selectedRecordData.value))
-    if (orig === curr) {
+    const origFormatted = formatDataForSave(originalRecordData.value)
+    const currFormatted = formatDataForSave(selectedRecordData.value)
+    
+    let isChanged = false
+    if (nodeFields.value && nodeFields.value.length > 0) {
+      for (const field of nodeFields.value) {
+        if (field.isRemoved) continue
+        const k = field.key
+        const oVal = origFormatted[k] ?? null
+        const cVal = currFormatted[k] ?? null
+        if (JSON.stringify(oVal) !== JSON.stringify(cVal)) {
+          isChanged = true
+          break
+        }
+      }
+    } else {
+      isChanged = JSON.stringify(origFormatted) !== JSON.stringify(currFormatted)
+    }
+
+    if (!isChanged) {
       showCustomAlert(
         currentLocale.value === 'en' ? 'No data has been modified.' : '변경된 데이터가 없습니다.',
         currentLocale.value === 'en' ? 'No Changes' : '변경 없음',
