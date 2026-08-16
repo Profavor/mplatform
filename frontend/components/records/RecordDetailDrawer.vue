@@ -237,12 +237,11 @@
 
                         <div v-else-if="field.type === 'FILE'" class="w-full">
                           <div v-if="!isEditing" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                            <template v-if="localRecord[field.key] && localRecord[field.key].length > 0">
+                            <template v-if="getFilesList(localRecord[field.key]).length > 0">
                               <va-chip
-                                v-for="(fileObj, i) in localRecord[field.key]"
+                                v-for="(fileObj, i) in getFilesList(localRecord[field.key])"
                                 :key="i"
-                                :href="fileObj.url || fileObj"
-                                target="_blank"
+                                @click="downloadFileWithAuth(fileObj.url || fileObj, fileObj.name || extractFilename(fileObj.url || fileObj))"
                                 outline
                                 icon="download"
                                 color="primary"
@@ -253,34 +252,42 @@
                             </template>
                             <span v-else>-</span>
                           </div>
-                          <va-file-upload v-else v-model="localRecord[field.key]" :type="field.isMultiValue ? 'list' : 'single'" dropzone class="w-full file-upload-wrapper">
-                            <div style="display: flex; flex-direction: row; align-items: center; gap: 1rem; padding: 0.5rem; justify-content: center; width: 100%;">
-                              <span style="font-size: 0.9rem; color: #666;">{{ $t('file_upload_dropzone') }}</span>
-                              <va-button size="small">{{ $t('file_upload_button') }}</va-button>
-                            </div>
-                          </va-file-upload>
-                          <transition-group name="flip-list" tag="div" v-if="isEditing && localRecord[field.key] && localRecord[field.key].length > 0" class="custom-file-list" @dragover.prevent>
-                            <div
-                              v-for="(fileObj, i) in localRecord[field.key]"
-                              :key="fileObj.url || fileObj.name"
-                              class="custom-file-item"
-                              :draggable="field.isMultiValue"
-                              @dragstart="onDragStart($event, i, localRecord[field.key])"
-                              @dragenter.prevent="onDragEnter($event, i, localRecord[field.key])"
-                              @dragover.prevent
-                              @drop.prevent="onDrop($event, i, localRecord[field.key])"
-                              @dragend="onDragEnd($event)"
-                              :style="field.isMultiValue ? 'cursor: grab;' : ''"
+                          <template v-else>
+                            <va-file-upload
+                              :model-value="[]"
+                              @update:model-value="handleFilesAdded(field, $event)"
+                              :type="field.isMultiValue ? 'list' : 'single'"
+                              dropzone
+                              class="w-full file-upload-wrapper"
                             >
-                              <div class="custom-file-info" style="display: flex; align-items: center;">
-                                <va-icon v-if="field.isMultiValue" name="drag_indicator" style="color: #666; margin-right: 8px; cursor: grab;" />
-                                {{ fileObj.name || extractFilename(fileObj.url || fileObj) }}
+                              <div style="display: flex; flex-direction: row; align-items: center; gap: 1rem; padding: 0.5rem; justify-content: center; width: 100%;">
+                                <span style="font-size: 0.9rem; color: #666;">{{ $t('file_upload_dropzone') }}</span>
+                                <va-button size="small">{{ $t('file_upload_button') }}</va-button>
                               </div>
-                              <div class="custom-file-actions">
-                                <va-icon name="delete" style="cursor: pointer; color: #E53935;" @click="removeFile(localRecord[field.key], i)" />
+                            </va-file-upload>
+                            <transition-group name="flip-list" tag="div" v-if="getFilesList(localRecord[field.key]).length > 0" class="custom-file-list" @dragover.prevent>
+                              <div
+                                v-for="(fileObj, i) in getFilesList(localRecord[field.key])"
+                                :key="fileObj.url || fileObj.name || i"
+                                class="custom-file-item"
+                                :draggable="field.isMultiValue"
+                                @dragstart="onDragStart($event, i, localRecord[field.key])"
+                                @dragenter.prevent="onDragEnter($event, i, localRecord[field.key])"
+                                @dragover.prevent
+                                @drop.prevent="onDrop($event, i, localRecord[field.key])"
+                                @dragend="onDragEnd($event)"
+                                :style="field.isMultiValue ? 'cursor: grab;' : ''"
+                              >
+                                <div class="custom-file-info" style="display: flex; align-items: center;">
+                                  <va-icon v-if="field.isMultiValue" name="drag_indicator" style="color: #666; margin-right: 8px; cursor: grab;" />
+                                  {{ fileObj.name || extractFilename(fileObj.url || fileObj) }}
+                                </div>
+                                <div class="custom-file-actions">
+                                  <va-icon name="delete" style="cursor: pointer; color: #E53935;" @click="removeFile(field.key, i)" />
+                                </div>
                               </div>
-                            </div>
-                          </transition-group>
+                            </transition-group>
+                          </template>
                         </div>
                         <div v-else-if="field.type === 'DATE_RANGE'" class="w-full" style="display: flex; gap: 0.5rem; flex-direction: row; align-items: center; min-width: 0;">
                           <template v-if="!isEditing">
@@ -585,8 +592,8 @@
                           <span style="font-weight: 700; color: var(--va-text-primary); min-width: 100px;">
                             {{ getFieldLabelByKey(fieldKey) }}:
                           </span>
-                          <!-- If NOT JSON Type -->
-                          <div v-if="getFieldByKey(fieldKey)?.type !== 'JSON'" style="display: flex; align-items: center; gap: 0.5rem; flex: 1; flex-wrap: wrap;">
+                          <!-- If NOT JSON and NOT FILE Type -->
+                          <div v-if="getFieldByKey(fieldKey)?.type !== 'JSON' && getFieldByKey(fieldKey)?.type !== 'FILE'" style="display: flex; align-items: center; gap: 0.5rem; flex: 1; flex-wrap: wrap;">
                             <span style="text-decoration: line-through; color: var(--va-danger); background: rgba(229, 57, 53, 0.1); padding: 0.1rem 0.4rem; border-radius: 4px;">
                               {{ decryptedValues[log.id + '_' + fieldKey] || formatDiffValue(fieldKey, safeParseJson(log.previousData)[fieldKey]) }}
                             </span>
@@ -611,6 +618,41 @@
                                 </span>
                               </template>
                               <va-icon v-if="decryptingFields[log.id + '_' + fieldKey]" name="sync" size="small" spin />
+                            </span>
+                          </div>
+
+                          <!-- If FILE Type: Render Download Links -->
+                          <div v-else-if="getFieldByKey(fieldKey)?.type === 'FILE'" style="display: flex; align-items: center; gap: 0.5rem; flex: 1; flex-wrap: wrap;">
+                            <div v-if="getFilesList(safeParseJson(log.previousData)[fieldKey]).length > 0" style="display: flex; flex-direction: column; gap: 2px;">
+                              <a
+                                v-for="(fUrl, fIdx) in getFilesList(safeParseJson(log.previousData)[fieldKey])"
+                                :key="fIdx"
+                                href="#"
+                                @click.prevent="downloadFileWithAuth(fUrl.url || fUrl, fUrl.name || extractFilename(fUrl.url || fUrl))"
+                                style="color: var(--va-danger); text-decoration: line-through; font-weight: 600; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 4px;"
+                              >
+                                📎 {{ fUrl.name || extractFilename(fUrl.url || fUrl) }}
+                              </a>
+                            </div>
+                            <span v-else style="text-decoration: line-through; color: var(--va-danger); background: rgba(229, 57, 53, 0.1); padding: 0.1rem 0.4rem; border-radius: 4px;">
+                              (null)
+                            </span>
+
+                            <va-icon name="arrow_forward" size="small" color="secondary" />
+
+                            <div v-if="getFilesList(safeParseJson(log.newData)[fieldKey]).length > 0" style="display: flex; flex-direction: column; gap: 2px;">
+                              <a
+                                v-for="(fUrl, fIdx) in getFilesList(safeParseJson(log.newData)[fieldKey])"
+                                :key="fIdx"
+                                href="#"
+                                @click.prevent="downloadFileWithAuth(fUrl.url || fUrl, fUrl.name || extractFilename(fUrl.url || fUrl))"
+                                style="color: var(--va-success); text-decoration: underline; font-weight: 600; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 4px;"
+                              >
+                                📎 {{ fUrl.name || extractFilename(fUrl.url || fUrl) }}
+                              </a>
+                            </div>
+                            <span v-else style="color: var(--va-success); background: rgba(30, 203, 114, 0.1); padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 600;">
+                              (null)
                             </span>
                           </div>
                         </div>
@@ -764,8 +806,11 @@ import { ref, computed, watch } from 'vue'
 import { AgGridVue } from 'ag-grid-vue3'
 import { useToast } from 'vuestic-ui'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
+import { useFileDownloader } from '~/composables/useFileDownloader'
 import UnmaskReasonModal from '../UnmaskReasonModal.vue'
 import UnmergePreviewModal from './UnmergePreviewModal.vue'
+
+const { downloadFileWithAuth } = useFileDownloader()
 
 const { gridTheme } = useAgGridTheme()
 
@@ -1176,23 +1221,31 @@ const executeDecryptRecordField = async (fieldKey, reason) => {
       headers: { Authorization: `Bearer ${token}` },
       body: { fieldKeys: [fieldKey], accessReason: reason }
     })
-    if (res && res[fieldKey]) {
-      decryptedValues.value[fieldKey] = res[fieldKey]
-      
-      if (decryptTimers.value[fieldKey]) clearTimeout(decryptTimers.value[fieldKey])
-      if (decryptIntervals.value[fieldKey]) clearInterval(decryptIntervals.value[fieldKey])
-      
-      decryptRemainingTime.value[fieldKey] = 30
-      
-      decryptIntervals.value[fieldKey] = setInterval(() => {
-        if (decryptRemainingTime.value[fieldKey] > 0) {
-          decryptRemainingTime.value[fieldKey]--
-        }
-      }, 1000)
+    if (res && typeof res === 'object') {
+      Object.assign(decryptedValues.value, res)
+      const decryptedVal = res[fieldKey] 
+        || res[fieldKey.toLowerCase()] 
+        || res[fieldKey.toUpperCase()] 
+        || (Object.entries(res).find(([k]) => k.toLowerCase() === fieldKey.toLowerCase()) || [])[1]
 
-      decryptTimers.value[fieldKey] = setTimeout(() => {
-        hideDecryptedField(fieldKey)
-      }, 30000)
+      if (decryptedVal !== undefined && decryptedVal !== null) {
+        decryptedValues.value[fieldKey] = decryptedVal
+        
+        if (decryptTimers.value[fieldKey]) clearTimeout(decryptTimers.value[fieldKey])
+        if (decryptIntervals.value[fieldKey]) clearInterval(decryptIntervals.value[fieldKey])
+        
+        decryptRemainingTime.value[fieldKey] = 30
+        
+        decryptIntervals.value[fieldKey] = setInterval(() => {
+          if (decryptRemainingTime.value[fieldKey] > 0) {
+            decryptRemainingTime.value[fieldKey]--
+          }
+        }, 1000)
+
+        decryptTimers.value[fieldKey] = setTimeout(() => {
+          hideDecryptedField(fieldKey)
+        }, 30000)
+      }
     }
   } catch (e) {
     console.error('Failed to decrypt field:', e)
@@ -2012,9 +2065,49 @@ const onDragEnd = (event) => {
   currentArrayRef = null
 }
 
-const removeFile = (arr, index) => {
-  if (!arr || !Array.isArray(arr)) return
-  arr.splice(index, 1)
+const getFilesList = (v) => {
+  if (!v) return []
+  if (Array.isArray(v)) {
+    return v.filter(Boolean)
+  }
+  if (v instanceof File) {
+    return [v]
+  }
+  if (typeof v === 'string') {
+    const trimmed = v.trim()
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        return Array.isArray(parsed) ? parsed.filter(Boolean) : []
+      } catch (e) {
+        return [v]
+      }
+    }
+    return [v]
+  }
+  if (typeof v === 'object' && v !== null) {
+    return [v]
+  }
+  return []
+}
+
+const handleFilesAdded = (field, newFiles) => {
+  if (!newFiles) return
+  const currentList = getFilesList(localRecord.value[field.key])
+  const incoming = Array.isArray(newFiles) ? newFiles : [newFiles]
+  const validIncoming = incoming.filter(Boolean)
+  
+  if (field.isMultiValue) {
+    localRecord.value[field.key] = [...currentList, ...validIncoming]
+  } else {
+    localRecord.value[field.key] = validIncoming.length > 0 ? [validIncoming[validIncoming.length - 1]] : []
+  }
+}
+
+const removeFile = (fieldKey, index) => {
+  const currentList = getFilesList(localRecord.value[fieldKey])
+  currentList.splice(index, 1)
+  localRecord.value[fieldKey] = [...currentList]
 }
 </script>
 

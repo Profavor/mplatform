@@ -195,16 +195,22 @@
 
                       <!-- File Upload -->
                       <div v-else-if="field.type === 'FILE'" class="w-full">
-                        <va-file-upload v-model="localRecord[field.key]" :type="field.isMultiValue ? 'list' : 'single'" dropzone class="w-full file-upload-wrapper">
+                        <va-file-upload
+                          :model-value="[]"
+                          @update:model-value="handleFilesAdded(field, $event)"
+                          :type="field.isMultiValue ? 'list' : 'single'"
+                          dropzone
+                          class="w-full file-upload-wrapper"
+                        >
                           <div style="display: flex; flex-direction: row; align-items: center; gap: 1rem; padding: 0.5rem; justify-content: center; width: 100%;">
                             <span style="font-size: 0.9rem; color: #666;">{{ $t('file_upload_dropzone') }}</span>
                             <va-button size="small">{{ $t('file_upload_button') }}</va-button>
                           </div>
                         </va-file-upload>
-                        <transition-group name="flip-list" tag="div" v-if="localRecord[field.key] && localRecord[field.key].length > 0" class="custom-file-list" @dragover.prevent>
+                        <transition-group name="flip-list" tag="div" v-if="getFilesList(localRecord[field.key]).length > 0" class="custom-file-list" @dragover.prevent>
                           <div
-                            v-for="(fileObj, i) in localRecord[field.key]"
-                            :key="fileObj.url || fileObj.name"
+                            v-for="(fileObj, i) in getFilesList(localRecord[field.key])"
+                            :key="fileObj.url || fileObj.name || i"
                             class="custom-file-item"
                             :draggable="field.isMultiValue"
                             @dragstart="onDragStart($event, i, localRecord[field.key])"
@@ -219,7 +225,7 @@
                               {{ fileObj.name || extractFilename(fileObj.url || fileObj) }}
                             </div>
                             <div class="custom-file-actions">
-                              <va-icon name="delete" style="cursor: pointer; color: #E53935;" @click="removeFile(localRecord[field.key], i)" />
+                              <va-icon name="delete" style="cursor: pointer; color: #E53935;" @click="removeFile(field.key, i)" />
                             </div>
                           </div>
                         </transition-group>
@@ -1123,9 +1129,49 @@ const onDragEnd = (event) => {
   currentArrayRef = null
 }
 
-const removeFile = (arr, index) => {
-  if (!arr || !Array.isArray(arr)) return
-  arr.splice(index, 1)
+const getFilesList = (v) => {
+  if (!v) return []
+  if (Array.isArray(v)) {
+    return v.filter(Boolean)
+  }
+  if (v instanceof File) {
+    return [v]
+  }
+  if (typeof v === 'string') {
+    const trimmed = v.trim()
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        return Array.isArray(parsed) ? parsed.filter(Boolean) : []
+      } catch (e) {
+        return [v]
+      }
+    }
+    return [v]
+  }
+  if (typeof v === 'object' && v !== null) {
+    return [v]
+  }
+  return []
+}
+
+const handleFilesAdded = (field, newFiles) => {
+  if (!newFiles) return
+  const currentList = getFilesList(localRecord.value[field.key])
+  const incoming = Array.isArray(newFiles) ? newFiles : [newFiles]
+  const validIncoming = incoming.filter(Boolean)
+  
+  if (field.isMultiValue) {
+    localRecord.value[field.key] = [...currentList, ...validIncoming]
+  } else {
+    localRecord.value[field.key] = validIncoming.length > 0 ? [validIncoming[validIncoming.length - 1]] : []
+  }
+}
+
+const removeFile = (fieldKey, index) => {
+  const currentList = getFilesList(localRecord.value[fieldKey])
+  currentList.splice(index, 1)
+  localRecord.value[fieldKey] = [...currentList]
 }
 </script>
 

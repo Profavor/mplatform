@@ -369,7 +369,7 @@ public class SensitiveDataService {
         Map<String, String> decryptedMap = decryptFromDataJson(approval.getChanges(), fields, fieldKeys);
 
         if (!decryptedMap.isEmpty()) {
-            saveAccessLog("APPROVAL_REQUEST", approvalId, new ArrayList<>(decryptedMap.keySet()), accessReason, ipAddress);
+            saveAccessLog("APPROVAL_REQUEST", approvalId, extractLoggedKeys(fields, fieldKeys, decryptedMap), accessReason, ipAddress);
         }
 
         return decryptedMap;
@@ -389,7 +389,7 @@ public class SensitiveDataService {
         Map<String, String> decryptedMap = decryptFromDataJson(record.getData(), fields, fieldKeys);
 
         if (!decryptedMap.isEmpty()) {
-            saveAccessLog(ApprovalTargetType.RECORD.name(), recordId, new ArrayList<>(decryptedMap.keySet()), accessReason, ipAddress);
+            saveAccessLog(ApprovalTargetType.RECORD.name(), recordId, extractLoggedKeys(fields, fieldKeys, decryptedMap), accessReason, ipAddress);
         }
 
         return decryptedMap;
@@ -428,10 +428,22 @@ public class SensitiveDataService {
         } catch (Exception e) {}
 
         if (!decryptedMap.isEmpty()) {
-            saveAccessLog("RECORD_HISTORY", historyId, new ArrayList<>(decryptedMap.keySet()), accessReason, ipAddress);
+            saveAccessLog("RECORD_HISTORY", historyId, extractLoggedKeys(fields, fieldKeys, decryptedMap), accessReason, ipAddress);
         }
 
         return decryptedMap;
+    }
+
+    private List<String> extractLoggedKeys(List<FieldDefinition> fields, List<String> requestedKeys, Map<String, String> decryptedMap) {
+        if (requestedKeys != null && !requestedKeys.isEmpty()) {
+            return requestedKeys;
+        }
+        if (fields == null) return new ArrayList<>(decryptedMap.keySet());
+        return fields.stream()
+                .map(FieldDefinition::getKey)
+                .filter(k -> k != null && decryptedMap.containsKey(k))
+                .distinct()
+                .toList();
     }
 
     private Map<String, String> decryptFromDataJson(String jsonStr, List<FieldDefinition> fields, List<String> filterKeys) {
@@ -458,23 +470,40 @@ public class SensitiveDataService {
             Set<String> filterSet = (filterKeys != null && !filterKeys.isEmpty()) ? new HashSet<>(filterKeys) : null;
 
             for (FieldDefinition field : fields) {
-                if (Boolean.TRUE.equals(field.getIsEncrypted()) && field.getKey() != null) {
+                if (field.getKey() != null) {
                     String matchedKey = null;
                     for (String k : dataMap.keySet()) {
-                        if (k.equalsIgnoreCase(field.getKey())) {
+                        if (k.equalsIgnoreCase(field.getKey()) || (field.getId() != null && k.equalsIgnoreCase(String.valueOf(field.getId())))) {
                             matchedKey = k;
                             break;
                         }
                     }
                     if (matchedKey != null) {
-                        if (filterSet != null && !filterSet.contains(matchedKey) && !filterSet.contains(field.getKey())) {
+                        boolean matchesFilter = (filterSet == null);
+                        if (filterSet != null) {
+                            for (String fk : filterSet) {
+                                if (fk.equalsIgnoreCase(matchedKey) 
+                                        || fk.equalsIgnoreCase(field.getKey()) 
+                                        || (field.getId() != null && fk.equalsIgnoreCase(String.valueOf(field.getId())))) {
+                                    matchesFilter = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!matchesFilter) {
                             continue;
                         }
+
                         Object rawValObj = dataMap.get(matchedKey);
                         if (rawValObj instanceof String rawVal && !rawVal.isBlank()) {
                             String decrypted = decryptUntilPlaintext(rawVal);
                             result.put(field.getKey(), decrypted);
+                            result.put(field.getKey().toLowerCase(), decrypted);
+                            result.put(field.getKey().toUpperCase(), decrypted);
                             result.put(matchedKey, decrypted);
+                            if (field.getId() != null) {
+                                result.put(String.valueOf(field.getId()), decrypted);
+                            }
                         }
                     }
                 }
