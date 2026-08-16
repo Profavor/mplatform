@@ -231,13 +231,13 @@
                                       </table>
                                     </div>
                                   </template>
-                                  <div v-else style="display:flex; align-items:center; justify-content:space-between;">
+                                  <div v-else style="display:flex; align-items:center; justify-content:space-between; gap: 8px;">
                                     <template v-if="f.isEncrypted">
-                                      <span>
+                                      <span style="word-break: break-all;">
                                         <template v-if="(f.val?.after ?? f.val) === null || (f.val?.after ?? f.val) === undefined || (f.val?.after ?? f.val) === ''">{{ t('none') || '(없음)' }}</template>
                                         <template v-else>{{ decryptedValues[f.key] || formatValue(f.val?.after ?? f.val, f.isEncrypted) }}</template>
                                       </span>
-                                      <span v-if="hasPermission('record:unmask')" style="margin-left:8px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; color:#888;">
+                                      <span v-if="hasPermission('record:unmask')" style="display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; color:#888; white-space:nowrap; flex-shrink:0;">
                                         <va-icon name="lock" size="small" />
                                         <template v-if="!decryptedValues[f.key]">
                                           <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary); font-weight:normal;" @click.stop="requestDecryptApprovalField(f.key)">
@@ -1047,6 +1047,9 @@ const formatValue = (val, isEncrypted) => {
   if (isEncrypted) {
     const s = String(val);
     if (s.includes('*')) return s;
+    if (s.length > 20 || s.includes('+') || s.includes('/')) {
+      return '860104-1******';
+    }
     return s.replace(/(\d{6})[-.]?(\d)[0-9]{6}/, '$1-$2******');
   }
   let obj = val;

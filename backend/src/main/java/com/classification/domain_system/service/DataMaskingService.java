@@ -157,7 +157,7 @@ public class DataMaskingService {
         try {
             Map<String, Object> changes = objectMapper.readValue(changesJson, new TypeReference<Map<String, Object>>() {});
             boolean hasSubMaps = false;
-            for (String subKey : List.of("data", "newData", "previousData", "changes")) {
+            for (String subKey : List.of("data", "newData", "previousData", "changes", "before", "after")) {
                 if (changes.containsKey(subKey) && changes.get(subKey) instanceof Map) {
                     @SuppressWarnings("unchecked")
                     Map<String, Object> dataMap = (Map<String, Object>) changes.get(subKey);
