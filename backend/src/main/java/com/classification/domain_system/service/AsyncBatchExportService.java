@@ -292,7 +292,16 @@ public class AsyncBatchExportService {
         if (fd == null || fd.getOptions() == null || fd.getOptions().isBlank()) return map;
         try {
             JsonNode optNode = objectMapper.readTree(fd.getOptions());
-            JsonNode cols = optNode.has("tableColumns") ? optNode.get("tableColumns") : (optNode.has("columns") ? optNode.get("columns") : optNode);
+            JsonNode cols = null;
+            if (optNode.has("tableSchema") && optNode.get("tableSchema").has("columns")) {
+                cols = optNode.get("tableSchema").get("columns");
+            } else if (optNode.has("tableColumns")) {
+                cols = optNode.get("tableColumns");
+            } else if (optNode.has("columns")) {
+                cols = optNode.get("columns");
+            } else if (optNode.isArray()) {
+                cols = optNode;
+            }
             if (cols != null && cols.isArray()) {
                 for (JsonNode col : cols) {
                     if (col.has("key")) {

@@ -1442,7 +1442,7 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
       try {
         if (f.options) {
           const parsed = typeof f.options === 'string' ? JSON.parse(f.options) : f.options;
-          subCols = Array.isArray(parsed) ? parsed : (parsed.tableColumns || parsed.columns || []);
+          subCols = Array.isArray(parsed) ? parsed : (parsed.tableSchema?.columns || parsed.tableColumns || parsed.columns || []);
         }
       } catch (e) {}
 
@@ -1460,13 +1460,14 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
       const formatSubColValue = (colKey, rawVal) => {
         if (rawVal === null || rawVal === undefined || rawVal === '') return '';
         const found = subCols.find(c => c.key === colKey || String(c.key).toLowerCase() === String(colKey).toLowerCase());
-        if (found && found.options) {
+        if (found && (found.options || found.optionsStr)) {
           let opts = [];
           try {
-            opts = typeof found.options === 'string' ? JSON.parse(found.options) : found.options;
+            const rawOpts = found.options || found.optionsStr;
+            opts = typeof rawOpts === 'string' ? JSON.parse(rawOpts) : rawOpts;
           } catch(e) {}
           if (Array.isArray(opts)) {
-            const opt = opts.find(o => String(o.value) === String(rawVal) || String(o.key) === String(rawVal));
+            const opt = opts.find(o => String(o.value) === String(rawVal) || String(o.key) === String(rawVal) || String(o.code) === String(rawVal));
             if (opt) {
               if (typeof opt.label === 'object') return opt.label[currentLocale.value] || opt.label.ko || opt.label.en || rawVal;
               if (typeof opt.name === 'object') return opt.name[currentLocale.value] || opt.name.ko || opt.name.en || rawVal;
@@ -1526,15 +1527,7 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
       if (opts.formula) {
         colDef.valueGetter = (params) => {
           if (!params.data || !params.data.data) return ''
-          const rawData = params.data.data
-          const dataObj = typeof rawData === 'string' ? JSON.parse(rawData) : rawData
-          const result = evaluateFormula(opts.formula, dataObj)
-          if (result !== null && !isNaN(result)) {
-            let formatted = Number(result).toLocaleString(currentLocale.value === 'ko' ? 'ko-KR' : 'en-US')
-            if (f.unit) formatted += ` ${f.unit}`
-            return formatted;
-          }
-          return ''
+          return evaluateFormula(opts.formula, params.data.data)
         }
       }
     }
@@ -1578,6 +1571,49 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
     }
     
     if (!colDef.valueFormatter && !colDef.cellRenderer) {
+      let subCols = [];
+      try {
+        if (f.options) {
+          const parsed = typeof f.options === 'string' ? JSON.parse(f.options) : f.options;
+          subCols = Array.isArray(parsed) ? parsed : (parsed.tableSchema?.columns || parsed.tableColumns || parsed.columns || []);
+        }
+      } catch (e) {}
+
+      const getSubColLabel = (colKey) => {
+        const found = subCols.find(c => c.key === colKey || String(c.key).toLowerCase() === String(colKey).toLowerCase());
+        if (found && found.name) {
+          if (typeof found.name === 'object') {
+            return found.name[currentLocale.value] || found.name.ko || found.name.en || colKey;
+          }
+          return String(found.name);
+        }
+        return colKey;
+      };
+
+      const formatSubColValue = (colKey, rawVal) => {
+        if (rawVal === null || rawVal === undefined || rawVal === '') return '';
+        const found = subCols.find(c => c.key === colKey || String(c.key).toLowerCase() === String(colKey).toLowerCase());
+        if (found && (found.options || found.optionsStr)) {
+          let opts = [];
+          try {
+            const rawOpts = found.options || found.optionsStr;
+            opts = typeof rawOpts === 'string' ? JSON.parse(rawOpts) : rawOpts;
+          } catch(e) {}
+          if (Array.isArray(opts)) {
+            const opt = opts.find(o => String(o.value) === String(rawVal) || String(o.key) === String(rawVal) || String(o.code) === String(rawVal));
+            if (opt) {
+              if (typeof opt.label === 'object') return opt.label[currentLocale.value] || opt.label.ko || opt.label.en || rawVal;
+              if (typeof opt.name === 'object') return opt.name[currentLocale.value] || opt.name.ko || opt.name.en || rawVal;
+              return opt.label || opt.name || rawVal;
+            }
+          }
+        }
+        if (typeof rawVal === 'object' && rawVal !== null) {
+          return rawVal[currentLocale.value] || rawVal.ko || rawVal.en || JSON.stringify(rawVal);
+        }
+        return String(rawVal);
+      };
+
       colDef.valueFormatter = (params) => {
         if (!params || params.value === undefined || params.value === null) return '';
         const str = String(params.value).trim();
@@ -1590,16 +1626,19 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
                 if (typeof row === 'object' && row !== null) {
                   const pairs = Object.entries(row)
                     .filter(([k, v]) => !k.startsWith('_idx_') && v !== null && v !== undefined && v !== '')
-                    .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`);
+                    .map(([k, v]) => `${getSubColLabel(k)}: ${formatSubColValue(k, v)}`);
                   return `${idx + 1}. ${pairs.join(', ')}`;
                 }
                 return `${idx + 1}. ${row}`;
               }).join(' / ');
             }
             if (typeof parsed === 'object' && parsed !== null) {
+              if ('ko' in parsed || 'en' in parsed) {
+                return parsed[currentLocale.value] || parsed.ko || parsed.en || str;
+              }
               const pairs = Object.entries(parsed)
                 .filter(([k, v]) => !k.startsWith('_idx_') && v !== null && v !== undefined && v !== '')
-                .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`);
+                .map(([k, v]) => `${getSubColLabel(k)}: ${formatSubColValue(k, v)}`);
               return pairs.join(', ');
             }
           } catch(e) {}
@@ -1610,7 +1649,7 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
         const text = colDef.valueFormatter(params);
         if (text === undefined || text === null || text === '') return '';
         const str = String(text);
-        if (str.includes('. ') || str.includes(' / ')) {
+        if (str.includes('. ') || str.includes(' / ') || str.includes(': ')) {
           const span = document.createElement('span');
           span.style.cssText = 'overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; width: 100%;';
           span.title = str;

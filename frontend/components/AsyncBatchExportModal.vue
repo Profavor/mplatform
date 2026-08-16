@@ -73,7 +73,7 @@ const getSubColumnInfo = (fieldKey: string, colKey: string) => {
   if (!f || !f.options) return null
   try {
     const parsed = typeof f.options === 'string' ? JSON.parse(f.options) : f.options
-    const subCols = Array.isArray(parsed) ? parsed : (parsed.tableColumns || parsed.columns || [])
+    const subCols = Array.isArray(parsed) ? parsed : (parsed.tableSchema?.columns || parsed.tableColumns || parsed.columns || [])
     return subCols.find((c: any) => c.key === colKey || String(c.key).toLowerCase() === String(colKey).toLowerCase())
   } catch (e) {
     return null
@@ -94,13 +94,14 @@ const getSubColLabel = (fieldKey: string, colKey: string): string => {
 const formatSubColValue = (fieldKey: string, colKey: string, rawVal: any): string => {
   if (rawVal === null || rawVal === undefined || rawVal === '') return ''
   const subCol = getSubColumnInfo(fieldKey, colKey)
-  if (subCol && subCol.options) {
+  if (subCol && (subCol.options || subCol.optionsStr)) {
     let opts: any[] = []
     try {
-      opts = typeof subCol.options === 'string' ? JSON.parse(subCol.options) : subCol.options
+      const rawOpts = subCol.options || subCol.optionsStr
+      opts = typeof rawOpts === 'string' ? JSON.parse(rawOpts) : rawOpts
     } catch(e) {}
     if (Array.isArray(opts)) {
-      const opt = opts.find(o => String(o.value) === String(rawVal) || String(o.key) === String(rawVal))
+      const opt = opts.find(o => String(o.value) === String(rawVal) || String(o.key) === String(rawVal) || String(o.code) === String(rawVal))
       if (opt) {
         if (typeof opt.label === 'object') return opt.label[locale.value] || opt.label.ko || opt.label.en || rawVal
         if (typeof opt.name === 'object') return opt.name[locale.value] || opt.name.ko || opt.name.en || rawVal
