@@ -907,7 +907,7 @@ const formatTableCellVal = (val, col) => {
 }
 
 const formatDiffValue = (key, val) => {
-  if (val === null || val === undefined) return '(null)';
+  if (val === null || val === undefined || val === '') return '(null)';
   const f = props.fields?.find(f => f.key === key || String(f.id) === String(key) || (f.key && String(f.key).toLowerCase() === String(key).toLowerCase()));
   if (f && f.type === 'DOMAIN_REFERENCE') {
     return getDomainRefDisplayName(key, val);
@@ -925,6 +925,8 @@ const formatDiffValue = (key, val) => {
     if (Array.isArray(opts) && opts.length > 0) {
       const matchedOpt = opts.find(o => o && (String(o.value) === String(val) || String(o.code) === String(val) || String(o.id) === String(val)));
       if (matchedOpt) {
+        if (typeof matchedOpt.label === 'object') return getTranslatedColName(matchedOpt.label);
+        if (typeof matchedOpt.name === 'object') return getTranslatedColName(matchedOpt.name);
         return matchedOpt.label || matchedOpt.name || String(val);
       }
     }
@@ -932,7 +934,25 @@ const formatDiffValue = (key, val) => {
   if (f && f.type === 'DATE_RANGE' && typeof val === 'string') {
     return val.replace('~', ' ~ ');
   }
-  if (typeof val === 'object') return JSON.stringify(val);
+  let obj = val;
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try { obj = JSON.parse(trimmed); } catch (e) {}
+    }
+  }
+  if (typeof obj === 'object' && obj !== null) {
+    if ('ko' in obj || 'en' in obj) {
+      const loc = locale.value === 'en' ? 'en' : 'ko';
+      const primary = obj[loc] || obj.ko || obj.en;
+      const secondary = loc === 'ko' ? obj.en : obj.ko;
+      if (primary && secondary && primary !== secondary) {
+        return `${primary} (${secondary})`;
+      }
+      return primary || secondary || '-';
+    }
+    return JSON.stringify(obj);
+  }
   return String(val);
 };
 

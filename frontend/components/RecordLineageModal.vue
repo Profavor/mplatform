@@ -906,11 +906,21 @@ const formatDisplayValue = (k: string, val: any): string => {
       return val
     }
   }
-  if (typeof val === 'object') {
-    if (val.ko || val.en) {
-      return val.ko ? `${val.ko} (${val.en || ''})` : val.en
+  let obj = val
+  if (typeof val === 'string' && val.trim().startsWith('{') && val.trim().endsWith('}')) {
+    try { obj = JSON.parse(val) } catch (e) {}
+  }
+  if (typeof obj === 'object' && obj !== null) {
+    if ('ko' in obj || 'en' in obj) {
+      const loc = locale.value === 'en' ? 'en' : 'ko'
+      const primary = obj[loc] || obj.ko || obj.en
+      const secondary = loc === 'ko' ? obj.en : obj.ko
+      if (primary && secondary && primary !== secondary) {
+        return `${primary} (${secondary})`
+      }
+      return primary || secondary || (t('none') || '-')
     }
-    return JSON.stringify(val)
+    return JSON.stringify(obj)
   }
   return String(val)
 }
