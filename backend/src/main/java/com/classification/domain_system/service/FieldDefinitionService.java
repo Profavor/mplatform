@@ -2,9 +2,11 @@ package com.classification.domain_system.service;
 
 import com.classification.domain_system.entity.FieldDefinition;
 import com.classification.domain_system.entity.ClassificationNode;
+import com.classification.domain_system.entity.Record;
 import com.classification.domain_system.repository.FieldDefinitionRepository;
 import com.classification.domain_system.repository.ClassificationNodeRepository;
 import com.classification.domain_system.repository.DomainRepository;
+import com.classification.domain_system.repository.RecordRepository;
 import com.classification.domain_system.dto.FieldDefinitionRequest;
 import com.classification.domain_system.entity.Domain;
 import com.classification.domain_system.repository.FieldGroupRepository;
@@ -76,6 +78,12 @@ public class FieldDefinitionService {
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.classification.domain_system.repository.UserRepository userRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private RecordRepository recordRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private FieldEncryptionService fieldEncryptionService;
 
 
 
@@ -357,6 +365,7 @@ public class FieldDefinitionService {
         FieldDefinition field = fieldRepository.findById(fieldId)
                 .orElseThrow(() -> new RuntimeException("Field not found"));
 
+        Boolean wasEncrypted = field.getIsEncrypted();
         java.util.Map<String, Object> beforeState = toStateMap(field);
 
         populateFieldProperties(field, request, true);
@@ -367,14 +376,82 @@ public class FieldDefinitionService {
         
         FieldDefinition savedField = fieldRepository.save(field);
         
+        // 1. Searchable index migration
         if (Boolean.TRUE.equals(willBeSearchable) && !Boolean.TRUE.equals(wasSearchable)) {
             manageIndex(savedField.getKey(), true);
         } else if (!Boolean.TRUE.equals(willBeSearchable) && Boolean.TRUE.equals(wasSearchable)) {
             manageIndex(savedField.getKey(), false);
         }
+
+        // 2. Encryption migration for existing records
+        Boolean newEncrypted = savedField.getIsEncrypted();
+        if (!java.util.Objects.equals(wasEncrypted, newEncrypted)) {
+            if (Boolean.TRUE.equals(newEncrypted)) {
+                migrateRecordEncryptionForField(savedField, true);
+            } else {
+                migrateRecordEncryptionForField(savedField, false);
+            }
+        }
         
         recordSchemaChange(field.getDomain() != null ? field.getDomain().getId() : (field.getDefinedAtNode() != null ? field.getDefinedAtNode().getDomain().getId() : null), "FIELD", fieldId, "UPDATE", beforeState, toStateMap(savedField));
         return savedField;
+    }
+
+    private void migrateRecordEncryptionForField(FieldDefinition field, boolean targetEncrypted) {
+        if (field == null || field.getKey() == null || fieldEncryptionService == null || recordRepository == null) {
+            return;
+        }
+        UUID domainId = field.getDomain() != null ? field.getDomain().getId() 
+                : (field.getDefinedAtNode() != null && field.getDefinedAtNode().getDomain() != null ? field.getDefinedAtNode().getDomain().getId() : null);
+        if (domainId == null) {
+            return;
+        }
+
+        List<Record> records = recordRepository.findAllByDomainId(domainId);
+        if (records == null || records.isEmpty()) {
+            return;
+        }
+
+        List<Record> modifiedRecords = new java.util.ArrayList<>();
+        String key = field.getKey();
+
+        for (Record record : records) {
+            if (record.getData() == null || record.getData().isBlank()) {
+                continue;
+            }
+            try {
+                Map<String, Object> dataMap = objectMapper.readValue(record.getData(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+                if (!dataMap.containsKey(key)) {
+                    continue;
+                }
+                Object valObj = dataMap.get(key);
+                if (valObj == null) {
+                    continue;
+                }
+                String valStr = String.valueOf(valObj);
+                if (valStr.isBlank()) {
+                    continue;
+                }
+
+                if (targetEncrypted) {
+                    String encrypted = fieldEncryptionService.encrypt(valStr);
+                    dataMap.put(key, encrypted);
+                } else {
+                    String decrypted = fieldEncryptionService.decrypt(valStr);
+                    dataMap.put(key, decrypted);
+                }
+
+                record.setData(objectMapper.writeValueAsString(dataMap));
+                modifiedRecords.add(record);
+            } catch (Exception e) {
+                log.warn("Failed to migrate record {} encryption for field {}: {}", record.getId(), key, e.getMessage());
+            }
+        }
+
+        if (!modifiedRecords.isEmpty()) {
+            recordRepository.saveAll(modifiedRecords);
+            log.info("Migrated encryption (targetEncrypted={}) for {} records on field {}", targetEncrypted, modifiedRecords.size(), key);
+        }
     }
 
     @Transactional
@@ -534,6 +611,7 @@ public class FieldDefinitionService {
             }
         }
 
+        Boolean wasEncrypted = field.getIsEncrypted();
         java.util.Map<String, Object> beforeState = toStateMap(field);
 
         populateFieldProperties(field, request, true);
@@ -548,6 +626,11 @@ public class FieldDefinitionService {
             manageIndex(savedField.getKey(), true);
         } else if (!Boolean.TRUE.equals(willBeSearchable) && Boolean.TRUE.equals(wasSearchable)) {
             manageIndex(savedField.getKey(), false);
+        }
+
+        Boolean newEncrypted = savedField.getIsEncrypted();
+        if (!java.util.Objects.equals(wasEncrypted, newEncrypted)) {
+            migrateRecordEncryptionForField(savedField, Boolean.TRUE.equals(newEncrypted));
         }
         
         recordSchemaChange(domain.getId(), "FIELD", fieldId, "UPDATE", beforeState, toStateMap(savedField));
@@ -589,6 +672,7 @@ public class FieldDefinitionService {
 
         }
 
+        Boolean wasEncrypted = field.getIsEncrypted();
         java.util.Map<String, Object> beforeState = toStateMap(field);
 
         populateFieldProperties(field, request, true);
@@ -603,6 +687,11 @@ public class FieldDefinitionService {
             manageIndex(savedField.getKey(), true);
         } else if (!Boolean.TRUE.equals(willBeSearchable) && Boolean.TRUE.equals(wasSearchable)) {
             manageIndex(savedField.getKey(), false);
+        }
+
+        Boolean newEncrypted = savedField.getIsEncrypted();
+        if (!java.util.Objects.equals(wasEncrypted, newEncrypted)) {
+            migrateRecordEncryptionForField(savedField, Boolean.TRUE.equals(newEncrypted));
         }
         
         recordSchemaChange(domainId, "FIELD", fieldId, "UPDATE", beforeState, toStateMap(savedField));

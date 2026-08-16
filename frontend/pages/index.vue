@@ -48,6 +48,9 @@
 </template>
 
 <script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useColors } from 'vuestic-ui'
 import { useI18n } from 'vue-i18n'
 import { usePageTitle } from '~/composables/usePageTitle'
 import DashboardKpiCards from '~/components/dashboard/DashboardKpiCards.vue'
@@ -55,11 +58,9 @@ import DashboardGovernanceCard from '~/components/dashboard/DashboardGovernanceC
 import DashboardTodoList from '~/components/dashboard/DashboardTodoList.vue'
 import DashboardApprovalCharts from '~/components/dashboard/DashboardApprovalCharts.vue'
 import DashboardDqCharts from '~/components/dashboard/DashboardDqCharts.vue'
+
 const { t } = useI18n()
 const { pageTitle } = usePageTitle('dashboard', '홈')
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useColors } from 'vuestic-ui'
 
 const router = useRouter()
 const stats = ref(null)

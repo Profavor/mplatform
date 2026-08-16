@@ -93,9 +93,12 @@ public class DomainPackageDto {
 
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
     public static class WorkflowInfo {
+        private String nodeKey;
+        private String actionType;
         private String name;
         private String description;
         private String stepsConfig;
         private Boolean isDefault;
+        private Boolean isActive;
     }
 }

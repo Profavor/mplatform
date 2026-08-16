@@ -129,12 +129,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { usePageTitle } from '~/composables/usePageTitle'
-
-const { pageTitle } = usePageTitle('match_review.title', '매칭 검토')
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vuestic-ui'
 import { AgGridVue } from 'ag-grid-vue3'
+import { usePageTitle } from '~/composables/usePageTitle'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useTimezoneDate } from '~/composables/useTimezoneDate'
 import { usePermission } from '~/composables/usePermission'
@@ -142,6 +140,7 @@ import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import MergeReviewModal from '~/components/records/MergeReviewModal.vue'
 import CandidateDetailSidebar from '~/components/admin/CandidateDetailSidebar.vue'
 
+const { pageTitle } = usePageTitle('match_review.title', '매칭 검토')
 const { t } = useI18n()
 const { init } = useToast()
 const { customFetch } = useCustomFetch()

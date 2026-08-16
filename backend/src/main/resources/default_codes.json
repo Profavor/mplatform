@@ -416,57 +416,12 @@
         "isActive": true
       },
       {
-        "detailCode": "ENUM",
-        "name": {
-          "ko": "📋 선택형 (Enum)",
-          "en": "📋 Enum"
-        },
-        "sortOrder": 6,
-        "isActive": true
-      },
-      {
         "detailCode": "SELECT",
         "name": {
-          "ko": "🔽 단일 선택 (Select)",
-          "en": "🔽 Single Select"
+          "ko": "📋 선택형 (Select)",
+          "en": "📋 Select"
         },
-        "sortOrder": 7,
-        "isActive": true
-      },
-      {
-        "detailCode": "MULTI_SELECT",
-        "name": {
-          "ko": "☑️ 다중 선택 (Multi-Select)",
-          "en": "☑️ Multi-Select"
-        },
-        "sortOrder": 8,
-        "isActive": true
-      },
-      {
-        "detailCode": "DECIMAL",
-        "name": {
-          "ko": "💲 십진수 (Decimal)",
-          "en": "💲 Decimal"
-        },
-        "sortOrder": 9,
-        "isActive": true
-      },
-      {
-        "detailCode": "FLOAT",
-        "name": {
-          "ko": "🔬 부동소수점 (Float)",
-          "en": "🔬 Float"
-        },
-        "sortOrder": 10,
-        "isActive": true
-      },
-      {
-        "detailCode": "INTEGER",
-        "name": {
-          "ko": "1️⃣ 정수 (Integer)",
-          "en": "1️⃣ Integer"
-        },
-        "sortOrder": 11,
+        "sortOrder": 6,
         "isActive": true
       },
       {
@@ -475,7 +430,7 @@
           "ko": "🔗 도메인 참조 (Reference)",
           "en": "🔗 Domain Reference"
         },
-        "sortOrder": 12,
+        "sortOrder": 7,
         "isActive": true
       },
       {
@@ -484,7 +439,7 @@
           "ko": "⏱️ 시간 (Time)",
           "en": "⏱️ Time"
         },
-        "sortOrder": 13,
+        "sortOrder": 8,
         "isActive": true
       },
       {
@@ -493,16 +448,7 @@
           "ko": "🌐 HTML 텍스트",
           "en": "🌐 HTML Text"
         },
-        "sortOrder": 14,
-        "isActive": true
-      },
-      {
-        "detailCode": "CHECKBOX",
-        "name": {
-          "ko": "✅ 체크박스 (Checkbox)",
-          "en": "✅ Checkbox"
-        },
-        "sortOrder": 15,
+        "sortOrder": 9,
         "isActive": true
       },
       {
@@ -511,7 +457,7 @@
           "ko": "🧮 계산식 (Calculated)",
           "en": "🧮 Calculated"
         },
-        "sortOrder": 16,
+        "sortOrder": 10,
         "isActive": true
       },
       {
@@ -520,7 +466,7 @@
           "ko": "🌍 다국어 (Multilingual)",
           "en": "🌍 Multilingual"
         },
-        "sortOrder": 17,
+        "sortOrder": 11,
         "isActive": true
       },
       {
@@ -529,7 +475,7 @@
           "ko": "📁 파일 첨부 (File)",
           "en": "📁 File Attachment"
         },
-        "sortOrder": 18,
+        "sortOrder": 12,
         "isActive": true
       },
       {
@@ -538,7 +484,7 @@
           "ko": "📅 기간 (시작일~종료일)",
           "en": "📅 Date Range"
         },
-        "sortOrder": 19,
+        "sortOrder": 13,
         "isActive": true
       }
     ]

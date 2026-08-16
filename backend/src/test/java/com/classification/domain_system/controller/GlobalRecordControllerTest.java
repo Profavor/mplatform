@@ -93,6 +93,32 @@ class GlobalRecordControllerTest {
     }
 
     @Test
+    @DisplayName("도메인 레코드 멀티 키 및 값 기반 필터 검색 페이징 조회 성공")
+    void getRecordsByDomain_WithFilterSearchParams() throws Exception {
+        Record record = new Record();
+        record.setId(recordId);
+        record.setData("{\"EP_NO\":\"0000001\",\"EP_NAME\":\"인치국\"}");
+        record.setStatus("APPROVED");
+
+        Page<Record> page = new PageImpl<>(List.of(record), PageRequest.of(0, 20), 1);
+
+        when(recordService.findDynamicRecordsByDomain(
+                eq(domainId),
+                org.mockito.ArgumentMatchers.argThat(map -> "0000001".equals(map.get("multi_val")) && "EP_NO,EP_NAME".equals(map.get("multi_keys"))),
+                any(org.springframework.data.domain.Pageable.class)
+        )).thenReturn(page);
+
+        mockMvc.perform(get("/api/records/domain/{domainId}", domainId)
+                .param("page", "0")
+                .param("size", "20")
+                .param("search_multi_keys", "EP_NO,EP_NAME")
+                .param("search_multi_val", "0000001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].data").value("{\"EP_NO\":\"0000001\",\"EP_NAME\":\"인치국\"}"));
+    }
+
+    @Test
     @DisplayName("단건 레코드 조회 성공")
     void getRecord_Success() throws Exception {
         Record record = new Record();

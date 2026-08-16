@@ -181,7 +181,7 @@
       :domain-references="domainReferences"
       @close="showCreateModal = false"
       @save="promptDraftComment('CREATE', $event)"
-      @openDomainRef="openDomainRefModal($event.fieldKey, $event.isCreate)"
+      @openDomainRef="openDomainRefModal($event)"
       @selectWorkflow="handleWorkflowSelectionChanged"
     />
 
@@ -207,7 +207,7 @@
       @unmerge="handleUnmergeRecord"
       @openHistory="openHistory"
       @save="promptDraftComment('UPDATE', $event)"
-      @openDomainRef="openDomainRefModal($event.fieldKey, $event.isCreate)"
+      @openDomainRef="openDomainRefModal($event)"
       @viewDiffDetails="viewDiffDetails"
       @viewSnapshot="viewSnapshot"
       @viewApprovalHistory="viewApprovalHistory"
@@ -308,7 +308,9 @@
       :grid-theme="gridTheme"
       :auto-size-strategy="autoSizeStrategy"
       :domain-ref-col-defs="domainRefColDefs"
-      :domain-ref-row-data="domainRefRowData"
+      :target-domain-id="currentDomainRefTargetDomainId"
+      :id-field-key="currentDomainRefIdFieldKey"
+      :name-field-key="currentDomainRefNameFieldKey"
       @row-double-clicked="onDomainRefRowDoubleClicked"
     />
     <!-- Record Lineage Modal -->
@@ -337,14 +339,15 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { usePageTitle } from '~/composables/usePageTitle'
-
-import ExcelJS from 'exceljs'
-
-const { pageTitle } = usePageTitle('records_management', '마스터 데이터 레코드 관리')
-const { customFetch } = useCustomFetch()
 import { useCookie } from '#app'
 import { AgGridVue } from 'ag-grid-vue3'
+import ExcelJS from 'exceljs'
+import { useColors, useModal, useToast } from 'vuestic-ui'
+import { useI18n } from 'vue-i18n'
+import { usePageTitle } from '~/composables/usePageTitle'
+import { useCustomFetch } from '~/composables/useCustomFetch'
+import { usePermission } from '~/composables/usePermission'
+import { formatMultilingual } from '~/composables/useMultilingual'
 import ExcelUploader from '~/components/ExcelUploader.vue'
 import RecordToolbar from '~/components/records/RecordToolbar.vue'
 import RecordAdvancedSearch from '~/components/records/RecordAdvancedSearch.vue'
@@ -357,11 +360,8 @@ import ApprovalViewerModal from '~/components/ApprovalViewerModal.vue'
 import BulkReclassifyModal from '~/components/records/BulkReclassifyModal.vue'
 import CdcStreamModal from '~/components/records/CdcStreamModal.vue'
 
-import { useColors, useModal, useToast } from 'vuestic-ui'
-import { useI18n } from 'vue-i18n'
-import { usePermission } from '~/composables/usePermission'
-import { formatMultilingual } from '~/composables/useMultilingual'
-
+const { pageTitle } = usePageTitle('records_management', '마스터 데이터 레코드 관리')
+const { customFetch } = useCustomFetch()
 const { t } = useI18n()
 const { confirm } = useModal()
 const { init: initToast } = useToast()
@@ -383,12 +383,20 @@ const handleDownloadTemplate = async () => {
   }
 
   try {
-    let targetFields = fields.value || []
+    let targetFields = (nodeFields.value && nodeFields.value.length > 0) ? [...nodeFields.value] : []
     if (targetFields.length === 0 && selectedNode.value.id) {
       const fieldUrl = selectedNode.value.isDomain
         ? `/api/domains/${selectedNode.value.id}/fields`
         : `/api/nodes/${selectedNode.value.id}/fields/effective`
-      targetFields = await customFetch(fieldUrl).catch(() => [])
+      const fetched = await customFetch(fieldUrl).catch(() => [])
+      if (Array.isArray(fetched)) {
+        targetFields = fetched
+      }
+    }
+
+    if (targetFields.length === 0) {
+      initToast({ message: t('no_fields_to_export', '내보낼 필드 정의가 존재하지 않습니다.'), color: 'warning' })
+      return
     }
 
     const workbook = new ExcelJS.Workbook()
@@ -478,10 +486,11 @@ const handleDownloadTemplate = async () => {
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    const nodeName = typeof selectedNode.value.name === 'object' 
-      ? (selectedNode.value.name[currentLocale.value] || selectedNode.value.name.ko || selectedNode.value.name.en || 'template')
-      : (selectedNode.value.name || 'template')
-    a.download = `template_${nodeName}.xlsx`
+    const nodeName = selectedNode.value.label 
+      || (typeof selectedNode.value.originalNameMap === 'object' ? (selectedNode.value.originalNameMap[currentLocale.value] || selectedNode.value.originalNameMap.ko || selectedNode.value.originalNameMap.en) : null)
+      || (typeof selectedNode.value.name === 'object' ? (selectedNode.value.name[currentLocale.value] || selectedNode.value.name.ko || selectedNode.value.name.en) : selectedNode.value.name)
+      || 'template'
+    a.download = `template_${nodeName.replace(/\s+/g, '_')}.xlsx`
     document.body.appendChild(a)
     a.click()
     a.remove()
@@ -579,20 +588,21 @@ const loadDomainReferences = async (fields) => {
   for (const f of fields) {
     if (f.type === 'DOMAIN_REFERENCE') {
       try {
-        const opts = JSON.parse(f.options || '{}')
+        const opts = typeof f.options === 'string' ? JSON.parse(f.options || '{}') : (f.options || {})
         const tDomainId = opts.targetDomainId
         if (!tDomainId) continue
         
         const domains = await customFetch('/api/domains')
-        const tDomain = domains.find(d => d.id === tDomainId)
+        const tDomain = Array.isArray(domains) ? domains.find(d => d.id === tDomainId) : null
         
         const tFields = await customFetch(`/api/domains/${tDomainId}/fields`)
-        const tRecords = await customFetch(`/api/records/domain/${tDomainId}`)
+        const tRecordsRes = await customFetch(`/api/records/domain/${tDomainId}?page=0&size=500`)
+        const tRecords = Array.isArray(tRecordsRes) ? tRecordsRes : (tRecordsRes?.content || [])
         
         domainReferences.value[f.key] = {
           targetDomainId: tDomainId,
           domainInfo: tDomain,
-          fields: tFields,
+          fields: Array.isArray(tFields) ? tFields : [],
           records: tRecords
         }
       } catch (e) {
@@ -604,11 +614,25 @@ const loadDomainReferences = async (fields) => {
 
 const showDomainRefModal = ref(false)
 const domainRefColDefs = ref([])
-const domainRefRowData = ref([])
 const currentDomainRefFieldKey = ref(null)
+const currentDomainRefTargetDomainId = ref(null)
+const currentDomainRefIdFieldKey = ref(null)
+const currentDomainRefNameFieldKey = ref(null)
 const isDomainRefForCreate = ref(false)
 
-const openDomainRefModal = (fieldKey, isCreate = false) => {
+const openDomainRefModal = (eventOrKey, isCreateParam = false) => {
+  const fieldKey = typeof eventOrKey === 'object' && eventOrKey !== null ? eventOrKey.fieldKey : eventOrKey
+  const isCreate = typeof eventOrKey === 'object' && eventOrKey !== null ? eventOrKey.isCreate : isCreateParam
+  const currentData = typeof eventOrKey === 'object' && eventOrKey !== null ? eventOrKey.currentData : null
+
+  if (currentData) {
+    if (isCreate) {
+      recordFormData.value = { ...recordFormData.value, ...currentData }
+    } else {
+      selectedRecordData.value = { ...selectedRecordData.value, ...currentData }
+    }
+  }
+
   const refInfo = domainReferences.value[fieldKey]
   if (!refInfo) {
     showCustomAlert(t('target_domain_ref_not_loaded'), t('notice'), t('notification'), 'warning')
@@ -618,9 +642,13 @@ const openDomainRefModal = (fieldKey, isCreate = false) => {
   isDomainRefForCreate.value = isCreate
   const tDomain = refInfo.domainInfo
   
-  const idField = refInfo.fields.find(f => f.id === tDomain.identifierFieldId)
-  const nameField = refInfo.fields.find(f => f.id === tDomain.displayNameFieldId)
-  const descField = refInfo.fields.find(f => f.id === tDomain.descriptionFieldId)
+  const idField = refInfo.fields?.find(f => f.id === tDomain?.identifierFieldId)
+  const nameField = refInfo.fields?.find(f => f.id === tDomain?.displayNameFieldId)
+  const descField = refInfo.fields?.find(f => f.id === tDomain?.descriptionFieldId)
+
+  currentDomainRefTargetDomainId.value = tDomain?.id || refInfo.targetDomainId
+  currentDomainRefIdFieldKey.value = idField?.key || null
+  currentDomainRefNameFieldKey.value = nameField?.key || null
   
   const createColDef = (field) => {
     const def = {
@@ -655,19 +683,21 @@ const openDomainRefModal = (fieldKey, isCreate = false) => {
   if (cols.length === 0) cols.push({ headerName: 'System ID', field: 'id', flex: 1 })
   
   domainRefColDefs.value = cols
-  domainRefRowData.value = refInfo.records.map(r => ({
-    id: r.id,
-    data: typeof r.data === 'string' ? JSON.parse(r.data) : r.data
-  }))
   showDomainRefModal.value = true
 }
 
 const onDomainRefRowDoubleClicked = (params) => {
-  if (currentDomainRefFieldKey.value) {
+  if (currentDomainRefFieldKey.value && params?.data?.id) {
     if (isDomainRefForCreate.value) {
-      recordFormData.value[currentDomainRefFieldKey.value] = params.data.id
+      recordFormData.value = {
+        ...recordFormData.value,
+        [currentDomainRefFieldKey.value]: params.data.id
+      }
     } else {
-      selectedRecordData.value[currentDomainRefFieldKey.value] = params.data.id
+      selectedRecordData.value = {
+        ...selectedRecordData.value,
+        [currentDomainRefFieldKey.value]: params.data.id
+      }
     }
   }
   showDomainRefModal.value = false

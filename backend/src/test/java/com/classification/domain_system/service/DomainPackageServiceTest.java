@@ -133,4 +133,109 @@ public class DomainPackageServiceTest {
         assertThat(result.getNodeCount()).isEqualTo(1);
         assertThat(result.getFieldCount()).isEqualTo(1);
     }
+
+    @Test
+    @DisplayName("importDomainPackage: 워크플로우 포함 패키지 임포트 시 actionType 정상 설정 및 DB 저장 검증")
+    void testImportDomainPackage_WithWorkflows() {
+        when(domainRepository.findAll()).thenReturn(Collections.emptyList());
+        when(domainRepository.save(any(Domain.class))).thenAnswer(i -> {
+            Domain d = i.getArgument(0);
+            d.setId(UUID.randomUUID());
+            return d;
+        });
+        when(workflowConfigRepository.save(any(WorkflowConfig.class))).thenAnswer(i -> {
+            WorkflowConfig wf = i.getArgument(0);
+            wf.setId(UUID.randomUUID());
+            return wf;
+        });
+
+        DomainPackageDto pkg = DomainPackageDto.builder()
+                .domain(DomainPackageDto.DomainInfo.builder().name(Map.of("ko", "결재 도메인")).build())
+                .workflows(List.of(
+                        DomainPackageDto.WorkflowInfo.builder()
+                                .name("{\"ko\":\"등록 결재 서식\"}")
+                                .actionType("CREATE")
+                                .stepsConfig("{\"steps\":[]}")
+                                .isDefault(true)
+                                .isActive(true)
+                                .build(),
+                        DomainPackageDto.WorkflowInfo.builder()
+                                .name("{\"ko\":\"스키마 변경 결재\"}")
+                                .actionType("SCHEMA_CHANGE")
+                                .stepsConfig("{\"steps\":[]}")
+                                .isDefault(false)
+                                .build(),
+                        DomainPackageDto.WorkflowInfo.builder()
+                                .name("{\"ko\":\"actionType 누락된 레거시 서식\"}")
+                                .stepsConfig("{\"steps\":[]}")
+                                .build()
+                ))
+                .build();
+
+        DomainPackageImportResult result = domainPackageService.importDomainPackage(pkg, "admin", false);
+
+        assertThat(result).isNotNull();
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.getWorkflowCount()).isEqualTo(3);
+
+        verify(workflowConfigRepository, times(3)).save(argThat(wf -> {
+            assertThat(wf.getActionType()).isNotNull().isNotBlank();
+            return true;
+        }));
+    }
+
+    @Test
+    @DisplayName("importDomainPackage: 기존 도메인에 동일 노드 및 필드가 존재할 때 중복 생성 없이 머지(Upsert) 검증")
+    void testImportDomainPackage_MergeExistingNodesAndFields() {
+        when(domainRepository.findAll()).thenReturn(List.of(domain));
+        when(domainRepository.save(any(Domain.class))).thenReturn(domain);
+
+        ClassificationNode existingNode = new ClassificationNode();
+        UUID existingNodeId = UUID.randomUUID();
+        existingNode.setId(existingNodeId);
+        existingNode.setDomain(domain);
+        existingNode.setName(Map.of("ko", "정규직"));
+        existingNode.setOrder(1);
+        when(nodeRepository.findByDomain_Id(domainId)).thenReturn(List.of(existingNode));
+        when(nodeRepository.save(any(ClassificationNode.class))).thenAnswer(i -> i.getArgument(0));
+
+        FieldDefinition existingField = new FieldDefinition();
+        UUID existingFieldId = UUID.randomUUID();
+        existingField.setId(existingFieldId);
+        existingField.setDomain(domain);
+        existingField.setDefinedAtNode(existingNode);
+        existingField.setKey("EP_NO");
+        existingField.setName(Map.of("ko", "사번"));
+        existingField.setType("TEXT");
+        existingField.setRequired(false);
+        when(fieldDefinitionRepository.findByDomain_Id(domainId)).thenReturn(List.of(existingField));
+        when(fieldDefinitionRepository.save(any(FieldDefinition.class))).thenAnswer(i -> i.getArgument(0));
+
+        DomainPackageDto pkg = DomainPackageDto.builder()
+                .domain(DomainPackageDto.DomainInfo.builder().name(Map.of("ko", "고객 도메인")).build())
+                .nodes(List.of(
+                        DomainPackageDto.NodeInfo.builder().nodeKey("N1").name(Map.of("ko", "정규직")).sortOrder(2).build()
+                ))
+                .fields(List.of(
+                        DomainPackageDto.FieldInfo.builder().nodeKey("N1").key("EP_NO").name(Map.of("ko", "사원번호")).type("STRING").required(true).build()
+                ))
+                .build();
+
+        DomainPackageImportResult result = domainPackageService.importDomainPackage(pkg, "admin", true);
+
+        assertThat(result).isNotNull();
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.getNodeCount()).isEqualTo(1);
+        assertThat(result.getFieldCount()).isEqualTo(1);
+
+        // 노드가 새로 생성되지 않고 기존 노드 ID를 유지한 채 머지되었는지 검증
+        verify(nodeRepository, atLeastOnce()).save(argThat(n -> {
+            return Objects.equals(n.getId(), existingNodeId);
+        }));
+
+        // 필드가 새로 생성되지 않고 기존 필드 ID를 유지한 채 속성이 업데이트되었는지 검증
+        verify(fieldDefinitionRepository, atLeastOnce()).save(argThat(f -> {
+            return Objects.equals(f.getId(), existingFieldId) && "STRING".equals(f.getType()) && Boolean.TRUE.equals(f.getRequired());
+        }));
+    }
 }

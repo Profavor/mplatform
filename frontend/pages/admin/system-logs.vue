@@ -373,26 +373,23 @@
   <VolumeAnomalyRadarModal v-model="showVolumeRadar" />
   <RegulatoryComplianceModal v-model="showRegulatory" />
   <ColdStorageArchiveModal v-model="showColdStorage" />
-</div>
+  </div>
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
-import { usePageTitle } from '~/composables/usePageTitle'
-
-const { pageTitle } = usePageTitle('system_logs_title', '시스템 로그 및 연계 관제')
+import { ref, watch, onMounted, computed } from 'vue'
 import { AgGridVue } from 'ag-grid-vue3'
-if (process.client) {
-  import('ag-grid-enterprise')
-}
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { BarChart, LineChart, PieChart } from 'echarts/charts'
 import { TitleComponent, TooltipComponent, GridComponent, LegendComponent } from 'echarts/components'
-import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vuestic-ui'
+import { usePageTitle } from '~/composables/usePageTitle'
+import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { usePermission } from '~/composables/usePermission'
+import { formatWithTimezone } from '~/composables/useTimezoneDate'
+import { formatEntityId } from '~/utils/formatters'
 import { getMultilingualText } from '~/utils/multilingual'
 import { useCodeStore } from '~/stores/useCodeStore'
 import IntegrationLogDetailModal from '~/components/admin/IntegrationLogDetailModal.vue'
@@ -437,8 +434,6 @@ const openFeatureModal = (featureKey) => {
     case 'cold_storage': showColdStorage.value = true; break;
   }
 }
-import { formatWithTimezone } from '~/composables/useTimezoneDate'
-import { formatEntityId } from '~/utils/formatters'
 
 const { hasPermission } = usePermission()
 

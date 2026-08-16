@@ -458,25 +458,26 @@
 </template>
 
 <script setup>
+import { ref, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useCookie } from '#app'
+import { AgGridVue } from 'ag-grid-vue3'
 import OrgTreeSidebar from '~/components/org/OrgTreeSidebar.vue'
 import OrgDetailForm from '~/components/org/OrgDetailForm.vue'
 import DepartmentModal from '~/components/org/DepartmentModal.vue'
 import RoleModal from '~/components/org/RoleModal.vue'
 import CreateOrgModal from '~/components/admin/CreateOrgModal.vue'
 import SystemNotificationModal from '~/components/common/SystemNotificationModal.vue'
+import PermissionMatrix from '~/components/PermissionMatrix.vue'
+import UserRoleSelect from '~/components/UserRoleSelect.vue'
 import { usePageTitle } from '~/composables/usePageTitle'
+import { useCustomFetch } from '~/composables/useCustomFetch'
+import { useAgGridTheme } from '~/composables/useAgGridTheme'
+import { useRoleStore } from '~/stores/useRoleStore'
+import { usePermission } from '~/composables/usePermission'
 
 const { pageTitle } = usePageTitle('org_tenant_management', '조직 및 부서 관리')
 const { customFetch } = useCustomFetch()
-import { ref, onMounted, computed } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useCookie } from '#app'
-import { AgGridVue } from 'ag-grid-vue3'
-import { useAgGridTheme } from '~/composables/useAgGridTheme'
-import PermissionMatrix from '~/components/PermissionMatrix.vue'
-import UserRoleSelect from '~/components/UserRoleSelect.vue'
-import { useRoleStore } from '~/stores/useRoleStore'
-import { usePermission } from '~/composables/usePermission'
 
 const { gridTheme, isDark } = useAgGridTheme()
 const isMounted = ref(false)

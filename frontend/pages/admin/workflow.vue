@@ -109,16 +109,15 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { usePageTitle } from '~/composables/usePageTitle'
-
-const { pageTitle } = usePageTitle('workflow_center_title', '워크플로우 관리')
 import { AgGridVue } from 'ag-grid-vue3'
+import { usePageTitle } from '~/composables/usePageTitle'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { useRoleStore } from '~/stores/useRoleStore'
 import { useCodeStore } from '~/stores/useCodeStore'
 import WorkflowConfigModal from '~/components/admin/WorkflowConfigModal.vue'
 
+const { pageTitle } = usePageTitle('workflow_center_title', '워크플로우 관리')
 const { customFetch } = useCustomFetch()
 const { gridTheme, autoSizeStrategy, isDark } = useAgGridTheme()
 const { t, locale } = useI18n()

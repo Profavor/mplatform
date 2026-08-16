@@ -15,7 +15,13 @@
         </div>
       </div>
 
-      <div style="display: flex; gap: 0.75rem; align-items: center;">
+      <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+        <va-button preset="outline" color="info" icon="hub" size="small" @click="showOntologyModal = true">
+          {{ $t('semantic_ontology') }}
+        </va-button>
+        <va-button preset="outline" color="warning" icon="published_with_changes" size="small" @click="showCompatibilityModal = true">
+          {{ $t('schema_compatibility') }}
+        </va-button>
         <va-button preset="outline" color="primary" icon="inventory_2" size="small" @click="showPackageModal = true">
           {{ $t('schema_package') }}
         </va-button>
@@ -39,16 +45,13 @@
                 :emptyMessage="$t('tree_empty_message')"
                 @select="onNodeSelected"
                 @edit="handleNodeEdit"
+                @delete="handleNodeDelete"
                 @loaded="onTreeLoaded"
               />
             </div>
-            <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; padding: 0 0.5rem; flex-wrap: wrap;">
+            <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; padding: 0 0.5rem;">
               <va-button v-if="hasPermission('domain:write') || hasPermission('domain:*')" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="create_new_folder" @click="openDomainModal()" color="primary">{{ $t('domain') }}</va-button>
               <va-button v-if="hasPermission('node:write') || hasPermission('node:*')" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="note_add" @click="openNodeModal()" :disabled="!selectedNode" color="primary" :preset="selectedNode ? 'primary' : 'secondary'">{{ $t('node') }}</va-button>
-            </div>
-            <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem; padding: 0 0.5rem;">
-              <va-button style="flex: 1; border-radius: 8px;" color="info" icon="hub" @click="showOntologyModal = true" size="small">{{ $t('semantic_ontology') }}</va-button>
-              <va-button style="flex: 1; border-radius: 8px;" color="warning" icon="published_with_changes" @click="showCompatibilityModal = true" size="small">{{ $t('schema_compatibility') }}</va-button>
             </div>
             <div style="margin-top: 0.75rem; padding: 0 0.5rem;">
               <va-button preset="secondary" style="width: 100%;" @click="showRequestAccessModal = true">{{ $t('request_domain_access') }}</va-button>
@@ -161,6 +164,7 @@
       :new-node="newNode"
       :selected-node="selectedNode"
       @save="saveNode"
+      @delete="handleNodeDelete"
       @open-icon-picker="openIconPicker"
     />
 
@@ -183,6 +187,7 @@
       :options-column-defs="optionsColumnDefs"
       :new-field-options-list="newFieldOptionsList"
       :options-default-col-def="optionsDefaultColDef"
+      :new-field-table-columns="newFieldTableColumns"
       :available-condition-fields="availableConditionFields"
       :can-edit="hasPermission('field:write') || hasPermission('field:*')"
       @target-node-selected="onTargetNodeSelected"
@@ -190,6 +195,8 @@
       @add-grid-option="addGridOption"
       @remove-selected-grid-option="removeSelectedGridOption"
       @options-grid-ready="onOptionsGridReady"
+      @add-table-column="handleAddTableColumn"
+      @remove-table-column="handleRemoveTableColumn"
       @save="saveField"
     />
 
@@ -276,6 +283,7 @@
       v-model="showPackageModal"
       :domain-id="selectedDomainId"
       :domain-name="selectedDomainName"
+      :domain-options="domainOptions"
       @imported="handlePackageImported"
     />
 
@@ -299,7 +307,15 @@
 </template>
 
 <script setup>
+import { ref, computed, onMounted, watch } from 'vue'
+import { useCookie, useState } from '#app'
+import { AgGridVue } from 'ag-grid-vue3'
+import { useI18n } from 'vue-i18n'
+import { useToast, useColors } from 'vuestic-ui'
 import { usePageTitle } from '~/composables/usePageTitle'
+import { usePermission } from '~/composables/usePermission'
+import { useCustomFetch } from '~/composables/useCustomFetch'
+import { useCodeStore } from '~/stores/useCodeStore'
 import SchemaImpactReportModal from '~/components/SchemaImpactReportModal.vue'
 import ApprovalViewerModal from '~/components/ApprovalViewerModal.vue'
 import SystemNotificationModal from '~/components/common/SystemNotificationModal.vue'
@@ -308,8 +324,21 @@ import SchemaPackageModal from '~/components/schema/SchemaPackageModal.vue'
 import SemanticOntologyModal from '~/components/schema/SemanticOntologyModal.vue'
 import SchemaCompatibilityModal from '~/components/schema/SchemaCompatibilityModal.vue'
 import BusinessRuleBuilderModal from '~/components/records/BusinessRuleBuilderModal.vue'
+import SchemaHistoryTab from '~/components/schema/SchemaHistoryTab.vue'
+import WorkflowConfigTab from '~/components/schema/WorkflowConfigTab.vue'
+import ClassificationAxisTab from '~/components/schema/ClassificationAxisTab.vue'
+import DataProfilingTab from '~/components/schema/DataProfilingTab.vue'
 
+const toast = useToast()
 const { customFetch } = useCustomFetch()
+const { t, locale } = useI18n()
+const { pageTitle } = usePageTitle('domain_schema_title', '도메인 스키마 관리')
+const { hasPermission } = usePermission()
+const codeStore = useCodeStore()
+const currentLocale = useCookie('locale', { default: () => 'ko' })
+const colors = useColors()
+const currentPresetName = colors?.currentPresetName
+const isDark = computed(() => currentPresetName?.value === 'dark')
 
 const showApprovalViewer = ref(false)
 const showBusinessRuleBuilderModal = ref(false)
@@ -335,27 +364,6 @@ const openApprovalViewer = async (requestId) => {
     showCustomAlert(e.data?.message || t('approval_load_failed', '결재 내역을 불러오는데 실패했습니다.'), 'Error', 'Error', 'danger')
   }
 }
-
-const { pageTitle } = usePageTitle('domain_schema_title', '도메인 스키마 관리')
-const colors = useColors()
-const currentPresetName = colors?.currentPresetName
-const isDark = computed(() => currentPresetName?.value === 'dark')
-import { usePermission } from '~/composables/usePermission'
-
-const { t, locale } = useI18n()
-const currentLocale = useCookie('locale', { default: () => 'ko' })
-const { hasPermission } = usePermission()
-import { ref, computed, onMounted, watch } from 'vue'
-import { useCookie, useState } from '#app'
-import { useCodeStore } from '~/stores/useCodeStore'
-
-const codeStore = useCodeStore()
-
-import { AgGridVue } from 'ag-grid-vue3'
-import SchemaHistoryTab from '~/components/schema/SchemaHistoryTab.vue'
-import WorkflowConfigTab from '~/components/schema/WorkflowConfigTab.vue'
-import ClassificationAxisTab from '~/components/schema/ClassificationAxisTab.vue'
-import DataProfilingTab from '~/components/schema/DataProfilingTab.vue'
 
 const showImpactModal = ref(false)
 const impactChangeRequest = ref({
@@ -462,7 +470,19 @@ const handleImpactAnalysisConfirm = () => {
 }
 
 const selectedDomainId = computed(() => {
-  return selectedNode.value?.domainId || selectedNode.value?.id || null
+  if (selectedNode.value) {
+    return selectedNode.value.domainId || selectedNode.value.id || null
+  }
+  const rootDomain = treeNodes.value?.find(n => n.isDomain) || treeNodes.value?.[0]
+  return rootDomain?.domainId || rootDomain?.id || null
+})
+
+const selectedDomainName = computed(() => {
+  if (selectedNode.value) {
+    return selectedNode.value.label || selectedNode.value.name?.ko || selectedNode.value.name?.en || ''
+  }
+  const rootDomain = treeNodes.value?.find(n => n.isDomain) || treeNodes.value?.[0]
+  return rootDomain?.label || rootDomain?.name?.ko || rootDomain?.name?.en || ''
 })
 
 const { gridTheme, autoSizeStrategy } = useAgGridTheme()
@@ -719,6 +739,68 @@ const removeSelectedGridOption = () => {
   }
 }
 
+const newFieldTableColumns = ref([])
+
+const handleAddTableColumn = () => {
+  newFieldTableColumns.value.push({
+    key: '',
+    name: { ko: '', en: '' },
+    type: 'TEXT',
+    required: false,
+    width: 150,
+    optionsStr: ''
+  })
+}
+
+const handleRemoveTableColumn = (idx) => {
+  newFieldTableColumns.value.splice(idx, 1)
+}
+
+const formatColOptionsToStr = (options) => {
+  if (!options) return ''
+  if (typeof options === 'string') return options
+  if (Array.isArray(options)) {
+    return options.map(opt => {
+      if (typeof opt === 'object' && opt !== null) {
+        const k = opt.key || opt.value || ''
+        const ko = opt.label?.ko || (typeof opt.label === 'string' ? opt.label : '') || ''
+        const en = opt.label?.en || ''
+        if (k && ko && en && (k !== ko || ko !== en)) {
+          return `${k}:${ko}:${en}`
+        } else if (k && ko && k !== ko) {
+          return `${k}:${ko}`
+        }
+        return k || ko || JSON.stringify(opt)
+      }
+      return String(opt)
+    }).join(', ')
+  }
+  return ''
+}
+
+const parseColOptionsStr = (str) => {
+  if (!str || !str.trim()) return []
+  const items = str.split(',').map(s => s.trim()).filter(Boolean)
+  return items.map(item => {
+    if (item.includes(':')) {
+      const parts = item.split(':').map(p => p.trim())
+      const k = parts[0]
+      const ko = parts[1] || k
+      const en = parts[2] || ko
+      return {
+        key: k,
+        value: k,
+        label: { ko, en }
+      }
+    }
+    return {
+      key: item,
+      value: item,
+      label: { ko: item, en: item }
+    }
+  })
+}
+
 const domainSectors = ref([])
 const domainGroups = ref([])
 
@@ -755,7 +837,10 @@ const groupOptions = computed(() => {
   })
 })
 
-const fieldTypes = computed(() => codeStore.getDropdownOptions('FIELD_TYPE'))
+const fieldTypes = computed(() => {
+  const options = codeStore.getDropdownOptions('FIELD_TYPE') || []
+  return options.filter(opt => !['ENUM', 'MULTI_SELECT', 'DECIMAL', 'FLOAT', 'INTEGER', 'CHECKBOX'].includes(opt.value))
+})
 
 const maskingPatternOptions = computed(() => [
   { value: 'GENERIC', text: t('masking_pattern_generic') },
@@ -1392,11 +1477,25 @@ const openFieldModal = async (rowData = null) => {
     const domainId = rowData.domain?.id || (selectedNode.value?.isDomain ? selectedNode.value?.id : selectedNode.value?.domainId)
     const initialTargetId = isDomain ? (domainId ? `domain_${domainId}` : null) : (rowData.definedAtNode?.id || selectedNode.value?.id)
 
+    let fType = (rowData.type === 'STRING' || !rowData.type) ? 'TEXT' : rowData.type
+    let isMulti = !!rowData.isMultiValue
+    if (fType === 'ENUM') {
+      fType = 'SELECT'
+    } else if (fType === 'MULTI_SELECT') {
+      fType = 'SELECT'
+      isMulti = true
+    } else if (['DECIMAL', 'FLOAT', 'INTEGER'].includes(fType)) {
+      fType = 'NUMBER'
+    } else if (fType === 'CHECKBOX') {
+      fType = 'BOOLEAN'
+    }
+
     newField.value = { 
       ...rowData, 
       name: { ...rowData.name }, 
       hint: rowData.hint ? { ...rowData.hint } : { ko: '', en: '' }, 
-      type: (rowData.type === 'STRING' || !rowData.type) ? 'TEXT' : rowData.type,
+      type: fType,
+      isMultiValue: isMulti,
       formula: rowData.formula || '', 
       unit: rowData.unit || '',
       fieldGroupId: rowData.fieldGroup?.id || null,
@@ -1405,20 +1504,32 @@ const openFieldModal = async (rowData = null) => {
       gridWidth: rowData.gridWidth || null,
       tableColumnWidth: rowData.tableColumnWidth || null
     }
-    if (['SELECT', 'MULTI_SELECT'].includes(rowData.type)) {
+    if (['SELECT', 'MULTI_SELECT', 'ENUM'].includes(rowData.type)) {
       try {
         newFieldOptionsList.value = JSON.parse(rowData.options || '[]')
       } catch (e) { newFieldOptionsList.value = [] }
     } else {
       newFieldOptionsList.value = []
     }
-    // Parse targetDomainId, formula, conditionRule from options
+    // Parse targetDomainId, formula, conditionRule, tableSchema from options
     if (rowData.options) {
       try {
         const opts = typeof rowData.options === 'string' ? JSON.parse(rowData.options) : rowData.options
         if (opts.targetDomainId) newField.value.targetDomainId = opts.targetDomainId
         if (opts.formula) newField.value.formula = opts.formula
         if (opts.dateFormat) newField.value.dateFormat = opts.dateFormat
+        if (opts.tableSchema && Array.isArray(opts.tableSchema.columns)) {
+          newFieldTableColumns.value = opts.tableSchema.columns.map(c => ({
+            key: c.key || '',
+            name: { ko: c.name?.ko || c.name || '', en: c.name?.en || '' },
+            type: c.type || 'TEXT',
+            required: !!c.required,
+            width: c.width || 150,
+            optionsStr: formatColOptionsToStr(c.options || c.optionsStr)
+          }))
+        } else {
+          newFieldTableColumns.value = []
+        }
         if (opts.conditionRule) {
           const cond = opts.conditionRule
           newField.value.conditionEnabled = cond.enabled !== false
@@ -1435,9 +1546,13 @@ const openFieldModal = async (rowData = null) => {
         } else {
           resetConditionFields()
         }
-      } catch (e) { resetConditionFields() }
+      } catch (e) { 
+        resetConditionFields()
+        newFieldTableColumns.value = []
+      }
     } else {
       resetConditionFields()
+      newFieldTableColumns.value = []
     }
   } else {
     isEditMode.value = false
@@ -1456,6 +1571,7 @@ const openFieldModal = async (rowData = null) => {
     }
     resetConditionFields()
     newFieldOptionsList.value = []
+    newFieldTableColumns.value = []
   }
   showFieldModal.value = true
 }
@@ -1526,6 +1642,35 @@ const saveNode = async () => {
   }
 }
 
+const handleNodeDelete = async (node) => {
+  const target = node || selectedNode.value
+  if (!target || target.isDomain) return
+
+  const nodeName = target.label || (target.originalNameMap ? (target.originalNameMap[currentLocale.value] || target.originalNameMap.ko || target.originalNameMap.en) : 'Node')
+  const confirmMsg = t('confirm_delete_node', { name: nodeName })
+  if (!confirm(confirmMsg)) return
+
+  try {
+    const domainId = target.domainId || selectedDomainId.value
+    await customFetch(`/api/domains/${domainId}/nodes/${target.id}`, {
+      method: 'DELETE'
+    })
+    try {
+      toast.init({
+        message: t('node_deleted_success'),
+        color: 'success'
+      })
+    } catch (ignored) {}
+    showNodeModal.value = false
+    if (selectedNode.value?.id === target.id) {
+      selectedNode.value = null
+    }
+    await loadTree()
+  } catch (e) {
+    showCustomAlert(e.message || t('node_delete_failed'), 'Delete Error', 'Error', 'error')
+  }
+}
+
 const saveField = async () => {
   const duplicate = fields.value.find(f => f.key === newField.value.key && (!isEditMode.value || f.id !== editingId.value))
   if (duplicate) {
@@ -1534,7 +1679,7 @@ const saveField = async () => {
   }
   
   let existingOptsObj = {}
-  if (['SELECT', 'MULTI_SELECT'].includes(newField.value.type)) {
+  if (['SELECT', 'MULTI_SELECT', 'ENUM'].includes(newField.value.type)) {
     const hasEmptyKey = newFieldOptionsList.value.some(opt => !opt.key || String(opt.key).trim() === '')
     if (hasEmptyKey) {
       showCustomAlert(t('enter_key_all_options'), 'Input Missing', 'Warning', 'warning')
@@ -1564,6 +1709,29 @@ const saveField = async () => {
     existingOptsObj = { formula: newField.value.formula.trim() }
   } else if (newField.value.type === 'DATE') {
     existingOptsObj = { dateFormat: newField.value.dateFormat || 'YYYY-MM-DD' }
+  } else if (newField.value.type === 'JSON') {
+    if (newFieldTableColumns.value && newFieldTableColumns.value.length > 0) {
+      const hasEmptyColKey = newFieldTableColumns.value.some(col => !col.key || String(col.key).trim() === '')
+      if (hasEmptyColKey) {
+        showCustomAlert(t('enter_key_all_options', '모든 컬럼의 식별 키(Key)를 입력해주세요.'), 'Input Missing', 'Warning', 'warning')
+        return
+      }
+      existingOptsObj = {
+        tableSchema: {
+          columns: newFieldTableColumns.value.map(col => ({
+            key: String(col.key || '').trim(),
+            name: {
+              ko: col.name?.ko || col.key || '',
+              en: col.name?.en || col.name?.ko || col.key || ''
+            },
+            type: col.type || 'TEXT',
+            required: !!col.required,
+            width: Number(col.width) || 150,
+            options: col.type === 'SELECT' ? parseColOptionsStr(col.optionsStr) : []
+          }))
+        }
+      }
+    }
   } else if (newField.value.options) {
     try {
       existingOptsObj = typeof newField.value.options === 'string' ? JSON.parse(newField.value.options) : newField.value.options
