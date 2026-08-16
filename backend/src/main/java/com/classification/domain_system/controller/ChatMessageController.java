@@ -13,11 +13,12 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import com.classification.domain_system.service.storage.FileStorageService;
+import org.springframework.http.MediaType;
+import org.springframework.http.MediaTypeFactory;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.multipart.MultipartFile;
-import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -33,6 +34,7 @@ public class ChatMessageController {
     private final ChatMessageService chatMessageService;
     private final AuthContext authContext;
     private final com.classification.domain_system.websocket.PresenceEventListener presenceEventListener;
+    private final FileStorageService fileStorageService;
 
     @GetMapping("/presence")
     @PreAuthorize("isAuthenticated()")
@@ -187,27 +189,13 @@ public class ChatMessageController {
             return ResponseEntity.badRequest().build();
         }
         try {
-            java.io.File dir = new java.io.File(System.getProperty("user.dir"), "uploads/chat");
-            if (!dir.exists()) {
-                dir.mkdirs();
-            }
-
             String origName = file.getOriginalFilename();
-            String ext = "";
-            if (origName != null && origName.contains(".")) {
-                ext = origName.substring(origName.lastIndexOf("."));
-            } else {
-                ext = ".png";
-            }
+            String savedFileName = fileStorageService.storeFile(file);
 
-            String savedName = UUID.randomUUID().toString() + ext;
-            java.io.File targetFile = new java.io.File(dir, savedName);
-            file.transferTo(targetFile.getAbsoluteFile());
-
-            String fileUrl = "/api/chat/files/" + savedName;
+            String fileUrl = "/api/chat/files/" + savedFileName;
             return ResponseEntity.ok(Map.of(
                     "fileUrl", fileUrl,
-                    "fileName", origName != null ? origName : savedName,
+                    "fileName", origName != null ? origName : savedFileName,
                     "fileSize", file.getSize()
             ));
         } catch (Exception e) {
@@ -220,27 +208,21 @@ public class ChatMessageController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Resource> getChatFile(@PathVariable String fileName) {
         try {
-            java.io.File targetFile = new java.io.File(System.getProperty("user.dir") + "/uploads/chat", fileName);
-            if (!targetFile.exists()) {
+            Resource resource = fileStorageService.loadFileAsResource(fileName);
+            if (resource == null || !resource.exists()) {
                 return ResponseEntity.notFound().build();
             }
-            Resource resource = new UrlResource(targetFile.toURI());
-            String contentType = Files.probeContentType(targetFile.toPath());
-            if (contentType == null || contentType.equals("application/octet-stream")) {
-                String lower = fileName.toLowerCase();
-                if (lower.endsWith(".png")) contentType = "image/png";
-                else if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) contentType = "image/jpeg";
-                else if (lower.endsWith(".gif")) contentType = "image/gif";
-                else if (lower.endsWith(".webp")) contentType = "image/webp";
-                else contentType = "application/octet-stream";
-            }
+
+            MediaType mediaType = MediaTypeFactory.getMediaType(fileName)
+                    .or(() -> MediaTypeFactory.getMediaType(resource))
+                    .orElse(MediaType.APPLICATION_OCTET_STREAM);
 
             return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_TYPE, contentType)
+                    .header(HttpHeaders.CONTENT_TYPE, mediaType.toString())
                     .body(resource);
         } catch (Exception e) {
             log.error("Failed to serve chat file: {}", fileName, e);
-            return ResponseEntity.internalServerError().build();
+            return ResponseEntity.notFound().build();
         }
     }
 

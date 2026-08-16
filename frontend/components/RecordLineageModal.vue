@@ -177,6 +177,20 @@
                     </table>
                   </div>
                 </template>
+                <template v-else-if="getFieldByKey(row.key)?.type === 'FILE'">
+                  <div v-if="getFilesList(row.rawBefore).length > 0" style="display: flex; flex-direction: column; gap: 4px;">
+                    <a
+                      v-for="(fileUrl, idx) in getFilesList(row.rawBefore)"
+                      :key="idx"
+                      href="#"
+                      @click.prevent="downloadFileWithAuth(fileUrl.url || fileUrl, fileUrl.name || extractFilename(fileUrl.url || fileUrl))"
+                      style="color: #b91c1c; text-decoration: underline; font-weight: 600; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 4px;"
+                    >
+                      📎 {{ fileUrl.name || extractFilename(fileUrl.url || fileUrl) }}
+                    </a>
+                  </div>
+                  <span v-else>{{ $t('none') }}</span>
+                </template>
                 <template v-else-if="isFieldEncrypted(row.key)">
                   <span v-if="row.before === $t('none') || row.before === '(없음)'">{{ row.before }}</span>
                   <span v-else>{{ decryptedValues[row.key]?.before || row.before }}</span>
@@ -205,6 +219,20 @@
                       </tbody>
                     </table>
                   </div>
+                </template>
+                <template v-else-if="getFieldByKey(row.key)?.type === 'FILE'">
+                  <div v-if="getFilesList(row.rawAfter).length > 0" style="display: flex; flex-direction: column; gap: 4px;">
+                    <a
+                      v-for="(fileUrl, idx) in getFilesList(row.rawAfter)"
+                      :key="idx"
+                      href="#"
+                      @click.prevent="downloadFileWithAuth(fileUrl.url || fileUrl, fileUrl.name || extractFilename(fileUrl.url || fileUrl))"
+                      style="color: #15803d; text-decoration: underline; font-weight: 600; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 4px;"
+                    >
+                      📎 {{ fileUrl.name || extractFilename(fileUrl.url || fileUrl) }}
+                    </a>
+                  </div>
+                  <span v-else>{{ $t('none') }}</span>
                 </template>
                 <div v-else style="display:flex; align-items:center; justify-content:space-between;">
                   <template v-if="isFieldEncrypted(row.key)">
@@ -273,6 +301,7 @@
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCustomFetch } from '~/composables/useCustomFetch'
+import { useFileDownloader } from '~/composables/useFileDownloader'
 import { formatWithTimezone } from '~/composables/useTimezoneDate'
 import { useCookie } from '#app'
 import UnmaskReasonModal from './UnmaskReasonModal.vue'
@@ -288,6 +317,52 @@ const emit = defineEmits(['update:modelValue'])
 
 const { t, te, locale } = useI18n()
 const { customFetch } = useCustomFetch()
+const { downloadFileWithAuth } = useFileDownloader()
+
+const getFilesList = (v: any): any[] => {
+  if (!v) return []
+  if (Array.isArray(v)) return v.filter(Boolean)
+  if (typeof v === 'string') {
+    const trimmed = v.trim()
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        return Array.isArray(parsed) ? parsed.filter(Boolean) : []
+      } catch (e) {
+        return [v]
+      }
+    }
+    return [v]
+  }
+  if (typeof v === 'object' && v !== null) return [v]
+  return []
+}
+
+const extractFilename = (input: any): string => {
+  if (!input) return ''
+  if (typeof input === 'object') {
+    if (input.name && input.name !== 'Download') return input.name
+    if (input.originalName) return input.originalName
+    if (input.url) input = input.url
+    else return ''
+  }
+  let str = String(input).trim()
+  if (!str || str === '-' || str === '[]' || str === '{}' || str === 'null' || str === 'undefined') return ''
+  try {
+    if (str.startsWith('{') || str.startsWith('[')) {
+      const parsed = JSON.parse(str)
+      if (Array.isArray(parsed) && parsed.length > 0) return extractFilename(parsed[0])
+      if (typeof parsed === 'object' && (parsed.name || parsed.originalName)) return parsed.name || parsed.originalName
+    }
+  } catch (e) {}
+  try {
+    if (str.includes('?name=')) return decodeURIComponent(str.split('?name=')[1].split('&')[0])
+    if (str.includes('?filename=')) return decodeURIComponent(str.split('?filename=')[1].split('&')[0])
+    const fname = decodeURIComponent(str.split('/').pop()?.split('?')[0] || '')
+    if (fname && fname !== '-' && fname !== 'null') return fname
+  } catch (e) {}
+  return str
+}
 
 const getTranslatedNameFromObj = (nameObj: any): string => {
   if (!nameObj) return ''
