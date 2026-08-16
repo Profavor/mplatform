@@ -1430,12 +1430,54 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
         }
       }
     }
- else if (f.type === 'DOMAIN_REFERENCE') {
+    else if (f.type === 'DOMAIN_REFERENCE') {
       colDef.cellRenderer = (params) => {
         if (!params.value) return ''
         const displayVal = getDomainRefDisplayName(f.key, params.value)
         return displayVal ? displayVal : params.value
       }
+    } else if (f.type === 'JSON') {
+      colDef.valueFormatter = (params) => {
+        if (!params || params.value === undefined || params.value === null) return '';
+        let val = params.value;
+        if (typeof val === 'string') {
+          val = val.trim();
+          if (val === '' || val === '-' || val === '[]' || val === '{}' || val === 'null' || val === 'undefined') return '';
+          try {
+            val = JSON.parse(val);
+          } catch(e) {
+            return String(params.value);
+          }
+        }
+        if (Array.isArray(val)) {
+          if (val.length === 0) return '';
+          return val.map((row, idx) => {
+            if (typeof row === 'object' && row !== null) {
+              const pairs = Object.entries(row)
+                .filter(([k, v]) => !k.startsWith('_idx_') && v !== null && v !== undefined && v !== '')
+                .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`);
+              return `${idx + 1}. ${pairs.join(', ')}`;
+            }
+            return `${idx + 1}. ${row}`;
+          }).join(' / ');
+        }
+        if (typeof val === 'object' && val !== null) {
+          const pairs = Object.entries(val)
+            .filter(([k, v]) => !k.startsWith('_idx_') && v !== null && v !== undefined && v !== '')
+            .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`);
+          return pairs.join(', ');
+        }
+        return String(val);
+      };
+      colDef.cellRenderer = (params) => {
+        const text = colDef.valueFormatter(params);
+        if (!text) return '-';
+        const span = document.createElement('span');
+        span.style.cssText = 'overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; width: 100%;';
+        span.title = text;
+        span.innerText = text;
+        return span;
+      };
     } else if (f.type === 'CALCULATED') {
       const opts = JSON.parse(f.options || '{}')
       if (opts.formula) {
@@ -1489,6 +1531,50 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
           if (f.unit) formatted += ` ${f.unit}`;
         }
         return formatted;
+      };
+    }
+    
+    if (!colDef.valueFormatter && !colDef.cellRenderer) {
+      colDef.valueFormatter = (params) => {
+        if (!params || params.value === undefined || params.value === null) return '';
+        const str = String(params.value).trim();
+        if ((str.startsWith('[') && str.endsWith(']')) || (str.startsWith('{') && str.endsWith('}'))) {
+          try {
+            const parsed = JSON.parse(str);
+            if (Array.isArray(parsed)) {
+              if (parsed.length === 0) return '';
+              return parsed.map((row, idx) => {
+                if (typeof row === 'object' && row !== null) {
+                  const pairs = Object.entries(row)
+                    .filter(([k, v]) => !k.startsWith('_idx_') && v !== null && v !== undefined && v !== '')
+                    .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`);
+                  return `${idx + 1}. ${pairs.join(', ')}`;
+                }
+                return `${idx + 1}. ${row}`;
+              }).join(' / ');
+            }
+            if (typeof parsed === 'object' && parsed !== null) {
+              const pairs = Object.entries(parsed)
+                .filter(([k, v]) => !k.startsWith('_idx_') && v !== null && v !== undefined && v !== '')
+                .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`);
+              return pairs.join(', ');
+            }
+          } catch(e) {}
+        }
+        return params.value;
+      };
+      colDef.cellRenderer = (params) => {
+        const text = colDef.valueFormatter(params);
+        if (text === undefined || text === null || text === '') return '';
+        const str = String(text);
+        if (str.includes('. ') || str.includes(' / ')) {
+          const span = document.createElement('span');
+          span.style.cssText = 'overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; width: 100%;';
+          span.title = str;
+          span.innerText = str;
+          return span;
+        }
+        return str;
       };
     }
     
