@@ -196,7 +196,6 @@ public class AsyncBatchExportService {
             headerTitles.add("Node Name");
             headerTitles.add("Updated At");
 
-            // Render Header Row (Row 2)
             Row headerRow = sheet.createRow(2);
             for (int i = 0; i < headerTitles.size(); i++) {
                 Cell cell = headerRow.createCell(i);
@@ -204,9 +203,15 @@ public class AsyncBatchExportService {
                 cell.setCellStyle(headerStyle);
             }
 
-            // Render Dynamic Data Rows
             int rowNum = 3;
             int sequenceIndex = 1;
+            Map<String, FieldDefinition> fieldDefMap = new HashMap<>();
+            for (FieldDefinition fd : fieldDefs) {
+                if (fd.getKey() != null) {
+                    fieldDefMap.put(fd.getKey().toLowerCase(), fd);
+                }
+            }
+
             for (Record record : records) {
                 Row row = sheet.createRow(rowNum++);
                 boolean isEven = rowNum % 2 == 0;
@@ -214,32 +219,28 @@ public class AsyncBatchExportService {
 
                 int colIdx = 0;
 
-                // 1. Sequence No
                 Cell seqCell = row.createCell(colIdx++);
                 seqCell.setCellValue(sequenceIndex++);
                 seqCell.setCellStyle(currentStyle);
 
-                // 2. Record Display Code
                 Cell codeCell = row.createCell(colIdx++);
                 String codeStr = (record.getId() != null) ? "REC-" + record.getId().toString().substring(0, 8) : "REC-00000000";
                 codeCell.setCellValue(codeStr);
                 codeCell.setCellStyle(currentStyle);
 
-                // 3. Dynamic JSON Record Data Parsing
                 JsonNode dataJson = parseRecordDataJson(record.getData());
                 for (String fieldKey : dynamicFieldKeys) {
                     Cell dataCell = row.createCell(colIdx++);
                     JsonNode nodeVal = (dataJson != null && dataJson.has(fieldKey)) ? dataJson.get(fieldKey) : null;
-                    dataCell.setCellValue(formatFieldValue(nodeVal));
+                    FieldDefinition fd = fieldDefMap.get(fieldKey.toLowerCase());
+                    dataCell.setCellValue(formatFieldValue(nodeVal, fd));
                     dataCell.setCellStyle(currentStyle);
                 }
 
-                // 4. Status
                 Cell statusCell = row.createCell(colIdx++);
                 statusCell.setCellValue(record.getStatus() != null ? record.getStatus() : RecordStatus.ACTIVE.name());
                 statusCell.setCellStyle(currentStyle);
 
-                // 5. Node Name
                 Cell nodeCell = row.createCell(colIdx++);
                 String nodeName = (record.getNode() != null && record.getNode().getName() != null)
                         ? extractNameFromObj(record.getNode().getName())
@@ -247,11 +248,9 @@ public class AsyncBatchExportService {
                 nodeCell.setCellValue(nodeName);
                 nodeCell.setCellStyle(currentStyle);
 
-                // 6. Updated At
-                Cell dateCell = row.createCell(colIdx++);
-                String updateTimeStr = (record.getUpdatedAt() != null) ? record.getUpdatedAt().format(DATE_FORMATTER) : "";
-                dateCell.setCellValue(updateTimeStr);
-                dateCell.setCellStyle(currentStyle);
+                Cell updatedCell = row.createCell(colIdx++);
+                updatedCell.setCellValue(record.getUpdatedAt() != null ? record.getUpdatedAt().format(DATE_FORMATTER) : "");
+                updatedCell.setCellStyle(currentStyle);
 
                 if (task != null && totalCount > 0) {
                     task.setProcessedCount(sequenceIndex - 1);
@@ -260,13 +259,13 @@ public class AsyncBatchExportService {
                 }
             }
 
-            // Safe column width adjustment (fixed width for streaming sheet)
             for (int i = 0; i < headerTitles.size(); i++) {
-                sheet.setColumnWidth(i, 5000);
+                try { sheet.autoSizeColumn(i); } catch (Exception ignored) {}
+                sheet.setColumnWidth(i, Math.max(sheet.getColumnWidth(i) + 1024, 4500));
             }
 
             workbook.write(out);
-            workbook.dispose(); // clean up temporary files
+            workbook.dispose();
             return out.toByteArray();
         } catch (IOException e) {
             throw new RuntimeException("Failed to generate streaming Excel export file", e);
@@ -283,18 +282,187 @@ public class AsyncBatchExportService {
         }
     }
 
-    private String formatFieldValue(JsonNode nodeVal) {
+    private static class SubColInfo {
+        String label;
+        Map<String, String> optionLabels = new HashMap<>();
+    }
+
+    private Map<String, SubColInfo> extractSubColumns(FieldDefinition fd) {
+        Map<String, SubColInfo> map = new HashMap<>();
+        if (fd == null || fd.getOptions() == null || fd.getOptions().isBlank()) return map;
+        try {
+            JsonNode optNode = objectMapper.readTree(fd.getOptions());
+            JsonNode cols = null;
+            if (optNode.has("tableSchema") && optNode.get("tableSchema").has("columns")) {
+                cols = optNode.get("tableSchema").get("columns");
+            } else if (optNode.has("tableColumns")) {
+                cols = optNode.get("tableColumns");
+            } else if (optNode.has("columns")) {
+                cols = optNode.get("columns");
+            } else if (optNode.isArray()) {
+                cols = optNode;
+            }
+            if (cols != null && cols.isArray()) {
+                for (JsonNode col : cols) {
+                    if (col.has("key")) {
+                        String key = col.get("key").asText();
+                        SubColInfo info = new SubColInfo();
+                        info.label = key;
+                        if (col.has("name")) {
+                            JsonNode nameNode = col.get("name");
+                            if (nameNode.isObject()) {
+                                if (nameNode.has("ko")) info.label = nameNode.get("ko").asText();
+                                else if (nameNode.has("en")) info.label = nameNode.get("en").asText();
+                            } else if (nameNode.isTextual()) {
+                                info.label = nameNode.asText();
+                            }
+                        }
+                        if (col.has("options")) {
+                            JsonNode optsNode = col.get("options");
+                            if (optsNode.isTextual()) {
+                                try { optsNode = objectMapper.readTree(optsNode.asText()); } catch (Exception ignored) {}
+                            }
+                            if (optsNode != null && optsNode.isArray()) {
+                                for (JsonNode opt : optsNode) {
+                                    String optVal = opt.has("value") ? opt.get("value").asText() : (opt.has("key") ? opt.get("key").asText() : null);
+                                    if (optVal != null) {
+                                        String optLabel = optVal;
+                                        if (opt.has("label")) {
+                                            JsonNode lNode = opt.get("label");
+                                            if (lNode.isObject()) {
+                                                if (lNode.has("ko")) optLabel = lNode.get("ko").asText();
+                                                else if (lNode.has("en")) optLabel = lNode.get("en").asText();
+                                            } else if (lNode.isTextual()) {
+                                                optLabel = lNode.asText();
+                                            }
+                                        } else if (opt.has("name")) {
+                                            JsonNode nNode = opt.get("name");
+                                            if (nNode.isObject()) {
+                                                if (nNode.has("ko")) optLabel = nNode.get("ko").asText();
+                                                else if (nNode.has("en")) optLabel = nNode.get("en").asText();
+                                            } else if (nNode.isTextual()) {
+                                                optLabel = nNode.asText();
+                                            }
+                                        }
+                                        info.optionLabels.put(optVal.toLowerCase(), optLabel);
+                                    }
+                                }
+                            }
+                        }
+                        map.put(key.toLowerCase(), info);
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+        return map;
+    }
+
+    private String formatFieldValue(JsonNode nodeVal, FieldDefinition fd) {
         if (nodeVal == null || nodeVal.isNull()) return "";
+        Map<String, SubColInfo> subCols = extractSubColumns(fd);
+        if (nodeVal.isArray()) {
+            List<String> items = new ArrayList<>();
+            int idx = 1;
+            boolean isSubTable = false;
+            for (JsonNode elem : nodeVal) {
+                if (elem.isObject()) {
+                    isSubTable = true;
+                    Iterator<Map.Entry<String, JsonNode>> fields = elem.fields();
+                    List<String> fieldPairs = new ArrayList<>();
+                    while (fields.hasNext()) {
+                        Map.Entry<String, JsonNode> f = fields.next();
+                        SubColInfo colInfo = subCols.get(f.getKey().toLowerCase());
+                        String colLabel = (colInfo != null && colInfo.label != null) ? colInfo.label : f.getKey();
+                        String rawVal = formatFieldValue(f.getValue(), null);
+                        if (!rawVal.isBlank()) {
+                            String displayVal = rawVal;
+                            if (colInfo != null && colInfo.optionLabels.containsKey(rawVal.toLowerCase())) {
+                                displayVal = colInfo.optionLabels.get(rawVal.toLowerCase());
+                            }
+                            fieldPairs.add(colLabel + ": " + displayVal);
+                        }
+                    }
+                    items.add(idx++ + ". " + String.join(", ", fieldPairs));
+                } else {
+                    String str = elem.asText();
+                    items.add(extractFileNameIfFileUrl(str));
+                }
+            }
+            return isSubTable ? String.join("\n", items) : String.join(", ", items);
+        }
         if (nodeVal.isObject()) {
             if (nodeVal.has("ko") || nodeVal.has("en")) {
                 String ko = nodeVal.has("ko") ? nodeVal.get("ko").asText() : "";
                 String en = nodeVal.has("en") ? nodeVal.get("en").asText() : "";
-                if (!ko.isEmpty() && !en.isEmpty()) return ko + " (" + en + ")";
+                if (!ko.isEmpty() && !en.isEmpty() && !ko.equals(en)) return ko + " (" + en + ")";
                 return !ko.isEmpty() ? ko : en;
             }
-            return nodeVal.toString();
+            List<String> pairs = new ArrayList<>();
+            Iterator<Map.Entry<String, JsonNode>> fields = nodeVal.fields();
+            while (fields.hasNext()) {
+                Map.Entry<String, JsonNode> f = fields.next();
+                SubColInfo colInfo = subCols.get(f.getKey().toLowerCase());
+                String colLabel = (colInfo != null && colInfo.label != null) ? colInfo.label : f.getKey();
+                String rawVal = formatFieldValue(f.getValue(), null);
+                String displayVal = rawVal;
+                if (colInfo != null && colInfo.optionLabels.containsKey(rawVal.toLowerCase())) {
+                    displayVal = colInfo.optionLabels.get(rawVal.toLowerCase());
+                }
+                pairs.add(colLabel + ": " + displayVal);
+            }
+            return String.join(", ", pairs);
         }
-        return nodeVal.asText();
+        String text = nodeVal.asText();
+        return cleanStringValue(text);
+    }
+
+    private String formatFieldValue(JsonNode nodeVal) {
+        return formatFieldValue(nodeVal, null);
+    }
+
+    private String cleanStringValue(String val) {
+        if (val == null || val.isBlank()) return "";
+        String trimmed = val.trim();
+        if ((trimmed.startsWith("[") && trimmed.endsWith("]")) || (trimmed.startsWith("{") && trimmed.endsWith("}"))) {
+            try {
+                JsonNode parsed = objectMapper.readTree(trimmed);
+                return formatFieldValue(parsed, null);
+            } catch (Exception ignored) {}
+        }
+        // If File URL
+        String fileName = extractFileNameIfFileUrl(trimmed);
+        if (!fileName.equals(trimmed)) return fileName;
+
+        // If UUID
+        if (trimmed.matches("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")) {
+            return "REC-" + trimmed.substring(0, 8);
+        }
+
+        return val;
+    }
+
+    private String extractFileNameIfFileUrl(String input) {
+        if (input == null || input.isBlank()) return "";
+        if (input.contains("/api/files/download/") || input.contains("?name=") || input.contains("?filename=")) {
+            try {
+                if (input.contains("?name=")) {
+                    String part = input.substring(input.indexOf("?name=") + 6);
+                    if (part.contains("&")) part = part.substring(0, part.indexOf("&"));
+                    return java.net.URLDecoder.decode(part, java.nio.charset.StandardCharsets.UTF_8);
+                }
+                if (input.contains("?filename=")) {
+                    String part = input.substring(input.indexOf("?filename=") + 10);
+                    if (part.contains("&")) part = part.substring(0, part.indexOf("&"));
+                    return java.net.URLDecoder.decode(part, java.nio.charset.StandardCharsets.UTF_8);
+                }
+                String path = input.contains("?") ? input.substring(0, input.indexOf("?")) : input;
+                String fname = path.substring(path.lastIndexOf('/') + 1);
+                if (!fname.isBlank()) {
+                    return java.net.URLDecoder.decode(fname, java.nio.charset.StandardCharsets.UTF_8);
+                }
+            } catch (Exception ignored) {}
+        }
+        return input;
     }
 
     private String extractFieldLabel(FieldDefinition fd) {
@@ -363,11 +531,13 @@ public class AsyncBatchExportService {
             dataStyle.setBorderTop(BorderStyle.THIN);
             dataStyle.setBorderLeft(BorderStyle.THIN);
             dataStyle.setBorderRight(BorderStyle.THIN);
+            dataStyle.setWrapText(true);
 
             CellStyle zebraStyle = workbook.createCellStyle();
             zebraStyle.cloneStyleFrom(dataStyle);
             zebraStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
             zebraStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            zebraStyle.setWrapText(true);
 
             // Render Header (Row 2) - Exactly matching AG-Grid column order
             Row headerRow = sheet.createRow(2);
@@ -453,11 +623,34 @@ public class AsyncBatchExportService {
             if (map.containsKey("ko") || map.containsKey("en")) {
                 String ko = map.containsKey("ko") ? String.valueOf(map.get("ko")) : "";
                 String en = map.containsKey("en") ? String.valueOf(map.get("en")) : "";
-                if (!ko.isEmpty() && !en.isEmpty()) return ko + " (" + en + ")";
+                if (!ko.isEmpty() && !en.isEmpty() && !ko.equals(en)) return ko + " (" + en + ")";
                 return !ko.isEmpty() ? ko : en;
             }
-            return map.toString();
+            List<String> pairs = new ArrayList<>();
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                pairs.add(entry.getKey() + ": " + formatFieldValueObject(entry.getValue()));
+            }
+            return String.join(", ", pairs);
         }
-        return String.valueOf(val);
+        if (val instanceof List) {
+            List<?> list = (List<?>) val;
+            List<String> items = new ArrayList<>();
+            int idx = 1;
+            boolean isSubTable = false;
+            for (Object elem : list) {
+                if (elem instanceof Map) {
+                    isSubTable = true;
+                    List<String> pairs = new ArrayList<>();
+                    for (Map.Entry<?, ?> entry : ((Map<?, ?>) elem).entrySet()) {
+                        pairs.add(entry.getKey() + ": " + formatFieldValueObject(entry.getValue()));
+                    }
+                    items.add(idx++ + ". " + String.join(", ", pairs));
+                } else {
+                    items.add(cleanStringValue(String.valueOf(elem)));
+                }
+            }
+            return isSubTable ? String.join("\n", items) : String.join(", ", items);
+        }
+        return cleanStringValue(String.valueOf(val));
     }
 }

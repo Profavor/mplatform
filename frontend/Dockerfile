@@ -18,6 +18,7 @@ COPY . .
 # Build Nuxt 3 SSR application
 ENV OAUTH2_ISSUER_URI="http://mplatform.local/auth/realms/mplatform"
 ENV KEYCLOAK_REDIRECT_URI="http://mplatform.local/auth/keycloak/callback"
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npm run build
 
 # Stage 2: Runtime stage
