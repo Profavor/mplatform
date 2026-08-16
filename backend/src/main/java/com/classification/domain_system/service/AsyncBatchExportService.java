@@ -285,16 +285,93 @@ public class AsyncBatchExportService {
 
     private String formatFieldValue(JsonNode nodeVal) {
         if (nodeVal == null || nodeVal.isNull()) return "";
+        if (nodeVal.isArray()) {
+            List<String> items = new ArrayList<>();
+            int idx = 1;
+            boolean isSubTable = false;
+            for (JsonNode elem : nodeVal) {
+                if (elem.isObject()) {
+                    isSubTable = true;
+                    Iterator<Map.Entry<String, JsonNode>> fields = elem.fields();
+                    List<String> fieldPairs = new ArrayList<>();
+                    while (fields.hasNext()) {
+                        Map.Entry<String, JsonNode> f = fields.next();
+                        String fVal = formatFieldValue(f.getValue());
+                        if (!fVal.isBlank()) {
+                            fieldPairs.add(f.getKey() + ": " + fVal);
+                        }
+                    }
+                    items.add(idx++ + ". " + String.join(", ", fieldPairs));
+                } else {
+                    String str = elem.asText();
+                    items.add(extractFileNameIfFileUrl(str));
+                }
+            }
+            return isSubTable ? String.join("\n", items) : String.join(", ", items);
+        }
         if (nodeVal.isObject()) {
             if (nodeVal.has("ko") || nodeVal.has("en")) {
                 String ko = nodeVal.has("ko") ? nodeVal.get("ko").asText() : "";
                 String en = nodeVal.has("en") ? nodeVal.get("en").asText() : "";
-                if (!ko.isEmpty() && !en.isEmpty()) return ko + " (" + en + ")";
+                if (!ko.isEmpty() && !en.isEmpty() && !ko.equals(en)) return ko + " (" + en + ")";
                 return !ko.isEmpty() ? ko : en;
             }
-            return nodeVal.toString();
+            List<String> pairs = new ArrayList<>();
+            Iterator<Map.Entry<String, JsonNode>> fields = nodeVal.fields();
+            while (fields.hasNext()) {
+                Map.Entry<String, JsonNode> f = fields.next();
+                pairs.add(f.getKey() + ": " + formatFieldValue(f.getValue()));
+            }
+            return String.join(", ", pairs);
         }
-        return nodeVal.asText();
+        String text = nodeVal.asText();
+        return cleanStringValue(text);
+    }
+
+    private String cleanStringValue(String val) {
+        if (val == null || val.isBlank()) return "";
+        String trimmed = val.trim();
+        // If JSON array or object string
+        if ((trimmed.startsWith("[") && trimmed.endsWith("]")) || (trimmed.startsWith("{") && trimmed.endsWith("}"))) {
+            try {
+                JsonNode parsed = objectMapper.readTree(trimmed);
+                return formatFieldValue(parsed);
+            } catch (Exception ignored) {}
+        }
+        // If File URL
+        String fileName = extractFileNameIfFileUrl(trimmed);
+        if (!fileName.equals(trimmed)) return fileName;
+
+        // If UUID
+        if (trimmed.matches("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")) {
+            return "REC-" + trimmed.substring(0, 8);
+        }
+
+        return val;
+    }
+
+    private String extractFileNameIfFileUrl(String input) {
+        if (input == null || input.isBlank()) return "";
+        if (input.contains("/api/files/download/") || input.contains("?name=") || input.contains("?filename=")) {
+            try {
+                if (input.contains("?name=")) {
+                    String part = input.substring(input.indexOf("?name=") + 6);
+                    if (part.contains("&")) part = part.substring(0, part.indexOf("&"));
+                    return java.net.URLDecoder.decode(part, java.nio.charset.StandardCharsets.UTF_8);
+                }
+                if (input.contains("?filename=")) {
+                    String part = input.substring(input.indexOf("?filename=") + 10);
+                    if (part.contains("&")) part = part.substring(0, part.indexOf("&"));
+                    return java.net.URLDecoder.decode(part, java.nio.charset.StandardCharsets.UTF_8);
+                }
+                String path = input.contains("?") ? input.substring(0, input.indexOf("?")) : input;
+                String fname = path.substring(path.lastIndexOf('/') + 1);
+                if (!fname.isBlank()) {
+                    return java.net.URLDecoder.decode(fname, java.nio.charset.StandardCharsets.UTF_8);
+                }
+            } catch (Exception ignored) {}
+        }
+        return input;
     }
 
     private String extractFieldLabel(FieldDefinition fd) {
@@ -363,11 +440,13 @@ public class AsyncBatchExportService {
             dataStyle.setBorderTop(BorderStyle.THIN);
             dataStyle.setBorderLeft(BorderStyle.THIN);
             dataStyle.setBorderRight(BorderStyle.THIN);
+            dataStyle.setWrapText(true);
 
             CellStyle zebraStyle = workbook.createCellStyle();
             zebraStyle.cloneStyleFrom(dataStyle);
             zebraStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
             zebraStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            zebraStyle.setWrapText(true);
 
             // Render Header (Row 2) - Exactly matching AG-Grid column order
             Row headerRow = sheet.createRow(2);
@@ -453,11 +532,34 @@ public class AsyncBatchExportService {
             if (map.containsKey("ko") || map.containsKey("en")) {
                 String ko = map.containsKey("ko") ? String.valueOf(map.get("ko")) : "";
                 String en = map.containsKey("en") ? String.valueOf(map.get("en")) : "";
-                if (!ko.isEmpty() && !en.isEmpty()) return ko + " (" + en + ")";
+                if (!ko.isEmpty() && !en.isEmpty() && !ko.equals(en)) return ko + " (" + en + ")";
                 return !ko.isEmpty() ? ko : en;
             }
-            return map.toString();
+            List<String> pairs = new ArrayList<>();
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                pairs.add(entry.getKey() + ": " + formatFieldValueObject(entry.getValue()));
+            }
+            return String.join(", ", pairs);
         }
-        return String.valueOf(val);
+        if (val instanceof List) {
+            List<?> list = (List<?>) val;
+            List<String> items = new ArrayList<>();
+            int idx = 1;
+            boolean isSubTable = false;
+            for (Object elem : list) {
+                if (elem instanceof Map) {
+                    isSubTable = true;
+                    List<String> pairs = new ArrayList<>();
+                    for (Map.Entry<?, ?> entry : ((Map<?, ?>) elem).entrySet()) {
+                        pairs.add(entry.getKey() + ": " + formatFieldValueObject(entry.getValue()));
+                    }
+                    items.add(idx++ + ". " + String.join(", ", pairs));
+                } else {
+                    items.add(cleanStringValue(String.valueOf(elem)));
+                }
+            }
+            return isSubTable ? String.join("\n", items) : String.join(", ", items);
+        }
+        return cleanStringValue(String.valueOf(val));
     }
 }

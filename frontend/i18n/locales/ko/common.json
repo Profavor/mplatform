@@ -837,7 +837,7 @@
   "data_lineage_desc": "도메인, 분류 노드, 외부 연계 채널 간의 상호 참조 및 데이터 흐름 계보를 시각화합니다.",
   "lineage_nodes": "계보 구성 노드",
   "lineage_relationships": "데이터 연계 흐름",
-  "notifications": "알림 센터",
+  "notification_center": "알림 센터",
   "mark_all_read": "모두 읽음",
   "no_notifications": "새로운 알림이 없습니다.",
   "download_template": "엑셀 템플릿 다운로드",

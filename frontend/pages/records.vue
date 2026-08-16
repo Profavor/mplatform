@@ -325,6 +325,7 @@
       v-model="showAsyncExportModal"
       :domainId="selectedDomainId"
       :gridApi="gridApi"
+      :domain-references="domainReferences"
     />
 
     <!-- CDC Stream Inspector Modal -->

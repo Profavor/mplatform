@@ -122,6 +122,38 @@ class AsyncBatchExportServiceTest {
     }
 
     @Test
+    @DisplayName("서브테이블 JSON, 파일 URL, 다국어 객체가 포함된 데이터도 정제된 포맷으로 엑셀 파일이 정상 생성된다")
+    void testFormattedExcelExport() {
+        AsyncBatchDto.ExportAsyncRequest request = new AsyncBatchDto.ExportAsyncRequest();
+        request.setColumns(List.of(
+            Map.of("field", "empNo", "headerName", "사번"),
+            Map.of("field", "name", "headerName", "이름"),
+            Map.of("field", "history", "headerName", "학력 이력"),
+            Map.of("field", "files", "headerName", "첨부파일"),
+            Map.of("field", "ref", "headerName", "참조")
+        ));
+
+        Map<String, Object> row1 = new HashMap<>();
+        row1.put("empNo", "0000001");
+        row1.put("name", Map.of("ko", "인치국", "en", "Lin chigoog"));
+        row1.put("history", List.of(
+            Map.of("학교명", "안산공업고등학교", "졸업년도", 2005, "학위", "고졸"),
+            Map.of("학교명", "세명대학교", "졸업년도", 2012, "학위", "학사")
+        ));
+        row1.put("files", "[\"/api/files/download/93aeb38a832e67f61bafed2c6fed3e4d486e2bf2c6e0b59efc76a7311cb772b8.xlsx?name=export_master_data_ee69f5fa.xlsx\"]");
+        row1.put("ref", "c99b4fda-aeda-4d39-aa62-1a7c682543c8");
+        request.setRecords(List.of(row1));
+
+        AsyncBatchDto.BatchTaskResponse task = asyncBatchExportService.startAsyncExportWithData(null, "XLSX", request);
+        assertNotNull(task);
+        asyncBatchExportService.processExportAsync(task.getTaskId(), 1L);
+
+        byte[] fileBytes = asyncBatchExportService.downloadTaskFile(task.getTaskId());
+        assertNotNull(fileBytes);
+        assertTrue(fileBytes.length > 0);
+    }
+
+    @Test
     @DisplayName("존재하지 않는 태스크 조회 시 NOT_FOUND 상태를 반환한다")
     void testGetTaskStatusNotFound() {
         AsyncBatchDto.BatchTaskResponse status = asyncBatchExportService.getTaskStatus("non-existent-id");

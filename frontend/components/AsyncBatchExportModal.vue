@@ -49,16 +49,145 @@ const props = defineProps<{
   modelValue: boolean
   domainId: string | null
   gridApi?: any
+  domainReferences?: Record<string, any>
 }>()
 
 const emit = defineEmits(['update:modelValue'])
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { customFetch } = useCustomFetch()
 
 const show = ref(props.modelValue)
 const taskInfo = ref<any>(null)
 let pollTimer: any = null
+
+const extractFileName = (input: any): string => {
+  if (!input) return ''
+  if (typeof input === 'object') {
+    if (input.name && input.name !== 'Download') return input.name
+    if (input.originalName) return input.originalName
+    if (input.url) input = input.url
+    else return ''
+  }
+  let str = String(input).trim()
+  if (!str || str === '-' || str === '[]' || str === '{}' || str === 'null' || str === 'undefined') return ''
+  try {
+    if (str.startsWith('{') || str.startsWith('[')) {
+      const parsed = JSON.parse(str)
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map((item: any) => extractFileName(item)).filter(Boolean).join(', ')
+      }
+      if (typeof parsed === 'object' && (parsed.name || parsed.originalName)) {
+        return parsed.name || parsed.originalName
+      }
+    }
+  } catch (e) {}
+  try {
+    if (str.includes('?name=')) return decodeURIComponent(str.split('?name=')[1].split('&')[0])
+    if (str.includes('?filename=')) return decodeURIComponent(str.split('?filename=')[1].split('&')[0])
+    const fname = decodeURIComponent(str.split('/').pop()?.split('?')[0] || '')
+    if (fname && fname !== '-' && fname !== 'null') return fname
+  } catch (e) {}
+  return str
+}
+
+const getDomainRefDisplayName = (fieldKey: string, val: any): string => {
+  if (!val) return ''
+  const valStr = String(val).trim()
+  const refInfo = props.domainReferences?.[fieldKey] || Object.values(props.domainReferences || {}).find((r: any) => r.records?.some((rec: any) => String(rec.id) === valStr || String(rec.code) === valStr))
+
+  if (refInfo && refInfo.records) {
+    const recList = Array.isArray(refInfo.records) ? refInfo.records : (refInfo.records?.content || [])
+    const record = recList.find((r: any) => String(r.id) === valStr || String(r.code) === valStr)
+    if (record) {
+      const data = typeof record.data === 'string' ? JSON.parse(record.data) : (record.data || record)
+      const idFieldId = refInfo.domainInfo?.identifierFieldId
+      const dFieldId = refInfo.domainInfo?.displayNameFieldId || idFieldId
+      const idF = refInfo.fields?.find((x: any) => x.id === idFieldId || x.key === idFieldId)
+      const nameF = refInfo.fields?.find((x: any) => x.id === dFieldId || x.key === dFieldId)
+
+      const extractVal = (d: any, key: any) => {
+        if (!d || !key) return null
+        const v = d[key]
+        if (v && typeof v === 'object') return v[locale.value] || v.ko || v.en || JSON.stringify(v)
+        return v ? String(v) : null
+      }
+
+      const idStr = extractVal(data, idF?.key) || record.code || data.code || data.EP_NO || data.EMP_NO
+      const nameStr = extractVal(data, nameF?.key) || data.name || data.EP_NAME || data.EMP_NAME || data.title
+
+      if (idStr && nameStr && idStr !== nameStr) return `[${idStr}] ${nameStr}`
+      if (nameStr) return nameStr
+      if (idStr) return `[${idStr}]`
+    }
+  }
+
+  // Raw UUID fallback pattern
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(valStr)) {
+    return `REC-${valStr.substring(0, 8)}`
+  }
+
+  return valStr
+}
+
+const formatExportValue = (fieldKey: string, val: any): any => {
+  if (val === undefined || val === null || val === '') return ''
+
+  // 1. Array handling (JSON Subtable or Files)
+  if (Array.isArray(val)) {
+    if (val.length === 0) return ''
+    if (typeof val[0] === 'object' && val[0] !== null) {
+      // Subtable array: convert to clean numbered multi-line text
+      return val.map((row: any, idx: number) => {
+        const pairs = Object.entries(row)
+          .filter(([k, v]) => !k.startsWith('_idx_') && v !== null && v !== undefined && v !== '')
+          .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
+        return `${idx + 1}. ${pairs.join(', ')}`
+      }).join('\n')
+    } else {
+      // String/File array
+      return val.map((item: any) => extractFileName(item)).join(', ')
+    }
+  }
+
+  // 2. Multilingual or Object handling
+  if (typeof val === 'object' && val !== null) {
+    if ('ko' in val || 'en' in val) {
+      const ko = val.ko || ''
+      const en = val.en || ''
+      return ko && en && ko !== en ? `${ko} (${en})` : ko || en || ''
+    }
+    return JSON.stringify(val)
+  }
+
+  // 3. String value inspection
+  if (typeof val === 'string') {
+    const trimmed = val.trim()
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        if (Array.isArray(parsed)) return formatExportValue(fieldKey, parsed)
+      } catch (e) {}
+    }
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        if (typeof parsed === 'object') return formatExportValue(fieldKey, parsed)
+      } catch (e) {}
+    }
+
+    // Domain reference or UUID resolution
+    const actualKey = fieldKey.startsWith('data.') ? fieldKey.substring(5) : fieldKey
+    const resolvedRef = getDomainRefDisplayName(actualKey, trimmed)
+    if (resolvedRef !== trimmed) return resolvedRef
+
+    // File URL resolution
+    const resolvedFile = extractFileName(trimmed)
+    if (resolvedFile !== trimmed) return resolvedFile
+  }
+
+  return val
+}
 
 const taskStatus = computed(() => {
   if (!taskInfo.value) return ''
@@ -153,18 +282,7 @@ const extractGridRows = (columns: Array<{ field: string; headerName: string }>):
         }
       }
 
-      // Format multilingual objects for Excel display
-      if (value && typeof value === 'object' && !Array.isArray(value)) {
-        if ('ko' in value || 'en' in value) {
-          const ko = value.ko || ''
-          const en = value.en || ''
-          value = ko && en ? `${ko} (${en})` : ko || en
-        } else {
-          value = JSON.stringify(value)
-        }
-      }
-
-      rowObj[field] = value ?? ''
+      rowObj[field] = formatExportValue(field, value)
     }
 
     rows.push(rowObj)
