@@ -50,6 +50,7 @@ const props = defineProps<{
   domainId: string | null
   gridApi?: any
   domainReferences?: Record<string, any>
+  fields?: Array<any>
 }>()
 
 const emit = defineEmits(['update:modelValue'])
@@ -60,6 +61,58 @@ const { customFetch } = useCustomFetch()
 const show = ref(props.modelValue)
 const taskInfo = ref<any>(null)
 let pollTimer: any = null
+
+const getFieldByKey = (key: string) => {
+  if (!props.fields || !key) return null
+  const cleanKey = key.startsWith('data.') ? key.substring(5) : key
+  return props.fields.find(f => f.key === cleanKey || String(f.key).toLowerCase() === String(cleanKey).toLowerCase())
+}
+
+const getSubColumnInfo = (fieldKey: string, colKey: string) => {
+  const f = getFieldByKey(fieldKey)
+  if (!f || !f.options) return null
+  try {
+    const parsed = typeof f.options === 'string' ? JSON.parse(f.options) : f.options
+    const subCols = Array.isArray(parsed) ? parsed : (parsed.tableColumns || parsed.columns || [])
+    return subCols.find((c: any) => c.key === colKey || String(c.key).toLowerCase() === String(colKey).toLowerCase())
+  } catch (e) {
+    return null
+  }
+}
+
+const getSubColLabel = (fieldKey: string, colKey: string): string => {
+  const subCol = getSubColumnInfo(fieldKey, colKey)
+  if (subCol && subCol.name) {
+    if (typeof subCol.name === 'object') {
+      return subCol.name[locale.value] || subCol.name.ko || subCol.name.en || colKey
+    }
+    return String(subCol.name)
+  }
+  return colKey
+}
+
+const formatSubColValue = (fieldKey: string, colKey: string, rawVal: any): string => {
+  if (rawVal === null || rawVal === undefined || rawVal === '') return ''
+  const subCol = getSubColumnInfo(fieldKey, colKey)
+  if (subCol && subCol.options) {
+    let opts: any[] = []
+    try {
+      opts = typeof subCol.options === 'string' ? JSON.parse(subCol.options) : subCol.options
+    } catch(e) {}
+    if (Array.isArray(opts)) {
+      const opt = opts.find(o => String(o.value) === String(rawVal) || String(o.key) === String(rawVal))
+      if (opt) {
+        if (typeof opt.label === 'object') return opt.label[locale.value] || opt.label.ko || opt.label.en || rawVal
+        if (typeof opt.name === 'object') return opt.name[locale.value] || opt.name.ko || opt.name.en || rawVal
+        return opt.label || opt.name || rawVal
+      }
+    }
+  }
+  if (typeof rawVal === 'object' && rawVal !== null) {
+    return rawVal[locale.value] || rawVal.ko || rawVal.en || JSON.stringify(rawVal)
+  }
+  return String(rawVal)
+}
 
 const extractFileName = (input: any): string => {
   if (!input) return ''
@@ -137,11 +190,11 @@ const formatExportValue = (fieldKey: string, val: any): any => {
   if (Array.isArray(val)) {
     if (val.length === 0) return ''
     if (typeof val[0] === 'object' && val[0] !== null) {
-      // Subtable array: convert to clean numbered multi-line text
+      // Subtable array: convert to clean numbered multi-line text with multilingual column labels
       return val.map((row: any, idx: number) => {
         const pairs = Object.entries(row)
           .filter(([k, v]) => !k.startsWith('_idx_') && v !== null && v !== undefined && v !== '')
-          .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
+          .map(([k, v]) => `${getSubColLabel(fieldKey, k)}: ${formatSubColValue(fieldKey, k, v)}`)
         return `${idx + 1}. ${pairs.join(', ')}`
       }).join('\n')
     } else {
@@ -157,7 +210,10 @@ const formatExportValue = (fieldKey: string, val: any): any => {
       const en = val.en || ''
       return ko && en && ko !== en ? `${ko} (${en})` : ko || en || ''
     }
-    return JSON.stringify(val)
+    const pairs = Object.entries(val)
+      .filter(([k, v]) => !k.startsWith('_idx_') && v !== null && v !== undefined && v !== '')
+      .map(([k, v]) => `${getSubColLabel(fieldKey, k)}: ${formatSubColValue(fieldKey, k, v)}`)
+    return pairs.join(', ')
   }
 
   // 3. String value inspection
