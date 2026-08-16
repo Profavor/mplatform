@@ -283,7 +283,7 @@ public class FieldDefinitionService {
         field.setIsReadOnly(request.getIsReadOnly() != null ? request.getIsReadOnly() : (isUpdate && field.getIsReadOnly() != null ? field.getIsReadOnly() : false));
         field.setIsImmutable(request.getIsImmutable() != null ? request.getIsImmutable() : (isUpdate && field.getIsImmutable() != null ? field.getIsImmutable() : false));
         field.setIsHidden(request.getIsHidden() != null ? request.getIsHidden() : (isUpdate && field.getIsHidden() != null ? field.getIsHidden() : false));
-        field.setMaskingPattern(request.getMaskingPattern() != null ? request.getMaskingPattern() : (isUpdate && field.getMaskingPattern() != null ? field.getMaskingPattern() : "GENERIC"));
+        field.setMaskingPattern(request.getMaskingPattern() != null ? request.getMaskingPattern() : (isUpdate ? field.getMaskingPattern() : null));
 
         // Node Transfer Logic: Allow moving or specifying field to another Classification Node or Domain Level
         if (Boolean.TRUE.equals(request.getIsDomainField())) {

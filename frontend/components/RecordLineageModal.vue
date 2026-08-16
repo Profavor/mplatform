@@ -161,16 +161,16 @@
                       <thead>
                         <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
                           <th style="padding: 0.3rem 0.4rem; width: 30px; text-align: center; color: var(--va-text-secondary);">#</th>
-                          <th v-for="col in getTableColumnsForField(getFieldByKey(row.key))" :key="col.key" style="padding: 0.3rem 0.5rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
-                            {{ col.name?.ko || col.name?.en || col.name || col.key }}
+                          <th v-for="col in getTableColumnsForField(getFieldByKey(row.key), row.rawBefore)" :key="col.key" style="padding: 0.3rem 0.5rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
+                            {{ getColLabel(col) }}
                           </th>
                         </tr>
                       </thead>
                       <tbody>
                         <tr v-for="(subRow, rIdx) in getTableRows(row.rawBefore)" :key="rIdx" style="border-bottom: 1px solid var(--va-background-border);">
                           <td style="padding: 0.3rem 0.4rem; text-align: center; color: var(--va-text-secondary);">{{ rIdx + 1 }}</td>
-                          <td v-for="col in getTableColumnsForField(getFieldByKey(row.key))" :key="col.key" style="padding: 0.3rem 0.5rem; color: #b91c1c;">
-                            {{ formatTableCell(subRow[col.key]) }}
+                          <td v-for="col in getTableColumnsForField(getFieldByKey(row.key), row.rawBefore)" :key="col.key" style="padding: 0.3rem 0.5rem; color: #b91c1c;">
+                            {{ formatTableCell(subRow[col.key], col) }}
                           </td>
                         </tr>
                       </tbody>
@@ -190,16 +190,16 @@
                       <thead>
                         <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
                           <th style="padding: 0.3rem 0.4rem; width: 30px; text-align: center; color: var(--va-text-secondary);">#</th>
-                          <th v-for="col in getTableColumnsForField(getFieldByKey(row.key))" :key="col.key" style="padding: 0.3rem 0.5rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
-                            {{ col.name?.ko || col.name?.en || col.name || col.key }}
+                          <th v-for="col in getTableColumnsForField(getFieldByKey(row.key), row.rawAfter)" :key="col.key" style="padding: 0.3rem 0.5rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
+                            {{ getColLabel(col) }}
                           </th>
                         </tr>
                       </thead>
                       <tbody>
                         <tr v-for="(subRow, rIdx) in getTableRows(row.rawAfter)" :key="rIdx" style="border-bottom: 1px solid var(--va-background-border);">
                           <td style="padding: 0.3rem 0.4rem; text-align: center; color: var(--va-text-secondary);">{{ rIdx + 1 }}</td>
-                          <td v-for="col in getTableColumnsForField(getFieldByKey(row.key))" :key="col.key" style="padding: 0.3rem 0.5rem; color: #15803d;">
-                            {{ formatTableCell(subRow[col.key]) }}
+                          <td v-for="col in getTableColumnsForField(getFieldByKey(row.key), row.rawAfter)" :key="col.key" style="padding: 0.3rem 0.5rem; color: #15803d;">
+                            {{ formatTableCell(subRow[col.key], col) }}
                           </td>
                         </tr>
                       </tbody>
@@ -626,12 +626,27 @@ watch(show, (val) => {
   emit('update:modelValue', val)
 })
 
+const internalFields = ref<any[]>([])
+
 const fetchLineage = async () => {
   if (!props.recordId) return
   loading.value = true
   try {
     const res = await customFetch(`/api/records/${props.recordId}/lineage`)
     lineageData.value = res
+
+    if (!props.fields || props.fields.length === 0) {
+      try {
+        const rec = await customFetch(`/api/records/${props.recordId}`)
+        const nodeId = rec?.nodeId || rec?.node?.id
+        if (nodeId) {
+          const fList = await customFetch(`/api/nodes/${nodeId}/fields/effective`)
+          if (Array.isArray(fList)) {
+            internalFields.value = fList
+          }
+        }
+      } catch (err) {}
+    }
   } catch (e) {
     console.error('Failed to fetch lineage:', e)
   } finally {
@@ -747,7 +762,8 @@ const parseJsonIfNeeded = (val: any) => {
 
 const getFieldByKey = (key: string) => {
   if (!key) return null
-  return props.fields?.find((f: any) => f.key === key || String(f.id) === String(key) || (f.key && String(f.key).toLowerCase() === String(key).toLowerCase()))
+  const combined = [...(props.fields || []), ...internalFields.value]
+  return combined.find((f: any) => f.key === key || String(f.id) === String(key) || (f.key && String(f.key).toLowerCase() === String(key).toLowerCase()))
 }
 
 const getTableRows = (val: any) => {
@@ -764,21 +780,65 @@ const getTableRows = (val: any) => {
   return []
 }
 
-const getTableColumnsForField = (f: any) => {
-  if (!f) return []
-  if (f.options) {
+const getTableColumnsForField = (f: any, rowData?: any) => {
+  if (f && f.options) {
     try {
       const opts = typeof f.options === 'string' ? JSON.parse(f.options) : f.options
-      if (opts && Array.isArray(opts.columns)) return opts.columns
+      if (opts && opts.tableSchema && Array.isArray(opts.tableSchema.columns) && opts.tableSchema.columns.length > 0) {
+        return opts.tableSchema.columns
+      }
+      if (opts && Array.isArray(opts.columns) && opts.columns.length > 0) {
+        return opts.columns
+      }
     } catch (e) {}
+  }
+  const rows = rowData !== undefined ? getTableRows(rowData) : (f ? getTableRows(f) : [])
+  if (Array.isArray(rows) && rows.length > 0 && typeof rows[0] === 'object' && rows[0] !== null) {
+    return Object.keys(rows[0]).map((k) => ({
+      key: k,
+      name: { ko: k, en: k }
+    }))
   }
   return []
 }
 
-const formatTableCell = (val: any) => {
+const getColLabel = (col: any) => {
+  if (!col) return ''
+  const name = col.name || col.label || col.key
+  if (typeof name === 'object' && name !== null) {
+    return name[locale?.value || 'ko'] || name.ko || name.en || col.key || ''
+  }
+  return String(name)
+}
+
+const formatTableCell = (val: any, col?: any) => {
   if (val === null || val === undefined || val === '') return '-'
+  if (col && (col.type === 'SELECT' || col.options)) {
+    let opts: any[] = []
+    if (typeof col.options === 'string') {
+      try { opts = JSON.parse(col.options) } catch (e) {}
+    } else if (Array.isArray(col.options)) {
+      opts = col.options
+    }
+    if (Array.isArray(opts)) {
+      const found = opts.find((o: any) => o && (String(o.value) === String(val) || String(o.key) === String(val) || String(o.code) === String(val)))
+      if (found) {
+        if (typeof found.label === 'object') return found.label[locale?.value || 'ko'] || found.label.ko || found.label.en || val
+        if (typeof found.name === 'object') return found.name[locale?.value || 'ko'] || found.name.ko || found.name.en || val
+        return found.label || found.name || val
+      }
+    }
+  }
   if (typeof val === 'object') {
     return val[locale?.value || 'ko'] || val.ko || val.en || JSON.stringify(val)
+  }
+  if (typeof val === 'string' && val.trim().startsWith('{') && val.trim().endsWith('}')) {
+    try {
+      const parsed = JSON.parse(val)
+      if (parsed && typeof parsed === 'object') {
+        return parsed[locale?.value || 'ko'] || parsed.ko || parsed.en || val
+      }
+    } catch (e) {}
   }
   return String(val)
 }

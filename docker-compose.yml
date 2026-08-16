@@ -44,8 +44,8 @@ services:
   mdm_prometheus:
     image: prom/prometheus:latest
     container_name: mdm_prometheus
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    # volumes:
+    #   - ./prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
       - "9090:9090"
 

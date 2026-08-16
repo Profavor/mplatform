@@ -113,14 +113,14 @@ public class DataMaskingService {
                     if (canUnmask) {
                         result.put(key, decrypted);
                     } else {
-                        String pattern = fd.getMaskingPattern() != null && !fd.getMaskingPattern().isBlank() ? fd.getMaskingPattern() : "RRN";
+                        String pattern = isSpecificMaskingPattern(fd.getMaskingPattern()) ? fd.getMaskingPattern() : "RRN";
                         result.put(key, maskByPattern(pattern, decrypted));
                     }
                     continue;
                 }
 
-                // 2. Explicit masking pattern configured on field definition
-                if (fd.getMaskingPattern() != null && !fd.getMaskingPattern().isBlank()) {
+                // 2. Explicit sensitive masking pattern configured on field definition (e.g. RRN, PHONE, EMAIL, CARD)
+                if (isSpecificMaskingPattern(fd.getMaskingPattern())) {
                     if (canUnmask) {
                         result.put(key, val);
                     } else if (val instanceof String valStr) {
@@ -131,13 +131,23 @@ public class DataMaskingService {
                     continue;
                 }
 
-                // 3. Normal fields remain untouched (schema-driven, no heuristics)
+                // 3. Normal fields remain untouched (schema-driven, no generic masking)
                 result.put(key, val);
             }
             return objectMapper.writeValueAsString(result);
         } catch (Exception e) {
             return dataJson;
         }
+    }
+
+    public boolean isSpecificMaskingPattern(String pattern) {
+        if (pattern == null || pattern.isBlank()) return false;
+        String p = pattern.toUpperCase();
+        if (p.equals("NONE") || p.equals("OFF") || p.equals("GENERIC") || p.equals("DEFAULT")) return false;
+        return p.contains("RRN") || p.contains("RESIDENT") || p.contains("JUMIN") || p.contains("SSN")
+                || p.contains("PHONE") || p.contains("MOBILE") || p.contains("TEL")
+                || p.contains("EMAIL") || p.contains("MAIL")
+                || p.contains("CARD") || p.contains("ACCOUNT") || p.contains("BANK");
     }
 
     public String maskChangesJson(String changesJson, List<FieldDefinition> fields, boolean canUnmask) {
@@ -168,7 +178,7 @@ public class DataMaskingService {
 
     public String maskByPattern(String pattern, String val) {
         if (val == null || val.isBlank()) return val;
-        if (pattern == null || pattern.isBlank()) return maskGeneric(val);
+        if (!isSpecificMaskingPattern(pattern)) return val;
 
         String upperPattern = pattern.toUpperCase();
         if (upperPattern.contains("RRN") || upperPattern.contains("RESIDENT") || upperPattern.contains("JUMIN") || upperPattern.contains("SSN")) {
@@ -184,11 +194,11 @@ public class DataMaskingService {
             return maskCard(val);
         }
 
-        return maskGeneric(val);
+        return val;
     }
 
     public String maskValue(String key, String val) {
-        return maskGeneric(val);
+        return val;
     }
 
     public String maskEmail(String email) {

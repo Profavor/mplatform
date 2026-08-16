@@ -16,3 +16,4 @@ backend/data/
 backend/uploads/
 *.log
 *.txt
+deploy.ps1
