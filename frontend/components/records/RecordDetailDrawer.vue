@@ -179,9 +179,9 @@
 
                         <va-input
                           v-if="['TEXT', 'NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER', 'DATE'].includes(field.type)"
-                          :model-value="decryptedValues[field.key] || localRecord[field.key]"
+                          :model-value="field.type === 'DATE' && !isEditing ? formatDateForDisplay(decryptedValues[field.key] || localRecord[field.key]) : (decryptedValues[field.key] || localRecord[field.key])"
                           @update:model-value="(val) => handleMaskedInput(field, val)"
-                          :type="field.type === 'DATE' ? (focusedDateFields['edit_' + field.key] || localRecord[field.key] ? 'date' : 'text') : (['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type) ? 'number' : 'text')"
+                          :type="field.type === 'DATE' ? (isEditing ? 'date' : 'text') : (['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type) ? 'number' : 'text')"
                           class="w-full"
                           :readonly="!isEditing || evalConditionRule(field, localRecord).readOnly"
                           :disabled="isEditing && (isAutoNumberingField(field) || evalConditionRule(field, localRecord).disabled)"
@@ -622,7 +622,7 @@
                               <thead>
                                 <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
                                   <th style="padding: 0.4rem 0.5rem; width: 35px; text-align: center; color: var(--va-text-secondary);">#</th>
-                                  <th v-for="col in getTableColumns(getFieldByKey(fieldKey))" :key="col.key" style="padding: 0.4rem 0.6rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
+                                  <th v-for="col in getTableColumns(getFieldByKey(fieldKey), getTableRows(safeParseJson(log.newData)[fieldKey]))" :key="col.key" style="padding: 0.4rem 0.6rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
                                     {{ getTranslatedColName(col.name) }}
                                   </th>
                                 </tr>
@@ -630,7 +630,7 @@
                               <tbody>
                                 <tr v-for="(row, rIdx) in getTableRows(safeParseJson(log.newData)[fieldKey])" :key="rIdx" style="border-bottom: 1px solid var(--va-background-border);">
                                   <td style="padding: 0.4rem 0.5rem; text-align: center; color: var(--va-text-secondary); font-size: 0.75rem;">{{ rIdx + 1 }}</td>
-                                  <td v-for="col in getTableColumns(getFieldByKey(fieldKey))" :key="col.key" style="padding: 0.4rem 0.6rem; color: var(--va-text-primary);">
+                                  <td v-for="col in getTableColumns(getFieldByKey(fieldKey), getTableRows(safeParseJson(log.newData)[fieldKey]))" :key="col.key" style="padding: 0.4rem 0.6rem; color: var(--va-text-primary);">
                                     {{ formatTableCellVal(row[col.key], col) }}
                                   </td>
                                 </tr>
@@ -886,10 +886,22 @@ const formatTableCellVal = (val, col) => {
       opts = col.options
     }
     const found = opts.find((o) => (o.value || o.key || o.code) === val)
-    if (found) return found.label || found.name || val
+    if (found) {
+      if (typeof found.label === 'object') return getTranslatedColName(found.label)
+      if (typeof found.name === 'object') return getTranslatedColName(found.name)
+      return found.label || found.name || val
+    }
   }
   if (typeof val === 'object') {
-    return val[locale.value] || val.ko || val.en || JSON.stringify(val)
+    return getTranslatedColName(val) || val[locale.value] || val.ko || val.en || JSON.stringify(val)
+  }
+  if (typeof val === 'string' && val.trim().startsWith('{') && val.trim().endsWith('}')) {
+    try {
+      const parsed = JSON.parse(val)
+      if (parsed && typeof parsed === 'object') {
+        return getTranslatedColName(parsed) || parsed[locale.value] || parsed.ko || parsed.en || val
+      }
+    } catch (e) {}
   }
   return String(val)
 }
@@ -1414,14 +1426,24 @@ watch(
   { immediate: true, deep: true }
 )
 
-const getTableColumns = (field) => {
-  if (!field || !field.options) return []
-  try {
-    const opts = typeof field.options === 'string' ? JSON.parse(field.options) : field.options
-    if (opts && opts.tableSchema && Array.isArray(opts.tableSchema.columns)) {
-      return opts.tableSchema.columns
-    }
-  } catch (e) {}
+const getTableColumns = (field, rows) => {
+  if (field && field.options) {
+    try {
+      const opts = typeof field.options === 'string' ? JSON.parse(field.options) : field.options
+      if (opts && opts.tableSchema && Array.isArray(opts.tableSchema.columns) && opts.tableSchema.columns.length > 0) {
+        return opts.tableSchema.columns
+      }
+      if (opts && Array.isArray(opts.columns) && opts.columns.length > 0) {
+        return opts.columns
+      }
+    } catch (e) {}
+  }
+  if (Array.isArray(rows) && rows.length > 0 && typeof rows[0] === 'object' && rows[0] !== null) {
+    return Object.keys(rows[0]).map((k) => ({
+      key: k,
+      name: { ko: k, en: k }
+    }))
+  }
   return []
 }
 
@@ -1734,6 +1756,15 @@ const parseOptions = (opts) => {
     })
   }
   return opts
+}
+
+const formatDateForDisplay = (val) => {
+  if (!val) return ''
+  if (typeof val === 'string') {
+    if (val.includes('T')) return val.split('T')[0]
+    return val
+  }
+  return String(val)
 }
 
 const domainRefResolvedCache = ref({})

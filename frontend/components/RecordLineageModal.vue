@@ -161,7 +161,7 @@
                       <thead>
                         <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
                           <th style="padding: 0.3rem 0.4rem; width: 30px; text-align: center; color: var(--va-text-secondary);">#</th>
-                          <th v-for="col in getTableColumnsForField(getFieldByKey(row.key))" :key="col.key" style="padding: 0.3rem 0.5rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
+                          <th v-for="col in getTableColumnsForField(getFieldByKey(row.key), row.rawBefore)" :key="col.key" style="padding: 0.3rem 0.5rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
                             {{ col.name?.ko || col.name?.en || col.name || col.key }}
                           </th>
                         </tr>
@@ -169,7 +169,7 @@
                       <tbody>
                         <tr v-for="(subRow, rIdx) in getTableRows(row.rawBefore)" :key="rIdx" style="border-bottom: 1px solid var(--va-background-border);">
                           <td style="padding: 0.3rem 0.4rem; text-align: center; color: var(--va-text-secondary);">{{ rIdx + 1 }}</td>
-                          <td v-for="col in getTableColumnsForField(getFieldByKey(row.key))" :key="col.key" style="padding: 0.3rem 0.5rem; color: #b91c1c;">
+                          <td v-for="col in getTableColumnsForField(getFieldByKey(row.key), row.rawBefore)" :key="col.key" style="padding: 0.3rem 0.5rem; color: #b91c1c;">
                             {{ formatTableCell(subRow[col.key]) }}
                           </td>
                         </tr>
@@ -190,7 +190,7 @@
                       <thead>
                         <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
                           <th style="padding: 0.3rem 0.4rem; width: 30px; text-align: center; color: var(--va-text-secondary);">#</th>
-                          <th v-for="col in getTableColumnsForField(getFieldByKey(row.key))" :key="col.key" style="padding: 0.3rem 0.5rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
+                          <th v-for="col in getTableColumnsForField(getFieldByKey(row.key), row.rawAfter)" :key="col.key" style="padding: 0.3rem 0.5rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
                             {{ col.name?.ko || col.name?.en || col.name || col.key }}
                           </th>
                         </tr>
@@ -198,7 +198,7 @@
                       <tbody>
                         <tr v-for="(subRow, rIdx) in getTableRows(row.rawAfter)" :key="rIdx" style="border-bottom: 1px solid var(--va-background-border);">
                           <td style="padding: 0.3rem 0.4rem; text-align: center; color: var(--va-text-secondary);">{{ rIdx + 1 }}</td>
-                          <td v-for="col in getTableColumnsForField(getFieldByKey(row.key))" :key="col.key" style="padding: 0.3rem 0.5rem; color: #15803d;">
+                          <td v-for="col in getTableColumnsForField(getFieldByKey(row.key), row.rawAfter)" :key="col.key" style="padding: 0.3rem 0.5rem; color: #15803d;">
                             {{ formatTableCell(subRow[col.key]) }}
                           </td>
                         </tr>
@@ -764,13 +764,24 @@ const getTableRows = (val: any) => {
   return []
 }
 
-const getTableColumnsForField = (f: any) => {
-  if (!f) return []
-  if (f.options) {
+const getTableColumnsForField = (f: any, rowData?: any) => {
+  if (f && f.options) {
     try {
       const opts = typeof f.options === 'string' ? JSON.parse(f.options) : f.options
-      if (opts && Array.isArray(opts.columns)) return opts.columns
+      if (opts && opts.tableSchema && Array.isArray(opts.tableSchema.columns) && opts.tableSchema.columns.length > 0) {
+        return opts.tableSchema.columns
+      }
+      if (opts && Array.isArray(opts.columns) && opts.columns.length > 0) {
+        return opts.columns
+      }
     } catch (e) {}
+  }
+  const rows = rowData !== undefined ? getTableRows(rowData) : (f ? getTableRows(f) : [])
+  if (Array.isArray(rows) && rows.length > 0 && typeof rows[0] === 'object' && rows[0] !== null) {
+    return Object.keys(rows[0]).map((k) => ({
+      key: k,
+      name: { ko: k, en: k }
+    }))
   }
   return []
 }
@@ -779,6 +790,14 @@ const formatTableCell = (val: any) => {
   if (val === null || val === undefined || val === '') return '-'
   if (typeof val === 'object') {
     return val[locale?.value || 'ko'] || val.ko || val.en || JSON.stringify(val)
+  }
+  if (typeof val === 'string' && val.trim().startsWith('{') && val.trim().endsWith('}')) {
+    try {
+      const parsed = JSON.parse(val)
+      if (parsed && typeof parsed === 'object') {
+        return parsed[locale?.value || 'ko'] || parsed.ko || parsed.en || val
+      }
+    } catch (e) {}
   }
   return String(val)
 }
