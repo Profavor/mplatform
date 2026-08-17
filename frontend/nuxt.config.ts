@@ -136,8 +136,7 @@ export default defineNuxtConfig({
     const targetUrl = rawUrl.replace(/\/$/, '')
     const wsUrl = targetUrl.replace(/^http/, 'ws')
     return {
-      '/ws-stomp/**': { proxy: `${wsUrl}/ws-stomp/**` },
-      '/api/**': { proxy: `${targetUrl}/api/**` }
+      '/ws-stomp/**': { proxy: `${wsUrl}/ws-stomp/**` }
     }
   })(),
   vite: {
@@ -147,10 +146,6 @@ export default defineNuxtConfig({
         '/ws-stomp': {
           target: process.env.API_BASE_URL || process.env.NUXT_PUBLIC_API_BASE_URL || 'http://localhost:8080',
           ws: true,
-          changeOrigin: true
-        },
-        '/api': {
-          target: process.env.API_BASE_URL || process.env.NUXT_PUBLIC_API_BASE_URL || 'http://localhost:8080',
           changeOrigin: true
         }
       }
