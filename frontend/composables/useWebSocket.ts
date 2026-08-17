@@ -63,8 +63,10 @@ const initAndActivateClient = () => {
       const config = useRuntimeConfig()
       const rawApiBase = config?.public?.apiBaseUrl
       if (rawApiBase && (rawApiBase.startsWith('http://') || rawApiBase.startsWith('https://'))) {
-        const wsBase = rawApiBase.replace(/^http/, 'ws').replace(/\/$/, '')
-        wsUrl = `${wsBase}/ws-stomp`
+        // Extract only the origin (scheme+host+port), discard any path like /api
+        const apiUrl = new URL(rawApiBase)
+        const wsScheme = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:'
+        wsUrl = `${wsScheme}//${apiUrl.host}/ws-stomp`
       }
     }
   } catch {}
