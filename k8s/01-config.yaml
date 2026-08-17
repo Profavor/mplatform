@@ -57,7 +57,7 @@ data:
   NUXT_OIDC_PROVIDERS_KEYCLOAK_REDIRECT_URI: "http://mplatform.local/auth/keycloak/callback"
   KEYCLOAK_LOGOUT_REDIRECT_URI: "http://mplatform.local/login"
   NUXT_OIDC_PROVIDERS_KEYCLOAK_LOGOUT_REDIRECT_URI: "http://mplatform.local/login"
-  NUXT_PUBLIC_API_BASE: "http://mplatform.local/api"
+  NUXT_PUBLIC_API_BASE_URL: "http://mplatform.local/api"
   NUXT_PUBLIC_ACCESS_TOKEN_EXPIRATION_SEC: "1800"
   NUXT_PUBLIC_REFRESH_TOKEN_EXPIRATION_SEC: "172800"
   NUXT_OIDC_SESSION_COOKIE_SECURE: "false"
