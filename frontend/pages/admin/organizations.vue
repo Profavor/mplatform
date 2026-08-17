@@ -121,7 +121,7 @@
     />
 
     <!-- Delete Role Confirm Modal -->
-    <va-modal v-model="showDeleteRoleModalFlag" title="역할 삭제 확인" hide-default-actions size="small" :prevent-click-outside="true" :no-outside-dismiss="true">
+    <AppModal v-model="showDeleteRoleModalFlag" title="역할 삭제 확인" icon="warning" hide-default-actions size="small">
       <div style="padding: 1.25rem 0; text-align: center;">
         <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(229, 57, 53, 0.12); color: #b91c1c; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;">
           <va-icon name="warning" size="large" color="danger" />
@@ -137,11 +137,11 @@
         <va-button preset="secondary" @click="showDeleteRoleModalFlag = false">{{ getLabel('cancel', '취소') }}</va-button>
         <va-button color="danger" @click="confirmDeleteRole">{{ getLabel('delete', '삭제') }}</va-button>
       </div>
-    </va-modal>
+    </AppModal>
 
     <!-- Icon Picker Modal -->
-    <va-modal v-model="showIconPickerModalFlag" :title="getLabel('select_icon_title', '부서 아이콘 선택')" hide-default-actions size="small">
-      <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
+    <AppModal v-model="showIconPickerModalFlag" :title="getLabel('select_icon_title', '부서 아이콘 선택')" icon="palette" hide-default-actions size="small">
+      <div style="padding: 0.5rem 0; display: flex; flex-direction: column; gap: 1rem;">
         <div style="font-size: 0.88rem; color: var(--va-text-secondary); font-weight: 600;">
           {{ getLabel('select_icon_desc', '부서 노드 및 헤더에 표시할 커스텀 아이콘을 선택하세요:') }}
         </div>
@@ -161,10 +161,10 @@
           <va-button preset="secondary" @click="showIconPickerModalFlag = false">{{ getLabel('close', '닫기') }}</va-button>
         </div>
       </div>
-    </va-modal>
+    </AppModal>
 
     <!-- Delete Department Confirm Modal -->
-    <va-modal v-model="showDeleteDeptModalFlag" :title="getLabel('delete_dept', '부서/조직 삭제')" hide-default-actions size="small" :prevent-click-outside="true" :no-outside-dismiss="true">
+    <AppModal v-model="showDeleteDeptModalFlag" :title="getLabel('delete_dept', '부서/조직 삭제')" icon="warning" hide-default-actions size="small">
       <div style="padding: 1.25rem 0; text-align: center;">
         <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(229, 57, 53, 0.12); color: #b91c1c; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;">
           <va-icon name="warning" size="2rem" color="danger" />
@@ -178,11 +178,11 @@
           <va-button color="danger" @click="confirmDeleteDept">{{ getLabel('delete', '삭제') }}</va-button>
         </div>
       </div>
-    </va-modal>
+    </AppModal>
 
     <!-- Manage Department Members Modal -->
-    <va-modal v-model="showManageMembersModalFlag" :title="getLabel('dept_members', '부서 구성원 지정 및 관리')" hide-default-actions size="medium" :prevent-click-outside="true" :no-outside-dismiss="true">
-      <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1.25rem;">
+    <AppModal v-model="showManageMembersModalFlag" :title="getLabel('dept_members', '부서 구성원 지정 및 관리')" icon="groups" hide-default-actions size="medium">
+      <div style="padding: 0.5rem 0; display: flex; flex-direction: column; gap: 1.25rem;">
         <div style="background: var(--va-background-secondary); border: 1px solid var(--va-background-border); border-radius: 8px; padding: 1rem;">
           <h4 style="margin: 0 0 0.25rem 0; font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
             <va-icon name="folder" color="primary" />
@@ -198,58 +198,70 @@
           <h5 style="font-weight: 700; margin-bottom: 0.75rem; color: var(--va-text-primary); font-size: 0.95rem; display: flex; align-items: center; justify-content: space-between;">
             <span>{{ getLabel('assigned_members_list', '소속 구성원 목록') }} ({{ currentDeptMembers.length }})</span>
           </h5>
-          <div v-if="currentDeptMembers.length === 0" style="padding: 1.5rem; text-align: center; color: var(--va-text-secondary); background: var(--va-background-element); border-radius: 6px; font-size: 0.9rem;">
-            {{ getLabel('no_assigned_members', '현재 이 부서에 할당된 구성원이 없습니다. 아래에서 구성원을 선택하여 등록하세요.') }}
+          <div v-if="currentDeptMembers.length === 0" style="text-align: center; padding: 1.5rem; color: var(--va-text-secondary); background: var(--va-background-secondary); border-radius: 8px; border: 1px dashed var(--va-background-border); font-size: 0.88rem;">
+            {{ getLabel('no_dept_members', '현재 이 부서에 소속된 구성원이 없습니다.') }}
           </div>
-          <div v-else style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 180px; overflow-y: auto;">
+          <div v-else style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 200px; overflow-y: auto;">
             <div
-              v-for="user in currentDeptMembers"
-              :key="user.id"
-              style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.85rem; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 6px;"
+              v-for="member in currentDeptMembers"
+              :key="member.id"
+              style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; background: var(--va-background-secondary); border-radius: 6px; border: 1px solid var(--va-background-border);"
             >
-              <div style="display: flex; align-items: center; gap: 0.6rem;">
-                <va-icon name="account_circle" color="primary" />
-                <span style="font-weight: 700; font-size: 0.95rem;">{{ user.username }}</span>
-              </div>
               <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <UserRoleSelect
-                  :model-value="getUserRolesArray(user.role)"
-                  multiple
-                  :org-id="selectedOrgId"
-                  @update:modelValue="changeMemberRolesInDept(user, $event)"
-                  style="min-width: 280px;"
-                  size="small"
-                  clearable
-                />
-                <va-button size="small" color="danger" preset="secondary" icon="person_remove" @click="removeUserFromDept(user)">
-                  {{ getLabel('unassign', '할당 해제') }}
-                </va-button>
+                <va-avatar size="small" :src="member.avatar || undefined" icon="person" color="primary" />
+                <span style="font-weight: 600; font-size: 0.9rem;">{{ member.username }}</span>
+                <span style="font-size: 0.8rem; color: var(--va-text-secondary);">({{ member.email || '-' }})</span>
               </div>
+              <va-button
+                preset="plain"
+                icon="person_remove"
+                color="danger"
+                size="small"
+                @click="removeMemberFromDept(member.id)"
+              >
+                {{ getLabel('remove_member', '제외') }}
+              </va-button>
             </div>
           </div>
         </div>
 
-        <va-divider />
+        <va-divider style="margin: 0;" />
 
-        <!-- Section 2: Add Unassigned or Other Users to Dept -->
+        <!-- Section 2: Add Member -->
         <div>
-          <h5 style="font-weight: 700; margin-bottom: 0.75rem; color: var(--va-text-primary); font-size: 0.95rem; display: flex; justify-content: space-between; align-items: center;">
-            <span>{{ getLabel('add_new_member', '신규 구성원 추가') }}</span>
-            <va-button color="primary" icon="person_search" size="small" @click="openUserSearchSelectModal">
-              + {{ getLabel('search_user_btn', '사용자 검색 및 등록') }}
-            </va-button>
+          <h5 style="font-weight: 700; margin-bottom: 0.75rem; color: var(--va-text-primary); font-size: 0.95rem;">
+            {{ getLabel('add_new_member', '구성원 추가') }}
           </h5>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <va-select
+              v-model="selectedUserToAdd"
+              :options="availableUsersToAdd"
+              value-by="id"
+              text-by="username"
+              :placeholder="getLabel('select_user_to_add', '추가할 사용자 선택...')"
+              searchable
+              style="flex: 1;"
+            />
+            <va-button
+              color="primary"
+              icon="person_add"
+              :disabled="!selectedUserToAdd"
+              @click="addMemberToDept"
+            >
+              {{ getLabel('add', '추가') }}
+            </va-button>
+          </div>
         </div>
 
         <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
-          <va-button preset="primary" @click="showManageMembersModalFlag = false">{{ getLabel('close', '닫기') }}</va-button>
+          <va-button preset="secondary" @click="showManageMembersModalFlag = false">{{ getLabel('close', '닫기') }}</va-button>
         </div>
       </div>
-    </va-modal>
+    </AppModal>
 
     <!-- Permission Master Management Modal -->
-    <va-modal v-model="showPermMasterModal" :title="getLabel('perm_master_management', '세부 권한 마스터 관리')" hide-default-actions size="large" style="--va-modal-max-width: 1000px;" :prevent-click-outside="true">
-      <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
+    <AppModal v-model="showPermMasterModal" :title="getLabel('perm_master_management', '세부 권한 마스터 관리')" icon="security" hide-default-actions size="large" style="--va-modal-max-width: 1000px;">
+      <div style="padding: 0.5rem 0; display: flex; flex-direction: column; gap: 1rem;">
         <div style="background: var(--va-background-secondary); border: 1px solid var(--va-background-border); border-radius: 12px; padding: 1.25rem;">
           <PermissionMatrix
             :groups="customPermissionGroups"
@@ -266,11 +278,11 @@
           <va-button preset="secondary" @click="showPermMasterModal = false">{{ getLabel('close', '닫기') }}</va-button>
         </div>
       </div>
-    </va-modal>
+    </AppModal>
 
     <!-- Modal 1: Add New Permission Group -->
-    <va-modal v-model="showAddGroupModalFlag" :title="isEditingGroup ? getLabel('edit_perm_group_title', '권한 그룹 수정') : getLabel('add_new_perm_group_title', '신규 권한 그룹 생성')" hide-default-actions size="small" :prevent-click-outside="true" :no-outside-dismiss="true">
-      <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
+    <AppModal v-model="showAddGroupModalFlag" :title="isEditingGroup ? getLabel('edit_perm_group_title', '권한 그룹 수정') : getLabel('add_new_perm_group_title', '신규 권한 그룹 생성')" icon="admin_panel_settings" hide-default-actions size="small">
+      <div style="padding: 0.5rem 0; display: flex; flex-direction: column; gap: 1rem;">
         <div>
           <div style="font-size: 0.6rem; font-weight: 700; color: var(--va-primary); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.4px;">
             {{ getLabel('group_name_label', 'GROUP NAME') }} <span style="color: var(--va-danger);">*</span>
@@ -316,11 +328,11 @@
           <va-button color="primary" @click="saveNewGroup">{{ isEditingGroup ? getLabel('save', '저장') : getLabel('create_group_btn', '그룹 생성') }}</va-button>
         </div>
       </div>
-    </va-modal>
+    </AppModal>
 
     <!-- Modal 2: Add New Permission to Specific Group -->
-    <va-modal v-model="showAddPermToGroupModalFlag" :title="isEditingPerm ? `[${targetGroupForPerm?.title}] ${getLabel('edit_perm_title', '그룹 내 권한 정보 수정')}` : `[${targetGroupForPerm?.title}] ${getLabel('add_perm_to_group_title', '그룹 내 신규 권한 추가')}`" hide-default-actions size="small" :prevent-click-outside="true" :no-outside-dismiss="true">
-      <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
+    <AppModal v-model="showAddPermToGroupModalFlag" :title="isEditingPerm ? `[${targetGroupForPerm?.title}] ${getLabel('edit_perm_title', '그룹 내 권한 정보 수정')}` : `[${targetGroupForPerm?.title}] ${getLabel('add_perm_to_group_title', '그룹 내 신규 권한 추가')}`" icon="security" hide-default-actions size="small">
+      <div style="padding: 0.5rem 0; display: flex; flex-direction: column; gap: 1rem;">
         <div>
           <div style="font-size: 0.6rem; font-weight: 700; color: var(--va-primary); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.4px;">
             {{ getLabel('perm_name_label', 'NAME') }} <span style="color: var(--va-danger);">*</span>
@@ -343,15 +355,15 @@
           <va-button color="primary" @click="saveNewPermToGroup">{{ isEditingPerm ? getLabel('save', '저장') : getLabel('add_perm_btn', '권한 추가') }}</va-button>
         </div>
       </div>
-    </va-modal>
+    </AppModal>
 
     <!-- User Search & Select Modal with AG Grid -->
-    <va-modal v-model="showUserSearchSelectModalFlag" :title="getLabel('search_user_modal_title', '부서 구성원 검색 및 선택')" hide-default-actions size="large" :prevent-click-outside="true" :no-outside-dismiss="true">
-      <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem; width: 100%;">
+    <AppModal v-model="showUserSearchSelectModalFlag" :title="getLabel('search_user_modal_title', '부서 구성원 검색 및 선택')" icon="person_search" hide-default-actions size="large">
+      <div style="padding: 0.5rem 0; display: flex; flex-direction: column; gap: 1rem; width: 100%;">
         <div style="display: flex; gap: 0.5rem; align-items: center;">
           <va-input
-            v-model="userSearchKeyword"
-            :placeholder="getLabel('search_user_placeholder', '사용자명 또는 역할 검색...')"
+            v-model="userSearchModalFilter"
+            :placeholder="getLabel('search_user_placeholder', '사용자명, 이메일, 기존 소속 검색...')"
             clearable
             style="flex: 1;"
           >
@@ -361,20 +373,17 @@
           </va-input>
         </div>
 
-        <div :class="{ 'ag-theme-quartz-dark': isDark }" style="width: 100%; height: 380px; border: 1px solid var(--va-background-border); border-radius: 8px; overflow: hidden;">
-          <client-only>
-            <ag-grid-vue
-              v-if="isMounted"
-              style="width: 100%; height: 100%;"
-              :theme="gridTheme"
-              :columnDefs="userGridColumnDefs"
-              :rowData="filteredUsersToSearch"
-              :autoSizeStrategy="{ type: 'fitGridWidth' }"
-              :pagination="true"
-              :paginationPageSize="10"
-              :paginationPageSizeSelector="[5, 10, 20, 50]"
-            />
-          </client-only>
+        <div :class="{ 'ag-theme-quartz-dark': isDark }" style="width: 100%; height: 350px;">
+          <AgGridVue
+            style="width: 100%; height: 100%;"
+            :theme="gridTheme"
+            :columnDefs="searchModalColumnDefs"
+            :rowData="filteredSearchModalUsers"
+            :defaultColDef="defaultColDef"
+            :autoSizeStrategy="autoSizeStrategy"
+            rowSelection="multiple"
+            @grid-ready="onSearchModalGridReady"
+          />
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
@@ -382,18 +391,17 @@
           <va-button color="primary" icon="save" @click="saveAllSearchModalUserRoles">{{ getLabel('save', '저장') }}</va-button>
         </div>
       </div>
-    </va-modal>
+    </AppModal>
 
     <!-- Multi-Role Selection Modal -->
-    <va-modal
+    <AppModal
       v-model="showMultiRoleEditModalFlag"
       :title="`[${editingRoleUser?.username || ''}] 구성원 역할 지정 (다중 선택)`"
+      icon="manage_accounts"
       hide-default-actions
       size="medium"
-      :prevent-click-outside="true"
-      :no-outside-dismiss="true"
     >
-      <div style="padding: 1rem 0; display: flex; flex-direction: column; gap: 1rem;">
+      <div style="padding: 0.5rem 0; display: flex; flex-direction: column; gap: 1rem;">
         <p style="margin: 0; font-size: 0.9rem; color: var(--va-text-secondary);">
           해당 구성원에게 부여할 하나 이상의 부서 역할을 선택하세요.
         </p>
@@ -426,7 +434,7 @@
           <va-button color="primary" icon="save" @click="saveMultiRoleForUser">{{ getLabel('save', '저장') }}</va-button>
         </div>
       </div>
-    </va-modal>
+    </AppModal>
 
     <!-- System Notification Modal (Decoupled Component) -->
     <SystemNotificationModal
@@ -438,12 +446,12 @@
     />
 
     <!-- Organization Delete Confirm Modal -->
-    <va-modal
+    <AppModal
       v-model="showDeleteOrgModalFlag"
       :title="getLabel('delete_organization', '조직 삭제')"
-      :ok-text="getLabel('delete', '삭제')"
-      ok-color="danger"
-      @ok="confirmDeleteOrganization"
+      icon="warning"
+      hide-default-actions
+      size="small"
     >
       <div style="padding: 0.5rem 0;">
         <p style="margin-bottom: 0.5rem; font-weight: 700; color: var(--va-text-primary); font-size: 1rem;">
@@ -453,7 +461,13 @@
           ⚠️ 조직 삭제 시 해당 조직에 속한 하위 부서, 팀 및 RBAC 역할/권한 정보가 함께 삭제됩니다.
         </p>
       </div>
-    </va-modal>
+      <template #footer>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+          <va-button preset="secondary" @click="showDeleteOrgModalFlag = false">{{ getLabel('cancel', '취소') }}</va-button>
+          <va-button color="danger" @click="confirmDeleteOrganization">{{ getLabel('delete', '삭제') }}</va-button>
+        </div>
+      </template>
+    </AppModal>
   </div>
 </template>
 
@@ -470,6 +484,7 @@ import CreateOrgModal from '~/components/admin/CreateOrgModal.vue'
 import SystemNotificationModal from '~/components/common/SystemNotificationModal.vue'
 import PermissionMatrix from '~/components/PermissionMatrix.vue'
 import UserRoleSelect from '~/components/UserRoleSelect.vue'
+import AppModal from '~/components/common/AppModal.vue'
 import { usePageTitle } from '~/composables/usePageTitle'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'

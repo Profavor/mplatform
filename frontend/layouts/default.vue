@@ -173,8 +173,8 @@
         </main>
 
         <!-- Personal Settings Modal -->
-        <va-modal v-model="showSettingsModal" :title="$t('personal_settings')" hide-default-actions>
-          <div style="min-width: 320px; padding: 1rem 1.5rem 1.5rem 1.5rem; overflow: hidden; box-sizing: border-box;">
+        <AppModal v-model="showSettingsModal" :title="$t('personal_settings')" icon="manage_accounts" hide-default-actions>
+          <div style="min-width: 320px; padding: 0.5rem 0.5rem 1rem 0.5rem; overflow: hidden; box-sizing: border-box;">
             <div class="mb-4" style="display: flex; flex-direction: column; gap: 0.5rem;">
               <span style="font-size: 0.85rem; color: var(--va-text-secondary); font-weight: 600;">
                 {{ $t('timezone') }}
@@ -208,21 +208,19 @@
               <ChangePasswordForm @success="handlePasswordChanged" @cancel="showSettingsModal = false" />
             </div>
           </div>
-        </va-modal>
+        </AppModal>
 
         <!-- Force Password Change Modal -->
-        <va-modal
+        <AppModal
           v-model="showForcePasswordChangeModal"
           :title="$t('force_password_change')"
+          icon="lock_reset"
           hide-default-actions
-          :prevent-click-outside="true"
-          :no-outside-dismiss="true"
-          :hide-close-button="true"
         >
-          <div style="padding: 1rem; min-width: 400px;">
+          <div style="padding: 0.5rem 0; min-width: 400px;">
             <ChangePasswordForm :force-mode="true" @success="handleForcePasswordChanged" />
           </div>
-        </va-modal>
+        </AppModal>
 
         <!-- Request Access Modal -->
         <DomainAccessRequestModal v-model="showRequestAccessModal" />
@@ -248,6 +246,7 @@ import NotificationBell from '~/components/layout/NotificationBell.vue'
 import InAppMessenger from '~/components/chat/InAppMessenger.vue'
 import SystemRadioWidget from '~/components/chat/SystemRadioWidget.vue'
 import AdminMusicControlModal from '~/components/chat/AdminMusicControlModal.vue'
+import AppModal from '~/components/common/AppModal.vue'
 import ChangePasswordForm from '~/components/auth/ChangePasswordForm.vue'
 import { useRoles } from '~/composables/useRoles'
 

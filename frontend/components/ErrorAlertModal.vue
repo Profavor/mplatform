@@ -1,12 +1,11 @@
 <template>
-  <va-modal
+  <AppModal
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
     :title="errorAlertTitle || (currentLocale === 'en' ? 'System Notification' : '시스템 알림')"
+    :icon="errorAlertType === 'success' ? 'check_circle' : (errorAlertType === 'warning' ? 'warning' : 'error')"
     hide-default-actions
     size="small"
-    :prevent-click-outside="true"
-    :no-outside-dismiss="true"
   >
     <div style="padding: 1.25rem 0; text-align: center;">
       <div
@@ -54,10 +53,11 @@
         </va-button>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup>
+import AppModal from '~/components/common/AppModal.vue'
 defineProps({
   modelValue: {
     type: Boolean,

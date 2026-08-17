@@ -186,6 +186,12 @@
                                       </table>
                                     </div>
                                   </template>
+                                  <template v-else-if="f.type === 'IMAGE' && (f.val?.before !== undefined ? f.val.before : f.val)">
+                                    <ImageUploader :model-value="f.val?.before !== undefined ? f.val.before : f.val" readonly />
+                                  </template>
+                                  <template v-else-if="(f.type === 'HTML_TEXT' || f.type === 'HTML') && (f.val?.before !== undefined ? f.val.before : f.val)">
+                                    <div class="custom-html-preview" style="max-height: 200px; overflow-y: auto; padding: 0.4rem 0.6rem; background: var(--va-background-element); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 4px; font-size: 0.85rem;" v-html="f.val?.before !== undefined ? f.val.before : f.val" />
+                                  </template>
                                   <template v-else-if="f.isEncrypted">
                                     <span v-if="(f.val?.before ?? f.val) === null || (f.val?.before ?? f.val) === undefined || (f.val?.before ?? f.val) === ''">{{ t('none') || '(없음)' }}</span>
                                     <span v-else>{{ decryptedValues[f.key]?.before || formatValue(f.val?.before ?? f.val, f.isEncrypted) }}</span>
@@ -231,15 +237,21 @@
                                       </table>
                                     </div>
                                   </template>
+                                  <template v-else-if="f.type === 'IMAGE' && (f.val?.after !== undefined ? f.val.after : f.val)">
+                                    <ImageUploader :model-value="f.val?.after !== undefined ? f.val.after : f.val" readonly />
+                                  </template>
+                                  <template v-else-if="(f.type === 'HTML_TEXT' || f.type === 'HTML') && (f.val?.after !== undefined ? f.val.after : f.val)">
+                                    <div class="custom-html-preview" style="max-height: 200px; overflow-y: auto; padding: 0.4rem 0.6rem; background: var(--va-background-element); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: 4px; font-size: 0.85rem;" v-html="f.val?.after !== undefined ? f.val.after : f.val" />
+                                  </template>
                                   <div v-else style="display:flex; align-items:center; justify-content:space-between; gap: 8px;">
                                     <template v-if="f.isEncrypted">
                                       <span style="word-break: break-all;">
                                         <template v-if="(f.val?.after ?? f.val) === null || (f.val?.after ?? f.val) === undefined || (f.val?.after ?? f.val) === ''">{{ t('none') || '(없음)' }}</template>
-                                        <template v-else>{{ decryptedValues[f.key] || formatValue(f.val?.after ?? f.val, f.isEncrypted) }}</template>
+                                        <template v-else>{{ getDecryptedFieldValue(f.key) || formatValue(f.val?.after ?? f.val, f.isEncrypted) }}</template>
                                       </span>
                                       <span v-if="hasPermission('record:unmask')" style="display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; color:#888; white-space:nowrap; flex-shrink:0;">
                                         <va-icon name="lock" size="small" />
-                                        <template v-if="!decryptedValues[f.key]">
+                                        <template v-if="!getDecryptedFieldValue(f.key)">
                                           <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary); font-weight:normal;" @click.stop="requestDecryptApprovalField(f.key)">
                                             {{ t('view_original') }}
                                           </span>
@@ -337,6 +349,7 @@ import { useI18n } from 'vue-i18n'
 import ApprovalSteps from './ApprovalSteps.vue'
 import ApprovalHistoryTimeline from './approval/ApprovalHistoryTimeline.vue'
 import UnmaskReasonModal from './UnmaskReasonModal.vue'
+import ImageUploader from './common/ImageUploader.vue'
 import { useToast } from 'vuestic-ui'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 const { t } = useI18n()
@@ -695,8 +708,23 @@ const decryptTimers = ref({})
 const decryptRemainingTime = ref({})
 const decryptIntervals = ref({})
 
+const normalizeKey = (k) => String(k || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+
+const getDecryptedFieldValue = (fieldKey) => {
+  if (!fieldKey || !decryptedValues.value) return undefined
+  if (decryptedValues.value[fieldKey] !== undefined) {
+    return decryptedValues.value[fieldKey]
+  }
+  const norm = normalizeKey(fieldKey)
+  for (const [k, v] of Object.entries(decryptedValues.value)) {
+    if (normalizeKey(k) === norm && v !== undefined) {
+      return v
+    }
+  }
+  return undefined
+}
+
 const requestDecryptApprovalField = (fieldKey) => {
-  if (!props.request || !props.request.id) return
   pendingDecryptField.value = fieldKey
   showUnmaskReasonModal.value = true
 }
@@ -710,23 +738,29 @@ const executeDecryptApprovalField = async (reason) => {
       method: 'POST',
       body: { fieldKeys: [fieldKey], accessReason: reason }
     })
-    if (res && res[fieldKey]) {
-      decryptedValues.value[fieldKey] = res[fieldKey]
-      
-      if (decryptTimers.value[fieldKey]) clearTimeout(decryptTimers.value[fieldKey])
-      if (decryptIntervals.value[fieldKey]) clearInterval(decryptIntervals.value[fieldKey])
-      
-      decryptRemainingTime.value[fieldKey] = 30
-      
-      decryptIntervals.value[fieldKey] = setInterval(() => {
-        if (decryptRemainingTime.value[fieldKey] > 0) {
-          decryptRemainingTime.value[fieldKey]--
-        }
-      }, 1000)
+    if (res && typeof res === 'object') {
+      const norm = normalizeKey(fieldKey)
+      const val = res[fieldKey] || res[fieldKey.toLowerCase()] || res[fieldKey.toUpperCase()] || (Object.entries(res).find(([k]) => normalizeKey(k) === norm) || [])[1]
+      if (val !== undefined && val !== null) {
+        decryptedValues.value[fieldKey] = val
+        decryptedValues.value[fieldKey.toLowerCase()] = val
+        decryptedValues.value[fieldKey.toUpperCase()] = val
+        
+        if (decryptTimers.value[fieldKey]) clearTimeout(decryptTimers.value[fieldKey])
+        if (decryptIntervals.value[fieldKey]) clearInterval(decryptIntervals.value[fieldKey])
+        
+        decryptRemainingTime.value[fieldKey] = 30
+        
+        decryptIntervals.value[fieldKey] = setInterval(() => {
+          if (decryptRemainingTime.value[fieldKey] > 0) {
+            decryptRemainingTime.value[fieldKey]--
+          }
+        }, 1000)
 
-      decryptTimers.value[fieldKey] = setTimeout(() => {
-        hideDecryptedField(fieldKey)
-      }, 30000)
+        decryptTimers.value[fieldKey] = setTimeout(() => {
+          hideDecryptedField(fieldKey)
+        }, 30000)
+      }
     }
   } catch (e) {
     console.error('Failed to decrypt field:', e)
@@ -737,16 +771,27 @@ const executeDecryptApprovalField = async (reason) => {
 }
 
 const hideDecryptedField = (fieldKey) => {
-  if (decryptTimers.value[fieldKey]) {
-    clearTimeout(decryptTimers.value[fieldKey])
-    delete decryptTimers.value[fieldKey]
+  const norm = normalizeKey(fieldKey)
+  const keysToDelete = []
+  for (const k of Object.keys(decryptedValues.value)) {
+    if (k === fieldKey || normalizeKey(k) === norm) {
+      keysToDelete.push(k)
+    }
   }
-  if (decryptIntervals.value[fieldKey]) {
-    clearInterval(decryptIntervals.value[fieldKey])
-    delete decryptIntervals.value[fieldKey]
-  }
-  delete decryptRemainingTime.value[fieldKey]
-  delete decryptedValues.value[fieldKey]
+  keysToDelete.push(fieldKey)
+
+  keysToDelete.forEach(k => {
+    if (decryptTimers.value[k]) {
+      clearTimeout(decryptTimers.value[k])
+      delete decryptTimers.value[k]
+    }
+    if (decryptIntervals.value[k]) {
+      clearInterval(decryptIntervals.value[k])
+      delete decryptIntervals.value[k]
+    }
+    delete decryptRemainingTime.value[k]
+    delete decryptedValues.value[k]
+  })
 }
 
 const loadRoleMap = async () => {
@@ -1129,10 +1174,12 @@ const getGroupedChangesList = (changesString, targetType) => {
 
   const map = new Map()
   let keysToProcess = []
+  const changedFieldsList = Array.isArray(parsed.changedFields) ? parsed.changedFields : []
+
   if (targetType === 'RECORD_UPDATE') {
     const beforeKeys = Object.keys(parsed.before || {})
     const afterKeys = Object.keys(parsed.after || {})
-    keysToProcess = [...new Set([...beforeKeys, ...afterKeys])]
+    keysToProcess = [...new Set([...changedFieldsList.map(k => k.toUpperCase()), ...beforeKeys, ...afterKeys])]
   } else {
     keysToProcess = Object.keys(parsed)
   }
@@ -1305,21 +1352,37 @@ const getGroupedChangesList = (changesString, targetType) => {
       const vAfter = displayValAfter || '-';
 
       let isActuallyChanged = false;
-      const strBefore = (vBefore === '-' || vBefore === null || vBefore === undefined) ? '' : String(vBefore).trim();
-      const strAfter = (vAfter === '-' || vAfter === null || vAfter === undefined) ? '' : String(vAfter).trim();
+      const isExplicitlyChanged = changedFieldsList.some(k => 
+        k.toUpperCase() === key.toUpperCase() || 
+        (f.key && k.toUpperCase() === String(f.key).toUpperCase())
+      );
 
-      if (strBefore !== strAfter) {
-        if (f.type === 'FILE') {
-          if (strAfter !== '' && strAfter !== '-') {
-            isActuallyChanged = true;
-          }
-        } else {
-          const multiBefore = parseMultilingual(valBefore);
-          const multiAfter = parseMultilingual(valAfter);
-          if (multiBefore && multiAfter && String(multiBefore).trim() === String(multiAfter).trim()) {
-            isActuallyChanged = false;
+      const isMaskedOrEncrypted = Boolean(f.isEncrypted) || 
+        String(vBefore).includes('***') || 
+        String(vAfter).includes('***') ||
+        String(key).toUpperCase().includes('NUMBER') ||
+        String(key).toUpperCase().includes('RESIDENT') ||
+        String(key).toUpperCase().includes('P_NUMBER');
+
+      if (isExplicitlyChanged || isMaskedOrEncrypted) {
+        isActuallyChanged = true;
+      } else {
+        const strBefore = (vBefore === '-' || vBefore === null || vBefore === undefined) ? '' : String(vBefore).trim();
+        const strAfter = (vAfter === '-' || vAfter === null || vAfter === undefined) ? '' : String(vAfter).trim();
+
+        if (strBefore !== strAfter) {
+          if (f.type === 'FILE') {
+            if (strAfter !== '' && strAfter !== '-') {
+              isActuallyChanged = true;
+            }
           } else {
-            isActuallyChanged = true;
+            const multiBefore = parseMultilingual(valBefore);
+            const multiAfter = parseMultilingual(valAfter);
+            if (multiBefore && multiAfter && String(multiBefore).trim() === String(multiAfter).trim()) {
+              isActuallyChanged = false;
+            } else {
+              isActuallyChanged = true;
+            }
           }
         }
       }
@@ -1351,6 +1414,20 @@ const getGroupedChangesList = (changesString, targetType) => {
       })
     })
     sectors = sectors.filter(s => s.groups.size > 0)
+
+    // Fallback: If all filtered out but parsed data exists, retain all original fields
+    if (sectors.length === 0 && sectorsArray.length > 0) {
+      sectors = sectorsArray;
+      sectors.forEach(s => {
+        s.groups.forEach(g => {
+          g.fields.forEach(f => {
+            if (f.val && typeof f.val === 'object') {
+              f.val.isChanged = true;
+            }
+          })
+        })
+      })
+    }
   }
 
   sectors.sort((a, b) => a.order - b.order)

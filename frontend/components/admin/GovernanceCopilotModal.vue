@@ -1,11 +1,12 @@
 <template>
-  <va-modal
+  <AppModal
     v-model="show"
     :title="$t('governance_copilot')"
+    icon="smart_toy"
     size="large"
     hide-default-actions
   >
-    <div style="display: flex; flex-direction: column; gap: 1rem; padding: 0.5rem; height: 520px;">
+    <div style="display: flex; flex-direction: column; gap: 1rem; padding: 0.5rem 0; height: 520px;">
       <va-alert color="primary" outline style="margin: 0; font-size: 0.85rem; line-height: 1.5;">
         🤖 {{ $t('governance_copilot_desc') }}
       </va-alert>
@@ -99,13 +100,14 @@
         </va-button>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCustomFetch } from '~/composables/useCustomFetch'
+import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps<{
   modelValue: boolean

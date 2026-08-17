@@ -1,11 +1,12 @@
 <template>
-  <va-modal
+  <AppModal
     v-model="show"
     :title="$t('golden_record')"
+    icon="star"
     size="large"
     hide-default-actions
   >
-    <div style="display: flex; flex-direction: column; gap: 1.25rem; padding: 0.5rem;">
+    <div style="display: flex; flex-direction: column; gap: 1.25rem; padding: 0.5rem 0;">
       <va-alert color="primary" outline style="margin: 0; font-size: 0.85rem; line-height: 1.5;">
         🌟 {{ $t('golden_record_desc') }}
       </va-alert>
@@ -43,26 +44,24 @@
               <thead>
                 <tr style="background: var(--va-background-element); border-bottom: 1px solid var(--va-background-border);">
                   <th style="padding: 0.5rem 0.75rem;">필드</th>
-                  <th style="padding: 0.5rem 0.75rem;">골든 채택 값</th>
-                  <th style="padding: 0.5rem 0.75rem; width: 110px;">{{ $t('chosen_source') }}</th>
-                  <th style="padding: 0.5rem 0.75rem; width: 110px;">채택 레코드</th>
+                  <th style="padding: 0.5rem 0.75rem; color: var(--va-success);">{{ $t('golden_value') }}</th>
+                  <th style="padding: 0.5rem 0.75rem;">{{ $t('source_record') }}</th>
+                  <th style="padding: 0.5rem 0.75rem;">선정 근거</th>
                 </tr>
               </thead>
               <tbody>
                 <tr
-                  v-for="choice in previewData.fieldChoices"
-                  :key="choice.fieldKey"
+                  v-for="(f, idx) in previewData.fieldChoices"
+                  :key="idx"
                   style="border-bottom: 1px solid var(--va-background-border);"
                 >
-                  <td style="padding: 0.5rem 0.75rem; font-weight: 700;">{{ choice.fieldKey }}</td>
-                  <td style="padding: 0.5rem 0.75rem; font-weight: 600; color: var(--va-primary);">
-                    {{ choice.chosenValue || '-' }}
+                  <td style="padding: 0.5rem 0.75rem; font-weight: 700;">{{ f.fieldName }}</td>
+                  <td style="padding: 0.5rem 0.75rem; font-weight: 700; color: var(--va-success);">
+                    {{ f.selectedGoldenValue }}
                   </td>
-                  <td style="padding: 0.5rem 0.75rem;">
-                    <va-badge :text="choice.sourceSystem" color="info" size="small" />
-                  </td>
-                  <td style="padding: 0.5rem 0.75rem; color: var(--va-text-secondary);">
-                    {{ choice.chosenRecordCode }}
+                  <td style="padding: 0.5rem 0.75rem; font-family: monospace;">{{ f.winningSourceRecordCode }}</td>
+                  <td style="padding: 0.5rem 0.75rem; font-size: 0.75rem; color: var(--va-text-secondary);">
+                    {{ f.reason }}
                   </td>
                 </tr>
               </tbody>
@@ -77,13 +76,14 @@
         </va-button>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCustomFetch } from '~/composables/useCustomFetch'
+import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps<{
   modelValue: boolean

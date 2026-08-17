@@ -294,8 +294,8 @@
     </div>
 
     <!-- Stack Trace Detail Modal -->
-    <va-modal v-model="showErrorModal" title="Error Stack Trace Detail" size="large" hide-default-actions>
-      <div v-if="selectedError" style="padding: 1rem; box-sizing: border-box; overflow: hidden;">
+    <AppModal v-model="showErrorModal" title="Error Stack Trace Detail" icon="bug_report" size="large" hide-default-actions>
+      <div v-if="selectedError" style="padding: 0.5rem 0; box-sizing: border-box; overflow: hidden;">
         <div class="mb-4">
           <strong>Request URI: </strong> <code>{{ selectedError.requestUri }}</code>
         </div>
@@ -310,10 +310,10 @@
           <pre class="stack-trace-view">{{ selectedError.stackTrace }}</pre>
         </div>
         <div class="d-flex justify-end mt-4">
-          <va-button color="secondary" @click="showErrorModal = false">Close</va-button>
+          <va-button preset="secondary" @click="showErrorModal = false">Close</va-button>
         </div>
       </div>
-    </va-modal>
+    </AppModal>
     <!-- 5. Sensitive Access Logs Tab -->
     <div v-if="activeTab === 'sensitive'">
       <!-- Decryption Logs Statistics Charts -->
@@ -404,6 +404,7 @@ import GovernanceCopilotModal from '~/components/admin/GovernanceCopilotModal.vu
 import PipelineSelfHealingModal from '~/components/admin/PipelineSelfHealingModal.vue'
 import DataFreshnessHeatmapModal from '~/components/admin/DataFreshnessHeatmapModal.vue'
 import MultiRegionConflictModal from '~/components/admin/MultiRegionConflictModal.vue'
+import AppModal from '~/components/common/AppModal.vue'
 
 const showCopilot = ref(false)
 const showSelfHealing = ref(false)

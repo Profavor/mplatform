@@ -1,11 +1,11 @@
 <template>
-  <va-modal
+  <AppModal
     v-model="modalVisible"
     hide-default-actions
+    v-model:fullscreen="isFullscreenModal"
     size="large"
-    :prevent-click-outside="true"
-    :no-outside-dismiss="true"
     class="custom-record-modal"
+    without-transitions
   >
     <template #header>
       <div class="custom-modal-header-wrapper" style="display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 32px; gap: 0.75rem; flex-wrap: wrap;">
@@ -19,11 +19,10 @@
           <span v-if="headerRecordTitle" style="font-size: 1.15rem; font-weight: 800; color: var(--va-primary); border-left: 2px solid var(--va-background-border); padding-left: 0.6rem; margin-left: 0.2rem;">
             {{ headerRecordTitle }}
           </span>
-
         </div>
 
-        <!-- Right: Chips & Badges -->
-        <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-right: 2.2rem;">
+        <!-- Right: Chips & Badges & Window Controls -->
+        <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-left: auto;">
 
           <!-- ID / 사번 칩 -->
           <va-chip
@@ -32,11 +31,10 @@
             color="primary"
             square
             outline
-            style="font-weight: 700; font-family: monospace; margin-top: 4px;"
+            style="font-weight: 700; font-family: monospace;"
           >
             {{ headerRecordId }}
           </va-chip>
-
 
           <!-- 분류 노드 칩 (괄호 정제됨) -->
           <va-chip
@@ -44,11 +42,10 @@
             size="small"
             color="info"
             square
-            style="font-weight: 600; margin-top: 4px;"
+            style="font-weight: 600;"
           >
             {{ cleanedNodeLabel }}
           </va-chip>
-
 
           <!-- 상태 뱃지 -->
           <va-chip
@@ -56,7 +53,7 @@
             :color="recordStatus === 'ACTIVE' ? 'success' : (recordStatus === 'PENDING_APPROVAL' ? 'warning' : 'danger')"
             size="small"
             square
-            style="font-weight: 800; margin-top: 4px;"
+            style="font-weight: 800;"
           >
             {{ recordStatus === 'PENDING_APPROVAL' ? (t('pending_approval')) : (recordStatus === 'ACTIVE' ? (t('active_status')) : (t('deleted_status'))) }}
           </va-chip>
@@ -64,7 +61,19 @@
       </div>
     </template>
 
-    <div style="height: 60vh; min-height: 520px; max-height: 65vh; overflow: hidden; padding: 1rem; box-sizing: border-box; width: 100%; display: flex; flex-direction: column;">
+    <div 
+      :style="{ 
+        height: isFullscreenModal ? 'calc(100vh - 160px)' : '60vh', 
+        minHeight: '520px', 
+        maxHeight: isFullscreenModal ? 'calc(100vh - 160px)' : '65vh', 
+        overflow: 'hidden', 
+        padding: '1rem', 
+        boxSpacing: 'border-box', 
+        width: '100%', 
+        display: 'flex', 
+        flexDirection: 'column' 
+      }"
+    >
 
 
 
@@ -160,7 +169,7 @@
                           <!-- Decrypt Button for Details -->
                           <span v-if="(field.isEncrypted || field.encryptionType) && (localRecord[field.key] !== undefined && localRecord[field.key] !== null && localRecord[field.key] !== '')" style="margin-left:auto; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; color:#888;">
                             <va-icon name="lock" size="small" />
-                            <template v-if="!decryptedValues[field.key]">
+                            <template v-if="getDecryptedFieldValue(field.key) === undefined">
                               <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary);" @click.stop="requestDecryptRecordField(field.key)">
                                 {{ t('view_original') }}
                               </span>
@@ -169,8 +178,8 @@
                               <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary);" @click.stop="hideDecryptedField(field.key)">
                                 {{ t('hide_original') }}
                               </span>
-                              <span v-if="decryptRemainingTime[field.key]" style="margin-left:4px; font-variant-numeric: tabular-nums;">
-                                (00:{{ String(decryptRemainingTime[field.key]).padStart(2, '0') }})
+                              <span v-if="getDecryptRemainingTime(field.key)" style="margin-left:4px; font-variant-numeric: tabular-nums;">
+                                (00:{{ String(getDecryptRemainingTime(field.key)).padStart(2, '0') }})
                               </span>
                             </template>
                             <va-icon v-if="decryptingFields[field.key]" name="sync" size="small" spin />
@@ -179,7 +188,7 @@
 
                         <va-input
                           v-if="['TEXT', 'NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER', 'DATE'].includes(field.type)"
-                          :model-value="field.type === 'DATE' && !isEditing ? formatDateForDisplay(decryptedValues[field.key] || localRecord[field.key]) : (decryptedValues[field.key] || localRecord[field.key])"
+                          :model-value="field.type === 'DATE' && !isEditing ? formatDateForDisplay(getDecryptedFieldValue(field.key) ?? localRecord[field.key]) : (getDecryptedFieldValue(field.key) ?? localRecord[field.key])"
                           @update:model-value="(val) => handleMaskedInput(field, val)"
                           :type="field.type === 'DATE' ? (isEditing ? 'date' : 'text') : (['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type) ? 'number' : 'text')"
                           class="w-full"
@@ -218,6 +227,16 @@
                           style="background-color: #f4f6f8;"
                         />
 
+                        <!-- HTML Editor (Rich Text) -->
+                        <div v-else-if="field.type === 'HTML_TEXT' || field.type === 'HTML'" class="w-full">
+                          <HtmlEditor
+                            v-model="localRecord[field.key]"
+                            :readonly="!isEditing || evalConditionRule(field, localRecord).readOnly"
+                            :disabled="isEditing && evalConditionRule(field, localRecord).disabled"
+                            :placeholder="getTranslatedName(field.hint) || $t('editor_placeholder')"
+                          />
+                        </div>
+
                         <va-select
                           v-else-if="['SELECT', 'MULTI_SELECT'].includes(field.type)"
                           v-model="localRecord[field.key]"
@@ -234,6 +253,16 @@
                           class="w-full"
                           :readonly="!isEditing"
                         />
+
+                        <!-- Image Uploader & Carousel Gallery -->
+                        <div v-else-if="field.type === 'IMAGE'" class="w-full">
+                          <ImageUploader
+                            v-model="localRecord[field.key]"
+                            :multiple="field.isMultiValue"
+                            :readonly="!isEditing || evalConditionRule(field, localRecord).readOnly"
+                            :disabled="isEditing && evalConditionRule(field, localRecord).disabled"
+                          />
+                        </div>
 
                         <div v-else-if="field.type === 'FILE'" class="w-full">
                           <div v-if="!isEditing" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
@@ -292,7 +321,7 @@
                         <div v-else-if="field.type === 'DATE_RANGE'" class="w-full" style="display: flex; gap: 0.5rem; flex-direction: row; align-items: center; min-width: 0;">
                           <template v-if="!isEditing">
                             <va-input
-                              :model-value="(decryptedValues[field.key] || localRecord[field.key] || '').replace('~', ' ~ ')"
+                              :model-value="(getDecryptedFieldValue(field.key) ?? localRecord[field.key] ?? '').replace('~', ' ~ ')"
                               readonly
                               class="w-full"
                             />
@@ -464,7 +493,7 @@
                         </div>
                         <va-input
                           v-else
-                          :model-value="decryptedValues[field.key] || localRecord[field.key]"
+                          :model-value="getDecryptedFieldValue(field.key) ?? localRecord[field.key]"
                           @update:model-value="(val) => { localRecord[field.key] = val }"
                           type="text"
                           class="w-full"
@@ -587,7 +616,7 @@
                   <va-card-content v-if="log.changeType === 'UPDATE' && log.previousData && log.newData" style="padding: 1rem; background: var(--va-background-secondary);">
                     <!-- Inline Diff Rendering -->
                     <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                      <div v-for="fieldKey in getChangedKeys(log.previousData, log.newData)" :key="fieldKey" style="display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.85rem;">
+                      <div v-for="fieldKey in getChangedKeys(log.previousData, log.newData, log)" :key="fieldKey" style="display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.85rem;">
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                           <span style="font-weight: 700; color: var(--va-text-primary); min-width: 100px;">
                             {{ getFieldLabelByKey(fieldKey) }}:
@@ -595,16 +624,16 @@
                           <!-- If NOT JSON and NOT FILE Type -->
                           <div v-if="getFieldByKey(fieldKey)?.type !== 'JSON' && getFieldByKey(fieldKey)?.type !== 'FILE'" style="display: flex; align-items: center; gap: 0.5rem; flex: 1; flex-wrap: wrap;">
                             <span style="text-decoration: line-through; color: var(--va-danger); background: rgba(229, 57, 53, 0.1); padding: 0.1rem 0.4rem; border-radius: 4px;">
-                              {{ decryptedValues[log.id + '_' + fieldKey] || formatDiffValue(fieldKey, safeParseJson(log.previousData)[fieldKey]) }}
+                              {{ getDecryptedFieldValue(log.id + '_' + fieldKey) || formatDiffValue(fieldKey, safeParseJson(log.previousData)[fieldKey]) }}
                             </span>
                             <va-icon name="arrow_forward" size="small" color="secondary" />
                             <span style="color: var(--va-success); background: rgba(30, 203, 114, 0.1); padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 600;">
-                              {{ decryptedValues[log.id + '_' + fieldKey] || formatDiffValue(fieldKey, safeParseJson(log.newData)[fieldKey]) }}
+                              {{ getDecryptedFieldValue(log.id + '_' + fieldKey) || formatDiffValue(fieldKey, safeParseJson(log.newData)[fieldKey]) }}
                             </span>
                             <!-- Decrypt Button for History -->
                             <span v-if="getFieldByKey(fieldKey)?.isEncrypted" style="margin-left:8px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; color:#888;">
                               <va-icon name="lock" size="small" />
-                              <template v-if="!decryptedValues[log.id + '_' + fieldKey]">
+                              <template v-if="getDecryptedFieldValue(log.id + '_' + fieldKey) === undefined">
                                 <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary);" @click.stop="requestDecryptHistoryField(log.id, fieldKey)">
                                   {{ t('view_original') }}
                                 </span>
@@ -613,8 +642,8 @@
                                 <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary);" @click.stop="hideDecryptedField(log.id + '_' + fieldKey)">
                                   {{ t('hide_original') }}
                                 </span>
-                                <span v-if="decryptRemainingTime[log.id + '_' + fieldKey]" style="margin-left:4px; font-variant-numeric: tabular-nums;">
-                                  (00:{{ String(decryptRemainingTime[log.id + '_' + fieldKey]).padStart(2, '0') }})
+                                <span v-if="getDecryptRemainingTime(log.id + '_' + fieldKey)" style="margin-left:4px; font-variant-numeric: tabular-nums;">
+                                  (00:{{ String(getDecryptRemainingTime(log.id + '_' + fieldKey)).padStart(2, '0') }})
                                 </span>
                               </template>
                               <va-icon v-if="decryptingFields[log.id + '_' + fieldKey]" name="sync" size="small" spin />
@@ -739,7 +768,7 @@
       </va-button>
       <va-button @click="handleClose">{{ t('btn_close') }}</va-button>
     </div>
-  </va-modal>
+  </AppModal>
 
 
   <UnmaskReasonModal
@@ -761,12 +790,12 @@
   />
 
   <!-- Modal: Assign Secondary Classification Nodes -->
-  <va-modal
+  <AppModal
     v-model="showAssignSecondaryModal"
     :title="$t('axis.assign_modal_title')"
+    icon="account_tree"
     size="small"
     hide-default-actions
-    no-outside-dismiss
   >
     <div style="padding: 0.5rem 0;">
       <div v-if="loadingAssignAxes" style="text-align: center; padding: 2rem;">
@@ -798,7 +827,7 @@
         <va-button color="primary" type="button" :loading="savingSecondaryNodes" @click="saveSecondaryNodesAssignment">{{ $t('vuestic.save') }}</va-button>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup>
@@ -809,6 +838,10 @@ import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { useFileDownloader } from '~/composables/useFileDownloader'
 import UnmaskReasonModal from '../UnmaskReasonModal.vue'
 import UnmergePreviewModal from './UnmergePreviewModal.vue'
+import HtmlEditor from '~/components/common/HtmlEditor.vue'
+import ImageUploader from '~/components/common/ImageUploader.vue'
+import ModalControls from '~/components/common/ModalControls.vue'
+import AppModal from '~/components/common/AppModal.vue'
 
 const { downloadFileWithAuth } = useFileDownloader()
 
@@ -891,7 +924,10 @@ const safeParseJson = (val) => {
   try { return JSON.parse(val); } catch (e) { return {}; }
 };
 
-const getChangedKeys = (prev, curr) => {
+const getChangedKeys = (prev, curr, log) => {
+  if (log && Array.isArray(log.changedFields) && log.changedFields.length > 0) {
+    return log.changedFields;
+  }
   if (!prev || !curr) return [];
   const prevObj = safeParseJson(prev);
   const currObj = safeParseJson(curr);
@@ -1169,6 +1205,7 @@ const modalVisible = computed({
 })
 
 const isEditing = ref(props.isEditingRecord)
+const isFullscreenModal = ref(false)
 watch(
   () => props.isEditingRecord,
   (val) => {
@@ -1193,6 +1230,36 @@ const decryptingFields = ref({})
 const decryptTimers = ref({})
 const decryptRemainingTime = ref({})
 const decryptIntervals = ref({})
+
+const normalizeKey = (k) => String(k || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+
+const getDecryptedFieldValue = (fieldKey) => {
+  if (!fieldKey || !decryptedValues.value) return undefined
+  if (decryptedValues.value[fieldKey] !== undefined) {
+    return decryptedValues.value[fieldKey]
+  }
+  const norm = normalizeKey(fieldKey)
+  for (const [k, v] of Object.entries(decryptedValues.value)) {
+    if (normalizeKey(k) === norm && v !== undefined) {
+      return v
+    }
+  }
+  return undefined
+}
+
+const getDecryptRemainingTime = (fieldKey) => {
+  if (!fieldKey || !decryptRemainingTime.value) return 0
+  if (decryptRemainingTime.value[fieldKey]) {
+    return decryptRemainingTime.value[fieldKey]
+  }
+  const norm = normalizeKey(fieldKey)
+  for (const [k, v] of Object.entries(decryptRemainingTime.value)) {
+    if (normalizeKey(k) === norm && v) {
+      return v
+    }
+  }
+  return 0
+}
 
 const requestDecryptRecordField = (fieldKey) => {
   pendingDecryptAction.value = { type: 'record', fieldKey }
@@ -1223,13 +1290,16 @@ const executeDecryptRecordField = async (fieldKey, reason) => {
     })
     if (res && typeof res === 'object') {
       Object.assign(decryptedValues.value, res)
+      const norm = normalizeKey(fieldKey)
       const decryptedVal = res[fieldKey] 
         || res[fieldKey.toLowerCase()] 
         || res[fieldKey.toUpperCase()] 
-        || (Object.entries(res).find(([k]) => k.toLowerCase() === fieldKey.toLowerCase()) || [])[1]
+        || (Object.entries(res).find(([k]) => normalizeKey(k) === norm) || [])[1]
 
       if (decryptedVal !== undefined && decryptedVal !== null) {
         decryptedValues.value[fieldKey] = decryptedVal
+        decryptedValues.value[fieldKey.toLowerCase()] = decryptedVal
+        decryptedValues.value[fieldKey.toUpperCase()] = decryptedVal
         
         if (decryptTimers.value[fieldKey]) clearTimeout(decryptTimers.value[fieldKey])
         if (decryptIntervals.value[fieldKey]) clearInterval(decryptIntervals.value[fieldKey])
@@ -1270,23 +1340,27 @@ const executeDecryptHistoryField = async (historyId, fieldKey, reason) => {
       headers: { Authorization: `Bearer ${token}` },
       body: { fieldKeys: [fieldKey], accessReason: reason }
     })
-    if (res && res[fieldKey]) {
-      decryptedValues.value[key] = res[fieldKey]
-      
-      if (decryptTimers.value[key]) clearTimeout(decryptTimers.value[key])
-      if (decryptIntervals.value[key]) clearInterval(decryptIntervals.value[key])
-      
-      decryptRemainingTime.value[key] = 30
-      
-      decryptIntervals.value[key] = setInterval(() => {
-        if (decryptRemainingTime.value[key] > 0) {
-          decryptRemainingTime.value[key]--
-        }
-      }, 1000)
+    if (res && typeof res === 'object') {
+      const norm = normalizeKey(fieldKey)
+      const val = res[fieldKey] || res[fieldKey.toLowerCase()] || res[fieldKey.toUpperCase()] || (Object.entries(res).find(([k]) => normalizeKey(k) === norm) || [])[1]
+      if (val !== undefined && val !== null) {
+        decryptedValues.value[key] = val
+        
+        if (decryptTimers.value[key]) clearTimeout(decryptTimers.value[key])
+        if (decryptIntervals.value[key]) clearInterval(decryptIntervals.value[key])
+        
+        decryptRemainingTime.value[key] = 30
+        
+        decryptIntervals.value[key] = setInterval(() => {
+          if (decryptRemainingTime.value[key] > 0) {
+            decryptRemainingTime.value[key]--
+          }
+        }, 1000)
 
-      decryptTimers.value[key] = setTimeout(() => {
-        hideDecryptedField(key)
-      }, 30000)
+        decryptTimers.value[key] = setTimeout(() => {
+          hideDecryptedField(key)
+        }, 30000)
+      }
     }
   } catch (e) {
     console.error('Failed to decrypt history field:', e)
@@ -1297,16 +1371,27 @@ const executeDecryptHistoryField = async (historyId, fieldKey, reason) => {
 }
 
 const hideDecryptedField = (key) => {
-  if (decryptTimers.value[key]) {
-    clearTimeout(decryptTimers.value[key])
-    delete decryptTimers.value[key]
+  const norm = normalizeKey(key)
+  const keysToDelete = []
+  for (const k of Object.keys(decryptedValues.value)) {
+    if (k === key || normalizeKey(k) === norm || k.endsWith('_' + key)) {
+      keysToDelete.push(k)
+    }
   }
-  if (decryptIntervals.value[key]) {
-    clearInterval(decryptIntervals.value[key])
-    delete decryptIntervals.value[key]
-  }
-  delete decryptRemainingTime.value[key]
-  delete decryptedValues.value[key]
+  keysToDelete.push(key)
+
+  keysToDelete.forEach(k => {
+    if (decryptTimers.value[k]) {
+      clearTimeout(decryptTimers.value[k])
+      delete decryptTimers.value[k]
+    }
+    if (decryptIntervals.value[k]) {
+      clearInterval(decryptIntervals.value[k])
+      delete decryptIntervals.value[k]
+    }
+    delete decryptRemainingTime.value[k]
+    delete decryptedValues.value[k]
+  })
 }
 
 const secondaryNodes = ref([])
@@ -1462,8 +1547,13 @@ const openDomainRefPicker = (fieldKey) => {
 
 watch(() => props.show, (val) => {
   if (val) {
+    isEditing.value = props.isEditingRecord || false
+    activeMainTab.value = 'details'
     localRecord.value = props.record ? { ...props.record } : {}
     loadSecondaryNodes()
+  } else {
+    isEditing.value = false
+    isFullscreenModal.value = false
   }
 })
 
@@ -2114,6 +2204,33 @@ const removeFile = (fieldKey, index) => {
 <style scoped>
 .mb-4 { margin-bottom: 1rem; }
 .w-full { width: 100%; }
+
+.modal-window-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 0.5rem;
+}
+
+.modal-control-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: all 0.15s ease;
+}
+
+.modal-control-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.15);
+}
 
 .main-segmented-tabs {
   background: rgba(0, 0, 0, 0.05);

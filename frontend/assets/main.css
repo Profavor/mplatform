@@ -44,54 +44,11 @@
   letter-spacing: -0.02em !important;
 }
 
-/* Minimalist Upper Right Close (X) Button */
+/* Hide Vuestic's built-in duplicate modal close button (replaced by ModalControls) */
 .va-modal__close,
-.modal-close-btn {
-  position: absolute !important;
-  top: 0.35rem !important;
-  right: 1.25rem !important;
-
-  z-index: 1000 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  width: 32px !important;
-  height: 32px !important;
-  border-radius: 8px !important;
-  border: none !important;
-  background: transparent !important;
-  color: var(--va-text-secondary, #9ca3af) !important;
-  font-size: 1.15rem !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease-in-out !important;
-}
-
-.va-modal__close:hover,
-.modal-close-btn:hover {
-  background: rgba(0, 0, 0, 0.06) !important;
-  color: var(--va-text-primary, #111827) !important;
-}
-
-.va-modal__header:active,
-.modal-header-banner:active,
-.modal-header:active {
-  cursor: grabbing !important;
-}
-
-/* Custom Record Modal Specific Overrides */
-.va-modal__header,
-.modal-header {
-  padding: 0 0 10px 0 !important;
-}
-
-.custom-modal-header-wrapper {
-  margin-top: -20px !important;
-  margin-left: -20px !important;
-}
-
+.va-modal__close-button,
 .custom-record-modal .va-modal__close {
-  top: 0.35rem !important;
-  right: 1.25rem !important;
+  display: none !important;
 }
 
 /* AG-Grid Comprehensive Theme & Dark Mode Integration */
@@ -113,6 +70,74 @@
   --ag-row-hover-color: rgba(255, 255, 255, 0.06) !important;
   --ag-selected-row-background-color: rgba(25, 118, 210, 0.25) !important;
   --ag-odd-row-background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* Unified Modal Header Control Buttons (Download, Maximize, Close, etc.) */
+.modal-window-controls,
+.app-modal-controls-wrap {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  user-select: none !important;
+  vertical-align: middle !important;
+}
+
+.modal-control-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: rgba(255, 255, 255, 0.14) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  opacity: 0.9 !important;
+  transition: all 0.15s ease !important;
+  outline: none !important;
+  color: var(--va-text-primary, #ffffff) !important;
+}
+
+.modal-control-btn:hover {
+  opacity: 1 !important;
+  background: rgba(255, 255, 255, 0.28) !important;
+  border-color: rgba(255, 255, 255, 0.45) !important;
+  transform: translateY(-1px) !important;
+}
+
+.modal-control-btn:active {
+  transform: scale(0.94) !important;
+}
+
+.modal-control-btn:focus-visible {
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.5) !important;
+}
+
+/* Light mode support for modal control buttons when modal background is light */
+.va-modal__dialog:not(.image-lightbox-modal) .modal-control-btn {
+  background: var(--va-background-element, rgba(0, 0, 0, 0.06));
+  border: 1px solid var(--va-background-border, rgba(0, 0, 0, 0.15));
+  color: var(--va-text-primary, #1e293b);
+}
+
+.va-modal__dialog:not(.image-lightbox-modal) .modal-control-btn:hover {
+  background: var(--va-background-element, rgba(0, 0, 0, 0.14));
+  border-color: var(--va-background-border, rgba(0, 0, 0, 0.25));
+}
+
+.image-lightbox-modal .modal-control-btn,
+.ag-theme-quartz-dark .modal-control-btn {
+  background: rgba(255, 255, 255, 0.18) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  color: #ffffff !important;
+}
+
+.image-lightbox-modal .modal-control-btn:hover,
+.ag-theme-quartz-dark .modal-control-btn:hover {
+  background: rgba(255, 255, 255, 0.35) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
 }
 
 

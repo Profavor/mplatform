@@ -1,11 +1,12 @@
 <template>
-  <va-modal
+  <AppModal
     v-model="show"
     :title="$t('bulk_import')"
+    icon="upload_file"
     size="large"
     hide-default-actions
   >
-    <div style="display: flex; flex-direction: column; gap: 1.25rem; padding: 0.5rem;">
+    <div style="display: flex; flex-direction: column; gap: 1.25rem; padding: 0.5rem 0;">
       <va-alert color="info" outline style="margin: 0; font-size: 0.85rem; line-height: 1.5;">
         💡 {{ $t('bulk_import_desc') }}
       </va-alert>
@@ -93,13 +94,13 @@
         </div>
       </div>
 
-      <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
+      <div style="display: flex; justify-content: flex-end; margin-top: 0.5rem;">
         <va-button preset="secondary" @click="show = false">
           {{ $t('close') }}
         </va-button>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
@@ -107,6 +108,7 @@ import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vuestic-ui'
 import { useCustomFetch } from '~/composables/useCustomFetch'
+import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps<{
   modelValue: boolean

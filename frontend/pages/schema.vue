@@ -1398,9 +1398,10 @@ const handleNodeEdit = async (node) => {
       ...targetNode, 
       name: { ...(targetNode.originalNameMap || {ko:'', en:''}) },
       description: { ko: pDesc.ko || '', en: pDesc.en || '' },
-      identifierFieldId: rawDomain.identifierFieldId,
-      displayNameFieldId: rawDomain.displayNameFieldId,
-      descriptionFieldId: rawDomain.descriptionFieldId,
+      identifierFieldId: rawDomain.identifierFieldId || null,
+      displayNameFieldId: rawDomain.displayNameFieldId || null,
+      descriptionFieldId: rawDomain.descriptionFieldId || null,
+      imageFieldId: rawDomain.imageFieldId || null,
       icon: rawDomain.icon || '',
       sortOrder: rawDomain.sortOrder || 0,
       numberingPattern: rawDomain.numberingPattern || '',
@@ -1421,7 +1422,7 @@ const handleNodeEdit = async (node) => {
 
 const openDomainModal = () => {
   isEditMode.value = false
-  newDomain.value = { name: {ko:'', en:''}, description: {ko:'', en:''}, identifierFieldId: null, displayNameFieldId: null, descriptionFieldId: null, icon: '', sortOrder: 0, numberingPattern: '', autoDqScanEnabled: false }
+  newDomain.value = { name: {ko:'', en:''}, description: {ko:'', en:''}, identifierFieldId: null, displayNameFieldId: null, descriptionFieldId: null, imageFieldId: null, icon: '', sortOrder: 0, numberingPattern: '', autoDqScanEnabled: false }
   showDomainModal.value = true
 }
 
@@ -1597,6 +1598,7 @@ const saveDomain = async () => {
       identifierFieldId: extractId(newDomain.value.identifierFieldId),
       displayNameFieldId: extractId(newDomain.value.displayNameFieldId),
       descriptionFieldId: extractId(newDomain.value.descriptionFieldId),
+      imageFieldId: extractId(newDomain.value.imageFieldId),
       icon: newDomain.value.icon || '',
       sortOrder: parseInt(newDomain.value.sortOrder) || 0,
       numberingPattern: newDomain.value.numberingPattern || '',

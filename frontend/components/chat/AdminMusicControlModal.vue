@@ -1,7 +1,8 @@
 <template>
-  <va-modal
+  <AppModal
     v-model="modelValue"
     :title="`🎵 ${$t('messenger.radioDjTitle')}`"
+    icon="radio"
     hide-default-actions
     size="large"
   >
@@ -105,11 +106,12 @@
     <template #footer>
       <va-button preset="secondary" @click="modelValue = false">{{ $t('messenger.closeBtn') }}</va-button>
     </template>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps<{
   modelValue: boolean

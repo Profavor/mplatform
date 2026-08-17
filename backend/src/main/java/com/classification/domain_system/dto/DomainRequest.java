@@ -12,6 +12,7 @@ public class DomainRequest {
     private UUID identifierFieldId;
     private UUID displayNameFieldId;
     private UUID descriptionFieldId;
+    private UUID imageFieldId;
     private String icon;
     private Integer sortOrder;
     private String numberingPattern;

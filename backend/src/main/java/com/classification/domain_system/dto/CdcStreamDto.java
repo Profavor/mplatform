@@ -22,6 +22,7 @@ public class CdcStreamDto {
         private String sourceConnector;
         private Map<String, Object> beforePayload;
         private Map<String, Object> afterPayload;
+        private List<String> changedFields;
     }
 
     @Getter

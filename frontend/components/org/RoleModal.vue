@@ -1,14 +1,13 @@
 <template>
-  <va-modal
+  <AppModal
     :model-value="modelValue"
     :title="mode === 'create' ? t('create_role_title') : t('edit_role_title')"
+    icon="admin_panel_settings"
     hide-default-actions
     size="medium"
-    :prevent-click-outside="true"
-    :no-outside-dismiss="true"
     @update:model-value="$emit('update:modelValue', $event)"
   >
-    <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1.1rem;">
+    <div style="padding: 0.5rem 0; display: flex; flex-direction: column; gap: 1.1rem;">
       <va-input
         v-model="roleForm.name"
         :label="t('role_code_label')"
@@ -47,11 +46,12 @@
         <va-button color="primary" :loading="loading" @click="$emit('save')">{{ mode === 'create' ? t('save_role') : t('save') }}</va-button>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup>
 import { useI18n } from 'vue-i18n'
+import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

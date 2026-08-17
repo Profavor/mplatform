@@ -1,13 +1,14 @@
 <template>
-  <va-modal
+  <AppModal
     :model-value="modelValue"
-    @update:model-value="$emit('update:modelValue', $event)"
+    v-model:fullscreen="isFullscreenModal"
     size="large"
-    close-button
     hide-default-actions
+    without-transitions
+    @update:model-value="$emit('update:modelValue', $event)"
   >
     <template #header>
-      <div v-if="selectedPendingStep?.approvalRequest" style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%; padding-right: 2.5rem;">
+      <div v-if="selectedPendingStep?.approvalRequest" style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;">
         <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
           <div style="display: flex; align-items: center; gap: 0.65rem;">
             <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
@@ -17,15 +18,17 @@
             <va-badge :text="getRequestTypeLabel(selectedPendingStep.approvalRequest?.targetType)" :color="getRequestTypeColor(selectedPendingStep.approvalRequest?.targetType)" />
           </div>
 
-          <div style="font-size: 0.85rem; color: var(--va-text-secondary); display: flex; align-items: center; gap: 0.75rem;">
-            <span v-if="selectedPendingStep.approvalRequest">
-              <va-icon name="person" size="small" style="margin-right: 2px;" />
-              {{ t('requester') }}: <strong>{{ getRequesterName(selectedPendingStep.approvalRequest) }}</strong>
-            </span>
-            <span>
-              <va-icon name="schedule" size="small" style="margin-right: 2px;" />
-              {{ formatDate(selectedPendingStep.approvalRequest?.createdAt) }}
-            </span>
+          <div style="display: flex; align-items: center; gap: 0.75rem; margin-left: auto;">
+            <div style="font-size: 0.85rem; color: var(--va-text-secondary); display: flex; align-items: center; gap: 0.75rem;">
+              <span v-if="selectedPendingStep.approvalRequest">
+                <va-icon name="person" size="small" style="margin-right: 2px;" />
+                {{ t('requester') }}: <strong>{{ getRequesterName(selectedPendingStep.approvalRequest) }}</strong>
+              </span>
+              <span>
+                <va-icon name="schedule" size="small" style="margin-right: 2px;" />
+                {{ formatDate(selectedPendingStep.approvalRequest?.createdAt) }}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -43,7 +46,7 @@
       </div>
     </template>
 
-    <div v-if="selectedPendingStep" style="padding: 1rem 0 0 0;">
+    <div v-if="selectedPendingStep" :style="{ padding: '1rem 0 0 0', maxHeight: isFullscreenModal ? 'calc(100vh - 160px)' : '75vh', overflowY: 'auto' }">
       <!-- Shared Approval Details Viewer (Collapsible requestedData Accordion) -->
       <ApprovalDetailsViewer v-if="selectedPendingStep.approvalRequest" :request="selectedPendingStep.approvalRequest" />
 
@@ -61,16 +64,21 @@
         <va-button color="danger" icon="close" preset="secondary" style="flex: 1;" @click="$emit('single-action', selectedPendingStep.id, 'reject')">{{ t('reject') }}</va-button>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useApprovalEnricher } from '~/composables/useApprovalEnricher'
 import ApprovalDetailsViewer from '~/components/ApprovalDetailsViewer.vue'
+import ModalControls from '~/components/common/ModalControls.vue'
+import AppModal from '~/components/common/AppModal.vue'
 
 const { t } = useI18n()
 const { getRequestTypeLabel, getRequestTypeColor, getRequesterName, formatDate, getClassificationName } = useApprovalEnricher()
+
+const isFullscreenModal = ref(false)
 
 defineProps({
   modelValue: { type: Boolean, default: false },

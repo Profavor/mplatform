@@ -20,6 +20,9 @@ public class CdcStreamingService {
 
     private final RecordHistoryRepository recordHistoryRepository;
     private final ObjectMapper objectMapper;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    @org.springframework.context.annotation.Lazy
+    private RecordService recordService;
 
     @Transactional(readOnly = true)
     public CdcStreamDto.CdcStreamResponse getLiveCdcEvents(UUID domainId, UUID recordId) {
@@ -53,8 +56,17 @@ public class CdcStreamingService {
             String eventId = "CDC-" + (historyIdStr.length() >= 8 ? historyIdStr.substring(0, 8) : historyIdStr);
             String recordCode = "REC-" + (recordIdStr.length() >= 8 ? recordIdStr.substring(0, 8) : recordIdStr);
 
-            String domainCode = "DOM-" + (domainId.toString().length() >= 8 ? domainId.toString().substring(0, 8) : domainId.toString());
+            String domainCode = "DOM-" + (domainId != null ? (domainId.toString().length() >= 8 ? domainId.toString().substring(0, 8) : domainId.toString()) : "GLOBAL");
             String connector = (h.getSourceSystem() != null && !h.getSourceSystem().isBlank()) ? h.getSourceSystem() : "postgres-wal-cdc";
+
+            UUID nodeId = (h.getRecord() != null && h.getRecord().getNode() != null) ? h.getRecord().getNode().getId() : null;
+            String rawPrev = h.getPreviousData();
+            String rawNew = h.getNewData();
+
+            List<String> changedFields = (recordService != null) ? recordService.computeChangedFieldKeys(rawPrev, rawNew) : Collections.emptyList();
+
+            String maskedPrev = (nodeId != null && recordService != null) ? recordService.processDataForRead(nodeId, rawPrev) : rawPrev;
+            String maskedNew = (nodeId != null && recordService != null) ? recordService.processDataForRead(nodeId, rawNew) : rawNew;
 
             events.add(CdcStreamDto.CdcEventItem.builder()
                     .eventId(eventId)
@@ -63,8 +75,9 @@ public class CdcStreamingService {
                     .domainCode(domainCode)
                     .recordCode(recordCode)
                     .sourceConnector(connector)
-                    .beforePayload(parseJsonToMap(h.getPreviousData()))
-                    .afterPayload(parseJsonToMap(h.getNewData()))
+                    .beforePayload(parseJsonToMap(maskedPrev))
+                    .afterPayload(parseJsonToMap(maskedNew))
+                    .changedFields(changedFields)
                     .build());
         }
 

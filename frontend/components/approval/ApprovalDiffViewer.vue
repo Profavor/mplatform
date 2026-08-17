@@ -51,23 +51,27 @@
                               <div style="background-color: rgba(229, 57, 53, 0.1); border-bottom: 1px solid rgba(229, 57, 53, 0.2); padding: 0.75rem 1rem; font-size: 0.85rem; display: flex; align-items: flex-start; gap: 0.5rem;">
                                 <va-icon name="remove_circle_outline" color="danger" size="small" style="margin-top: 2px;" />
                                 <div style="color: var(--va-danger); word-break: break-all; width: 100%;">
-                                  {{ formatVal(f.val.before) }}
+                                  <div v-if="typeof f.val.before === 'string' && (f.val.before.includes('<p>') || f.val.before.includes('<h') || f.val.before.includes('<ul>'))" v-html="f.val.before" />
+                                  <span v-else>{{ formatVal(f.val.before) }}</span>
                                 </div>
                               </div>
                               <div style="background-color: rgba(67, 160, 71, 0.1); padding: 0.75rem 1rem; font-size: 0.85rem; display: flex; align-items: flex-start; gap: 0.5rem;">
                                 <va-icon name="add_circle_outline" color="success" size="small" style="margin-top: 2px;" />
                                 <div style="color: var(--va-success); font-weight: 500; word-break: break-all; width: 100%;">
-                                  {{ formatVal(f.val.after) }}
+                                  <div v-if="typeof f.val.after === 'string' && (f.val.after.includes('<p>') || f.val.after.includes('<h') || f.val.after.includes('<ul>'))" v-html="f.val.after" />
+                                  <span v-else>{{ formatVal(f.val.after) }}</span>
                                 </div>
                               </div>
                             </div>
                             <div v-else style="padding: 0.75rem 1rem; font-size: 0.85rem; color: var(--va-text-secondary); background: var(--va-background-primary);">
-                              {{ formatVal(f.val.before) }}
+                              <div v-if="typeof f.val.before === 'string' && (f.val.before.includes('<p>') || f.val.before.includes('<h') || f.val.before.includes('<ul>'))" v-html="f.val.before" />
+                              <span v-else>{{ formatVal(f.val.before) }}</span>
                             </div>
                           </template>
                           <template v-else>
                             <div style="padding: 0.75rem 1rem; font-size: 0.85rem; color: var(--va-text-primary);">
-                              {{ formatVal(f.val) }}
+                              <div v-if="typeof f.val === 'string' && (f.val.includes('<p>') || f.val.includes('<h') || f.val.includes('<ul>'))" v-html="f.val" />
+                              <span v-else>{{ formatVal(f.val) }}</span>
                             </div>
                           </template>
                         </div>
@@ -125,18 +129,26 @@ const groupedChangesList = computed(() => {
   const isUpdate = props.request?.targetType === 'RECORD_UPDATE'
   const before = parsed.before || {}
   const after = parsed.after || parsed.data || parsed || {}
+  const changedFields = parsed.changedFields
 
-  const allKeys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)]))
-  const fields = allKeys.map(k => ({
-    key: k,
-    label: k,
-    val: isUpdate ? {
-      before: before[k],
-      after: after[k],
-      isChanged: JSON.stringify(before[k]) !== JSON.stringify(after[k])
-    } : after[k],
-    gridWidth: 12
-  }))
+  const allKeys = Array.from(new Set([
+    ...(Array.isArray(changedFields) ? changedFields : []),
+    ...Object.keys(before),
+    ...Object.keys(after)
+  ]))
+  const fields = allKeys.map(k => {
+    const isExplicitlyChanged = Array.isArray(changedFields) && changedFields.includes(k)
+    return {
+      key: k,
+      label: k,
+      val: isUpdate ? {
+        before: before[k],
+        after: after[k],
+        isChanged: isExplicitlyChanged || (JSON.stringify(before[k]) !== JSON.stringify(after[k]))
+      } : after[k],
+      gridWidth: 12
+    }
+  })
 
   return [{
     key: 'default',

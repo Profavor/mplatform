@@ -378,8 +378,8 @@
         </div>
 
         <!-- Calendar Jump Dialog -->
-        <va-modal v-model="showCalendarDialog" hide-default-actions size="small" :title="$t('messenger.calendarTitle')" style="z-index: 99999;">
-          <div style="padding: 8px 0;">
+        <AppModal v-model="showCalendarDialog" hide-default-actions size="small" :title="$t('messenger.calendarTitle')" icon="calendar_month" style="z-index: 99999;">
+          <div style="padding: 0.5rem 0;">
             <!-- Month Navigation -->
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
               <va-button preset="plain" size="small" @click="calendarPrevMonth"><va-icon name="chevron_left" /></va-button>
@@ -408,11 +408,11 @@
                 :class="{ 'calendar-day-active': cell.hasMessages }"
                 @click="cell.hasMessages && jumpToDate(cell.dateKey)"
               >
-                <span :style="{ color: cell.isSelected ? '#ffffff' : undefined }">{{ cell.day || '' }}</span>
+                {{ cell.day || '' }}
               </div>
             </div>
           </div>
-        </va-modal>
+        </AppModal>
 
         <!-- Input Area -->
         <div class="chat-input-area" style="padding: 10px; background: var(--va-background-element); border-top: 1px solid var(--va-background-border); display: flex; flex-direction: column; gap: 6px;">
@@ -451,33 +451,41 @@
     </div>
 
     <!-- Create Group Room Modal -->
-    <va-modal v-model="showCreateModal" :title="$t('messenger.createGroupRoomTitle')" :ok-text="$t('messenger.createBtn')" :cancel-text="$t('messenger.cancelBtn')" @ok="createNewRoom">
-      <va-input v-model="newRoomName" :label="$t('messenger.roomNameLabel')" style="margin-bottom: 12px;" />
-      <div style="font-size: 0.85rem; color: var(--va-text-secondary); margin-bottom: 6px;">
-        <span>{{ $t('messenger.selectUsersLabel') }}</span>
-      </div>
-      <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px;">
-        <va-button preset="secondary" size="small" icon="search" @click="showUserSelectModalForCreate = true">사용자 검색/선택</va-button>
-        <div v-if="selectedUserIds.length > 0" style="display: flex; flex-wrap: wrap; gap: 4px; max-height: 120px; overflow-y: auto;">
-          <va-chip v-for="id in selectedUserIds" :key="id" size="small" color="primary" outline>
-            {{ getDisplayUsername(id) }}
-          </va-chip>
+    <AppModal v-model="showCreateModal" :title="$t('messenger.createGroupRoomTitle')" icon="group_add" hide-default-actions size="small">
+      <div style="padding: 0.5rem 0;">
+        <va-input v-model="newRoomName" :label="$t('messenger.roomNameLabel')" style="margin-bottom: 12px;" />
+        <div style="font-size: 0.85rem; color: var(--va-text-secondary); margin-bottom: 6px;">
+          <span>{{ $t('messenger.selectUsersLabel') }}</span>
         </div>
-        <div v-else style="color: var(--va-text-secondary); font-size: 0.85rem;">
-          선택된 사용자가 없습니다.
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px;">
+          <va-button preset="secondary" size="small" icon="search" @click="showUserSelectModalForCreate = true">사용자 검색/선택</va-button>
+          <div v-if="selectedUserIds.length > 0" style="display: flex; flex-wrap: wrap; gap: 4px; max-height: 120px; overflow-y: auto;">
+            <va-chip v-for="id in selectedUserIds" :key="id" size="small" color="primary" outline>
+              {{ getDisplayUsername(id) }}
+            </va-chip>
+          </div>
+          <div v-else style="color: var(--va-text-secondary); font-size: 0.85rem;">
+            선택된 사용자가 없습니다.
+          </div>
         </div>
       </div>
-    </va-modal>
+      <template #footer>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+          <va-button preset="secondary" @click="showCreateModal = false">{{ $t('messenger.cancelBtn') }}</va-button>
+          <va-button color="primary" @click="createNewRoom">{{ $t('messenger.createBtn') }}</va-button>
+        </div>
+      </template>
+    </AppModal>
 
     <!-- Image Preview Modal -->
-    <va-modal v-model="showImgModal" size="large" hide-default-actions>
+    <AppModal v-model="showImgModal" size="large" icon="image" hide-default-actions>
       <div style="padding: 4px; display: flex; justify-content: center; align-items: center;">
         <img :src="previewImgUrl" style="max-width: 90vw; max-height: 85vh; border-radius: 8px; object-fit: contain; cursor: pointer;" @click="showImgModal = false" />
       </div>
-    </va-modal>
+    </AppModal>
 
     <!-- Room Members Modal with Online/Offline Presence Status -->
-    <va-modal v-model="showMembersModalFlag" :title="`👥 ${$t('messenger.roomMembersTitle')} (${roomMembers.length})`" hide-default-actions>
+    <AppModal v-model="showMembersModalFlag" :title="`👥 ${$t('messenger.roomMembersTitle')} (${roomMembers.length})`" icon="groups" hide-default-actions size="medium">
       <div style="max-height: 280px; overflow-y: auto; padding: 4px;">
         <div v-for="m in roomMembers" :key="m.userId" 
              :style="{
@@ -563,46 +571,54 @@
           <va-button preset="secondary" @click="showMembersModalFlag = false">{{ $t('messenger.closeBtn') }}</va-button>
         </div>
       </template>
-    </va-modal>
+    </AppModal>
 
     <!-- Invite Members Modal -->
-    <va-modal v-model="showInviteModal" :title="$t('messenger.inviteModalTitle')" :ok-text="$t('messenger.inviteUserBtn')" :cancel-text="$t('messenger.cancelBtn')" @ok="inviteMembers">
-      <div style="font-size: 0.85rem; color: var(--va-text-secondary); margin-bottom: 6px;">
-        <span>{{ $t('messenger.selectUsersLabel') }}</span>
-      </div>
-      <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px;">
-        <va-button preset="secondary" size="small" icon="search" @click="showUserSelectModalForInvite = true">사용자 검색/선택</va-button>
-        <div v-if="selectedInviteUserIds.length > 0" style="display: flex; flex-wrap: wrap; gap: 4px; max-height: 120px; overflow-y: auto;">
-          <va-chip v-for="id in selectedInviteUserIds" :key="id" size="small" color="primary" outline>
-            {{ getDisplayUsername(id) }}
-          </va-chip>
+    <AppModal v-model="showInviteModal" :title="$t('messenger.inviteModalTitle')" icon="person_add" hide-default-actions size="small">
+      <div style="padding: 0.5rem 0;">
+        <div style="font-size: 0.85rem; color: var(--va-text-secondary); margin-bottom: 6px;">
+          <span>{{ $t('messenger.selectUsersLabel') }}</span>
         </div>
-        <div v-else style="color: var(--va-text-secondary); font-size: 0.85rem;">
-          선택된 사용자가 없습니다.
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px;">
+          <va-button preset="secondary" size="small" icon="search" @click="showUserSelectModalForInvite = true">사용자 검색/선택</va-button>
+          <div v-if="selectedInviteUserIds.length > 0" style="display: flex; flex-wrap: wrap; gap: 4px; max-height: 120px; overflow-y: auto;">
+            <va-chip v-for="id in selectedInviteUserIds" :key="id" size="small" color="primary" outline>
+              {{ getDisplayUsername(id) }}
+            </va-chip>
+          </div>
+          <div v-else style="color: var(--va-text-secondary); font-size: 0.85rem;">
+            선택된 사용자가 없습니다.
+          </div>
+        </div>
+        <div style="margin-top: 16px;">
+          <div style="font-size: 0.85rem; color: var(--va-text-secondary); margin-bottom: 8px;">{{ $t('messenger.pastMessageOptionTitle') }}</div>
+          <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px;">
+            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; color: var(--va-text-primary);">
+              <input type="radio" v-model.number="pastMessageHoursOption" :value="0" />
+              {{ $t('messenger.pastMessageNone') }}
+            </label>
+            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; color: var(--va-text-primary);">
+              <input type="radio" v-model.number="pastMessageHoursOption" :value="1" />
+              {{ $t('messenger.pastMessage1h') }}
+            </label>
+            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; color: var(--va-text-primary);">
+              <input type="radio" v-model.number="pastMessageHoursOption" :value="24" />
+              {{ $t('messenger.pastMessage24h') }}
+            </label>
+            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; color: var(--va-text-primary);">
+              <input type="radio" v-model.number="pastMessageHoursOption" :value="48" />
+              {{ $t('messenger.pastMessage48h') }}
+            </label>
+          </div>
         </div>
       </div>
-      <div style="margin-top: 16px;">
-        <div style="font-size: 0.85rem; color: var(--va-text-secondary); margin-bottom: 8px;">{{ $t('messenger.pastMessageOptionTitle') }}</div>
-        <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px;">
-          <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; color: var(--va-text-primary);">
-            <input type="radio" v-model.number="pastMessageHoursOption" :value="0" />
-            {{ $t('messenger.pastMessageNone') }}
-          </label>
-          <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; color: var(--va-text-primary);">
-            <input type="radio" v-model.number="pastMessageHoursOption" :value="1" />
-            {{ $t('messenger.pastMessage1h') }}
-          </label>
-          <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; color: var(--va-text-primary);">
-            <input type="radio" v-model.number="pastMessageHoursOption" :value="24" />
-            {{ $t('messenger.pastMessage24h') }}
-          </label>
-          <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; color: var(--va-text-primary);">
-            <input type="radio" v-model.number="pastMessageHoursOption" :value="48" />
-            {{ $t('messenger.pastMessage48h') }}
-          </label>
+      <template #footer>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+          <va-button preset="secondary" @click="showInviteModal = false">{{ $t('messenger.cancelBtn') }}</va-button>
+          <va-button color="primary" @click="inviteMembers">{{ $t('messenger.inviteUserBtn') }}</va-button>
         </div>
-      </div>
-    </va-modal>
+      </template>
+    </AppModal>
 
     <!-- User Grid Select Modals -->
     <UserGridSelectModal
@@ -619,30 +635,53 @@
     />
 
     <!-- Leave Room Confirm Modal -->
-    <va-modal v-model="showLeaveConfirmModal" :title="$t('messenger.confirmLeaveTitle')" :ok-text="$t('messenger.leaveRoom')" :cancel-text="$t('messenger.cancelBtn')" @ok="leaveRoom">
-      <div style="padding: 8px 0; font-size: 0.95rem;">{{ $t('messenger.confirmLeaveDesc') }}</div>
-    </va-modal>
+    <AppModal v-model="showLeaveConfirmModal" :title="$t('messenger.confirmLeaveTitle')" icon="exit_to_app" hide-default-actions size="small">
+      <div style="padding: 0.5rem 0; font-size: 0.95rem;">{{ $t('messenger.confirmLeaveDesc') }}</div>
+      <template #footer>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+          <va-button preset="secondary" @click="showLeaveConfirmModal = false">{{ $t('messenger.cancelBtn') }}</va-button>
+          <va-button color="danger" @click="leaveRoom">{{ $t('messenger.leaveRoom') }}</va-button>
+        </div>
+      </template>
+    </AppModal>
 
     <!-- Delete Room Confirm Modal -->
-    <va-modal v-model="showDeleteConfirmModal" :title="$t('messenger.confirmDeleteTitle')" :ok-text="$t('messenger.deleteRoom')" :cancel-text="$t('messenger.cancelBtn')" @ok="deleteRoom">
-      <div style="padding: 8px 0; font-size: 0.95rem; color: var(--va-danger); font-weight: 500;">{{ $t('messenger.confirmDeleteDesc') }}</div>
-    </va-modal>
+    <AppModal v-model="showDeleteConfirmModal" :title="$t('messenger.confirmDeleteTitle')" icon="delete" hide-default-actions size="small">
+      <div style="padding: 0.5rem 0; font-size: 0.95rem; color: var(--va-danger); font-weight: 500;">{{ $t('messenger.confirmDeleteDesc') }}</div>
+      <template #footer>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+          <va-button preset="secondary" @click="showDeleteConfirmModal = false">{{ $t('messenger.cancelBtn') }}</va-button>
+          <va-button color="danger" @click="deleteRoom">{{ $t('messenger.deleteRoom') }}</va-button>
+        </div>
+      </template>
+    </AppModal>
 
     <!-- Delegate Confirm Modal -->
-    <va-modal v-model="showDelegateConfirmModal" :title="$t('messenger.delegateCreatorTitle')" :ok-text="$t('messenger.delegateCreator')" :cancel-text="$t('messenger.cancelBtn')" @ok="delegateCreator">
-      <div style="padding: 8px 0; font-size: 0.95rem;">
+    <AppModal v-model="showDelegateConfirmModal" :title="$t('messenger.delegateCreatorTitle')" icon="manage_accounts" hide-default-actions size="small">
+      <div style="padding: 0.5rem 0; font-size: 0.95rem;">
         {{ $t('messenger.confirmDelegateCreatorDesc', { username: targetMemberToDelegate?.username || '' }) }}
       </div>
-    </va-modal>
-
+      <template #footer>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+          <va-button preset="secondary" @click="showDelegateConfirmModal = false">{{ $t('messenger.cancelBtn') }}</va-button>
+          <va-button color="primary" @click="delegateCreator">{{ $t('messenger.delegateCreator') }}</va-button>
+        </div>
+      </template>
+    </AppModal>
 
     <!-- Kick Confirm Modal -->
-    <va-modal v-model="showKickConfirmModal" :title="$t('messenger.kickConfirmTitle')" :ok-text="$t('messenger.kickUserBtn')" :cancel-text="$t('messenger.cancelBtn')" @ok="kickMember">
-      <div style="padding: 8px 0; font-size: 0.95rem; color: var(--va-danger); font-weight: 500;">{{ $t('messenger.kickConfirmDesc') }}</div>
+    <AppModal v-model="showKickConfirmModal" :title="$t('messenger.kickConfirmTitle')" icon="person_remove" hide-default-actions size="small">
+      <div style="padding: 0.5rem 0; font-size: 0.95rem; color: var(--va-danger); font-weight: 500;">{{ $t('messenger.kickConfirmDesc') }}</div>
       <div v-if="targetMemberToKick" style="font-weight: 700; margin-top: 8px; font-size: 1.1rem; text-align: center;">
         {{ targetMemberToKick.username }}
       </div>
-    </va-modal>
+      <template #footer>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+          <va-button preset="secondary" @click="showKickConfirmModal = false">{{ $t('messenger.cancelBtn') }}</va-button>
+          <va-button color="danger" @click="kickMember">{{ $t('messenger.kickUserBtn') }}</va-button>
+        </div>
+      </template>
+    </AppModal>
 
     <!-- Context Menu Popup -->
     <div
@@ -665,7 +704,7 @@
     </div>
 
     <!-- Forward Message Modal -->
-    <va-modal v-model="showForwardModalFlag" :title="$t('messenger.forwardTitle')" hide-default-actions>
+    <AppModal v-model="showForwardModalFlag" :title="$t('messenger.forwardTitle')" icon="shortcut" hide-default-actions size="small">
       <va-input v-model="searchUserQuery" :placeholder="$t('messenger.searchUserPlaceholder')" style="margin-bottom: 12px;" />
       <div style="max-height: 220px; overflow-y: auto;">
         <div v-if="searchFilteredUsers.length === 0" style="text-align: center; color: var(--va-text-secondary); padding: 20px;">
@@ -688,9 +727,11 @@
         </div>
       </div>
       <template #footer>
-        <va-button preset="secondary" @click="showForwardModalFlag = false">{{ $t('messenger.cancelBtn') }}</va-button>
+        <div style="display: flex; justify-content: flex-end;">
+          <va-button preset="secondary" @click="showForwardModalFlag = false">{{ $t('messenger.cancelBtn') }}</va-button>
+        </div>
       </template>
-    </va-modal>
+    </AppModal>
 
     <!-- Dedicated Excel Preview Modal -->
     <ExcelPreviewModal
@@ -708,8 +749,8 @@
     />
 
     <!-- Paste Send Format Option Selection Modal -->
-    <va-modal v-model="showPasteOptionModal" :title="$t('paste_option_title')" hide-default-actions>
-      <div style="padding: 0.5rem; display: flex; flex-direction: column; gap: 1rem;">
+    <AppModal v-model="showPasteOptionModal" :title="$t('paste_option_title')" icon="content_paste" hide-default-actions size="small">
+      <div style="padding: 0.5rem 0; display: flex; flex-direction: column; gap: 1rem;">
         <p style="font-size: 0.9rem; color: var(--va-text-secondary); margin: 0;">
           {{ $t('paste_option_desc') }}
         </p>
@@ -748,7 +789,7 @@
           <va-button preset="secondary" @click="showPasteOptionModal = false">{{ $t('cancel') }}</va-button>
         </div>
       </div>
-    </va-modal>
+    </AppModal>
   </div>
 </template>
 
@@ -757,6 +798,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick, defineAsyncComponent }
 import ExcelPreviewModal from '~/components/chat/ExcelPreviewModal.vue'
 import TableDataViewerModal from '~/components/chat/TableDataViewerModal.vue'
 import UserGridSelectModal from './UserGridSelectModal.vue'
+import AppModal from '~/components/common/AppModal.vue'
 import { getMultilingualText } from '~/utils/multilingual'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useAuthUser } from '~/composables/useAuthUser'

@@ -1,15 +1,15 @@
 <template>
-  <va-modal
+  <AppModal
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
-    @cancel="$emit('update:modelValue', false)"
-    @click-outside="$emit('update:modelValue', false)"
     :title="$t('request_domain_access')"
+    icon="domain_add"
     size="small"
     hide-default-actions
   >
-    <!-- ① 새 도메인 신청 -->
-    <h3 class="font-bold mb-2 text-sm text-gray-700">{{ $t('request_new_domain') }}</h3>
+    <div style="padding: 0.5rem 0;">
+      <!-- ① 새 도메인 신청 -->
+      <h3 class="font-bold mb-2 text-sm text-gray-700">{{ $t('request_new_domain') }}</h3>
 
     <div v-if="availableDomains.length === 0" class="text-gray-500 mb-4 text-sm">
       {{ $t('no_new_domains_available') }}
@@ -127,18 +127,20 @@
       {{ $t('duplicate_request_warning') || (isEn ? 'Some domains are already pending approval and were skipped.' : '이미 신청중인 도메인은 중복 신청이 제외되었습니다.') }}
     </va-alert>
 
-    <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
-      <va-button preset="secondary" @click="$emit('update:modelValue', false)">
-        {{ $t('close') || (isEn ? 'Close' : '닫기') }}
-      </va-button>
+      <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
+        <va-button preset="secondary" @click="$emit('update:modelValue', false)">
+          {{ $t('close') || (isEn ? 'Close' : '닫기') }}
+        </va-button>
+      </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useCookie } from '#app'
 import { useI18n } from 'vue-i18n'
+import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false }

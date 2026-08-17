@@ -67,4 +67,23 @@ public class RecordIndexService {
             log.warn("Failed to delete record {} from OpenSearch index. Error: {}", recordId, e.getMessage());
         }
     }
+
+    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    @Async
+    public void syncAllRecordsToOpenSearch() {
+        try {
+            log.info("Starting background synchronization of all records to OpenSearch...");
+            java.util.List<Record> records = recordRepository.findAll();
+            int count = 0;
+            for (Record record : records) {
+                if (record.getNode() != null && record.getNode().getDomain() != null) {
+                    indexRecord(record);
+                    count++;
+                }
+            }
+            log.info("Completed OpenSearch background sync. Total records indexed: {}", count);
+        } catch (Exception e) {
+            log.warn("OpenSearch background sync skipped or failed: {}", e.getMessage());
+        }
+    }
 }

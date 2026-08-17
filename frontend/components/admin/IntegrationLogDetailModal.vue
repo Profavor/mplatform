@@ -1,20 +1,13 @@
 <template>
-  <va-modal
+  <AppModal
     :model-value="modelValue"
+    :title="t('integration_log_detail', '연동 로그 상세')"
+    icon="hub"
     size="large"
     hide-default-actions
-    style="--va-modal-padding: 0;"
     @update:model-value="val => emit('update:modelValue', val)"
   >
     <div v-if="log" class="integration-modal-container">
-      <!-- Modal Header Bar -->
-      <div class="modal-header-banner">
-        <div class="flex items-center gap-2">
-          <va-icon name="hub" size="medium" color="primary" />
-          <h3 class="modal-title-text">{{ t('integration_log_detail', '연동 로그 상세') }}</h3>
-        </div>
-      </div>
-
       <div class="modal-body-content">
         <!-- Metric Status Summary Cards -->
         <div class="metrics-grid">
@@ -141,12 +134,13 @@
         </va-button>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AppModal from '~/components/common/AppModal.vue'
 
 const { t } = useI18n()
 

@@ -28,6 +28,7 @@ public class DomainService {
         domain.setIdentifierFieldId(request.getIdentifierFieldId());
         domain.setDisplayNameFieldId(request.getDisplayNameFieldId());
         domain.setDescriptionFieldId(request.getDescriptionFieldId());
+        domain.setImageFieldId(request.getImageFieldId());
         domain.setIcon(request.getIcon());
         domain.setSortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0);
         domain.setNumberingPattern(request.getNumberingPattern());
@@ -91,6 +92,7 @@ public class DomainService {
         domain.setIdentifierFieldId(request.getIdentifierFieldId());
         domain.setDisplayNameFieldId(request.getDisplayNameFieldId());
         domain.setDescriptionFieldId(request.getDescriptionFieldId());
+        domain.setImageFieldId(request.getImageFieldId());
         domain.setIcon(request.getIcon());
         domain.setSortOrder(request.getSortOrder() != null ? request.getSortOrder() : domain.getSortOrder());
         if (request.getNumberingPattern() != null) {

@@ -1,11 +1,12 @@
 <template>
-  <va-modal
+  <AppModal
     v-model="show"
     :title="$t('business_rules')"
+    icon="rule"
     size="large"
     hide-default-actions
   >
-    <div style="display: flex; flex-direction: column; gap: 1.25rem; padding: 0.5rem;">
+    <div style="display: flex; flex-direction: column; gap: 1.25rem; padding: 0.5rem 0;">
       <va-alert color="primary" outline style="margin: 0; font-size: 0.85rem; line-height: 1.5;">
         ⚖️ {{ $t('business_rules_desc') }}
       </va-alert>
@@ -39,24 +40,16 @@
           <div
             v-for="r in rules"
             :key="r.ruleId"
-            style="padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--va-background-border); background: var(--va-background-card); display: flex; flex-direction: column; gap: 0.4rem;"
+            style="padding: 0.75rem; border-radius: 8px; border: 1px solid var(--va-background-border); background: var(--va-background-card); display: flex; flex-direction: column; gap: 0.4rem;"
           >
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-weight: 700; font-size: 0.85rem; color: var(--va-primary);">
-                [{{ r.ruleId }}] {{ r.ruleName }}
-              </span>
-              <va-badge
-                v-if="evalResultsMap[r.ruleId]"
-                :text="evalResultsMap[r.ruleId].passed ? $t('all_rules_passed') : $t('violation_found') + ' (' + evalResultsMap[r.ruleId].violationCount + ')'"
-                :color="evalResultsMap[r.ruleId].passed ? 'success' : 'danger'"
-                size="small"
-              />
+              <span style="font-weight: 700; font-size: 0.85rem;">{{ r.ruleName }}</span>
+              <va-badge :text="r.active ? '활성' : '비활성'" :color="r.active ? 'success' : 'secondary'" size="small" />
             </div>
-            <div style="font-size: 0.78rem; font-family: monospace; color: var(--va-text-secondary); background: var(--va-background-element); padding: 0.3rem 0.5rem; border-radius: 4px;">
-              IF ({{ r.conditionExpr }}) THEN ({{ r.validationExpr }})
+            <div style="font-size: 0.75rem; color: var(--va-text-secondary); font-family: monospace;">
+              조건: IF {{ r.conditionExpr }} THEN {{ r.validationExpr }}
             </div>
-            <!-- Violation details -->
-            <div v-if="evalResultsMap[r.ruleId]?.sampleViolations?.length > 0" style="margin-top: 0.3rem; font-size: 0.75rem; color: var(--va-danger);">
+            <div v-if="evalResultsMap[r.ruleId]" style="font-size: 0.75rem; padding: 0.4rem; border-radius: 4px; background: rgba(235, 59, 90, 0.08); color: var(--va-danger);">
               <div v-for="(v, vIdx) in evalResultsMap[r.ruleId].sampleViolations" :key="vIdx">
                 ⚠️ [{{ v.recordCode }}] {{ v.reason }}
               </div>
@@ -71,13 +64,14 @@
         </va-button>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCustomFetch } from '~/composables/useCustomFetch'
+import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps<{
   modelValue: boolean

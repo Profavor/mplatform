@@ -1,27 +1,16 @@
 <template>
-  <va-modal
+  <AppModal
     v-model="modalVisible"
+    :title="modalTitle"
+    icon="edit_note"
     hide-default-actions
-    :prevent-click-outside="true"
-    :no-outside-dismiss="true"
+    v-model:fullscreen="isFullscreenModal"
+    size="large"
     class="custom-record-modal"
+    without-transitions
   >
-    <template #header>
-      <div class="custom-modal-header-wrapper" style="display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 24px; padding-top: 0; margin-top: -20px !important; margin-left: -20px !important;">
-        <h3 style="margin: 0; padding: 0; font-size: 1.05rem; font-weight: 800; color: var(--va-text-primary); text-transform: uppercase; display: inline-flex; align-items: center; gap: 0.4rem; line-height: 1;">
-          <va-icon name="edit_note" color="primary" size="20px" style="display: inline-flex; align-items: center;" />
-          <span style="display: inline-flex; align-items: center;">{{ modalTitle }}</span>
-        </h3>
-      </div>
-    </template>
 
-
-
-
-
-
-
-    <div style="max-height: 60vh; overflow-y: auto; overflow-x: hidden; padding: 1rem; box-sizing: border-box; width: 100%;">
+    <div :style="{ maxHeight: isFullscreenModal ? 'calc(100vh - 160px)' : '60vh', overflowY: 'auto', overflowX: 'hidden', padding: '1rem', boxSizing: 'border-box', width: '100%' }">
       <div
         v-if="!hasWorkflow"
         style="margin-bottom: 1rem; padding: 0.5rem; background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 4px; text-align: center; font-weight: bold;"
@@ -164,6 +153,16 @@
                         style="background-color: #f4f6f8;"
                       />
 
+                      <!-- HTML Editor (Rich Text) -->
+                      <div v-else-if="field.type === 'HTML_TEXT' || field.type === 'HTML'" class="w-full">
+                        <HtmlEditor
+                          v-model="localRecord[field.key]"
+                          :readonly="evalConditionRule(field, localRecord).readOnly"
+                          :disabled="evalConditionRule(field, localRecord).disabled"
+                          :placeholder="getTranslatedName(field.hint) || $t('editor_placeholder')"
+                        />
+                      </div>
+
                       <!-- Select -->
                       <va-select
                         v-else-if="['SELECT', 'MULTI_SELECT'].includes(field.type)"
@@ -192,6 +191,16 @@
                         class="w-full"
                         :readonly="evalConditionRule(field, localRecord).readOnly"
                       />
+
+                      <!-- Image Uploader & Carousel Gallery -->
+                      <div v-else-if="field.type === 'IMAGE'" class="w-full">
+                        <ImageUploader
+                          v-model="localRecord[field.key]"
+                          :multiple="field.isMultiValue"
+                          :readonly="evalConditionRule(field, localRecord).readOnly"
+                          :disabled="evalConditionRule(field, localRecord).disabled"
+                        />
+                      </div>
 
                       <!-- File Upload -->
                       <div v-else-if="field.type === 'FILE'" class="w-full">
@@ -409,13 +418,17 @@
       </va-button>
       <va-button preset="secondary" @click="handleClose">Cancel</va-button>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
 import { useCookie } from '#app'
 import { useCustomFetch } from '~/composables/useCustomFetch'
+import HtmlEditor from '~/components/common/HtmlEditor.vue'
+import ImageUploader from '~/components/common/ImageUploader.vue'
+import ModalControls from '~/components/common/ModalControls.vue'
+import AppModal from '~/components/common/AppModal.vue'
 
 const { customFetch } = useCustomFetch()
 
@@ -442,6 +455,13 @@ const modalVisible = computed({
   set: (val) => {
     emit('update:show', val)
     if (!val) emit('close')
+  }
+})
+
+const isFullscreenModal = ref(false)
+watch(() => props.show, (val) => {
+  if (!val) {
+    isFullscreenModal.value = false
   }
 })
 

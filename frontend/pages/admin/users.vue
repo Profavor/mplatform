@@ -274,13 +274,12 @@
 
 
     <!-- System Notification Modal -->
-    <va-modal
+    <AppModal
       v-model="showErrorAlertModal"
       :title="errorAlertTitle || $t('system_notification')"
+      icon="notifications"
       hide-default-actions
       size="small"
-      :prevent-click-outside="true"
-      :no-outside-dismiss="true"
     >
       <div style="padding: 1.25rem 0; text-align: center;">
         <div
@@ -326,7 +325,7 @@
           </va-button>
         </div>
       </div>
-    </va-modal>
+    </AppModal>
 
     <!-- Create User Modal (Decoupled Component) -->
     <CreateUserModal
@@ -344,8 +343,8 @@
     />
 
     <!-- Temp Password Alert Modal -->
-    <va-modal v-model="showTempPasswordModal" :title="$t('user_created')" hide-default-actions :prevent-click-outside="true" :no-outside-dismiss="true">
-      <div style="padding: 1.5rem; text-align: center;">
+    <AppModal v-model="showTempPasswordModal" :title="$t('user_created')" icon="vpn_key" hide-default-actions size="small">
+      <div style="padding: 1.5rem 0; text-align: center;">
         <va-icon name="check_circle" color="success" size="3.5rem" style="margin-bottom: 1rem;" />
         <h3 style="margin-bottom: 1rem; font-weight: 800; font-size: 1.3rem;">{{ $t('temp_password_issued') }}</h3>
         <p style="color: var(--va-text-secondary); margin-bottom: 1.5rem; font-size: 0.9rem;">
@@ -356,11 +355,11 @@
         </div>
         <va-button color="primary" @click="showTempPasswordModal = false; createdTempPassword = '';" size="large">{{ $t('confirm') }}</va-button>
       </div>
-    </va-modal>
+    </AppModal>
 
     <!-- View Temp Password Modal -->
-    <va-modal v-model="showViewTempPasswordModal" :title="$t('view_temp_password')" hide-default-actions>
-      <div style="padding: 1.5rem; text-align: center;">
+    <AppModal v-model="showViewTempPasswordModal" :title="$t('view_temp_password')" icon="key" hide-default-actions size="small">
+      <div style="padding: 1.5rem 0; text-align: center;">
         <va-icon name="key" color="warning" size="3.5rem" style="margin-bottom: 1rem;" />
         <h3 style="margin-bottom: 1rem; font-weight: 800; font-size: 1.3rem;">{{ $t('temp_password_check') }}</h3>
         <p style="color: var(--va-text-secondary); margin-bottom: 1.5rem; font-size: 0.9rem;">
@@ -371,13 +370,14 @@
         </div>
         <va-button color="primary" @click="showViewTempPasswordModal = false; fetchedTempPassword = '';" size="large">{{ $t('close') }}</va-button>
       </div>
-    </va-modal>
+    </AppModal>
   </div>
 </template>
 
 <script setup>
 import { usePermission } from '~/composables/usePermission'
 import { usePageTitle } from '~/composables/usePageTitle'
+import AppModal from '~/components/common/AppModal.vue'
 import CreateUserModal from '~/components/admin/CreateUserModal.vue'
 
 const { pageTitle } = usePageTitle('user_management', '사용자 및 권한 관리')

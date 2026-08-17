@@ -1,12 +1,13 @@
 <template>
-  <va-modal
+  <AppModal
     v-model="show"
     size="large"
     hide-default-actions
-    :title="`📗 ${$t('excel_spreadsheet_viewer_title')}`"
+    :title="$t('excel_spreadsheet_viewer_title')"
+    icon="table_view"
   >
     <div
-      style="padding: 0.5rem; display: flex; flex-direction: column; gap: 0.75rem; max-height: 78vh; min-height: 480px; width: 100%; user-select: none;"
+      style="padding: 0.5rem 0; display: flex; flex-direction: column; gap: 0.75rem; width: 100%; user-select: none;"
       @mouseup="onMouseUp"
     >
       <!-- Excel Green Header Toolbar -->
@@ -130,12 +131,13 @@
         </div>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AppModal from '~/components/common/AppModal.vue'
 
 interface CellPos {
   rIdx: number

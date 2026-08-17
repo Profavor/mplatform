@@ -103,12 +103,12 @@
     </va-card>
 
     <!-- Modal 1: Axis Modal Form -->
-    <va-modal
+    <AppModal
       v-model="showAxisModal"
       :title="isEditAxisMode ? $t('axis.edit_axis') : $t('axis.add_axis')"
+      icon="tune"
       hide-default-actions
       size="small"
-      no-outside-dismiss
     >
       <form @submit.prevent="saveAxis" style="padding: 0.5rem 0;">
         <va-input
@@ -143,15 +143,15 @@
           <va-button color="primary" type="submit" :loading="isAxisSaving">{{ $t('btn_submit') }}</va-button>
         </div>
       </form>
-    </va-modal>
+    </AppModal>
 
     <!-- Modal 2: Axis Node Modal Form -->
-    <va-modal
+    <AppModal
       v-model="showNodeModal"
       :title="isEditNodeMode ? $t('axis.edit_node') : (targetParentNode ? `[${targetParentNode.label}] ${$t('axis.add_child_node')}` : `[${selectedAxis ? formatAxisName(selectedAxis.name) : ''}] ${$t('axis.add_root_node')}`)"
+      icon="account_tree"
       hide-default-actions
       size="small"
-      no-outside-dismiss
     >
       <form @submit.prevent="saveAxisNode" style="padding: 0.5rem 0;">
         <div style="display: flex; gap: 0.5rem;" class="mb-3">
@@ -178,16 +178,16 @@
           <va-button color="primary" type="submit" :loading="isNodeSaving">{{ $t('btn_submit') }}</va-button>
         </div>
       </form>
-    </va-modal>
+    </AppModal>
 
     <!-- Modal 3: Icon Picker Modal Form -->
-    <va-modal v-model="showIconPickerModal" :title="$t('axis.select_icon')" size="medium" hide-default-actions>
+    <AppModal v-model="showIconPickerModal" :title="$t('axis.select_icon')" icon="palette" size="medium" hide-default-actions>
       <IconPicker v-model="tempIcon" />
       <div style="display: flex; justify-content: flex-end; margin-top: 1rem; gap: 0.5rem;">
         <va-button preset="secondary" type="button" @click="showIconPickerModal = false">{{ $t('btn_cancel') }}</va-button>
         <va-button color="primary" type="button" @click="applyIcon">{{ $t('btn_submit') }}</va-button>
       </div>
-    </va-modal>
+    </AppModal>
   </div>
 </template>
 
@@ -197,6 +197,7 @@ import { VaIcon, useToast, useModal } from 'vuestic-ui'
 import { useI18n } from 'vue-i18n'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import IconPicker from '~/components/IconPicker.vue'
+import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps({
   domainId: { type: String, default: '' }

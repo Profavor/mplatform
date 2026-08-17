@@ -1,6 +1,12 @@
 <template>
-  <va-modal v-model="isOpen" size="large" :title="modalTitle" hide-default-actions>
-    <div style="max-height: 70vh; overflow-y: auto; padding: 0.5rem 0.5rem 1.5rem 0.5rem;">
+  <AppModal
+    v-model="isOpen"
+    size="large"
+    :title="modalTitle"
+    icon="rule"
+    hide-default-actions
+  >
+    <div style="padding: 0.5rem 0;">
       <!-- Rule List -->
       <div v-if="!editingRule" style="display: flex; flex-direction: column; gap: 1rem;">
         <div v-if="loading" style="display: flex; justify-content: center; padding: 2rem;">
@@ -91,11 +97,12 @@
         </div>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup>
 import { ref, reactive, watch, computed } from 'vue'
+import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps({
   modelValue: Boolean,

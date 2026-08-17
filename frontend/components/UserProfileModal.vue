@@ -1,17 +1,13 @@
 <template>
-  <va-modal
+  <AppModal
     :model-value="modelValue"
+    :title="t('user_profile_title')"
+    icon="badge"
+    size="small"
     hide-default-actions
-    max-width="480px"
     class="user-profile-modal"
     @update:model-value="$emit('update:modelValue', $event)"
   >
-    <template #header>
-      <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 1.1rem; font-weight: 800; color: var(--va-text-primary);">
-        <va-icon name="badge" color="primary" size="24px" />
-        <span>{{ t('user_profile_title') }}</span>
-      </div>
-    </template>
 
     <div v-if="userProfile" style="padding: 1rem 0; display: flex; flex-direction: column; gap: 1rem;">
       <!-- Profile Header Card -->
@@ -69,18 +65,21 @@
         </va-button>
       </div>
     </template>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
+import AppModal from '~/components/common/AppModal.vue'
+
+const { t, locale } = useI18n()
+
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   userProfile: { type: Object, default: null }
 })
 
 defineEmits(['update:modelValue'])
-
-const { t, locale } = useI18n()
 
 const formatLocalizedText = (val) => {
   if (!val) return '-'

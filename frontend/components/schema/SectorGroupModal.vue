@@ -1,6 +1,14 @@
 <template>
-  <va-modal :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)" title="Manage Sectors & Groups" hide-default-actions size="large">
-    <va-tabs :model-value="sgActiveTab" @update:model-value="$emit('update:sgActiveTab', $event)" style="width: 100%; margin-bottom: 1.5rem;">
+  <AppModal
+    :model-value="modelValue"
+    @update:model-value="$emit('update:modelValue', $event)"
+    title="Manage Sectors & Groups"
+    icon="view_compact"
+    hide-default-actions
+    size="large"
+  >
+    <div style="padding: 0.5rem 0;">
+      <va-tabs :model-value="sgActiveTab" @update:model-value="$emit('update:sgActiveTab', $event)" style="width: 100%; margin-bottom: 1.5rem;">
       <template #tabs>
         <va-tab>Sectors</va-tab>
         <va-tab>Groups</va-tab>
@@ -57,20 +65,22 @@
           />
         </div>
       </div>
-    </div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; border-top: 1px solid #eee; padding-top: 0.75rem;">
-      <span style="font-size: 0.85em; color: #666;">{{ t('save_changes_hint') }}</span>
-      <div style="display: flex; gap: 0.5rem;">
-        <va-button color="primary" icon="save" @click="$emit('save-sector-group-changes')">{{ t('save') }}</va-button>
-        <va-button preset="secondary" @click="$emit('update:modelValue', false)">{{ t('vuestic.close') }}</va-button>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; border-top: 1px solid #eee; padding-top: 0.75rem;">
+        <span style="font-size: 0.85em; color: #666;">{{ t('save_changes_hint') }}</span>
+        <div style="display: flex; gap: 0.5rem;">
+          <va-button color="primary" icon="save" @click="$emit('save-sector-group-changes')">{{ t('save') }}</va-button>
+          <va-button preset="secondary" @click="$emit('update:modelValue', false)">{{ t('vuestic.close') }}</va-button>
+        </div>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup>
 import { AgGridVue } from 'ag-grid-vue3'
 import { useI18n } from 'vue-i18n'
+import AppModal from '~/components/common/AppModal.vue'
 
 const { t } = useI18n()
 

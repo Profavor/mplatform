@@ -1,13 +1,13 @@
 <template>
-  <va-modal
+  <AppModal
     :model-value="modelValue"
     @update:model-value="val => $emit('update:modelValue', val)"
     :title="title || $t('messenger.selectUsersLabel')"
+    icon="group_add"
     size="large"
     hide-default-actions
-    :prevent-click-outside="true"
   >
-    <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem; width: 100%;">
+    <div style="padding: 0.5rem 0; display: flex; flex-direction: column; gap: 1rem; width: 100%;">
       <div style="display: flex; gap: 0.5rem; align-items: center;">
         <va-input
           v-model="userSearchKeyword"
@@ -44,7 +44,7 @@
         <va-button color="primary" icon="check" @click="confirmSelection">{{ $t('messenger.confirmBtn', '확인') }}</va-button>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
@@ -53,6 +53,7 @@ import { AgGridVue } from 'ag-grid-vue3'
 import { useI18n } from 'vue-i18n'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { getMultilingualText } from '~/utils/multilingual'
+import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps<{
   modelValue: boolean

@@ -479,12 +479,21 @@
         "isActive": true
       },
       {
+        "detailCode": "IMAGE",
+        "name": {
+          "ko": "🖼️ 이미지 (Image)",
+          "en": "🖼️ Image"
+        },
+        "sortOrder": 13,
+        "isActive": true
+      },
+      {
         "detailCode": "DATE_RANGE",
         "name": {
           "ko": "📅 기간 (시작일~종료일)",
           "en": "📅 Date Range"
         },
-        "sortOrder": 13,
+        "sortOrder": 14,
         "isActive": true
       }
     ]

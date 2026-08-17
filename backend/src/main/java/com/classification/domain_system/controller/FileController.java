@@ -56,17 +56,26 @@ public class FileController {
                                           @RequestParam(value = "name", required = false) String originalName,
                                           @RequestHeader HttpHeaders headers) {
         try {
-            Resource resource = fileStorageService.loadFileAsResource(fileName);
+            String cleanFileName = UriUtils.decode(fileName, StandardCharsets.UTF_8);
+            cleanFileName = cleanFileName.replaceAll("^[\\[\"\\s']+|[\\]\"\\s']+$", "");
+
+            Resource resource = fileStorageService.loadFileAsResource(cleanFileName);
             if (resource != null && resource.exists()) {
-                String downloadName = originalName != null ? originalName : resource.getFilename();
-                String safeName = UriUtils.encode(downloadName, StandardCharsets.UTF_8);
+                String downloadName = originalName != null ? UriUtils.decode(originalName, StandardCharsets.UTF_8) : resource.getFilename();
+                if (downloadName == null) downloadName = "file";
+                downloadName = downloadName.replaceAll("^[\\[\"\\s']+|[\\]\"\\s']+$", "");
 
                 boolean isDangerous = FileValidationUtil.isDangerousExtension(downloadName);
                 
-                MediaType mediaType = isDangerous ? MediaType.APPLICATION_OCTET_STREAM : MediaTypeFactory.getMediaType(resource).orElse(MediaType.APPLICATION_OCTET_STREAM);
+                MediaType mediaType = isDangerous 
+                        ? MediaType.APPLICATION_OCTET_STREAM 
+                        : MediaTypeFactory.getMediaType(downloadName).orElse(MediaTypeFactory.getMediaType(resource).orElse(MediaType.APPLICATION_OCTET_STREAM));
+
+                String safeAsciiName = downloadName.replaceAll("[^a-zA-Z0-9._-]", "_");
+                if (safeAsciiName.isBlank()) safeAsciiName = "file";
 
                 ContentDisposition contentDisposition = (isDangerous ? ContentDisposition.attachment() : ContentDisposition.inline())
-                        .filename(safeName)
+                        .filename(safeAsciiName)
                         .filename(downloadName, StandardCharsets.UTF_8)
                         .build();
 

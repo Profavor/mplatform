@@ -129,4 +129,94 @@ describe('RecordDetailDrawer.vue - Encrypted Masking & Domain Reference', () => 
     const displayVal = (wrapper.vm as any).getDomainRefDisplayName('REF_EMP', 'REC-001')
     expect(displayVal).toBe('[0000001] 인치국')
   })
+
+  it('correctly retrieves decrypted value regardless of key casing via getDecryptedFieldValue', async () => {
+    const wrapper = mount(RecordDetailDrawer, {
+      props: {
+        show: true,
+        record: {
+          id: 'REC-123',
+          resident_number: '860104-1******'
+        },
+        fields: [
+          {
+            id: 'f-1',
+            key: 'resident_number',
+            name: { ko: '주민등록번호' },
+            type: 'TEXT',
+            isEncrypted: true,
+            order: 1
+          }
+        ]
+      },
+      global: {
+        plugins: [i18n],
+        stubs: {
+          'va-modal': { template: '<div><slot /><slot name="footer" /></div>' },
+          'va-tabs': true,
+          'va-tab': true,
+          'va-accordion': { template: '<div><slot /></div>' },
+          'va-collapse': { template: '<div><slot /></div>' },
+          'va-input': {
+            template: '<input class="va-input-stub" :value="modelValue" />',
+            props: ['modelValue']
+          },
+          'va-icon': true,
+          'va-button': true,
+          'UnmaskReasonModal': true,
+          'UserProfileModal': true,
+          'AgGridVue': true
+        }
+      }
+    })
+
+    const vm = wrapper.vm as any
+    vm.decryptedValues['RESIDENT_NUMBER'] = '860104-1234567'
+
+    expect(vm.getDecryptedFieldValue('resident_number')).toBe('860104-1234567')
+    expect(vm.getDecryptedFieldValue('residentNumber')).toBe('860104-1234567')
+
+    await wrapper.vm.$nextTick()
+    const input = wrapper.find('.va-input-stub')
+    expect(input.attributes('value')).toBe('860104-1234567')
+  })
+
+  it('correctly detects changed keys using log.changedFields even when masked strings are identical', () => {
+    const wrapper = mount(RecordDetailDrawer, {
+      props: {
+        show: true,
+        record: { id: 'REC-123' },
+        fields: []
+      },
+      global: {
+        plugins: [i18n],
+        stubs: {
+          'va-modal': true,
+          'va-tabs': true,
+          'va-tab': true,
+          'va-accordion': true,
+          'va-collapse': true,
+          'va-input': true,
+          'va-icon': true,
+          'va-button': true,
+          'UnmaskReasonModal': true,
+          'UserProfileModal': true,
+          'AgGridVue': true
+        }
+      }
+    })
+
+    const vm = wrapper.vm as any
+    const log = {
+      id: 'HIST-1',
+      previousData: '{"resident_number":"860104-1******"}',
+      newData: '{"resident_number":"860104-1******"}',
+      changedFields: ['resident_number']
+    }
+
+    const changedKeys = vm.getChangedKeys(log.previousData, log.newData, log)
+    expect(changedKeys).toEqual(['resident_number'])
+  })
 })
+
+

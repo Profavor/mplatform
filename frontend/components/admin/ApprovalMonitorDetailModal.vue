@@ -1,12 +1,13 @@
 <template>
-  <va-modal
+  <AppModal
     :model-value="modelValue"
     :title="t('workflowDetails')"
+    icon="verified_user"
     size="large"
     hide-default-actions
     @update:model-value="val => emit('update:modelValue', val)"
   >
-    <div v-if="selectedFlow" style="display: flex; flex-direction: column; gap: 1rem; max-height: 80vh; overflow-y: auto;">
+    <div v-if="selectedFlow" style="display: flex; flex-direction: column; gap: 1rem; padding: 0.5rem 0;">
       
       <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
         <div style="font-weight: bold; font-size: 1.1rem;">
@@ -82,13 +83,19 @@
         </va-collapse>
       </va-accordion>
       
+      <div style="display: flex; justify-content: flex-end; margin-top: 0.5rem;">
+        <va-button preset="secondary" @click="emit('update:modelValue', false)">
+          {{ t('close') }}
+        </va-button>
+      </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import ApprovalDetailsViewer from '~/components/ApprovalDetailsViewer.vue'
+import AppModal from '~/components/common/AppModal.vue'
 
 const { t, te } = useI18n()
 

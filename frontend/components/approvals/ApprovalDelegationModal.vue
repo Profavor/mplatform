@@ -1,11 +1,12 @@
 <template>
-  <va-modal
+  <AppModal
     v-model="show"
     :title="$t('approval_delegation')"
+    icon="supervisor_account"
     size="large"
     hide-default-actions
   >
-    <div style="padding: 0.5rem; display: flex; flex-direction: column; gap: 1.25rem;">
+    <div style="padding: 0.5rem 0; display: flex; flex-direction: column; gap: 1.25rem;">
       <va-alert color="info" outline style="margin: 0; font-size: 0.85rem; line-height: 1.5;">
         💡 {{ $t('approval_delegation_desc') }}
       </va-alert>
@@ -197,7 +198,7 @@
         <va-button preset="secondary" @click="show = false">{{ $t('close') }}</va-button>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
@@ -207,6 +208,7 @@ import { useToast } from 'vuestic-ui'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { formatWithTimezone } from '~/composables/useTimezoneDate'
 import { useCookie } from '#app'
+import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps<{
   modelValue: boolean

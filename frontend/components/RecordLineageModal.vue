@@ -1,9 +1,12 @@
 <template>
-  <va-modal
+  <AppModal
     v-model="show"
     :title="$t('data_lineage_title')"
+    icon="account_tree"
+    v-model:fullscreen="isFullscreenModal"
     size="large"
     hide-default-actions
+    without-transitions
   >
     <div style="padding: 0.5rem; display: flex; flex-direction: column; gap: 1.25rem;">
       <div v-if="loading" style="display: flex; justify-content: center; align-items: center; padding: 2rem;">
@@ -121,8 +124,8 @@
     </div>
 
     <!-- Node Diff Detail Modal (Tabular Diff View) -->
-    <va-modal v-model="showDiffModal" :title="$t('history_version_diff_detail')" size="large" hide-default-actions>
-      <div style="padding: 0.5rem; max-height: 65vh; overflow-y: auto;">
+    <AppModal v-model="showDiffModal" :title="$t('history_version_diff_detail')" icon="difference" size="large" hide-default-actions>
+      <div style="padding: 0.5rem 0; max-height: 65vh; overflow-y: auto;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; background: var(--va-background-element); padding: 0.75rem 1rem; border-radius: 8px;">
           <div>
             <h4 style="font-weight: 700; margin: 0; color: var(--va-primary);">
@@ -150,9 +153,14 @@
                 {{ $t('no_diff_or_initial_version') }}
               </td>
             </tr>
-            <tr v-for="row in diffRows" :key="row.key" style="border-bottom: 1px solid var(--va-background-border);">
+            <tr
+              v-for="row in diffRows"
+              :key="row.key"
+              style="border-bottom: 1px solid var(--va-background-border);"
+            >
               <td style="padding: 0.6rem 0.8rem; font-weight: 600; color: var(--va-text-primary); vertical-align: top;">
-                {{ getFieldLabel(row.key) }}
+                {{ row.label }}
+                <div style="font-size: 0.75rem; color: var(--va-text-secondary); font-family: monospace;">{{ row.key }}</div>
               </td>
               <td style="padding: 0.6rem 0.8rem; color: #b91c1c; background: rgba(239, 68, 68, 0.04); vertical-align: top;">
                 <template v-if="getFieldByKey(row.key)?.type === 'JSON' && getTableRows(row.rawBefore).length > 0">
@@ -193,7 +201,7 @@
                 </template>
                 <template v-else-if="isFieldEncrypted(row.key)">
                   <span v-if="row.before === $t('none') || row.before === '(없음)'">{{ row.before }}</span>
-                  <span v-else>{{ decryptedValues[row.key]?.before || row.before }}</span>
+                  <span v-else>{{ getDecryptedValue(row.key)?.before || row.before }}</span>
                 </template>
                 <template v-else>{{ row.before }}</template>
               </td>
@@ -238,11 +246,11 @@
                   <template v-if="isFieldEncrypted(row.key)">
                     <span>
                       <template v-if="row.after === $t('none') || row.after === '(없음)'">{{ row.after }}</template>
-                      <template v-else>{{ decryptedValues[row.key]?.after || row.after }}</template>
+                      <template v-else>{{ getDecryptedValue(row.key)?.after || row.after }}</template>
                     </span>
                     <span v-if="(row.before !== $t('none') && row.before !== '(없음)') || (row.after !== $t('none') && row.after !== '(없음)')" style="margin-left:8px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; color:#888;">
                       <va-icon name="lock" size="small" />
-                      <template v-if="!decryptedValues[row.key]">
+                      <template v-if="!getDecryptedValue(row.key)">
                         <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary); font-weight:normal;" @click.stop="requestDecrypt(row.key)">
                           {{ $t('view_original') }}
                         </span>
@@ -279,7 +287,7 @@
           <va-button preset="secondary" @click="showDiffModal = false">{{ $t('close') }}</va-button>
         </div>
       </div>
-    </va-modal>
+    </AppModal>
 
     <UnmaskReasonModal
       v-model="showUnmaskReasonModal"
@@ -294,7 +302,7 @@
       :diff-rows="diffRows"
       @success="onRollbackSuccess"
     />
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
@@ -306,6 +314,10 @@ import { formatWithTimezone } from '~/composables/useTimezoneDate'
 import { useCookie } from '#app'
 import UnmaskReasonModal from './UnmaskReasonModal.vue'
 import RecordRollbackModal from './records/RecordRollbackModal.vue'
+import ModalControls from '~/components/common/ModalControls.vue'
+import AppModal from '~/components/common/AppModal.vue'
+
+const isFullscreenModal = ref(false)
 
 const props = defineProps<{
   modelValue: boolean
@@ -469,6 +481,22 @@ const decryptRemainingTime = ref<Record<string, number>>({})
 const decryptTimers = ref<Record<string, any>>({})
 const decryptIntervals = ref<Record<string, any>>({})
 
+const normalizeKey = (k: string) => String(k || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+
+const getDecryptedValue = (fieldKey: string) => {
+  if (!fieldKey || !decryptedValues.value) return undefined
+  if (decryptedValues.value[fieldKey] !== undefined) {
+    return decryptedValues.value[fieldKey]
+  }
+  const norm = normalizeKey(fieldKey)
+  for (const [k, v] of Object.entries(decryptedValues.value)) {
+    if (normalizeKey(k) === norm && v !== undefined) {
+      return v
+    }
+  }
+  return undefined
+}
+
 const isFieldEncrypted = (key: string) => {
   const f = props.fields?.find((f: any) => f.key === key || f.id === key)
   return !!f?.isEncrypted
@@ -494,23 +522,29 @@ const executePendingDecrypt = async (reason: string) => {
       method: 'POST',
       body: { fieldKeys: [key], accessReason: reason }
     })
-    if (res && res[key]) {
-      decryptedValues.value[key] = { after: res[key], before: res[key] } // Set both before and after if decrypted since backend only returns newData
-      
-      if (decryptTimers.value[key]) clearTimeout(decryptTimers.value[key])
-      if (decryptIntervals.value[key]) clearInterval(decryptIntervals.value[key])
-      
-      decryptRemainingTime.value[key] = 30
-      
-      decryptIntervals.value[key] = setInterval(() => {
-        if (decryptRemainingTime.value[key] > 0) {
-          decryptRemainingTime.value[key]--
-        }
-      }, 1000)
+    if (res && typeof res === 'object') {
+      const norm = normalizeKey(key)
+      const val = res[key] || res[key.toLowerCase()] || res[key.toUpperCase()] || (Object.entries(res).find(([k]) => normalizeKey(k) === norm) || [])[1]
+      if (val !== undefined && val !== null) {
+        decryptedValues.value[key] = { after: val, before: val }
+        decryptedValues.value[key.toLowerCase()] = { after: val, before: val }
+        decryptedValues.value[key.toUpperCase()] = { after: val, before: val }
+        
+        if (decryptTimers.value[key]) clearTimeout(decryptTimers.value[key])
+        if (decryptIntervals.value[key]) clearInterval(decryptIntervals.value[key])
+        
+        decryptRemainingTime.value[key] = 30
+        
+        decryptIntervals.value[key] = setInterval(() => {
+          if (decryptRemainingTime.value[key] > 0) {
+            decryptRemainingTime.value[key]--
+          }
+        }, 1000)
 
-      decryptTimers.value[key] = setTimeout(() => {
-        hideDecrypt(key)
-      }, 30000)
+        decryptTimers.value[key] = setTimeout(() => {
+          hideDecrypt(key)
+        }, 30000)
+      }
     }
   } catch (e) {
     console.error(e)
@@ -520,16 +554,27 @@ const executePendingDecrypt = async (reason: string) => {
 }
 
 const hideDecrypt = (key: string) => {
-  if (decryptTimers.value[key]) {
-    clearTimeout(decryptTimers.value[key])
-    delete decryptTimers.value[key]
+  const norm = normalizeKey(key)
+  const keysToDelete = []
+  for (const k of Object.keys(decryptedValues.value)) {
+    if (k === key || normalizeKey(k) === norm) {
+      keysToDelete.push(k)
+    }
   }
-  if (decryptIntervals.value[key]) {
-    clearInterval(decryptIntervals.value[key])
-    delete decryptIntervals.value[key]
-  }
-  delete decryptRemainingTime.value[key]
-  delete decryptedValues.value[key]
+  keysToDelete.push(key)
+
+  keysToDelete.forEach(k => {
+    if (decryptTimers.value[k]) {
+      clearTimeout(decryptTimers.value[k])
+      delete decryptTimers.value[k]
+    }
+    if (decryptIntervals.value[k]) {
+      clearInterval(decryptIntervals.value[k])
+      delete decryptIntervals.value[k]
+    }
+    delete decryptRemainingTime.value[k]
+    delete decryptedValues.value[k]
+  })
 }
 
 watch(() => showDiffModal.value, (val) => {
@@ -1004,15 +1049,21 @@ const diffRows = computed(() => {
   if (!selectedNode.value || !selectedNode.value.details) return []
   const prev = parseJsonIfNeeded(selectedNode.value.details.previousData)
   const next = parseJsonIfNeeded(selectedNode.value.details.newData)
+  const changedFields = selectedNode.value.details.changedFields
 
-  const allKeys = Array.from(new Set([...Object.keys(prev), ...Object.keys(next)]))
-    .filter(k => !k.startsWith('_idx_'))
+  const allKeys = Array.from(new Set([
+    ...(Array.isArray(changedFields) ? changedFields : []),
+    ...Object.keys(prev),
+    ...Object.keys(next)
+  ])).filter(k => !k.startsWith('_idx_'))
+
   const rows: Array<{ key: string; before: string; after: string; rawBefore: any; rawAfter: any }> = []
 
   for (const k of allKeys) {
+    const isExplicitlyChanged = Array.isArray(changedFields) && changedFields.includes(k)
     const bStr = formatDisplayValue(k, prev[k])
     const aStr = formatDisplayValue(k, next[k])
-    if (bStr !== aStr || JSON.stringify(prev[k]) !== JSON.stringify(next[k])) {
+    if (isExplicitlyChanged || bStr !== aStr || JSON.stringify(prev[k]) !== JSON.stringify(next[k])) {
       rows.push({
         key: k,
         before: bStr,

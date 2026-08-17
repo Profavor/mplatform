@@ -1,10 +1,10 @@
 <template>
-  <va-modal
+  <AppModal
     :model-value="modelValue"
     :title="isEditMode ? t('matchingRules.edit_title') : t('matchingRules.create_title')"
+    icon="hub"
     hide-default-actions
     size="medium"
-    no-outside-dismiss
     @update:model-value="val => emit('update:modelValue', val)"
   >
     <div style="padding: 0.5rem 0;">
@@ -68,20 +68,21 @@
     </div>
 
     <template #footer>
-      <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+      <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
         <va-button preset="secondary" @click="emit('update:modelValue', false)">
-          {{ t('matchingRules.cancel') }}
+          {{ t('common.cancel') }}
         </va-button>
-        <va-button color="primary" :loading="isSaving" @click="emit('save')">
-          {{ t('matchingRules.save') }}
+        <va-button :loading="isSaving" @click="emit('save')">
+          {{ t('common.save') }}
         </va-button>
       </div>
     </template>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import AppModal from '~/components/common/AppModal.vue'
 
 const { t } = useI18n()
 
