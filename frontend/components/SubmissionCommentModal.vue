@@ -1,16 +1,13 @@
 <template>
-  <va-modal
+  <AppModal
     :model-value="modelValue"
-    @update:model-value="emit('update:modelValue', $event)"
     :title="title || $t('submission_comment_title')"
-    :ok-text="$t('btn_submit')"
-    :cancel-text="$t('btn_cancel')"
-    @ok="onSubmit"
-    @cancel="onCancel"
-    :prevent-click-outside="true"
-    :no-outside-dismiss="true"
+    icon="rate_review"
+    hide-default-actions
+    size="small"
+    @update:model-value="emit('update:modelValue', $event)"
   >
-    <div style="padding: 1rem;">
+    <div style="padding: 0.5rem 0;">
       <p style="margin-bottom: 1rem; color: var(--va-text-secondary); font-size: 0.9rem;">
         {{ notice || $t('submission_comment_notice') }}
       </p>
@@ -22,11 +19,18 @@
         :rows="4"
       />
     </div>
-  </va-modal>
+    <template #footer>
+      <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+        <va-button preset="secondary" @click="onCancel">{{ $t('btn_cancel') }}</va-button>
+        <va-button color="primary" @click="onSubmit">{{ $t('btn_submit') }}</va-button>
+      </div>
+    </template>
+  </AppModal>
 </template>
 
 <script setup>
 import { useI18n } from 'vue-i18n'
+import AppModal from '~/components/common/AppModal.vue'
 const { t } = useI18n()
 
 const props = defineProps({

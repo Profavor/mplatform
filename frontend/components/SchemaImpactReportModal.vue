@@ -1,9 +1,12 @@
 <template>
-  <va-modal
+  <AppModal
     v-model="show"
     :title="isSubmitMode ? ($t('impact_check_title')) : ($t('schema_impact_title'))"
+    icon="analytics"
+    v-model:fullscreen="isFullscreenModal"
     size="large"
     hide-default-actions
+    without-transitions
   >
     <div style="padding: 0.5rem; display: flex; flex-direction: column; gap: 1.25rem;">
       <div v-if="loading" style="display: flex; justify-content: center; align-items: center; padding: 3rem;">
@@ -164,13 +167,15 @@
         </div>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCustomFetch } from '~/composables/useCustomFetch'
+import ModalControls from '~/components/common/ModalControls.vue'
+import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps<{
   modelValue: boolean

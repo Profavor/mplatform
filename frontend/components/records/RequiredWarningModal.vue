@@ -1,12 +1,11 @@
 <template>
-  <va-modal
+  <AppModal
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
     :title="currentLocale === 'en' ? 'Required Fields Missing' : '필수 항목 입력 안내'"
+    icon="warning"
     hide-default-actions
     size="small"
-    :prevent-click-outside="true"
-    :no-outside-dismiss="true"
   >
     <div style="padding: 1rem 0; text-align: center;">
       <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(229, 57, 53, 0.1); color: var(--va-danger); display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;">
@@ -32,10 +31,11 @@
         </va-button>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup>
+import AppModal from '~/components/common/AppModal.vue'
 defineProps({
   modelValue: {
     type: Boolean,

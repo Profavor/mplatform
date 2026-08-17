@@ -102,6 +102,9 @@ public class RecordLineageService {
             
             UUID nodeId = (history.getRecord() != null && history.getRecord().getNode() != null) ? history.getRecord().getNode().getId() : (record.getNode() != null ? record.getNode().getId() : null);
             
+            List<String> changedFields = recordService.computeChangedFieldKeys(history.getPreviousData(), history.getNewData());
+            histNode.getDetails().put("changedFields", changedFields);
+
             if (history.getPreviousData() != null) {
                 if (nodeId != null) {
                     histNode.getDetails().put("previousData", recordService.processDataForRead(nodeId, history.getPreviousData()));

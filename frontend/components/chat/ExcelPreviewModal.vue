@@ -1,11 +1,12 @@
 <template>
-  <va-modal
+  <AppModal
     v-model="show"
     size="large"
     hide-default-actions
     :title="`📊 ${$t('excel_viewer_title')} - ${fileName}`"
+    icon="table_chart"
   >
-    <div style="padding: 0.5rem; display: flex; flex-direction: column; gap: 1rem; max-height: 75vh; min-height: 480px; width: 100%;">
+    <div style="padding: 0.5rem 0; display: flex; flex-direction: column; gap: 1rem; min-height: 480px; width: 100%;">
       <!-- Loading State -->
       <div v-if="loading" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem; gap: 1rem;">
         <va-progress-circle indeterminate size="large" />
@@ -147,13 +148,14 @@
         </div>
       </template>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import ExcelJS from 'exceljs'
 import { useCustomFetch } from '~/composables/useCustomFetch'
+import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps<{
   modelValue: boolean

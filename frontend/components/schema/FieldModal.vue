@@ -1,11 +1,13 @@
 <template>
-  <va-modal
+  <AppModal
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
     :title="isEditMode ? t('edit_field') : t('add_field_to_node', { name: formatNodeTitle(selectedNode) })"
+    icon="view_column"
     hide-default-actions
     size="large"
   >
+    <div style="padding: 0.5rem 0;">
     <va-alert v-if="isCurrentFieldPendingApproval" color="warning" class="mb-4">
       ⚠️ {{ t('pending_field_approval_warning') }}
     </va-alert>
@@ -384,17 +386,19 @@
       </div>
     </div>
 
-    <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
-      <va-button preset="secondary" @click="$emit('update:modelValue', false)">{{ t('cancel') }}</va-button>
-      <va-button v-if="canEdit" :disabled="isCurrentFieldPendingApproval" @click="$emit('save')">{{ isEditMode ? t('save') : t('create') }}</va-button>
+      <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+        <va-button preset="secondary" @click="$emit('update:modelValue', false)">{{ t('cancel') }}</va-button>
+        <va-button v-if="canEdit" :disabled="isCurrentFieldPendingApproval" @click="$emit('save')">{{ isEditMode ? t('save') : t('create') }}</va-button>
+      </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup>
 import { useI18n } from 'vue-i18n'
 import { AgGridVue } from 'ag-grid-vue3'
 import { formatMultilingual } from '~/composables/useMultilingual'
+import AppModal from '~/components/common/AppModal.vue'
 
 const { t } = useI18n()
 

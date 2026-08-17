@@ -1,30 +1,34 @@
 <template>
-  <va-modal
+  <AppModal
     :model-value="modelValue"
     @update:model-value="val => emit('update:modelValue', val)"
     :title="title || t('select_icon', '아이콘 선택')"
+    icon="interests"
     size="medium"
     hide-default-actions
   >
-    <IconPicker
-      :model-value="tempIcon"
-      @update:model-value="val => tempIcon = val"
-    />
-    <div class="modal-action-footer">
-      <va-button preset="secondary" @click="onCancel">
-        {{ t('cancel', '취소') }}
-      </va-button>
-      <va-button @click="onConfirm">
-        {{ t('confirm', '확인') }}
-      </va-button>
+    <div style="padding: 0.5rem 0;">
+      <IconPicker
+        :model-value="tempIcon"
+        @update:model-value="val => tempIcon = val"
+      />
+      <div class="modal-action-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+        <va-button preset="secondary" @click="onCancel">
+          {{ t('cancel', '취소') }}
+        </va-button>
+        <va-button @click="onConfirm">
+          {{ t('confirm', '확인') }}
+        </va-button>
+      </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import IconPicker from '~/components/IconPicker.vue'
+import AppModal from '~/components/common/AppModal.vue'
 
 const { t } = useI18n()
 

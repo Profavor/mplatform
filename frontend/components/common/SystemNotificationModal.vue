@@ -1,12 +1,11 @@
 <template>
-  <va-modal
+  <AppModal
     :model-value="modelValue"
     @update:model-value="val => emit('update:modelValue', val)"
     :title="title || t('system_notification', '시스템 알림')"
+    :icon="type === 'success' ? 'check_circle' : (type === 'warning' ? 'warning' : 'error')"
     hide-default-actions
     size="small"
-    :prevent-click-outside="true"
-    :no-outside-dismiss="true"
   >
     <div class="notification-modal-body">
       <div
@@ -54,11 +53,12 @@
         </va-button>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import AppModal from '~/components/common/AppModal.vue'
 
 const { t } = useI18n()
 

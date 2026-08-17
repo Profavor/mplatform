@@ -257,7 +257,6 @@ public class ApprovalController {
     public ResponseEntity<ApprovalRequest> getRequestById(@PathVariable UUID id) {
         var req = approvalService.getRequestById(id);
         if (req != null) {
-            approvalService.maskChangesForRead(req);
             workflowResolver.enrichUserNames(req);
         }
         return ResponseEntity.ok(req);

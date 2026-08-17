@@ -1,14 +1,13 @@
 <template>
-  <va-modal
+  <AppModal
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
-    title="변경 내역 상세"
+    :title="$t('diff_details', '변경 내역 상세')"
+    icon="difference"
     hide-default-actions
     size="large"
-    :prevent-click-outside="true"
-    :no-outside-dismiss="true"
   >
-    <div style="padding: 1rem; box-sizing: border-box; width: 100%; max-height: 60vh; overflow-y: auto;">
+    <div style="padding: 0.5rem 0; box-sizing: border-box; width: 100%;">
       <div v-if="!selectedDiffs || selectedDiffs.length === 0" style="color: #777; font-style: italic;">
         변경된 필드가 없습니다.
       </div>
@@ -57,14 +56,15 @@
           </div>
         </div>
       </div>
+      <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+        <va-button @click="$emit('update:modelValue', false)">{{ $t('close', '닫기') }}</va-button>
+      </div>
     </div>
-    <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
-      <va-button @click="$emit('update:modelValue', false)">Close</va-button>
-    </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup>
+import AppModal from '~/components/common/AppModal.vue'
 const props = defineProps({
   modelValue: {
     type: Boolean,

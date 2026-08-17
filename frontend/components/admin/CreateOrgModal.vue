@@ -1,12 +1,11 @@
 <template>
-  <va-modal
+  <AppModal
     :model-value="modelValue"
     @update:model-value="val => emit('update:modelValue', val)"
     :title="t('create_new_org', '신규 조직(Tenant) 생성')"
+    icon="corporate_fare"
     hide-default-actions
     size="small"
-    :prevent-click-outside="true"
-    :no-outside-dismiss="true"
   >
     <div class="org-modal-body">
       <va-input
@@ -89,11 +88,12 @@
         </va-button>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import AppModal from '~/components/common/AppModal.vue'
 
 const { t } = useI18n()
 

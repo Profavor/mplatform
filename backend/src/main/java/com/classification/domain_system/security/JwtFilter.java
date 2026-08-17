@@ -82,6 +82,15 @@ public class JwtFilter extends OncePerRequestFilter {
             jwt = authorizationHeader.substring(7);
         } else if (request.getParameter("token") != null && !request.getParameter("token").isBlank()) {
             jwt = request.getParameter("token");
+        } else if (request.getCookies() != null) {
+            for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
+                if ("access_token".equals(cookie.getName()) || "auth_token".equals(cookie.getName()) || "jwt".equals(cookie.getName())) {
+                    if (cookie.getValue() != null && !cookie.getValue().isBlank()) {
+                        jwt = cookie.getValue();
+                        break;
+                    }
+                }
+            }
         }
 
         if (jwt != null) {

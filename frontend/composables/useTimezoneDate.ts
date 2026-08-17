@@ -93,5 +93,6 @@ export function useTimezoneDate() {
   return {
     parseDate,
     formatWithTimezone,
+    formatDate: formatWithTimezone,
   }
 }

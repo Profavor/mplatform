@@ -22,6 +22,7 @@ public class DomainResponse {
     private UUID identifierFieldId;
     private UUID displayNameFieldId;
     private UUID descriptionFieldId;
+    private UUID imageFieldId;
     private String icon;
     private Integer sortOrder;
     private String numberingPattern;
@@ -42,6 +43,7 @@ public class DomainResponse {
                 .identifierFieldId(domain.getIdentifierFieldId())
                 .displayNameFieldId(domain.getDisplayNameFieldId())
                 .descriptionFieldId(domain.getDescriptionFieldId())
+                .imageFieldId(domain.getImageFieldId())
                 .icon(domain.getIcon())
                 .sortOrder(domain.getSortOrder())
                 .numberingPattern(domain.getNumberingPattern())

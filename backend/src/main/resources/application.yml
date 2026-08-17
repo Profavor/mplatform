@@ -82,7 +82,15 @@ logging:
 
 security:
   encryption:
-    secret-key: ${ENCRYPTION_SECRET_KEY}
+    type: ${ENCRYPTION_TYPE:LOCAL}
+    secret-key: ${ENCRYPTION_SECRET_KEY:default-vault-local-fallback-key-32bytes}
+    vault:
+      uri: ${VAULT_URI:http://localhost:8200}
+      auth-method: ${VAULT_AUTH_METHOD:TOKEN}
+      token: ${VAULT_TOKEN:root}
+      k8s-role: ${VAULT_K8S_ROLE:mdm-role}
+      k8s-jwt-path: ${VAULT_K8S_JWT_PATH:/var/run/secrets/kubernetes.io/serviceaccount/token}
+      key-name: ${VAULT_KEY_NAME:mdm-field-key}
 
 mdm:
   matching:

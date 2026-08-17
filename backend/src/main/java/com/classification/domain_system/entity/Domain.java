@@ -57,6 +57,13 @@ public class Domain {
     @JoinColumn(name = "description_field_id", insertable = false, updatable = false)
     private FieldDefinition descriptionField;
 
+    @Column(name = "image_field_id")
+    private UUID imageFieldId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "image_field_id", insertable = false, updatable = false)
+    private FieldDefinition imageField;
+
     @Column(name = "icon")
     private String icon;
 

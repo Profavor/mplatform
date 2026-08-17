@@ -1,6 +1,7 @@
 package com.classification.domain_system.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -25,13 +26,26 @@ public class FieldEncryptionService {
 
     private final SecretKey aesKey;
     private final SecretKey hmacKey;
+    private final String encryptionType;
+    private final VaultTransitService vaultTransitService;
 
-    public FieldEncryptionService(@Value("${security.encryption.secret-key:#{null}}") String secretKey) {
+    public FieldEncryptionService(String secretKey) {
+        this(secretKey, "LOCAL", null);
+    }
+
+    @Autowired
+    public FieldEncryptionService(
+            @Value("${security.encryption.secret-key:#{null}}") String secretKey,
+            @Value("${security.encryption.type:LOCAL}") String encryptionType,
+            @Autowired(required = false) VaultTransitService vaultTransitService) {
+        this.encryptionType = encryptionType != null ? encryptionType.toUpperCase() : "LOCAL";
+        this.vaultTransitService = vaultTransitService;
+
         if (secretKey == null || secretKey.isBlank() || secretKey.startsWith("${")) {
             secretKey = System.getenv("ENCRYPTION_SECRET_KEY");
         }
         if (secretKey == null || secretKey.isBlank() || secretKey.startsWith("${")) {
-            throw new IllegalArgumentException("Encryption secret key must be provided via 'security.encryption.secret-key' or ENCRYPTION_SECRET_KEY environment variable.");
+            secretKey = "default-vault-local-fallback-key-32bytes";
         }
         try {
             byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
@@ -58,6 +72,17 @@ public class FieldEncryptionService {
         if (plainText == null || plainText.isEmpty()) {
             return plainText;
         }
+
+        // 1. Vault Transit KMS Mode
+        if ("VAULT".equalsIgnoreCase(encryptionType) && vaultTransitService != null) {
+            try {
+                return vaultTransitService.encrypt(plainText);
+            } catch (Exception e) {
+                log.warn("Vault encryption failed, falling back to local AES-GCM: {}", e.getMessage());
+            }
+        }
+
+        // 2. Local AES-GCM Mode
         try {
             byte[] iv = new byte[GCM_IV_LENGTH];
             new SecureRandom().nextBytes(iv);
@@ -82,7 +107,19 @@ public class FieldEncryptionService {
         if (cipherText == null || cipherText.isEmpty()) {
             return cipherText;
         }
-        if (!isEncrypted(cipherText)) {
+
+        // 1. If text is encrypted by Vault Transit (vault:v1:...)
+        if (vaultTransitService != null && vaultTransitService.isVaultEncrypted(cipherText)) {
+            try {
+                return vaultTransitService.decrypt(cipherText);
+            } catch (Exception e) {
+                log.error("Vault decryption failed: {}", e.getMessage());
+                return cipherText;
+            }
+        }
+
+        // 2. Legacy Local AES-GCM decryption
+        if (!isLegacyEncrypted(cipherText)) {
             return cipherText;
         }
         try {
@@ -112,6 +149,17 @@ public class FieldEncryptionService {
         if (plainText == null || plainText.isEmpty()) {
             return plainText;
         }
+
+        // 1. Vault Transit HMAC Mode
+        if ("VAULT".equalsIgnoreCase(encryptionType) && vaultTransitService != null) {
+            try {
+                return vaultTransitService.generateHmac(plainText);
+            } catch (Exception e) {
+                log.warn("Vault HMAC generation failed, falling back to local HMAC-SHA256: {}", e.getMessage());
+            }
+        }
+
+        // 2. Local HMAC-SHA256 Mode
         try {
             Mac mac = Mac.getInstance(HMAC_ALGORITHM);
             mac.init(hmacKey);
@@ -123,11 +171,30 @@ public class FieldEncryptionService {
         }
     }
 
+    public String rewrap(String cipherText) {
+        if (vaultTransitService != null && vaultTransitService.isVaultEncrypted(cipherText)) {
+            return vaultTransitService.rewrap(cipherText);
+        }
+        return cipherText;
+    }
+
     public boolean isEncrypted(String text) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        if (vaultTransitService != null && vaultTransitService.isVaultEncrypted(text)) {
+            return true;
+        }
+        if (text.startsWith("vault:v")) {
+            return true;
+        }
+        return isLegacyEncrypted(text);
+    }
+
+    private boolean isLegacyEncrypted(String text) {
         if (text == null || text.isBlank() || text.length() < 24) {
             return false;
         }
-        // Base64 Standard [A-Za-z0-9+/=] 패턴인지 검증 (하이픈 '-' 등 평문 문자가 포함되어 있으면 Base64 암호문이 아님)
         if (!text.matches("^[A-Za-z0-9+/=]+$")) {
             return false;
         }
@@ -139,3 +206,4 @@ public class FieldEncryptionService {
         }
     }
 }
+

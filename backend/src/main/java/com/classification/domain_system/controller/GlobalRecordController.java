@@ -38,7 +38,7 @@ public class GlobalRecordController {
         if (request != null && request.getData() != null) {
             Record record = recordService.findRawById(id).orElse(null);
             if (record != null && record.getNode() != null) {
-                request.setData(recordService.processDataForSave(record.getNode().getId(), request.getData()));
+                request.setData(recordService.processDataForSave(record.getNode().getId(), request.getData(), record.getData()));
             }
         }
         return ResponseEntity.ok(approvalService.requestRecordUpdate(id, request));

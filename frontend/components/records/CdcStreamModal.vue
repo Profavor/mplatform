@@ -1,11 +1,12 @@
 <template>
-  <va-modal
+  <AppModal
     v-model="show"
     :title="modalTitle"
+    icon="stream"
     size="large"
     hide-default-actions
   >
-    <div style="display: flex; flex-direction: column; gap: 1.25rem; padding: 0.5rem;">
+    <div style="display: flex; flex-direction: column; gap: 1.25rem; padding: 0.5rem 0;">
       <va-alert color="primary" outline style="margin: 0; font-size: 0.85rem; line-height: 1.5;">
         ⚡ {{ $t('cdc_stream_desc') }}
         <span v-if="recordCodeFormatted" style="margin-left: 0.5rem; font-weight: 700; color: var(--va-primary);">
@@ -242,7 +243,7 @@
         </va-button>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
@@ -252,6 +253,7 @@ import { useCookie } from '#app'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useTimezoneDate } from '~/composables/useTimezoneDate'
 import { useFileDownloader } from '~/composables/useFileDownloader'
+import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps<{
   modelValue: boolean
@@ -487,6 +489,13 @@ const formatValue = (val: any, fieldKey?: string): string => {
     return getDomainRefDisplayName(fieldKey || f.key, val)
   }
 
+  // Encrypted ciphertext fallback masking (e.g. vault:v1:...)
+  if (typeof val === 'string') {
+    if (val.startsWith('vault:v1:') || (f?.isEncrypted && val.length > 20 && !val.includes(' ') && !val.includes('-'))) {
+      return '********'
+    }
+  }
+
   // Raw UUID string pattern
   if (typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
     // If fieldKey matches any domain ref
@@ -522,9 +531,13 @@ const diffItems = computed(() => {
   if (!selectedEvent.value) return []
   const before = selectedEvent.value.beforePayload || {}
   const after = selectedEvent.value.afterPayload || {}
+  const changedFields = (selectedEvent.value as any).changedFields || []
 
-  const allKeys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)]))
-    .filter(k => !k.startsWith('_idx_') && k !== 'id' && k !== 'domainId' && k !== 'nodeId' && k !== 'createdAt' && k !== 'updatedAt')
+  const allKeys = Array.from(new Set([
+    ...changedFields,
+    ...Object.keys(before),
+    ...Object.keys(after)
+  ])).filter(k => !k.startsWith('_idx_') && k !== 'id' && k !== 'domainId' && k !== 'nodeId' && k !== 'createdAt' && k !== 'updatedAt')
 
   if (allKeys.length === 0) return []
 
@@ -533,7 +546,8 @@ const diffItems = computed(() => {
     const aVal = after[k]
     const bFormatted = formatValue(bVal, k)
     const aFormatted = formatValue(aVal, k)
-    const isChanged = bFormatted !== aFormatted || JSON.stringify(bVal) !== JSON.stringify(aVal)
+    const isExplicitlyChanged = changedFields.includes(k)
+    const isChanged = isExplicitlyChanged || bFormatted !== aFormatted || JSON.stringify(bVal) !== JSON.stringify(aVal)
 
     return {
       key: k,

@@ -10,9 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -123,6 +121,10 @@ public class RecordService {
     }
 
     public String processDataForSave(UUID nodeId, String dataJson) {
+        return processDataForSave(nodeId, dataJson, null);
+    }
+
+    public String processDataForSave(UUID nodeId, String dataJson, String existingDataJson) {
         if (dataJson == null || dataJson.isBlank() || nodeId == null) {
             return dataJson;
         }
@@ -133,6 +135,14 @@ public class RecordService {
             }
 
             Map<String, Object> dataMap = objectMapper.readValue(dataJson, new TypeReference<Map<String, Object>>() {});
+            Map<String, Object> existingMap = null;
+            if (existingDataJson != null && !existingDataJson.isBlank()) {
+                try {
+                    existingMap = objectMapper.readValue(existingDataJson, new TypeReference<Map<String, Object>>() {});
+                } catch (Exception e) {
+                    log.warn("Could not parse existing data json: {}", e.getMessage());
+                }
+            }
             boolean modified = false;
 
             for (FieldDefinition field : fields) {
@@ -147,8 +157,26 @@ public class RecordService {
                     if (matchedKey != null) {
                         Object rawValObj = dataMap.get(matchedKey);
                         if (rawValObj instanceof String rawVal && !rawVal.isBlank()) {
-                            // 1. If rawVal contains masking asterisks '*', do not re-encrypt masked string
+                            // 1. If rawVal contains masking asterisks '*', preserve original ciphertext from existing record
                             if (rawVal.contains("*")) {
+                                if (existingMap != null) {
+                                    String existingKey = null;
+                                    for (String ek : existingMap.keySet()) {
+                                        if (ek.equalsIgnoreCase(field.getKey())) {
+                                            existingKey = ek;
+                                            break;
+                                        }
+                                    }
+                                    if (existingKey != null && existingMap.get(existingKey) != null) {
+                                        Object existingVal = existingMap.get(existingKey);
+                                        dataMap.put(matchedKey, existingVal);
+                                        String existingIdxKey = "_idx_" + field.getKey();
+                                        if (existingMap.containsKey(existingIdxKey)) {
+                                            dataMap.put(existingIdxKey, existingMap.get(existingIdxKey));
+                                        }
+                                        modified = true;
+                                    }
+                                }
                                 continue;
                             }
                             // 2. If rawVal is ALREADY valid ciphertext, do not double encrypt
@@ -208,6 +236,54 @@ public class RecordService {
         return records;
     }
 
+    public List<String> computeChangedFieldKeys(String prevJson, String newJson) {
+        if (prevJson == null && newJson == null) return Collections.emptyList();
+        if (prevJson == null || prevJson.isBlank()) {
+            if (newJson == null || newJson.isBlank()) return Collections.emptyList();
+            try {
+                Map<String, Object> newMap = objectMapper.readValue(newJson, new TypeReference<Map<String, Object>>() {});
+                return newMap.keySet().stream().filter(k -> !k.startsWith("_idx_") && !isMetadataKey(k)).toList();
+            } catch (Exception e) {
+                return Collections.emptyList();
+            }
+        }
+        if (newJson == null || newJson.isBlank()) {
+            try {
+                Map<String, Object> prevMap = objectMapper.readValue(prevJson, new TypeReference<Map<String, Object>>() {});
+                return prevMap.keySet().stream().filter(k -> !k.startsWith("_idx_") && !isMetadataKey(k)).toList();
+            } catch (Exception e) {
+                return Collections.emptyList();
+            }
+        }
+
+        try {
+            Map<String, Object> prevMap = objectMapper.readValue(prevJson, new TypeReference<Map<String, Object>>() {});
+            Map<String, Object> newMap = objectMapper.readValue(newJson, new TypeReference<Map<String, Object>>() {});
+
+            Set<String> allKeys = new HashSet<>(prevMap.keySet());
+            allKeys.addAll(newMap.keySet());
+
+            List<String> changed = new ArrayList<>();
+            for (String key : allKeys) {
+                if (key.startsWith("_idx_") || isMetadataKey(key)) continue;
+                Object prevVal = prevMap.get(key);
+                Object newVal = newMap.get(key);
+                if (!Objects.equals(prevVal, newVal)) {
+                    changed.add(key);
+                }
+            }
+            return changed;
+        } catch (Exception e) {
+            log.error("Failed to compute changed field keys", e);
+            return Collections.emptyList();
+        }
+    }
+
+    private boolean isMetadataKey(String key) {
+        return "id".equals(key) || "createdAt".equals(key) || "updatedAt".equals(key) ||
+                "createdBy".equals(key) || "updatedBy".equals(key) || "domainId".equals(key) || "status".equals(key);
+    }
+
     @org.springframework.transaction.annotation.Transactional
     public int migrateSearchableData() {
         int count = 0;
@@ -221,3 +297,4 @@ public class RecordService {
         return count;
     }
 }
+

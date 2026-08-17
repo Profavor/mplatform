@@ -300,6 +300,7 @@
     <ApprovalViewerModal
       v-model="showApprovalHistoryModal"
       :request="selectedApprovalRequest"
+      :node-id="selectedNode?.id || localRecord?.node?.id"
     />
 
     <RecordsDomainRefModal
@@ -336,6 +337,13 @@
       :recordId="selectedRecordRows?.length === 1 ? selectedRecordRows[0].id : null"
       :domain-references="domainReferences"
     />
+
+    <!-- AG-Grid Image Lightbox Viewer -->
+    <ImageLightboxModal
+      v-model="showGridImageLightbox"
+      :images="gridLightboxImages"
+      :initial-index="gridLightboxIndex"
+    />
   </div>
 </div>
 </template>
@@ -351,6 +359,7 @@ import { usePageTitle } from '~/composables/usePageTitle'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { usePermission } from '~/composables/usePermission'
 import { formatMultilingual } from '~/composables/useMultilingual'
+import { useAuthenticatedImage } from '~/composables/useAuthenticatedImage'
 import ExcelUploader from '~/components/ExcelUploader.vue'
 import RecordToolbar from '~/components/records/RecordToolbar.vue'
 import RecordAdvancedSearch from '~/components/records/RecordAdvancedSearch.vue'
@@ -362,9 +371,11 @@ import AsyncBatchExportModal from '~/components/AsyncBatchExportModal.vue'
 import ApprovalViewerModal from '~/components/ApprovalViewerModal.vue'
 import BulkReclassifyModal from '~/components/records/BulkReclassifyModal.vue'
 import CdcStreamModal from '~/components/records/CdcStreamModal.vue'
+import ImageLightboxModal from '~/components/common/ImageLightboxModal.vue'
 
 const { pageTitle } = usePageTitle('records_management', '마스터 데이터 레코드 관리')
 const { customFetch } = useCustomFetch()
+const { getAuthenticatedImageUrl } = useAuthenticatedImage()
 const { t } = useI18n()
 const { confirm } = useModal()
 const { init: initToast } = useToast()
@@ -373,6 +384,22 @@ const { hasPermission } = usePermission()
 const { downloadFileWithAuth } = useFileDownloader()
 
 const showCdcStreamModal = ref(false)
+
+// AG-Grid Image Lightbox State
+const showGridImageLightbox = ref(false)
+const gridLightboxImages = ref([])
+const gridLightboxIndex = ref(0)
+
+const openGridImageLightbox = (images, startIndex = 0) => {
+  gridLightboxImages.value = images
+  gridLightboxIndex.value = startIndex
+  showGridImageLightbox.value = true
+}
+
+// Expose to window for AG-Grid DOM-based cellRenderer access
+if (typeof window !== 'undefined') {
+  window.__openGridImageLightbox = openGridImageLightbox
+}
 
 const formatNodeName = (nameObj) => {
   if (!nameObj) return ''
@@ -1080,6 +1107,65 @@ const handleUnmergeRecord = async (record) => {
 }
 
 
+const loadRecordByQueryId = async (recordId) => {
+  if (!recordId) return
+  try {
+    const rec = await customFetch(`/api/records/${recordId}`).catch(() => null)
+    if (rec) {
+      let targetNode = null
+      if (rec.node) {
+        targetNode = findNodeInTree(rec.node.id) || {
+          id: rec.node.id,
+          label: typeof rec.node.name === 'object' ? (rec.node.name[currentLocale.value] || rec.node.name.ko || rec.node.name.en) : rec.node.name,
+          isDomain: false,
+          domainId: rec.node.domainId || (rec.node.domain ? rec.node.domain.id : null)
+        }
+      } else if (rec.domainId) {
+        targetNode = findNodeInTree(rec.domainId) || {
+          id: rec.domainId,
+          label: 'Domain',
+          isDomain: true
+        }
+      }
+
+      if (targetNode) {
+        await selectNode(targetNode)
+      }
+      openRecordDetailModal(rec)
+    }
+  } catch (e) {
+    console.error('Failed to load record by query params:', e)
+  }
+}
+
+watch(
+  () => [route.query.recordId, route.query._t],
+  ([newRecordId]) => {
+    if (newRecordId) {
+      loadRecordByQueryId(newRecordId)
+    }
+  }
+)
+
+const handleGlobalSearchSelect = (e) => {
+  const detail = e.detail || {}
+  if (detail.recordId) {
+    loadRecordByQueryId(detail.recordId)
+  }
+}
+
+onMounted(() => {
+  if (typeof window !== 'undefined') {
+    window.addEventListener('global-search:select-record', handleGlobalSearchSelect)
+  }
+})
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('global-search:select-record', handleGlobalSearchSelect)
+  }
+})
+
 const handleInitialRouteParams = async () => {
   if (initialRouteHandled.value) return
   const queryRecordId = route.query.recordId
@@ -1088,35 +1174,8 @@ const handleInitialRouteParams = async () => {
 
   if (queryRecordId) {
     initialRouteHandled.value = true
-    try {
-      const rec = await customFetch(`/api/records/${queryRecordId}`).catch(() => null)
-
-      if (rec) {
-        let targetNode = null
-        if (rec.node) {
-          targetNode = findNodeInTree(rec.node.id) || {
-            id: rec.node.id,
-            label: typeof rec.node.name === 'object' ? (rec.node.name[currentLocale.value] || rec.node.name.ko || rec.node.name.en) : rec.node.name,
-            isDomain: false,
-            domainId: rec.node.domainId || (rec.node.domain ? rec.node.domain.id : null)
-          }
-        } else if (rec.domainId) {
-          targetNode = findNodeInTree(rec.domainId) || {
-            id: rec.domainId,
-            label: 'Domain',
-            isDomain: true
-          }
-        }
-
-        if (targetNode) {
-          await selectNode(targetNode)
-        }
-        openRecordDetailModal(rec)
-        return
-      }
-    } catch (e) {
-      console.error('Failed to load record by query params:', e)
-    }
+    await loadRecordByQueryId(queryRecordId)
+    return
   }
 
   if (queryDomainId || queryNodeId) {
@@ -1412,6 +1471,85 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
           };
           container.appendChild(a);
         });
+
+        return container;
+      }
+    } else if (f.type === 'IMAGE') {
+      colDef.cellRenderer = (params) => {
+        if (!params || !params.value) return '-';
+        let val = params.value;
+        if (typeof val === 'string') {
+          val = val.trim();
+          if (val === '' || val === '-' || val === '[]' || val === '{}' || val === 'null') return '-';
+        }
+
+        let imgList = [];
+        if (Array.isArray(val)) {
+          imgList = val;
+        } else if (typeof val === 'string') {
+          try {
+            const parsed = JSON.parse(val);
+            if (Array.isArray(parsed)) imgList = parsed;
+            else if (typeof parsed === 'object') imgList = [parsed];
+            else imgList = [val];
+          } catch (e) {
+            imgList = val.includes(',') ? val.split(',').map(s => s.trim()).filter(Boolean) : [val];
+          }
+        } else if (typeof val === 'object') {
+          imgList = [val];
+        }
+
+        const validImages = imgList.filter(item => {
+          if (!item) return false;
+          const url = typeof item === 'object' ? item.url : String(item);
+          return url !== '' && url !== '-';
+        });
+
+        if (validImages.length === 0) return '-';
+
+        const container = document.createElement('div');
+        container.style.cssText = 'display: flex; align-items: center; gap: 6px; height: 100%; cursor: pointer;';
+
+        const firstItem = validImages[0];
+        const rawUrl = typeof firstItem === 'object' ? firstItem.url : String(firstItem);
+
+        const imgEl = document.createElement('img');
+        imgEl.style.cssText = 'width: 32px; height: 32px; border-radius: 4px; object-fit: cover; border: 1px solid rgba(0,0,0,0.1); background: #eee; cursor: pointer;';
+        imgEl.alt = 'Thumbnail';
+        imgEl.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>';
+
+        // Load blob image with auth
+        getAuthenticatedImageUrl(rawUrl).then(blobUrl => {
+          if (blobUrl) imgEl.src = blobUrl;
+        });
+
+        // Build image items for lightbox
+        const lightboxItems = validImages.map((item, idx) => {
+          const url = typeof item === 'object' ? item.url : String(item);
+          const name = typeof item === 'object' && item.name ? item.name : `${t('preview_image')} ${idx + 1}`;
+          return { url, name };
+        });
+
+        const handleImageClick = (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          openGridImageLightbox(lightboxItems, 0);
+          if (typeof window !== 'undefined' && window.__openGridImageLightbox) {
+            window.__openGridImageLightbox(lightboxItems, 0);
+          }
+        };
+
+        container.addEventListener('click', handleImageClick);
+        imgEl.addEventListener('click', handleImageClick);
+
+        container.appendChild(imgEl);
+
+        if (validImages.length > 1) {
+          const badge = document.createElement('span');
+          badge.style.cssText = 'font-size: 0.72rem; font-weight: 700; background: rgba(37,99,235,0.12); color: #2563eb; padding: 2px 6px; border-radius: 10px;';
+          badge.innerText = `+${validImages.length - 1}`;
+          container.appendChild(badge);
+        }
 
         return container;
       }

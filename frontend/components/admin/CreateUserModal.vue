@@ -1,11 +1,13 @@
 <template>
-  <va-modal
+  <AppModal
     :model-value="modelValue"
     :title="t('create_user', '사용자 생성')"
+    icon="person_add"
+    size="medium"
     hide-default-actions
     @update:model-value="val => emit('update:modelValue', val)"
   >
-    <div style="padding: 1rem; min-width: 400px; display: flex; flex-direction: column; gap: 1.25rem;">
+    <div style="padding: 0.5rem 0; min-width: 400px; display: flex; flex-direction: column; gap: 1.25rem;">
       <va-input
         v-model="newUser.username"
         :label="t('label_username', '사용자 아이디')"
@@ -68,7 +70,7 @@
         </va-button>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
@@ -76,6 +78,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import UserRoleSelect from '~/components/UserRoleSelect.vue'
 import { formatMultilingual } from '~/composables/useMultilingual'
+import AppModal from '~/components/common/AppModal.vue'
 
 const { t, locale } = useI18n()
 

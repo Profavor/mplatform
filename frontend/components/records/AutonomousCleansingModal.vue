@@ -1,11 +1,12 @@
 <template>
-  <va-modal
+  <AppModal
     v-model="show"
     :title="$t('autonomous_cleansing')"
+    icon="auto_fix_high"
     size="large"
     hide-default-actions
   >
-    <div style="display: flex; flex-direction: column; gap: 1.25rem; padding: 0.5rem;">
+    <div style="display: flex; flex-direction: column; gap: 1.25rem; padding: 0.5rem 0;">
       <va-alert color="primary" outline style="margin: 0; font-size: 0.85rem; line-height: 1.5;">
         🧠 {{ $t('autonomous_cleansing_desc') }}
       </va-alert>
@@ -39,19 +40,17 @@
                 >
                   <td style="padding: 0.5rem 0.75rem; font-weight: 700;">
                     <div>{{ item.recordCode }}</div>
-                    <span style="font-size: 0.72rem; color: var(--va-text-secondary); font-family: monospace;">{{ item.fieldKey }}</span>
+                    <span style="font-size: 0.75rem; color: var(--va-text-secondary);">{{ item.fieldName }}</span>
                   </td>
                   <td style="padding: 0.5rem 0.75rem; color: var(--va-danger); text-decoration: line-through;">
-                    {{ item.anomalyValue }}
+                    {{ item.currentValue }}
                   </td>
-                  <td style="padding: 0.5rem 0.75rem; font-weight: 700; color: var(--va-success);">
-                    {{ item.recommendedValue }}
+                  <td style="padding: 0.5rem 0.75rem; font-weight: 700; color: var(--va-primary);">
+                    {{ item.suggestedValue }}
                   </td>
-                  <td style="padding: 0.5rem 0.75rem; font-size: 0.75rem;">
-                    <div>
-                      <va-badge :text="item.cleansingStrategy" color="info" size="small" style="margin-bottom: 0.2rem;" />
-                    </div>
-                    <div style="color: var(--va-text-secondary);">{{ item.reason }}</div>
+                  <td style="padding: 0.5rem 0.75rem; font-size: 0.78rem;">
+                    <div style="font-weight: 600;">{{ item.strategy }}</div>
+                    <span style="color: var(--va-text-secondary);">{{ item.reason }}</span>
                   </td>
                 </tr>
               </tbody>
@@ -66,13 +65,14 @@
         </va-button>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCustomFetch } from '~/composables/useCustomFetch'
+import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps<{
   modelValue: boolean

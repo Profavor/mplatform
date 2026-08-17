@@ -1,10 +1,12 @@
 <template>
-  <va-modal
+  <AppModal
     v-model="show"
     :title="$t('async_export_title')"
+    icon="cloud_download"
     hide-default-actions
+    size="small"
   >
-    <div style="padding: 0.5rem; display: flex; flex-direction: column; gap: 1.25rem;">
+    <div style="padding: 0.5rem 0; display: flex; flex-direction: column; gap: 1.25rem;">
       <div v-if="!taskInfo" style="display: flex; flex-direction: column; gap: 1rem;">
         <p style="font-size: 0.9rem; color: var(--va-text-secondary); margin: 0;">
           {{ $t('async_export_desc') }}
@@ -37,13 +39,14 @@
         <va-button preset="secondary" @click="show = false">{{ $t('close') }}</va-button>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCustomFetch } from '~/composables/useCustomFetch'
+import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps<{
   modelValue: boolean

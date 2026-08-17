@@ -500,7 +500,19 @@ public class SensitiveDataService {
                             result.put(field.getKey(), decrypted);
                             result.put(field.getKey().toLowerCase(), decrypted);
                             result.put(field.getKey().toUpperCase(), decrypted);
+                            String camel = toCamelCase(field.getKey());
+                            if (camel != null) result.put(camel, decrypted);
+                            String snake = toSnakeCase(field.getKey());
+                            if (snake != null) result.put(snake, decrypted);
+
                             result.put(matchedKey, decrypted);
+                            result.put(matchedKey.toLowerCase(), decrypted);
+                            result.put(matchedKey.toUpperCase(), decrypted);
+                            String matchedCamel = toCamelCase(matchedKey);
+                            if (matchedCamel != null) result.put(matchedCamel, decrypted);
+                            String matchedSnake = toSnakeCase(matchedKey);
+                            if (matchedSnake != null) result.put(matchedSnake, decrypted);
+
                             if (field.getId() != null) {
                                 result.put(String.valueOf(field.getId()), decrypted);
                             }
@@ -512,6 +524,26 @@ public class SensitiveDataService {
             log.error("Failed to parse or decrypt JSON data", e);
         }
         return result;
+    }
+
+    private String toCamelCase(String s) {
+        if (s == null || !s.contains("_")) return s;
+        StringBuilder sb = new StringBuilder();
+        boolean nextUpper = false;
+        for (char c : s.toCharArray()) {
+            if (c == '_') {
+                nextUpper = true;
+            } else {
+                sb.append(nextUpper ? Character.toUpperCase(c) : Character.toLowerCase(c));
+                nextUpper = false;
+            }
+        }
+        return sb.toString();
+    }
+
+    private String toSnakeCase(String s) {
+        if (s == null) return null;
+        return s.replaceAll("([a-z])([A-Z]+)", "$1_$2").toLowerCase();
     }
 
     private String decryptUntilPlaintext(String val) {

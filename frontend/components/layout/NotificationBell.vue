@@ -139,9 +139,9 @@
     </va-dropdown>
 
     <!-- Combined Global Modal for Approval Details & Action Review -->
-    <va-modal v-model="showApprovalModal" size="large" close-button hide-default-actions>
+    <AppModal v-model="showApprovalModal" size="large" hide-default-actions>
       <template #header>
-        <div v-if="activeRequest" style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding-right: 2.5rem;">
+        <div v-if="activeRequest" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
           <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
             <va-icon :name="isPendingAssignee ? 'rate_review' : 'verified_user'" color="primary" />
             {{ isPendingAssignee ? ($t('approval_review')) : ($t('details')) }}
@@ -152,7 +152,7 @@
         </div>
       </template>
 
-      <div v-if="activeRequest" style="padding: 1rem 0 0 0;">
+      <div v-if="activeRequest" style="padding: 0.5rem 0 0 0;">
         <!-- 1. Existing Approval Details & History Timeline -->
         <ApprovalDetailsViewer :request="activeRequest" />
 
@@ -179,7 +179,7 @@
           <va-button preset="secondary" @click="showApprovalModal = false">닫기</va-button>
         </div>
       </template>
-    </va-modal>
+    </AppModal>
   </div>
 </template>
 
@@ -193,6 +193,7 @@ import { useTimezoneDate } from '~/composables/useTimezoneDate'
 import { useApprovalEnricher } from '~/composables/useApprovalEnricher'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import ApprovalDetailsViewer from '~/components/ApprovalDetailsViewer.vue'
+import AppModal from '~/components/common/AppModal.vue'
 
 const { customFetch } = useCustomFetch()
 const router = useRouter()

@@ -134,9 +134,9 @@
     </va-card>
 
     <!-- Side-by-Side Diff Modal -->
-    <va-modal v-model="showDiffModal" size="large" close-button hide-default-actions>
+    <AppModal v-model="showDiffModal" size="large" hide-default-actions>
       <template #header>
-        <div style="display: flex; align-items: center; gap: 0.65rem; width: 100%; padding-right: 2rem;">
+        <div style="display: flex; align-items: center; gap: 0.65rem; width: 100%;">
           <va-icon name="compare" color="primary" size="large" />
           <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--va-text-primary);">
             {{ $t('deduplication.modal_title') }}
@@ -144,7 +144,7 @@
         </div>
       </template>
 
-      <div v-if="selectedCandidate" style="padding: 1rem 0 0 0;">
+      <div v-if="selectedCandidate" style="padding: 0.5rem 0 0 0;">
         <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
           <div style="flex: 1; border: 1px solid var(--va-primary); padding: 1rem; border-radius: 10px; background: var(--va-background-element);">
             <h4 style="margin-top: 0; margin-bottom: 0.5rem; font-weight: 800; color: var(--va-primary); font-size: 1.05rem; display: flex; align-items: center; gap: 0.35rem;">
@@ -185,13 +185,14 @@
           </va-button>
         </div>
       </template>
-    </va-modal>
+    </AppModal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { usePageTitle } from '~/composables/usePageTitle'
+import AppModal from '~/components/common/AppModal.vue'
 
 const { pageTitle } = usePageTitle('deduplication.title', '중복 후보 검토 큐')
 const { t } = useI18n()

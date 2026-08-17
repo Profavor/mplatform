@@ -1,0 +1,204 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-sa
+  namespace: mdm-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: vault-tokenreviewer-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+- kind: ServiceAccount
+  name: vault-sa
+  namespace: mdm-system
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-config
+  namespace: mdm-system
+data:
+  vault.hcl: |
+    storage "file" {
+      path = "/vault/data"
+    }
+    listener "tcp" {
+      address     = "0.0.0.0:8200"
+      tls_disable = 1
+    }
+    ui = true
+    disable_mlock = true
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vault
+  namespace: mdm-system
+spec:
+  serviceName: vault
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vault
+  template:
+    metadata:
+      labels:
+        app: vault
+    spec:
+      serviceAccountName: vault-sa
+      containers:
+      - name: vault
+        image: hashicorp/vault:1.15
+        command:
+        - /bin/sh
+        - -c
+        - |
+          vault server -config=/vault/config/vault.hcl &
+          VAULT_PID=$!
+          echo "Vault server started with PID $VAULT_PID"
+          
+          # Background Auto-Unseal Loop
+          export VAULT_ADDR="http://127.0.0.1:8200"
+          while true; do
+            if [ -f /vault/data/unseal_key ]; then
+              STATUS=$(vault status -format=json 2>/dev/null || true)
+              SEALED=$(echo "$STATUS" | grep '"sealed":' | grep -o 'true\|false' || echo "true")
+              if [ "$SEALED" = "true" ]; then
+                KEY=$(cat /vault/data/unseal_key | tr -d '\r\n ')
+                if [ -n "$KEY" ]; then
+                  echo "Auto-unsealing Vault using persistent key..."
+                  vault operator unseal "$KEY" || true
+                fi
+              fi
+            fi
+            sleep 5
+          done &
+          
+          wait $VAULT_PID
+        securityContext:
+          capabilities:
+            add: ["IPC_LOCK"]
+        ports:
+        - containerPort: 8200
+          name: http
+        volumeMounts:
+        - name: config
+          mountPath: /vault/config
+        - name: data
+          mountPath: /vault/data
+        readinessProbe:
+          httpGet:
+            path: /v1/sys/health?standbyok=true&uninitcode=200&sealedcode=200
+            port: 8200
+          initialDelaySeconds: 3
+          periodSeconds: 3
+      volumes:
+      - name: config
+        configMap:
+          name: vault-config
+      - name: data
+        persistentVolumeClaim:
+          claimName: vault-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault
+  namespace: mdm-system
+spec:
+  ports:
+  - port: 8200
+    targetPort: 8200
+    name: http
+  selector:
+    app: vault
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vault-init-job
+  namespace: mdm-system
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      name: vault-init-job
+    spec:
+      serviceAccountName: vault-sa
+      restartPolicy: OnFailure
+      containers:
+      - name: vault-init
+        image: hashicorp/vault:1.15
+        env:
+        - name: VAULT_ADDR
+          value: "http://vault:8200"
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+          echo "Waiting for Vault service to respond..."
+          until vault status > /dev/null 2>&1 || [ $? -eq 2 ]; do
+            echo "Waiting for vault to be reachable..."
+            sleep 2
+          done
+
+          STATUS=$(vault status -format=json 2>/dev/null || true)
+          INITIALIZED=$(echo "$STATUS" | grep '"initialized":' | grep -o 'true\|false' || echo "false")
+
+          if [ "$INITIALIZED" != "true" ]; then
+            echo "Initializing Vault for the first time on persistent storage..."
+            INIT_OUT=$(vault operator init -key-shares=1 -key-threshold=1 -format=json)
+            
+            # Extract key and token
+            UNSEAL_KEY=$(echo "$INIT_OUT" | grep -o '"unseal_keys_b64": \[[^]]*\]' | grep -o '"[^",]*"' | head -n 1 | tr -d '"')
+            ROOT_TOKEN=$(echo "$INIT_OUT" | grep -o '"root_token": "[^"]*"' | cut -d'"' -f4)
+
+            echo "Unsealing Vault..."
+            vault operator unseal "$UNSEAL_KEY"
+
+            export VAULT_TOKEN="$ROOT_TOKEN"
+
+            echo "Enabling Transit Secrets Engine..."
+            vault secrets enable transit || true
+
+            echo "Creating AES-256-GCM encryption key (mdm-field-key)..."
+            vault write -f transit/keys/mdm-field-key type=aes256-gcm96 || true
+
+            echo "Enabling Kubernetes Auth..."
+            vault auth enable kubernetes || true
+            vault write auth/kubernetes/config \
+                kubernetes_host="https://kubernetes.default.svc:443" || true
+
+            echo "Creating MDM Transit Policy..."
+            vault policy write mdm-policy - <<EOF
+          path "transit/encrypt/mdm-field-key" {
+            capabilities = ["create", "update"]
+          }
+          path "transit/decrypt/mdm-field-key" {
+            capabilities = ["create", "update"]
+          }
+          path "transit/hmac/mdm-field-key" {
+            capabilities = ["create", "update"]
+          }
+          path "transit/rewrap/mdm-field-key" {
+            capabilities = ["create", "update"]
+          }
+          EOF
+
+            echo "Binding MDM Role for Kubernetes Auth..."
+            vault write auth/kubernetes/role/mdm-role \
+                bound_service_account_names=default,vault-sa,backend \
+                bound_service_account_namespaces=mdm-system \
+                policies=mdm-policy \
+                ttl=24h || true
+
+            echo "Vault initial setup completed!"
+          else
+            echo "Vault is already initialized on persistent storage."
+          fi

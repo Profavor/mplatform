@@ -1,20 +1,13 @@
 <template>
-  <va-modal
-    :modelValue="show"
-    @update:modelValue="$emit('close')"
+  <AppModal
+    :model-value="show"
+    @update:model-value="$emit('close')"
+    :title="$t('survivorship.title')"
+    icon="rule_folder"
     size="large"
     hide-default-actions
-    no-outside-dismiss
-    class="survivorship-rules-modal"
   >
-    <template #header>
-      <div class="modal-header bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 rounded-t-lg flex justify-between items-center">
-        <h2 class="text-xl font-bold m-0">{{ $t('survivorship.title') }}</h2>
-        <va-button preset="plain" icon="close" color="white" @click="$emit('close')" />
-      </div>
-    </template>
-
-    <div class="modal-body p-4 max-h-[70vh] overflow-y-auto">
+    <div style="padding: 0.5rem 0;">
       <div class="flex justify-between items-center mb-4">
         <p class="text-sm text-gray-600">{{ $t('survivorship.description') }}</p>
         <va-button icon="add" color="success" size="small" @click="addRule">
@@ -76,16 +69,12 @@
     </div>
 
     <template #footer>
-      <div class="flex justify-end gap-3 p-4 border-t">
-        <va-button preset="secondary" color="gray" @click="$emit('close')">
-          {{ $t('cancel') }}
-        </va-button>
-        <va-button color="primary" @click="saveRules" :loading="isSaving">
-          {{ $t('save') }}
-        </va-button>
+      <div class="flex justify-end gap-2 mt-4">
+        <va-button preset="secondary" @click="$emit('close')">{{ $t('common.cancel') }}</va-button>
+        <va-button color="primary" :loading="isSaving" @click="saveRules">{{ $t('common.save') }}</va-button>
       </div>
     </template>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
@@ -93,6 +82,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vuestic-ui'
 import { useCustomFetch } from '~/composables/useCustomFetch'
+import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps<{
   show: boolean

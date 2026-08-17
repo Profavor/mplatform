@@ -1,12 +1,11 @@
 <template>
-  <va-modal
+  <AppModal
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
     :title="currentLocale === 'en' ? 'Data Quality Check' : 'DQ 품질 검증 결과'"
+    icon="fact_check"
     hide-default-actions
     size="medium"
-    :prevent-click-outside="true"
-    :no-outside-dismiss="true"
   >
     <div style="padding: 0.5rem 0; min-height: 250px;">
       <div v-if="dqValidating" style="text-align: center; padding: 3rem;">
@@ -120,10 +119,11 @@
         </div>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup>
+import AppModal from '~/components/common/AppModal.vue'
 const props = defineProps({
   modelValue: {
     type: Boolean,

@@ -19,6 +19,26 @@ public interface RecordRepository extends JpaRepository<Record, UUID>, CustomRec
     
     Page<Record> findBySearchableDataContainingIgnoreCase(String keyword, Pageable pageable);
 
+    @org.springframework.data.jpa.repository.Query(
+        value = "SELECT r.* FROM record r "
+              + "JOIN classification_node n ON r.node_id = n.id "
+              + "JOIN domain d ON n.domain_id = d.id "
+              + "WHERE r.status NOT IN ('REJECTED', 'MISMATCHED') "
+              + "AND (LOWER(CAST(r.data AS text)) LIKE LOWER(CONCAT('%', :keyword, '%')) "
+              + "     OR LOWER(COALESCE(CAST(r.searchable_data AS text), '')) LIKE LOWER(CONCAT('%', :keyword, '%')) "
+              + "     OR CAST(r.id AS text) LIKE CONCAT('%', :keyword, '%')) "
+              + "ORDER BY r.created_at DESC",
+        countQuery = "SELECT count(r.id) FROM record r "
+                   + "JOIN classification_node n ON r.node_id = n.id "
+                   + "JOIN domain d ON n.domain_id = d.id "
+                   + "WHERE r.status NOT IN ('REJECTED', 'MISMATCHED') "
+                   + "AND (LOWER(CAST(r.data AS text)) LIKE LOWER(CONCAT('%', :keyword, '%')) "
+                   + "     OR LOWER(COALESCE(CAST(r.searchable_data AS text), '')) LIKE LOWER(CONCAT('%', :keyword, '%')) "
+                   + "     OR CAST(r.id AS text) LIKE CONCAT('%', :keyword, '%'))",
+        nativeQuery = true
+    )
+    Page<Record> searchGlobalRecords(@org.springframework.data.repository.query.Param("keyword") String keyword, Pageable pageable);
+
     @org.springframework.data.jpa.repository.Query(value = "SELECT * FROM record r "
             + "WHERE r.id <> :excludedRecordId "
             + "AND CAST(r.data AS jsonb) ->> CAST(:fieldKey AS text) = :recordId "

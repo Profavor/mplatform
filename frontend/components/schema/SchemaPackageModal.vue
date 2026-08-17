@@ -1,11 +1,12 @@
 <template>
-  <va-modal
+  <AppModal
     v-model="show"
     :title="$t('schema_package')"
+    icon="inventory_2"
     size="large"
     hide-default-actions
   >
-    <div style="display: flex; flex-direction: column; gap: 1.25rem; padding: 0.5rem;">
+    <div style="display: flex; flex-direction: column; gap: 1.25rem; padding: 0.5rem 0;">
       <!-- Tabs -->
       <div style="display: flex; border-bottom: 1px solid var(--va-background-border); gap: 1rem;">
         <button
@@ -145,7 +146,7 @@
         </va-button>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
@@ -153,6 +154,7 @@ import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vuestic-ui'
 import { useCustomFetch } from '~/composables/useCustomFetch'
+import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps<{
   modelValue: boolean

@@ -203,4 +203,35 @@ class SensitiveDataServiceTest {
         
         assertThat(stats.getDailyTrends()).isNotEmpty();
     }
+
+    @Test
+    @DisplayName("decryptRecordFields - 레코드의 암호화 필드를 복호화하고 다양한 키 형식으로 반환한다")
+    void decryptRecordFields_Success_WithVariousKeyFormats() {
+        UUID recordId = UUID.randomUUID();
+        UUID nodeId = UUID.randomUUID();
+
+        ClassificationNode node = new ClassificationNode();
+        node.setId(nodeId);
+
+        com.classification.domain_system.entity.Record record = new com.classification.domain_system.entity.Record();
+        record.setId(recordId);
+        record.setNode(node);
+        record.setData("{\"resident_number\":\"CIPHER_RRN_123\",\"salary\":50000000}");
+
+        FieldDefinition field = new FieldDefinition();
+        field.setKey("resident_number");
+        field.setIsEncrypted(true);
+
+        when(recordRepository.findById(recordId)).thenReturn(Optional.of(record));
+        when(fieldDefinitionService.getEffectiveFields(nodeId)).thenReturn(List.of(field));
+        when(encryptionService.decrypt("CIPHER_RRN_123")).thenReturn("860104-1234567");
+        when(authContext.getUserId()).thenReturn("user-admin");
+
+        Map<String, String> result = sensitiveDataService.decryptRecordFields(recordId, List.of("resident_number"), "업무 목적", "127.0.0.1");
+
+        assertThat(result).containsEntry("resident_number", "860104-1234567");
+        assertThat(result).containsEntry("RESIDENT_NUMBER", "860104-1234567");
+        assertThat(result).containsEntry("residentNumber", "860104-1234567");
+    }
 }
+

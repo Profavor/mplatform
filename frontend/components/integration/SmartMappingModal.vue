@@ -1,11 +1,12 @@
 <template>
-  <va-modal
+  <AppModal
     v-model="show"
     :title="$t('smart_mapping')"
+    icon="schema"
     size="large"
     hide-default-actions
   >
-    <div style="display: flex; flex-direction: column; gap: 1rem; padding: 0.5rem;">
+    <div style="display: flex; flex-direction: column; gap: 1rem; padding: 0.5rem 0;">
       <va-alert color="info" outline style="margin: 0; font-size: 0.85rem; line-height: 1.5;">
         💡 {{ $t('smart_mapping_desc') }}
       </va-alert>
@@ -86,7 +87,7 @@
         </va-button>
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
@@ -94,6 +95,7 @@ import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vuestic-ui'
 import { useCustomFetch } from '~/composables/useCustomFetch'
+import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps<{
   modelValue: boolean

@@ -1,12 +1,13 @@
 <template>
-  <va-modal
+  <AppModal
     v-model="visible"
     :title="t('unmerge_preview_title')"
+    icon="call_split"
     size="large"
     hide-default-actions
     class="unmerge-preview-modal"
   >
-    <div style="display: flex; flex-direction: column; gap: 1rem; max-height: 70vh;">
+    <div style="display: flex; flex-direction: column; gap: 1rem; padding: 0.5rem 0;">
       <va-alert color="warning" outline class="mb-2">
         <div style="display: flex; align-items: center; gap: 0.5rem;">
           <va-icon name="warning" />
@@ -83,13 +84,14 @@
         </va-button>
       </div>
     </template>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup>
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatRecordCode } from '~/utils/formatters'
+import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps({
   modelValue: {

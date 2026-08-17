@@ -1,15 +1,17 @@
 <template>
-  <va-modal
+  <AppModal
     :model-value="modelValue"
     :title="modalData.id ? t('edit_workflow_title', '워크플로우 수정') : t('create_workflow_title', '새 워크플로우 등록')"
+    icon="account_tree"
+    v-model:fullscreen="isFullscreenModal"
     size="large"
+    hide-default-actions
+    without-transitions
     style="--va-modal-max-width: 960px;"
-    :ok-text="t('save', '저장')"
-    :cancel-text="t('cancel', '취소')"
     @update:model-value="val => emit('update:modelValue', val)"
-    @ok="onSave"
   >
-    <div style="display: flex; flex-direction: column; gap: 1.25rem; max-height: 70vh; overflow-y: auto; overflow-x: hidden; padding: 0 4px;">
+
+    <div :style="{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxHeight: isFullscreenModal ? 'calc(100vh - 180px)' : '70vh', overflowY: 'auto', overflowX: 'hidden', padding: '0 4px' }">
       
       <!-- SECTION 1: Basic Info -->
       <div style="background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 8px; padding: 1rem; display: flex; flex-direction: column; gap: 0.85rem;">
@@ -296,13 +298,24 @@
       </div>
 
     </div>
-  </va-modal>
+
+    <template #footer>
+      <div style="display: flex; justify-content: flex-end; gap: 0.5rem; width: 100%;">
+        <va-button preset="secondary" @click="emit('update:modelValue', false)">{{ t('cancel', '취소') }}</va-button>
+        <va-button color="primary" @click="onSave">{{ t('save', '저장') }}</va-button>
+      </div>
+    </template>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import ModalControls from '~/components/common/ModalControls.vue'
+import AppModal from '~/components/common/AppModal.vue'
 
 const { t, locale } = useI18n()
+const isFullscreenModal = ref(false)
 
 interface OptionItem {
   text: string

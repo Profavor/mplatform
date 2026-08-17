@@ -1,11 +1,11 @@
 <template>
-  <va-modal
+  <AppModal
     v-model="show"
     size="small"
     :title="$t('unmask_reason_title')"
+    icon="lock_open"
     hide-default-actions
     @cancel="cancel"
-    @click-outside="cancel"
   >
     <div style="padding: 0.5rem 0;">
       <p style="margin-bottom: 1rem; font-size: 0.9rem; color: var(--va-text-secondary);">
@@ -33,16 +33,17 @@
           {{ $t('cancel') }}
         </va-button>
         <va-button color="primary" @click="submit" :disabled="!reason.trim()">
-          {{ $t('vuestic.confirm') }}
+          {{ $t('confirm') }}
         </va-button>
       </div>
     </template>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup>
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps({
   modelValue: {

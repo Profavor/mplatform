@@ -84,13 +84,13 @@
     />
 
     <!-- Icon Picker Modal -->
-    <va-modal v-model="showIconPickerModal" :title="$t('select_icon')" hide-default-actions>
+    <AppModal v-model="showIconPickerModal" :title="$t('select_icon')" icon="palette" hide-default-actions>
       <IconPicker v-model="tempIcon" />
       <div class="d-flex justify-end mt-4" style="gap: 1rem;">
         <va-button preset="plain" color="secondary" @click="showIconPickerModal = false">{{ $t('cancel') }}</va-button>
         <va-button @click="confirmIconSelection">{{ $t('select') }}</va-button>
       </div>
-    </va-modal>
+    </AppModal>
   </div>
 </template>
 
@@ -103,6 +103,7 @@ import { usePageTitle } from '~/composables/usePageTitle'
 import { usePermission } from '~/composables/usePermission'
 import AddMenuModal from '~/components/admin/AddMenuModal.vue'
 import MenuEditForm from '~/components/admin/MenuEditForm.vue'
+import AppModal from '~/components/common/AppModal.vue'
 
 const { pageTitle } = usePageTitle('menu_management', '메뉴 관리')
 const { t, te, locale } = useI18n()

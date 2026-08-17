@@ -35,9 +35,11 @@ public class RecordSyncListener {
         doc.setCreatedAt(record.getCreatedAt());
         doc.setUpdatedAt(record.getUpdatedAt());
         
-        // Use searchableData if available, otherwise fallback to data map
-        if (record.getSearchableData() != null) {
+        // Use searchableData if available, otherwise fallback to data string
+        if (record.getSearchableData() != null && !record.getSearchableData().isBlank()) {
             doc.setSearchableData(record.getSearchableData());
+        } else if (record.getData() != null) {
+            doc.setSearchableData(record.getData());
         }
         
         try {

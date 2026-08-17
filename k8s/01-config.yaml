@@ -43,6 +43,13 @@ data:
   FILE_UPLOAD_DIR: "/app/uploads"
   CHAT_RETENTION_DAYS: "7"
   
+  # Vault KMS Settings
+  ENCRYPTION_TYPE: "VAULT"
+  VAULT_URI: "http://vault:8200"
+  VAULT_AUTH_METHOD: "KUBERNETES"
+  VAULT_K8S_ROLE: "mdm-role"
+  VAULT_KEY_NAME: "mdm-field-key"
+  
   # Frontend Settings
   OAUTH2_ISSUER_URI: "http://mplatform.local/auth/realms/mplatform"
   NUXT_OIDC_PROVIDERS_KEYCLOAK_BASE_URL: "http://mplatform.local/auth/realms/mplatform"

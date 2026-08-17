@@ -1,16 +1,13 @@
 <template>
-  <va-modal :model-value="modelValue" hide-default-actions size="small" no-padding @update:model-value="val => emit('update:modelValue', val)">
-    <template #header>
-      <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--va-background-border); display: flex; align-items: center; gap: 0.75rem;">
-        <div style="background: var(--va-primary); padding: 0.5rem; border-radius: 8px;">
-          <va-icon :name="editingGroup ? 'edit' : 'add_circle'" color="white" size="small" />
-        </div>
-        <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700;">
-          {{ editingGroup ? t('code_management.edit_group') : t('code_management.add_group') }}
-        </h3>
-      </div>
-    </template>
-    <div style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; overflow-x: hidden; box-sizing: border-box; width: 100%;">
+  <AppModal
+    :model-value="modelValue"
+    :title="editingGroup ? t('code_management.edit_group') : t('code_management.add_group')"
+    :icon="editingGroup ? 'edit' : 'add_circle'"
+    size="small"
+    hide-default-actions
+    @update:model-value="val => emit('update:modelValue', val)"
+  >
+    <div style="padding: 0.5rem 0; display: flex; flex-direction: column; gap: 1.25rem; overflow-x: hidden; box-sizing: border-box; width: 100%;">
       <va-input v-model="groupForm.groupCode" :label="t('code_management.group_code')" :disabled="!!editingGroup" outline />
       <div style="display: flex; gap: 1rem;">
         <va-input v-model="groupForm.nameKo" :label="t('code_management.name_ko')" outline style="flex: 1;">
@@ -48,17 +45,18 @@
       </div>
     </div>
     <template #footer>
-      <div style="padding: 1rem 1.5rem; border-top: 1px solid var(--va-background-border); display: flex; justify-content: flex-end; gap: 0.75rem; background: var(--va-background-element);">
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem; width: 100%;">
         <va-button preset="secondary" color="secondary" @click="emit('update:modelValue', false)">{{ t('code_management.cancel') }}</va-button>
         <va-button @click="onSave">{{ t('code_management.save') }}</va-button>
       </div>
     </template>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AppModal from '~/components/common/AppModal.vue'
 
 const EmojiPicker = defineAsyncComponent(() => import('vue3-emoji-picker'))
 

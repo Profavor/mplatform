@@ -113,5 +113,31 @@ class FieldEncryptionServiceTest {
         String decrypted = fieldEncryptionService.decrypt(goldenCiphertext);
         assertThat(decrypted).isEqualTo(expectedPlainText);
     }
+
+    @Test
+    @DisplayName("testVaultTransit_Integration: Vault Transit 모드일 때 vault:v1:... 암호화 및 복호화 정상 동작 검증")
+    void testVaultTransit_Integration() {
+        VaultTransitService mockVault = org.mockito.Mockito.mock(VaultTransitService.class);
+        org.mockito.Mockito.when(mockVault.isVaultEncrypted("vault:v1:mock-cipher")).thenReturn(true);
+        org.mockito.Mockito.when(mockVault.decrypt("vault:v1:mock-cipher")).thenReturn("860104-1234567");
+        org.mockito.Mockito.when(mockVault.encrypt("860104-1234567")).thenReturn("vault:v1:mock-cipher");
+        org.mockito.Mockito.when(mockVault.generateHmac("860104-1234567")).thenReturn("vault:v1:mock-hmac");
+
+        FieldEncryptionService vaultEnabledService = new FieldEncryptionService(
+                "12345678901234567890123456789012",
+                "VAULT",
+                mockVault
+        );
+
+        String encrypted = vaultEnabledService.encrypt("860104-1234567");
+        assertThat(encrypted).isEqualTo("vault:v1:mock-cipher");
+        assertThat(vaultEnabledService.isEncrypted(encrypted)).isTrue();
+
+        String decrypted = vaultEnabledService.decrypt(encrypted);
+        assertThat(decrypted).isEqualTo("860104-1234567");
+
+        String hmac = vaultEnabledService.generateBlindIndex("860104-1234567");
+        assertThat(hmac).isEqualTo("vault:v1:mock-hmac");
+    }
 }
 

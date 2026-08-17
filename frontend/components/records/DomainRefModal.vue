@@ -1,12 +1,11 @@
 <template>
-  <va-modal
+  <AppModal
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
     :title="$t('domain_ref_modal.title')"
+    icon="link"
     hide-default-actions
     size="large"
-    :prevent-click-outside="true"
-    :no-outside-dismiss="true"
   >
     <div style="height: 60vh; width: 100%; display: flex; flex-direction: column; gap: 0.75rem;">
       <!-- Search & Filter Bar -->
@@ -70,7 +69,7 @@
         {{ $t('cancel') }}
       </va-button>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup>
@@ -78,6 +77,7 @@ import { ref, watch, nextTick } from 'vue'
 import { AgGridVue } from 'ag-grid-vue3'
 import { useI18n } from 'vue-i18n'
 import { useCustomFetch } from '~/composables/useCustomFetch'
+import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps({
   modelValue: {

@@ -1,12 +1,13 @@
 <template>
-  <va-modal
+  <AppModal
     :model-value="modelValue"
     :title="isEdit ? (t('integration.channels.edit', '연동 채널 수정')) : (t('integration.channels.add', '신규 연동 채널 등록'))"
+    icon="hub"
     size="large"
     hide-default-actions
     @update:model-value="val => emit('update:modelValue', val)"
   >
-    <div style="min-width: 750px; max-width: 900px; padding: 0.5rem 0.25rem;">
+    <div style="padding: 0.5rem 0.25rem;">
       <!-- Navigation Tabs -->
       <va-tabs v-model="activeModalTab" class="mb-4" style="border-bottom: 1px solid var(--va-background-border);">
         <template #tabs>
@@ -281,7 +282,7 @@
         </va-button>
       </div>
     </template>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
@@ -289,6 +290,7 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MultilingualInput from '~/components/MultilingualInput.vue'
 import { AgGridVue } from 'ag-grid-vue3'
+import AppModal from '~/components/common/AppModal.vue'
 
 const { t } = useI18n()
 

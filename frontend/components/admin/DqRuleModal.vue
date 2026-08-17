@@ -1,13 +1,14 @@
 <template>
-  <va-modal
+  <AppModal
     :model-value="modelValue"
     :title="isEdit ? t('edit_dq_rule', '품질 검칙 규칙 수정') : t('add_dq_rule', '품질 검칙 규칙 추가')"
+    icon="fact_check"
     size="medium"
     @ok="onSave"
     @cancel="onCancel"
     @update:model-value="val => emit('update:modelValue', val)"
   >
-    <div style="padding: 1rem 0; display: flex; flex-direction: column; gap: 1.25rem;">
+    <div style="padding: 0.5rem 0; display: flex; flex-direction: column; gap: 1.25rem;">
       <va-select
         v-model="formData.ruleType"
         :options="ruleTypeOptions"
@@ -50,11 +51,12 @@
         />
       </div>
     </div>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import AppModal from '~/components/common/AppModal.vue'
 
 const { t } = useI18n()
 

@@ -1,20 +1,13 @@
 <template>
-  <va-modal
-    :modelValue="show"
-    @update:modelValue="$emit('close')"
+  <AppModal
+    :model-value="show"
+    :title="$t('merge.title')"
+    icon="merge_type"
     size="large"
     hide-default-actions
-    no-outside-dismiss
-    class="merge-review-modal"
+    @update:model-value="$emit('close')"
   >
-    <template #header>
-      <div class="modal-header bg-gradient-to-r from-blue-500 to-indigo-600 text-white p-4 rounded-t-lg flex justify-between items-center">
-        <h2 class="text-xl font-bold m-0">{{ $t('merge.title') }}</h2>
-        <va-button preset="plain" icon="close" color="white" @click="$emit('close')" />
-      </div>
-    </template>
-
-    <div class="modal-body p-4 max-h-[70vh] overflow-y-auto">
+    <div class="modal-body" style="padding: 0.5rem 0;">
       <div class="flex gap-4 mb-4">
         <va-button-toggle
           v-model="mode"
@@ -94,7 +87,7 @@
         </va-button>
       </div>
     </template>
-  </va-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
@@ -103,6 +96,7 @@ import { useI18n } from 'vue-i18n'
 import { useToast } from 'vuestic-ui'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useTimezoneDate } from '~/composables/useTimezoneDate'
+import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps<{
   show: boolean

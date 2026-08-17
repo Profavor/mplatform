@@ -1,12 +1,13 @@
 <template>
-  <va-modal
+  <AppModal
     v-model="modalVisible"
     :title="t('compare_records_title')"
+    icon="compare_arrows"
     size="large"
     hide-default-actions
     class="record-compare-modal"
   >
-    <div style="display: flex; flex-direction: column; gap: 1rem; max-height: 75vh;">
+    <div style="display: flex; flex-direction: column; gap: 1rem; padding: 0.5rem 0;">
 
       <!-- Controls Header Toolbar -->
       <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; background: var(--va-background-element); border-radius: 8px; border: 1px solid var(--va-background-border); flex-wrap: wrap; gap: 0.5rem;">
@@ -182,12 +183,13 @@
         </va-button>
       </div>
     </template>
-  </va-modal>
-
+  </AppModal>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import AppModal from '~/components/common/AppModal.vue'
 
 let t = (key) => key
 let i18nLocale = ref('ko')

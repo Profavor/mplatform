@@ -43,6 +43,9 @@ public class ApprovalQueryService {
     private final RoleRepository roleRepository;
     @org.springframework.context.annotation.Lazy
     private final ApprovalDelegationService delegationService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    @org.springframework.context.annotation.Lazy
+    private RecordService recordService;
 
     private static final Set<String> ALLOWED_FILTER_KEYS = Set.of(
             "domainName", "classificationName", "requesterId", "changes", "summary",
@@ -370,7 +373,25 @@ public class ApprovalQueryService {
             fields = Collections.emptyList();
         }
         boolean canUnmask = false;
-        String maskedChanges = dataMaskingService.maskChangesJson(approval.getChanges(), fields, canUnmask);
+        String rawChanges = approval.getChanges();
+        String maskedChanges = dataMaskingService.maskChangesJson(rawChanges, fields, canUnmask);
+
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode rawNode = mapper.readTree(rawChanges);
+            if (rawNode.has("before") && rawNode.has("after") && recordService != null) {
+                String prevJson = mapper.writeValueAsString(rawNode.get("before"));
+                String newJson = mapper.writeValueAsString(rawNode.get("after"));
+                List<String> changedFields = recordService.computeChangedFieldKeys(prevJson, newJson);
+
+                JsonNode maskedNode = mapper.readTree(maskedChanges);
+                if (maskedNode.isObject()) {
+                    ((com.fasterxml.jackson.databind.node.ObjectNode) maskedNode).putPOJO("changedFields", changedFields);
+                    maskedChanges = mapper.writeValueAsString(maskedNode);
+                }
+            }
+        } catch (Exception ignored) {}
+
         approval.setChanges(maskedChanges);
         if (approval.getSteps() == null || approval.getSteps().isEmpty()) {
             approval.setSteps(stepRepository.findByApprovalRequestIdOrderByStepOrderAsc(approval.getId()));
