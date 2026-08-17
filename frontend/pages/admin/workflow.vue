@@ -221,12 +221,13 @@ const userOptions = computed(() => {
   })
 })
 
-const modalAvailableFields = computed(() => {
+const domainFieldOptions = computed(() => {
   return rawFieldList.value.map((f: any) => {
     const fName = getLocalizedName(f.name) || f.key
     return { value: f.key, text: `${fName} (${f.key})` }
   })
 })
+const modalAvailableFields = domainFieldOptions
 
 const modalNodeOptions = computed(() => {
   const flattenNodes = (nodes: any[]): any[] => {

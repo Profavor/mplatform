@@ -25,13 +25,19 @@
 import { AgGridVue } from 'ag-grid-vue3'
 import { useGridState } from '~/composables/useGridState'
 
-const props = defineProps<{
-  gridTheme: string
+const props = withDefaults(defineProps<{
+  gridTheme?: any
   autoSizeStrategy?: any
-  columnDefs: any[]
-  defaultColDef: any
+  columnDefs?: any[]
+  defaultColDef?: any
   gridKey?: string
-}>()
+}>(), {
+  gridTheme: null,
+  autoSizeStrategy: null,
+  columnDefs: () => [],
+  defaultColDef: () => ({}),
+  gridKey: 'records_grid'
+})
 
 const emit = defineEmits(['gridReady', 'rowDoubleClicked', 'cellDoubleClicked'])
 const { saveState, restoreState } = useGridState(props.gridKey || 'records_grid')

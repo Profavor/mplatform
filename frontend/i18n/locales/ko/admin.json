@@ -248,6 +248,8 @@
   "label_email": "이메일 주소",
   "placeholder_email": "예: user{'@'}company.com",
   "email_domain": "이메일 도메인",
+  "placeholder_email_domain": "예: company.com",
+  "org_email_domain_desc": "조직의 기본 이메일 도메인을 설정합니다.",
   "rule_type_business_no_checksum": "사업자등록번호 체크섬 검증 (10자리)",
   "rule_type_corporate_no_checksum": "법인등록번호 체크섬 검증 (13자리)",
   "channel_health": "채널 헬스",

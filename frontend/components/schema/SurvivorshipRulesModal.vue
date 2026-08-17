@@ -86,7 +86,7 @@ import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps<{
   show: boolean
-  domainId: string
+  domainId?: string | null
 }>()
 
 const emit = defineEmits(['close', 'saved'])

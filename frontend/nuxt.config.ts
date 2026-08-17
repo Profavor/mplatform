@@ -134,9 +134,8 @@ export default defineNuxtConfig({
       rawUrl = `https://${rawUrl}`
     }
     const targetUrl = rawUrl.replace(/\/$/, '')
-    const wsUrl = targetUrl.replace(/^http/, 'ws')
     return {
-      '/ws-stomp/**': { proxy: `${wsUrl}/ws-stomp/**` }
+      '/ws-stomp/**': { proxy: `${targetUrl}/ws-stomp/**` }
     }
   })(),
   vite: {

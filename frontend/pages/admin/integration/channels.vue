@@ -106,8 +106,6 @@
       :ui-mapping-root-path="uiMappingRootPath"
       :ui-mappings="uiMappings"
       :mapping-column-defs="mappingColumnDefs"
-      :grid-theme="gridTheme"
-      :is-dark="isDark"
       :is-testing="isTesting"
       :webhook-url="getWebhookUrl()"
       :sample-json-payload="sampleJsonPayload"

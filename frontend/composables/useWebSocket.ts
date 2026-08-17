@@ -57,8 +57,22 @@ const initAndActivateClient = () => {
   if (typeof window === 'undefined') return
   if (sharedClient && sharedClient.active) return
 
-  const wsBase = window.location.origin.replace(/^http/, 'ws')
-  const wsUrl = `${wsBase}/ws-stomp`
+  let wsUrl = ''
+  try {
+    if (typeof useRuntimeConfig === 'function') {
+      const config = useRuntimeConfig()
+      const rawApiBase = config?.public?.apiBaseUrl
+      if (rawApiBase && (rawApiBase.startsWith('http://') || rawApiBase.startsWith('https://'))) {
+        const wsBase = rawApiBase.replace(/^http/, 'ws').replace(/\/$/, '')
+        wsUrl = `${wsBase}/ws-stomp`
+      }
+    }
+  } catch {}
+
+  if (!wsUrl) {
+    const wsBase = window.location.origin.replace(/^http/, 'ws')
+    wsUrl = `${wsBase}/ws-stomp`
+  }
 
   sharedClient = new Client({
     brokerURL: wsUrl,

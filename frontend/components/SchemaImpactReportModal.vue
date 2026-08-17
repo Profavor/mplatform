@@ -201,6 +201,7 @@ const extractHeaderLabel = (headerObj: any, fallbackKey: string, fallbackDefault
 }
 
 const show = ref(props.modelValue)
+const isFullscreenModal = ref(false)
 const loading = ref(false)
 const reportData = ref<any>(null)
 

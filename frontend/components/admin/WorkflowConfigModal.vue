@@ -322,20 +322,31 @@ interface OptionItem {
   value: any
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   modelValue: boolean
   modalData: any
-  actionTypeOptions: OptionItem[]
-  scopeLevelOptions: OptionItem[]
-  domainOptions: OptionItem[]
-  modalNodeOptions: OptionItem[]
-  permissionTargetTypeOptions: OptionItem[]
-  stepAssigneeTypeOptions: OptionItem[]
-  stepTypeOptions: OptionItem[]
-  userOptions: OptionItem[]
-  roleOptions: OptionItem[]
-  domainFieldOptions: OptionItem[]
-}>()
+  actionTypeOptions?: OptionItem[]
+  scopeLevelOptions?: OptionItem[]
+  domainOptions?: OptionItem[]
+  modalNodeOptions?: OptionItem[]
+  permissionTargetTypeOptions?: OptionItem[]
+  stepAssigneeTypeOptions?: OptionItem[]
+  stepTypeOptions?: OptionItem[]
+  userOptions?: OptionItem[]
+  roleOptions?: OptionItem[]
+  domainFieldOptions?: OptionItem[]
+}>(), {
+  actionTypeOptions: () => [],
+  scopeLevelOptions: () => [],
+  domainOptions: () => [],
+  modalNodeOptions: () => [],
+  permissionTargetTypeOptions: () => [],
+  stepAssigneeTypeOptions: () => [],
+  stepTypeOptions: () => [],
+  userOptions: () => [],
+  roleOptions: () => [],
+  domainFieldOptions: () => []
+})
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void

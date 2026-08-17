@@ -248,6 +248,8 @@
   "label_email": "Email Address",
   "placeholder_email": "e.g., user{'@'}company.com",
   "email_domain": "Email Domain",
+  "placeholder_email_domain": "e.g. company.com",
+  "org_email_domain_desc": "Configure the default email domain for the organization.",
   "rule_type_business_no_checksum": "Korean Business Registration No Checksum (10 digits)",
   "rule_type_corporate_no_checksum": "Korean Corporate Registration No Checksum (13 digits)",
   "channel_health": "Channel Health",

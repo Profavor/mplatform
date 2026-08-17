@@ -406,6 +406,8 @@ import DataFreshnessHeatmapModal from '~/components/admin/DataFreshnessHeatmapMo
 import MultiRegionConflictModal from '~/components/admin/MultiRegionConflictModal.vue'
 import AppModal from '~/components/common/AppModal.vue'
 
+const { pageTitle } = usePageTitle('system_logs_title', '시스템 로그 및 연계 관제')
+
 const showCopilot = ref(false)
 const showSelfHealing = ref(false)
 const showFreshness = ref(false)
