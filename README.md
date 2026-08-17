@@ -157,7 +157,7 @@ graph TD
 | **RabbitMQ 3** | `mdm_rabbitmq` | `5672, 15672` | AMQP 메시지 브로커 |
 | **Kafka + Zookeeper** | `mdm_kafka` | `9092, 2181` | CDC 및 이벤트 스트리밍 |
 | **Prometheus** | `mdm_prometheus` | `9090` | 메트릭 수집 엔진 |
-| **Grafana** | `mdm_grafana` | `3000` | 통합 모니터링 대시보드 |
+| **Grafana** | `mdm_grafana` | `3005` | 통합 모니터링 대시보드 |
 
 ---
 

@@ -84,5 +84,7 @@
   "orphan_count": "고아 참조 위반 건수",
   "scanned_records": "검사 완료 레코드",
   "orphan_details": "고아 참조 위반 내역",
-  "no_orphan_records": "모든 외래 참조 관계가 유효하며 고아 레코드가 없습니다."
+  "no_orphan_records": "모든 외래 참조 관계가 유효하며 고아 레코드가 없습니다.",
+  "dq_severity_distribution": "품질 오류 심각도별 분포",
+  "dq_violation_trend": "최근 7일간 품질 오류 추이"
 }
