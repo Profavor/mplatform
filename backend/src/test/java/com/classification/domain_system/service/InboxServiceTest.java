@@ -69,8 +69,8 @@ class InboxServiceTest {
         assertThat(savedMsg.getSubject()).isEqualTo("Test Subject");
         assertThat(savedMsg.getIsDraft()).isFalse();
 
-        // 1 sender + 2 recipients
-        verify(recipientRepository, times(3)).save(any(InboxRecipient.class));
+        // 1 sender + 2 recipients cascaded via messageRepository.save
+        assertThat(savedMsg.getRecipients()).hasSize(3);
         verify(sseNotificationService, times(2)).sendNotification(anyString(), anyMap());
         verify(mailSendService, never()).sendSimpleMail(any(), anyString(), anyString(), anyString());
     }
@@ -129,8 +129,8 @@ class InboxServiceTest {
         // then
         verify(messageRepository).save(messageCaptor.capture());
         assertThat(messageCaptor.getValue().getIsDraft()).isTrue();
-        // Recipient shouldn't be created for TO recipients in draft
-        verify(recipientRepository, times(1)).save(any(InboxRecipient.class)); // Only sender recipient
+        // Sender recipient cascaded via messageRepository.save, no TO recipients in draft
+        assertThat(messageCaptor.getValue().getRecipients()).hasSize(1);
     }
 
     @Test

@@ -109,7 +109,6 @@ public class InboxService {
         senderRec.setIsRead(true);
         senderRec.setReadAt(LocalDateTime.now());
         msg.addRecipient(senderRec);
-        recipientRepository.save(senderRec);
 
         List<InboxRecipient> externalRecipientsToNotify = new ArrayList<>();
         List<String> internalUsersToNotify = new ArrayList<>();
@@ -196,7 +195,6 @@ public class InboxService {
                 }
             }
             msg.addRecipient(recipient);
-            recipientRepository.save(recipient);
         }
     }
 
