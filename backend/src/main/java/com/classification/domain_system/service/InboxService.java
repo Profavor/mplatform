@@ -37,6 +37,7 @@ public class InboxService {
     private final UserRepository userRepository;
     private final MailSendService mailSendService;
     private final SseNotificationService sseNotificationService;
+    private final com.classification.domain_system.websocket.WebSocketPublisher webSocketPublisher;
 
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@(.+)$");
 
@@ -111,7 +112,7 @@ public class InboxService {
         msg.addRecipient(senderRec);
 
         List<InboxRecipient> externalRecipientsToNotify = new ArrayList<>();
-        List<String> internalUsersToNotify = new ArrayList<>();
+        Set<String> internalUsersToNotify = new LinkedHashSet<>();
 
         if (!isDraft) {
             processRecipients(msg, request.getToRecipients(), "TO", externalRecipientsToNotify, internalUsersToNotify);
@@ -137,18 +138,31 @@ public class InboxService {
             }
         }
 
-        // Notify internal users via SSE
-        if (!internalUsersToNotify.isEmpty() && sseNotificationService != null) {
+        // Notify internal users via SSE & WebSocket
+        if (!internalUsersToNotify.isEmpty()) {
             Map<String, Object> payload = new HashMap<>();
+            payload.put("eventType", "INBOX_MESSAGE");
             payload.put("type", "NEW_MESSAGE");
             if (msg.getId() != null) {
-                payload.put("messageId", msg.getId());
+                payload.put("messageId", msg.getId().toString());
             }
+            payload.put("subject", msg.getSubject());
+            payload.put("senderId", senderId);
+            payload.put("senderName", resolveUserName(senderId));
+            payload.put("senderEmail", msg.getSenderEmail());
+            payload.put("folder", "INBOX");
+            payload.put("createdAt", msg.getCreatedAt() != null ? msg.getCreatedAt().toString() : LocalDateTime.now().toString());
+
             for (String uId : internalUsersToNotify) {
                 try {
-                    sseNotificationService.sendNotification(uId, payload);
+                    if (sseNotificationService != null) {
+                        sseNotificationService.sendNotification(uId, payload);
+                    }
+                    if (webSocketPublisher != null) {
+                        webSocketPublisher.publishNotification(uId, payload);
+                    }
                 } catch (Exception e) {
-                    log.warn("Failed to send SSE notification to user " + uId, e);
+                    log.warn("Failed to send notification to user " + uId, e);
                 }
             }
         }
@@ -157,7 +171,7 @@ public class InboxService {
     }
 
     private void processRecipients(InboxMessage msg, List<String> recipients, String type, 
-                                   List<InboxRecipient> externalRecipients, List<String> internalUsers) {
+                                   List<InboxRecipient> externalRecipients, Set<String> internalUsers) {
         if (recipients == null) return;
         
         for (String rec : recipients) {

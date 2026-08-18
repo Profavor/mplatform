@@ -84,6 +84,7 @@
     "recipient_recall_status_after": "회수 불가 (읽음: {time})",
     "recipient_recall_status_external": "외부 이메일 (회수 불가)",
     "drag_drop_hint": "파일을 여기로 드래그하거나 클릭하여 첨부하세요",
+    "drop_or_click_files": "파일을 여기로 드래그하거나 클릭하여 첨부하세요",
     "file_size_limit": "최대 50MB까지 첨부 가능 (발송 시 자동 업로드)",
     "upload_ready": "발송 시 업로드",
     "upload_in_progress": "업로드 중...",
@@ -112,7 +113,9 @@
     "view_mode_list": "목록 전용 보기 (클릭 시 팝업)",
     "view_mode": "보기 방식",
     "message_detail_modal": "메시지 상세 조회",
-    "drag_to_resize": "드래그하여 크기 조절 (더블클릭 시 초기화)"
+    "drag_to_resize": "드래그하여 크기 조절 (더블클릭 시 초기화)",
+    "new_message_received": "새 쪽지/메일이 도착했습니다.",
+    "original_message": "원본 메시지"
   },
   "title": "문서함",
   "folder_inbox": "받은편지함",

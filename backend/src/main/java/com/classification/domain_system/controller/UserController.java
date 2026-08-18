@@ -55,9 +55,15 @@ public class UserController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasPermission(null, 'user:write')")
-    public ResponseEntity<User> updateUser(@PathVariable String id, @RequestBody AdminUserUpdateDto updateReq) {
-        User u = userService.updateAdminUserInfo(id, updateReq);
-        return ResponseEntity.ok(u);
+    public ResponseEntity<?> updateUser(@PathVariable String id, @RequestBody AdminUserUpdateDto updateReq) {
+        try {
+            User u = userService.updateAdminUserInfo(id, updateReq);
+            return ResponseEntity.ok(u);
+        } catch (IllegalArgumentException e) {
+            Map<String, String> err = new HashMap<>();
+            err.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(err);
+        }
     }
 
     @PostMapping

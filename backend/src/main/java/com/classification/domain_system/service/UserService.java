@@ -71,9 +71,33 @@ public class UserService {
         }
         if (dto.getRole() != null) user.setRole(dto.getRole());
         if (dto.getIsActive() != null) user.setIsActive(dto.getIsActive());
-        if (dto.getEmail() != null) user.setEmail(dto.getEmail());
+        if (dto.getEmail() != null) {
+            String cleanEmail = dto.getEmail().trim();
+            if (!cleanEmail.isEmpty()) {
+                userRepository.findByEmail(cleanEmail).ifPresent(existing -> {
+                    if (!existing.getId().equals(user.getId())) {
+                        throw new IllegalArgumentException("이미 다른 사용자가 사용 중인 이메일 주소입니다: " + cleanEmail);
+                    }
+                });
+                user.setEmail(cleanEmail);
+            } else {
+                user.setEmail(null);
+            }
+        }
 
         com.classification.domain_system.entity.User savedUser = userRepository.save(user);
+
+        // Sync to Keycloak
+        try {
+            keycloakAdminService.updateUser(
+                savedUser.getUsername(),
+                savedUser.getEmail() != null ? savedUser.getEmail() : "",
+                savedUser.getUsername(),
+                Boolean.TRUE.equals(savedUser.getIsActive())
+            );
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(UserService.class).error("Failed to sync user update to Keycloak: {}", savedUser.getUsername(), e);
+        }
 
         if (orgChanged) {
             String currentOperator = "SYSTEM";
@@ -105,10 +129,41 @@ public class UserService {
     public com.classification.domain_system.entity.User updateSelfUserInfo(String username, SelfUserUpdateDto dto) {
         com.classification.domain_system.entity.User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
-        if (dto != null && dto.getTimezone() != null) {
-            user.setTimezone(dto.getTimezone());
+        if (dto != null) {
+            if (dto.getTimezone() != null) {
+                user.setTimezone(dto.getTimezone());
+            }
+            if (dto.getEmail() != null) {
+                String cleanEmail = dto.getEmail().trim();
+                if (!cleanEmail.isEmpty()) {
+                    userRepository.findByEmail(cleanEmail).ifPresent(existing -> {
+                        if (!existing.getId().equals(user.getId())) {
+                            throw new IllegalArgumentException("이미 다른 사용자가 사용 중인 이메일 주소입니다: " + cleanEmail);
+                        }
+                    });
+                    user.setEmail(cleanEmail);
+                } else {
+                    user.setEmail(null);
+                }
+            }
         }
-        return userRepository.save(user);
+        com.classification.domain_system.entity.User savedUser = userRepository.save(user);
+
+        // Sync to Keycloak
+        if (dto != null && dto.getEmail() != null) {
+            try {
+                keycloakAdminService.updateUser(
+                    savedUser.getUsername(),
+                    savedUser.getEmail() != null ? savedUser.getEmail() : "",
+                    savedUser.getUsername(),
+                    Boolean.TRUE.equals(savedUser.getIsActive())
+                );
+            } catch (Exception e) {
+                org.slf4j.LoggerFactory.getLogger(UserService.class).error("Failed to sync self user email update to Keycloak: {}", savedUser.getUsername(), e);
+            }
+        }
+
+        return savedUser;
     }
 
     @Transactional

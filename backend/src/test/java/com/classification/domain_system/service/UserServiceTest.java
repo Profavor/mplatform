@@ -171,4 +171,78 @@ public class UserServiceTest {
         verify(userRepository).save(user);
         verify(keycloakAdminService).resetPassword("test2", "NewPass1234!");
     }
+
+    @Test
+    void testUpdateAdminUserInfo_EmailChange_SyncsToKeycloak() {
+        String userId = "user-123";
+        User user = new User();
+        user.setId(userId);
+        user.setUsername("testuser");
+        user.setEmail("old@example.com");
+        user.setIsActive(true);
+
+        when(userRepository.findById(userId)).thenReturn(java.util.Optional.of(user));
+        when(userRepository.findByEmail("new@example.com")).thenReturn(java.util.Optional.empty());
+        when(userRepository.save(user)).thenReturn(user);
+
+        com.classification.domain_system.dto.AdminUserUpdateDto dto = new com.classification.domain_system.dto.AdminUserUpdateDto();
+        dto.setEmail("new@example.com");
+        dto.setRole("ROLE_ADMIN");
+
+        User updated = userService.updateAdminUserInfo(userId, dto);
+
+        assertThat(updated.getEmail()).isEqualTo("new@example.com");
+        assertThat(updated.getRole()).isEqualTo("ROLE_ADMIN");
+        verify(userRepository).save(user);
+        verify(keycloakAdminService).updateUser(eq("testuser"), eq("new@example.com"), eq("testuser"), eq(true));
+    }
+
+    @Test
+    void testUpdateAdminUserInfo_DuplicateEmail_ThrowsException() {
+        String userId = "user-123";
+        User user = new User();
+        user.setId(userId);
+        user.setUsername("testuser");
+        user.setEmail("current@example.com");
+
+        User existingOther = new User();
+        existingOther.setId("other-user-999");
+        existingOther.setUsername("otheruser");
+        existingOther.setEmail("duplicate@example.com");
+
+        when(userRepository.findById(userId)).thenReturn(java.util.Optional.of(user));
+        when(userRepository.findByEmail("duplicate@example.com")).thenReturn(java.util.Optional.of(existingOther));
+
+        com.classification.domain_system.dto.AdminUserUpdateDto dto = new com.classification.domain_system.dto.AdminUserUpdateDto();
+        dto.setEmail("duplicate@example.com");
+
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> {
+            userService.updateAdminUserInfo(userId, dto);
+        });
+    }
+
+    @Test
+    void testUpdateSelfUserInfo_EmailChange_SyncsToKeycloak() {
+        String username = "selfuser";
+        User user = new User();
+        user.setId("self-123");
+        user.setUsername(username);
+        user.setEmail("old_self@example.com");
+        user.setIsActive(true);
+
+        when(userRepository.findByUsername(username)).thenReturn(java.util.Optional.of(user));
+        when(userRepository.findByEmail("new_self@example.com")).thenReturn(java.util.Optional.empty());
+        when(userRepository.save(user)).thenReturn(user);
+
+        com.classification.domain_system.dto.SelfUserUpdateDto dto = new com.classification.domain_system.dto.SelfUserUpdateDto();
+        dto.setEmail("new_self@example.com");
+        dto.setTimezone("Asia/Tokyo");
+
+        User updated = userService.updateSelfUserInfo(username, dto);
+
+        assertThat(updated.getEmail()).isEqualTo("new_self@example.com");
+        assertThat(updated.getTimezone()).isEqualTo("Asia/Tokyo");
+        verify(userRepository).save(user);
+        verify(keycloakAdminService).updateUser(eq(username), eq("new_self@example.com"), eq(username), eq(true));
+    }
 }

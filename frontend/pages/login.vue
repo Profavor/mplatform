@@ -46,23 +46,32 @@ const colors = useColors()
 const currentPresetName = colors?.currentPresetName
 const isDark = computed(() => currentPresetName?.value === 'dark')
 
-const { loggedIn, login } = useOidcAuth()
+const { loggedIn, login, logout } = useOidcAuth()
 
-onMounted(() => {
-  if (loggedIn.value) {
+onMounted(async () => {
+  const token = useCookie('auth_token').value
+  if (route.query.error || route.query.expired || !token) {
+    if (loggedIn.value) {
+      try {
+        await logout('keycloak')
+      } catch (e) {}
+    }
+    if (route.query.error || route.query.expired) {
+      initToast({
+        message: t('auth_login_error_message') || '다른 기기에서 로그인되었거나 세션이 만료되었습니다. 다시 로그인해주세요.',
+        color: 'danger',
+        duration: 5000,
+        position: 'top-right'
+      })
+    }
+    return
+  }
+
+  if (loggedIn.value && token) {
     navigateTo('/')
     return
   }
-  if (route.query.error) {
-    initToast({
-      message: t('auth_login_error_message') || '인증에 실패했습니다. 계정 정보를 다시 확인해주세요.',
-      color: 'danger',
-      duration: 5000,
-      position: 'top-right'
-    })
-  }
 })
-
 
 const handleLogin = async () => {
   try {

@@ -1,4 +1,4 @@
-import { useOidcAuth } from '#imports'
+import { useOidcAuth, useCookie } from '#imports'
 
 export default defineNuxtRouteMiddleware((to, from) => {
   if (
@@ -11,8 +11,9 @@ export default defineNuxtRouteMiddleware((to, from) => {
   }
 
   const { loggedIn } = useOidcAuth()
+  const token = useCookie('auth_token').value
   
-  if (!loggedIn.value) {
+  if (!loggedIn.value || !token) {
     return navigateTo('/login')
   }
 })

@@ -164,6 +164,7 @@ public class KeycloakAdminService {
             
             UserRepresentation user = search.get(0);
             user.setEmail(email);
+            user.setEmailVerified(true);
             user.setEnabled(enabled);
             if (fullName != null) {
                 String[] parts = fullName.split(" ", 2);

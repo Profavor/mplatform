@@ -74,4 +74,54 @@ class NotificationControllerTest {
         mockMvc.perform(get("/api/notifications/unread-count"))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    @DisplayName("PUT /api/notifications/{id}/read - 단일 알림 읽음 처리 (UUID)")
+    @WithMockUser(username = "testuser")
+    void testMarkAsReadPut() throws Exception {
+        UUID id = UUID.randomUUID();
+        given(notificationService.markAsRead(id, "testuser")).willReturn(true);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/notifications/" + id + "/read"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("PUT /api/notifications/{id}/read - 비UUID ID 안전 처리")
+    @WithMockUser(username = "testuser")
+    void testMarkAsReadNonUuid() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/notifications/1787050754192.7412/read"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("PUT /api/notifications/read-all - 전체 알림 읽음 처리")
+    @WithMockUser(username = "testuser")
+    void testMarkAllAsReadPut() throws Exception {
+        given(notificationService.markAllAsRead("testuser")).willReturn(3);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/notifications/read-all"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("DELETE /api/notifications/{id} - 단일 알림 삭제")
+    @WithMockUser(username = "testuser")
+    void testDeleteNotification() throws Exception {
+        UUID id = UUID.randomUUID();
+        given(notificationService.deleteNotification(id, "testuser")).willReturn(true);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/notifications/" + id))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("DELETE /api/notifications/clear-all - 전체 알림 삭제")
+    @WithMockUser(username = "testuser")
+    void testClearAllNotifications() throws Exception {
+        given(notificationService.clearAllNotifications("testuser")).willReturn(5);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/notifications/clear-all"))
+                .andExpect(status().isOk());
+    }
 }

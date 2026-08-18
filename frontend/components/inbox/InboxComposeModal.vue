@@ -94,6 +94,8 @@ import { useI18n } from 'vue-i18n'
 import type { InboxMessage, InboxMessageRequest } from '~/composables/useInbox'
 import { useInbox } from '~/composables/useInbox'
 import { useAuthUser } from '~/composables/useAuthUser'
+import { useUserStore } from '~/stores/useUserStore'
+import { useTimezoneDate } from '~/composables/useTimezoneDate'
 import AppModal from '~/components/common/AppModal.vue'
 import HtmlEditor from '~/components/common/HtmlEditor.vue'
 import InboxRecipientPicker from './InboxRecipientPicker.vue'
@@ -109,7 +111,9 @@ const props = defineProps<{
 const emit = defineEmits(['update:modelValue', 'sent', 'drafted'])
 const { t } = useI18n()
 const { sendMessage, saveDraft: apiSaveDraft } = useInbox()
-const { user } = useAuthUser()
+const authUserStore = useAuthUser()
+const userStore = useUserStore()
+const { formatWithTimezone } = useTimezoneDate()
 const { init } = useToast()
 
 const showCcBcc = ref(false)
@@ -152,6 +156,86 @@ const isFormValid = computed(() => {
   return cleanTo.length > 0 && formData.value.subject && formData.value.subject.trim().length > 0
 })
 
+const escapeHtml = (text: string) => {
+  if (!text) return ''
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
+const buildOriginalMessageHeader = (msg: InboxMessage) => {
+  // Sender Display: Name <email> or Name or email
+  const sName = msg.senderName || (msg.senderId ? userStore.getUserName(msg.senderId, '') : '')
+  let senderDisplay = sName
+  if (msg.senderEmail) {
+    if (sName && sName !== msg.senderEmail) {
+      senderDisplay = `${sName} &lt;${msg.senderEmail}&gt;`
+    } else {
+      senderDisplay = msg.senderEmail
+    }
+  } else if (!senderDisplay && msg.senderId) {
+    senderDisplay = msg.senderId
+  }
+
+  // Date formatted with user timezone
+  const dateVal = msg.sentAt || msg.createdAt
+  let formattedDate = ''
+  if (dateVal) {
+    try {
+      formattedDate = formatWithTimezone(dateVal)
+    } catch {
+      formattedDate = String(dateVal)
+    }
+  }
+
+  // To list
+  const toList = (msg.toRecipients || []).map(r => {
+    if (typeof r === 'object' && r) {
+      const name = r.name || (r.userId ? userStore.getUserName(r.userId, '') : '') || r.email || r.userId || ''
+      if (r.email && name && name !== r.email) {
+        return `${name} &lt;${r.email}&gt;`
+      }
+      return name || r.email || ''
+    }
+    return String(r)
+  }).filter(Boolean).join(', ')
+
+  // Cc list
+  const ccList = (msg.ccRecipients || []).map(r => {
+    if (typeof r === 'object' && r) {
+      const name = r.name || (r.userId ? userStore.getUserName(r.userId, '') : '') || r.email || r.userId || ''
+      if (r.email && name && name !== r.email) {
+        return `${name} &lt;${r.email}&gt;`
+      }
+      return name || r.email || ''
+    }
+    return String(r)
+  }).filter(Boolean).join(', ')
+
+  const originalTitle = t('inbox.original_message', '원본 메시지')
+  const fromLabel = t('inbox.from', '보낸 사람')
+  const dateLabel = t('inbox.date', '날짜')
+  const toLabel = t('inbox.to', '받는 사람')
+  const ccLabel = t('inbox.cc', '참조')
+  const subjectLabel = t('inbox.subject', '제목')
+
+  let headerHtml = `<p><br/></p><hr style="border: none; border-top: 1px solid #6366f1; opacity: 0.35; margin: 24px 0 16px 0;"/>`
+  headerHtml += `<div style="background-color: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-left: 4px solid #6366f1; border-radius: 6px; padding: 12px 16px; margin-bottom: 14px; font-size: 13px; line-height: 1.7;">`
+  headerHtml += `<div style="font-weight: 700; color: #6366f1; margin-bottom: 8px; font-size: 13px; letter-spacing: 0.5px;">----- ${originalTitle} -----</div>`
+  if (senderDisplay) headerHtml += `<div style="margin-bottom: 3px;"><span style="color: #6366f1; font-weight: 600; min-width: 65px; display: inline-block;">${fromLabel}:</span> <span>${senderDisplay}</span></div>`
+  if (formattedDate) headerHtml += `<div style="margin-bottom: 3px;"><span style="color: #6366f1; font-weight: 600; min-width: 65px; display: inline-block;">${dateLabel}:</span> <span>${escapeHtml(formattedDate)}</span></div>`
+  if (toList) headerHtml += `<div style="margin-bottom: 3px;"><span style="color: #6366f1; font-weight: 600; min-width: 65px; display: inline-block;">${toLabel}:</span> <span>${toList}</span></div>`
+  if (ccList) headerHtml += `<div style="margin-bottom: 3px;"><span style="color: #6366f1; font-weight: 600; min-width: 65px; display: inline-block;">${ccLabel}:</span> <span>${ccList}</span></div>`
+  if (msg.subject) headerHtml += `<div style="margin-bottom: 3px;"><span style="color: #6366f1; font-weight: 600; min-width: 65px; display: inline-block;">${subjectLabel}:</span> <span style="font-weight: 600;">${escapeHtml(msg.subject)}</span></div>`
+  headerHtml += `</div>`
+  headerHtml += `<p><br/></p>`
+
+  return headerHtml
+}
+
 watch(() => props.modelValue, (newVal) => {
   if (newVal) {
     showCcBcc.value = false
@@ -167,19 +251,23 @@ watch(() => props.modelValue, (newVal) => {
       }
     } else {
       const msg = props.originalMessage
-      const myId = user.value?.id
+      const myId = authUserStore?.currentUserId || authUserStore?.currentUser?.id || ''
       
       let to: string[] = []
       let cc: string[] = []
       let subj = msg.subject || ''
-      let body = `<br/><br/><hr/><blockquote>${msg.body || ''}</blockquote>`
+      const headerHtml = buildOriginalMessageHeader(msg)
+      let body = `<p><br/></p>${headerHtml}<blockquote style="margin: 0; padding-left: 14px; border-left: 2px solid rgba(99, 102, 241, 0.4); opacity: 0.95;">${msg.body || ''}</blockquote>`
       
       if (props.mode === 'reply') {
-        to = [msg.senderId || msg.senderEmail]
+        const replyTo = msg.senderId || msg.senderEmail || ''
+        to = replyTo ? [replyTo] : []
         subj = subj.startsWith('Re:') ? subj : `Re: ${subj}`
       } else if (props.mode === 'replyAll') {
-        to = [msg.senderId || msg.senderEmail, ...msg.toRecipients.map(r => r.userId || r.email).filter(id => id !== myId)]
-        cc = [...msg.ccRecipients.map(r => r.userId || r.email).filter(id => id !== myId)]
+        const replyTo = msg.senderId || msg.senderEmail || ''
+        const origToList = (msg.toRecipients || []).map(r => (typeof r === 'object' ? (r.userId || r.email || '') : String(r))).filter(id => id && id !== myId)
+        to = replyTo ? [replyTo, ...origToList] : origToList
+        cc = (msg.ccRecipients || []).map(r => (typeof r === 'object' ? (r.userId || r.email || '') : String(r))).filter(id => id && id !== myId)
         subj = subj.startsWith('Re:') ? subj : `Re: ${subj}`
         if (cc.length > 0) showCcBcc.value = true
       } else if (props.mode === 'forward') {
@@ -197,7 +285,7 @@ watch(() => props.modelValue, (newVal) => {
       }
     }
   }
-})
+}, { immediate: true })
 
 const send = async () => {
   if (isSubmitting.value) return

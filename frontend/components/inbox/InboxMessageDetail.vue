@@ -738,6 +738,14 @@ const handleRecallMessage = async () => {
   color: var(--va-text-primary);
 }
 
+.message-body :deep(blockquote) {
+  margin: 0.75rem 0;
+  padding: 0.5rem 1rem;
+  border-left: 3px solid #6366f1;
+  background: rgba(99, 102, 241, 0.04);
+  border-radius: 0 6px 6px 0;
+}
+
 :global([data-vuestic-preset="dark"]) .message-body,
 :global(.va-theme-dark) .message-body {
   color: #f1f5f9 !important;

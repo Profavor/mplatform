@@ -48,6 +48,21 @@ public class NotificationService {
     }
 
     @Transactional
+    public boolean deleteNotification(UUID id, String userId) {
+        Notification n = notificationRepository.findById(id).orElse(null);
+        if (n != null && n.getUserId().equals(userId)) {
+            notificationRepository.delete(n);
+            return true;
+        }
+        return false;
+    }
+
+    @Transactional
+    public int clearAllNotifications(String userId) {
+        return notificationRepository.deleteAllByUserId(userId);
+    }
+
+    @Transactional
     public NotificationDto.NotificationResponse createNotification(NotificationDto.NotificationCreateRequest request) {
         if (request == null || request.getUserId() == null) {
             return null;

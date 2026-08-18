@@ -1,6 +1,7 @@
 package com.classification.domain_system.security;
 
 import com.classification.domain_system.context.AuthContext;
+import com.classification.domain_system.entity.User;
 import com.classification.domain_system.repository.UserRepository;
 import com.classification.domain_system.service.PermissionService;
 import io.jsonwebtoken.Claims;
@@ -34,23 +35,29 @@ public class JwtFilter extends OncePerRequestFilter {
     private final AuthContext authContext;
     private final ObjectProvider<UserRepository> userRepositoryProvider;
     private final ObjectProvider<JwtDecoder> jwtDecoderProvider;
+    private final ObjectProvider<com.classification.domain_system.websocket.WebSocketPublisher> webSocketPublisherProvider;
+    private final ObjectProvider<com.classification.domain_system.service.SseNotificationService> sseNotificationServiceProvider;
 
     public JwtFilter(JwtUtil jwtUtil, PermissionService permissionService, AuthContext authContext, 
                      ObjectProvider<UserRepository> userRepositoryProvider,
-                     ObjectProvider<JwtDecoder> jwtDecoderProvider) {
+                     ObjectProvider<JwtDecoder> jwtDecoderProvider,
+                     ObjectProvider<com.classification.domain_system.websocket.WebSocketPublisher> webSocketPublisherProvider,
+                     ObjectProvider<com.classification.domain_system.service.SseNotificationService> sseNotificationServiceProvider) {
         this.jwtUtil = jwtUtil;
         this.permissionService = permissionService;
         this.authContext = authContext;
         this.userRepositoryProvider = userRepositoryProvider;
         this.jwtDecoderProvider = jwtDecoderProvider;
+        this.webSocketPublisherProvider = webSocketPublisherProvider;
+        this.sseNotificationServiceProvider = sseNotificationServiceProvider;
     }
 
     public static JwtFilter createForTest(JwtUtil jwtUtil, PermissionService permissionService, AuthContext authContext, UserRepository userRepository) {
-        return new JwtFilter(jwtUtil, permissionService, authContext, new SimpleObjectProvider<>(userRepository), new SimpleObjectProvider<>(null));
+        return new JwtFilter(jwtUtil, permissionService, authContext, new SimpleObjectProvider<>(userRepository), new SimpleObjectProvider<>(null), new SimpleObjectProvider<>(null), new SimpleObjectProvider<>(null));
     }
 
     public static JwtFilter createForTest(JwtUtil jwtUtil, PermissionService permissionService, AuthContext authContext, UserRepository userRepository, JwtDecoder jwtDecoder) {
-        return new JwtFilter(jwtUtil, permissionService, authContext, new SimpleObjectProvider<>(userRepository), new SimpleObjectProvider<>(jwtDecoder));
+        return new JwtFilter(jwtUtil, permissionService, authContext, new SimpleObjectProvider<>(userRepository), new SimpleObjectProvider<>(jwtDecoder), new SimpleObjectProvider<>(null), new SimpleObjectProvider<>(null));
     }
 
     private static class SimpleObjectProvider<T> implements ObjectProvider<T> {
@@ -60,6 +67,34 @@ public class JwtFilter extends OncePerRequestFilter {
         @Override public T getObject(Object... args) { return instance; }
         @Override public T getIfAvailable() { return instance; }
         @Override public T getIfUnique() { return instance; }
+    }
+
+    private void sendForceLogout(User user) {
+        if (user == null) return;
+        Map<String, Object> logoutEvent = Map.of(
+                "eventType", "FORCE_LOGOUT",
+                "title", "세션 종료",
+                "message", "다른 기기/브라우저에서 로그인되어 현재 세션이 종료되었습니다."
+        );
+        var sseService = sseNotificationServiceProvider != null ? sseNotificationServiceProvider.getIfAvailable() : null;
+        var wsPublisher = webSocketPublisherProvider != null ? webSocketPublisherProvider.getIfAvailable() : null;
+
+        if (user.getId() != null) {
+            if (sseService != null) {
+                try { sseService.sendNotification(user.getId(), logoutEvent); } catch (Exception ignored) {}
+            }
+            if (wsPublisher != null) {
+                try { wsPublisher.publishNotification(user.getId(), logoutEvent); } catch (Exception ignored) {}
+            }
+        }
+        if (user.getUsername() != null && !user.getUsername().equals(user.getId())) {
+            if (sseService != null) {
+                try { sseService.sendNotification(user.getUsername(), logoutEvent); } catch (Exception ignored) {}
+            }
+            if (wsPublisher != null) {
+                try { wsPublisher.publishNotification(user.getUsername(), logoutEvent); } catch (Exception ignored) {}
+            }
+        }
     }
 
     @Override
@@ -95,8 +130,10 @@ public class JwtFilter extends OncePerRequestFilter {
 
         if (jwt != null) {
             // 1. Keycloak JWT 시도 (issuer 기반 판별)
-            if (tryKeycloakAuth(jwt, request)) {
-                chain.doFilter(request, response);
+            if (tryKeycloakAuth(jwt, request, response)) {
+                if (!response.isCommitted()) {
+                    chain.doFilter(request, response);
+                }
                 return;
             }
             // 2. 기존 자체 JWT 시도
@@ -127,7 +164,7 @@ public class JwtFilter extends OncePerRequestFilter {
                         // DB에 activeSessionId가 설정되어 있는 경우, 토큰의 sessionId가 없거나 다르면 기존 세션이므로 즉시 차단
                         if (activeSessionId != null && !activeSessionId.equals(tokenSessionId)) {
                             log.warn("Session invalidated due to concurrent login for user: {}", username);
-                            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Session expired due to login from another device.");
+                            sendSessionExpiredError(response, "Session expired due to login from another device.");
                             return;
                         }
                     }
@@ -146,8 +183,17 @@ public class JwtFilter extends OncePerRequestFilter {
         chain.doFilter(request, response);
     }
 
+    private void sendSessionExpiredError(HttpServletResponse response, String message) throws IOException {
+        if (!response.isCommitted()) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"status\":401,\"errorCode\":\"SESSION_EXPIRED\",\"message\":\"" + message + "\"}");
+            response.getWriter().flush();
+        }
+    }
+
     @SuppressWarnings("unchecked")
-    private boolean tryKeycloakAuth(String token, HttpServletRequest request) {
+    private boolean tryKeycloakAuth(String token, HttpServletRequest request, HttpServletResponse response) {
         JwtDecoder decoder = jwtDecoderProvider != null ? jwtDecoderProvider.getIfAvailable() : null;
         if (decoder == null) return false;
 
@@ -161,8 +207,52 @@ public class JwtFilter extends OncePerRequestFilter {
             String effectiveUserId = sub;
             if (repo != null) {
                 var userOpt = repo.findByUsername(preferredUsername);
-                if (userOpt.isPresent() && userOpt.get().getId() != null) {
-                    effectiveUserId = userOpt.get().getId();
+                if (userOpt.isPresent()) {
+                    User u = userOpt.get();
+                    if (u.getId() != null) {
+                        effectiveUserId = u.getId();
+                    }
+                    String activeSessionId = u.getActiveSessionId();
+                    Long lastLoginSec = u.getLastLoginEpochSec();
+
+                    String tokenSessionId = jwt.getClaimAsString("sid");
+                    if (tokenSessionId == null) {
+                        tokenSessionId = jwt.getClaimAsString("session_state");
+                    }
+
+                    if (tokenSessionId != null) {
+                        Long authTime = null;
+                        Object authTimeObj = jwt.getClaim("auth_time");
+                        if (authTimeObj instanceof Number num) {
+                            authTime = num.longValue();
+                        } else if (authTimeObj instanceof java.time.Instant instant) {
+                            authTime = instant.getEpochSecond();
+                        } else if (jwt.getIssuedAt() != null) {
+                            authTime = jwt.getIssuedAt().getEpochSecond();
+                        }
+
+                        long tokenTime = authTime != null ? authTime : (jwt.getIssuedAt() != null ? jwt.getIssuedAt().getEpochSecond() : 0L);
+                        long storedTime = lastLoginSec != null ? lastLoginSec : 0L;
+
+                        if (activeSessionId == null) {
+                            u.setActiveSessionId(tokenSessionId);
+                            u.setLastLoginEpochSec(tokenTime > 0 ? tokenTime : System.currentTimeMillis() / 1000L);
+                            repo.saveAndFlush(u);
+                        } else if (!activeSessionId.equals(tokenSessionId)) {
+                            if (tokenTime >= storedTime) {
+                                // Newer login from Keycloak! Broadcast FORCE_LOGOUT to previous session and adopt new session
+                                sendForceLogout(u);
+                                u.setActiveSessionId(tokenSessionId);
+                                u.setLastLoginEpochSec(tokenTime);
+                                repo.saveAndFlush(u);
+                                log.info("Keycloak active session switched to newer login for user: {}, sid: {}", preferredUsername, tokenSessionId);
+                            } else {
+                                log.warn("Keycloak session invalidated due to newer login for user: {}", preferredUsername);
+                                sendSessionExpiredError(response, "Session expired due to login from another device.");
+                                return true;
+                            }
+                        }
+                    }
                 }
             }
 

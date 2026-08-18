@@ -84,9 +84,14 @@ public class JwtUtil {
     }
 
     public String generateRefreshToken(String username, String role, String userId) {
+        return generateRefreshToken(username, role, userId, null);
+    }
+
+    public String generateRefreshToken(String username, String role, String userId, String sessionId) {
         Map<String, Object> claims = new HashMap<>();
         if (role != null) claims.put("role", role);
         if (userId != null) claims.put("userId", userId);
+        if (sessionId != null) claims.put("sessionId", sessionId);
         claims.put("tokenType", "REFRESH");
 
         return Jwts.builder()

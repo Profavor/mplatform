@@ -84,6 +84,7 @@
     "recipient_recall_status_after": "Cannot recall (Read: {time})",
     "recipient_recall_status_external": "External Email (Cannot recall)",
     "drag_drop_hint": "Drag and drop files here or click to browse",
+    "drop_or_click_files": "Drop files here or click to attach",
     "file_size_limit": "Max 50MB per file (Uploaded on send)",
     "upload_ready": "Ready to upload",
     "upload_in_progress": "Uploading...",
@@ -112,7 +113,9 @@
     "view_mode_list": "List View (Popup Detail)",
     "view_mode": "View Mode",
     "message_detail_modal": "Message Details",
-    "drag_to_resize": "Drag to resize (Double-click to reset)"
+    "drag_to_resize": "Drag to resize (Double-click to reset)",
+    "new_message_received": "New message/mail received.",
+    "original_message": "Original Message"
   },
   "title": "Inbox",
   "folder_inbox": "Inbox",

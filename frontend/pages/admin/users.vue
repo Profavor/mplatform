@@ -57,14 +57,18 @@
                 </va-avatar>
               </va-list-item-section>
               <va-list-item-section style="overflow: hidden;">
-                <div style="font-weight: 800; font-size: 1rem; color: var(--va-text-primary); margin-bottom: 0.25rem;">
+                <div style="font-weight: 800; font-size: 1rem; color: var(--va-text-primary); margin-bottom: 0.15rem;">
                   {{ user.username }}
+                </div>
+                <div v-if="user.email" style="font-size: 0.8rem; color: var(--va-text-secondary); margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.3rem;">
+                  <va-icon name="mail" size="small" color="secondary" />
+                  <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ user.email }}</span>
                 </div>
                 <div style="display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap;">
                   <RoleBadge :value="user.role" />
                   <va-badge :text="getOrgName(user.organizationId)" color="info" outline size="small" />
                   <va-badge v-if="getDeptName(user.departmentId)" :text="getDeptName(user.departmentId)" color="success" outline size="small" />
-                  <va-badge v-if="user.mustChangePassword" text="임시비밀번호" color="warning" size="small" />
+                  <va-badge v-if="user.mustChangePassword" :text="$t('temp_password', '임시비밀번호')" color="warning" size="small" />
                 </div>
               </va-list-item-section>
             </va-list-item>
@@ -95,8 +99,12 @@
                   </va-button>
                 </div>
               </div>
-              <div style="font-size: 0.82rem; color: var(--va-text-secondary); margin-top: 0.15rem;">
-                {{ getOrgName(selectedUser.organizationId) }} <span v-if="getDeptName(selectedUser.departmentId)">• {{ getDeptName(selectedUser.departmentId) }}</span>
+              <div style="font-size: 0.82rem; color: var(--va-text-secondary); margin-top: 0.15rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <span>{{ getOrgName(selectedUser.organizationId) }}</span>
+                <span v-if="getDeptName(selectedUser.departmentId)">• {{ getDeptName(selectedUser.departmentId) }}</span>
+                <span v-if="selectedUser.email" style="display: inline-flex; align-items: center; gap: 0.25rem; color: var(--va-primary); font-weight: 600;">
+                  • <va-icon name="mail" size="small" color="primary" /> {{ selectedUser.email }}
+                </span>
               </div>
             </div>
           </div>
@@ -104,12 +112,12 @@
 
         <va-card-content style="display: flex; flex-direction: column; gap: 1.5rem; padding-top: 1.25rem;">
           
-          <!-- User System Role Setting -->
+          <!-- User Basic Info & System Role Setting -->
           <div style="background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem;">
               <h3 style="font-weight: 800; margin: 0; color: var(--va-text-primary); font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
                 <va-icon name="manage_accounts" color="primary" />
-                <span>{{ $t('user_role') }}</span>
+                <span>{{ $t('user_info_and_role') }}</span>
               </h3>
 
               <va-button
@@ -117,11 +125,28 @@
                 color="primary"
                 icon="save"
                 size="small"
-                @click="updateUserRoleOnly"
+                :loading="isSavingUserInfo"
+                @click="saveUserInfo"
                 style="font-weight: 700;"
               >
-                {{ $t('save_role') }}
+                {{ $t('save_user_info') }}
               </va-button>
+            </div>
+
+            <!-- Email Address Input -->
+            <div style="margin-bottom: 1rem;">
+              <va-input
+                v-model="selectedUserEmail"
+                :label="$t('user_email')"
+                placeholder="user@example.com"
+                style="width: 100%;"
+                clearable
+                :rules="[val => !val || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) || $t('invalid_email_format')]"
+              >
+                <template #prependInner>
+                  <va-icon name="mail" color="primary" />
+                </template>
+              </va-input>
             </div>
             
             <div style="display: flex; gap: 0.5rem; margin-bottom: 0.85rem; align-items: center; font-size: 0.88rem; color: var(--va-text-secondary); flex-wrap: wrap;">
@@ -375,6 +400,7 @@
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { usePermission } from '~/composables/usePermission'
 import { usePageTitle } from '~/composables/usePageTitle'
 import AppModal from '~/components/common/AppModal.vue'
@@ -461,6 +487,8 @@ const onSearchKeydown = (e) => {
   }
 }
 const selectedUser = ref(null)
+const selectedUserEmail = ref('')
+const isSavingUserInfo = ref(false)
 const selectedUserRoles = ref([])
 const selectedUserOrgId = ref(null)
 const selectedUserDeptId = ref(null)
@@ -577,6 +605,7 @@ const getUserRolesArray = (role) => {
 const selectUser = async (user) => {
   if (user) {
     selectedUser.value = user
+    selectedUserEmail.value = user.email || ''
     selectedUserRoles.value = getUserRolesArray(user.role)
     selectedUserOrgId.value = user.organizationId
     selectedUserDeptId.value = user.departmentId
@@ -598,30 +627,56 @@ const loadUserOrgHistory = async (userId) => {
   }
 }
 
-const updateUserRoleOnly = async () => {
+const saveUserInfo = async () => {
   if (!selectedUser.value) return
+
+  const cleanEmail = selectedUserEmail.value ? selectedUserEmail.value.trim() : null
+  if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    showCustomAlert(t('invalid_email_format'), getLabel('input_error', '입력 오류'), getLabel('notification', '알림'), 'warning')
+    return
+  }
+
+  isSavingUserInfo.value = true
   const roleStr = Array.isArray(selectedUserRoles.value) ? selectedUserRoles.value.join(',') : (selectedUserRoles.value || 'USER')
+
   try {
-    await $fetch(`/api/permissions/users/${selectedUser.value.id}/tenant-info`, {
+    await $fetch(`/api/users/${selectedUser.value.id}`, {
       method: 'PUT',
       headers: { Authorization: `Bearer ${token.value}` },
       body: {
         role: roleStr,
+        email: cleanEmail,
         organizationId: selectedUser.value.organizationId,
-        departmentId: selectedUser.value.departmentId
+        departmentId: selectedUser.value.departmentId,
+        isActive: selectedUser.value.isActive !== false
       }
     })
+
     selectedUser.value.role = roleStr
-    await fetchUsers()
+    selectedUser.value.email = cleanEmail
+
+    const idx = users.value.findIndex(u => u.id === selectedUser.value.id)
+    if (idx !== -1) {
+      users.value[idx].role = roleStr
+      users.value[idx].email = cleanEmail
+    }
+
     showCustomAlert(
-      getLabel('role_updated_success', '사용자 역할 권한이 성공적으로 변경되었습니다.'),
+      getLabel('user_info_updated_success', '사용자 정보(이메일 및 역할)가 성공적으로 저장되었습니다.'),
       getLabel('update_success', '수정 완료'),
       getLabel('notification', '알림'),
       'success'
     )
   } catch (e) {
-    showCustomAlert('Failed to update user role: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
+    const errorMsg = e.response?._data?.message || e.response?._data || e.message || String(e)
+    showCustomAlert(getLabel('user_info_update_failed', '사용자 정보 저장 실패: ') + errorMsg, getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
+  } finally {
+    isSavingUserInfo.value = false
   }
+}
+
+const updateUserRoleOnly = async () => {
+  await saveUserInfo()
 }
 
 const loadUserPermissions = async (userId) => {
@@ -633,8 +688,10 @@ const loadUserPermissions = async (userId) => {
 
 
 const availableDomains = computed(() => {
-  const grantedIds = userPermissions.value.map(p => p.domain.id)
-  return allDomains.value
+  const perms = Array.isArray(userPermissions.value) ? userPermissions.value : []
+  const grantedIds = perms.map(p => p.domain?.id).filter(Boolean)
+  const domains = Array.isArray(allDomains.value) ? allDomains.value : []
+  return domains
     .filter(d => !grantedIds.includes(d.id))
     .map(d => ({ id: d.id, label: getDomainName(d.name) }))
 })

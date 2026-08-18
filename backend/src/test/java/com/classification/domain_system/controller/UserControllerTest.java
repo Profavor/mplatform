@@ -81,4 +81,38 @@ class UserControllerTest {
                 .andExpect(jsonPath("$[1].username").value("bob"))
                 .andExpect(jsonPath("$[1].role").value("USER"));
     }
+
+    @Test
+    @DisplayName("updateUser - 사용자 정보 및 이메일 수정 성공")
+    void updateUser_Success() throws Exception {
+        com.classification.domain_system.entity.User user = new com.classification.domain_system.entity.User();
+        user.setId("user-1-id");
+        user.setUsername("alice");
+        user.setEmail("alice_new@example.com");
+        user.setRole("ROLE_ADMIN");
+
+        when(userService.updateAdminUserInfo(org.mockito.ArgumentMatchers.eq("user-1-id"), org.mockito.ArgumentMatchers.any(com.classification.domain_system.dto.AdminUserUpdateDto.class)))
+                .thenReturn(user);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/users/user-1-id")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"alice_new@example.com\",\"role\":\"ROLE_ADMIN\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value("user-1-id"))
+                .andExpect(jsonPath("$.email").value("alice_new@example.com"))
+                .andExpect(jsonPath("$.role").value("ROLE_ADMIN"));
+    }
+
+    @Test
+    @DisplayName("updateUser - 이메일 중복 시 400 Bad Request 반환")
+    void updateUser_DuplicateEmail_ReturnsBadRequest() throws Exception {
+        when(userService.updateAdminUserInfo(org.mockito.ArgumentMatchers.eq("user-1-id"), org.mockito.ArgumentMatchers.any(com.classification.domain_system.dto.AdminUserUpdateDto.class)))
+                .thenThrow(new IllegalArgumentException("이미 다른 사용자가 사용 중인 이메일 주소입니다: duplicate@example.com"));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/users/user-1-id")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"duplicate@example.com\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("이미 다른 사용자가 사용 중인 이메일 주소입니다: duplicate@example.com"));
+    }
 }
