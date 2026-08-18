@@ -16,13 +16,45 @@ import java.util.stream.Collectors;
 public class FileValidationUtil {
 
     private final Set<String> allowedExtensions;
-    private static final List<String> BLACKLIST_EXTENSIONS = Arrays.asList("html", "htm", "svg", "js", "mjs", "xhtml", "shtml");
+    private static final List<String> BLACKLIST_EXTENSIONS = Arrays.asList("html", "htm", "svg", "js", "mjs", "xhtml", "shtml", "jsp", "asp", "php", "exe", "sh", "bat", "cmd", "vbs");
 
-    public FileValidationUtil(@Value("${file.upload.allowed-extensions:jpg,jpeg,png,gif,pdf,xlsx,xls,csv,docx,doc,pptx,ppt,txt,zip}") String allowedExtensionsStr) {
+    public FileValidationUtil(@Value("${file.upload.allowed-extensions:jpg,jpeg,png,gif,webp,bmp,ico,jfif,heic,pdf,xlsx,xls,csv,docx,doc,pptx,ppt,txt,zip,mp3,wav,mp4}") String allowedExtensionsStr) {
         this.allowedExtensions = Arrays.stream(allowedExtensionsStr.split(","))
                 .map(String::trim)
                 .map(String::toLowerCase)
                 .collect(Collectors.toSet());
+    }
+
+    public String sanitizeOrInferFilename(String originalFilename, String contentType) {
+        String name = originalFilename;
+        if (name == null || name.isBlank() || "blob".equalsIgnoreCase(name.trim())) {
+            name = "upload_" + System.currentTimeMillis();
+        }
+
+        if (!name.contains(".")) {
+            String ext = inferExtensionFromContentType(contentType);
+            name = name + "." + ext;
+        }
+
+        return name;
+    }
+
+    private String inferExtensionFromContentType(String contentType) {
+        if (contentType == null) return "bin";
+        String lower = contentType.toLowerCase();
+        if (lower.contains("png")) return "png";
+        if (lower.contains("jpeg") || lower.contains("jpg")) return "jpg";
+        if (lower.contains("gif")) return "gif";
+        if (lower.contains("webp")) return "webp";
+        if (lower.contains("bmp")) return "bmp";
+        if (lower.contains("pdf")) return "pdf";
+        if (lower.contains("excel") || lower.contains("spreadsheet") || lower.contains("xlsx") || lower.contains("vnd.ms-excel")) return "xlsx";
+        if (lower.contains("word") || lower.contains("docx") || lower.contains("msword")) return "docx";
+        if (lower.contains("csv")) return "csv";
+        if (lower.contains("json")) return "json";
+        if (lower.contains("text")) return "txt";
+        if (lower.contains("zip") || lower.contains("compressed")) return "zip";
+        return "bin";
     }
 
     public void validateExtension(String fileName) {
@@ -48,9 +80,9 @@ public class FileValidationUtil {
             int bytesRead = inputStream.read(headerBytes);
             if (bytesRead > 0) {
                 String headerStr = new String(headerBytes, 0, bytesRead, StandardCharsets.UTF_8).toLowerCase();
-                // Basic XSS patterns
-                if (headerStr.contains("<script") || headerStr.contains("<html") || headerStr.contains("<svg")) {
-                    throw new BusinessException(ErrorCode.UPLOAD_FILE_FAIL, "File content contains restricted signature (possible XSS attempt)");
+                // Block executable scripts and php/shell scripts
+                if (headerStr.contains("<script") || headerStr.contains("<?php") || headerStr.contains("eval(") || headerStr.startsWith("#!/bin/")) {
+                    throw new BusinessException(ErrorCode.UPLOAD_FILE_FAIL, "File content contains restricted script signature");
                 }
             }
         } catch (Exception e) {

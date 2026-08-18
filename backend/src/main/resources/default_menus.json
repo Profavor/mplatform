@@ -150,14 +150,4 @@
   "parentId" : 7,
   "sortOrder" : 10,
   "isActive" : true,
-  "requiredRoles" : [ "DATA_STEWARD", "ROLE_ADMIN" ]
-}, {
-  "id" : 19,
-  "name" : "{\"ko\":\"공통 코드 관리\",\"en\":\"Data Dictionary\"}",
-  "path" : "/admin/codes",
-  "icon" : "library_books",
-  "parentId" : 7,
-  "sortOrder" : 11,
-  "isActive" : true,
-  "requiredRoles" : [ "ROLE_ADMIN" ]
-} ]
+  "requiredRoles" : [ "DATA_STEWARD", "ROLE_ADMIN" ]

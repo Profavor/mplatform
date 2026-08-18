@@ -3,8 +3,6 @@ package com.classification.domain_system.service.storage;
 import com.classification.domain_system.exception.BusinessException;
 import com.classification.domain_system.exception.ErrorCode;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Primary;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
@@ -20,18 +18,14 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Objects;
-import java.util.UUID;
 
-@Service
-@Primary
-@ConditionalOnProperty(name = "storage.type", havingValue = "local", matchIfMissing = true)
+@Service("localStorageService")
 public class LocalStorageService implements FileStorageService {
 
     private final Path fileStorageLocation;
     private final FileValidationUtil fileValidationUtil;
 
-    public LocalStorageService(@Value("${file.upload-dir}") String uploadDir, FileValidationUtil fileValidationUtil) {
+    public LocalStorageService(@Value("${file.upload-dir:./uploads}") String uploadDir, FileValidationUtil fileValidationUtil) {
         this.fileValidationUtil = fileValidationUtil;
         Path location;
         try {
@@ -78,10 +72,7 @@ public class LocalStorageService implements FileStorageService {
 
     @Override
     public String storeFile(MultipartFile file) {
-        String originalFileName = file.getOriginalFilename();
-        if (originalFileName == null) {
-            originalFileName = "unknown_file";
-        }
+        String originalFileName = fileValidationUtil.sanitizeOrInferFilename(file.getOriginalFilename(), file.getContentType());
         
         String cleanName = StringUtils.cleanPath(originalFileName);
         if (cleanName.contains("..")) {
@@ -140,11 +131,10 @@ public class LocalStorageService implements FileStorageService {
             if (cleanName.contains("..")) {
                 throw new BusinessException(ErrorCode.UPLOAD_FILE_FAIL, "Filename contains invalid path sequence: " + filename);
             }
-
             Path filePath = this.fileStorageLocation.resolve(cleanName).normalize();
             Files.deleteIfExists(filePath);
         } catch (IOException ex) {
-            throw new BusinessException(ErrorCode.UPLOAD_FILE_FAIL, "Could not delete file: " + filename);
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "Could not delete file: " + filename);
         }
     }
 }

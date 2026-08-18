@@ -61,6 +61,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/system/**").permitAll()
                 .requestMatchers("/api/notifications/subscribe").permitAll()
+                .requestMatchers("/api/inbox/track/open/**").permitAll()
+                .requestMatchers("/api/files/download/**").permitAll()
+                .requestMatchers("/api/files/info/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 // Inbound Webhook: 외부 시스템이 자체 채널 시크릿 토큰으로 호출하므로 JWT 인증 제외
                 .requestMatchers(HttpMethod.POST, "/api/integration/inbound/**").permitAll()

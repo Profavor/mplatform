@@ -43,6 +43,17 @@ data:
   FILE_UPLOAD_DIR: "/app/uploads"
   CHAT_RETENTION_DAYS: "7"
   
+  # Mail Server Settings
+  MAIL_DOMAIN: "mplatform.com"
+  MAIL_HOSTNAME: "mail.mplatform.com"
+  MAIL_SMTP_HOST: "mailserver"
+  MAIL_SMTP_PORT: "587"
+  MAIL_IMAP_HOST: "mailserver"
+  MAIL_IMAP_PORT: "993"
+  MAIL_ACCOUNT_AUTO_CREATE: "true"
+  MAIL_CONFIG_PATH: "/docker-data/dms/config"
+  MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
+
   # Vault KMS Settings
   ENCRYPTION_TYPE: "VAULT"
   VAULT_URI: "http://vault:8200"
@@ -69,7 +80,6 @@ data:
   HOST: "0.0.0.0"
   PORT: "3000"
 
-
 ---
 apiVersion: v1
 kind: Secret
@@ -90,3 +100,5 @@ stringData:
   NUXT_OIDC_SESSION_SECRET: "NlhsR8Ak3KmuSmETkuWo97F2NOlv72UcvXWRAtgvsOrT1Y8n"
   NUXT_OIDC_TOKEN_KEY: "data:;base64,4bRR/K5TVe98TP1itI2lvT2HZYG4lGBT02vmqtHnhLE="
   NUXT_OIDC_AUTH_SESSION_SECRET: "CNwSsFJo3EZRs-6qwK9ZT7p4bcDza3Ov1Sd_AA-QB33iUjQY"
+  MAIL_ADMIN_USER: "admin@mplatform.com"
+  MAIL_ADMIN_PASSWORD: "AdminMailPass123!"

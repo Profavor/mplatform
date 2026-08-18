@@ -25,16 +25,18 @@ class MinioStorageServiceTest {
     private MinioClient minioClient;
 
     @Mock
+    private LocalStorageService localStorageService;
+
+    @Mock
     private MultipartFile multipartFile;
 
     private MinioStorageService storageService;
 
     @BeforeEach
     void setUp() throws Exception {
-        // Create service via constructor, then replace the internal minioClient with our mock
-        FileValidationUtil validationUtil = new FileValidationUtil("jpg,jpeg,png,gif,pdf,txt,xlsx,xls,csv,docx,doc,pptx,ppt,zip");
+        FileValidationUtil validationUtil = new FileValidationUtil("jpg,jpeg,png,gif,pdf,txt,xlsx,xls,csv,docx,doc,pptx,ppt,txt,zip");
         storageService = new MinioStorageService(
-                "http://localhost:9000", "test-access-key", "test-secret-key", "test-bucket", "./uploads", validationUtil);
+                "http://localhost:9000", "test-access-key", "test-secret-key", "test-bucket", validationUtil, localStorageService);
         ReflectionTestUtils.setField(storageService, "minioClient", minioClient);
     }
 
@@ -61,71 +63,77 @@ class MinioStorageServiceTest {
     }
 
     @Test
-    void storeFile_PathTraversal_ThrowsException() {
+    void storeFile_InvalidPathSequence_ThrowsException() {
         // Given
-        when(multipartFile.getOriginalFilename()).thenReturn("../../../etc/passwd");
+        when(multipartFile.getOriginalFilename()).thenReturn("../malicious.txt");
 
-        // When & Then
+        // When / Then
         assertThrows(BusinessException.class, () -> storageService.storeFile(multipartFile));
+        verifyNoInteractions(minioClient);
     }
 
     @Test
-    void storeFile_CreatesBucketIfNotExists() throws Exception {
+    void storeFile_RestrictedExtension_ThrowsException() {
         // Given
-        byte[] content = "data".getBytes();
-        when(multipartFile.getOriginalFilename()).thenReturn("file.txt");
-        when(multipartFile.getBytes()).thenReturn(content);
-        when(multipartFile.getInputStream()).thenReturn(new ByteArrayInputStream(content));
-        when(multipartFile.getSize()).thenReturn((long) content.length);
-        when(multipartFile.getContentType()).thenReturn("text/plain");
-        when(minioClient.bucketExists(any(BucketExistsArgs.class))).thenReturn(false);
-        when(minioClient.putObject(any(PutObjectArgs.class))).thenReturn(null);
+        when(multipartFile.getOriginalFilename()).thenReturn("shell.html");
 
-        // When
-        storageService.storeFile(multipartFile);
+        // When / Then
+        assertThrows(BusinessException.class, () -> storageService.storeFile(multipartFile));
+        verifyNoInteractions(minioClient);
+    }
 
-        // Then
-        verify(minioClient, times(1)).makeBucket(any(MakeBucketArgs.class));
+    @Test
+    void storeFile_DisallowedExtension_ThrowsException() {
+        // Given
+        when(multipartFile.getOriginalFilename()).thenReturn("script.py");
+
+        // When / Then
+        assertThrows(BusinessException.class, () -> storageService.storeFile(multipartFile));
+        verifyNoInteractions(minioClient);
     }
 
     @Test
     void loadFileAsResource_Success_ReturnsResource() throws Exception {
         // Given
-        byte[] content = "file content bytes".getBytes();
-        InputStream mockStream = new ByteArrayInputStream(content);
-        GetObjectResponse mockResponse = mock(GetObjectResponse.class);
-        when(mockResponse.readAllBytes()).thenReturn(content);
-        when(minioClient.getObject(any(GetObjectArgs.class))).thenReturn(mockResponse);
+        String filename = "sample.pdf";
+        byte[] expectedContent = "PDF file content".getBytes();
+        GetObjectResponse getObjectResponse = mock(GetObjectResponse.class);
+        when(getObjectResponse.readAllBytes()).thenReturn(expectedContent);
+        when(minioClient.getObject(any(GetObjectArgs.class))).thenReturn(getObjectResponse);
 
         // When
-        Resource resource = storageService.loadFileAsResource("abc123.pdf");
+        Resource resource = storageService.loadFileAsResource(filename);
 
         // Then
         assertNotNull(resource);
-        assertEquals("abc123.pdf", resource.getFilename());
-        verify(minioClient, times(1)).getObject(any(GetObjectArgs.class));
+        assertEquals(filename, resource.getFilename());
+        try (InputStream is = resource.getInputStream()) {
+            assertArrayEquals(expectedContent, is.readAllBytes());
+        }
     }
 
     @Test
-    void loadFileAsResource_PathTraversal_ThrowsException() {
-        // When & Then
-        assertThrows(BusinessException.class, () ->
-                storageService.loadFileAsResource("../../secret.txt"));
+    void loadFileAsResource_InvalidPath_ThrowsException() {
+        assertThrows(BusinessException.class, () -> storageService.loadFileAsResource("../bad.pdf"));
+        verifyNoInteractions(minioClient);
     }
 
     @Test
     void deleteFile_Success_CallsRemoveObject() throws Exception {
+        // Given
+        String filename = "file-to-delete.pdf";
+        doNothing().when(minioClient).removeObject(any(RemoveObjectArgs.class));
+
         // When
-        storageService.deleteFile("abc123.pdf");
+        storageService.deleteFile(filename);
 
         // Then
         verify(minioClient, times(1)).removeObject(any(RemoveObjectArgs.class));
     }
 
     @Test
-    void deleteFile_PathTraversal_ThrowsException() {
-        // When & Then
-        assertThrows(BusinessException.class, () ->
-                storageService.deleteFile("../../../etc/passwd"));
+    void deleteFile_InvalidPath_ThrowsException() {
+        assertThrows(BusinessException.class, () -> storageService.deleteFile("../bad.pdf"));
+        verifyNoInteractions(minioClient);
     }
 }

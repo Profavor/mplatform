@@ -44,8 +44,6 @@ services:
   mdm_prometheus:
     image: prom/prometheus:latest
     container_name: mdm_prometheus
-    # volumes:
-    #   - ./prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
       - "9090:9090"
 
@@ -134,8 +132,29 @@ services:
       - redis_data:/data
     restart: unless-stopped
 
+  mailserver:
+    image: ghcr.io/docker-mailserver/docker-mailserver:latest
+    container_name: mdm_mailserver
+    hostname: mail
+    domainname: ${MAIL_DOMAIN:-mplatform.com}
+    env_file: mailserver.env
+    ports:
+      - "25:25"
+      - "587:587"
+      - "465:465"
+      - "143:143"
+      - "993:993"
+    volumes:
+      - ./docker-data/dms/mail-data/:/var/mail/
+      - ./docker-data/dms/mail-state/:/var/mail-state/
+      - ./docker-data/dms/mail-logs/:/var/log/mail/
+      - ./docker-data/dms/config/:/tmp/docker-mailserver/
+    cap_add:
+      - NET_ADMIN
+    restart: unless-stopped
+    stop_grace_period: 1m
+
 volumes:
   postgres_data:
   vault_data:
   redis_data:
-
