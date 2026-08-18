@@ -622,9 +622,11 @@ const showCreateOrgModalFlag = ref(false)
 const newOrgForm = ref({ name: '', displayNameKo: '', displayNameEn: '', descriptionKo: '', descriptionEn: '', emailDomain: '', icon: 'corporate_fare' })
 
 const showCreateDeptModalFlag = ref(false)
+const isCreatingDept = ref(false)
 const newDeptForm = ref({ parentDepartmentId: null, nameKo: '', nameEn: '', descriptionKo: '', descriptionEn: '', roles: [], icon: 'folder' })
 
 const showEditDeptModalFlag = ref(false)
+const isUpdatingDept = ref(false)
 const editDeptForm = ref({ id: null, parentDepartmentId: null, nameKo: '', nameEn: '', descriptionKo: '', descriptionEn: '', roles: [], icon: 'folder' })
 
 const showDeleteDeptModalFlag = ref(false)
@@ -710,6 +712,7 @@ const openEditDeptModal = (dept) => {
 const saveEditDept = async () => {
   if (!selectedOrg.value || (!editDeptForm.value.nameKo && !editDeptForm.value.nameEn)) return
   const roleStr = Array.isArray(editDeptForm.value.roles) ? editDeptForm.value.roles.join(',') : (editDeptForm.value.roles || '')
+  isUpdatingDept.value = true
   try {
     await customFetch(`/api/organizations/${selectedOrg.value.id}/departments/${editDeptForm.value.id}`, {
       method: 'PUT',
@@ -728,6 +731,8 @@ const saveEditDept = async () => {
     showCustomAlert(getLabel('dept_updated_success', '부서 정보가 성공적으로 수정되었습니다.'), getLabel('update_success', '수정 완료'), getLabel('notification', '알림'), 'success')
   } catch (e) {
     showCustomAlert('Failed to update department: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
+  } finally {
+    isUpdatingDept.value = false
   }
 }
 
@@ -1237,6 +1242,7 @@ const saveOrgInfo = async (editOrgFormData) => {
 const saveNewDept = async () => {
   if (!selectedOrg.value || (!newDeptForm.value.nameKo && !newDeptForm.value.nameEn)) return
   const roleStr = Array.isArray(newDeptForm.value.roles) ? newDeptForm.value.roles.join(',') : (newDeptForm.value.roles || '')
+  isCreatingDept.value = true
   try {
     await customFetch(`/api/organizations/${selectedOrg.value.id}/departments`, {
       method: 'POST',
@@ -1258,6 +1264,8 @@ const saveNewDept = async () => {
     )
   } catch (e) {
     showCustomAlert('Failed to create department: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
+  } finally {
+    isCreatingDept.value = false
   }
 }
 
@@ -1499,7 +1507,9 @@ const saveNewPermToGroup = async () => {
 }
 
 const showCreateRoleModalFlag = ref(false)
+const isCreatingRole = ref(false)
 const showEditRoleModalFlag = ref(false)
+const isUpdatingRole = ref(false)
 const newRoleForm = ref({ name: '', displayNameKo: '', displayNameEn: '', descriptionKo: '', descriptionEn: '', permissions: [] })
 const editRoleForm = ref({ id: null, name: '', displayNameKo: '', displayNameEn: '', descriptionKo: '', descriptionEn: '', permissions: [], isSystemRole: false })
 
@@ -1513,6 +1523,7 @@ const openCreateRoleModal = () => {
 
 const saveNewRole = async () => {
   if (!selectedOrg.value || !newRoleForm.value.name) return
+  isCreatingRole.value = true
   try {
     const permsSet = Array.isArray(newRoleForm.value.permissions) ? newRoleForm.value.permissions : []
     await customFetch('/api/roles', {
@@ -1531,6 +1542,8 @@ const saveNewRole = async () => {
     showCustomAlert('새 조직 역할이 성공적으로 생성되었습니다.', getLabel('creation_success', '생성 완료'), getLabel('notification', '알림'), 'success')
   } catch (e) {
     showCustomAlert('Failed to create role: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
+  } finally {
+    isCreatingRole.value = false
   }
 }
 
@@ -1562,6 +1575,7 @@ const openEditRoleModal = (role) => {
 
 const saveEditRole = async () => {
   if (!editRoleForm.value.id) return
+  isUpdatingRole.value = true
   try {
     await customFetch(`/api/roles/${editRoleForm.value.id}`, {
       method: 'PUT',
@@ -1576,6 +1590,8 @@ const saveEditRole = async () => {
     showCustomAlert('역할 정보가 성공적으로 수정되었습니다.', getLabel('update_success', '수정 완료'), getLabel('notification', '알림'), 'success')
   } catch (e) {
     showCustomAlert('Failed to update role: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
+  } finally {
+    isUpdatingRole.value = false
   }
 }
 

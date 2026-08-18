@@ -129,7 +129,7 @@ import { useCustomFetch } from '~/composables/useCustomFetch'
 import { formatWithTimezone } from '~/composables/useTimezoneDate'
 
 const props = defineProps<{
-  domainId: string
+  domainId?: string | null
 }>()
 
 const { t } = useI18n()

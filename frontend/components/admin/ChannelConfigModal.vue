@@ -291,33 +291,53 @@ import { useI18n } from 'vue-i18n'
 import MultilingualInput from '~/components/MultilingualInput.vue'
 import { AgGridVue } from 'ag-grid-vue3'
 import AppModal from '~/components/common/AppModal.vue'
+import { useAgGridTheme } from '~/composables/useAgGridTheme'
 
 const { t } = useI18n()
+const { gridTheme, isDark } = useAgGridTheme()
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   modelValue: boolean
-  isEdit: boolean
-  formData: any
-  uiConfig: any
-  channelNameKo: string
-  channelNameEn: string
-  directionOptions: any[]
-  typeOptions: any[]
-  authTypeOptions: any[]
-  methodOptions: any[]
-  domains: any[]
-  nodes: any[]
-  selectedDomainId: string | null
-  rawFields: any[]
-  uiMappingRootPath: string
-  uiMappings: any[]
-  mappingColumnDefs: any[]
-  gridTheme: string
-  isDark: boolean
-  isTesting: boolean
+  isEdit?: boolean
+  formData?: any
+  uiConfig?: any
+  channelNameKo?: string
+  channelNameEn?: string
+  directionOptions?: any[]
+  typeOptions?: any[]
+  authTypeOptions?: any[]
+  methodOptions?: any[]
+  domains?: any[]
+  nodes?: any[]
+  selectedDomainId?: string | null
+  rawFields?: any[]
+  uiMappingRootPath?: string
+  uiMappings?: any[]
+  mappingColumnDefs?: any[]
+  isTesting?: boolean
   webhookUrl?: string
   sampleJsonPayload?: string
-}>()
+}>(), {
+  isEdit: false,
+  formData: () => ({}),
+  uiConfig: () => ({}),
+  channelNameKo: '',
+  channelNameEn: '',
+  directionOptions: () => [],
+  typeOptions: () => [],
+  authTypeOptions: () => [],
+  methodOptions: () => [],
+  domains: () => [],
+  nodes: () => [],
+  selectedDomainId: null,
+  rawFields: () => [],
+  uiMappingRootPath: '',
+  uiMappings: () => [],
+  mappingColumnDefs: () => [],
+  isTesting: false,
+  webhookUrl: '',
+  sampleJsonPayload: ''
+})
 
 const emit = defineEmits<{
   (e: 'update:modelValue', val: boolean): void

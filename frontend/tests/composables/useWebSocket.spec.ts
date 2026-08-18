@@ -137,4 +137,13 @@ describe('useWebSocket Composable (Singleton TDD)', () => {
     mockClientConfig.beforeConnect()
     expect(mockClientInstance.connectHeaders.token).toBe('mock-jwt-token-from-cookie')
   })
+
+  it('useRuntimeConfig의 apiBaseUrl 또는 window.location 기반으로 brokerURL이 올바르게 구성되어야 함', () => {
+    const ws = useWebSocket()
+    ws.connect()
+
+    expect(mockClientConfig).toBeDefined()
+    expect(mockClientConfig.brokerURL).toMatch(/^ws(s)?:\/\/.+\/ws-stomp$/)
+  })
 })
+

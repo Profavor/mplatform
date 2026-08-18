@@ -45,14 +45,18 @@ public class ApprovalEventListener {
     private final com.classification.domain_system.websocket.WebSocketPublisher webSocketPublisher;
     private final com.classification.domain_system.repository.BatchJobRepository batchJobRepository;
     private final com.classification.domain_system.repository.StagingRecordRepository stagingRecordRepository;
-    
+
     @org.springframework.beans.factory.annotation.Autowired
     @org.springframework.context.annotation.Lazy
     private com.classification.domain_system.service.RecordMergeService recordMergeService;
-    
+
     @org.springframework.beans.factory.annotation.Autowired
     @org.springframework.context.annotation.Lazy
     private com.classification.domain_system.service.ClassificationNodeService classificationNodeService;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    @org.springframework.context.annotation.Lazy
+    private com.classification.domain_system.service.InboxApprovalIntegrationService inboxApprovalIntegrationService;
 
     @EventListener
     @Transactional
@@ -91,6 +95,14 @@ public class ApprovalEventListener {
             approval.getSteps().stream()
                     .filter(s -> s.getStepOrder() != null && s.getStepOrder().equals(approval.getCurrentStepOrder()))
                     .forEach(s -> sendPendingStepNotification(s, actionLabel, requesterName, domainName, classificationName, summary, approval.getId(), approval.getTargetType()));
+        }
+
+        if (inboxApprovalIntegrationService != null) {
+            try {
+                inboxApprovalIntegrationService.onApprovalSubmitted(approval);
+            } catch (Exception ex) {
+                log.warn("Failed to create inbox message for approval submission {}", approval.getId(), ex);
+            }
         }
 
         broadcastApprovalStatusChange(approval, "CREATED");
@@ -164,6 +176,13 @@ public class ApprovalEventListener {
                                 .filter(s -> s.getStepOrder() != null && s.getStepOrder().equals(approval.getCurrentStepOrder()))
                                 .forEach(s -> sendPendingStepNotification(s, nextActionLabel, nextRequesterName, nextDomainName, nextClassificationName, nextSummary, approval.getId(), approval.getTargetType()));
                     }
+                    if (inboxApprovalIntegrationService != null) {
+                        try {
+                            inboxApprovalIntegrationService.onApprovalApproved(approval, approvedStep);
+                        } catch (Exception ex) {
+                            log.warn("Failed to create inbox message for approved step {}", approvedStep.getId(), ex);
+                        }
+                    }
                 } else {
                     approval.setStatus(ApprovalStatus.APPROVED.name());
                     applyFinalApproval(approval);
@@ -182,6 +201,13 @@ public class ApprovalEventListener {
                             );
                         } catch (Exception ex) {
                             log.warn("Failed to send final approval notification for requester {}", approval.getRequesterId(), ex);
+                        }
+                    }
+                    if (inboxApprovalIntegrationService != null) {
+                        try {
+                            inboxApprovalIntegrationService.onApprovalCompleted(approval);
+                        } catch (Exception ex) {
+                            log.warn("Failed to create inbox message for completed approval {}", approval.getId(), ex);
                         }
                     }
                 }

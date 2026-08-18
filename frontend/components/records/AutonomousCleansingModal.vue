@@ -76,7 +76,7 @@ import AppModal from '~/components/common/AppModal.vue'
 
 const props = defineProps<{
   modelValue: boolean
-  domainId: string
+  domainId?: string | null
 }>()
 
 const emit = defineEmits<{

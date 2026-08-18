@@ -589,15 +589,21 @@ const uploadImageToMinio = async (file: File): Promise<string | null> => {
   if (!file) return null
   isUploadingImage.value = true
   try {
+    let uploadFile = file
+    if (!file.name || file.name === 'blob' || !file.name.includes('.')) {
+      const ext = file.type ? file.type.split('/')[1] : 'png'
+      uploadFile = new File([file], `image_${Date.now()}.${ext}`, { type: file.type || 'image/png' })
+    }
+
     const formData = new FormData()
-    formData.append('file', file)
+    formData.append('file', uploadFile)
     
     const res: any = await customFetch('/api/files/upload', {
       method: 'POST',
       body: formData
     })
     
-    const fileUrl = res?.url || (res?.fileId ? `/api/files/download/${res.fileId}?name=${encodeURIComponent(file.name)}` : null) || (typeof res === 'string' ? res : null)
+    const fileUrl = res?.url || (res?.fileId ? `/api/files/download/${res.fileId}?name=${encodeURIComponent(uploadFile.name)}` : null) || (typeof res === 'string' ? res : null)
     if (fileUrl) {
       const blobUrl = await getAuthenticatedImageUrl(fileUrl)
       return blobUrl || fileUrl

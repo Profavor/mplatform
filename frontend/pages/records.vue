@@ -300,7 +300,7 @@
     <ApprovalViewerModal
       v-model="showApprovalHistoryModal"
       :request="selectedApprovalRequest"
-      :node-id="selectedNode?.id || localRecord?.node?.id"
+      :node-id="selectedNode?.id || selectedRecordData?.node?.id"
     />
 
     <RecordsDomainRefModal

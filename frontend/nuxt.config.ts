@@ -33,12 +33,9 @@ export default defineNuxtConfig({
       components: {
         VaModal: {
           closeButton: false,
-          noOutsideDismiss: true,
-          preventClickOutside: true,
-          blurToCancel: false
+          noOutsideDismiss: true
         }
-      },
-
+      }
     }
   },
   i18n: {
@@ -51,6 +48,7 @@ export default defineNuxtConfig({
           'ko/auth.json',
           'ko/common.json',
           'ko/dq.json',
+          'ko/inbox.json',
           'ko/records.json',
           'ko/schema.json'
         ]
@@ -63,6 +61,7 @@ export default defineNuxtConfig({
           'en/auth.json',
           'en/common.json',
           'en/dq.json',
+          'en/inbox.json',
           'en/records.json',
           'en/schema.json'
         ]
@@ -92,9 +91,6 @@ export default defineNuxtConfig({
         logoutRedirectUri: process.env.KEYCLOAK_LOGOUT_REDIRECT_URI || 'http://localhost:3000/login'
       }
     },
-    cookie: {
-      secure: false
-    },
     session: {
       expirationCheck: true,
       automaticRefresh: true,
@@ -102,7 +98,6 @@ export default defineNuxtConfig({
         secure: false
       }
     },
-
     middleware: {
       globalMiddlewareEnabled: false,
       customLoginPage: true,
@@ -133,15 +128,21 @@ export default defineNuxtConfig({
     if (rawUrl && !rawUrl.startsWith('http://') && !rawUrl.startsWith('https://')) {
       rawUrl = `https://${rawUrl}`
     }
-    const targetUrl = rawUrl
-    const wsUrl = targetUrl.replace(/^http/, 'ws')
+    const targetUrl = rawUrl.replace(/\/$/, '')
     return {
-      '/ws-stomp/**': { proxy: `${wsUrl.replace(/\/$/, '')}/ws-stomp/**` }
+      '/ws-stomp/**': { proxy: `${targetUrl}/ws-stomp/**` }
     }
   })(),
   vite: {
     server: {
-      allowedHosts: true
+      allowedHosts: true,
+      proxy: {
+        '/ws-stomp': {
+          target: process.env.API_BASE_URL || process.env.NUXT_PUBLIC_API_BASE_URL || 'http://localhost:8080',
+          ws: true,
+          changeOrigin: true
+        }
+      }
     }
   }
 })

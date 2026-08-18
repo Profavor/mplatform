@@ -1217,6 +1217,7 @@ const activeMainTab = ref('details')
 const activeSectorTab = ref(0)
 const focusedDateFields = ref({})
 const localRecord = ref({})
+const subRecords = computed(() => localRecord.value?.sourceRecords || localRecord.value?.childRecords || [])
 
 const handleMaskedInput = (field, val) => {
   localRecord.value[field.key] = val

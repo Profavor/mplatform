@@ -59,6 +59,27 @@ spring:
     username: ${RABBITMQ_USERNAME}
     password: ${RABBITMQ_PASSWORD}
 
+  mail:
+    host: ${MAIL_SMTP_HOST:localhost}
+    port: ${MAIL_SMTP_PORT:587}
+    username: ${MAIL_ADMIN_USER:admin@mplatform.com}
+    password: ${MAIL_ADMIN_PASSWORD:AdminMailPass123!}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+            trust: "*"
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+        imap:
+          ssl:
+            enable: true
+            trust: "*"
+
 keycloak:
   server-url: ${KEYCLOAK_SERVER_URL:http://localhost:8081}
   realm: ${KEYCLOAK_REALM:mplatform}
@@ -114,7 +135,22 @@ mdm:
 chat:
   retention-days: ${CHAT_RETENTION_DAYS}
 
+mail:
+  domain: ${MAIL_DOMAIN:mplatform.com}
+  imap:
+    enabled: ${MAIL_IMAP_ENABLED:true}
+    host: ${MAIL_IMAP_HOST:localhost}
+    port: ${MAIL_IMAP_PORT:993}
+    username: ${MAIL_ADMIN_USER:admin@mplatform.com}
+    password: ${MAIL_ADMIN_PASSWORD:AdminMailPass123!}
+  account:
+    auto-create: ${MAIL_ACCOUNT_AUTO_CREATE:true}
+    config-path: ${MAIL_CONFIG_PATH:./docker-data/dms/config}
+
 management:
+  health:
+    mail:
+      enabled: ${MANAGEMENT_HEALTH_MAIL_ENABLED:false}
   endpoints:
     web:
       exposure:

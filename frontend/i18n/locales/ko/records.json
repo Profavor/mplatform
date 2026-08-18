@@ -1,4 +1,6 @@
 {
+  "select_node_to_view_records": "좌측 트리에서 분류 노드를 선택하면 마스터 레코드 목록이 조회됩니다.",
+  "diff_details": "변경 내역 상세",
   "advanced_search": "상세 검색",
   "advanced_search_condition": "상세 검색 조건 (Advanced Search)",
   "no_fields_to_export": "내보낼 필드 정의가 존재하지 않습니다.",

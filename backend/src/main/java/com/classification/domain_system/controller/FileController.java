@@ -39,22 +39,42 @@ public class FileController {
 
         String savedFileName = fileStorageService.storeFile(file);
 
-        // 원본 파일명을 URL 파라미터로 인코딩하여 포함
+        // 원본 파일명 및 용량을 URL 파라미터로 인코딩하여 포함
         String encodedOriginalName = UriUtils.encode(originalFileName, StandardCharsets.UTF_8);
-        String fileDownloadUri = "/api/files/download/" + savedFileName + "?name=" + encodedOriginalName;
+        long fileSize = file.getSize();
+        String fileDownloadUri = "/api/files/download/" + savedFileName + "?name=" + encodedOriginalName + "&size=" + fileSize;
 
         Map<String, String> response = new HashMap<>();
         response.put("fileName", originalFileName);
         response.put("url", fileDownloadUri);
+        response.put("size", String.valueOf(fileSize));
+        response.put("fileSize", String.valueOf(fileSize));
 
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/info/{fileName:.+}")
+    public ResponseEntity<?> getFileInfo(@PathVariable String fileName) {
+        try {
+            String cleanFileName = UriUtils.decode(fileName, StandardCharsets.UTF_8);
+            cleanFileName = cleanFileName.replaceAll("^[\\[\"\\s']+|[\\]\"\\s']+$", "");
+            Resource resource = fileStorageService.loadFileAsResource(cleanFileName);
+            if (resource != null && resource.exists()) {
+                Map<String, Object> info = new HashMap<>();
+                info.put("fileName", cleanFileName);
+                info.put("size", resource.contentLength());
+                return ResponseEntity.ok(info);
+            }
+            return ResponseEntity.notFound().build();
+        } catch (Throwable ex) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @GetMapping("/download/{fileName:.+}")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> downloadFile(@PathVariable String fileName,
                                           @RequestParam(value = "name", required = false) String originalName,
-                                          @RequestHeader HttpHeaders headers) {
+                                          @RequestHeader(required = false) HttpHeaders headers) {
         try {
             String cleanFileName = UriUtils.decode(fileName, StandardCharsets.UTF_8);
             cleanFileName = cleanFileName.replaceAll("^[\\[\"\\s']+|[\\]\"\\s']+$", "");
@@ -79,31 +99,14 @@ public class FileController {
                         .filename(downloadName, StandardCharsets.UTF_8)
                         .build();
 
-                long contentLength = resource.contentLength();
-
-                if (headers.getRange().isEmpty()) {
-                    return ResponseEntity.ok()
-                            .contentType(mediaType)
-                            .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
-                            .header(HttpHeaders.ACCEPT_RANGES, "bytes")
-                            .body(resource);
-                } else {
-                    HttpRange range = headers.getRange().get(0);
-                    long start = range.getRangeStart(contentLength);
-                    long end = range.getRangeEnd(contentLength);
-                    long rangeLength = Math.min(1024 * 1024 * 5, end - start + 1); // Max 5MB chunk
-                    org.springframework.core.io.support.ResourceRegion region = new org.springframework.core.io.support.ResourceRegion(resource, start, rangeLength);
-
-                    return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
-                            .contentType(mediaType)
-                            .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
-                            .header(HttpHeaders.ACCEPT_RANGES, "bytes")
-                            .body(region);
-                }
+                return ResponseEntity.ok()
+                        .contentType(mediaType)
+                        .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
+                        .body(resource);
             } else {
                 return ResponseEntity.notFound().build();
             }
-        } catch (Exception ex) {
+        } catch (Throwable ex) {
             return ResponseEntity.notFound().build();
         }
     }

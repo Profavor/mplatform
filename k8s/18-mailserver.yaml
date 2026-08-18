@@ -1,0 +1,151 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mailserver
+  namespace: mdm-system
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: mailserver
+  template:
+    metadata:
+      labels:
+        app: mailserver
+    spec:
+      initContainers:
+      - name: init-mailbox
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          echo "Initializing mailbox structure and accounts..."
+          mkdir -p /var/mail/mplatform.com/admin/cur /var/mail/mplatform.com/admin/new /var/mail/mplatform.com/admin/tmp
+          chmod -R 777 /var/mail
+          mkdir -p /tmp/docker-mailserver
+          if [ ! -f /tmp/docker-mailserver/postfix-accounts.cf ]; then
+            echo "admin@mplatform.com|{SHA512-CRYPT}\$6\$5NKLqvuCmfPD/JwM\$FyYzkh27WNJGZgblBwMs/TX8INzQP5z38qcann172wpprBQ2wJ4U9Zf4ELQfNHboSrwcYoUfu4zk4LYSMiLAi/" > /tmp/docker-mailserver/postfix-accounts.cf
+          fi
+          touch /tmp/docker-mailserver/postfix-virtual.cf
+          chmod -R 777 /tmp/docker-mailserver
+        volumeMounts:
+        - name: mail-data
+          mountPath: /var/mail
+        - name: mail-config
+          mountPath: /tmp/docker-mailserver
+      containers:
+      - name: mailserver
+        image: ghcr.io/docker-mailserver/docker-mailserver:latest
+        imagePullPolicy: IfNotPresent
+        hostname: mail
+        env:
+        - name: OVERRIDE_HOSTNAME
+          value: "mail.mplatform.com"
+        - name: POSTMASTER_ADDRESS
+          value: "postmaster@mplatform.com"
+        - name: LOG_LEVEL
+          value: "info"
+        - name: TZ
+          value: "Asia/Seoul"
+        - name: SSL_TYPE
+          value: "manual"
+        - name: SSL_CERT_PATH
+          value: "/tmp/docker-mailserver/ssl/mail.mplatform.com-cert.pem"
+        - name: SSL_KEY_PATH
+          value: "/tmp/docker-mailserver/ssl/mail.mplatform.com-key.pem"
+        - name: ENABLE_FAIL2BAN
+          value: "0"
+        - name: ENABLE_RSPAMD
+          value: "1"
+        - name: ENABLE_SPAMASSASSIN
+          value: "0"
+        - name: ENABLE_CLAMAV
+          value: "0"
+        - name: ENABLE_OPENDKIM
+          value: "0"
+        - name: ENABLE_OPENDMARC
+          value: "0"
+        - name: ENABLE_POLICYD_SPF
+          value: "0"
+        - name: ENABLE_AMAVIS
+          value: "0"
+        - name: SPOOF_PROTECTION
+          value: "0"
+        - name: ENABLE_POSTGREY
+          value: "0"
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
+        ports:
+        - name: smtp
+          containerPort: 25
+        - name: submission
+          containerPort: 587
+        - name: smtps
+          containerPort: 465
+        - name: imap
+          containerPort: 143
+        - name: imaps
+          containerPort: 993
+        volumeMounts:
+        - name: mail-data
+          mountPath: /var/mail
+        - name: mail-state
+          mountPath: /var/mail-state
+        - name: mail-logs
+          mountPath: /var/log/mail
+        - name: mail-config
+          mountPath: /tmp/docker-mailserver
+        - name: mail-ssl
+          mountPath: /tmp/docker-mailserver/ssl
+          readOnly: true
+      volumes:
+      - name: mail-data
+        persistentVolumeClaim:
+          claimName: mail-data-pvc
+      - name: mail-state
+        persistentVolumeClaim:
+          claimName: mail-state-pvc
+      - name: mail-logs
+        persistentVolumeClaim:
+          claimName: mail-logs-pvc
+      - name: mail-config
+        persistentVolumeClaim:
+          claimName: mail-config-pvc
+      - name: mail-ssl
+        secret:
+          secretName: mail-tls-secret
+          items:
+          - key: tls.crt
+            path: mail.mplatform.com-cert.pem
+          - key: tls.key
+            path: mail.mplatform.com-key.pem
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mailserver
+  namespace: mdm-system
+spec:
+  ports:
+  - name: smtp
+    port: 25
+    targetPort: 25
+  - name: submission
+    port: 587
+    targetPort: 587
+  - name: smtps
+    port: 465
+    targetPort: 465
+  - name: imap
+    port: 143
+    targetPort: 143
+  - name: imaps
+    port: 993
+    targetPort: 993
+  selector:
+    app: mailserver

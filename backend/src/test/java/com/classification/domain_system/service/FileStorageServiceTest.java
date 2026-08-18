@@ -26,7 +26,7 @@ class FileStorageServiceTest {
 
     @BeforeEach
     void setUp() {
-        FileValidationUtil validationUtil = new FileValidationUtil("jpg,jpeg,png,gif,pdf,txt,xlsx,xls,csv,docx,doc,pptx,ppt,zip");
+        FileValidationUtil validationUtil = new FileValidationUtil("jpg,jpeg,png,gif,webp,bmp,ico,pdf,txt,xlsx,xls,csv,docx,doc,pptx,ppt,txt,zip");
         fileStorageService = new LocalStorageService(tempDir.toString(), validationUtil);
     }
 
@@ -44,6 +44,40 @@ class FileStorageServiceTest {
         assertNotNull(storedFileName);
         assertTrue(storedFileName.contains("test.txt") || storedFileName.length() > 0);
         
+        Resource resource = fileStorageService.loadFileAsResource(storedFileName);
+        assertTrue(resource.exists());
+    }
+
+    @Test
+    void testStoreFile_BlobPastedImage_InfersPngExtension() throws IOException {
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "blob",
+                "image/png",
+                new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00}
+        );
+
+        String storedFileName = fileStorageService.storeFile(file);
+        assertNotNull(storedFileName);
+        assertTrue(storedFileName.endsWith(".png"));
+
+        Resource resource = fileStorageService.loadFileAsResource(storedFileName);
+        assertTrue(resource.exists());
+    }
+
+    @Test
+    void testStoreFile_WebpImage_Success() throws IOException {
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "screenshot.webp",
+                "image/webp",
+                "RIFF....WEBP".getBytes(StandardCharsets.UTF_8)
+        );
+
+        String storedFileName = fileStorageService.storeFile(file);
+        assertNotNull(storedFileName);
+        assertTrue(storedFileName.endsWith(".webp"));
+
         Resource resource = fileStorageService.loadFileAsResource(storedFileName);
         assertTrue(resource.exists());
     }

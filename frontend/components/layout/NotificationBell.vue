@@ -1,5 +1,28 @@
 <template>
-  <div class="notification-bell-wrapper" style="display: inline-flex; align-items: center;">
+  <div class="notification-bell-wrapper" style="display: inline-flex; align-items: center; gap: 0.25rem;">
+    <!-- Mail Inbox Shortcut Button -->
+    <div
+      style="position: relative; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;"
+      @click="openInbox()"
+    >
+      <va-button
+        preset="plain"
+        class="notification-bell-btn"
+        style="color: white !important; padding: 0.4rem; border-radius: 50%; min-width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;"
+        :aria-label="$t('inbox.title')"
+        :title="$t('inbox.title')"
+        @click.stop="openInbox()"
+      >
+        <va-icon name="mail" size="22px" />
+      </va-button>
+      <span
+        v-if="inboxUnreadCount > 0"
+        style="position: absolute; top: 2px; right: 2px; background: #3b82f6; color: white; border-radius: 10px; padding: 1px 5px; font-size: 10px; font-weight: 700; line-height: 12px; min-width: 16px; text-align: center; border: 1.5px solid #1d4ed8; box-shadow: 0 2px 4px rgba(0,0,0,0.2); pointer-events: none;"
+      >
+        {{ inboxUnreadCount > 99 ? '99+' : inboxUnreadCount }}
+      </span>
+    </div>
+
     <va-dropdown placement="bottom-end" stick-to-edges class="notification-dropdown">
       <template #anchor>
         <div style="position: relative; display: inline-flex; align-items: center; justify-content: center;">
@@ -180,6 +203,13 @@
         </div>
       </template>
     </AppModal>
+
+    <!-- Global Inbox Modal -->
+    <InboxModal
+      v-model="showInboxModal"
+      :initial-message-id="selectedInboxMessageId"
+      @refresh-counts="fetchNotifications"
+    />
   </div>
 </template>
 
@@ -194,8 +224,24 @@ import { useApprovalEnricher } from '~/composables/useApprovalEnricher'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import ApprovalDetailsViewer from '~/components/ApprovalDetailsViewer.vue'
 import AppModal from '~/components/common/AppModal.vue'
+import InboxModal from '~/components/inbox/InboxModal.vue'
+import { useInbox } from '~/composables/useInbox'
 
 const { customFetch } = useCustomFetch()
+const { fetchUnreadCount } = useInbox()
+const inboxUnreadCount = ref(0)
+const showInboxModal = ref(false)
+const selectedInboxMessageId = ref(null)
+
+const openInbox = (msgId = null) => {
+  selectedInboxMessageId.value = msgId
+  showInboxModal.value = true
+}
+
+const closeInbox = () => {
+  showInboxModal.value = false
+  selectedInboxMessageId.value = null
+}
 const router = useRouter()
 const { t, te, locale } = useI18n()
 const currentLocale = computed(() => locale.value)
@@ -235,6 +281,12 @@ const parseJwtUserId = (token) => {
 
 const fetchNotifications = async () => {
   if (!tokenCookie.value) return
+  try {
+    const unreadRes = await fetchUnreadCount().catch(() => null)
+    if (unreadRes && typeof unreadRes.unreadCount === 'number') {
+      inboxUnreadCount.value = unreadRes.unreadCount
+    }
+  } catch {}
   try {
     const data = await customFetch('/api/notifications')
     // Backend returns PageResponse { content: [...], totalElements, ... }
@@ -674,11 +726,23 @@ const formatTime = (dateInput) => {
 
 const { connect: connectWS, disconnect: disconnectWS } = useWebSocket()
 
+const handleOpenInboxModalEvent = (e) => {
+  openInbox(e?.detail?.messageId)
+}
+
+const handleCloseInboxModalEvent = () => {
+  closeInbox()
+}
+
 onMounted(async () => {
   isComponentMounted = true
   await fetchNotifications()
   connectSSE()
   if (process.client) {
+    window.addEventListener('open-inbox-modal', handleOpenInboxModalEvent)
+    window.addEventListener('close-inbox-modal', handleCloseInboxModalEvent)
+    window.addEventListener('inbox-refresh-counts', fetchNotifications)
+    window.addEventListener('inbox-message-read', fetchNotifications)
     connectWS((data) => {
       fetchNotifications()
       window.dispatchEvent(new CustomEvent('approval-updated'))
@@ -688,6 +752,12 @@ onMounted(async () => {
 
 onUnmounted(() => {
   isComponentMounted = false
+  if (process.client) {
+    window.removeEventListener('open-inbox-modal', handleOpenInboxModalEvent)
+    window.removeEventListener('close-inbox-modal', handleCloseInboxModalEvent)
+    window.removeEventListener('inbox-refresh-counts', fetchNotifications)
+    window.removeEventListener('inbox-message-read', fetchNotifications)
+  }
   if (reconnectTimer) clearTimeout(reconnectTimer)
   if (eventSource) {
     eventSource.close()

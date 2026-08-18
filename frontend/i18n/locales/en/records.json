@@ -1,4 +1,6 @@
 {
+  "select_node_to_view_records": "Select a classification node from the tree to view master records.",
+  "diff_details": "Change History Details",
   "advanced_search": "Advanced Search",
   "advanced_search_condition": "Advanced Search",
   "no_fields_to_export": "No field definitions found to export.",

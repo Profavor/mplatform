@@ -140,6 +140,37 @@
   border-color: rgba(255, 255, 255, 0.6) !important;
 }
 
+/* Global Extra-Wide Modal Styles for Inbox (non-fullscreen) */
+.inbox-app-modal-wrapper:not(.va-modal--fullscreen) .va-modal__dialog,
+.inbox-app-modal:not(.va-modal--fullscreen) .va-modal__dialog,
+.va-modal:not(.va-modal--fullscreen) .inbox-app-modal-dialog {
+  width: 92vw !important;
+  max-width: 1560px !important;
+  min-width: 960px !important;
+}
 
+/* Global Fullscreen Modal Styles - Expands both width and height to 100vw x 100vh */
+.va-modal--fullscreen .va-modal__dialog,
+.va-modal.va-modal--fullscreen .va-modal__dialog,
+.app-modal-wrapper.va-modal--fullscreen .va-modal__dialog,
+.inbox-app-modal-wrapper.va-modal--fullscreen .va-modal__dialog,
+.inbox-app-modal.va-modal--fullscreen .va-modal__dialog {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  min-width: 100vw !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  min-height: 100vh !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  top: 0 !important;
+  left: 0 !important;
+  transform: none !important;
+}
 
-
+.va-modal--fullscreen .app-modal-body,
+.va-modal--fullscreen .inbox-modal-content {
+  height: calc(100vh - 65px) !important;
+  max-height: calc(100vh - 65px) !important;
+  width: 100% !important;
+}

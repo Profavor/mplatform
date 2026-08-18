@@ -84,5 +84,7 @@
   "orphan_count": "Orphan References",
   "scanned_records": "Scanned Records",
   "orphan_details": "Orphan Reference Details",
-  "no_orphan_records": "All foreign references are healthy with zero orphan records."
+  "no_orphan_records": "All foreign references are healthy with zero orphan records.",
+  "dq_severity_distribution": "DQ Violations by Severity",
+  "dq_violation_trend": "DQ Violation Trend (Last 7 Days)"
 }
