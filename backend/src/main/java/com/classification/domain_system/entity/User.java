@@ -55,6 +55,9 @@ public class User {
     @Column(name = "active_session_id")
     private String activeSessionId;
 
+    @Column(name = "last_login_epoch_sec")
+    private Long lastLoginEpochSec;
+
     @Column(name = "must_change_password")
     private Boolean mustChangePassword = false;
 

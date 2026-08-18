@@ -229,6 +229,7 @@ import { useInbox } from '~/composables/useInbox'
 
 const { customFetch } = useCustomFetch()
 const { fetchUnreadCount } = useInbox()
+const { init: notifyToast } = useToast()
 const inboxUnreadCount = ref(0)
 const showInboxModal = ref(false)
 const selectedInboxMessageId = ref(null)
@@ -244,13 +245,17 @@ const closeInbox = () => {
 }
 const router = useRouter()
 const { t, te, locale } = useI18n()
-const currentLocale = computed(() => locale.value)
+const currentLocale = computed(() => locale?.value || 'ko')
 const { formatWithTimezone } = useTimezoneDate()
 const colors = useColors()
 const currentPresetName = colors?.currentPresetName
 const { enrichRequest } = useApprovalEnricher()
 
-const isDark = computed(() => currentPresetName?.value === 'dark')
+const isDark = computed(() => {
+  if (!currentPresetName) return false
+  const val = typeof currentPresetName === 'object' && currentPresetName !== null && 'value' in currentPresetName ? currentPresetName.value : currentPresetName
+  return val === 'dark'
+})
 
 const tokenCookie = useCookie('auth_token')
 const notifications = ref([])
@@ -279,6 +284,11 @@ const parseJwtUserId = (token) => {
   }
 }
 
+const isValidUuid = (val) => {
+  if (!val || typeof val !== 'string') return false
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val)
+}
+
 const fetchNotifications = async () => {
   if (!tokenCookie.value) return
   try {
@@ -302,6 +312,17 @@ const fetchNotifications = async () => {
     }))
   } catch (e) {
     console.debug('Initial notifications fetch skipped or returned empty:', e)
+  }
+}
+
+const recentProcessedNotifs = new Map()
+
+const cleanOldProcessedNotifs = () => {
+  const now = Date.now()
+  for (const [key, time] of recentProcessedNotifs.entries()) {
+    if (now - time > 10000) {
+      recentProcessedNotifs.delete(key)
+    }
   }
 }
 
@@ -346,15 +367,58 @@ const handleIncomingNotification = (rawPayload) => {
     tokenCookie.value = null
     const userCookie = useCookie('user_data')
     userCookie.value = null
-    router.push('/login')
+    if (process.client) {
+      document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+      document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+      document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+      document.cookie = 'user_data=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+      setTimeout(() => {
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login?expired=1'
+        }
+      }, 500)
+    }
     return
   }
 
   const itemType = String(payload.type || 'INFO').toUpperCase()
+  const notifTitle = payload.title || (payload.eventType === 'INBOX_MESSAGE' || payload.type === 'NEW_MESSAGE' ? t('inbox.new_message_received') : t('notifications.title'))
+  const notifMessage = payload.message || payload.content || (payload.subject ? `${payload.senderName || payload.senderId || ''}: ${payload.subject}` : '')
+  const notifId = (payload.id && isValidUuid(String(payload.id))) ? String(payload.id) : (payload.notificationId && isValidUuid(String(payload.notificationId)) ? String(payload.notificationId) : null)
+  const messageId = payload.messageId || payload.inboxMessageId || null
+
+  // Deduplication check
+  cleanOldProcessedNotifs()
+  const dedupKey = notifId
+    ? `id_${notifId}`
+    : (messageId
+      ? `msg_${messageId}_${payload.eventType || itemType}`
+      : `${itemType}_${notifTitle}_${notifMessage}_${payload.senderId || ''}`)
+
+  const now = Date.now()
+  if (recentProcessedNotifs.has(dedupKey) && (now - (recentProcessedNotifs.get(dedupKey) || 0)) < 5000) {
+    return
+  }
+  recentProcessedNotifs.set(dedupKey, now)
+
+  if (notifId && notifications.value.some(n => String(n.id) === notifId)) {
+    return
+  }
+
+  if (payload.eventType === 'INBOX_MESSAGE' || payload.type === 'NEW_MESSAGE' || payload.eventType === 'NEW_MESSAGE') {
+    fetchNotifications()
+    if (process.client) {
+      window.dispatchEvent(new CustomEvent('inbox-refresh-counts', { detail: payload }))
+      window.dispatchEvent(new CustomEvent('inbox-message-received', { detail: payload }))
+    }
+  }
+
   const newNotif = {
-    id: payload.id || Date.now() + Math.random(),
-    title: payload.title || t('notifications.title'),
-    message: payload.message || payload.content || '',
+    id: notifId || Date.now() + Math.random(),
+    messageId: messageId,
+    eventType: payload.eventType || (itemType === 'INBOX_MESSAGE' ? 'INBOX_MESSAGE' : null),
+    title: notifTitle,
+    message: notifMessage,
     type: itemType,
     linkUrl: payload.linkUrl || payload.link || payload.url || null,
     read: false,
@@ -440,14 +504,20 @@ const connectSSE = () => {
 
 const handleNotificationClick = async (item) => {
   item.read = true
-  if (item.id && tokenCookie.value) {
+  if (item.id && isValidUuid(String(item.id)) && tokenCookie.value) {
     try {
       await customFetch(`/api/notifications/${item.id}/read`, {
-        method: 'PUT'
+        method: 'PATCH'
       })
     } catch {
       // Graceful ignore
     }
+  }
+
+  // Handle inbox/mail notifications directly
+  if (item.type === 'INBOX_MESSAGE' || item.type === 'NEW_MESSAGE' || item.eventType === 'INBOX_MESSAGE' || item.messageId) {
+    openInbox(item.messageId || null)
+    return
   }
 
   // Extract approvalId from linkUrl or message
@@ -552,8 +622,8 @@ const markAllAsRead = async () => {
   notifications.value.forEach(n => { n.read = true })
   if (tokenCookie.value) {
     try {
-      await customFetch('/api/notifications/read-all', {
-        method: 'PUT'
+      await customFetch('/api/notifications/mark-all-read', {
+        method: 'PATCH'
       })
     } catch {
       // Graceful ignore
@@ -563,7 +633,7 @@ const markAllAsRead = async () => {
 
 const deleteNotification = async (item) => {
   notifications.value = notifications.value.filter(n => n.id !== item.id)
-  if (item.id && tokenCookie.value) {
+  if (item.id && isValidUuid(String(item.id)) && tokenCookie.value) {
     try {
       await customFetch(`/api/notifications/${item.id}`, {
         method: 'DELETE'
@@ -744,8 +814,12 @@ onMounted(async () => {
     window.addEventListener('inbox-refresh-counts', fetchNotifications)
     window.addEventListener('inbox-message-read', fetchNotifications)
     connectWS((data) => {
-      fetchNotifications()
-      window.dispatchEvent(new CustomEvent('approval-updated'))
+      if (data) {
+        handleIncomingNotification(data)
+      } else {
+        fetchNotifications()
+        window.dispatchEvent(new CustomEvent('approval-updated'))
+      }
     })
   }
 })

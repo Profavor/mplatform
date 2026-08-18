@@ -1,16 +1,23 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mount, VueWrapper } from '@vue/test-utils'
 import InboxModal from '../../components/inbox/InboxModal.vue'
+
+let activeWrapper: VueWrapper | null = null
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string) => key })
 }))
 
+const mockFetchFolderCounts = vi.fn().mockResolvedValue([
+  { folder: 'INBOX', total: 10, unread: 3 }
+])
+
 vi.mock('~/composables/useInbox', () => ({
   useInbox: () => ({
-    fetchFolderCounts: vi.fn().mockResolvedValue([
-      { folder: 'INBOX', total: 10, unread: 3 }
-    ]),
+    fetchFolderCounts: mockFetchFolderCounts,
+    fetchMessages: vi.fn().mockResolvedValue({ content: [], totalElements: 0 }),
+    fetchUnreadCount: vi.fn().mockResolvedValue({ unreadCount: 0 }),
+    customFetch: vi.fn().mockResolvedValue([]),
     fetchMessage: vi.fn().mockResolvedValue({
       id: 'msg-1',
       subject: 'Test Subject',
@@ -18,7 +25,8 @@ vi.mock('~/composables/useInbox', () => ({
       senderEmail: 'sender@mplatform.com'
     }),
     moveToFolder: vi.fn().mockResolvedValue({}),
-    moveToTrash: vi.fn().mockResolvedValue({})
+    moveToTrash: vi.fn().mockResolvedValue({}),
+    markAsRead: vi.fn().mockResolvedValue({})
   })
 }))
 
@@ -26,6 +34,13 @@ describe('InboxModal', () => {
   beforeEach(() => {
     if (typeof localStorage !== 'undefined') {
       localStorage.clear()
+    }
+  })
+
+  afterEach(() => {
+    if (activeWrapper) {
+      activeWrapper.unmount()
+      activeWrapper = null
     }
   })
 
@@ -49,61 +64,81 @@ describe('InboxModal', () => {
   }
 
   it('renders modal content and resizable splitter when modelValue is true in split mode', () => {
-    const wrapper = mount(InboxModal, {
+    activeWrapper = mount(InboxModal, {
       props: {
         modelValue: true
       },
       global: defaultGlobal
     })
 
-    expect(wrapper.find('.app-modal-stub').exists()).toBe(true)
-    expect(wrapper.find('.inbox-modal-content').exists()).toBe(true)
-    expect(wrapper.find('.inbox-splitter-gutter').exists()).toBe(true)
-    expect(wrapper.find('.splitter-handle-bar').exists()).toBe(true)
+    expect(activeWrapper.find('.app-modal-stub').exists()).toBe(true)
+    expect(activeWrapper.find('.inbox-modal-content').exists()).toBe(true)
+    expect(activeWrapper.find('.inbox-splitter-gutter').exists()).toBe(true)
+    expect(activeWrapper.find('.splitter-handle-bar').exists()).toBe(true)
   })
 
   it('toggles view mode between split and list mode', async () => {
-    const wrapper = mount(InboxModal, {
+    activeWrapper = mount(InboxModal, {
       props: {
         modelValue: true
       },
       global: defaultGlobal
     })
 
-    expect(wrapper.find('.mode-split').exists()).toBe(true)
+    expect(activeWrapper.find('.mode-split').exists()).toBe(true)
     
     // Switch to list mode
-    ;(wrapper.vm as any).setViewMode('list')
-    await wrapper.vm.$nextTick()
+    ;(activeWrapper.vm as any).setViewMode('list')
+    await activeWrapper.vm.$nextTick()
 
-    expect(wrapper.find('.mode-list').exists()).toBe(true)
-    expect(wrapper.find('.inbox-splitter-gutter').exists()).toBe(false)
+    expect(activeWrapper.find('.mode-list').exists()).toBe(true)
+    expect(activeWrapper.find('.inbox-splitter-gutter').exists()).toBe(false)
   })
 
   it('supports splitter mousedown and dblclick reset', async () => {
-    const wrapper = mount(InboxModal, {
+    activeWrapper = mount(InboxModal, {
       props: {
         modelValue: true
       },
       global: defaultGlobal
     })
 
-    const splitter = wrapper.find('.inbox-splitter-gutter')
+    const splitter = activeWrapper.find('.inbox-splitter-gutter')
     expect(splitter.exists()).toBe(true)
 
     await splitter.trigger('mousedown', { clientX: 500, preventDefault: () => {} })
     await splitter.trigger('dblclick')
-    expect(wrapper.find('.inbox-modal-content').attributes('style')).toContain('--inbox-list-width')
+    expect(activeWrapper.find('.inbox-modal-content').attributes('style')).toContain('--inbox-list-width')
   })
 
   it('does not render content when modelValue is false', () => {
-    const wrapper = mount(InboxModal, {
+    activeWrapper = mount(InboxModal, {
       props: {
         modelValue: false
       },
       global: defaultGlobal
     })
 
-    expect(wrapper.find('.app-modal-stub').exists()).toBe(false)
+    expect(activeWrapper.find('.app-modal-stub').exists()).toBe(false)
+  })
+
+  it('refreshes folder counts when inbox-refresh-counts or inbox-message-received window event is received', async () => {
+    mockFetchFolderCounts.mockClear()
+    activeWrapper = mount(InboxModal, {
+      props: {
+        modelValue: true
+      },
+      global: defaultGlobal
+    })
+
+    expect(mockFetchFolderCounts).toHaveBeenCalledTimes(1)
+
+    window.dispatchEvent(new CustomEvent('inbox-refresh-counts'))
+    await activeWrapper.vm.$nextTick()
+    expect(mockFetchFolderCounts).toHaveBeenCalledTimes(2)
+
+    window.dispatchEvent(new CustomEvent('inbox-message-received'))
+    await activeWrapper.vm.$nextTick()
+    expect(mockFetchFolderCounts).toHaveBeenCalledTimes(3)
   })
 })

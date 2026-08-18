@@ -36,6 +36,8 @@ class MailReceiveServiceTest {
     @Mock InboxMessageRepository inboxMessageRepository;
     @Mock UserRepository userRepository;
     @Mock FileStorageService fileStorageService;
+    @Mock com.classification.domain_system.websocket.WebSocketPublisher webSocketPublisher;
+    @Mock com.classification.domain_system.service.SseNotificationService sseNotificationService;
 
     @InjectMocks MailReceiveService service;
 
@@ -120,6 +122,8 @@ class MailReceiveServiceTest {
         InboxMessage saved = messageCaptor.getValue();
         assertThat(saved.getRecipients()).hasSize(1);
         assertThat(saved.getRecipients().get(0).getUserId()).isEqualTo("internal-user-id");
+        verify(webSocketPublisher).publishNotification(eq("internal-user-id"), any());
+        verify(sseNotificationService).sendNotification(eq("internal-user-id"), any());
     }
 
     @Test

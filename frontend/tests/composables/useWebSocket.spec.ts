@@ -145,5 +145,26 @@ describe('useWebSocket Composable (Singleton TDD)', () => {
     expect(mockClientConfig).toBeDefined()
     expect(mockClientConfig.brokerURL).toMatch(/^ws(s)?:\/\/.+\/ws-stomp$/)
   })
+
+  it('사용자 정보가 있을 때 개인 알림 토픽(/topic/notifications/{userId})을 구독하고 메시지를 수신해야 함', () => {
+    document.cookie = 'user_data=' + encodeURIComponent(JSON.stringify({ id: 'user-abc-123', username: 'tester1' }))
+    const ws = useWebSocket()
+    const cb = vi.fn()
+    ws.connect(cb)
+
+    expect(capturedSubscriptions['/topic/notifications/user-abc-123']).toBeDefined()
+    expect(capturedSubscriptions['/topic/notifications/tester1']).toBeDefined()
+
+    const notifHandler = capturedSubscriptions['/topic/notifications/user-abc-123']
+    notifHandler({
+      body: JSON.stringify({ eventType: 'INBOX_MESSAGE', type: 'NEW_MESSAGE', subject: 'New Mail' })
+    })
+
+    expect(cb).toHaveBeenCalledWith(expect.objectContaining({
+      eventType: 'INBOX_MESSAGE',
+      type: 'NEW_MESSAGE',
+      subject: 'New Mail'
+    }))
+  })
 })
 

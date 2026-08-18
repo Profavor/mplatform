@@ -38,16 +38,22 @@ public class MailReceiveService {
     private final InboxMessageRepository inboxMessageRepository;
     private final UserRepository userRepository;
     private final FileStorageService fileStorageService;
+    private final com.classification.domain_system.websocket.WebSocketPublisher webSocketPublisher;
+    private final com.classification.domain_system.service.SseNotificationService sseNotificationService;
 
     @Value("${mail.domain:mplatform.com}")
     private String mailDomain = "mplatform.com";
 
     public MailReceiveService(InboxMessageRepository inboxMessageRepository,
                               UserRepository userRepository,
-                              FileStorageService fileStorageService) {
+                              FileStorageService fileStorageService,
+                              com.classification.domain_system.websocket.WebSocketPublisher webSocketPublisher,
+                              com.classification.domain_system.service.SseNotificationService sseNotificationService) {
         this.inboxMessageRepository = inboxMessageRepository;
         this.userRepository = userRepository;
         this.fileStorageService = fileStorageService;
+        this.webSocketPublisher = webSocketPublisher;
+        this.sseNotificationService = sseNotificationService;
     }
 
     /**
@@ -179,6 +185,40 @@ public class MailReceiveService {
 
             inboxMessageRepository.save(inboxMsg);
             log.info("Processed incoming email: {} from {}", inboxMsg.getSubject(), inboxMsg.getSenderEmail());
+
+            // Notify internal recipients via WebSocket & SSE
+            List<String> internalUsersToNotify = inboxMsg.getRecipients().stream()
+                    .map(InboxRecipient::getUserId)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .toList();
+
+            if (!internalUsersToNotify.isEmpty()) {
+                Map<String, Object> payload = new HashMap<>();
+                payload.put("eventType", "INBOX_MESSAGE");
+                payload.put("type", "NEW_MESSAGE");
+                if (inboxMsg.getId() != null) {
+                    payload.put("messageId", inboxMsg.getId().toString());
+                }
+                payload.put("subject", inboxMsg.getSubject());
+                payload.put("senderId", inboxMsg.getSenderId());
+                payload.put("senderEmail", inboxMsg.getSenderEmail());
+                payload.put("folder", "INBOX");
+                payload.put("createdAt", inboxMsg.getCreatedAt() != null ? inboxMsg.getCreatedAt().toString() : LocalDateTime.now().toString());
+
+                for (String uId : internalUsersToNotify) {
+                    try {
+                        if (sseNotificationService != null) {
+                            sseNotificationService.sendNotification(uId, payload);
+                        }
+                        if (webSocketPublisher != null) {
+                            webSocketPublisher.publishNotification(uId, payload);
+                        }
+                    } catch (Exception e) {
+                        log.warn("Failed to send notification for incoming mail to user " + uId, e);
+                    }
+                }
+            }
 
         } catch (Exception e) {
             log.error("Failed to process incoming email", e);

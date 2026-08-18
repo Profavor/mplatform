@@ -25,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { AgGridVue } from 'ag-grid-vue3'
 import { useI18n } from 'vue-i18n'
 import { useInbox } from '~/composables/useInbox'
@@ -57,8 +57,28 @@ const onSearch = () => {
   if (gridApi) gridApi.refreshServerSide()
 }
 
+const handleRealtimeInboxRefresh = () => {
+  if (gridApi) {
+    gridApi.refreshServerSide()
+  }
+}
+
 watch(() => props.folder, () => {
   if (gridApi) gridApi.refreshServerSide()
+})
+
+onMounted(() => {
+  if (typeof window !== 'undefined') {
+    window.addEventListener('inbox-refresh-counts', handleRealtimeInboxRefresh)
+    window.addEventListener('inbox-message-received', handleRealtimeInboxRefresh)
+  }
+})
+
+onUnmounted(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('inbox-refresh-counts', handleRealtimeInboxRefresh)
+    window.removeEventListener('inbox-message-received', handleRealtimeInboxRefresh)
+  }
 })
 
 const onRowClicked = (event: any) => {

@@ -127,7 +127,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppModal from '~/components/common/AppModal.vue'
 import InboxFolderSidebar from '~/components/inbox/InboxFolderSidebar.vue'
@@ -395,15 +395,30 @@ const refreshData = () => {
   }
 }
 
+const handleRefreshCountsEvent = () => {
+  if (props.modelValue) {
+    loadFolderCounts()
+  }
+}
+
 onMounted(() => {
   if (typeof window !== 'undefined') {
     const saved = localStorage.getItem('inbox_view_mode')
     if (saved === 'list' || saved === 'split') {
       viewMode.value = saved
     }
+    window.addEventListener('inbox-refresh-counts', handleRefreshCountsEvent)
+    window.addEventListener('inbox-message-received', handleRefreshCountsEvent)
   }
   if (props.modelValue) {
     loadFolderCounts()
+  }
+})
+
+onUnmounted(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('inbox-refresh-counts', handleRefreshCountsEvent)
+    window.removeEventListener('inbox-message-received', handleRefreshCountsEvent)
   }
 })
 </script>

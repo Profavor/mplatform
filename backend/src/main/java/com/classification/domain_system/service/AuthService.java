@@ -21,6 +21,7 @@ public class AuthService {
     private final com.classification.domain_system.repository.LoginLogRepository loginLogRepository;
     private final com.classification.domain_system.websocket.WebSocketPublisher webSocketPublisher;
     private final SseNotificationService sseNotificationService;
+    private final org.springframework.beans.factory.ObjectProvider<org.springframework.security.oauth2.jwt.JwtDecoder> jwtDecoderProvider;
 
     @org.springframework.beans.factory.annotation.Value("${keycloak.token-uri:}")
     private String keycloakTokenUri;
@@ -57,22 +58,14 @@ public class AuthService {
         return userRepository.findByUsername(username.trim()).isPresent();
     }
 
-    public String login(String username, String password, String ipAddress) {
-        return login(username, password, ipAddress, null);
-    }
-
-    @org.springframework.transaction.annotation.Transactional
-    public String login(String username, String password, String ipAddress, String userAgent) {
-        User user = validateAndProcessLogin(username, password);
-
-        // 1세션 생성을 위한 newSessionId
-        String newSessionId = java.util.UUID.randomUUID().toString();
+    private void sendForceLogout(User user) {
+        if (user == null) return;
+        Map<String, Object> logoutEvent = Map.of(
+                "eventType", "FORCE_LOGOUT",
+                "title", "세션 종료",
+                "message", "다른 기기/브라우저에서 로그인되어 현재 세션이 종료되었습니다."
+        );
         if (user.getId() != null) {
-            Map<String, Object> logoutEvent = Map.of(
-                    "eventType", "FORCE_LOGOUT",
-                    "title", "세션 종료",
-                    "message", "다른 기기/브라우저에서 로그인되어 현재 세션이 종료되었습니다."
-            );
             if (sseNotificationService != null) {
                 try {
                     sseNotificationService.sendNotification(user.getId(), logoutEvent);
@@ -84,6 +77,31 @@ public class AuthService {
                 } catch (Exception ignored) {}
             }
         }
+        if (user.getUsername() != null && !user.getUsername().equals(user.getId())) {
+            if (sseNotificationService != null) {
+                try {
+                    sseNotificationService.sendNotification(user.getUsername(), logoutEvent);
+                } catch (Exception ignored) {}
+            }
+            if (webSocketPublisher != null) {
+                try {
+                    webSocketPublisher.publishNotification(user.getUsername(), logoutEvent);
+                } catch (Exception ignored) {}
+            }
+        }
+    }
+
+    public String login(String username, String password, String ipAddress) {
+        return login(username, password, ipAddress, null);
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public String login(String username, String password, String ipAddress, String userAgent) {
+        User user = validateAndProcessLogin(username, password);
+
+        // 1세션 생성을 위한 newSessionId
+        String newSessionId = java.util.UUID.randomUUID().toString();
+        sendForceLogout(user);
         user.setActiveSessionId(newSessionId);
         userRepository.saveAndFlush(user);
 
@@ -129,6 +147,13 @@ public class AuthService {
                 user = userRepository.findByUsername(username).orElseThrow(() -> 
                     new com.classification.domain_system.exception.BusinessException(com.classification.domain_system.exception.ErrorCode.INVALID_CREDENTIALS, "User authenticated by Keycloak but not found in local DB")
                 );
+
+                String sid = (String) body.get("session_state");
+                if (sid == null || sid.isBlank()) {
+                    sid = java.util.UUID.randomUUID().toString();
+                }
+                sendForceLogout(user);
+                user.setActiveSessionId(sid);
             } catch (Exception e) {
                 System.err.println("Keycloak login failed for user '" + username + "', falling back to local DB. Reason: " + e.getMessage());
             }
@@ -138,7 +163,8 @@ public class AuthService {
                 String userIdStr = user.getId() != null ? user.getId().toString() : null;
                 String newSessionId = java.util.UUID.randomUUID().toString();
                 accessToken = jwtUtil.generateToken(user.getUsername(), user.getRole(), userIdStr, newSessionId);
-                refreshToken = jwtUtil.generateRefreshToken(user.getUsername(), user.getRole(), userIdStr);
+                refreshToken = jwtUtil.generateRefreshToken(user.getUsername(), user.getRole(), userIdStr, newSessionId);
+                sendForceLogout(user);
                 user.setActiveSessionId(newSessionId);
             }
         } else {
@@ -146,29 +172,11 @@ public class AuthService {
             String userIdStr = user.getId() != null ? user.getId().toString() : null;
             String newSessionId = java.util.UUID.randomUUID().toString();
             accessToken = jwtUtil.generateToken(user.getUsername(), user.getRole(), userIdStr, newSessionId);
-            refreshToken = jwtUtil.generateRefreshToken(user.getUsername(), user.getRole(), userIdStr);
+            refreshToken = jwtUtil.generateRefreshToken(user.getUsername(), user.getRole(), userIdStr, newSessionId);
+            sendForceLogout(user);
             user.setActiveSessionId(newSessionId);
         }
 
-        // 세션 처리 및 동시 접속 로그아웃 알림
-        if (user.getId() != null) {
-            Map<String, Object> logoutEvent = Map.of(
-                    "eventType", "FORCE_LOGOUT",
-                    "title", "세션 종료",
-                    "message", "다른 기기/브라우저에서 로그인되어 현재 세션이 종료되었습니다."
-            );
-            if (sseNotificationService != null) {
-                try {
-                    sseNotificationService.sendNotification(user.getId(), logoutEvent);
-                } catch (Exception ignored) {}
-            }
-            if (webSocketPublisher != null) {
-                try {
-                    webSocketPublisher.publishNotification(user.getId(), logoutEvent);
-                } catch (Exception ignored) {}
-            }
-        }
-        
         userRepository.saveAndFlush(user);
 
         com.classification.domain_system.entity.LoginLog log = com.classification.domain_system.entity.LoginLog.builder()
@@ -209,11 +217,40 @@ public class AuthService {
                 org.springframework.http.ResponseEntity<Map> kcResponse = restTemplate.postForEntity(keycloakTokenUri, kcRequest, Map.class);
                 Map body = kcResponse.getBody();
                 if (body != null && body.containsKey("access_token")) {
+                    String refreshedAccessToken = (String) body.get("access_token");
+                    String sid = (String) body.get("session_state");
+
+                    if (jwtDecoderProvider != null && jwtDecoderProvider.getIfAvailable() != null) {
+                        try {
+                            org.springframework.security.oauth2.jwt.Jwt decoded = jwtDecoderProvider.getIfAvailable().decode(refreshedAccessToken);
+                            String preferredUsername = decoded.getClaimAsString("preferred_username");
+                            if (sid == null) {
+                                sid = decoded.getClaimAsString("sid");
+                                if (sid == null) sid = decoded.getClaimAsString("session_state");
+                            }
+                            if (preferredUsername != null) {
+                                User u = findByUsername(preferredUsername);
+                                if (u != null && u.getActiveSessionId() != null && sid != null) {
+                                    if (!u.getActiveSessionId().equals(sid)) {
+                                        throw new com.classification.domain_system.exception.BusinessException(
+                                                com.classification.domain_system.exception.ErrorCode.INVALID_CREDENTIALS,
+                                                "Session expired due to login from another device."
+                                        );
+                                    }
+                                }
+                            }
+                        } catch (com.classification.domain_system.exception.BusinessException be) {
+                            throw be;
+                        } catch (Exception ignored) {}
+                    }
+
                     Map<String, String> map = new HashMap<>();
-                    map.put("token", (String) body.get("access_token"));
+                    map.put("token", refreshedAccessToken);
                     map.put("refreshToken", (String) body.getOrDefault("refresh_token", refreshToken));
                     return map;
                 }
+            } catch (com.classification.domain_system.exception.BusinessException be) {
+                throw be;
             } catch (Exception e) {
                 System.err.println("Keycloak token refresh failed, falling back to local DB JWT check: " + e.getMessage());
             }
@@ -236,10 +273,18 @@ public class AuthService {
             );
         }
 
-        String userIdStr = user.getId() != null ? user.getId().toString() : null;
+        String refreshSessionId = jwtUtil.extractSessionId(refreshToken);
         String currentActiveSessionId = user.getActiveSessionId();
+        if (currentActiveSessionId != null && refreshSessionId != null && !currentActiveSessionId.equals(refreshSessionId)) {
+            throw new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.INVALID_CREDENTIALS,
+                    "Session expired due to login from another device."
+            );
+        }
+
+        String userIdStr = user.getId() != null ? user.getId().toString() : null;
         String newAccessToken = jwtUtil.generateToken(user.getUsername(), user.getRole(), userIdStr, currentActiveSessionId);
-        String newRefreshToken = jwtUtil.generateRefreshToken(user.getUsername(), user.getRole(), userIdStr);
+        String newRefreshToken = jwtUtil.generateRefreshToken(user.getUsername(), user.getRole(), userIdStr, currentActiveSessionId);
 
         Map<String, String> map = new HashMap<>();
         map.put("token", newAccessToken);

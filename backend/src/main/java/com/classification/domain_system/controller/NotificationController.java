@@ -41,20 +41,46 @@ public class NotificationController {
         return ResponseEntity.ok(Map.of("unreadCount", notificationService.getUnreadCount(userId)));
     }
 
-    @PatchMapping("/{id}/read")
+    @RequestMapping(value = "/{id}/read", method = {RequestMethod.PATCH, RequestMethod.PUT})
     public ResponseEntity<Map<String, Boolean>> markAsRead(
-            @PathVariable UUID id,
+            @PathVariable String id,
             Authentication authentication) {
         String userId = authentication != null ? authentication.getName() : "anonymous";
-        boolean updated = notificationService.markAsRead(id, userId);
-        return ResponseEntity.ok(Map.of("success", updated));
+        try {
+            UUID uuid = UUID.fromString(id);
+            boolean updated = notificationService.markAsRead(uuid, userId);
+            return ResponseEntity.ok(Map.of("success", updated));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.ok(Map.of("success", true));
+        }
     }
 
-    @PatchMapping("/mark-all-read")
+    @RequestMapping(value = {"/mark-all-read", "/read-all"}, method = {RequestMethod.PATCH, RequestMethod.PUT})
     public ResponseEntity<Map<String, Integer>> markAllAsRead(Authentication authentication) {
         String userId = authentication != null ? authentication.getName() : "anonymous";
         int count = notificationService.markAllAsRead(userId);
         return ResponseEntity.ok(Map.of("updatedCount", count));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Map<String, Boolean>> deleteNotification(
+            @PathVariable String id,
+            Authentication authentication) {
+        String userId = authentication != null ? authentication.getName() : "anonymous";
+        try {
+            UUID uuid = UUID.fromString(id);
+            boolean deleted = notificationService.deleteNotification(uuid, userId);
+            return ResponseEntity.ok(Map.of("success", deleted));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.ok(Map.of("success", true));
+        }
+    }
+
+    @DeleteMapping("/clear-all")
+    public ResponseEntity<Map<String, Integer>> clearAllNotifications(Authentication authentication) {
+        String userId = authentication != null ? authentication.getName() : "anonymous";
+        int count = notificationService.clearAllNotifications(userId);
+        return ResponseEntity.ok(Map.of("deletedCount", count));
     }
 
     @PostMapping

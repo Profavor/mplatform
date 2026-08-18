@@ -43,6 +43,7 @@ class InboxServiceTest {
     @Mock UserRepository userRepository;
     @Mock MailSendService mailSendService;
     @Mock SseNotificationService sseNotificationService;
+    @Mock com.classification.domain_system.websocket.WebSocketPublisher webSocketPublisher;
 
     @InjectMocks InboxService inboxService;
 
@@ -72,6 +73,7 @@ class InboxServiceTest {
         // 1 sender + 2 recipients cascaded via messageRepository.save
         assertThat(savedMsg.getRecipients()).hasSize(3);
         verify(sseNotificationService, times(2)).sendNotification(anyString(), anyMap());
+        verify(webSocketPublisher, times(2)).publishNotification(anyString(), any());
         verify(mailSendService, never()).sendSimpleMail(any(), anyString(), anyString(), anyString());
     }
 

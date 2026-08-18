@@ -5,4 +5,5 @@ import lombok.Data;
 @Data
 public class SelfUserUpdateDto {
     private String timezone;
+    private String email;
 }

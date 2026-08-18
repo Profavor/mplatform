@@ -20,6 +20,19 @@ vi.mock('~/stores/useUserStore', () => ({
   })
 }))
 
+vi.mock('~/composables/useTimezoneDate', () => ({
+  useTimezoneDate: () => ({
+    formatWithTimezone: (date: string) => '2026. 08. 18. 20:10:58'
+  })
+}))
+
+vi.mock('~/composables/useAuthUser', () => ({
+  useAuthUser: () => ({
+    currentUserId: 'my-user-id',
+    currentUser: { id: 'my-user-id', username: 'me' }
+  })
+}))
+
 vi.mock('vuestic-ui', async (importOriginal) => {
   const actual = await importOriginal<any>()
   return {
@@ -104,5 +117,57 @@ describe('InboxComposeModal', () => {
     })
 
     expect(wrapper.exists()).toBe(true)
+    const formData = (wrapper.vm as any).formData
+    expect(formData.subject).toBe('Re: Hello World')
+    expect(formData.toRecipients).toEqual(['user-sender'])
+    expect(formData.parentMessageId).toBe('orig-1')
+    expect(formData.body).toContain('inbox.original_message')
+    expect(formData.body).toContain('Sender &lt;sender@mplatform.com&gt;')
+    expect(formData.body).toContain('2026. 08. 18. 20:10:58')
+    expect(formData.body).toContain('Hello World')
+    expect(formData.body).toContain('<blockquote')
+    expect(formData.body).toContain('Original Body')
+  })
+
+  it('populates fields correctly in replyAll mode', () => {
+    const original = {
+      id: 'orig-2',
+      senderId: 'user-sender',
+      senderName: 'Sender',
+      senderEmail: 'sender@mplatform.com',
+      subject: 'Re: Team Sync',
+      body: '<p>Team notes</p>',
+      importance: 'HIGH',
+      messageType: 'INTERNAL',
+      toRecipients: [{ userId: 'user-sender' }, { userId: 'my-user-id' }, { userId: 'user-colleague' }],
+      ccRecipients: [{ userId: 'user-manager' }],
+      attachments: []
+    }
+
+    const wrapper = mount(InboxComposeModal, {
+      props: {
+        modelValue: true,
+        mode: 'replyAll',
+        originalMessage: original
+      },
+      global: {
+        mocks: {
+          $t: (key: string) => key
+        },
+        stubs: commonStubs
+      }
+    })
+
+    expect(wrapper.exists()).toBe(true)
+    const formData = (wrapper.vm as any).formData
+    expect(formData.subject).toBe('Re: Team Sync')
+    expect(formData.toRecipients).toContain('user-sender')
+    expect(formData.toRecipients).toContain('user-colleague')
+    expect(formData.toRecipients).not.toContain('my-user-id')
+    expect(formData.ccRecipients).toContain('user-manager')
+    expect(formData.body).toContain('inbox.original_message')
+    expect(formData.body).toContain('user-manager')
+    expect(formData.body).toContain('<blockquote')
+    expect(formData.body).toContain('Team notes')
   })
 })

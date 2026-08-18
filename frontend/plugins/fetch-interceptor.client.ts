@@ -167,10 +167,12 @@ export default defineNuxtPlugin((nuxtApp) => {
 
         // 세션 만료 / 다른 기기 로그인 메시지 체크
         const body = JSON.stringify(err?.response?._data || err?.data || '')
-        if (body.includes('another device') || body.includes('Session expired')) {
+        if (body.includes('another device') || body.includes('Session expired') || body.includes('SESSION_EXPIRED')) {
           console.warn('Fetch Interceptor: Session expired from backend');
           clearAuthCookies()
-          if (process.client && window.location.pathname !== '/login') window.location.href = '/login'
+          if (process.client && window.location.pathname !== '/login') {
+            window.location.href = '/login?expired=1'
+          }
           throw err
         }
 
@@ -182,12 +184,11 @@ export default defineNuxtPlugin((nuxtApp) => {
           try {
             const { logout, loggedIn } = useOidcAuth()
             if (loggedIn.value) {
-              logout()
-            } else {
-              if (process.client && window.location.pathname !== '/login') window.location.href = '/login'
+              logout('keycloak').catch(() => {})
             }
-          } catch(e) {
-            if (process.client && window.location.pathname !== '/login') window.location.href = '/login'
+          } catch(e) {}
+          if (process.client && window.location.pathname !== '/login') {
+            window.location.href = '/login?expired=1'
           }
           throw err
         }
@@ -195,7 +196,19 @@ export default defineNuxtPlugin((nuxtApp) => {
         // 새 토큰으로 원래 요청 재시도 (1회)
         console.info('[Auth] Token refreshed. Retrying request:', reqUrl)
         applyAuthHeader(options, newToken)
-        return await baseFetch(request, options)
+        try {
+          return await baseFetch(request, options)
+        } catch (retryErr: any) {
+          const retryStatus = retryErr?.response?.status ?? retryErr?.status
+          if (retryStatus === 401) {
+            console.warn('Fetch Interceptor: Retried request failed with 401. Logging out.');
+            clearAuthCookies()
+            if (process.client && window.location.pathname !== '/login') {
+              window.location.href = '/login?expired=1'
+            }
+          }
+          throw retryErr
+        }
       }
     } finally {
       if (!skipLoading && process.client) {
@@ -258,8 +271,12 @@ export default defineNuxtPlugin((nuxtApp) => {
 
 function clearAuthCookies() {
   if (process.client) {
-    document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-    document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-    document.cookie = 'user_data=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+    const cookies = ['auth_token', 'token', 'refresh_token', 'user_data']
+    cookies.forEach((c) => {
+      document.cookie = `${c}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`
+      try {
+        document.cookie = `${c}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname};`
+      } catch {}
+    })
   }
 }
