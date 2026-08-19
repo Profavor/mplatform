@@ -22,7 +22,6 @@ public class InboxApprovalIntegrationService {
 
     private final InboxService inboxService;
     private final ObjectMapper objectMapper;
-    private final com.classification.domain_system.repository.InboxMessageRepository messageRepository;
 
     private List<String> parseObservers(String observerIdsJson) {
         if (!StringUtils.hasText(observerIdsJson)) {
@@ -65,46 +64,48 @@ public class InboxApprovalIntegrationService {
 
     @Transactional
     public void onApprovalSubmitted(ApprovalRequest approval) {
-        List<String> observers = parseObservers(approval.getObserverIds());
-        
         List<String> toList = new ArrayList<>();
         if (approval.getSteps() != null && !approval.getSteps().isEmpty()) {
-            ApprovalStep firstStep = approval.getSteps().get(0);
-            if (firstStep.getAssigneeId() != null) {
-                toList.add(firstStep.getAssigneeId());
-            }
-        }
-        
-        String subject = "Approval Request Submitted: " + approval.getTargetType();
-        String body = "<p>A new approval request has been submitted by " + approval.getRequesterName() + ".</p>";
-        
-        sendApprovalMessage(subject, body, toList, null, observers, approval, approval.getRequesterId());
-    }
-
-    @Transactional
-    public void onApprovalApproved(ApprovalRequest approval, ApprovalStep step) {
-        List<String> toList = new ArrayList<>();
-        toList.add(approval.getRequesterId());
-        
-        // Find next step
-        ApprovalStep nextStep = null;
-        if (approval.getSteps() != null) {
+            Integer currentOrder = approval.getCurrentStepOrder();
+            if (currentOrder == null) currentOrder = 1;
             for (ApprovalStep s : approval.getSteps()) {
-                if (s.getStepOrder() != null && step.getStepOrder() != null && 
-                    s.getStepOrder() > step.getStepOrder()) {
-                    if (nextStep == null || s.getStepOrder() < nextStep.getStepOrder()) {
-                        nextStep = s;
+                if (s.getStepOrder() != null && s.getStepOrder().equals(currentOrder) && s.getAssigneeId() != null) {
+                    if (!toList.contains(s.getAssigneeId())) {
+                        toList.add(s.getAssigneeId());
                     }
                 }
             }
         }
         
-        if (nextStep != null && nextStep.getAssigneeId() != null) {
-            toList.add(nextStep.getAssigneeId());
+        String actionTitle = resolveTitle(approval);
+        String subject = "[결재 요청] " + actionTitle;
+        String body = "<p><strong>" + approval.getRequesterName() + "</strong> 님이 새로운 결재를 상신하였습니다.</p>"
+                    + "<p><strong>유형:</strong> " + approval.getTargetType() + "</p>"
+                    + (isMemoApproval(approval) ? extractMemoSummaryHtml(approval) : "");
+        
+        sendApprovalMessage(subject, body, toList, null, null, approval, approval.getRequesterId());
+    }
+
+    @Transactional
+    public void onApprovalApproved(ApprovalRequest approval, ApprovalStep step) {
+        List<String> toList = new ArrayList<>();
+        
+        // Find next step assignees
+        if (approval.getSteps() != null && approval.getCurrentStepOrder() != null) {
+            for (ApprovalStep s : approval.getSteps()) {
+                if (s.getStepOrder() != null && s.getStepOrder().equals(approval.getCurrentStepOrder()) && s.getAssigneeId() != null) {
+                    if (!toList.contains(s.getAssigneeId())) {
+                        toList.add(s.getAssigneeId());
+                    }
+                }
+            }
         }
         
-        String subject = "Approval Step Approved: " + approval.getTargetType();
-        String body = "<p>Your approval step was approved by " + step.getAssigneeName() + ".</p>";
+        String actionTitle = resolveTitle(approval);
+        String subject = "[결재 진행] " + actionTitle + " (" + (step.getStepOrder() != null ? step.getStepOrder() : 1) + "단계 승인)";
+        String body = "<p>" + step.getAssigneeName() + " 님이 " + (step.getStepOrder() != null ? step.getStepOrder() : 1) + "단계 결재를 승인하였습니다.</p>"
+                    + (step.getComment() != null && !step.getComment().isBlank() ? "<p><strong>의견:</strong> " + step.getComment() + "</p>" : "")
+                    + (isMemoApproval(approval) ? extractMemoSummaryHtml(approval) : "");
         
         sendApprovalMessage(subject, body, toList, null, null, approval, step.getAssigneeId());
     }
@@ -112,45 +113,87 @@ public class InboxApprovalIntegrationService {
     @Transactional
     public void onApprovalRejected(ApprovalRequest approval, ApprovalStep step) {
         List<String> toList = new ArrayList<>();
-        toList.add(approval.getRequesterId());
+        if (approval.getRequesterId() != null) {
+            toList.add(approval.getRequesterId());
+        }
         
-        String subject = "Approval Request Rejected: " + approval.getTargetType();
-        String body = "<p>Your approval request was rejected by " + step.getAssigneeName() + ".</p>" +
-                      "<p>Reason: " + step.getComment() + "</p>";
+        String actionTitle = resolveTitle(approval);
+        String subject = "[결재 반려] " + actionTitle;
+        String body = "<p>상신하신 결재가 <strong>" + (step != null ? step.getAssigneeName() : "담당자") + "</strong> 님에 의해 반려되었습니다.</p>"
+                    + (step != null && step.getComment() != null && !step.getComment().isBlank() ? "<p><strong>반려 사유:</strong> " + step.getComment() + "</p>" : "")
+                    + (isMemoApproval(approval) ? extractMemoSummaryHtml(approval) : "");
                       
-        sendApprovalMessage(subject, body, toList, null, null, approval, step.getAssigneeId());
+        sendApprovalMessage(subject, body, toList, null, null, approval, step != null ? step.getAssigneeId() : "SYSTEM");
     }
 
     @Transactional
     public void onApprovalCompleted(ApprovalRequest approval) {
         List<String> toList = new ArrayList<>();
-        toList.add(approval.getRequesterId());
+        if (approval.getRequesterId() != null) {
+            toList.add(approval.getRequesterId());
+        }
         
         List<String> ccList = parseObservers(approval.getObserverIds());
         
-        String subject = "Approval Request Completed: " + approval.getTargetType();
-        String body = "<p>The approval request has been fully completed.</p>";
+        String actionTitle = resolveTitle(approval);
+        String subject = "[결재 완료] " + actionTitle;
+        String body = "<p>상신된 결재가 최종 승인 및 완료되었습니다.</p>"
+                    + (isMemoApproval(approval) ? extractMemoSummaryHtml(approval) : "");
                       
         sendApprovalMessage(subject, body, toList, ccList, null, approval, "SYSTEM");
     }
     
+    private boolean isMemoApproval(ApprovalRequest approval) {
+        return "MEMO".equalsIgnoreCase(approval.getTargetType());
+    }
+
+    private String resolveTitle(ApprovalRequest approval) {
+        if (isMemoApproval(approval) && approval.getChanges() != null) {
+            try {
+                com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(approval.getChanges());
+                if (root.has("title") && root.get("title").isValueNode()) {
+                    return root.get("title").asText();
+                }
+            } catch (Exception ignored) {}
+        }
+        return approval.getTargetType() != null ? approval.getTargetType() : "결재";
+    }
+
+    private String extractMemoSummaryHtml(ApprovalRequest approval) {
+        if (approval.getChanges() == null) return "";
+        try {
+            com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(approval.getChanges());
+            StringBuilder sb = new StringBuilder();
+            if (root.has("title")) {
+                sb.append("<p><strong>제목:</strong> ").append(root.get("title").asText()).append("</p>");
+            }
+            if (root.has("content")) {
+                sb.append("<div style=\"margin-top: 8px; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px;\">")
+                  .append(root.get("content").asText())
+                  .append("</div>");
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
     private void sendApprovalMessage(String subject, String body, List<String> to, List<String> cc, List<String> bcc, ApprovalRequest approval, String senderId) {
+        if ((to == null || to.isEmpty()) && (cc == null || cc.isEmpty()) && (bcc == null || bcc.isEmpty())) {
+            return;
+        }
         InboxMessageRequest request = InboxMessageRequest.builder()
                 .subject(subject)
                 .body(body)
                 .importance("HIGH")
+                .messageType("APPROVAL_NOTICE")
+                .relatedApprovalId(approval != null ? approval.getId() : null)
                 .toRecipients(to != null ? to : new ArrayList<>())
                 .ccRecipients(cc != null ? cc : new ArrayList<>())
                 .bccRecipients(bcc != null ? bcc : new ArrayList<>())
                 .isDraft(false)
                 .build();
                 
-        var response = inboxService.sendMessage(request, senderId);
-        
-        messageRepository.findById(response.getId()).ifPresent(msg -> {
-            msg.setMessageType("APPROVAL_NOTICE");
-            msg.setRelatedApprovalId(approval.getId());
-            messageRepository.save(msg);
-        });
+        inboxService.sendMessage(request, senderId);
     }
 }

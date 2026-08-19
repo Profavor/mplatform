@@ -9,17 +9,20 @@
               <span>{{ step.stepType === 'CONSENSUS' ? t('consensus') : (step.stepType === 'DRAFT' ? t('draft') : t('step_approval')) }} - {{ step.assigneeName || getUserName(step.assigneeId) }}</span>
               <va-badge v-if="step.isEscalated" color="danger" size="small" :text="t('sla_escalated_badge', { name: step.escalatedFromUserId || 'Old' })" />
             </span>
-            <va-badge :text="step.stepType === 'DRAFT' ? t('draft_completed') : step.status" :color="step.stepType === 'DRAFT' ? 'info' : (step.status === 'APPROVED' ? 'success' : (step.status === 'REJECTED' ? 'danger' : 'warning'))" size="small" />
+            <va-badge :text="step.stepType === 'DRAFT' ? t('draft_completed') : (step.status === 'CANCELLED' ? t('status_cancelled') : step.status)" :color="step.stepType === 'DRAFT' ? 'info' : (step.status === 'APPROVED' ? 'success' : (step.status === 'REJECTED' ? 'danger' : (step.status === 'CANCELLED' ? 'secondary' : 'warning')))" size="small" />
           </div>
           <div v-if="step.status === 'PENDING' && step.slaDueAt" style="font-size: 0.72rem; color: var(--va-warning); margin-bottom: 4px; display: flex; align-items: center; gap: 2px;">
             <va-icon name="timer" size="small" color="warning" />
             <span>{{ t('sla_due', { time: formatWithTimezone(step.slaDueAt) }) }}</span>
           </div>
-          <div v-if="step.status === 'APPROVED' || step.status === 'REJECTED' || step.stepType === 'DRAFT'" style="font-size: 0.75rem; color: var(--va-text-secondary); margin-bottom: 4px; text-align: right;">
+          <div v-if="step.status === 'APPROVED' || step.status === 'REJECTED' || step.status === 'CANCELLED' || step.stepType === 'DRAFT'" style="font-size: 0.75rem; color: var(--va-text-secondary); margin-bottom: 4px; text-align: right;">
             {{ formatWithTimezone(step.updatedAt) }} {{ t('processed') }}
           </div>
-          <div v-if="step.comment" style="color: var(--va-text-primary); background: var(--va-background-secondary); padding: 4px 8px; border-radius: 4px; border-left: 3px solid var(--va-primary); font-style: italic;">
-            "{{ step.comment }}"
+          <div v-if="step.comment" :style="{ color: step.status === 'CANCELLED' ? 'var(--va-danger)' : 'var(--va-text-primary)', background: step.status === 'CANCELLED' ? 'rgba(239, 68, 68, 0.08)' : 'var(--va-background-secondary)', padding: '4px 8px', borderRadius: '4px', borderLeft: step.status === 'CANCELLED' ? '3px solid var(--va-danger)' : '3px solid var(--va-primary)', fontStyle: 'italic' }">
+            "{{ step.comment }}" <span v-if="step.status === 'CANCELLED'">({{ t('cancel_reason') }})</span>
+          </div>
+          <div v-else-if="step.status === 'CANCELLED' && request.reason" style="color: var(--va-danger); background: rgba(239, 68, 68, 0.08); padding: 4px 8px; border-radius: 4px; border-left: 3px solid var(--va-danger); font-style: italic;">
+            "{{ request.reason }}" ({{ t('cancel_reason') }})
           </div>
           <div v-else style="color: var(--va-text-secondary); font-style: italic;">
             {{ t('no_comment') }}

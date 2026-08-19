@@ -33,7 +33,6 @@ class InboxApprovalIntegrationServiceTest {
 
     @Mock InboxService inboxService;
     @Mock ObjectMapper objectMapper;
-    @Mock InboxMessageRepository messageRepository;
 
     @InjectMocks InboxApprovalIntegrationService service;
 
@@ -56,22 +55,18 @@ class InboxApprovalIntegrationServiceTest {
     }
 
     @Test
-    @DisplayName("1. 결재 상신 - 담당자에게 메시지 생성")
+    @DisplayName("1. 결재 상신 - 1차 담당자에게만 메시지 생성 (통보자는 상신 시 발송 안 함)")
     void onApprovalSubmitted_createsMessageToAssignee() throws Exception {
         // given
         ApprovalStep step = new ApprovalStep();
+        step.setStepOrder(1);
         step.setAssigneeId("assignee1");
+        mockApproval.setCurrentStepOrder(1);
         mockApproval.setSteps(List.of(step));
         mockApproval.setObserverIds("[\"obs1\", \"obs2\"]");
-
-        when(objectMapper.readValue(eq("[\"obs1\", \"obs2\"]"), any(TypeReference.class)))
-                .thenReturn(List.of("obs1", "obs2"));
                 
         when(inboxService.sendMessage(any(InboxMessageRequest.class), anyString()))
                 .thenReturn(mockResponse);
-                
-        InboxMessage msg = new InboxMessage();
-        when(messageRepository.findById(mockResponse.getId())).thenReturn(Optional.of(msg));
 
         // when
         service.onApprovalSubmitted(mockApproval);
@@ -81,18 +76,17 @@ class InboxApprovalIntegrationServiceTest {
         
         InboxMessageRequest request = requestCaptor.getValue();
         assertThat(request.getToRecipients()).containsExactly("assignee1");
-        assertThat(request.getBccRecipients()).containsExactly("obs1", "obs2");
-        assertThat(request.getSubject()).contains("Approval Request Submitted");
+        assertThat(request.getCcRecipients()).isEmpty();
+        assertThat(request.getBccRecipients()).isEmpty();
+        assertThat(request.getSubject()).contains("결재 요청");
+        assertThat(request.getMessageType()).isEqualTo("APPROVAL_NOTICE");
+        assertThat(request.getRelatedApprovalId()).isEqualTo(mockApproval.getId());
         
         assertThat(senderIdCaptor.getValue()).isEqualTo("requester");
-        
-        verify(messageRepository).save(msg);
-        assertThat(msg.getMessageType()).isEqualTo("APPROVAL_NOTICE");
-        assertThat(msg.getRelatedApprovalId()).isEqualTo(mockApproval.getId());
     }
 
     @Test
-    @DisplayName("2. 결재 승인 - 기안자 및 다음 결재자에게 알림")
+    @DisplayName("2. 결재 승인 - 다음 결재자에게 알림")
     void onApprovalApproved_notifiesRequesterAndNextAssignee() {
         // given
         ApprovalStep step1 = new ApprovalStep();
@@ -104,13 +98,11 @@ class InboxApprovalIntegrationServiceTest {
         step2.setStepOrder(2);
         step2.setAssigneeId("assignee2");
         
+        mockApproval.setCurrentStepOrder(2);
         mockApproval.setSteps(List.of(step1, step2));
 
         when(inboxService.sendMessage(any(InboxMessageRequest.class), anyString()))
                 .thenReturn(mockResponse);
-                
-        InboxMessage msg = new InboxMessage();
-        when(messageRepository.findById(mockResponse.getId())).thenReturn(Optional.of(msg));
 
         // when
         service.onApprovalApproved(mockApproval, step1);
@@ -119,15 +111,17 @@ class InboxApprovalIntegrationServiceTest {
         verify(inboxService).sendMessage(requestCaptor.capture(), senderIdCaptor.capture());
         
         InboxMessageRequest request = requestCaptor.getValue();
-        assertThat(request.getToRecipients()).containsExactlyInAnyOrder("requester", "assignee2");
-        assertThat(request.getSubject()).contains("Approval Step Approved");
+        assertThat(request.getToRecipients()).containsExactly("assignee2");
+        assertThat(request.getSubject()).contains("결재 진행");
         assertThat(request.getBody()).contains("Assignee One");
+        assertThat(request.getMessageType()).isEqualTo("APPROVAL_NOTICE");
+        assertThat(request.getRelatedApprovalId()).isEqualTo(mockApproval.getId());
         
         assertThat(senderIdCaptor.getValue()).isEqualTo("assignee1");
     }
 
     @Test
-    @DisplayName("3. 결재 반려 - 기안자에게 사유와 함께 알림")
+    @DisplayName("3. 결재 반려 - 오직 기안자에게만 사유와 함께 알림 (통보자 제외)")
     void onApprovalRejected_notifiesRequesterWithReason() {
         // given
         ApprovalStep step = new ApprovalStep();
@@ -136,12 +130,10 @@ class InboxApprovalIntegrationServiceTest {
         step.setComment("Reject Reason");
         
         mockApproval.setSteps(List.of(step));
+        mockApproval.setObserverIds("[\"obs1\", \"obs2\"]");
 
         when(inboxService.sendMessage(any(InboxMessageRequest.class), anyString()))
                 .thenReturn(mockResponse);
-                
-        InboxMessage msg = new InboxMessage();
-        when(messageRepository.findById(mockResponse.getId())).thenReturn(Optional.of(msg));
 
         // when
         service.onApprovalRejected(mockApproval, step);
@@ -151,14 +143,18 @@ class InboxApprovalIntegrationServiceTest {
         
         InboxMessageRequest request = requestCaptor.getValue();
         assertThat(request.getToRecipients()).containsExactly("requester");
-        assertThat(request.getSubject()).contains("Approval Request Rejected");
+        assertThat(request.getCcRecipients()).isEmpty();
+        assertThat(request.getBccRecipients()).isEmpty();
+        assertThat(request.getSubject()).contains("결재 반려");
         assertThat(request.getBody()).contains("Reject Reason").contains("Assignee One");
+        assertThat(request.getMessageType()).isEqualTo("APPROVAL_NOTICE");
+        assertThat(request.getRelatedApprovalId()).isEqualTo(mockApproval.getId());
         
         assertThat(senderIdCaptor.getValue()).isEqualTo("assignee1");
     }
 
     @Test
-    @DisplayName("4. 결재 완료 - 모든 관계자에게 알림")
+    @DisplayName("4. 결재 최종 완료 - 상신자(To) 및 통보자(CC)에게 완료 알림")
     void onApprovalCompleted_notifiesAllParties() throws Exception {
         // given
         mockApproval.setObserverIds("[\"obs1\"]");
@@ -168,9 +164,6 @@ class InboxApprovalIntegrationServiceTest {
 
         when(inboxService.sendMessage(any(InboxMessageRequest.class), anyString()))
                 .thenReturn(mockResponse);
-                
-        InboxMessage msg = new InboxMessage();
-        when(messageRepository.findById(mockResponse.getId())).thenReturn(Optional.of(msg));
 
         // when
         service.onApprovalCompleted(mockApproval);
@@ -181,7 +174,9 @@ class InboxApprovalIntegrationServiceTest {
         InboxMessageRequest request = requestCaptor.getValue();
         assertThat(request.getToRecipients()).containsExactly("requester");
         assertThat(request.getCcRecipients()).containsExactly("obs1");
-        assertThat(request.getSubject()).contains("Approval Request Completed");
+        assertThat(request.getSubject()).contains("결재 완료");
+        assertThat(request.getMessageType()).isEqualTo("APPROVAL_NOTICE");
+        assertThat(request.getRelatedApprovalId()).isEqualTo(mockApproval.getId());
         
         assertThat(senderIdCaptor.getValue()).isEqualTo("SYSTEM");
     }

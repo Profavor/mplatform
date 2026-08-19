@@ -10,5 +10,6 @@ public enum ApprovalStatus {
     REJECTED,
     WAITING,
     SUBMITTED,
-    DRAFT;
+    DRAFT,
+    CANCELLED;
 }

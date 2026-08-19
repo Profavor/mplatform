@@ -4,6 +4,9 @@
       <va-button block preset="primary" class="compose-btn" icon="edit" @click="$emit('compose')">
         {{ $t('inbox.compose') }}
       </va-button>
+      <va-button block preset="outline" color="primary" class="compose-memo-btn" icon="rate_review" @click="$emit('compose-memo')">
+        {{ $t('inbox.compose_memo_approval') }}
+      </va-button>
     </div>
     <div class="inbox-sidebar-content">
       <va-list>
@@ -40,7 +43,7 @@ const props = defineProps<{
   folderCounts: { folder: string; total: number; unread: number }[]
 }>()
 
-defineEmits(['select-folder', 'compose'])
+defineEmits(['select-folder', 'compose', 'compose-memo'])
 
 const { t } = useI18n()
 
@@ -68,8 +71,17 @@ const getUnreadCount = (folderId: string) => {
   background: var(--va-background-element);
 }
 .inbox-sidebar-header {
-  padding: 1.25rem;
+  padding: 1rem;
   border-bottom: 1px solid var(--va-background-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.compose-btn {
+  font-weight: 700;
+}
+.compose-memo-btn {
+  font-weight: 600;
 }
 .inbox-sidebar-content {
   flex-grow: 1;

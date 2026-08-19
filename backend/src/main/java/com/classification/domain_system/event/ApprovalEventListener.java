@@ -110,6 +110,17 @@ public class ApprovalEventListener {
 
     @EventListener
     @Transactional
+    public void onApprovalRequestCancelled(com.classification.domain_system.event.ApprovalRequestCancelledEvent event) {
+        ApprovalRequest approval = event.getApprovalRequest();
+        log.info("[EVENT_DRIVEN] Received ApprovalRequestCancelledEvent for Request ID: {}, Reason: {}", 
+                approval.getId(), event.getReason());
+        
+        // As per business rule: Do NOT send notifications to observers upon cancellation
+        broadcastApprovalStatusChange(approval, "CANCELLED");
+    }
+
+    @EventListener
+    @Transactional
     public void onApprovalStepApproved(ApprovalStepApprovedEvent event) {
         ApprovalRequest requestFromEvent = event.getApprovalRequest();
         ApprovalStep approvedStep = event.getApprovedStep();
@@ -428,6 +439,7 @@ public class ApprovalEventListener {
             case "RECORD_UPDATE": return "정보 변경";
             case "RECORD_DELETE": return "삭제/폐기";
             case "RECORD_MERGE": return "골든레코드 병합";
+            case "MEMO": return "메모 결재";
             default:
                 if (targetType.startsWith("SCHEMA_")) return "스키마 변경";
                 return "결재";

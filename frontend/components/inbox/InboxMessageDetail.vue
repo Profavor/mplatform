@@ -47,6 +47,49 @@
           </div>
         </div>
         <div class="action-bar">
+          <!-- Approval Action Buttons when current user is pending assignee -->
+          <template v-if="myPendingStep">
+            <va-button
+              preset="primary"
+              size="small"
+              color="success"
+              icon="check_circle"
+              class="approval-act-btn"
+              :loading="isProcessingApproval"
+              @click="openApprovalActionModal('APPROVE')"
+            >
+              {{ myPendingStep.stepType === 'CONSENSUS' ? $t('inbox.consensus_agree') : $t('inbox.approve') }}
+            </va-button>
+            <va-button
+              preset="primary"
+              size="small"
+              color="danger"
+              icon="cancel"
+              class="approval-act-btn"
+              :loading="isProcessingApproval"
+              @click="openApprovalActionModal('REJECT')"
+            >
+              {{ $t('inbox.reject') }}
+            </va-button>
+            <va-divider vertical style="margin: 0 4px;" />
+          </template>
+
+          <!-- Cancel Approval Request Button when current user is requester/admin and status is PENDING -->
+          <template v-if="canCancelApproval">
+            <va-button
+              preset="primary"
+              size="small"
+              color="warning"
+              icon="cancel_schedule_send"
+              class="cancel-approval-btn"
+              :loading="isProcessingApproval"
+              @click="showCancelConfirmModal = true"
+            >
+              {{ $t('inbox.cancel_approval') }}
+            </va-button>
+            <va-divider vertical style="margin: 0 4px;" />
+          </template>
+
           <va-button preset="secondary" size="small" icon="reply" @click="$emit('reply', message)">{{ $t('inbox.reply') }}</va-button>
           <va-button preset="secondary" size="small" icon="reply_all" @click="$emit('reply-all', message)">{{ $t('inbox.reply_all') }}</va-button>
           <va-button preset="secondary" size="small" icon="forward" @click="$emit('forward', message)">{{ $t('inbox.forward') }}</va-button>
@@ -64,6 +107,67 @@
           <div class="spacer"></div>
           <va-button preset="secondary" size="small" icon="archive" @click="$emit('archive', message.id)">{{ $t('inbox.move_to_archive') }}</va-button>
           <va-button preset="secondary" size="small" color="danger" icon="delete" @click="$emit('delete', message.id)">{{ $t('inbox.delete') }}</va-button>
+        </div>
+
+        <!-- Approval Route Progress Card if related to approval -->
+        <div v-if="relatedApproval" class="approval-progress-banner">
+          <div class="approval-banner-header">
+            <div class="banner-title-group">
+              <va-icon name="verified_user" size="small" color="primary" />
+              <span class="banner-title">{{ $t('inbox.approval_status') }}</span>
+              <va-badge
+                :text="relatedApproval.status === 'CANCELLED' ? $t('inbox.status_cancelled') : relatedApproval.status"
+                :color="relatedApproval.status === 'APPROVED' ? 'success' : (relatedApproval.status === 'REJECTED' ? 'danger' : (relatedApproval.status === 'CANCELLED' ? 'secondary' : 'warning'))"
+                size="small"
+              />
+            </div>
+            <span class="approval-meta">
+              {{ $t('inbox.drafter') }}: <strong>{{ relatedApproval.requesterName || userStore.getUserName(relatedApproval.requesterId, relatedApproval.requesterId) }}</strong>
+            </span>
+          </div>
+
+          <!-- Cancellation Reason Box -->
+          <div
+            v-if="relatedApproval.status === 'CANCELLED'"
+            style="margin-top: 0.6rem; margin-bottom: 0.75rem; padding: 0.5rem 0.75rem; background: rgba(239, 68, 68, 0.08); border-left: 3px solid var(--va-danger); border-radius: 4px; font-size: 0.85rem; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;"
+          >
+            <span style="font-weight: 700; color: var(--va-danger);">{{ $t('inbox.cancel_approval_reason') }}:</span>
+            <span style="color: var(--va-text-primary);">{{ relatedApproval.reason || $t('inbox.no_reason_specified') || '입력된 취소 사유가 없습니다.' }}</span>
+          </div>
+
+          <!-- Step Progression Badges (including Parallel Grouping) -->
+          <div class="approval-steps-flow">
+            <div
+              v-for="(group, gIdx) in approvalStepGroups"
+              :key="group.stepOrder"
+              class="step-flow-group"
+            >
+              <div class="step-flow-cards-wrap">
+                <div
+                  v-for="st in group.items"
+                  :key="st.id || st.stepOrder"
+                  class="flow-step-item"
+                  :class="getStepStatusClass(st)"
+                >
+                  <span class="step-type-tag">
+                    {{ st.stepType === 'DRAFT' ? $t('inbox.drafter') : (st.stepType === 'CONSENSUS' ? $t('inbox.type_consensus') : $t('inbox.type_approval')) }}
+                  </span>
+                  <span class="step-user-name">
+                    {{ st.assigneeName || userStore.getUserName(st.assigneeId, st.assigneeId) }}
+                  </span>
+                  <span class="step-status-tag" :class="st.status?.toLowerCase()">
+                    {{ st.status }}
+                  </span>
+                </div>
+              </div>
+              <va-icon
+                v-if="gIdx < approvalStepGroups.length - 1"
+                name="arrow_forward"
+                size="16px"
+                class="step-arrow-icon"
+              />
+            </div>
+          </div>
         </div>
       </div>
       
@@ -188,16 +292,64 @@
         </div>
       </div>
     </va-modal>
+
+    <!-- Approval Action Modal (Approve / Reject) -->
+    <va-modal
+      v-model="showApprovalActionModal"
+      :title="approvalActionType === 'APPROVE' ? (myPendingStep?.stepType === 'CONSENSUS' ? $t('inbox.consensus_agree') : $t('inbox.approve')) : $t('inbox.reject')"
+      :ok-text="approvalActionType === 'APPROVE' ? (myPendingStep?.stepType === 'CONSENSUS' ? $t('inbox.consensus_agree') : $t('inbox.approve')) : $t('inbox.reject')"
+      :cancel-text="$t('inbox.cancel')"
+      :ok-color="approvalActionType === 'APPROVE' ? 'success' : 'danger'"
+      @ok="handleExecuteApprovalAction"
+    >
+      <div style="display: flex; flex-direction: column; gap: 0.75rem; padding: 0.5rem 0;">
+        <p style="margin: 0; font-size: 0.9rem; color: var(--va-text-primary);">
+          {{ approvalActionType === 'APPROVE' ? (myPendingStep?.stepType === 'CONSENSUS' ? '해당 안건에 대해 합의하시겠습니까?' : '해당 안건을 승인하시겠습니까?') : $t('inbox.reject_reason_required') }}
+        </p>
+        <va-textarea
+          v-model="approvalActionComment"
+          :label="approvalActionType === 'APPROVE' ? $t('inbox.approval_comment') : $t('inbox.reject_reason')"
+          :placeholder="approvalActionType === 'APPROVE' ? '결재 의견을 입력하세요 (선택)' : $t('inbox.reject_reason_required')"
+          rows="3"
+          style="width: 100%;"
+        />
+      </div>
+    </va-modal>
+
+    <!-- Approval Cancel Modal (상신 취소 모달) -->
+    <va-modal
+      v-model="showCancelConfirmModal"
+      :title="$t('inbox.cancel_approval')"
+      :ok-text="$t('inbox.cancel_approval')"
+      :cancel-text="$t('inbox.cancel')"
+      ok-color="warning"
+      @ok="handleCancelApproval"
+    >
+      <div style="display: flex; flex-direction: column; gap: 0.75rem; padding: 0.5rem 0;">
+        <p style="margin: 0; font-size: 0.9rem; color: var(--va-text-primary);">
+          {{ $t('inbox.cancel_approval_confirm') }}
+        </p>
+        <va-textarea
+          v-model="cancelApprovalReason"
+          :label="$t('inbox.cancel_approval_reason')"
+          :placeholder="$t('inbox.cancel_approval_reason_placeholder')"
+          rows="3"
+          style="width: 100%;"
+        />
+      </div>
+    </va-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useInbox, type InboxMessage, type RecipientInfo, type RecallResultResponse } from '~/composables/useInbox'
 import { useUserStore } from '~/stores/useUserStore'
+import { useAuthUser } from '~/composables/useAuthUser'
 import { useTimezoneDate } from '~/composables/useTimezoneDate'
 import { useCustomFetch } from '~/composables/useCustomFetch'
+import { useToast } from 'vuestic-ui'
 import { useCookie } from '#app'
 
 const props = defineProps<{
@@ -209,8 +361,11 @@ const emit = defineEmits(['reply', 'reply-all', 'forward', 'delete', 'archive', 
 
 const { t } = useI18n()
 const userStore = useUserStore()
+const authUserStore = useAuthUser()
 const { formatWithTimezone } = useTimezoneDate()
 const { recallMessage } = useInbox()
+const { customFetch } = useCustomFetch()
+const { init } = useToast()
 
 const showRecallConfirm = ref(false)
 const showRecallResult = ref(false)
@@ -229,10 +384,211 @@ const senderInitials = computed(() => {
   return senderName.value ? senderName.value.substring(0, 2).toUpperCase() : '?'
 })
 
+const formatTime = (dateStr: string | null | undefined) => {
+  if (!dateStr) return ''
+  const timezoneCookie = useCookie('user_timezone').value
+  return formatWithTimezone(dateStr, timezoneCookie || undefined)
+}
+
 const formattedDate = computed(() => {
   if (!props.message?.createdAt) return ''
   return formatTime(props.message.createdAt)
 })
+
+// Approval integration state
+const relatedApproval = ref<any | null>(null)
+const isProcessingApproval = ref(false)
+const showApprovalActionModal = ref(false)
+const approvalActionType = ref<'APPROVE' | 'REJECT'>('APPROVE')
+const approvalActionComment = ref('')
+const showCancelConfirmModal = ref(false)
+const cancelApprovalReason = ref('')
+
+const { hasPermission } = usePermission()
+const userDataCookie = useCookie<any>('user_data')
+const userCookie = useCookie<any>('user')
+const tokenCookie = useCookie<any>('auth_token')
+
+const currentLoggedInUser = computed(() => {
+  try {
+    const raw = userDataCookie.value || userCookie.value
+    if (!raw) return null
+    return typeof raw === 'string' ? JSON.parse(raw) : raw
+  } catch {
+    return null
+  }
+})
+
+const currentUserId = computed(() => {
+  const user = currentLoggedInUser.value
+  let id = user?.id || user?.userId || user?.uuid || ''
+  if (!id && tokenCookie.value) {
+    try {
+      const payload = JSON.parse(decodeURIComponent(atob(tokenCookie.value.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')).split('').map((c: any) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')))
+      id = payload.sub || payload.userId || payload.id || ''
+    } catch {}
+  }
+  return id
+})
+
+const currentUsername = computed(() => {
+  const user = currentLoggedInUser.value
+  let name = user?.username || user?.name || ''
+  if (!name && tokenCookie.value) {
+    try {
+      const payload = JSON.parse(decodeURIComponent(atob(tokenCookie.value.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')).split('').map((c: any) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')))
+      name = payload.username || payload.preferred_username || ''
+    } catch {}
+  }
+  return name
+})
+
+const canCancelApproval = computed(() => {
+  if (!relatedApproval.value || relatedApproval.value.status !== 'PENDING') return false
+  const reqId = String(relatedApproval.value.requesterId || '').toLowerCase()
+  const myId = String(currentUserId.value || '').toLowerCase()
+  const myUName = String(currentUsername.value || '').toLowerCase()
+
+  // 오직 기안자 본인만 상신 취소 가능
+  return Boolean(reqId && (reqId === myId || reqId === myUName))
+})
+
+const handleCancelApproval = async () => {
+  if (!relatedApproval.value?.id) return
+
+  isProcessingApproval.value = true
+  try {
+    await customFetch(`/api/approval-requests/${relatedApproval.value.id}/cancel`, {
+      method: 'POST',
+      body: { reason: cancelApprovalReason.value.trim() }
+    })
+
+    init({
+      message: t('inbox.cancel_approval_success'),
+      color: 'warning'
+    })
+
+    if (props.message?.relatedApprovalId) {
+      await fetchRelatedApproval(props.message.relatedApprovalId)
+    }
+    emit('refresh')
+  } catch (e: any) {
+    console.error('Failed to cancel approval request:', e)
+    init({
+      message: e?.data?.message || e?.message || t('inbox.cancel_approval_failed'),
+      color: 'danger'
+    })
+  } finally {
+    isProcessingApproval.value = false
+    showCancelConfirmModal.value = false
+  }
+}
+
+const fetchRelatedApproval = async (approvalId: string) => {
+  if (!approvalId) {
+    relatedApproval.value = null
+    return
+  }
+  try {
+    const res: any = await customFetch(`/api/approval-requests/${approvalId}`)
+    if (res && res.data) {
+      relatedApproval.value = res.data
+    } else if (res) {
+      relatedApproval.value = res
+    }
+  } catch (e) {
+    console.debug('Failed to fetch related approval detail:', e)
+    relatedApproval.value = null
+  }
+}
+
+watch(() => props.message, (newMsg) => {
+  if (newMsg && newMsg.relatedApprovalId) {
+    fetchRelatedApproval(newMsg.relatedApprovalId)
+  } else {
+    relatedApproval.value = null
+  }
+}, { immediate: true })
+
+const myPendingStep = computed(() => {
+  if (!relatedApproval.value || relatedApproval.value.status !== 'PENDING') return null
+  const steps: any[] = relatedApproval.value.steps || []
+  const currentOrder = relatedApproval.value.currentStepOrder
+  const myId = currentUserId.value
+  const myUName = currentUsername.value
+
+  return steps.find(s => {
+    if (s.stepOrder !== currentOrder || s.status !== 'PENDING') return false
+    return s.assigneeId === myId || s.assigneeId === myUName
+  })
+})
+
+const approvalStepGroups = computed(() => {
+  if (!relatedApproval.value || !relatedApproval.value.steps) return []
+  const steps: any[] = relatedApproval.value.steps
+  const map = new Map<number, any[]>()
+  for (const s of steps) {
+    const list = map.get(s.stepOrder || 0) || []
+    list.push(s)
+    map.set(s.stepOrder || 0, list)
+  }
+  const sortedOrders = Array.from(map.keys()).sort((a, b) => a - b)
+  return sortedOrders.map(order => ({
+    stepOrder: order,
+    items: map.get(order) || []
+  }))
+})
+
+const getStepStatusClass = (step: any) => {
+  const status = (step.status || '').toLowerCase()
+  return `status-${status}`
+}
+
+const openApprovalActionModal = (type: 'APPROVE' | 'REJECT') => {
+  approvalActionType.value = type
+  approvalActionComment.value = ''
+  showApprovalActionModal.value = true
+}
+
+const handleExecuteApprovalAction = async () => {
+  if (!myPendingStep.value) return
+  const stepId = myPendingStep.value.id
+  if (!stepId) return
+
+  if (approvalActionType.value === 'REJECT' && !approvalActionComment.value.trim()) {
+    init({ message: t('inbox.reject_reason_required'), color: 'warning' })
+    return
+  }
+
+  isProcessingApproval.value = true
+  try {
+    const endpoint = approvalActionType.value === 'APPROVE'
+      ? `/api/approval-requests/steps/${stepId}/approve`
+      : `/api/approval-requests/steps/${stepId}/reject`
+
+    await customFetch(endpoint, {
+      method: 'POST',
+      body: { comment: approvalActionComment.value.trim() }
+    })
+
+    init({
+      message: approvalActionType.value === 'APPROVE' ? t('inbox.approve_success') : t('inbox.reject_success'),
+      color: approvalActionType.value === 'APPROVE' ? 'success' : 'warning'
+    })
+
+    if (props.message?.relatedApprovalId) {
+      await fetchRelatedApproval(props.message.relatedApprovalId)
+    }
+    emit('refresh')
+  } catch (e: any) {
+    console.error('Failed to execute approval action:', e)
+    init({ message: e?.data?.message || e?.message || t('inbox.approval_action_failed'), color: 'danger' })
+  } finally {
+    isProcessingApproval.value = false
+    showApprovalActionModal.value = false
+  }
+}
+
 
 interface DisplayAttachment {
   id: string
@@ -379,15 +735,6 @@ const totalAttachmentsSize = computed(() => {
   if (totalBytes === 0) return ''
   return `(${formatFileSize(totalBytes)})`
 })
-
-const formatTime = (dateStr: string) => {
-  if (!dateStr) return ''
-  try {
-    return formatWithTimezone(dateStr)
-  } catch (e) {
-    return new Date(dateStr).toLocaleString()
-  }
-}
 
 const formatFileSize = (bytes?: number) => {
   if (bytes === undefined || bytes === null || bytes <= 0) return ''
@@ -805,5 +1152,148 @@ const handleRecallMessage = async () => {
 .modal-footer-actions {
   display: flex;
   justify-content: flex-end;
+}
+
+/* Approval Banner & Steps Timeline */
+.approval-act-btn {
+  font-weight: 700 !important;
+}
+
+.approval-progress-banner {
+  margin: 0.25rem 0 0.5rem 0;
+  padding: 0.75rem 1rem;
+  background: var(--va-background-element, #f8fafc);
+  border: 1px solid var(--va-background-border, #e2e8f0);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+:global([data-vuestic-preset="dark"]) .approval-progress-banner,
+:global(.va-theme-dark) .approval-progress-banner {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+.approval-banner-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.banner-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.banner-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--va-text-primary);
+}
+
+.approval-meta {
+  font-size: 0.82rem;
+  color: var(--va-text-secondary, #64748b);
+}
+
+.approval-steps-flow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  overflow-x: auto;
+  padding: 0.2rem 0;
+}
+
+.step-flow-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.step-flow-cards-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.flow-step-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.55rem;
+  background: var(--va-background-primary, #ffffff);
+  border: 1px solid var(--va-background-border, #e2e8f0);
+  border-radius: 6px;
+  font-size: 0.78rem;
+}
+
+:global([data-vuestic-preset="dark"]) .flow-step-item,
+:global(.va-theme-dark) .flow-step-item {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+}
+
+.flow-step-item.status-approved {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.flow-step-item.status-pending {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.08);
+  font-weight: 700;
+}
+
+.flow-step-item.status-rejected {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.step-type-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--va-primary, #2563eb);
+}
+
+.step-user-name {
+  font-weight: 600;
+  color: var(--va-text-primary);
+}
+
+.step-status-tag {
+  font-size: 0.7rem;
+  padding: 1px 4px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.step-status-tag.approved {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.step-status-tag.pending {
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+}
+
+.step-status-tag.rejected {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.step-status-tag.waiting {
+  background: rgba(148, 163, 184, 0.2);
+  color: #94a3b8;
+}
+
+.step-arrow-icon {
+  color: var(--va-text-secondary, #94a3b8);
+  opacity: 0.6;
 }
 </style>

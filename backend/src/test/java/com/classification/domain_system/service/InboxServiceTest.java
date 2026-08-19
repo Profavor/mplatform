@@ -50,6 +50,17 @@ class InboxServiceTest {
     @Captor ArgumentCaptor<InboxMessage> messageCaptor;
     @Captor ArgumentCaptor<InboxRecipient> recipientCaptor;
 
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        lenient().when(messageRepository.save(any(InboxMessage.class))).thenAnswer(i -> {
+            InboxMessage m = i.getArgument(0);
+            if (m.getId() == null) {
+                m.setId(UUID.randomUUID());
+            }
+            return m;
+        });
+    }
+
     @Test
     @DisplayName("1. 내부 수신자로 메시지 전송 - 수신자 및 발신자 레코드 생성")
     void sendMessage_withInternalRecipients_createsRecipientsAndSenderRecord() throws Exception {

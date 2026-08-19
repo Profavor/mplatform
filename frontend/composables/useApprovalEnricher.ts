@@ -205,6 +205,12 @@ export const useApprovalEnricher = () => {
       } catch(e) {
         console.error('Failed to enrich summary', e)
       }
+    } else if (req.targetType === 'MEMO') {
+      const memoTitle = parsed.title || req.title || ''
+      enriched.idAttribute = memoTitle
+      enriched.nameAttribute = memoTitle
+      const cleanContent = parsed.content ? String(parsed.content).replace(/<[^>]*>?/gm, '').trim() : ''
+      enriched.summary = cleanContent ? (cleanContent.length > 80 ? cleanContent.substring(0, 80) + '...' : cleanContent) : memoTitle
     }
     
     return enriched
@@ -225,6 +231,7 @@ export const useApprovalEnricher = () => {
 
   const getRequestTypeLabel = (type: string): string => {
     if (!type) return t('other_request')
+    if (type === 'MEMO') return t('target_type_MEMO', '메모 결재')
     const i18nKey = `target_type_${type}`
     const translated = t(i18nKey)
     if (translated && translated !== i18nKey) return translated

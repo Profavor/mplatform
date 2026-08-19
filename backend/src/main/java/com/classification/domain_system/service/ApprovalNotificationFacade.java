@@ -34,6 +34,22 @@ public class ApprovalNotificationFacade {
         }
     }
 
+    public void publishApprovalRequestCancelled(ApprovalRequest approval, String reason) {
+        if (approval != null) {
+            eventPublisher.publishEvent(new com.classification.domain_system.event.ApprovalRequestCancelledEvent(approval, reason));
+        }
+    }
+
+    public void processCancellationNotifications(ApprovalRequest approval, String cancelerName) {
+        if (notificationService != null && approval != null && cancelerName != null) {
+            try {
+                notificationService.updateApprovalNotificationsToProcessed(approval.getId(), cancelerName, "CANCELLED");
+            } catch (Exception ex) {
+                log.warn("Failed to update notification status on cancellation", ex);
+            }
+        }
+    }
+
     public void processStepApprovalNotifications(ApprovalRequest approval, String approverId, String approverName) {
         if (notificationService != null && approval != null && approverName != null) {
             try {
