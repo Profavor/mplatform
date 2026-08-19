@@ -77,6 +77,8 @@ public class InboxService {
         msg.setSubject(StringUtils.hasText(request.getSubject()) ? request.getSubject().trim() : "(제목 없음)");
         msg.setBody(request.getBody());
         msg.setImportance(StringUtils.hasText(request.getImportance()) ? request.getImportance() : "NORMAL");
+        msg.setMessageType(StringUtils.hasText(request.getMessageType()) ? request.getMessageType() : "INTERNAL");
+        msg.setRelatedApprovalId(request.getRelatedApprovalId());
         msg.setParentMessageId(request.getParentMessageId());
         msg.setIsDraft(isDraft);
 
@@ -120,7 +122,7 @@ public class InboxService {
             processRecipients(msg, request.getBccRecipients(), "BCC", externalRecipientsToNotify, internalUsersToNotify);
         }
 
-        messageRepository.save(msg);
+        msg = messageRepository.save(msg);
 
         // Send real emails to external addresses with 1x1 tracking pixel
         if (!externalRecipientsToNotify.isEmpty() && mailSendService != null) {

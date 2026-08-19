@@ -10,12 +10,14 @@
             <div 
               style="width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.9rem; margin-bottom: 0.5rem; transition: all 0.3s ease;"
               :style="{
-                backgroundColor: step.completed ? 'var(--va-primary)' : (step.active ? 'var(--va-warning)' : 'var(--va-background-border)'),
-                color: step.completed || step.active ? '#ffffff' : 'var(--va-text-secondary)',
+                backgroundColor: step.completed ? 'var(--va-primary)' : (step.rejected ? 'var(--va-danger)' : (step.cancelled ? '#94a3b8' : (step.active ? 'var(--va-warning)' : 'var(--va-background-border)'))),
+                color: step.completed || step.rejected || step.cancelled || step.active ? '#ffffff' : 'var(--va-text-secondary)',
                 boxShadow: step.active ? '0 0 0 4px rgba(235, 130, 60, 0.25)' : 'none'
               }"
             >
               <va-icon v-if="step.completed" name="check" size="small" color="#fff" />
+              <va-icon v-else-if="step.rejected" name="close" size="small" color="#fff" />
+              <va-icon v-else-if="step.cancelled" name="cancel" size="small" color="#fff" />
               <span v-else>{{ idx + 1 }}</span>
             </div>
             <div style="font-size: 0.8rem; font-weight: 600; text-align: center; color: var(--va-text-primary); white-space: nowrap;">
@@ -29,7 +31,9 @@
           <div 
             v-if="idx < stepperSteps.length - 1" 
             style="flex-grow: 1; min-width: 40px; height: 2px; margin: 0 1rem;"
-            :style="{ backgroundColor: idx < currentStepIndex - 0.5 ? 'var(--va-primary)' : 'var(--va-background-border)' }"
+            :style="{ 
+              backgroundColor: stepperSteps[idx + 1]?.completed ? 'var(--va-primary)' : (stepperSteps[idx + 1]?.rejected ? 'var(--va-danger)' : (stepperSteps[idx + 1]?.cancelled ? '#cbd5e1' : (stepperSteps[idx + 1]?.active ? 'var(--va-warning)' : 'var(--va-background-border)')))
+            }"
           />
         </template>
       </div>
@@ -59,34 +63,48 @@ const stepperSteps = computed(() => {
   if (!props.request) return []
   const steps = []
   
-  // 1. Draft step
+  const reqSteps = props.request.steps || []
+  
+  // 1. Draft step: extract drafter name and do NOT duplicate with steps list
+  const draftStep = reqSteps.find(s => s.stepOrder === 0 || s.stepType === 'DRAFT')
+  const requesterName = props.request.requesterName || props.request.requesterUsername || (draftStep ? (draftStep.assigneeName || draftStep.assigneeId) : '')
+
   steps.push({
+    order: 0,
     title: t('draft'),
-    subtitle: props.request.requesterName || props.request.requesterUsername || '',
+    subtitle: requesterName,
+    status: 'COMPLETED',
     completed: true,
+    rejected: false,
+    cancelled: false,
     active: false
   })
 
-  const reqSteps = props.request.steps || []
-  reqSteps.forEach((s) => {
-    const isCompleted = s.status === 'APPROVED' || s.status === 'REJECTED'
-    const isActive = props.request.status === 'PENDING' && s.stepOrder === props.request.currentStepOrder
+  // 2. Only actual approval steps (stepOrder > 0 and stepType !== 'DRAFT')
+  const approvalSteps = reqSteps.filter(s => s.stepOrder > 0 && s.stepType !== 'DRAFT')
+  approvalSteps.sort((a, b) => (a.stepOrder || 0) - (b.stepOrder || 0))
+
+  const isRequestCancelled = props.request.status === 'CANCELLED'
+
+  approvalSteps.forEach((s) => {
+    const isStepApproved = s.status === 'APPROVED'
+    const isStepRejected = s.status === 'REJECTED'
+    const isStepCancelled = s.status === 'CANCELLED' || (isRequestCancelled && s.status !== 'APPROVED')
+    const isStepActive = props.request.status === 'PENDING' && s.stepOrder === props.request.currentStepOrder && s.status === 'PENDING'
+
     steps.push({
+      order: s.stepOrder,
+      stepId: s.id,
       title: s.stepType === 'CONSENSUS' ? t('consensus') : t('approval'),
       subtitle: s.assigneeName || s.assigneeUser?.username || s.assigneeId || '',
-      completed: isCompleted,
-      active: isActive
+      status: s.status,
+      completed: isStepApproved,
+      rejected: isStepRejected,
+      cancelled: isStepCancelled,
+      active: isStepActive
     })
   })
 
   return steps
-})
-
-const currentStepIndex = computed(() => {
-  if (!props.request) return 0
-  if (props.request.status === 'APPROVED' || props.request.status === 'REJECTED') {
-    return (props.request.steps?.length || 0) + 1
-  }
-  return props.request.currentStepOrder || 1
 })
 </script>

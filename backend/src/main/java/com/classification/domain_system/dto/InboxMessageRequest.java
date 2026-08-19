@@ -23,6 +23,8 @@ public class InboxMessageRequest {
     private List<String> bccRecipients;
     private List<UUID> attachmentIds;
     private UUID parentMessageId;
+    private String messageType;
+    private UUID relatedApprovalId;
     
     @com.fasterxml.jackson.annotation.JsonProperty("isDraft")
     private Boolean isDraft;

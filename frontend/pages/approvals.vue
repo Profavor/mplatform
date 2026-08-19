@@ -95,9 +95,10 @@
       </div>
     </va-card>
 
-    <ApprovalsApprovalDetailsModal
+    <ApprovalDetailsModal
       v-model="showDetailsModal"
       :selected-request="selectedRequest"
+      @cancelled="handleApprovalCancelled"
     />
 
     <ApprovalDelegationModal
@@ -115,6 +116,7 @@ import { usePermission } from '~/composables/usePermission'
 import { useUserStore } from '~/stores/useUserStore'
 import { useRoleStore } from '~/stores/useRoleStore'
 import ApprovalDetailsViewer from '~/components/ApprovalDetailsViewer.vue'
+import ApprovalDetailsModal from '~/components/approvals/ApprovalDetailsModal.vue'
 import ApprovalDelegationModal from '~/components/approvals/ApprovalDelegationModal.vue'
 
 const { pageTitle } = usePageTitle('approvals_title', '결재 및 승인 관리')
@@ -141,7 +143,7 @@ const { loadMetadata, enrichRequest } = useApprovalEnricher()
 const { formatMultilingual } = useMultilingual()
 
 const { gridTheme, autoSizeStrategy } = useAgGridTheme()
-
+const { customFetch } = useCustomFetch()
 
 const { init } = useToast()
 const pendingSteps = ref([])
@@ -320,6 +322,13 @@ const handleSingleAction = async (stepId, action) => {
     showActionModal.value = false
   }
 }
+
+const handleApprovalCancelled = async () => {
+  await Promise.all([
+    refreshMyRequests(),
+    refreshPendingRequests()
+  ])
+}
 const myRequests = ref([])
 const commentData = ref({})
 const fieldNameMap = ref({})
@@ -391,9 +400,19 @@ const getMyRequestsColumnDefs = () => [
       eButton.style.color = '#154ec1'
       eButton.style.border = '1px solid #154ec1'
       eButton.style.borderRadius = '4px'
-      eButton.onclick = () => {
+      eButton.onclick = async () => {
         selectedRequest.value = params.data
         showDetailsModal.value = true
+        if (params.data?.id) {
+          try {
+            const fullReq = await customFetch(`/api/approval-requests/${params.data.id}`)
+            if (fullReq) {
+              selectedRequest.value = await enrichRequest(fullReq)
+            }
+          } catch (e) {
+            console.error('Failed to fetch full request details:', e)
+          }
+        }
       }
       eDiv.appendChild(eButton)
       return eDiv
@@ -427,7 +446,7 @@ const fetchDomainRefName = async (uuid, targetDomainId) => {
   if (!uuid || domainRefDisplayMap.value[uuid]) return;
   domainRefDisplayMap.value[uuid] = 'Loading...'; // Placeholder
   try {
-    const rec = await $fetch(`/api/records/${uuid}`, { headers: { Authorization: `Bearer ${token.value}` } }).catch(() => null);
+    const rec = await customFetch(`/api/records/${uuid}`).catch(() => null);
     
     if (!rec) {
       // Maybe it's a user UUID somehow?

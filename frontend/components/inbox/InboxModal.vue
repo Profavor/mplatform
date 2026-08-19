@@ -52,6 +52,7 @@
         :folderCounts="folderCounts"
         @select-folder="onSelectFolder"
         @compose="openCompose"
+        @compose-memo="openComposeMemo"
         class="inbox-sidebar-pane"
       />
       
@@ -123,6 +124,12 @@
       @sent="onMessageSent"
       @drafted="onMessageSent"
     />
+
+    <!-- Memo Approval Compose Modal -->
+    <InboxMemoApprovalModal
+      v-model="showMemoApprovalModal"
+      @submitted="onMemoApprovalSubmitted"
+    />
   </AppModal>
 </template>
 
@@ -134,6 +141,7 @@ import InboxFolderSidebar from '~/components/inbox/InboxFolderSidebar.vue'
 import InboxMessageList from '~/components/inbox/InboxMessageList.vue'
 import InboxMessageDetail from '~/components/inbox/InboxMessageDetail.vue'
 import InboxComposeModal from '~/components/inbox/InboxComposeModal.vue'
+import InboxMemoApprovalModal from '~/components/inbox/InboxMemoApprovalModal.vue'
 import { useInbox, type InboxMessage, type FolderCount } from '~/composables/useInbox'
 
 const props = defineProps<{
@@ -168,7 +176,17 @@ const showDetail = ref(true)
 
 const showDetailModal = ref(false)
 const showComposeModal = ref(false)
+const showMemoApprovalModal = ref(false)
 const composeMode = ref<'compose' | 'reply' | 'replyAll' | 'forward'>('compose')
+
+const openComposeMemo = () => {
+  showMemoApprovalModal.value = true
+}
+
+const onMemoApprovalSubmitted = () => {
+  showMemoApprovalModal.value = false
+  refreshData()
+}
 
 const detailModalTitle = computed(() => {
   return selectedMessage.value?.subject || t('inbox.message_detail_modal', '메시지 상세 조회')

@@ -13,7 +13,8 @@ public enum ApprovalTargetType {
     SCHEMA_FIELD_ADD,
     SCHEMA_FIELD_UPDATE, 
     SCHEMA_FIELD_DELETE,
-    SCHEMA_CHANGE;
+    SCHEMA_CHANGE,
+    MEMO;
 
     /**
      * 스키마 관련 타입인지 확인합니다.

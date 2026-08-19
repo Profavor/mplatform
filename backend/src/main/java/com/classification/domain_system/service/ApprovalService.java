@@ -15,11 +15,13 @@ import com.classification.domain_system.entity.WorkflowConfig;
 import com.classification.domain_system.entity.RecordHistory;
 import com.classification.domain_system.entity.User;
 import com.classification.domain_system.dto.RecordRequest;
+import com.classification.domain_system.dto.MemoApprovalRequest;
 import com.classification.domain_system.entity.enums.ApprovalStatus;
 import com.classification.domain_system.entity.enums.ApprovalTargetType;
 import com.classification.domain_system.entity.enums.RecordStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import lombok.RequiredArgsConstructor;
 
 import com.classification.domain_system.context.AuthContext;
@@ -781,6 +783,98 @@ public class ApprovalService {
             webSocketPublisher.publishApprovalEvent("/topic/approvals/status-changes", payload);
         }
     }
+
+    @Transactional
+    public ApprovalRequest cancelApprovalRequest(UUID requestId, String userId, String reason) {
+        ApprovalRequest approval = approvalRepository.findById(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Approval request not found"));
+
+        // 1. Permission check: Only the requester can cancel their own approval request
+        boolean isRequester = approval.getRequesterId() != null && approval.getRequesterId().equals(userId);
+        if (!isRequester) {
+            throw new CustomAccessDeniedException("Only the requester can cancel their own approval request.");
+        }
+
+        // 2. Status check (must be PENDING)
+        if (!ApprovalStatus.PENDING.name().equalsIgnoreCase(approval.getStatus())) {
+            throw new BusinessException(ErrorCode.STEP_NOT_PENDING, "Only pending approval requests can be cancelled.");
+        }
+
+        // 3. Update status to CANCELLED
+        approval.setStatus(ApprovalStatus.CANCELLED.name());
+        if (StringUtils.hasText(reason)) {
+            approval.setReason(reason);
+        }
+
+        // 4. Update non-approved steps to CANCELLED and record reason
+        List<ApprovalStep> steps = stepRepository.findByApprovalRequestIdOrderByStepOrderAsc(approval.getId());
+        if (steps != null && !steps.isEmpty()) {
+            java.time.LocalDateTime now = java.time.LocalDateTime.now();
+            for (ApprovalStep step : steps) {
+                if (ApprovalStatus.PENDING.name().equals(step.getStatus()) || ApprovalStatus.WAITING.name().equals(step.getStatus())) {
+                    step.setStatus(ApprovalStatus.CANCELLED.name());
+                    step.setUpdatedAt(now);
+                    if (StringUtils.hasText(reason)) {
+                        step.setComment(reason);
+                    }
+                }
+            }
+            stepRepository.saveAllAndFlush(steps);
+            approval.setSteps(steps);
+        }
+
+        approvalRepository.saveAndFlush(approval);
+
+        // 5. Revert target status if needed
+        revertRecordStatusOnCancellation(approval);
+
+        // 6. Notification / Event publishing
+        if (notificationFacade != null) {
+            try {
+                String cancelerName = userRepository.findById(userId).map(User::getUsername).orElse(userId);
+                notificationFacade.processCancellationNotifications(approval, cancelerName);
+                notificationFacade.publishApprovalRequestCancelled(approval, reason);
+            } catch (Exception ignored) {}
+        }
+
+        broadcastCancellationEvent(approval);
+
+        return approval;
+    }
+
+    private void revertRecordStatusOnCancellation(ApprovalRequest approval) {
+        if (ApprovalTargetType.RECORD.name().equals(approval.getTargetType())) {
+            Record record = recordRepository.findById(approval.getTargetId())
+                    .orElse(null);
+            if (record != null) {
+                record.setStatus(ApprovalStatus.CANCELLED.name());
+                recordRepository.saveAndFlush(record);
+            }
+        } else if (ApprovalTargetType.RECORD_UPDATE.name().equals(approval.getTargetType()) || ApprovalTargetType.RECORD_DELETE.name().equals(approval.getTargetType())) {
+            Record record = recordRepository.findById(approval.getTargetId())
+                    .orElse(null);
+            if (record != null) {
+                record.setStatus(RecordStatus.ACTIVE.name());
+                recordRepository.saveAndFlush(record);
+            }
+        } else if (ApprovalTargetType.BATCH_RECORD.name().equals(approval.getTargetType())) {
+            revertRecordStatusOnRejection(approval);
+        }
+    }
+
+    private void broadcastCancellationEvent(ApprovalRequest approval) {
+        if (webSocketPublisher != null) {
+            java.util.Map<String, Object> payload = java.util.Map.of(
+                    "eventType", ApprovalStatus.CANCELLED.name(),
+                    "approvalId", approval.getId(),
+                    "status", ApprovalStatus.CANCELLED.name(),
+                    "targetType", approval.getTargetType() != null ? approval.getTargetType() : "",
+                    "targetId", approval.getTargetId() != null ? approval.getTargetId() : ""
+            );
+            webSocketPublisher.publishApprovalEvent("/topic/approvals/" + approval.getId(), payload);
+            webSocketPublisher.publishApprovalEvent("/topic/approvals/status-changes", payload);
+        }
+    }
     @Transactional(readOnly = true)
     public Page<ApprovalRequest> getPendingRequests(Pageable pageable) {
         return approvalQueryService.getPendingRequests(pageable);
@@ -913,6 +1007,99 @@ public class ApprovalService {
             }
             stepRepository.saveAll(approval.getSteps());
         }
+        notificationFacade.publishApprovalRequestCreated(saved);
+        return saved;
+    }
+
+    @Transactional
+    public ApprovalRequest requestMemoApproval(MemoApprovalRequest request, String requesterId) {
+        if (request == null) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "Request cannot be null");
+        }
+        if (request.getTitle() == null || request.getTitle().isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "Title is required");
+        }
+        if (request.getContent() == null || request.getContent().isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "Content is required");
+        }
+        if (request.getSteps() == null || request.getSteps().isEmpty()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "At least one approval step is required");
+        }
+
+        UUID memoId = UUID.randomUUID();
+        ApprovalRequest approval = new ApprovalRequest();
+        approval.setTargetType(ApprovalTargetType.MEMO.name());
+        approval.setTargetId(memoId);
+        approval.setRequesterId(requesterId);
+        approval.setStatus(ApprovalStatus.PENDING.name());
+
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            Map<String, Object> changesMap = new java.util.HashMap<>();
+            changesMap.put("title", request.getTitle());
+            changesMap.put("content", request.getContent());
+            changesMap.put("comment", request.getComment() != null ? request.getComment() : "");
+            changesMap.put("attachments", request.getAttachments() != null ? request.getAttachments() : java.util.Collections.emptyList());
+            approval.setChanges(mapper.writeValueAsString(changesMap));
+
+            if (request.getObserverIds() != null && !request.getObserverIds().isEmpty()) {
+                approval.setObserverIds(mapper.writeValueAsString(request.getObserverIds()));
+            } else {
+                approval.setObserverIds("[]");
+            }
+        } catch (Exception e) {
+            approval.setChanges("{}");
+            approval.setObserverIds("[]");
+        }
+
+        // Step 0: 기안자 Step (DRAFT / SUBMITTED)
+        ApprovalStep draftStep = new ApprovalStep();
+        draftStep.setApprovalRequest(approval);
+        draftStep.setStepType("DRAFT");
+        draftStep.setAssigneeId(requesterId);
+        draftStep.setStepOrder(0);
+        draftStep.setStatus(ApprovalStatus.SUBMITTED.name());
+        draftStep.setComment(request.getComment() != null ? request.getComment() : "기안 상신");
+        approval.addStep(draftStep);
+
+        // Steps 1..N
+        int minStepOrder = Integer.MAX_VALUE;
+        for (MemoApprovalRequest.MemoStepItem item : request.getSteps()) {
+            ApprovalStep step = new ApprovalStep();
+            step.setApprovalRequest(approval);
+            step.setStepType(item.getStepType() != null && !item.getStepType().isBlank() ? item.getStepType().toUpperCase() : "APPROVAL");
+            step.setAssigneeId(item.getAssigneeId());
+            step.setAssigneeRole(item.getAssigneeRole());
+            int order = item.getStepOrder() != null && item.getStepOrder() > 0 ? item.getStepOrder() : 1;
+            step.setStepOrder(order);
+            if (order < minStepOrder) {
+                minStepOrder = order;
+            }
+            approval.addStep(step);
+        }
+
+        final int initialCurrentOrder = minStepOrder != Integer.MAX_VALUE ? minStepOrder : 1;
+        approval.setCurrentStepOrder(initialCurrentOrder);
+
+        // Initial current order steps should have status PENDING, other steps WAITING
+        for (ApprovalStep s : approval.getSteps()) {
+            if (s.getStepOrder() != null && s.getStepOrder() > 0) {
+                if (s.getStepOrder().equals(initialCurrentOrder)) {
+                    s.setStatus(ApprovalStatus.PENDING.name());
+                } else {
+                    s.setStatus(ApprovalStatus.WAITING.name());
+                }
+            }
+        }
+
+        ApprovalRequest saved = approvalRepository.save(approval);
+        if (approval.getSteps() != null && !approval.getSteps().isEmpty()) {
+            for (ApprovalStep s : approval.getSteps()) {
+                s.setApprovalRequest(saved);
+            }
+            stepRepository.saveAll(approval.getSteps());
+        }
+
         notificationFacade.publishApprovalRequestCreated(saved);
         return saved;
     }

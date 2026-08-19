@@ -1,5 +1,40 @@
 <template>
   <div>
+    <!-- Cancellation / Rejection Reason Banner -->
+    <div
+      v-if="request?.status === 'CANCELLED'"
+      class="approval-status-banner cancel-banner"
+      style="background: rgba(239, 68, 68, 0.08); border-left: 4px solid var(--va-danger); border-radius: 6px; padding: 0.85rem 1rem; margin-bottom: 1.25rem; display: flex; align-items: flex-start; gap: 0.75rem;"
+    >
+      <va-icon name="cancel" color="danger" size="20px" style="margin-top: 2px; flex-shrink: 0;" />
+      <div style="width: 100%;">
+        <div style="font-weight: 700; color: var(--va-danger); font-size: 0.95rem; margin-bottom: 0.25rem;">
+          {{ t('cancellation_notice') }}
+        </div>
+        <div style="font-size: 0.88rem; color: var(--va-text-primary); display: flex; gap: 0.4rem; flex-wrap: wrap;">
+          <span style="font-weight: 600; color: var(--va-danger);">{{ t('cancel_reason') }}:</span>
+          <span>{{ request?.reason || t('no_reason_specified') }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-else-if="request?.status === 'REJECTED' && request?.reason"
+      class="approval-status-banner reject-banner"
+      style="background: rgba(239, 68, 68, 0.08); border-left: 4px solid var(--va-danger); border-radius: 6px; padding: 0.85rem 1rem; margin-bottom: 1.25rem; display: flex; align-items: flex-start; gap: 0.75rem;"
+    >
+      <va-icon name="error" color="danger" size="20px" style="margin-top: 2px; flex-shrink: 0;" />
+      <div style="width: 100%;">
+        <div style="font-weight: 700; color: var(--va-danger); font-size: 0.95rem; margin-bottom: 0.25rem;">
+          {{ t('action_reject') }}
+        </div>
+        <div style="font-size: 0.88rem; color: var(--va-text-primary); display: flex; gap: 0.4rem; flex-wrap: wrap;">
+          <span style="font-weight: 600; color: var(--va-danger);">{{ t('rejection_reason') }}:</span>
+          <span>{{ request?.reason }}</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Data Changes Display (Collapsible Accordion with Silky Smooth CSS Grid Animation) -->
     <div class="accordion-card" style="background-color: var(--va-background-secondary); border-left: 4px solid var(--va-primary); border-radius: 6px; padding: 0.85rem 1rem; margin-bottom: 1.5rem; transition: all 0.25s ease;">
       <div 
@@ -115,6 +150,39 @@
                     </div>
                   </template>
                 </div>
+              </div>
+
+              <!-- Memo Approval Section (For MEMO) -->
+              <div v-else-if="request?.targetType === 'MEMO'" class="memo-approval-card" style="background: var(--va-background-secondary); border-left: 4px solid var(--va-info); border-radius: 8px; padding: 1.25rem; margin-bottom: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; border-bottom: 1px solid var(--va-background-border); padding-bottom: 0.5rem;">
+                  <va-badge color="info" size="large" style="font-weight: bold;">
+                    {{ $t('inbox.type_approval') }}
+                  </va-badge>
+                  <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--va-text-primary);">
+                    {{ getParsedChanges(request?.changes)?.title || $t('inbox.no_subject') }}
+                  </h3>
+                </div>
+                <!-- Attachments if any -->
+                <div v-if="getParsedChanges(request?.changes)?.attachments?.length" style="margin-bottom: 0.75rem;">
+                  <div style="font-size: 0.8rem; font-weight: 600; color: var(--va-text-secondary); margin-bottom: 0.3rem;">
+                    📎 {{ $t('inbox.attachments') }}:
+                  </div>
+                  <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                    <a
+                      v-for="att in getParsedChanges(request?.changes).attachments"
+                      :key="att.fileName"
+                      :href="att.downloadUrl || `/api/files/download/${encodeURIComponent(att.fileName)}`"
+                      target="_blank"
+                      download
+                      style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 4px; background: var(--va-background-element); border: 1px solid var(--va-background-border); font-size: 0.8rem; text-decoration: none; color: var(--va-primary);"
+                    >
+                      <va-icon name="attach_file" size="14px" />
+                      {{ att.fileName }}
+                    </a>
+                  </div>
+                </div>
+                <!-- Body Rich Text -->
+                <div class="memo-html-body" style="padding: 1rem; background: var(--va-background-primary); border: 1px solid var(--va-background-border); border-radius: 6px; line-height: 1.6;" v-html="getParsedChanges(request?.changes)?.content || ''"></div>
               </div>
 
               <!-- Standard Record Approval Section -->
@@ -868,6 +936,9 @@ const formatStepAssignee = (s, req) => {
 
 const loadFieldNamesForRequest = async (req) => {
   if (!req) return;
+  if (req.targetType === 'MEMO') {
+    return;
+  }
   if (req.targetType && req.targetType.startsWith('SCHEMA_')) {
     await loadSchemaDetails(req);
     return;
@@ -927,7 +998,7 @@ const getStepStatusLabel = (s) => {
 
 const fetchDomainRefName = async (uuid, targetDomainId) => {
   if (!uuid || domainRefDisplayMap.value[uuid]) return;
-  if (isSchemaApproval.value || (props.request?.targetType && props.request.targetType.startsWith('SCHEMA_'))) {
+  if (props.request?.targetType === 'MEMO' || isSchemaApproval.value || (props.request?.targetType && props.request.targetType.startsWith('SCHEMA_'))) {
     domainRefDisplayMap.value[uuid] = uuid;
     return;
   }
@@ -1587,12 +1658,13 @@ const getStepperSteps = (req) => {
   
   const isAllApproved = req.status === 'APPROVED';
   const isRejected = req.status === 'REJECTED';
-  const isFinalized = isAllApproved || isRejected;
+  const isCancelled = req.status === 'CANCELLED';
+  const isFinalized = isAllApproved || isRejected || isCancelled;
   
   let systemStatusText = '';
   if (isAllApproved) {
     systemStatusText = t('systemComplete');
-  } else if (isRejected) {
+  } else if (isRejected || isCancelled) {
     systemStatusText = t('systemCancelled');
   } else {
     systemStatusText = t('stepScheduled');

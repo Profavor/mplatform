@@ -307,4 +307,24 @@ public class ApprovalController {
         workflowResolver.enrichUserNames(req);
         return ResponseEntity.ok(req);
     }
+
+    @PostMapping("/memo")
+    public ResponseEntity<ApprovalRequest> requestMemoApproval(
+            @RequestBody @jakarta.validation.Valid com.classification.domain_system.dto.MemoApprovalRequest request) {
+        String requesterId = getAuthenticatedUserId();
+        ApprovalRequest req = approvalService.requestMemoApproval(request, requesterId);
+        workflowResolver.enrichUserNames(req);
+        return ResponseEntity.ok(req);
+    }
+
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<ApprovalRequest> cancelApprovalRequest(
+            @PathVariable UUID id,
+            @RequestBody(required = false) Map<String, String> payload) {
+        String userId = getAuthenticatedUserId();
+        String reason = payload != null ? payload.get("reason") : null;
+        ApprovalRequest req = approvalService.cancelApprovalRequest(id, userId, reason);
+        workflowResolver.enrichUserNames(req);
+        return ResponseEntity.ok(req);
+    }
 }

@@ -277,5 +277,39 @@ class ApprovalControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.totalElements").value(1));
         }
+
+        @Test
+        @DisplayName("requestMemoApproval - 메모 결재 상신 엔드포인트 호출 성공")
+        void requestMemoApproval_Success() throws Exception {
+            when(authContext.getUserId()).thenReturn("user-admin");
+
+            ApprovalRequest mockReq = new ApprovalRequest();
+            mockReq.setId(UUID.randomUUID());
+            mockReq.setTargetType("MEMO");
+            mockReq.setStatus("PENDING");
+            mockReq.setRequesterId("user-admin");
+
+            when(approvalService.requestMemoApproval(any(), eq("user-admin"))).thenReturn(mockReq);
+
+            String requestBody = """
+            {
+                "title": "업무 협조 요청",
+                "content": "<p>협조 부탁드립니다.</p>",
+                "steps": [
+                    { "stepOrder": 1, "stepType": "APPROVAL", "assigneeId": "user-2" }
+                ],
+                "observerIds": ["user-3"]
+            }
+            """;
+
+            mockMvc.perform(post("/api/approval-requests/memo")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(requestBody))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.targetType").value("MEMO"))
+                    .andExpect(jsonPath("$.status").value("PENDING"));
+
+            verify(approvalService).requestMemoApproval(any(), eq("user-admin"));
+        }
     }
 }

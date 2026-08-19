@@ -752,4 +752,108 @@ class ApprovalServiceTest extends BaseServiceTest {
             verify(stepRepository).findMyPendingStepsForRoles(assigneeId, userRoles, "PENDING", pageable);
         }
     }
+
+    @Nested
+    @DisplayName("메모 결재 상신 (requestMemoApproval)")
+    class MemoApproval {
+
+        @Test
+        @DisplayName("성공 - 메모 결재 상신 시 targetType이 MEMO로 지정되고 병렬 결재/합의 스텝이 올바르게 생성된다")
+        void requestMemoApproval_Success() {
+            // given
+            String requesterId = "user-123";
+            com.classification.domain_system.dto.MemoApprovalRequest request = com.classification.domain_system.dto.MemoApprovalRequest.builder()
+                    .title("2026년 하반기 예산 기안")
+                    .content("<p>하반기 예산 계획안을 제출합니다.</p>")
+                    .comment("신속한 검토 부탁드립니다.")
+                    .observerIds(List.of("obs-1", "obs-2"))
+                    .steps(List.of(
+                            // 1차 병렬 합의
+                            com.classification.domain_system.dto.MemoApprovalRequest.MemoStepItem.builder()
+                                    .stepOrder(1)
+                                    .stepType("CONSENSUS")
+                                    .assigneeId("consensus-user-1")
+                                    .build(),
+                            com.classification.domain_system.dto.MemoApprovalRequest.MemoStepItem.builder()
+                                    .stepOrder(1)
+                                    .stepType("CONSENSUS")
+                                    .assigneeId("consensus-user-2")
+                                    .build(),
+                            // 2차 결재
+                            com.classification.domain_system.dto.MemoApprovalRequest.MemoStepItem.builder()
+                                    .stepOrder(2)
+                                    .stepType("APPROVAL")
+                                    .assigneeId("approver-user-1")
+                                    .build()
+                    ))
+                    .build();
+
+            // when
+            ApprovalRequest result = approvalService.requestMemoApproval(request, requesterId);
+
+            // then
+            assertThat(result).isNotNull();
+            assertThat(result.getTargetType()).isEqualTo("MEMO");
+            assertThat(result.getTargetId()).isNotNull();
+            assertThat(result.getRequesterId()).isEqualTo(requesterId);
+            assertThat(result.getStatus()).isEqualTo("PENDING");
+            assertThat(result.getCurrentStepOrder()).isEqualTo(1);
+            assertThat(result.getChanges()).contains("2026년 하반기 예산 기안");
+            assertThat(result.getChanges()).contains("하반기 예산 계획안을 제출합니다.");
+            assertThat(result.getObserverIds()).contains("obs-1").contains("obs-2");
+
+            // Steps 검증: Step 0(DRAFT) + Step 1(CONSENSUS x2) + Step 2(APPROVAL x1) = 총 4개
+            assertThat(result.getSteps()).hasSize(4);
+
+            ApprovalStep draftStep = result.getSteps().stream().filter(s -> s.getStepOrder() == 0).findFirst().orElse(null);
+            assertThat(draftStep).isNotNull();
+            assertThat(draftStep.getStepType()).isEqualTo("DRAFT");
+            assertThat(draftStep.getAssigneeId()).isEqualTo(requesterId);
+            assertThat(draftStep.getStatus()).isEqualTo("SUBMITTED");
+
+            List<ApprovalStep> step1List = result.getSteps().stream().filter(s -> s.getStepOrder() == 1).toList();
+            assertThat(step1List).hasSize(2);
+            assertThat(step1List).allMatch(s -> "CONSENSUS".equals(s.getStepType()) && "PENDING".equals(s.getStatus()));
+
+            List<ApprovalStep> step2List = result.getSteps().stream().filter(s -> s.getStepOrder() == 2).toList();
+            assertThat(step2List).hasSize(1);
+            assertThat(step2List.get(0).getStepType()).isEqualTo("APPROVAL");
+            assertThat(step2List.get(0).getStatus()).isEqualTo("WAITING");
+
+            verify(notificationFacade).publishApprovalRequestCreated(any(ApprovalRequest.class));
+        }
+
+        @Test
+        @DisplayName("실패 - 제목이 없으면 INVALID_INPUT 예외가 발생한다")
+        void requestMemoApproval_MissingTitle_ThrowsException() {
+            com.classification.domain_system.dto.MemoApprovalRequest request = com.classification.domain_system.dto.MemoApprovalRequest.builder()
+                    .title("")
+                    .content("<p>내용</p>")
+                    .steps(List.of(
+                            com.classification.domain_system.dto.MemoApprovalRequest.MemoStepItem.builder()
+                                    .stepOrder(1)
+                                    .assigneeId("user-1")
+                                    .build()
+                    ))
+                    .build();
+
+            assertThatThrownBy(() -> approvalService.requestMemoApproval(request, "requester-1"))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT);
+        }
+
+        @Test
+        @DisplayName("실패 - 결재선이 비어있으면 INVALID_INPUT 예외가 발생한다")
+        void requestMemoApproval_EmptySteps_ThrowsException() {
+            com.classification.domain_system.dto.MemoApprovalRequest request = com.classification.domain_system.dto.MemoApprovalRequest.builder()
+                    .title("제목")
+                    .content("<p>내용</p>")
+                    .steps(Collections.emptyList())
+                    .build();
+
+            assertThatThrownBy(() -> approvalService.requestMemoApproval(request, "requester-1"))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT);
+        }
+    }
 }
