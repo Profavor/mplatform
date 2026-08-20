@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mplatform_mobile/core/storage/storage_service.dart';
 import 'package:mplatform_mobile/core/providers/core_providers.dart';
+import 'package:mplatform_mobile/core/utils/l10n_helper.dart';
 
 class DataProfilingCard extends ConsumerStatefulWidget {
   const DataProfilingCard({super.key});
@@ -27,12 +28,12 @@ class _DataProfilingCardState extends ConsumerState<DataProfilingCard> {
       final dio = ref.read(dioProvider);
 
       // Fetch domains to get an ID
-      final domainRes = await dio.get('/api/v1/domains');
+      final domainRes = await dio.get('/api/domains');
       
       if (domainRes.statusCode == 200 && (domainRes.data as List).isNotEmpty) {
         final domainId = domainRes.data[0]['id'];
         
-        final profRes = await dio.get('/api/v1/domains/$domainId/profiling');
+        final profRes = await dio.get('/api/domains/$domainId/profiling');
         if (profRes.statusCode == 200) {
           if (mounted) {
             setState(() {
@@ -97,6 +98,10 @@ class _DataProfilingCardState extends ConsumerState<DataProfilingCard> {
                   final prof = _profiles[index];
                   final double nullRatio = prof['nullRatio'] ?? 0.0;
                   final Color ratioColor = nullRatio > 0.5 ? Colors.red : (nullRatio > 0.1 ? Colors.orange : Colors.green);
+                  final String rawName = prof['fieldName'] ?? prof['fieldKey'] ?? '';
+                  final String fieldName = L10nHelper.parseLocalizedMap(rawName, context);
+                  final String? fieldKey = prof['fieldKey']?.toString();
+                  final bool showKeyChip = fieldKey != null && fieldKey.isNotEmpty && fieldKey != fieldName;
 
                   return Container(
                     width: 200,
@@ -110,13 +115,39 @@ class _DataProfilingCardState extends ConsumerState<DataProfilingCard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          prof['fieldName'] ?? '',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                fieldName,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Colors.black87),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (showKeyChip) ...[
+                              const SizedBox(width: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: Colors.grey.shade300),
+                                ),
+                                child: Text(
+                                  fieldKey,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey.shade700,
+                                    fontFamily: 'monospace',
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
-                        const Divider(),
+                        const Divider(height: 14),
                         Text('Total: ${prof['totalCount']}', style: const TextStyle(fontSize: 12)),
                         const SizedBox(height: 4),
                         Row(

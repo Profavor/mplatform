@@ -8,9 +8,12 @@ class TimezoneInterceptor extends Interceptor {
 
   @override
   Future<void> onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
-    final tz = await _storageService.getTimezone();
-    final headerValue = (tz.trim().isEmpty) ? 'Asia/Seoul' : tz.trim();
-    options.headers['X-Timezone'] = headerValue;
+    // Only attach X-Timezone header to backend API requests, NEVER to external OIDC endpoints
+    if (!options.path.contains('/protocol/openid-connect') && !options.path.contains('/realms/')) {
+      final tz = await _storageService.getTimezone();
+      final headerValue = (tz.trim().isEmpty) ? 'Asia/Seoul' : tz.trim();
+      options.headers['X-Timezone'] = headerValue;
+    }
     super.onRequest(options, handler);
   }
 }

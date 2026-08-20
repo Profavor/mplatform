@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mobile
+  namespace: mdm-system
+  labels:
+    app: mobile
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mobile
+  template:
+    metadata:
+      labels:
+        app: mobile
+    spec:
+      hostAliases:
+      - ip: "10.103.242.160"
+        hostnames:
+        - "mplatform.local"
+      containers:
+      - name: mobile
+        image: mplatform-mobile:v23
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 80
+          name: http
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 80
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        volumeMounts:
+        - name: app-config
+          mountPath: /usr/share/nginx/html/assets/config.json
+          subPath: config.json
+        - name: app-config
+          mountPath: /usr/share/nginx/html/assets/assets/config.json
+          subPath: config.json
+      volumes:
+      - name: app-config
+        configMap:
+          name: mobile-app-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mobile
+  namespace: mdm-system
+  labels:
+    app: mobile
+spec:
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+  selector:
+    app: mobile

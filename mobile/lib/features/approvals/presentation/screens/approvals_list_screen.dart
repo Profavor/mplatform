@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mplatform_mobile/core/l10n/generated/app_localizations.dart';
 import 'package:mplatform_mobile/core/utils/date_helper.dart';
+import 'package:mplatform_mobile/core/utils/l10n_helper.dart';
 import 'package:mplatform_mobile/core/utils/uuid_formatter.dart';
 import 'package:mplatform_mobile/features/approvals/domain/models/approval_item.dart';
 import 'package:mplatform_mobile/core/providers/core_providers.dart';
@@ -106,6 +107,9 @@ class _ApprovalsListScreenState extends ConsumerState<ApprovalsListScreen> {
     } else if (item.status == 'REJECTED') {
       badgeColor = Colors.redAccent;
       statusText = l10n.statusRejected;
+    } else if (item.status == 'CANCELLED') {
+      badgeColor = Colors.red.shade700;
+      statusText = '상신취소';
     } else {
       badgeColor = Colors.amber.shade800;
       statusText = l10n.pendingApproval;
@@ -133,18 +137,67 @@ class _ApprovalsListScreenState extends ConsumerState<ApprovalsListScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.indigo[50],
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.indigo.shade200),
-                    ),
-                    child: Text(
-                      displayId,
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo, fontSize: 13),
+                  Expanded(
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.indigo[50],
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.indigo.shade200),
+                          ),
+                          child: Text(
+                            displayId,
+                            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo, fontSize: 13),
+                          ),
+                        ),
+                        if (item.domainName != null && item.domainName!.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.blue.shade200),
+                            ),
+                            child: Text(
+                              L10nHelper.parseLocalizedMap(item.domainName, context),
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.blue.shade800),
+                            ),
+                          ),
+                        if (item.idAttribute != null && item.idAttribute!.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.amber.shade300),
+                            ),
+                            child: Text(
+                              item.idAttribute!,
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                            ),
+                          ),
+                        if (item.nameAttribute != null && item.nameAttribute!.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.teal.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.teal.shade200),
+                            ),
+                            child: Text(
+                              L10nHelper.parseLocalizedMap(item.nameAttribute, context),
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.teal.shade800),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
@@ -244,6 +297,15 @@ class _ApprovalsListScreenState extends ConsumerState<ApprovalsListScreen> {
           title: Text(l10n.approvalsTitle),
           backgroundColor: Colors.indigo,
           foregroundColor: Colors.white,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: l10n.refresh,
+              onPressed: () {
+                ref.read(approvalsControllerProvider.notifier).loadApprovals();
+              },
+            ),
+          ],
           bottom: TabBar(
             labelColor: Colors.white,
             unselectedLabelColor: Colors.indigo[200],

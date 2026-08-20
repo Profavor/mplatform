@@ -32,6 +32,12 @@ class RecordsRepository {
     return list.map((e) => FieldDefinition.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  Future<List<FieldDefinition>> getEffectiveNodeFields(String nodeId) async {
+    final response = await _dio.get('/api/nodes/$nodeId/fields/effective');
+    final list = response.data as List<dynamic>;
+    return list.map((e) => FieldDefinition.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
   Future<List<ClassificationNodeModel>> getClassificationTree(String domainId) async {
     final response = await _dio.get('/api/domains/$domainId/nodes/tree');
     final list = response.data as List<dynamic>;

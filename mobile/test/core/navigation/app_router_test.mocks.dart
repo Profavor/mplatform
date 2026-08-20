@@ -3,7 +3,7 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i8;
+import 'dart:async' as _i9;
 
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i17;
@@ -12,19 +12,19 @@ import 'package:mplatform_mobile/features/approvals/data/repositories/approvals_
 import 'package:mplatform_mobile/features/approvals/domain/models/approval_item.dart'
     as _i15;
 import 'package:mplatform_mobile/features/auth/data/repositories/auth_repository.dart'
-    as _i7;
+    as _i8;
 import 'package:mplatform_mobile/features/auth/domain/models/auth_response.dart'
     as _i2;
 import 'package:mplatform_mobile/features/auth/domain/models/user_model.dart'
-    as _i9;
+    as _i3;
 import 'package:mplatform_mobile/features/chat/data/repositories/chat_repository.dart'
     as _i16;
 import 'package:mplatform_mobile/features/chat/data/services/chat_websocket_service.dart'
     as _i18;
 import 'package:mplatform_mobile/features/chat/domain/models/chat_message_model.dart'
-    as _i5;
-import 'package:mplatform_mobile/features/chat/domain/models/chat_room_model.dart'
     as _i6;
+import 'package:mplatform_mobile/features/chat/domain/models/chat_room_model.dart'
+    as _i7;
 import 'package:mplatform_mobile/features/records/data/repositories/records_repository.dart'
     as _i10;
 import 'package:mplatform_mobile/features/records/domain/models/classification_node_model.dart'
@@ -34,9 +34,9 @@ import 'package:mplatform_mobile/features/records/domain/models/domain_model.dar
 import 'package:mplatform_mobile/features/records/domain/models/field_definition.dart'
     as _i12;
 import 'package:mplatform_mobile/features/records/domain/models/record_item.dart'
-    as _i4;
+    as _i5;
 import 'package:mplatform_mobile/features/records/domain/models/records_page_response.dart'
-    as _i3;
+    as _i4;
 import 'package:stomp_dart_client/stomp_dart_client.dart' as _i19;
 
 // ignore_for_file: type=lint
@@ -58,38 +58,43 @@ class _FakeAuthResponse_0 extends _i1.SmartFake implements _i2.AuthResponse {
     : super(parent, parentInvocation);
 }
 
-class _FakeRecordsPageResponse_1 extends _i1.SmartFake
-    implements _i3.RecordsPageResponse {
-  _FakeRecordsPageResponse_1(Object parent, Invocation parentInvocation)
+class _FakeUserModel_1 extends _i1.SmartFake implements _i3.UserModel {
+  _FakeUserModel_1(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
-class _FakeRecordItem_2 extends _i1.SmartFake implements _i4.RecordItem {
-  _FakeRecordItem_2(Object parent, Invocation parentInvocation)
+class _FakeRecordsPageResponse_2 extends _i1.SmartFake
+    implements _i4.RecordsPageResponse {
+  _FakeRecordsPageResponse_2(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
-class _FakeChatMessageModel_3 extends _i1.SmartFake
-    implements _i5.ChatMessageModel {
-  _FakeChatMessageModel_3(Object parent, Invocation parentInvocation)
+class _FakeRecordItem_3 extends _i1.SmartFake implements _i5.RecordItem {
+  _FakeRecordItem_3(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
-class _FakeChatRoomModel_4 extends _i1.SmartFake implements _i6.ChatRoomModel {
-  _FakeChatRoomModel_4(Object parent, Invocation parentInvocation)
+class _FakeChatMessageModel_4 extends _i1.SmartFake
+    implements _i6.ChatMessageModel {
+  _FakeChatMessageModel_4(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
+class _FakeChatRoomModel_5 extends _i1.SmartFake implements _i7.ChatRoomModel {
+  _FakeChatRoomModel_5(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
 /// A class which mocks [AuthRepository].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockAuthRepository extends _i1.Mock implements _i7.AuthRepository {
+class MockAuthRepository extends _i1.Mock implements _i8.AuthRepository {
   MockAuthRepository() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i8.Future<_i2.AuthResponse> login({
+  _i9.Future<_i2.AuthResponse> login({
     required String? username,
     required String? password,
   }) =>
@@ -98,7 +103,7 @@ class MockAuthRepository extends _i1.Mock implements _i7.AuthRepository {
               #username: username,
               #password: password,
             }),
-            returnValue: _i8.Future<_i2.AuthResponse>.value(
+            returnValue: _i9.Future<_i2.AuthResponse>.value(
               _FakeAuthResponse_0(
                 this,
                 Invocation.method(#login, [], {
@@ -108,34 +113,66 @@ class MockAuthRepository extends _i1.Mock implements _i7.AuthRepository {
               ),
             ),
           )
-          as _i8.Future<_i2.AuthResponse>);
+          as _i9.Future<_i2.AuthResponse>);
 
   @override
-  _i8.Future<void> logout() =>
+  _i9.Future<_i3.UserModel> loginWithOidc({
+    required String? authCode,
+    required String? codeVerifier,
+    String? tokenEndpoint =
+        'http://localhost:8081/realms/mplatform/protocol/openid-connect/token',
+    String? clientId = 'mdm-mobile',
+    String? redirectUri = 'mplatform://oauth2redirect',
+  }) =>
       (super.noSuchMethod(
-            Invocation.method(#logout, []),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
-          )
-          as _i8.Future<void>);
-
-  @override
-  _i8.Future<_i9.UserModel?> getCurrentUser() =>
-      (super.noSuchMethod(
-            Invocation.method(#getCurrentUser, []),
-            returnValue: _i8.Future<_i9.UserModel?>.value(),
-          )
-          as _i8.Future<_i9.UserModel?>);
-
-  @override
-  _i8.Future<List<_i9.UserModel>> getUsers() =>
-      (super.noSuchMethod(
-            Invocation.method(#getUsers, []),
-            returnValue: _i8.Future<List<_i9.UserModel>>.value(
-              <_i9.UserModel>[],
+            Invocation.method(#loginWithOidc, [], {
+              #authCode: authCode,
+              #codeVerifier: codeVerifier,
+              #tokenEndpoint: tokenEndpoint,
+              #clientId: clientId,
+              #redirectUri: redirectUri,
+            }),
+            returnValue: _i9.Future<_i3.UserModel>.value(
+              _FakeUserModel_1(
+                this,
+                Invocation.method(#loginWithOidc, [], {
+                  #authCode: authCode,
+                  #codeVerifier: codeVerifier,
+                  #tokenEndpoint: tokenEndpoint,
+                  #clientId: clientId,
+                  #redirectUri: redirectUri,
+                }),
+              ),
             ),
           )
-          as _i8.Future<List<_i9.UserModel>>);
+          as _i9.Future<_i3.UserModel>);
+
+  @override
+  _i9.Future<void> logout() =>
+      (super.noSuchMethod(
+            Invocation.method(#logout, []),
+            returnValue: _i9.Future<void>.value(),
+            returnValueForMissingStub: _i9.Future<void>.value(),
+          )
+          as _i9.Future<void>);
+
+  @override
+  _i9.Future<_i3.UserModel?> getCurrentUser() =>
+      (super.noSuchMethod(
+            Invocation.method(#getCurrentUser, []),
+            returnValue: _i9.Future<_i3.UserModel?>.value(),
+          )
+          as _i9.Future<_i3.UserModel?>);
+
+  @override
+  _i9.Future<List<_i3.UserModel>> getUsers() =>
+      (super.noSuchMethod(
+            Invocation.method(#getUsers, []),
+            returnValue: _i9.Future<List<_i3.UserModel>>.value(
+              <_i3.UserModel>[],
+            ),
+          )
+          as _i9.Future<List<_i3.UserModel>>);
 }
 
 /// A class which mocks [RecordsRepository].
@@ -147,41 +184,53 @@ class MockRecordsRepository extends _i1.Mock implements _i10.RecordsRepository {
   }
 
   @override
-  _i8.Future<List<_i11.DomainModel>> getDomains() =>
+  _i9.Future<List<_i11.DomainModel>> getDomains() =>
       (super.noSuchMethod(
             Invocation.method(#getDomains, []),
-            returnValue: _i8.Future<List<_i11.DomainModel>>.value(
+            returnValue: _i9.Future<List<_i11.DomainModel>>.value(
               <_i11.DomainModel>[],
             ),
           )
-          as _i8.Future<List<_i11.DomainModel>>);
+          as _i9.Future<List<_i11.DomainModel>>);
 
   @override
-  _i8.Future<List<_i12.FieldDefinition>> getFieldDefinitions(
+  _i9.Future<List<_i12.FieldDefinition>> getFieldDefinitions(
     String? domainId,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#getFieldDefinitions, [domainId]),
-            returnValue: _i8.Future<List<_i12.FieldDefinition>>.value(
+            returnValue: _i9.Future<List<_i12.FieldDefinition>>.value(
               <_i12.FieldDefinition>[],
             ),
           )
-          as _i8.Future<List<_i12.FieldDefinition>>);
+          as _i9.Future<List<_i12.FieldDefinition>>);
 
   @override
-  _i8.Future<List<_i13.ClassificationNodeModel>> getClassificationTree(
+  _i9.Future<List<_i12.FieldDefinition>> getEffectiveNodeFields(
+    String? nodeId,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#getEffectiveNodeFields, [nodeId]),
+            returnValue: _i9.Future<List<_i12.FieldDefinition>>.value(
+              <_i12.FieldDefinition>[],
+            ),
+          )
+          as _i9.Future<List<_i12.FieldDefinition>>);
+
+  @override
+  _i9.Future<List<_i13.ClassificationNodeModel>> getClassificationTree(
     String? domainId,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#getClassificationTree, [domainId]),
-            returnValue: _i8.Future<List<_i13.ClassificationNodeModel>>.value(
+            returnValue: _i9.Future<List<_i13.ClassificationNodeModel>>.value(
               <_i13.ClassificationNodeModel>[],
             ),
           )
-          as _i8.Future<List<_i13.ClassificationNodeModel>>);
+          as _i9.Future<List<_i13.ClassificationNodeModel>>);
 
   @override
-  _i8.Future<_i3.RecordsPageResponse> getRecords({
+  _i9.Future<_i4.RecordsPageResponse> getRecords({
     required String? domainId,
     String? nodeId,
     int? page = 0,
@@ -200,8 +249,8 @@ class MockRecordsRepository extends _i1.Mock implements _i10.RecordsRepository {
               #searchFields: searchFields,
               #filters: filters,
             }),
-            returnValue: _i8.Future<_i3.RecordsPageResponse>.value(
-              _FakeRecordsPageResponse_1(
+            returnValue: _i9.Future<_i4.RecordsPageResponse>.value(
+              _FakeRecordsPageResponse_2(
                 this,
                 Invocation.method(#getRecords, [], {
                   #domainId: domainId,
@@ -215,23 +264,23 @@ class MockRecordsRepository extends _i1.Mock implements _i10.RecordsRepository {
               ),
             ),
           )
-          as _i8.Future<_i3.RecordsPageResponse>);
+          as _i9.Future<_i4.RecordsPageResponse>);
 
   @override
-  _i8.Future<_i4.RecordItem> getRecordDetail(String? recordId) =>
+  _i9.Future<_i5.RecordItem> getRecordDetail(String? recordId) =>
       (super.noSuchMethod(
             Invocation.method(#getRecordDetail, [recordId]),
-            returnValue: _i8.Future<_i4.RecordItem>.value(
-              _FakeRecordItem_2(
+            returnValue: _i9.Future<_i5.RecordItem>.value(
+              _FakeRecordItem_3(
                 this,
                 Invocation.method(#getRecordDetail, [recordId]),
               ),
             ),
           )
-          as _i8.Future<_i4.RecordItem>);
+          as _i9.Future<_i5.RecordItem>);
 
   @override
-  _i8.Future<Map<String, String>> decryptRecordFields({
+  _i9.Future<Map<String, String>> decryptRecordFields({
     required String? recordId,
     required List<String>? fieldKeys,
     required String? accessReason,
@@ -242,24 +291,24 @@ class MockRecordsRepository extends _i1.Mock implements _i10.RecordsRepository {
               #fieldKeys: fieldKeys,
               #accessReason: accessReason,
             }),
-            returnValue: _i8.Future<Map<String, String>>.value(
+            returnValue: _i9.Future<Map<String, String>>.value(
               <String, String>{},
             ),
           )
-          as _i8.Future<Map<String, String>>);
+          as _i9.Future<Map<String, String>>);
 
   @override
-  _i8.Future<List<Map<String, dynamic>>> getRecordHistory(String? recordId) =>
+  _i9.Future<List<Map<String, dynamic>>> getRecordHistory(String? recordId) =>
       (super.noSuchMethod(
             Invocation.method(#getRecordHistory, [recordId]),
-            returnValue: _i8.Future<List<Map<String, dynamic>>>.value(
+            returnValue: _i9.Future<List<Map<String, dynamic>>>.value(
               <Map<String, dynamic>>[],
             ),
           )
-          as _i8.Future<List<Map<String, dynamic>>>);
+          as _i9.Future<List<Map<String, dynamic>>>);
 
   @override
-  _i8.Future<Map<String, String>> decryptHistoryFields({
+  _i9.Future<Map<String, String>> decryptHistoryFields({
     required String? historyId,
     required List<String>? fieldKeys,
     required String? accessReason,
@@ -270,11 +319,11 @@ class MockRecordsRepository extends _i1.Mock implements _i10.RecordsRepository {
               #fieldKeys: fieldKeys,
               #accessReason: accessReason,
             }),
-            returnValue: _i8.Future<Map<String, String>>.value(
+            returnValue: _i9.Future<Map<String, String>>.value(
               <String, String>{},
             ),
           )
-          as _i8.Future<Map<String, String>>);
+          as _i9.Future<Map<String, String>>);
 }
 
 /// A class which mocks [ApprovalsRepository].
@@ -287,52 +336,64 @@ class MockApprovalsRepository extends _i1.Mock
   }
 
   @override
-  _i8.Future<List<_i15.ApprovalItem>> getPendingApprovals() =>
+  _i9.Future<List<_i15.ApprovalItem>> getPendingApprovals() =>
       (super.noSuchMethod(
             Invocation.method(#getPendingApprovals, []),
-            returnValue: _i8.Future<List<_i15.ApprovalItem>>.value(
+            returnValue: _i9.Future<List<_i15.ApprovalItem>>.value(
               <_i15.ApprovalItem>[],
             ),
           )
-          as _i8.Future<List<_i15.ApprovalItem>>);
+          as _i9.Future<List<_i15.ApprovalItem>>);
 
   @override
-  _i8.Future<_i15.ApprovalItem?> getApprovalDetail(String? id) =>
+  _i9.Future<_i15.ApprovalItem?> getApprovalDetail(String? id) =>
       (super.noSuchMethod(
             Invocation.method(#getApprovalDetail, [id]),
-            returnValue: _i8.Future<_i15.ApprovalItem?>.value(),
+            returnValue: _i9.Future<_i15.ApprovalItem?>.value(),
           )
-          as _i8.Future<_i15.ApprovalItem?>);
+          as _i9.Future<_i15.ApprovalItem?>);
 
   @override
-  _i8.Future<List<_i15.ApprovalItem>> getMySubmittedApprovals() =>
+  _i9.Future<List<_i15.ApprovalItem>> getMySubmittedApprovals() =>
       (super.noSuchMethod(
             Invocation.method(#getMySubmittedApprovals, []),
-            returnValue: _i8.Future<List<_i15.ApprovalItem>>.value(
+            returnValue: _i9.Future<List<_i15.ApprovalItem>>.value(
               <_i15.ApprovalItem>[],
             ),
           )
-          as _i8.Future<List<_i15.ApprovalItem>>);
+          as _i9.Future<List<_i15.ApprovalItem>>);
 
   @override
-  _i8.Future<bool> approveRequest(String? approvalId, {String? comment}) =>
+  _i9.Future<bool> approveRequest(String? approvalId, {String? comment}) =>
       (super.noSuchMethod(
             Invocation.method(
               #approveRequest,
               [approvalId],
               {#comment: comment},
             ),
-            returnValue: _i8.Future<bool>.value(false),
+            returnValue: _i9.Future<bool>.value(false),
           )
-          as _i8.Future<bool>);
+          as _i9.Future<bool>);
 
   @override
-  _i8.Future<bool> rejectRequest(String? approvalId, {String? reason}) =>
+  _i9.Future<bool> rejectRequest(String? approvalId, {String? reason}) =>
       (super.noSuchMethod(
             Invocation.method(#rejectRequest, [approvalId], {#reason: reason}),
-            returnValue: _i8.Future<bool>.value(false),
+            returnValue: _i9.Future<bool>.value(false),
           )
-          as _i8.Future<bool>);
+          as _i9.Future<bool>);
+
+  @override
+  _i9.Future<bool> cancelApprovalRequest(String? requestId, {String? reason}) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #cancelApprovalRequest,
+              [requestId],
+              {#reason: reason},
+            ),
+            returnValue: _i9.Future<bool>.value(false),
+          )
+          as _i9.Future<bool>);
 }
 
 /// A class which mocks [ChatRepository].
@@ -344,33 +405,33 @@ class MockChatRepository extends _i1.Mock implements _i16.ChatRepository {
   }
 
   @override
-  _i8.Future<List<_i6.ChatRoomModel>> getChatRooms() =>
+  _i9.Future<List<_i7.ChatRoomModel>> getChatRooms() =>
       (super.noSuchMethod(
             Invocation.method(#getChatRooms, []),
-            returnValue: _i8.Future<List<_i6.ChatRoomModel>>.value(
-              <_i6.ChatRoomModel>[],
+            returnValue: _i9.Future<List<_i7.ChatRoomModel>>.value(
+              <_i7.ChatRoomModel>[],
             ),
           )
-          as _i8.Future<List<_i6.ChatRoomModel>>);
+          as _i9.Future<List<_i7.ChatRoomModel>>);
 
   @override
-  _i8.Future<List<String>> getOnlineUsers() =>
+  _i9.Future<List<String>> getOnlineUsers() =>
       (super.noSuchMethod(
             Invocation.method(#getOnlineUsers, []),
-            returnValue: _i8.Future<List<String>>.value(<String>[]),
+            returnValue: _i9.Future<List<String>>.value(<String>[]),
           )
-          as _i8.Future<List<String>>);
+          as _i9.Future<List<String>>);
 
   @override
-  _i8.Future<List<dynamic>> getRoomMembers(String? roomId) =>
+  _i9.Future<List<dynamic>> getRoomMembers(String? roomId) =>
       (super.noSuchMethod(
             Invocation.method(#getRoomMembers, [roomId]),
-            returnValue: _i8.Future<List<dynamic>>.value(<dynamic>[]),
+            returnValue: _i9.Future<List<dynamic>>.value(<dynamic>[]),
           )
-          as _i8.Future<List<dynamic>>);
+          as _i9.Future<List<dynamic>>);
 
   @override
-  _i8.Future<List<_i5.ChatMessageModel>> getMessages(
+  _i9.Future<List<_i6.ChatMessageModel>> getMessages(
     String? roomId, {
     int? page = 0,
     int? size = 30,
@@ -381,14 +442,14 @@ class MockChatRepository extends _i1.Mock implements _i16.ChatRepository {
               [roomId],
               {#page: page, #size: size},
             ),
-            returnValue: _i8.Future<List<_i5.ChatMessageModel>>.value(
-              <_i5.ChatMessageModel>[],
+            returnValue: _i9.Future<List<_i6.ChatMessageModel>>.value(
+              <_i6.ChatMessageModel>[],
             ),
           )
-          as _i8.Future<List<_i5.ChatMessageModel>>);
+          as _i9.Future<List<_i6.ChatMessageModel>>);
 
   @override
-  _i8.Future<_i5.ChatMessageModel> sendMessage(
+  _i9.Future<_i6.ChatMessageModel> sendMessage(
     String? roomId, {
     required String? content,
     String? attachmentUrl,
@@ -414,8 +475,8 @@ class MockChatRepository extends _i1.Mock implements _i16.ChatRepository {
                 #originalName: originalName,
               },
             ),
-            returnValue: _i8.Future<_i5.ChatMessageModel>.value(
-              _FakeChatMessageModel_3(
+            returnValue: _i9.Future<_i6.ChatMessageModel>.value(
+              _FakeChatMessageModel_4(
                 this,
                 Invocation.method(
                   #sendMessage,
@@ -434,10 +495,10 @@ class MockChatRepository extends _i1.Mock implements _i16.ChatRepository {
               ),
             ),
           )
-          as _i8.Future<_i5.ChatMessageModel>);
+          as _i9.Future<_i6.ChatMessageModel>);
 
   @override
-  _i8.Future<_i6.ChatRoomModel> createRoom({
+  _i9.Future<_i7.ChatRoomModel> createRoom({
     required String? title,
     required List<String>? participants,
   }) =>
@@ -446,8 +507,8 @@ class MockChatRepository extends _i1.Mock implements _i16.ChatRepository {
               #title: title,
               #participants: participants,
             }),
-            returnValue: _i8.Future<_i6.ChatRoomModel>.value(
-              _FakeChatRoomModel_4(
+            returnValue: _i9.Future<_i7.ChatRoomModel>.value(
+              _FakeChatRoomModel_5(
                 this,
                 Invocation.method(#createRoom, [], {
                   #title: title,
@@ -456,84 +517,84 @@ class MockChatRepository extends _i1.Mock implements _i16.ChatRepository {
               ),
             ),
           )
-          as _i8.Future<_i6.ChatRoomModel>);
+          as _i9.Future<_i7.ChatRoomModel>);
 
   @override
-  _i8.Future<bool> markRoomAsRead(String? roomId) =>
+  _i9.Future<bool> markRoomAsRead(String? roomId) =>
       (super.noSuchMethod(
             Invocation.method(#markRoomAsRead, [roomId]),
-            returnValue: _i8.Future<bool>.value(false),
+            returnValue: _i9.Future<bool>.value(false),
           )
-          as _i8.Future<bool>);
+          as _i9.Future<bool>);
 
   @override
-  _i8.Future<int> fetchTotalUnreadCount() =>
+  _i9.Future<int> fetchTotalUnreadCount() =>
       (super.noSuchMethod(
             Invocation.method(#fetchTotalUnreadCount, []),
-            returnValue: _i8.Future<int>.value(0),
+            returnValue: _i9.Future<int>.value(0),
           )
-          as _i8.Future<int>);
+          as _i9.Future<int>);
 
   @override
-  _i8.Future<Map<String, dynamic>> uploadFile(
+  _i9.Future<Map<String, dynamic>> uploadFile(
     List<int>? fileBytes,
     String? fileName,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#uploadFile, [fileBytes, fileName]),
-            returnValue: _i8.Future<Map<String, dynamic>>.value(
+            returnValue: _i9.Future<Map<String, dynamic>>.value(
               <String, dynamic>{},
             ),
           )
-          as _i8.Future<Map<String, dynamic>>);
+          as _i9.Future<Map<String, dynamic>>);
 
   @override
-  _i8.Future<String> translateMessage(String? text) =>
+  _i9.Future<String> translateMessage(String? text) =>
       (super.noSuchMethod(
             Invocation.method(#translateMessage, [text]),
-            returnValue: _i8.Future<String>.value(
+            returnValue: _i9.Future<String>.value(
               _i17.dummyValue<String>(
                 this,
                 Invocation.method(#translateMessage, [text]),
               ),
             ),
           )
-          as _i8.Future<String>);
+          as _i9.Future<String>);
 
   @override
-  _i8.Future<bool> deleteMessage(String? messageId) =>
+  _i9.Future<bool> deleteMessage(String? messageId) =>
       (super.noSuchMethod(
             Invocation.method(#deleteMessage, [messageId]),
-            returnValue: _i8.Future<bool>.value(false),
+            returnValue: _i9.Future<bool>.value(false),
           )
-          as _i8.Future<bool>);
+          as _i9.Future<bool>);
 
   @override
-  _i8.Future<bool> leaveRoom(String? roomId) =>
+  _i9.Future<bool> leaveRoom(String? roomId) =>
       (super.noSuchMethod(
             Invocation.method(#leaveRoom, [roomId]),
-            returnValue: _i8.Future<bool>.value(false),
+            returnValue: _i9.Future<bool>.value(false),
           )
-          as _i8.Future<bool>);
+          as _i9.Future<bool>);
 
   @override
-  _i8.Future<bool> deleteRoom(String? roomId) =>
+  _i9.Future<bool> deleteRoom(String? roomId) =>
       (super.noSuchMethod(
             Invocation.method(#deleteRoom, [roomId]),
-            returnValue: _i8.Future<bool>.value(false),
+            returnValue: _i9.Future<bool>.value(false),
           )
-          as _i8.Future<bool>);
+          as _i9.Future<bool>);
 
   @override
-  _i8.Future<bool> delegateCreator(String? roomId, String? newCreatorId) =>
+  _i9.Future<bool> delegateCreator(String? roomId, String? newCreatorId) =>
       (super.noSuchMethod(
             Invocation.method(#delegateCreator, [roomId, newCreatorId]),
-            returnValue: _i8.Future<bool>.value(false),
+            returnValue: _i9.Future<bool>.value(false),
           )
-          as _i8.Future<bool>);
+          as _i9.Future<bool>);
 
   @override
-  _i8.Future<bool> inviteMembers(
+  _i9.Future<bool> inviteMembers(
     String? roomId,
     List<String>? userIds, {
     int? pastMessageHours = 0,
@@ -544,17 +605,17 @@ class MockChatRepository extends _i1.Mock implements _i16.ChatRepository {
               [roomId, userIds],
               {#pastMessageHours: pastMessageHours},
             ),
-            returnValue: _i8.Future<bool>.value(false),
+            returnValue: _i9.Future<bool>.value(false),
           )
-          as _i8.Future<bool>);
+          as _i9.Future<bool>);
 
   @override
-  _i8.Future<bool> kickMember(String? roomId, String? targetUserId) =>
+  _i9.Future<bool> kickMember(String? roomId, String? targetUserId) =>
       (super.noSuchMethod(
             Invocation.method(#kickMember, [roomId, targetUserId]),
-            returnValue: _i8.Future<bool>.value(false),
+            returnValue: _i9.Future<bool>.value(false),
           )
-          as _i8.Future<bool>);
+          as _i9.Future<bool>);
 }
 
 /// A class which mocks [ChatWebSocketService].
@@ -567,36 +628,36 @@ class MockChatWebSocketService extends _i1.Mock
   }
 
   @override
-  _i8.Stream<_i5.ChatMessageModel> get messageStream =>
+  _i9.Stream<_i6.ChatMessageModel> get messageStream =>
       (super.noSuchMethod(
             Invocation.getter(#messageStream),
-            returnValue: _i8.Stream<_i5.ChatMessageModel>.empty(),
+            returnValue: _i9.Stream<_i6.ChatMessageModel>.empty(),
           )
-          as _i8.Stream<_i5.ChatMessageModel>);
+          as _i9.Stream<_i6.ChatMessageModel>);
 
   @override
-  _i8.Stream<String> get roomReadStream =>
+  _i9.Stream<String> get roomReadStream =>
       (super.noSuchMethod(
             Invocation.getter(#roomReadStream),
-            returnValue: _i8.Stream<String>.empty(),
+            returnValue: _i9.Stream<String>.empty(),
           )
-          as _i8.Stream<String>);
+          as _i9.Stream<String>);
 
   @override
-  _i8.Stream<Map<String, dynamic>> get presenceStream =>
+  _i9.Stream<Map<String, dynamic>> get presenceStream =>
       (super.noSuchMethod(
             Invocation.getter(#presenceStream),
-            returnValue: _i8.Stream<Map<String, dynamic>>.empty(),
+            returnValue: _i9.Stream<Map<String, dynamic>>.empty(),
           )
-          as _i8.Stream<Map<String, dynamic>>);
+          as _i9.Stream<Map<String, dynamic>>);
 
   @override
-  _i8.Stream<Map<String, dynamic>> get notificationStream =>
+  _i9.Stream<Map<String, dynamic>> get notificationStream =>
       (super.noSuchMethod(
             Invocation.getter(#notificationStream),
-            returnValue: _i8.Stream<Map<String, dynamic>>.empty(),
+            returnValue: _i9.Stream<Map<String, dynamic>>.empty(),
           )
-          as _i8.Stream<Map<String, dynamic>>);
+          as _i9.Stream<Map<String, dynamic>>);
 
   @override
   bool get isConnected =>
@@ -604,13 +665,13 @@ class MockChatWebSocketService extends _i1.Mock
           as bool);
 
   @override
-  _i8.Future<void> connect() =>
+  _i9.Future<void> connect() =>
       (super.noSuchMethod(
             Invocation.method(#connect, []),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
+            returnValue: _i9.Future<void>.value(),
+            returnValueForMissingStub: _i9.Future<void>.value(),
           )
-          as _i8.Future<void>);
+          as _i9.Future<void>);
 
   @override
   void onConnect(_i19.StompFrame? frame) => super.noSuchMethod(

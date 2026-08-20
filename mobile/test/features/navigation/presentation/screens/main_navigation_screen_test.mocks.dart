@@ -98,6 +98,18 @@ class MockRecordsRepository extends _i1.Mock implements _i6.RecordsRepository {
           as _i7.Future<List<_i9.FieldDefinition>>);
 
   @override
+  _i7.Future<List<_i9.FieldDefinition>> getEffectiveNodeFields(
+    String? nodeId,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#getEffectiveNodeFields, [nodeId]),
+            returnValue: _i7.Future<List<_i9.FieldDefinition>>.value(
+              <_i9.FieldDefinition>[],
+            ),
+          )
+          as _i7.Future<List<_i9.FieldDefinition>>);
+
+  @override
   _i7.Future<List<_i10.ClassificationNodeModel>> getClassificationTree(
     String? domainId,
   ) =>
@@ -259,6 +271,18 @@ class MockApprovalsRepository extends _i1.Mock
   _i7.Future<bool> rejectRequest(String? approvalId, {String? reason}) =>
       (super.noSuchMethod(
             Invocation.method(#rejectRequest, [approvalId], {#reason: reason}),
+            returnValue: _i7.Future<bool>.value(false),
+          )
+          as _i7.Future<bool>);
+
+  @override
+  _i7.Future<bool> cancelApprovalRequest(String? requestId, {String? reason}) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #cancelApprovalRequest,
+              [requestId],
+              {#reason: reason},
+            ),
             returnValue: _i7.Future<bool>.value(false),
           )
           as _i7.Future<bool>);

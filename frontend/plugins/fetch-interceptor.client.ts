@@ -8,7 +8,7 @@ let refreshPromise: Promise<string | null> | null = null
 export default defineNuxtPlugin((nuxtApp) => {
   const config = useRuntimeConfig()
   const accessMaxAge = Number(config.public.accessTokenExpirationSec || 1800)
-  const refreshMaxAge = Number(config.public.refreshTokenExpirationSec || 172800)
+  const refreshMaxAge = Number(config.public.refreshTokenExpirationSec || 86400)
 
   const getCookieValue = (name: string): string | null => {
     if (!process.client) return null

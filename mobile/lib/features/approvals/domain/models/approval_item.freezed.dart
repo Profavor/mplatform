@@ -28,6 +28,11 @@ mixin _$ApprovalItem {
   Map<String, dynamic> get payload => throw _privateConstructorUsedError;
   List<dynamic> get steps => throw _privateConstructorUsedError;
   String? get domainId => throw _privateConstructorUsedError;
+  String? get nodeId => throw _privateConstructorUsedError;
+  String? get domainName => throw _privateConstructorUsedError;
+  String? get idAttribute => throw _privateConstructorUsedError;
+  String? get nameAttribute => throw _privateConstructorUsedError;
+  String? get classificationPath => throw _privateConstructorUsedError;
 
   /// Create a copy of ApprovalItem
   /// with the given fields replaced by the non-null parameter values.
@@ -55,6 +60,11 @@ abstract class $ApprovalItemCopyWith<$Res> {
     Map<String, dynamic> payload,
     List<dynamic> steps,
     String? domainId,
+    String? nodeId,
+    String? domainName,
+    String? idAttribute,
+    String? nameAttribute,
+    String? classificationPath,
   });
 }
 
@@ -84,6 +94,11 @@ class _$ApprovalItemCopyWithImpl<$Res, $Val extends ApprovalItem>
     Object? payload = null,
     Object? steps = null,
     Object? domainId = freezed,
+    Object? nodeId = freezed,
+    Object? domainName = freezed,
+    Object? idAttribute = freezed,
+    Object? nameAttribute = freezed,
+    Object? classificationPath = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -131,6 +146,26 @@ class _$ApprovalItemCopyWithImpl<$Res, $Val extends ApprovalItem>
                 ? _value.domainId
                 : domainId // ignore: cast_nullable_to_non_nullable
                       as String?,
+            nodeId: freezed == nodeId
+                ? _value.nodeId
+                : nodeId // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            domainName: freezed == domainName
+                ? _value.domainName
+                : domainName // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            idAttribute: freezed == idAttribute
+                ? _value.idAttribute
+                : idAttribute // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            nameAttribute: freezed == nameAttribute
+                ? _value.nameAttribute
+                : nameAttribute // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            classificationPath: freezed == classificationPath
+                ? _value.classificationPath
+                : classificationPath // ignore: cast_nullable_to_non_nullable
+                      as String?,
           )
           as $Val,
     );
@@ -158,6 +193,11 @@ abstract class _$$ApprovalItemImplCopyWith<$Res>
     Map<String, dynamic> payload,
     List<dynamic> steps,
     String? domainId,
+    String? nodeId,
+    String? domainName,
+    String? idAttribute,
+    String? nameAttribute,
+    String? classificationPath,
   });
 }
 
@@ -186,6 +226,11 @@ class __$$ApprovalItemImplCopyWithImpl<$Res>
     Object? payload = null,
     Object? steps = null,
     Object? domainId = freezed,
+    Object? nodeId = freezed,
+    Object? domainName = freezed,
+    Object? idAttribute = freezed,
+    Object? nameAttribute = freezed,
+    Object? classificationPath = freezed,
   }) {
     return _then(
       _$ApprovalItemImpl(
@@ -233,6 +278,26 @@ class __$$ApprovalItemImplCopyWithImpl<$Res>
             ? _value.domainId
             : domainId // ignore: cast_nullable_to_non_nullable
                   as String?,
+        nodeId: freezed == nodeId
+            ? _value.nodeId
+            : nodeId // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        domainName: freezed == domainName
+            ? _value.domainName
+            : domainName // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        idAttribute: freezed == idAttribute
+            ? _value.idAttribute
+            : idAttribute // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        nameAttribute: freezed == nameAttribute
+            ? _value.nameAttribute
+            : nameAttribute // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        classificationPath: freezed == classificationPath
+            ? _value.classificationPath
+            : classificationPath // ignore: cast_nullable_to_non_nullable
+                  as String?,
       ),
     );
   }
@@ -253,6 +318,11 @@ class _$ApprovalItemImpl implements _ApprovalItem {
     final Map<String, dynamic> payload = const {},
     final List<dynamic> steps = const [],
     this.domainId,
+    this.nodeId,
+    this.domainName,
+    this.idAttribute,
+    this.nameAttribute,
+    this.classificationPath,
   }) : _payload = payload,
        _steps = steps;
 
@@ -292,10 +362,20 @@ class _$ApprovalItemImpl implements _ApprovalItem {
 
   @override
   final String? domainId;
+  @override
+  final String? nodeId;
+  @override
+  final String? domainName;
+  @override
+  final String? idAttribute;
+  @override
+  final String? nameAttribute;
+  @override
+  final String? classificationPath;
 
   @override
   String toString() {
-    return 'ApprovalItem(approvalId: $approvalId, targetType: $targetType, targetId: $targetId, requester: $requester, status: $status, requestReason: $requestReason, requestDate: $requestDate, reviewedDate: $reviewedDate, payload: $payload, steps: $steps, domainId: $domainId)';
+    return 'ApprovalItem(approvalId: $approvalId, targetType: $targetType, targetId: $targetId, requester: $requester, status: $status, requestReason: $requestReason, requestDate: $requestDate, reviewedDate: $reviewedDate, payload: $payload, steps: $steps, domainId: $domainId, nodeId: $nodeId, domainName: $domainName, idAttribute: $idAttribute, nameAttribute: $nameAttribute, classificationPath: $classificationPath)';
   }
 
   @override
@@ -321,7 +401,16 @@ class _$ApprovalItemImpl implements _ApprovalItem {
             const DeepCollectionEquality().equals(other._payload, _payload) &&
             const DeepCollectionEquality().equals(other._steps, _steps) &&
             (identical(other.domainId, domainId) ||
-                other.domainId == domainId));
+                other.domainId == domainId) &&
+            (identical(other.nodeId, nodeId) || other.nodeId == nodeId) &&
+            (identical(other.domainName, domainName) ||
+                other.domainName == domainName) &&
+            (identical(other.idAttribute, idAttribute) ||
+                other.idAttribute == idAttribute) &&
+            (identical(other.nameAttribute, nameAttribute) ||
+                other.nameAttribute == nameAttribute) &&
+            (identical(other.classificationPath, classificationPath) ||
+                other.classificationPath == classificationPath));
   }
 
   @override
@@ -338,6 +427,11 @@ class _$ApprovalItemImpl implements _ApprovalItem {
     const DeepCollectionEquality().hash(_payload),
     const DeepCollectionEquality().hash(_steps),
     domainId,
+    nodeId,
+    domainName,
+    idAttribute,
+    nameAttribute,
+    classificationPath,
   );
 
   /// Create a copy of ApprovalItem
@@ -362,6 +456,11 @@ abstract class _ApprovalItem implements ApprovalItem {
     final Map<String, dynamic> payload,
     final List<dynamic> steps,
     final String? domainId,
+    final String? nodeId,
+    final String? domainName,
+    final String? idAttribute,
+    final String? nameAttribute,
+    final String? classificationPath,
   }) = _$ApprovalItemImpl;
 
   @override
@@ -386,6 +485,16 @@ abstract class _ApprovalItem implements ApprovalItem {
   List<dynamic> get steps;
   @override
   String? get domainId;
+  @override
+  String? get nodeId;
+  @override
+  String? get domainName;
+  @override
+  String? get idAttribute;
+  @override
+  String? get nameAttribute;
+  @override
+  String? get classificationPath;
 
   /// Create a copy of ApprovalItem
   /// with the given fields replaced by the non-null parameter values.

@@ -952,9 +952,26 @@ class MockStorageService extends _i1.Mock implements _i10.StorageService {
           as _i8.Future<String>);
 
   @override
-  _i8.Future<void> saveTimezone(String? timezone) =>
+  _i8.Future<String?> getOidcVerifier() =>
       (super.noSuchMethod(
-            Invocation.method(#saveTimezone, [timezone]),
+            Invocation.method(#getOidcVerifier, []),
+            returnValue: _i8.Future<String?>.value(),
+          )
+          as _i8.Future<String?>);
+
+  @override
+  _i8.Future<void> saveOidcVerifier(String? verifier) =>
+      (super.noSuchMethod(
+            Invocation.method(#saveOidcVerifier, [verifier]),
+            returnValue: _i8.Future<void>.value(),
+            returnValueForMissingStub: _i8.Future<void>.value(),
+          )
+          as _i8.Future<void>);
+
+  @override
+  _i8.Future<void> deleteOidcVerifier() =>
+      (super.noSuchMethod(
+            Invocation.method(#deleteOidcVerifier, []),
             returnValue: _i8.Future<void>.value(),
             returnValueForMissingStub: _i8.Future<void>.value(),
           )

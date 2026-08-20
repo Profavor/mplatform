@@ -45,6 +45,30 @@ class AuthController extends StateNotifier<AsyncValue<UserModel?>> {
     }
   }
 
+  Future<bool> loginWithOidc({
+    required String authCode,
+    required String codeVerifier,
+    String? tokenEndpoint,
+    String? clientId,
+    String? redirectUri,
+  }) async {
+    state = const AsyncValue.loading();
+    try {
+      final user = await _repository.loginWithOidc(
+        authCode: authCode,
+        codeVerifier: codeVerifier,
+        tokenEndpoint: tokenEndpoint ?? 'http://localhost:8081/realms/mplatform/protocol/openid-connect/token',
+        clientId: clientId ?? 'mdm-mobile',
+        redirectUri: redirectUri ?? 'mplatform://oauth2redirect',
+      );
+      state = AsyncValue.data(user);
+      return true;
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      return false;
+    }
+  }
+
   Future<void> logout() async {
     state = const AsyncValue.loading();
     await _repository.logout();

@@ -59,6 +59,22 @@ class ApprovalsController extends StateNotifier<ApprovalsState> {
       return false;
     }
   }
+
+  Future<bool> cancelApproval(String requestId, {String? reason}) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final success = await _repository.cancelApprovalRequest(requestId, reason: reason);
+      if (success) {
+        await loadApprovals();
+        return true;
+      }
+      state = state.copyWith(isLoading: false, errorMessage: 'Cancellation failed');
+      return false;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      return false;
+    }
+  }
 }
 
 final approvalsControllerProvider = StateNotifierProvider<ApprovalsController, ApprovalsState>((ref) {

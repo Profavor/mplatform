@@ -59,6 +59,34 @@ void main() {
       expect(controller.state.value, equals(mockUser));
     });
 
+    test('loginWithOidc successfully updates state with authenticated UserModel', () async {
+      const mockUser = UserModel(
+        id: '1',
+        username: 'kc_admin',
+        name: 'Keycloak Admin',
+        role: 'ADMIN',
+      );
+      when(mockRepository.getCurrentUser()).thenAnswer((_) async => null);
+      when(mockRepository.loginWithOidc(
+        authCode: 'code_123',
+        codeVerifier: 'verifier_123',
+        tokenEndpoint: anyNamed('tokenEndpoint'),
+        clientId: anyNamed('clientId'),
+        redirectUri: anyNamed('redirectUri'),
+      )).thenAnswer((_) async => mockUser);
+
+      final controller = AuthController(mockRepository);
+      await Future.delayed(const Duration(milliseconds: 20));
+
+      final success = await controller.loginWithOidc(
+        authCode: 'code_123',
+        codeVerifier: 'verifier_123',
+      );
+
+      expect(success, isTrue);
+      expect(controller.state.value, equals(mockUser));
+    });
+
     test('logout clears user state to null', () async {
       when(mockRepository.getCurrentUser()).thenAnswer((_) async => null);
       when(mockRepository.logout()).thenAnswer((_) async => {});

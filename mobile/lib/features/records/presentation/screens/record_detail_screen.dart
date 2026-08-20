@@ -3,6 +3,7 @@ import 'package:mplatform_mobile/core/l10n/generated/app_localizations.dart';
 import 'package:mplatform_mobile/core/utils/date_helper.dart';
 import 'package:mplatform_mobile/core/utils/l10n_helper.dart';
 import 'package:mplatform_mobile/core/utils/uuid_formatter.dart';
+import 'package:mplatform_mobile/core/widgets/file_preview_widget.dart';
 import 'package:mplatform_mobile/features/records/domain/models/field_definition.dart';
 import 'package:mplatform_mobile/features/records/domain/models/record_item.dart';
 
@@ -142,8 +143,9 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
       }
     }
 
-    final sortedFields = List<FieldDefinition>.from(widget.fieldDefinitions)
-      ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
+    final sortedFields = List<FieldDefinition>.from(
+      widget.fieldDefinitions.where((f) => !f.fieldName.toLowerCase().startsWith('_idx_') && !f.fieldName.startsWith('_')),
+    )..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
 
     // Grouping by Sector -> Group -> Fields
     final Map<String, Map<String, List<FieldDefinition>>> groupedFields = {};
@@ -403,14 +405,20 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
                                                               borderRadius: BorderRadius.circular(6),
                                                               border: isDecrypted ? Border.all(color: Colors.deepPurple.shade200) : null,
                                                             ),
-                                                            child: Text(
-                                                              displayVal, 
-                                                              style: TextStyle(
-                                                                fontSize: 13, 
-                                                                color: isDecrypted ? Colors.deepPurple.shade800 : Colors.black87,
-                                                                fontWeight: isDecrypted ? FontWeight.bold : FontWeight.normal,
-                                                              )
-                                                            ),
+                                                            child: isDecrypted
+                                                                ? Text(
+                                                                    displayVal,
+                                                                    style: TextStyle(
+                                                                      fontSize: 13,
+                                                                      color: Colors.deepPurple.shade800,
+                                                                      fontWeight: FontWeight.bold,
+                                                                    ),
+                                                                  )
+                                                                : FilePreviewWidget(
+                                                                    rawValue: originalVal,
+                                                                    fieldType: fDef.fieldType,
+                                                                    fallbackTextStyle: const TextStyle(fontSize: 13, color: Colors.black87),
+                                                                  ),
                                                           ),
                                                         ],
                                                       ),

@@ -22,7 +22,7 @@ jwt:
   secret: ${JWT_SECRET:my-secret-key-that-is-at-least-32-bytes-long}
   expiration: ${JWT_EXPIRATION:86400000}
   access-token-expiration-sec: ${JWT_ACCESS_EXPIRATION_SEC:1800}
-  refresh-token-expiration-sec: ${JWT_REFRESH_EXPIRATION_SEC:172800}
+  refresh-token-expiration-sec: ${JWT_REFRESH_EXPIRATION_SEC:86400}
 
 file:
   upload-dir: ${FILE_UPLOAD_DIR:./uploads}

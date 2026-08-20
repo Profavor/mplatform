@@ -18,6 +18,7 @@ import 'package:mplatform_mobile/features/chat/data/services/chat_websocket_serv
 import 'package:mplatform_mobile/features/chat/presentation/providers/chat_provider.dart';
 import 'package:mplatform_mobile/features/chat/domain/models/chat_message_model.dart';
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mplatform_mobile/features/navigation/presentation/screens/main_navigation_screen.dart';
 import 'package:mplatform_mobile/features/notifications/data/repositories/notifications_repository.dart';
 import 'package:mplatform_mobile/features/notifications/domain/models/notification_item.dart';
@@ -29,7 +30,10 @@ import 'package:mplatform_mobile/features/dashboard/presentation/providers/dashb
 import 'package:mplatform_mobile/features/dashboard/data/models/dashboard_stats_model.dart';
 import 'package:mplatform_mobile/features/dashboard/data/models/dq_trend_item_model.dart';
 import 'package:mplatform_mobile/features/dashboard/data/models/dq_severity_item_model.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mplatform_mobile/features/inbox/data/repositories/inbox_repository.dart';
+import 'package:mplatform_mobile/features/inbox/domain/models/inbox_folder_count_model.dart';
+import 'package:mplatform_mobile/features/inbox/domain/models/inbox_message_model.dart';
+import 'package:mplatform_mobile/features/inbox/presentation/providers/inbox_provider.dart';
 
 import 'app_router_test.mocks.dart';
 
@@ -41,6 +45,17 @@ class _FakeAuthController extends AuthController {
   Future<void> checkAuthStatus() async {
     // No-op for testing to preserve injected state
   }
+}
+
+class FakeInboxRepository implements InboxRepository {
+  @override
+  Future<List<InboxMessageModel>> getMessages({String folder = 'INBOX', int page = 0, int size = 20, String? keyword}) async => [];
+  @override
+  Future<List<InboxFolderCountModel>> getFolderCounts() async => [];
+  @override
+  Future<int> getUnreadCount() async => 0;
+  @override
+  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class FakeNotificationsRepository extends NotificationsRepository {
@@ -103,6 +118,7 @@ void main() {
           chatWebSocketServiceProvider.overrideWithValue(mockChatWs),
           notificationsRepositoryProvider.overrideWithValue(FakeNotificationsRepository()),
           dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository()),
+          inboxRepositoryProvider.overrideWithValue(FakeInboxRepository()),
         ],
         child: Consumer(builder: (context, ref, _) {
           final router = ref.watch(appRouterProvider);
@@ -139,6 +155,7 @@ void main() {
           chatWebSocketServiceProvider.overrideWithValue(mockChatWs),
           notificationsRepositoryProvider.overrideWithValue(FakeNotificationsRepository()),
           dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository()),
+          inboxRepositoryProvider.overrideWithValue(FakeInboxRepository()),
         ],
         child: Consumer(builder: (context, ref, _) {
           final router = ref.watch(appRouterProvider);

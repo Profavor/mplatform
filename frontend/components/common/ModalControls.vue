@@ -12,7 +12,7 @@
       <va-icon
         :name="fullscreen ? 'fullscreen_exit' : 'fullscreen'"
         size="20px"
-        :color="color"
+        :color="color || 'textPrimary'"
       />
     </button>
 
@@ -28,7 +28,7 @@
       <va-icon
         name="close"
         size="20px"
-        :color="color"
+        :color="color || 'textPrimary'"
       />
     </button>
   </div>
@@ -50,13 +50,14 @@ const props = withDefaults(
     fullscreen: false,
     showMaximize: true,
     showClose: true,
-    color: '#ffffff'
+    color: ''
   }
 )
 
 const emit = defineEmits<{
   (e: 'update:fullscreen', val: boolean): void
   (e: 'close'): void
+  (e: 'cancel'): void
 }>()
 
 const toggleFullscreen = () => {
@@ -65,6 +66,7 @@ const toggleFullscreen = () => {
 
 const emitClose = () => {
   emit('close')
+  emit('cancel')
 }
 </script>
 
@@ -86,20 +88,21 @@ const emitClose = () => {
   height: 32px;
   padding: 0;
   margin: 0;
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: var(--va-background-element, rgba(125, 125, 125, 0.08));
+  border: 1px solid var(--va-background-border, rgba(125, 125, 125, 0.2));
   border-radius: 6px;
   cursor: pointer;
-  opacity: 0.9;
+  opacity: 0.85;
   transition: all 0.15s ease;
   outline: none;
-  color: var(--va-text-primary, #ffffff);
+  color: var(--va-text-primary, #333333);
 }
 
 .modal-control-btn:hover {
   opacity: 1;
-  background-color: rgba(255, 255, 255, 0.28);
-  border-color: rgba(255, 255, 255, 0.45);
+  background-color: var(--va-background-secondary, rgba(125, 125, 125, 0.16));
+  border-color: var(--va-primary, #2563eb);
+  color: var(--va-primary, #2563eb);
   transform: translateY(-1px);
 }
 

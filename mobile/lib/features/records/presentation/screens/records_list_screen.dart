@@ -83,6 +83,15 @@ class _RecordsListScreenState extends ConsumerState<RecordsListScreen> {
         elevation: 2,
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: l10n.refresh,
+            onPressed: () {
+              ref.read(recordsControllerProvider.notifier).refresh();
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [

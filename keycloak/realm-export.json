@@ -9,6 +9,14 @@
   "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
   "bruteForceProtected": true,
+  "accessTokenLifespan": 1800,
+  "accessTokenLifespanForImplicitFlow": 1800,
+  "ssoSessionIdleTimeout": 86400,
+  "ssoSessionMaxLifespan": 86400,
+  "clientSessionIdleTimeout": 86400,
+  "clientSessionMaxLifespan": 86400,
+  "offlineSessionIdleTimeout": 86400,
+  "offlineSessionMaxLifespan": 86400,
   "roles": {
     "realm": [
       { "name": "SYSTEM_ADMIN", "description": "System Administrator" },
@@ -52,10 +60,13 @@
       "directAccessGrantsEnabled": true,
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
-      "redirectUris": ["*"],
+      "redirectUris": ["mplatform://oauth2redirect", "http://localhost:*", "*"],
       "webOrigins": ["*"],
       "protocol": "openid-connect",
-      "defaultClientScopes": ["openid", "profile", "email", "roles"]
+      "defaultClientScopes": ["openid", "profile", "email", "roles"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
     }
   ],
   "users": [

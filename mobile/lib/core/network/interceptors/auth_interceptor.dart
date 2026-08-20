@@ -11,9 +11,11 @@ class AuthInterceptor extends Interceptor {
 
   @override
   Future<void> onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
-    final token = await _storageService.getAccessToken();
-    if (token != null && token.isNotEmpty) {
-      options.headers['Authorization'] = 'Bearer $token';
+    if (!options.path.contains('/protocol/openid-connect') && !options.path.contains('/realms/')) {
+      final token = await _storageService.getAccessToken();
+      if (token != null && token.isNotEmpty) {
+        options.headers['Authorization'] = 'Bearer $token';
+      }
     }
     super.onRequest(options, handler);
   }

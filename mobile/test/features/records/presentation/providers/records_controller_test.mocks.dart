@@ -73,6 +73,18 @@ class MockRecordsRepository extends _i1.Mock implements _i4.RecordsRepository {
           as _i5.Future<List<_i7.FieldDefinition>>);
 
   @override
+  _i5.Future<List<_i7.FieldDefinition>> getEffectiveNodeFields(
+    String? nodeId,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#getEffectiveNodeFields, [nodeId]),
+            returnValue: _i5.Future<List<_i7.FieldDefinition>>.value(
+              <_i7.FieldDefinition>[],
+            ),
+          )
+          as _i5.Future<List<_i7.FieldDefinition>>);
+
+  @override
   _i5.Future<List<_i8.ClassificationNodeModel>> getClassificationTree(
     String? domainId,
   ) =>

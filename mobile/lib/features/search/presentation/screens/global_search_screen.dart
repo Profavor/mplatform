@@ -33,33 +33,34 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
     });
 
     try {
-      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:8080')); // Use global dio provider in real app
-      // Assuming a provider exists, we instantiate locally for simplicity, but best to inject
-      final storage = ref.read(storageServiceProvider);
-      final token = await storage.getAccessToken();
-      
+      final dio = ref.read(dioProvider);
       final response = await dio.get(
         '/api/v1/search',
         queryParameters: {'q': query, 'size': 10},
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 && response.data != null) {
+        final dynamic data = response.data;
+        final content = data is Map ? (data['content'] as List<dynamic>? ?? []) : (data is List ? data : []);
         setState(() {
-          _results = response.data['content'] as List<dynamic>;
+          _results = content;
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Search failed')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Search failed')),
+        );
+      }
       setState(() {
         _results = [];
       });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

@@ -80,7 +80,9 @@ export function useCustomFetch(urlOrOptions?: any, options?: any): any {
       const rawRes = await $fetch<any>(normalizedUrl, prepared)
       return wrapResponse(rawRes) as T
     } catch (err: any) {
-      handleError(err)
+      if (!opts?.silent) {
+        handleError(err)
+      }
       throw err
     }
   }

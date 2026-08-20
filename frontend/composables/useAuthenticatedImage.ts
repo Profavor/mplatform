@@ -46,7 +46,8 @@ export const useAuthenticatedImage = () => {
     const fetchPromise = (async () => {
       try {
         const response: any = await customFetch(url, {
-          responseType: 'blob'
+          responseType: 'blob',
+          silent: true
         })
 
         if (response instanceof Blob) {
@@ -57,7 +58,7 @@ export const useAuthenticatedImage = () => {
         }
         return TRANSPARENT_PIXEL
       } catch (error) {
-        console.error('Failed to load authenticated image blob for:', url, error)
+        // Silent catch for missing local files (404)
         return TRANSPARENT_PIXEL
       } finally {
         pendingPromises.delete(url)
@@ -76,23 +77,29 @@ export const useAuthenticatedImage = () => {
       return html || ''
     }
 
-    const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi
-    const matches: { fullTag: string; src: string }[] = []
+    const imgRegex = /<img\b([^>]*?)src=(["'])(.*?)\2([^>]*?)>/gi
+    const matches: { fullTag: string; prefix: string; src: string; suffix: string }[] = []
     let match
 
     while ((match = imgRegex.exec(html)) !== null) {
-      if (match[1] && match[1].includes('/api/files/download')) {
-        matches.push({ fullTag: match[0], src: match[1] })
+      const src = match[3]
+      if (src && src.includes('/api/files/download')) {
+        matches.push({ fullTag: match[0], prefix: match[1], src, suffix: match[4] })
       }
     }
 
     if (matches.length === 0) return html
 
     let transformedHtml = html
-    for (const { src } of matches) {
-      const blobUrl = await getAuthenticatedImageUrl(src)
-      if (blobUrl && blobUrl !== src) {
-        transformedHtml = transformedHtml.split(src).join(blobUrl)
+    for (const { fullTag, prefix, src, suffix } of matches) {
+      const cleanSrc = src.replace(/&amp;/g, '&')
+      const blobUrl = await getAuthenticatedImageUrl(cleanSrc)
+      if (blobUrl && blobUrl !== TRANSPARENT_PIXEL) {
+        const newTag = `<img ${prefix}src="${blobUrl}"${suffix}>`
+        transformedHtml = transformedHtml.replace(fullTag, newTag)
+      } else {
+        const newTag = `<img ${prefix}src="${cleanSrc}" onerror="this.onerror=null; this.style.display='none';"${suffix}>`
+        transformedHtml = transformedHtml.replace(fullTag, newTag)
       }
     }
 

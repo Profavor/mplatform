@@ -57,6 +57,17 @@ Object? _readOptions(Map<dynamic, dynamic> json, String key) {
   return [];
 }
 
+Object? _readRawOptions(Map<dynamic, dynamic> json, String key) {
+  final val = json['options'];
+  if (val is String) return val;
+  if (val != null) {
+    try {
+      return jsonEncode(val);
+    } catch (_) {}
+  }
+  return null;
+}
+
 Object? _readLocalizedGroup(Map<dynamic, dynamic> json, String key) {
   if (json['fieldGroup'] != null && json['fieldGroup'] is Map) {
     return json['fieldGroup']['name'];
@@ -84,9 +95,10 @@ class FieldDefinition with _$FieldDefinition {
     @Default(false) bool required,
     @JsonKey(readValue: _readShowInList) @Default(false) bool showInList,
     @JsonKey(readValue: _readOptions) @Default([]) List<String> options,
+    @JsonKey(readValue: _readRawOptions) String? rawOptions,
     @JsonKey(readValue: _readDisplayOrder) @Default(0) int displayOrder,
     @JsonKey(readValue: _readIsEncrypted) @Default(false) bool isEncrypted,
-    @JsonKey(readValue: _readMaskingPattern) String? maskingPattern,
+    String? maskingPattern,
     @JsonKey(readValue: _readLocalizedGroup, fromJson: _parseLocalizedName) @Default('') String groupName,
     @JsonKey(readValue: _readLocalizedSector, fromJson: _parseLocalizedName) @Default('') String sectorName,
   }) = _FieldDefinition;

@@ -120,7 +120,7 @@ export default defineNuxtConfig({
       apiBaseUrl: process.env.API_BASE_URL || process.env.NUXT_PUBLIC_API_BASE_URL || process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8080',
       agGridLicense: process.env.AG_GRID_LICENSE,
       accessTokenExpirationSec: Number(process.env.JWT_ACCESS_EXPIRATION_SEC || 1800),
-      refreshTokenExpirationSec: Number(process.env.JWT_REFRESH_EXPIRATION_SEC || 172800)
+      refreshTokenExpirationSec: Number(process.env.JWT_REFRESH_EXPIRATION_SEC || 86400)
     }
   },
   routeRules: (() => {

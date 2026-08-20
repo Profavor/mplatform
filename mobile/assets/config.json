@@ -1,0 +1,6 @@
+{
+  "issuer": "http://localhost:8081/realms/mplatform",
+  "apiBaseUrl": "http://localhost:8080",
+  "clientId": "mdm-mobile",
+  "redirectUri": "http://localhost:5000"
+}
