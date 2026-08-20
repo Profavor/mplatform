@@ -12,7 +12,7 @@ import java.util.List;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
-@ActiveProfiles("prod")
+@ActiveProfiles("test")
 @Transactional
 class MemoApprovalIntegrationTest {
 
