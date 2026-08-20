@@ -43,19 +43,6 @@
         </div>
         <HtmlEditor v-model="formData.content" :placeholder="$t('inbox.body_placeholder')" />
       </div>
-
-      <!-- Optional Drafter Comment Input -->
-      <div class="form-row">
-        <va-input
-          v-model="formData.comment"
-          :placeholder="$t('inbox.approval_comment')"
-          class="comment-input"
-        >
-          <template #prependInner>
-            <span class="field-label-tag">{{ $t('inbox.approval_comment') }}</span>
-          </template>
-        </va-input>
-      </div>
     </div>
 
     <template #footer>
@@ -72,12 +59,20 @@
           icon="send"
           :loading="isSubmitting"
           :disabled="!isFormValid || isSubmitting"
-          @click="submitApproval"
+          @click="openCommentModal"
         >
           {{ $t('inbox.submit_approval') }}
         </va-button>
       </div>
     </template>
+
+    <!-- Submission Comment Modal (공통 결재 상신 의견 모달) -->
+    <SubmissionCommentModal
+      v-model="showDraftCommentModal"
+      v-model:comment="formData.comment"
+      @submit="executeSubmitApproval"
+      @cancel="showDraftCommentModal = false"
+    />
   </AppModal>
 </template>
 
@@ -87,6 +82,7 @@ import { useI18n } from 'vue-i18n'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import AppModal from '~/components/common/AppModal.vue'
 import HtmlEditor from '~/components/common/HtmlEditor.vue'
+import SubmissionCommentModal from '~/components/SubmissionCommentModal.vue'
 import InboxAttachmentUploader, { type AttachedFileItem } from './InboxAttachmentUploader.vue'
 import ApprovalRouteBuilder, { type RouteStepItem } from './ApprovalRouteBuilder.vue'
 import { useToast } from 'vuestic-ui'
@@ -107,6 +103,7 @@ const { init } = useToast()
 const uploaderRef = ref<InstanceType<typeof InboxAttachmentUploader> | null>(null)
 const attachedFiles = ref<AttachedFileItem[]>([])
 const isSubmitting = ref(false)
+const showDraftCommentModal = ref(false)
 
 const formData = ref({
   title: '',
@@ -137,12 +134,11 @@ watch(() => props.modelValue, (newVal) => {
       comment: ''
     }
     attachedFiles.value = []
+    showDraftCommentModal.value = false
   }
 })
 
-const submitApproval = async () => {
-  if (isSubmitting.value) return
-
+const openCommentModal = () => {
   const cleanTitle = formData.value.title?.trim()
   if (!cleanTitle) {
     init({ message: t('inbox.subject_required'), color: 'warning' })
@@ -160,6 +156,16 @@ const submitApproval = async () => {
     init({ message: t('inbox.approval_line_empty'), color: 'warning' })
     return
   }
+
+  showDraftCommentModal.value = true
+}
+
+const executeSubmitApproval = async (commentText?: string) => {
+  if (isSubmitting.value) return
+
+  const cleanTitle = formData.value.title?.trim()
+  const cleanContent = formData.value.content?.trim()
+  const validSteps = (routeData.value.steps || []).filter(s => s.assigneeId && s.assigneeId.trim().length > 0)
 
   isSubmitting.value = true
   try {
@@ -188,7 +194,7 @@ const submitApproval = async () => {
     const payload = {
       title: cleanTitle,
       content: cleanContent,
-      comment: formData.value.comment?.trim() || '',
+      comment: (typeof commentText === 'string' ? commentText : formData.value.comment)?.trim() || '',
       steps: validSteps.map(s => ({
         stepOrder: s.stepOrder,
         stepType: s.stepType,
@@ -205,6 +211,7 @@ const submitApproval = async () => {
     })
 
     init({ message: t('inbox.submit_approval_success'), color: 'success' })
+    showDraftCommentModal.value = false
     emit('submitted')
     emit('update:modelValue', false)
   } catch (e: any) {
@@ -230,8 +237,7 @@ const submitApproval = async () => {
   width: 100%;
 }
 
-.title-input,
-.comment-input {
+.title-input {
   width: 100%;
 }
 

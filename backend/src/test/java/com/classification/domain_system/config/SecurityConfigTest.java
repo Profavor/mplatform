@@ -40,7 +40,7 @@ class SecurityConfigTest {
 
         assertThat(config).isNotNull();
         List<String> allowedOrigins = config.getAllowedOriginPatterns();
-        assertThat(allowedOrigins).containsExactly("http://localhost:3000", "http://localhost:8080", "http://localhost:9090", "http://127.0.0.1:9090", "http://127.0.0.1:*");
+        assertThat(allowedOrigins).containsExactly("http://localhost:3000", "http://localhost:8080", "http://localhost:9090", "http://127.0.0.1:9090", "http://localhost:*", "http://127.0.0.1:*");
         assertThat(config.getAllowCredentials()).isTrue();
     }
 }

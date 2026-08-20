@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:mplatform_mobile/core/config/app_config.dart';
 import 'package:mplatform_mobile/core/network/api_client.dart';
 import 'package:mplatform_mobile/core/network/interceptors/auth_interceptor.dart';
 import 'package:mplatform_mobile/core/network/interceptors/timezone_interceptor.dart';
@@ -29,8 +30,9 @@ final timezoneInterceptorProvider = Provider<TimezoneInterceptor>((ref) {
 });
 
 final tokenRefreshDioProvider = Provider<Dio>((ref) {
+  final appConfig = ref.watch(appConfigProvider);
   return Dio(BaseOptions(
-    baseUrl: getDefaultBaseUrl(),
+    baseUrl: appConfig.apiBaseUrl,
     connectTimeout: const Duration(seconds: 15),
     receiveTimeout: const Duration(seconds: 15),
     headers: {'Content-Type': 'application/json'},
@@ -54,9 +56,11 @@ final authInterceptorProvider = Provider<AuthInterceptor>((ref) {
 final apiClientProvider = Provider<ApiClient>((ref) {
   final authInterceptor = ref.watch(authInterceptorProvider);
   final timezoneInterceptor = ref.watch(timezoneInterceptorProvider);
+  final appConfig = ref.watch(appConfigProvider);
   return ApiClient(
     authInterceptor: authInterceptor,
     timezoneInterceptor: timezoneInterceptor,
+    baseUrl: appConfig.apiBaseUrl,
   );
 });
 

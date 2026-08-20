@@ -24,7 +24,7 @@ vi.mock('~/composables/useCustomFetch', () => ({
         }
       })
     }
-    if (url.includes('/admin/users')) {
+    if (url.includes('/users')) {
       return Promise.resolve({
         data: {
           value: [

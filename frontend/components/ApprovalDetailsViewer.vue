@@ -169,20 +169,19 @@
                   </div>
                   <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
                     <a
-                      v-for="att in getParsedChanges(request?.changes).attachments"
-                      :key="att.fileName"
-                      :href="att.downloadUrl || `/api/files/download/${encodeURIComponent(att.fileName)}`"
-                      target="_blank"
-                      download
-                      style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 4px; background: var(--va-background-element); border: 1px solid var(--va-background-border); font-size: 0.8rem; text-decoration: none; color: var(--va-primary);"
+                      v-for="(att, attIdx) in getParsedChanges(request?.changes).attachments"
+                      :key="attIdx"
+                      href="#"
+                      @click.prevent="downloadFileWithAuth(getAttachmentUrl(att), getAttachmentName(att))"
+                      style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 4px; background: var(--va-background-element); border: 1px solid var(--va-background-border); font-size: 0.8rem; text-decoration: none; color: var(--va-primary); cursor: pointer;"
                     >
                       <va-icon name="attach_file" size="14px" />
-                      {{ att.fileName }}
+                      {{ getAttachmentName(att) }}
                     </a>
                   </div>
                 </div>
                 <!-- Body Rich Text -->
-                <div class="memo-html-body" style="padding: 1rem; background: var(--va-background-primary); border: 1px solid var(--va-background-border); border-radius: 6px; line-height: 1.6;" v-html="getParsedChanges(request?.changes)?.content || ''"></div>
+                <div class="memo-html-body" style="padding: 1rem; background: var(--va-background-primary); border: 1px solid var(--va-background-border); border-radius: 6px; line-height: 1.6;" v-html="memoTransformedContent || getParsedChanges(request?.changes)?.content || ''"></div>
               </div>
 
               <!-- Standard Record Approval Section -->
@@ -420,31 +419,17 @@ import UnmaskReasonModal from './UnmaskReasonModal.vue'
 import ImageUploader from './common/ImageUploader.vue'
 import { useToast } from 'vuestic-ui'
 import { useCustomFetch } from '~/composables/useCustomFetch'
+import { useAuthenticatedImage } from '~/composables/useAuthenticatedImage'
 const { t } = useI18n()
 const { init } = useToast()
 const { customFetch } = useCustomFetch()
+const { transformHtmlImagesToBlob } = useAuthenticatedImage()
 
 const showUnmaskReasonModal = ref(false)
 const pendingDecryptField = ref(null)
+const memoTransformedContent = ref('')
 
 const isRequestedDataExpanded = ref(true)
-
-const props = defineProps({
-  request: {
-    type: Object,
-    required: true
-  }
-})
-
-const currentLocale = useCookie('locale', { default: () => 'ko' })
-const { downloadFileWithAuth } = useFileDownloader()
-const fieldNameMap = ref({})
-const domainRefDisplayMap = ref({})
-
-const schemaDomainName = ref('')
-const schemaNodeName = ref('')
-const schemaGroupNameMap = ref({})
-const schemaExistingField = ref(null)
 
 const getParsedChanges = (changesString) => {
   if (!changesString) return null
@@ -460,6 +445,49 @@ const getParsedChanges = (changesString) => {
     return null
   }
 }
+
+const props = defineProps({
+  request: {
+    type: Object,
+    required: true
+  }
+})
+
+watch(() => props.request, async (newReq) => {
+  if (newReq?.targetType === 'MEMO') {
+    const rawContent = getParsedChanges(newReq.changes)?.content || ''
+    try {
+      memoTransformedContent.value = await transformHtmlImagesToBlob(rawContent)
+    } catch (e) {
+      memoTransformedContent.value = rawContent
+    }
+  }
+}, { immediate: true, deep: true })
+
+const currentLocale = useCookie('locale', { default: () => 'ko' })
+const { downloadFileWithAuth } = useFileDownloader()
+
+const getAttachmentUrl = (att) => {
+  if (!att) return ''
+  if (typeof att === 'string') return att
+  return att.url || att.downloadUrl || (att.filePath ? `/api/files/download/${encodeURIComponent(att.filePath)}` : `/api/files/download/${encodeURIComponent(att.fileName || 'file')}`)
+}
+
+const getAttachmentName = (att) => {
+  if (!att) return 'attachment'
+  if (typeof att === 'string') {
+    return att.includes('?name=') ? decodeURIComponent(att.split('?name=')[1].split('&')[0]) : (att.split('/').pop() || 'attachment')
+  }
+  return att.fileName || att.name || 'attachment'
+}
+
+const fieldNameMap = ref({})
+const domainRefDisplayMap = ref({})
+
+const schemaDomainName = ref('')
+const schemaNodeName = ref('')
+const schemaGroupNameMap = ref({})
+const schemaExistingField = ref(null)
 
 const isSchemaApproval = computed(() => {
   return props.request?.targetType && props.request.targetType.startsWith('SCHEMA_')

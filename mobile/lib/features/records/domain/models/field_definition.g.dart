@@ -20,9 +20,10 @@ _$FieldDefinitionImpl _$$FieldDefinitionImplFromJson(
           ?.map((e) => e as String)
           .toList() ??
       const [],
+  rawOptions: _readRawOptions(json, 'rawOptions') as String?,
   displayOrder: (_readDisplayOrder(json, 'displayOrder') as num?)?.toInt() ?? 0,
   isEncrypted: _readIsEncrypted(json, 'isEncrypted') as bool? ?? false,
-  maskingPattern: _readMaskingPattern(json, 'maskingPattern') as String?,
+  maskingPattern: json['maskingPattern'] as String?,
   groupName: _readLocalizedGroup(json, 'groupName') == null
       ? ''
       : _parseLocalizedName(_readLocalizedGroup(json, 'groupName')),
@@ -41,6 +42,7 @@ Map<String, dynamic> _$$FieldDefinitionImplToJson(
   'required': instance.required,
   'showInList': instance.showInList,
   'options': instance.options,
+  'rawOptions': instance.rawOptions,
   'displayOrder': instance.displayOrder,
   'isEncrypted': instance.isEncrypted,
   'maskingPattern': instance.maskingPattern,

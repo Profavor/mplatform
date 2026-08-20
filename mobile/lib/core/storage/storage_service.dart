@@ -4,5 +4,7 @@ abstract class StorageService {
   Future<void> saveTokens({required String accessToken, required String refreshToken});
   Future<void> deleteTokens();
   Future<String> getTimezone();
-  Future<void> saveTimezone(String timezone);
+  Future<String?> getOidcVerifier();
+  Future<void> saveOidcVerifier(String verifier);
+  Future<void> deleteOidcVerifier();
 }

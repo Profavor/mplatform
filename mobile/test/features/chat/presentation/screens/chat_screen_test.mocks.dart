@@ -9,13 +9,10 @@ import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i6;
 import 'package:mplatform_mobile/features/chat/data/repositories/chat_repository.dart'
     as _i4;
-import 'package:mplatform_mobile/features/chat/data/services/chat_websocket_service.dart'
-    as _i7;
 import 'package:mplatform_mobile/features/chat/domain/models/chat_message_model.dart'
     as _i2;
 import 'package:mplatform_mobile/features/chat/domain/models/chat_room_model.dart'
     as _i3;
-import 'package:stomp_dart_client/stomp_dart_client.dart' as _i8;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -262,90 +259,4 @@ class MockChatRepository extends _i1.Mock implements _i4.ChatRepository {
             returnValue: _i5.Future<bool>.value(false),
           )
           as _i5.Future<bool>);
-}
-
-/// A class which mocks [ChatWebSocketService].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockChatWebSocketService extends _i1.Mock
-    implements _i7.ChatWebSocketService {
-  MockChatWebSocketService() {
-    _i1.throwOnMissingStub(this);
-  }
-
-  @override
-  _i5.Stream<_i2.ChatMessageModel> get messageStream =>
-      (super.noSuchMethod(
-            Invocation.getter(#messageStream),
-            returnValue: _i5.Stream<_i2.ChatMessageModel>.empty(),
-          )
-          as _i5.Stream<_i2.ChatMessageModel>);
-
-  @override
-  _i5.Stream<String> get roomReadStream =>
-      (super.noSuchMethod(
-            Invocation.getter(#roomReadStream),
-            returnValue: _i5.Stream<String>.empty(),
-          )
-          as _i5.Stream<String>);
-
-  @override
-  _i5.Stream<Map<String, dynamic>> get presenceStream =>
-      (super.noSuchMethod(
-            Invocation.getter(#presenceStream),
-            returnValue: _i5.Stream<Map<String, dynamic>>.empty(),
-          )
-          as _i5.Stream<Map<String, dynamic>>);
-
-  @override
-  _i5.Stream<Map<String, dynamic>> get notificationStream =>
-      (super.noSuchMethod(
-            Invocation.getter(#notificationStream),
-            returnValue: _i5.Stream<Map<String, dynamic>>.empty(),
-          )
-          as _i5.Stream<Map<String, dynamic>>);
-
-  @override
-  bool get isConnected =>
-      (super.noSuchMethod(Invocation.getter(#isConnected), returnValue: false)
-          as bool);
-
-  @override
-  _i5.Future<void> connect() =>
-      (super.noSuchMethod(
-            Invocation.method(#connect, []),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
-          )
-          as _i5.Future<void>);
-
-  @override
-  void onConnect(_i8.StompFrame? frame) => super.noSuchMethod(
-    Invocation.method(#onConnect, [frame]),
-    returnValueForMissingStub: null,
-  );
-
-  @override
-  void subscribeToRoom(String? roomId) => super.noSuchMethod(
-    Invocation.method(#subscribeToRoom, [roomId]),
-    returnValueForMissingStub: null,
-  );
-
-  @override
-  void unsubscribeFromRoom() => super.noSuchMethod(
-    Invocation.method(#unsubscribeFromRoom, []),
-    returnValueForMissingStub: null,
-  );
-
-  @override
-  void disconnect() => super.noSuchMethod(
-    Invocation.method(#disconnect, []),
-    returnValueForMissingStub: null,
-  );
-
-  @override
-  void dispose() => super.noSuchMethod(
-    Invocation.method(#dispose, []),
-    returnValueForMissingStub: null,
-  );
 }

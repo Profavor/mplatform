@@ -47,4 +47,12 @@ class ApprovalsRepository {
     );
     return response.statusCode == 200;
   }
+
+  Future<bool> cancelApprovalRequest(String requestId, {String? reason}) async {
+    final response = await _dio.post(
+      '/api/approval-requests/$requestId/cancel',
+      queryParameters: reason != null && reason.isNotEmpty ? {'reason': reason} : null,
+    );
+    return response.statusCode == 200;
+  }
 }

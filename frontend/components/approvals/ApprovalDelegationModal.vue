@@ -264,7 +264,7 @@ const fetchDelegations = async () => {
 
 const fetchUsers = async () => {
   try {
-    const res = await useCustomFetch('/admin/users')
+    const res = await useCustomFetch('/users')
     if (res.data?.value) {
       userOptions.value = Array.isArray(res.data.value) ? res.data.value : (res.data.value.content || [])
     }

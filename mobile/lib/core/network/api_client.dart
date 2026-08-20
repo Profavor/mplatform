@@ -1,16 +1,21 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:mplatform_mobile/core/network/interceptors/auth_interceptor.dart';
 import 'package:mplatform_mobile/core/network/interceptors/timezone_interceptor.dart';
 
-import 'dart:io';
+import 'dart:io' show Platform;
 
 String getDefaultBaseUrl() {
+  const envApiBase = String.fromEnvironment('API_BASE_URL');
+  if (envApiBase.isNotEmpty) {
+    return envApiBase;
+  }
   try {
     if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8080';
+      return 'http://10.0.2.2:8080/api';
     }
-  } catch (_) {} // Handle web platform where Platform throws
-  return 'http://localhost:8080';
+  } catch (_) {}
+  return '/api';
 }
 
 class ApiClient {

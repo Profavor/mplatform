@@ -81,4 +81,16 @@ class MockApprovalsRepository extends _i1.Mock
             returnValue: _i3.Future<bool>.value(false),
           )
           as _i3.Future<bool>);
+
+  @override
+  _i3.Future<bool> cancelApprovalRequest(String? requestId, {String? reason}) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #cancelApprovalRequest,
+              [requestId],
+              {#reason: reason},
+            ),
+            returnValue: _i3.Future<bool>.value(false),
+          )
+          as _i3.Future<bool>);
 }

@@ -31,13 +31,13 @@ data:
   
   # Backend Settings
   JWT_ACCESS_EXPIRATION_SEC: "1800"
-  JWT_REFRESH_EXPIRATION_SEC: "172800"
-  JWT_EXPIRATION: "86400000"
+  JWT_REFRESH_EXPIRATION_SEC: "86400"
+  JWT_EXPIRATION: "1800000"
   STORAGE_TYPE: "minio"
   MINIO_URL: "http://minio:9000"
   MINIO_BUCKET_NAME: "domain-system"
   SPRING_PROFILES_ACTIVE: "prod"
-  CORS_ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:8080,http://localhost:9090,http://127.0.0.1:9090"
+  CORS_ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:8080,http://localhost:9090,http://127.0.0.1:9090,http://mplatform.local,https://mplatform.local"
   SPRING_KAFKA_CONSUMER_GROUP_ID: "domain-system-group"
   DQ_ENGINE_CUSTOM_SPEL_ENABLED: "true"
   FILE_UPLOAD_DIR: "/app/uploads"
@@ -70,7 +70,7 @@ data:
   NUXT_OIDC_PROVIDERS_KEYCLOAK_LOGOUT_REDIRECT_URI: "http://mplatform.local/login"
   NUXT_PUBLIC_API_BASE_URL: "http://mplatform.local/api"
   NUXT_PUBLIC_ACCESS_TOKEN_EXPIRATION_SEC: "1800"
-  NUXT_PUBLIC_REFRESH_TOKEN_EXPIRATION_SEC: "172800"
+  NUXT_PUBLIC_REFRESH_TOKEN_EXPIRATION_SEC: "86400"
   NUXT_OIDC_SESSION_COOKIE_SECURE: "false"
   NUXT_OIDC_COOKIE_SECURE: "false"
   NUXT_SESSION_COOKIE_SECURE: "false"
@@ -98,6 +98,23 @@ stringData:
   JWT_SECRET: "YOUR_SUPER_SECRET_KEY_FOR_JWT_AUTHENTICATION_OVER_256_BITS"
   ENCRYPTION_SECRET_KEY: "your_encryption_secret_key_which_must_be_at_least_256_bits_long"
   NUXT_OIDC_SESSION_SECRET: "NlhsR8Ak3KmuSmETkuWo97F2NOlv72UcvXWRAtgvsOrT1Y8n"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mobile-app-config
+  namespace: mdm-system
+data:
+  config.json: |
+    {
+      "issuer": "http://mplatform.local/auth/realms/mplatform",
+      "apiBaseUrl": "http://mplatform.local",
+      "clientId": "mdm-mobile",
+      "redirectUri": "http://mplatform.local/mobile/",
+      "accessTokenLifespanSec": 1800,
+      "refreshTokenLifespanSec": 86400
+    }
   NUXT_OIDC_TOKEN_KEY: "data:;base64,4bRR/K5TVe98TP1itI2lvT2HZYG4lGBT02vmqtHnhLE="
   NUXT_OIDC_AUTH_SESSION_SECRET: "CNwSsFJo3EZRs-6qwK9ZT7p4bcDza3Ov1Sd_AA-QB33iUjQY"
   MAIL_ADMIN_USER: "admin@mplatform.com"

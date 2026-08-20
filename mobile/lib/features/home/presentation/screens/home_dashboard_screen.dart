@@ -14,6 +14,10 @@ import 'package:mplatform_mobile/features/search/presentation/screens/global_sea
 import 'package:mplatform_mobile/features/dq/presentation/widgets/ai_dq_recommendation_card.dart';
 import 'package:mplatform_mobile/features/dq/presentation/widgets/data_profiling_card.dart';
 
+import 'package:mplatform_mobile/features/inbox/presentation/providers/inbox_provider.dart';
+import 'package:mplatform_mobile/features/inbox/presentation/screens/inbox_screen.dart';
+import 'package:mplatform_mobile/features/profile/presentation/screens/profile_settings_screen.dart';
+
 class HomeDashboardScreen extends ConsumerStatefulWidget {
   const HomeDashboardScreen({super.key});
 
@@ -31,6 +35,7 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
         ref.read(chatControllerProvider.notifier).loadRooms();
         ref.read(notificationsControllerProvider.notifier).fetchNotifications(refresh: true);
         ref.read(dashboardProvider.notifier).fetchDashboardData();
+        ref.read(inboxControllerProvider.notifier).refreshCounts();
       }
     });
   }
@@ -39,11 +44,11 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     
-    // 규칙: 하드코딩 절대 금지. 실제 Riverpod Provider 상태 및 API 응답을 기반으로 동적 계산 및 표출
     final approvalsState = ref.watch(approvalsControllerProvider);
     final chatState = ref.watch(chatControllerProvider);
     final notificationsState = ref.watch(notificationsControllerProvider);
     final dashboardState = ref.watch(dashboardProvider);
+    final inboxState = ref.watch(inboxControllerProvider);
 
     final int pendingApprovalsCount = approvalsState.pendingItems.length;
     final int unreadMessagesCount = chatState.rooms.fold<int>(0, (sum, room) => sum + room.unreadCount);
@@ -60,9 +65,43 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
         backgroundColor: Colors.indigo[800],
         foregroundColor: Colors.white,
         actions: [
+          // Inbox with Badge
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.mail_outline),
+                tooltip: l10n.inboxTitle,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const InboxScreen()),
+                  );
+                },
+              ),
+              if (inboxState.unreadTotal > 0)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                    child: Text(
+                      '${inboxState.unreadTotal}',
+                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.search),
-            tooltip: 'Global Search',
+            tooltip: l10n.searchPlaceholder,
             onPressed: () {
               Navigator.push(
                 context,
@@ -71,15 +110,13 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.language),
-            tooltip: 'Toggle Language',
+            icon: const Icon(Icons.account_circle_outlined),
+            tooltip: l10n.userProfileTitle,
             onPressed: () {
-              final current = ref.read(localeProvider);
-              if (current.languageCode == 'ko') {
-                ref.read(localeProvider.notifier).state = const Locale('en');
-              } else {
-                ref.read(localeProvider.notifier).state = const Locale('ko');
-              }
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileSettingsScreen()),
+              );
             },
           ),
         ],

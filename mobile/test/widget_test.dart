@@ -15,7 +15,22 @@ import 'package:mplatform_mobile/features/records/presentation/providers/records
 import 'package:mplatform_mobile/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:mplatform_mobile/features/inbox/data/repositories/inbox_repository.dart';
+import 'package:mplatform_mobile/features/inbox/domain/models/inbox_folder_count_model.dart';
+import 'package:mplatform_mobile/features/inbox/domain/models/inbox_message_model.dart';
+
 import 'widget_test.mocks.dart';
+
+class FakeInboxRepository implements InboxRepository {
+  @override
+  Future<List<InboxMessageModel>> getMessages({String folder = 'INBOX', int page = 0, int size = 20, String? keyword}) async => [];
+  @override
+  Future<List<InboxFolderCountModel>> getFolderCounts() async => [];
+  @override
+  Future<int> getUnreadCount() async => 0;
+  @override
+  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 @GenerateMocks([AuthRepository, RecordsRepository, ApprovalsRepository, ChatRepository, ChatWebSocketService])
 void main() {
@@ -47,6 +62,7 @@ void main() {
         approvalsRepositoryProvider.overrideWithValue(mockApprovalsRepo),
         chatRepositoryProvider.overrideWithValue(mockChatRepo),
         chatWebSocketServiceProvider.overrideWithValue(mockChatWs),
+        inboxRepositoryProvider.overrideWithValue(FakeInboxRepository()),
       ],
       child: const MPlatformMobileApp(),
     ));

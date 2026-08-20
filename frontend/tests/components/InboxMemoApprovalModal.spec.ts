@@ -56,6 +56,7 @@ describe('InboxMemoApprovalModal.vue', () => {
             template: '<div class="html-editor-stub"></div>',
             props: ['modelValue']
           },
+          SubmissionCommentModal: true,
           'va-input': true,
           'va-button': {
             template: '<button @click="$emit(\'click\')"><slot /></button>'

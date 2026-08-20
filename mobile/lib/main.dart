@@ -7,14 +7,18 @@ import 'package:mplatform_mobile/core/providers/core_providers.dart';
 import 'package:mplatform_mobile/core/providers/locale_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:mplatform_mobile/core/config/app_config.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
+  final config = await AppConfig.load();
 
   runApp(
     ProviderScope(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
+        appConfigProvider.overrideWithValue(config),
       ],
       child: const MPlatformMobileApp(),
     ),

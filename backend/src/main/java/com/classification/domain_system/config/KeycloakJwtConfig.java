@@ -25,10 +25,18 @@ public class KeycloakJwtConfig {
     @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri:}")
     private String issuerUri;
 
+    @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri:}")
+    private String jwkSetUri;
+
     @Bean
-    @ConditionalOnProperty(name = "spring.security.oauth2.resourceserver.jwt.issuer-uri")
     public JwtDecoder jwtDecoder() {
-        return JwtDecoders.fromIssuerLocation(issuerUri);
+        if (jwkSetUri != null && !jwkSetUri.isBlank()) {
+            return org.springframework.security.oauth2.jwt.NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
+        }
+        if (issuerUri != null && !issuerUri.isBlank()) {
+            return JwtDecoders.fromIssuerLocation(issuerUri);
+        }
+        return null;
     }
 
     @Bean

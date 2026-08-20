@@ -27,7 +27,7 @@ class _AiDqRecommendationCardState extends ConsumerState<AiDqRecommendationCard>
       final dio = ref.read(dioProvider);
 
       // Fetch domains to get an ID
-      final domainRes = await dio.get('/api/v1/domains');
+      final domainRes = await dio.get('/api/domains');
       
       if (domainRes.statusCode == 200 && (domainRes.data as List).isNotEmpty) {
         final domainId = domainRes.data[0]['id'];

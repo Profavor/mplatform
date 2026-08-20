@@ -3,7 +3,7 @@ import { useOidcAuth, useCookie } from '#imports'
 export default defineNuxtPlugin((nuxtApp) => {
   const { loggedIn, user } = useOidcAuth()
   const authTokenCookie = useCookie('auth_token', { maxAge: 1800, path: '/' })
-  const refreshTokenCookie = useCookie('refresh_token', { maxAge: 172800, path: '/' })
+  const refreshTokenCookie = useCookie('refresh_token', { maxAge: 86400, path: '/' })
 
   const syncTokens = () => {
     if (loggedIn.value && user.value) {

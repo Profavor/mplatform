@@ -189,7 +189,8 @@ public class DataProfilingService {
 
         for (DataProfilingReportDto.FieldProfile fp : report.getFieldProfiles()) {
             responses.add(com.classification.domain_system.dto.DataProfilingResponse.builder()
-                    .fieldName(fp.getFieldKey())
+                    .fieldKey(fp.getFieldKey())
+                    .fieldName(fp.getFieldName() != null && !fp.getFieldName().isBlank() ? fp.getFieldName() : fp.getFieldKey())
                     .totalCount(fp.getTotalCount())
                     .nullCount(fp.getNullCount())
                     .nullRatio(fp.getNullRate() / 100.0)

@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:mplatform_mobile/core/auth/oidc_service.dart';
 import 'package:mplatform_mobile/core/storage/storage_service.dart';
 import 'package:mplatform_mobile/features/auth/domain/models/auth_response.dart';
 import 'package:mplatform_mobile/features/auth/domain/models/user_model.dart';
@@ -6,8 +7,10 @@ import 'package:mplatform_mobile/features/auth/domain/models/user_model.dart';
 class AuthRepository {
   final Dio _dio;
   final StorageService _storageService;
+  final OidcService _oidcService;
 
-  AuthRepository(this._dio, this._storageService);
+  AuthRepository(this._dio, this._storageService, [OidcService? oidcService])
+      : _oidcService = oidcService ?? OidcService();
 
   Future<AuthResponse> login({required String username, required String password}) async {
     final response = await _dio.post(
@@ -23,6 +26,42 @@ class AuthRepository {
     return authResponse;
   }
 
+  Future<UserModel> loginWithOidc({
+    required String authCode,
+    required String codeVerifier,
+    String tokenEndpoint = 'http://localhost:8081/realms/mplatform/protocol/openid-connect/token',
+    String clientId = 'mdm-mobile',
+    String redirectUri = 'mplatform://oauth2redirect',
+  }) async {
+    print('[OIDC Repo] Exchanging code for tokens at: $tokenEndpoint');
+    final tokens = await _oidcService.exchangeCodeForTokens(
+      dio: _dio,
+      tokenEndpoint: tokenEndpoint,
+      clientId: clientId,
+      redirectUri: redirectUri,
+      code: authCode,
+      codeVerifier: codeVerifier,
+    );
+
+    final accessToken = tokens['access_token'] as String;
+    final refreshToken = tokens['refresh_token'] as String?;
+    print('[OIDC Repo] Tokens received. AccessToken len: ${accessToken.length}');
+
+    await _storageService.saveTokens(
+      accessToken: accessToken,
+      refreshToken: refreshToken ?? '',
+    );
+    print('[OIDC Repo] Tokens saved to storage. Fetching /api/auth/me...');
+
+    final user = await getCurrentUser();
+    if (user == null) {
+      print('[OIDC Repo Error] Failed to fetch user profile from /api/auth/me');
+      throw Exception('Failed to fetch user profile after OIDC login');
+    }
+    print('[OIDC Repo Success] User profile loaded: ${user.username} (${user.id})');
+    return user;
+  }
+
   Future<void> logout() async {
     try {
       await _dio.post('/api/auth/logout');
@@ -35,12 +74,22 @@ class AuthRepository {
 
   Future<UserModel?> getCurrentUser() async {
     final token = await _storageService.getAccessToken();
-    if (token == null || token.isEmpty) return null;
+    if (token == null || token.isEmpty) {
+      print('[OIDC Repo getCurrentUser] No token in storage');
+      return null;
+    }
 
     try {
-      final response = await _dio.get('/api/auth/me');
+      final response = await _dio.get(
+        '/api/auth/me',
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+        ),
+      );
+      print('[OIDC Repo getCurrentUser] /api/auth/me response: ${response.data}');
       return UserModel.fromJson(response.data as Map<String, dynamic>);
-    } catch (_) {
+    } catch (e) {
+      print('[OIDC Repo getCurrentUser Error]: $e');
       return null;
     }
   }

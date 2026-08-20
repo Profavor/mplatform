@@ -33,11 +33,12 @@ mixin _$FieldDefinition {
   bool get showInList => throw _privateConstructorUsedError;
   @JsonKey(readValue: _readOptions)
   List<String> get options => throw _privateConstructorUsedError;
+  @JsonKey(readValue: _readRawOptions)
+  String? get rawOptions => throw _privateConstructorUsedError;
   @JsonKey(readValue: _readDisplayOrder)
   int get displayOrder => throw _privateConstructorUsedError;
   @JsonKey(readValue: _readIsEncrypted)
   bool get isEncrypted => throw _privateConstructorUsedError;
-  @JsonKey(readValue: _readMaskingPattern)
   String? get maskingPattern => throw _privateConstructorUsedError;
   @JsonKey(readValue: _readLocalizedGroup, fromJson: _parseLocalizedName)
   String get groupName => throw _privateConstructorUsedError;
@@ -70,9 +71,10 @@ abstract class $FieldDefinitionCopyWith<$Res> {
     bool required,
     @JsonKey(readValue: _readShowInList) bool showInList,
     @JsonKey(readValue: _readOptions) List<String> options,
+    @JsonKey(readValue: _readRawOptions) String? rawOptions,
     @JsonKey(readValue: _readDisplayOrder) int displayOrder,
     @JsonKey(readValue: _readIsEncrypted) bool isEncrypted,
-    @JsonKey(readValue: _readMaskingPattern) String? maskingPattern,
+    String? maskingPattern,
     @JsonKey(readValue: _readLocalizedGroup, fromJson: _parseLocalizedName)
     String groupName,
     @JsonKey(readValue: _readLocalizedSector, fromJson: _parseLocalizedName)
@@ -102,6 +104,7 @@ class _$FieldDefinitionCopyWithImpl<$Res, $Val extends FieldDefinition>
     Object? required = null,
     Object? showInList = null,
     Object? options = null,
+    Object? rawOptions = freezed,
     Object? displayOrder = null,
     Object? isEncrypted = null,
     Object? maskingPattern = freezed,
@@ -138,6 +141,10 @@ class _$FieldDefinitionCopyWithImpl<$Res, $Val extends FieldDefinition>
                 ? _value.options
                 : options // ignore: cast_nullable_to_non_nullable
                       as List<String>,
+            rawOptions: freezed == rawOptions
+                ? _value.rawOptions
+                : rawOptions // ignore: cast_nullable_to_non_nullable
+                      as String?,
             displayOrder: null == displayOrder
                 ? _value.displayOrder
                 : displayOrder // ignore: cast_nullable_to_non_nullable
@@ -182,9 +189,10 @@ abstract class _$$FieldDefinitionImplCopyWith<$Res>
     bool required,
     @JsonKey(readValue: _readShowInList) bool showInList,
     @JsonKey(readValue: _readOptions) List<String> options,
+    @JsonKey(readValue: _readRawOptions) String? rawOptions,
     @JsonKey(readValue: _readDisplayOrder) int displayOrder,
     @JsonKey(readValue: _readIsEncrypted) bool isEncrypted,
-    @JsonKey(readValue: _readMaskingPattern) String? maskingPattern,
+    String? maskingPattern,
     @JsonKey(readValue: _readLocalizedGroup, fromJson: _parseLocalizedName)
     String groupName,
     @JsonKey(readValue: _readLocalizedSector, fromJson: _parseLocalizedName)
@@ -213,6 +221,7 @@ class __$$FieldDefinitionImplCopyWithImpl<$Res>
     Object? required = null,
     Object? showInList = null,
     Object? options = null,
+    Object? rawOptions = freezed,
     Object? displayOrder = null,
     Object? isEncrypted = null,
     Object? maskingPattern = freezed,
@@ -249,6 +258,10 @@ class __$$FieldDefinitionImplCopyWithImpl<$Res>
             ? _value._options
             : options // ignore: cast_nullable_to_non_nullable
                   as List<String>,
+        rawOptions: freezed == rawOptions
+            ? _value.rawOptions
+            : rawOptions // ignore: cast_nullable_to_non_nullable
+                  as String?,
         displayOrder: null == displayOrder
             ? _value.displayOrder
             : displayOrder // ignore: cast_nullable_to_non_nullable
@@ -286,9 +299,10 @@ class _$FieldDefinitionImpl implements _FieldDefinition {
     this.required = false,
     @JsonKey(readValue: _readShowInList) this.showInList = false,
     @JsonKey(readValue: _readOptions) final List<String> options = const [],
+    @JsonKey(readValue: _readRawOptions) this.rawOptions,
     @JsonKey(readValue: _readDisplayOrder) this.displayOrder = 0,
     @JsonKey(readValue: _readIsEncrypted) this.isEncrypted = false,
-    @JsonKey(readValue: _readMaskingPattern) this.maskingPattern,
+    this.maskingPattern,
     @JsonKey(readValue: _readLocalizedGroup, fromJson: _parseLocalizedName)
     this.groupName = '',
     @JsonKey(readValue: _readLocalizedSector, fromJson: _parseLocalizedName)
@@ -325,13 +339,15 @@ class _$FieldDefinitionImpl implements _FieldDefinition {
   }
 
   @override
+  @JsonKey(readValue: _readRawOptions)
+  final String? rawOptions;
+  @override
   @JsonKey(readValue: _readDisplayOrder)
   final int displayOrder;
   @override
   @JsonKey(readValue: _readIsEncrypted)
   final bool isEncrypted;
   @override
-  @JsonKey(readValue: _readMaskingPattern)
   final String? maskingPattern;
   @override
   @JsonKey(readValue: _readLocalizedGroup, fromJson: _parseLocalizedName)
@@ -342,7 +358,7 @@ class _$FieldDefinitionImpl implements _FieldDefinition {
 
   @override
   String toString() {
-    return 'FieldDefinition(id: $id, fieldName: $fieldName, fieldLabel: $fieldLabel, fieldType: $fieldType, required: $required, showInList: $showInList, options: $options, displayOrder: $displayOrder, isEncrypted: $isEncrypted, maskingPattern: $maskingPattern, groupName: $groupName, sectorName: $sectorName)';
+    return 'FieldDefinition(id: $id, fieldName: $fieldName, fieldLabel: $fieldLabel, fieldType: $fieldType, required: $required, showInList: $showInList, options: $options, rawOptions: $rawOptions, displayOrder: $displayOrder, isEncrypted: $isEncrypted, maskingPattern: $maskingPattern, groupName: $groupName, sectorName: $sectorName)';
   }
 
   @override
@@ -362,6 +378,8 @@ class _$FieldDefinitionImpl implements _FieldDefinition {
             (identical(other.showInList, showInList) ||
                 other.showInList == showInList) &&
             const DeepCollectionEquality().equals(other._options, _options) &&
+            (identical(other.rawOptions, rawOptions) ||
+                other.rawOptions == rawOptions) &&
             (identical(other.displayOrder, displayOrder) ||
                 other.displayOrder == displayOrder) &&
             (identical(other.isEncrypted, isEncrypted) ||
@@ -385,6 +403,7 @@ class _$FieldDefinitionImpl implements _FieldDefinition {
     required,
     showInList,
     const DeepCollectionEquality().hash(_options),
+    rawOptions,
     displayOrder,
     isEncrypted,
     maskingPattern,
@@ -419,9 +438,10 @@ abstract class _FieldDefinition implements FieldDefinition {
     final bool required,
     @JsonKey(readValue: _readShowInList) final bool showInList,
     @JsonKey(readValue: _readOptions) final List<String> options,
+    @JsonKey(readValue: _readRawOptions) final String? rawOptions,
     @JsonKey(readValue: _readDisplayOrder) final int displayOrder,
     @JsonKey(readValue: _readIsEncrypted) final bool isEncrypted,
-    @JsonKey(readValue: _readMaskingPattern) final String? maskingPattern,
+    final String? maskingPattern,
     @JsonKey(readValue: _readLocalizedGroup, fromJson: _parseLocalizedName)
     final String groupName,
     @JsonKey(readValue: _readLocalizedSector, fromJson: _parseLocalizedName)
@@ -451,13 +471,15 @@ abstract class _FieldDefinition implements FieldDefinition {
   @JsonKey(readValue: _readOptions)
   List<String> get options;
   @override
+  @JsonKey(readValue: _readRawOptions)
+  String? get rawOptions;
+  @override
   @JsonKey(readValue: _readDisplayOrder)
   int get displayOrder;
   @override
   @JsonKey(readValue: _readIsEncrypted)
   bool get isEncrypted;
   @override
-  @JsonKey(readValue: _readMaskingPattern)
   String? get maskingPattern;
   @override
   @JsonKey(readValue: _readLocalizedGroup, fromJson: _parseLocalizedName)

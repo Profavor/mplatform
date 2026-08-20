@@ -194,6 +194,41 @@ class RecordsController extends StateNotifier<RecordsState> {
     }
   }
 
+  Future<void> refresh() async {
+    final domainId = state.selectedDomainId;
+    if (domainId == null) {
+      await loadInitialData();
+      return;
+    }
+
+    state = state.copyWith(isLoading: true, currentPage: 0, errorMessage: null);
+    try {
+      final fields = await _repository.getFieldDefinitions(domainId);
+      final tree = await _repository.getClassificationTree(domainId);
+      final searchFields = _getSearchFields(domainId, fields);
+      final pageRes = await _repository.getRecords(
+        domainId: domainId,
+        nodeId: state.selectedNodeId,
+        page: 0,
+        size: state.pageSize,
+        searchQuery: state.searchQuery,
+        searchFields: searchFields,
+      );
+
+      state = state.copyWith(
+        fieldDefinitions: fields,
+        nodeTree: tree,
+        records: pageRes.content,
+        currentPage: pageRes.number,
+        totalElements: pageRes.totalElements,
+        totalPages: pageRes.totalPages,
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+    }
+  }
+
   List<String> _getSearchFields(String domainId, List<FieldDefinition> fields) {
     if (state.domains.isEmpty) return [];
     final domain = state.domains.firstWhere((d) => d.id == domainId, orElse: () => state.domains.first);

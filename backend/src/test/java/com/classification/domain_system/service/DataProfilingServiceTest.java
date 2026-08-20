@@ -94,4 +94,29 @@ public class DataProfilingServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Domain not found");
     }
+
+    @Test
+    @DisplayName("profileDomainData: 필드 키와 필드명이 정확하게 매핑된 응답 리스트 반환")
+    void testProfileDomainData() {
+        when(domainRepository.findById(domainId)).thenReturn(Optional.of(domain));
+        when(nodeRepository.findByDomain_Id(domainId)).thenReturn(Collections.emptyList());
+
+        FieldDefinition nameField = new FieldDefinition();
+        nameField.setKey("EP_NAME");
+        nameField.setName(Map.of("ko", "성명", "en", "Employee Name"));
+        nameField.setType("STRING");
+        when(fieldDefinitionRepository.findDomainFieldsWithSort(domainId)).thenReturn(List.of(nameField));
+
+        Record r = new Record();
+        r.setId(UUID.randomUUID());
+        r.setData("{\"EP_NAME\":\"홍길동\"}");
+        when(recordRepository.findAllByDomainId(domainId)).thenReturn(List.of(r));
+
+        List<com.classification.domain_system.dto.DataProfilingResponse> responses = profilingService.profileDomainData(domainId);
+
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).getFieldKey()).isEqualTo("EP_NAME");
+        assertThat(responses.get(0).getFieldName()).isEqualTo("성명");
+        assertThat(responses.get(0).getTotalCount()).isEqualTo(1);
+    }
 }

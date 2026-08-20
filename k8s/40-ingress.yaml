@@ -76,6 +76,13 @@ spec:
             name: backend
             port:
               number: 8080
+      - path: /mobile
+        pathType: Prefix
+        backend:
+          service:
+            name: mobile
+            port:
+              number: 80
       - path: /api
         pathType: Prefix
         backend:

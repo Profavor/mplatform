@@ -39,6 +39,7 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final Map<String, GlobalKey> _dateKeys = {};
 
   static const List<String> _quickEmojis = ['👍', '❤️', '😂', '🎉', '🔥', '✅', '🙏'];
   
@@ -243,6 +244,139 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     } catch (e) {
       return '';
     }
+  }
+
+  void _jumpToDate(String dateKey) {
+    final key = _dateKeys[dateKey];
+    if (key != null && key.currentContext != null) {
+      Scrollable.ensureVisible(
+        key.currentContext!,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeInOut,
+        alignment: 0.08,
+      );
+    }
+  }
+
+  void _showDateBookmarkModal(BuildContext context, List<ChatMessageModel> messages) {
+    final l10n = AppLocalizations.of(context)!;
+    final Map<String, String> dateLabels = {};
+    final Map<String, int> dateMsgCounts = {};
+
+    for (int i = 0; i < messages.length; i++) {
+      final m = messages[i];
+      final dateKey = _getDateKey(m.timestamp);
+      if (dateKey.isNotEmpty) {
+        if (!dateLabels.containsKey(dateKey)) {
+          dateLabels[dateKey] = _formatDateSeparator(m.timestamp);
+        }
+        dateMsgCounts[dateKey] = (dateMsgCounts[dateKey] ?? 0) + 1;
+      }
+    }
+
+    final dateKeysList = dateLabels.keys.toList();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.65,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  const Icon(Icons.calendar_month, color: Colors.deepPurple, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    l10n.messengerCalendarTitle,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const Divider(),
+              const SizedBox(height: 6),
+              if (dateKeysList.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: Text(l10n.searchNoData, style: TextStyle(color: Colors.grey[600])),
+                  ),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: dateKeysList.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final k = dateKeysList[index];
+                      final label = dateLabels[k] ?? k;
+                      final count = dateMsgCounts[k] ?? 0;
+
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        leading: CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Colors.deepPurple.shade50,
+                          child: const Icon(Icons.bookmark, size: 18, color: Colors.deepPurple),
+                        ),
+                        title: Text(
+                          label,
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.black87),
+                        ),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: Text(
+                            '$count',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey[700]),
+                          ),
+                        ),
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _jumpToDate(k);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   String _getSystemMessageText(ChatMessageModel msg, AppLocalizations l10n) {
@@ -1019,23 +1153,46 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
                       return Column(
                         children: [
-                          // #3: 날짜 구분선
+                          // #3: 날짜 구분선 (탭 시 날짜 북마크 이동 모달)
                           if (_shouldShowDateSeparator(state.activeMessages, index))
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               child: Row(
                                 children: [
                                   Expanded(child: Divider(color: Colors.grey[400], thickness: 0.5)),
-                                  Container(
-                                    margin: const EdgeInsets.symmetric(horizontal: 12),
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.8),
+                                  Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      onTap: () => _showDateBookmarkModal(context, state.activeMessages),
                                       borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(
-                                      '📅 ${_formatDateSeparator(msg.timestamp)}',
-                                      style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w600),
+                                      child: Container(
+                                        key: _dateKeys.putIfAbsent(_getDateKey(msg.timestamp), () => GlobalKey()),
+                                        margin: const EdgeInsets.symmetric(horizontal: 12),
+                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.9),
+                                          borderRadius: BorderRadius.circular(20),
+                                          border: Border.all(color: Colors.grey.shade300, width: 0.8),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(0.04),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 1),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              '📅 ${_formatDateSeparator(msg.timestamp)}',
+                                              style: TextStyle(fontSize: 12, color: Colors.grey[800], fontWeight: FontWeight.w600),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Icon(Icons.unfold_more, size: 14, color: Colors.grey[600]),
+                                          ],
+                                        ),
+                                      ),
                                     ),
                                   ),
                                   Expanded(child: Divider(color: Colors.grey[400], thickness: 0.5)),

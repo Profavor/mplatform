@@ -3,15 +3,15 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i4;
+import 'dart:async' as _i5;
 
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mplatform_mobile/features/auth/data/repositories/auth_repository.dart'
-    as _i3;
+    as _i4;
 import 'package:mplatform_mobile/features/auth/domain/models/auth_response.dart'
     as _i2;
 import 'package:mplatform_mobile/features/auth/domain/models/user_model.dart'
-    as _i5;
+    as _i3;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -32,16 +32,21 @@ class _FakeAuthResponse_0 extends _i1.SmartFake implements _i2.AuthResponse {
     : super(parent, parentInvocation);
 }
 
+class _FakeUserModel_1 extends _i1.SmartFake implements _i3.UserModel {
+  _FakeUserModel_1(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
 /// A class which mocks [AuthRepository].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockAuthRepository extends _i1.Mock implements _i3.AuthRepository {
+class MockAuthRepository extends _i1.Mock implements _i4.AuthRepository {
   MockAuthRepository() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i4.Future<_i2.AuthResponse> login({
+  _i5.Future<_i2.AuthResponse> login({
     required String? username,
     required String? password,
   }) =>
@@ -50,7 +55,7 @@ class MockAuthRepository extends _i1.Mock implements _i3.AuthRepository {
               #username: username,
               #password: password,
             }),
-            returnValue: _i4.Future<_i2.AuthResponse>.value(
+            returnValue: _i5.Future<_i2.AuthResponse>.value(
               _FakeAuthResponse_0(
                 this,
                 Invocation.method(#login, [], {
@@ -60,32 +65,64 @@ class MockAuthRepository extends _i1.Mock implements _i3.AuthRepository {
               ),
             ),
           )
-          as _i4.Future<_i2.AuthResponse>);
+          as _i5.Future<_i2.AuthResponse>);
 
   @override
-  _i4.Future<void> logout() =>
+  _i5.Future<_i3.UserModel> loginWithOidc({
+    required String? authCode,
+    required String? codeVerifier,
+    String? tokenEndpoint =
+        'http://localhost:8081/realms/mplatform/protocol/openid-connect/token',
+    String? clientId = 'mdm-mobile',
+    String? redirectUri = 'mplatform://oauth2redirect',
+  }) =>
       (super.noSuchMethod(
-            Invocation.method(#logout, []),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
-          )
-          as _i4.Future<void>);
-
-  @override
-  _i4.Future<_i5.UserModel?> getCurrentUser() =>
-      (super.noSuchMethod(
-            Invocation.method(#getCurrentUser, []),
-            returnValue: _i4.Future<_i5.UserModel?>.value(),
-          )
-          as _i4.Future<_i5.UserModel?>);
-
-  @override
-  _i4.Future<List<_i5.UserModel>> getUsers() =>
-      (super.noSuchMethod(
-            Invocation.method(#getUsers, []),
-            returnValue: _i4.Future<List<_i5.UserModel>>.value(
-              <_i5.UserModel>[],
+            Invocation.method(#loginWithOidc, [], {
+              #authCode: authCode,
+              #codeVerifier: codeVerifier,
+              #tokenEndpoint: tokenEndpoint,
+              #clientId: clientId,
+              #redirectUri: redirectUri,
+            }),
+            returnValue: _i5.Future<_i3.UserModel>.value(
+              _FakeUserModel_1(
+                this,
+                Invocation.method(#loginWithOidc, [], {
+                  #authCode: authCode,
+                  #codeVerifier: codeVerifier,
+                  #tokenEndpoint: tokenEndpoint,
+                  #clientId: clientId,
+                  #redirectUri: redirectUri,
+                }),
+              ),
             ),
           )
-          as _i4.Future<List<_i5.UserModel>>);
+          as _i5.Future<_i3.UserModel>);
+
+  @override
+  _i5.Future<void> logout() =>
+      (super.noSuchMethod(
+            Invocation.method(#logout, []),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
+  _i5.Future<_i3.UserModel?> getCurrentUser() =>
+      (super.noSuchMethod(
+            Invocation.method(#getCurrentUser, []),
+            returnValue: _i5.Future<_i3.UserModel?>.value(),
+          )
+          as _i5.Future<_i3.UserModel?>);
+
+  @override
+  _i5.Future<List<_i3.UserModel>> getUsers() =>
+      (super.noSuchMethod(
+            Invocation.method(#getUsers, []),
+            returnValue: _i5.Future<List<_i3.UserModel>>.value(
+              <_i3.UserModel>[],
+            ),
+          )
+          as _i5.Future<List<_i3.UserModel>>);
 }

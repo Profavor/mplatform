@@ -27,7 +27,22 @@ import 'package:mplatform_mobile/features/dashboard/data/models/dashboard_stats_
 import 'package:mplatform_mobile/features/dashboard/data/models/dq_trend_item_model.dart';
 import 'package:mplatform_mobile/features/dashboard/data/models/dq_severity_item_model.dart';
 
+import 'package:mplatform_mobile/features/inbox/data/repositories/inbox_repository.dart';
+import 'package:mplatform_mobile/features/inbox/domain/models/inbox_folder_count_model.dart';
+import 'package:mplatform_mobile/features/inbox/domain/models/inbox_message_model.dart';
+
 import 'main_navigation_screen_test.mocks.dart';
+
+class FakeInboxRepository implements InboxRepository {
+  @override
+  Future<List<InboxMessageModel>> getMessages({String folder = 'INBOX', int page = 0, int size = 20, String? keyword}) async => [];
+  @override
+  Future<List<InboxFolderCountModel>> getFolderCounts() async => [];
+  @override
+  Future<int> getUnreadCount() async => 0;
+  @override
+  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 class FakeAuthRepo implements AuthRepository {
   @override
@@ -88,6 +103,7 @@ void main() {
           chatWebSocketServiceProvider.overrideWithValue(mockChatWs),
           notificationsRepositoryProvider.overrideWithValue(FakeNotificationsRepository()),
           dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository()),
+          inboxRepositoryProvider.overrideWithValue(FakeInboxRepository()),
           authControllerProvider.overrideWith((ref) => _FakeAuthController(FakeAuthRepo(), const AsyncValue.data(UserModel(id: '1', username: 'my_account', name: '나', role: 'ROLE_USER')))),
         ],
         child: const MaterialApp(
