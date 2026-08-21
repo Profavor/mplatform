@@ -19,6 +19,7 @@
   "node_deleted_success": "노드가 성공적으로 삭제되었습니다.",
   "node_delete_failed": "노드 삭제 중 오류가 발생했습니다.",
   "edit_node": "노드 수정",
+  "edit_field": "필드 수정",
   "add_node_to": "{name}에 하위 노드 추가",
   "node_name_ko": "노드명 (KO)",
   "node_name_en": "노드명 (EN)",

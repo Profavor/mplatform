@@ -187,7 +187,7 @@ const props = defineProps<{
   zIndex?: number
 }>()
 
-const emit = defineEmits(['update:modelValue', 'confirm', 'confirm-submit'])
+const emit = defineEmits(['update:modelValue', 'confirm', 'confirm-submit', 'cancel'])
 
 const { t, locale } = useI18n()
 const { customFetch } = useCustomFetch()
@@ -207,22 +207,31 @@ const isFullscreenModal = ref(false)
 const loading = ref(false)
 const reportData = ref<any>(null)
 
+const cleanDomainId = computed(() => {
+  if (!props.domainId) return null
+  return String(props.domainId).replace(/^domain_/, '').replace(/^node_/, '')
+})
+
 watch(() => props.modelValue, (val) => {
   show.value = val
-  if (val && props.domainId) {
+  if (val && cleanDomainId.value) {
     runImpactAnalysis()
   }
 })
 
 watch(show, (val) => {
   emit('update:modelValue', val)
+  if (!val) {
+    emit('cancel')
+  }
 })
 
 const runImpactAnalysis = async () => {
-  if (!props.domainId) return
+  const dId = cleanDomainId.value
+  if (!dId) return
   loading.value = true
   try {
-    const res = await customFetch(`/api/domains/${props.domainId}/impact-analysis`, {
+    const res = await customFetch(`/api/domains/${dId}/impact-analysis`, {
       method: 'POST',
       body: props.changeRequest || {}
     })

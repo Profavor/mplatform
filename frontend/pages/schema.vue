@@ -239,6 +239,7 @@
       :z-index="1200"
       @confirm="confirmImpactAnalysisAction"
       @confirm-submit="confirmImpactAnalysisAction"
+      @cancel="cancelImpactAnalysisAction"
     />
 
     <!-- Request Access Modal -->
@@ -380,7 +381,16 @@ const triggerSaveFieldWithImpactAnalysis = () => {
     newFieldType: newField.value.type
   }
   pendingFieldAction.value = () => executePendingFieldSave()
+  showFieldModal.value = false
   showImpactModal.value = true
+}
+
+const cancelImpactAnalysisAction = () => {
+  showImpactModal.value = false
+  pendingFieldAction.value = null
+  if (impactChangeRequest.value?.changeType !== 'DELETE_FIELD') {
+    showFieldModal.value = true
+  }
 }
 
 const pendingDeleteTargetField = ref(null)
