@@ -120,8 +120,11 @@ public class ApprovalDecisionService {
                     }
                 }
                 stagingRecordRepository.saveAll(stagings);
-            } catch (Exception e) {
-                log.error("Error applying rejection for BATCH_RECORD", e);
+            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                log.error("Failed to parse changes JSON for BATCH_RECORD rejection: {}", e.getMessage());
+            } catch (org.springframework.dao.DataAccessException e) {
+                log.error("Database error applying rejection for BATCH_RECORD", e);
+                throw e;
             }
         } else if (approval.getTargetType() != null && approval.getTargetType().startsWith("SCHEMA_")) {
             log.info("Schema change request {} was rejected, no record status to revert", approval.getId());
@@ -198,7 +201,9 @@ public class ApprovalDecisionService {
             try {
                 String approverName = userRepository.findById(approverId).map(User::getUsername).orElse(approverId);
                 notificationFacade.processStepApprovalNotifications(approval, null, approverName);
-            } catch (Exception ignored) {}
+            } catch (RuntimeException e) {
+                log.warn("Notification dispatch failed (non-blocking): {}", e.getMessage());
+            }
         }
         notificationFacade.publishApprovalStepApproved(approval, step);
         
@@ -232,7 +237,9 @@ public class ApprovalDecisionService {
             try {
                 String approverName = userRepository.findById(approverId).map(User::getUsername).orElse(approverId);
                 notificationFacade.processStepRejectionNotifications(approval, null, approverName);
-            } catch (Exception ignored) {}
+            } catch (RuntimeException e) {
+                log.warn("Notification dispatch failed (non-blocking): {}", e.getMessage());
+            }
         }
         
         revertRecordStatusOnRejection(approval);
@@ -334,7 +341,9 @@ public class ApprovalDecisionService {
                 String cancelerName = userRepository.findById(userId).map(User::getUsername).orElse(userId);
                 notificationFacade.processCancellationNotifications(approval, cancelerName);
                 notificationFacade.publishApprovalRequestCancelled(approval, reason);
-            } catch (Exception ignored) {}
+            } catch (RuntimeException e) {
+                log.warn("Notification dispatch failed (non-blocking): {}", e.getMessage());
+            }
         }
 
         broadcastCancellationEvent(approval);

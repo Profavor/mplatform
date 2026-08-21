@@ -140,8 +140,9 @@ public class ApprovalRequestCreationService {
                 "recordIds", recordIds,
                 "totalRecords", recordIds.size()
             )));
-        } catch (Exception e) {
-            approval.setChanges("{}");
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR,
+                "Failed to serialize batch record approval payload: " + e.getMessage());
         }
         
         approval.setCurrentStepOrder(1);
@@ -425,9 +426,9 @@ public class ApprovalRequestCreationService {
             } else {
                 approval.setObserverIds("[]");
             }
-        } catch (Exception e) {
-            approval.setChanges("{}");
-            approval.setObserverIds("[]");
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR,
+                "Failed to serialize memo approval payload: " + e.getMessage());
         }
 
         ApprovalStep draftStep = new ApprovalStep();

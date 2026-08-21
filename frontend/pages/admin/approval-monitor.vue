@@ -106,6 +106,9 @@ const messages = {
     status_pending: '진행중',
     status_approved: '승인',
     status_rejected: '반려',
+    status_cancelled: '상신취소',
+    status_waiting: '대기',
+    status_draft: '임시저장',
     label_role: '역할',
     label_drafter: '기안자',
     unassigned: '승인자 미지정'
@@ -147,6 +150,9 @@ const messages = {
     status_pending: 'PENDING',
     status_approved: 'APPROVED',
     status_rejected: 'REJECTED',
+    status_cancelled: 'CANCELLED',
+    status_waiting: 'WAITING',
+    status_draft: 'DRAFT',
     label_role: 'Role',
     label_drafter: 'Drafter',
     unassigned: 'Unassigned'

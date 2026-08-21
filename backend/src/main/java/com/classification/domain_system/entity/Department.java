@@ -43,6 +43,7 @@ public class Department {
 
 
 
+    // 단순 기본 값 타입 컬렉션(Set<String>)이며 부서별 역할 인가 확인 시 항상 함께 조회되고 크기가 수십 건 이하로 작아 EAGER 유지
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(
             name = "department_roles", 

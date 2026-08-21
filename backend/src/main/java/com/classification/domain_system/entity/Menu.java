@@ -33,6 +33,7 @@ public class Menu {
 
 
 
+    // 단순 기본 값 타입 컬렉션(Set<String>)이며 메뉴 인가 체크 시 메뉴 엔티티와 항상 함께 조회되고 크기가 작아 EAGER 유지
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(
             name = "menu_roles", 

@@ -106,12 +106,12 @@ public class PermissionService {
                                     }
                                 }
                             }
-                        } catch (Exception e) {
+                        } catch (org.springframework.dao.DataAccessException e) {
                             log.error("Failed to load department roles for user: {}", username, e);
                         }
                     }
                 }
-            } catch (Exception e) {
+            } catch (org.springframework.dao.DataAccessException e) {
                 log.error("Failed to load fine-grained permissions for user: {}", username, e);
             }
         }
@@ -130,7 +130,7 @@ public class PermissionService {
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (org.springframework.dao.DataAccessException e) {
             log.error("Failed to search master roles by name: {}", e.getMessage());
         }
 
@@ -179,7 +179,7 @@ public class PermissionService {
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (org.springframework.dao.DataAccessException e) {
             log.error("Failed to fetch UserRole mappings for user {}", user.getId(), e);
         }
 
@@ -200,7 +200,7 @@ public class PermissionService {
                         }
                     }
                 });
-            } catch (Exception e) {
+            } catch (org.springframework.dao.DataAccessException e) {
                 log.error("Failed to fetch department roles for user {}", user.getId(), e);
             }
         }

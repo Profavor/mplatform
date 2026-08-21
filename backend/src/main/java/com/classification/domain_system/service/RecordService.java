@@ -139,7 +139,7 @@ public class RecordService {
             if (existingDataJson != null && !existingDataJson.isBlank()) {
                 try {
                     existingMap = objectMapper.readValue(existingDataJson, new TypeReference<Map<String, Object>>() {});
-                } catch (Exception e) {
+                } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
                     log.warn("Could not parse existing data json: {}", e.getMessage());
                 }
             }
@@ -198,9 +198,15 @@ public class RecordService {
             }
 
             return modified ? objectMapper.writeValueAsString(dataMap) : dataJson;
-        } catch (Exception e) {
+        } catch (com.classification.domain_system.exception.EncryptionException e) {
             log.error("Failed to encrypt field data on save for nodeId {}", nodeId, e);
-            throw new RuntimeException("Saving aborted due to encryption failure. nodeId=" + nodeId, e);
+            throw e;
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            log.error("Failed to parse/serialize field data on save for nodeId {}", nodeId, e);
+            throw new com.classification.domain_system.exception.BusinessException(
+                com.classification.domain_system.exception.ErrorCode.INVALID_INPUT,
+                "Invalid record data JSON: " + e.getMessage()
+            );
         }
     }
 
@@ -243,7 +249,7 @@ public class RecordService {
             try {
                 Map<String, Object> newMap = objectMapper.readValue(newJson, new TypeReference<Map<String, Object>>() {});
                 return newMap.keySet().stream().filter(k -> !k.startsWith("_idx_") && !isMetadataKey(k)).toList();
-            } catch (Exception e) {
+            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
                 return Collections.emptyList();
             }
         }
@@ -251,7 +257,7 @@ public class RecordService {
             try {
                 Map<String, Object> prevMap = objectMapper.readValue(prevJson, new TypeReference<Map<String, Object>>() {});
                 return prevMap.keySet().stream().filter(k -> !k.startsWith("_idx_") && !isMetadataKey(k)).toList();
-            } catch (Exception e) {
+            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
                 return Collections.emptyList();
             }
         }
@@ -273,8 +279,8 @@ public class RecordService {
                 }
             }
             return changed;
-        } catch (Exception e) {
-            log.error("Failed to compute changed field keys", e);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            log.error("Failed to compute changed field keys: {}", e.getMessage());
             return Collections.emptyList();
         }
     }

@@ -41,6 +41,7 @@ public class Role {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    // 단순 기본 값 타입 컬렉션(Set<String>)이며 인증/인가 컨텍스트에서 역할 조회 시 항상 함께 필요하고 크기가 수십 건 이하로 작아 EAGER 유지
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(
             name = "role_permissions", 

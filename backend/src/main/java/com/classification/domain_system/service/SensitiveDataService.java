@@ -7,6 +7,8 @@ import com.classification.domain_system.entity.Domain;
 import com.classification.domain_system.entity.FieldDefinition;
 import com.classification.domain_system.entity.Record;
 import com.classification.domain_system.entity.SensitiveDataAccessLog;
+import com.classification.domain_system.exception.BusinessException;
+import com.classification.domain_system.exception.ErrorCode;
 import com.classification.domain_system.exception.ResourceNotFoundException;
 import com.classification.domain_system.dto.SensitiveDataAccessLogDto;
 import com.classification.domain_system.repository.ApprovalRequestRepository;
@@ -170,7 +172,7 @@ public class SensitiveDataService {
                             combined.put("after", objectMapper.readValue(hist.getNewData(), new TypeReference<Map<String, Object>>() {}));
                         }
                         jsonPayload = objectMapper.writeValueAsString(combined);
-                    } catch (Exception e) {
+                    } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
                         log.error("Failed to parse history data", e);
                     }
                 }
@@ -260,7 +262,7 @@ public class SensitiveDataService {
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(jsonStr);
             return extractJsonValueFromNode(root, key);
-        } catch (Exception ignored) {}
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ignored) {}
         return null;
     }
 
@@ -417,7 +419,7 @@ public class SensitiveDataService {
             if (history.getNewData() != null) {
                 combined.put("after", objectMapper.readValue(history.getNewData(), new TypeReference<Map<String, Object>>() {}));
             }
-        } catch (Exception e) {
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             log.error("Failed to parse history data", e);
         }
 
@@ -425,7 +427,9 @@ public class SensitiveDataService {
         try {
             String combinedJson = objectMapper.writeValueAsString(combined);
             decryptedMap = decryptFromDataJson(combinedJson, fields, fieldKeys);
-        } catch (Exception e) {}
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            log.error("Failed to serialize combined history data: {}", e.getMessage());
+        }
 
         if (!decryptedMap.isEmpty()) {
             saveAccessLog("RECORD_HISTORY", historyId, extractLoggedKeys(fields, fieldKeys, decryptedMap), accessReason, ipAddress);
@@ -520,8 +524,8 @@ public class SensitiveDataService {
                     }
                 }
             }
-        } catch (Exception e) {
-            log.error("Failed to parse or decrypt JSON data", e);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            log.error("Failed to parse JSON data for decryption", e);
         }
         return result;
     }
@@ -579,8 +583,10 @@ public class SensitiveDataService {
             }
             accessLog.setIpAddress(normalizedIp);
             accessLogRepository.save(accessLog);
-        } catch (Exception e) {
-            log.error("Failed to save sensitive data access log", e);
+        } catch (org.springframework.dao.DataAccessException e) {
+            log.error("Failed to save sensitive data access log — aborting data access for compliance", e);
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR,
+                "Audit log persistence failed. Sensitive data access denied for compliance.");
         }
     }
 }

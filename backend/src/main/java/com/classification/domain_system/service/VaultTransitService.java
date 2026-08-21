@@ -96,7 +96,9 @@ public class VaultTransitService {
                         return cachedClientToken;
                     }
                 }
-            } catch (Exception e) {
+            } catch (java.io.IOException e) {
+                log.error("Failed to read Kubernetes ServiceAccount token from {}: {}", k8sJwtPath, e.getMessage());
+            } catch (org.springframework.web.client.RestClientException e) {
                 log.error("Failed to authenticate with Vault via Kubernetes Auth: {}", e.getMessage());
             }
         }
@@ -122,10 +124,10 @@ public class VaultTransitService {
                     return (String) data.get("ciphertext");
                 }
             }
-            throw new RuntimeException("Empty response from Vault Transit Encrypt");
-        } catch (Exception e) {
+            throw new com.classification.domain_system.exception.EncryptionException("Empty response from Vault Transit Encrypt");
+        } catch (org.springframework.web.client.RestClientException e) {
             log.error("Vault Transit encryption failed for key {}: {}", keyName, e.getMessage());
-            throw new RuntimeException("Vault encryption error: " + e.getMessage(), e);
+            throw new com.classification.domain_system.exception.EncryptionException("Vault encryption error: " + e.getMessage(), e);
         }
     }
 
@@ -151,10 +153,10 @@ public class VaultTransitService {
                     return new String(decoded, StandardCharsets.UTF_8);
                 }
             }
-            throw new RuntimeException("Empty response from Vault Transit Decrypt");
-        } catch (Exception e) {
+            throw new com.classification.domain_system.exception.DecryptionException("Empty response from Vault Transit Decrypt");
+        } catch (org.springframework.web.client.RestClientException e) {
             log.error("Vault Transit decryption failed for cipher: {}", e.getMessage());
-            throw new RuntimeException("Vault decryption error: " + e.getMessage(), e);
+            throw new com.classification.domain_system.exception.DecryptionException("Vault decryption error: " + e.getMessage(), e);
         }
     }
 
@@ -176,10 +178,10 @@ public class VaultTransitService {
                     return (String) data.get("hmac");
                 }
             }
-            throw new RuntimeException("Empty response from Vault Transit HMAC");
-        } catch (Exception e) {
+            throw new com.classification.domain_system.exception.EncryptionException("Empty response from Vault Transit HMAC");
+        } catch (org.springframework.web.client.RestClientException e) {
             log.error("Vault Transit HMAC generation failed: {}", e.getMessage());
-            throw new RuntimeException("Vault HMAC error: " + e.getMessage(), e);
+            throw new com.classification.domain_system.exception.EncryptionException("Vault HMAC error: " + e.getMessage(), e);
         }
     }
 
@@ -200,10 +202,10 @@ public class VaultTransitService {
                     return (String) data.get("ciphertext");
                 }
             }
-            throw new RuntimeException("Empty response from Vault Transit Rewrap");
-        } catch (Exception e) {
+            throw new com.classification.domain_system.exception.EncryptionException("Empty response from Vault Transit Rewrap");
+        } catch (org.springframework.web.client.RestClientException e) {
             log.error("Vault Transit Rewrap failed: {}", e.getMessage());
-            throw new RuntimeException("Vault rewrap error: " + e.getMessage(), e);
+            throw new com.classification.domain_system.exception.EncryptionException("Vault rewrap error: " + e.getMessage(), e);
         }
     }
 

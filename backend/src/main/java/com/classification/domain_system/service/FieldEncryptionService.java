@@ -1,9 +1,12 @@
 package com.classification.domain_system.service;
 
+import com.classification.domain_system.exception.DecryptionException;
+import com.classification.domain_system.exception.EncryptionException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 
 import javax.crypto.Cipher;
 import javax.crypto.Mac;
@@ -11,6 +14,9 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.HexFormat;
@@ -63,8 +69,8 @@ public class FieldEncryptionService {
             java.security.MessageDigest sha256 = java.security.MessageDigest.getInstance("SHA-256");
             byte[] hmacKeyBytes = sha256.digest(("HMAC-BLIND-INDEX-KEY:" + secretKey).getBytes(StandardCharsets.UTF_8));
             this.hmacKey = new SecretKeySpec(hmacKeyBytes, HMAC_ALGORITHM);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to initialize encryption keys", e);
+        } catch (NoSuchAlgorithmException e) {
+            throw new EncryptionException("Failed to initialize encryption keys: SHA-256 algorithm not available", e);
         }
     }
 
@@ -77,8 +83,12 @@ public class FieldEncryptionService {
         if ("VAULT".equalsIgnoreCase(encryptionType) && vaultTransitService != null) {
             try {
                 return vaultTransitService.encrypt(plainText);
-            } catch (Exception e) {
-                log.warn("Vault encryption failed, falling back to local AES-GCM: {}", e.getMessage());
+            } catch (RestClientException e) {
+                log.error("Vault Transit encryption failed due to communication error", e);
+                throw new EncryptionException("Vault Transit encryption failed: " + e.getMessage(), e);
+            } catch (RuntimeException e) {
+                log.error("Vault Transit encryption failed", e);
+                throw new EncryptionException("Vault Transit encryption failed: " + e.getMessage(), e);
             }
         }
 
@@ -97,9 +107,9 @@ public class FieldEncryptionService {
             System.arraycopy(cipherTextBytes, 0, combined, iv.length, cipherTextBytes.length);
 
             return Base64.getEncoder().encodeToString(combined);
-        } catch (Exception e) {
+        } catch (GeneralSecurityException e) {
             log.error("AES-GCM Encryption failed", e);
-            throw new RuntimeException("Encryption error", e);
+            throw new EncryptionException("AES-GCM encryption error", e);
         }
     }
 
@@ -112,9 +122,12 @@ public class FieldEncryptionService {
         if (vaultTransitService != null && vaultTransitService.isVaultEncrypted(cipherText)) {
             try {
                 return vaultTransitService.decrypt(cipherText);
-            } catch (Exception e) {
+            } catch (RestClientException e) {
+                log.error("Vault decryption failed due to communication error: {}", e.getMessage());
+                throw new DecryptionException("Vault Transit decryption failed: " + e.getMessage(), e);
+            } catch (RuntimeException e) {
                 log.error("Vault decryption failed: {}", e.getMessage());
-                return cipherText;
+                throw new DecryptionException("Vault Transit decryption failed: " + e.getMessage(), e);
             }
         }
 
@@ -139,8 +152,13 @@ public class FieldEncryptionService {
 
             byte[] plainTextBytes = cipher.doFinal(cipherTextBytes);
             return new String(plainTextBytes, StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            log.trace("AES-GCM Decryption skipped or failed for string: {}", e.getMessage());
+        } catch (IllegalArgumentException e) {
+            // Base64 디코딩 실패 — 암호화되지 않은 일반 문자열로 판단
+            log.trace("Not a valid Base64 ciphertext, returning as-is: {}", e.getMessage());
+            return cipherText;
+        } catch (GeneralSecurityException e) {
+            // AES-GCM 복호화 실패 (키 불일치, 데이터 변조 등)
+            log.trace("AES-GCM Decryption failed — key mismatch or corrupted data: {}", e.getMessage());
             return cipherText;
         }
     }
@@ -154,8 +172,12 @@ public class FieldEncryptionService {
         if ("VAULT".equalsIgnoreCase(encryptionType) && vaultTransitService != null) {
             try {
                 return vaultTransitService.generateHmac(plainText);
-            } catch (Exception e) {
-                log.warn("Vault HMAC generation failed, falling back to local HMAC-SHA256: {}", e.getMessage());
+            } catch (RestClientException e) {
+                log.error("Vault HMAC generation failed due to communication error", e);
+                throw new EncryptionException("Vault HMAC generation failed: " + e.getMessage(), e);
+            } catch (RuntimeException e) {
+                log.error("Vault HMAC generation failed", e);
+                throw new EncryptionException("Vault HMAC generation failed: " + e.getMessage(), e);
             }
         }
 
@@ -165,9 +187,12 @@ public class FieldEncryptionService {
             mac.init(hmacKey);
             byte[] hmacBytes = mac.doFinal(plainText.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(hmacBytes);
-        } catch (Exception e) {
-            log.error("HMAC blind index generation failed", e);
-            throw new RuntimeException("Blind index error", e);
+        } catch (NoSuchAlgorithmException e) {
+            log.error("HMAC algorithm not available", e);
+            throw new EncryptionException("HMAC-SHA256 algorithm not available", e);
+        } catch (InvalidKeyException e) {
+            log.error("HMAC key is invalid", e);
+            throw new EncryptionException("HMAC key initialization failed", e);
         }
     }
 
@@ -201,9 +226,9 @@ public class FieldEncryptionService {
         try {
             byte[] combined = Base64.getDecoder().decode(text);
             return combined.length >= GCM_IV_LENGTH + 16;
-        } catch (Exception e) {
+        } catch (IllegalArgumentException e) {
+            // Base64 디코딩 실패 — 암호화되지 않은 문자열
             return false;
         }
     }
 }
-

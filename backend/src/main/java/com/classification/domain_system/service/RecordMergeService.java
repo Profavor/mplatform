@@ -212,8 +212,14 @@ public class RecordMergeService {
                                 refHistory.setVersion(savedRefRec.getVersion());
                                 recordHistoryRepository.save(refHistory);
                             }
-                        } catch (Exception e) {
+                        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
                             log.error("[RecordMerge] Error repointing reference for record: {}", refRec.getId(), e);
+                            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR,
+                                "Failed to repoint reference for record " + refRec.getId() + ": " + e.getMessage());
+                        } catch (org.springframework.dao.DataAccessException e) {
+                            log.error("[RecordMerge] DB error repointing reference for record: {}", refRec.getId(), e);
+                            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR,
+                                "Failed to save repointed reference for record " + refRec.getId());
                         }
                     }
                 }

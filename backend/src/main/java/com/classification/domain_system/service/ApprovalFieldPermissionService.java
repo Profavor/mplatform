@@ -212,8 +212,10 @@ public class ApprovalFieldPermissionService {
             }
         } catch (BusinessException be) {
             throw be;
-        } catch (Exception e) {
-            log.error("Failed to validate action permission", e);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException | RuntimeException e) {
+            log.error("Failed to validate action permission — denying access as fail-safe", e);
+            throw new BusinessException(ErrorCode.ACCESS_DENIED,
+                "Action permission validation failed: " + e.getMessage());
         }
     }
 }

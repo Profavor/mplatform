@@ -1,11 +1,14 @@
 package com.classification.domain_system.service;
 
+import com.classification.domain_system.exception.DecryptionException;
+import com.classification.domain_system.exception.EncryptionException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class FieldEncryptionServiceTest {
 
@@ -139,5 +142,83 @@ class FieldEncryptionServiceTest {
         String hmac = vaultEnabledService.generateBlindIndex("860104-1234567");
         assertThat(hmac).isEqualTo("vault:v1:mock-hmac");
     }
-}
 
+    // ===== 예외 전파 검증 테스트 =====
+
+    @Test
+    @DisplayName("encrypt_VaultFail_ThrowsEncryptionException: Vault 암호화 실패 시 EncryptionException 전파 (침묵 금지)")
+    void encrypt_VaultFail_ThrowsEncryptionException() {
+        VaultTransitService mockVault = org.mockito.Mockito.mock(VaultTransitService.class);
+        org.mockito.Mockito.when(mockVault.encrypt(org.mockito.Mockito.anyString()))
+                .thenThrow(new RuntimeException("Vault server unreachable"));
+
+        FieldEncryptionService vaultService = new FieldEncryptionService(
+                "12345678901234567890123456789012", "VAULT", mockVault);
+
+        assertThatThrownBy(() -> vaultService.encrypt("sensitive-data"))
+                .isInstanceOf(EncryptionException.class)
+                .hasMessageContaining("Vault Transit encryption failed");
+    }
+
+    @Test
+    @DisplayName("decrypt_VaultFail_ThrowsDecryptionException: Vault 복호화 실패 시 DecryptionException 전파 (암호문 반환 금지)")
+    void decrypt_VaultFail_ThrowsDecryptionException() {
+        VaultTransitService mockVault = org.mockito.Mockito.mock(VaultTransitService.class);
+        org.mockito.Mockito.when(mockVault.isVaultEncrypted("vault:v1:corrupted")).thenReturn(true);
+        org.mockito.Mockito.when(mockVault.decrypt("vault:v1:corrupted"))
+                .thenThrow(new RuntimeException("Vault decryption error"));
+
+        FieldEncryptionService vaultService = new FieldEncryptionService(
+                "12345678901234567890123456789012", "VAULT", mockVault);
+
+        assertThatThrownBy(() -> vaultService.decrypt("vault:v1:corrupted"))
+                .isInstanceOf(DecryptionException.class)
+                .hasMessageContaining("Vault Transit decryption failed");
+    }
+
+    @Test
+    @DisplayName("generateBlindIndex_VaultFail_ThrowsEncryptionException: Vault HMAC 실패 시 EncryptionException 전파 (침묵 금지)")
+    void generateBlindIndex_VaultFail_ThrowsEncryptionException() {
+        VaultTransitService mockVault = org.mockito.Mockito.mock(VaultTransitService.class);
+        org.mockito.Mockito.when(mockVault.generateHmac(org.mockito.Mockito.anyString()))
+                .thenThrow(new RuntimeException("Vault HMAC unavailable"));
+
+        FieldEncryptionService vaultService = new FieldEncryptionService(
+                "12345678901234567890123456789012", "VAULT", mockVault);
+
+        assertThatThrownBy(() -> vaultService.generateBlindIndex("user@example.com"))
+                .isInstanceOf(EncryptionException.class)
+                .hasMessageContaining("Vault HMAC generation failed");
+    }
+
+    @Test
+    @DisplayName("decrypt_LegacyCorruptedCiphertext_ReturnsAsIs: AES-GCM 복호화 키 불일치 시 원본 문자열 반환 (레거시 호환)")
+    void decrypt_LegacyCorruptedCiphertext_ReturnsAsIs() {
+        // 다른 키로 암호화된 텍스트를 현재 키로 복호화 시도
+        FieldEncryptionService otherKeyService = new FieldEncryptionService("AAAAAAAABBBBBBBBCCCCCCCCDDDDDDDD");
+        String encryptedByOtherKey = otherKeyService.encrypt("test data");
+
+        // 현재 키로 복호화 → GeneralSecurityException → 원문 반환 (레거시 데이터 마이그레이션 호환)
+        String result = fieldEncryptionService.decrypt(encryptedByOtherKey);
+        assertThat(result).isEqualTo(encryptedByOtherKey);
+    }
+
+    @Test
+    @DisplayName("decrypt_NonEncryptedText_ReturnsAsIs: 비암호화 일반 텍스트는 그대로 반환")
+    void decrypt_NonEncryptedText_ReturnsAsIs() {
+        String plainText = "Hello, 일반 텍스트입니다.";
+        String result = fieldEncryptionService.decrypt(plainText);
+        assertThat(result).isEqualTo(plainText);
+    }
+
+    @Test
+    @DisplayName("encrypt_NullAndEmpty_ReturnsAsIs: null/empty 입력 시 그대로 반환")
+    void encrypt_NullAndEmpty_ReturnsAsIs() {
+        assertThat(fieldEncryptionService.encrypt(null)).isNull();
+        assertThat(fieldEncryptionService.encrypt("")).isEmpty();
+        assertThat(fieldEncryptionService.decrypt(null)).isNull();
+        assertThat(fieldEncryptionService.decrypt("")).isEmpty();
+        assertThat(fieldEncryptionService.generateBlindIndex(null)).isNull();
+        assertThat(fieldEncryptionService.generateBlindIndex("")).isEmpty();
+    }
+}
