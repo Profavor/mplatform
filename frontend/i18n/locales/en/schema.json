@@ -19,6 +19,7 @@
   "node_deleted_success": "Node deleted successfully.",
   "node_delete_failed": "Failed to delete node.",
   "edit_node": "Edit Node",
+  "edit_field": "Edit Field",
   "add_node_to": "Add Child Node to {name}",
   "node_name_ko": "Node Name (KO)",
   "node_name_en": "Node Name (EN)",

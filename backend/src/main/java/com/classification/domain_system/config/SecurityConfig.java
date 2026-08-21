@@ -65,7 +65,15 @@ public class SecurityConfig {
                 .requestMatchers("/api/inbox/track/open/**").permitAll()
                 .requestMatchers("/api/files/download/**").permitAll()
                 .requestMatchers("/api/files/info/**").permitAll()
-                .requestMatchers("/actuator/**").permitAll()
+                .requestMatchers("/actuator/**", "/api/actuator/**").permitAll()
+                .requestMatchers(
+                    "/v3/api-docs/**",
+                    "/swagger-ui/**",
+                    "/swagger-ui.html",
+                    "/api/v3/api-docs/**",
+                    "/api/swagger-ui/**",
+                    "/api/swagger-ui.html"
+                ).permitAll()
                 // Inbound Webhook: 외부 시스템이 자체 채널 시크릿 토큰으로 호출하므로 JWT 인증 제외
                 .requestMatchers(HttpMethod.POST, "/api/integration/inbound/**").permitAll()
                 .requestMatchers("/api/**").authenticated()

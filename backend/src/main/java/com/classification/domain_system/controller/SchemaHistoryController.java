@@ -15,7 +15,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class SchemaHistoryController {
 
-    private final SchemaHistoryRepository historyRepository;
+    private final com.classification.domain_system.service.SchemaHistoryService schemaHistoryService;
 
     @GetMapping("/api/domains/{domainId}/schema-history")
     @PreAuthorize("hasPermission(null, 'domain:read')")
@@ -27,25 +27,13 @@ public class SchemaHistoryController {
             @RequestParam(defaultValue = "20") int size) {
             
         org.springframework.data.domain.Pageable pageable = PageRequest.of(page, size, org.springframework.data.domain.Sort.by("changedAt").descending());
-        org.springframework.data.jpa.domain.Specification<SchemaHistory> spec = (root, query, cb) -> {
-            java.util.List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
-            predicates.add(cb.equal(root.get("domainId"), domainId));
-            if (targetType != null && !targetType.trim().isEmpty()) {
-                predicates.add(cb.equal(root.get("targetType"), targetType));
-            }
-            if (action != null && !action.trim().isEmpty()) {
-                predicates.add(cb.equal(root.get("action"), action));
-            }
-            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
-        };
-        
-        return ResponseEntity.ok(PageResponse.of(historyRepository.findAll(spec, pageable)));
+        return ResponseEntity.ok(PageResponse.of(schemaHistoryService.getSchemaHistory(domainId, targetType, action, pageable)));
     }
     
     @GetMapping("/api/schema-history/{id}")
     @PreAuthorize("hasPermission(null, 'domain:read')")
     public ResponseEntity<SchemaHistory> getSchemaHistoryById(@PathVariable UUID id) {
-        return historyRepository.findById(id)
+        return schemaHistoryService.getSchemaHistoryById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }

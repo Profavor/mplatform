@@ -27,7 +27,7 @@ class WorkflowConfigControllerTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private WorkflowConfigRepository repository;
+    private com.classification.domain_system.service.WorkflowConfigService workflowConfigService;
 
     @MockitoBean
     private JwtUtil jwtUtil;
@@ -44,6 +44,11 @@ class WorkflowConfigControllerTest {
         UUID domainId = UUID.randomUUID();
         String invalidJson = "[{\"actionType\":\"CREATE\",\"stepsConfig\":\"{\\\"steps\\\":[{\\\"stepOrder\\\":2}]}\"}]";
 
+        org.mockito.Mockito.doThrow(new com.classification.domain_system.exception.BusinessException(
+                com.classification.domain_system.exception.ErrorCode.INVALID_WORKFLOW_CONFIG,
+                "Step orders must start at 1"))
+                .when(workflowConfigService).saveForDomain(org.mockito.ArgumentMatchers.eq(domainId), org.mockito.ArgumentMatchers.any());
+
         mockMvc.perform(post("/api/workflow-configs/domain/{domainId}", domainId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(invalidJson))
@@ -55,6 +60,11 @@ class WorkflowConfigControllerTest {
     void saveForDomain_GapInSteps_ThrowsBadRequest() throws Exception {
         UUID domainId = UUID.randomUUID();
         String invalidJson = "[{\"actionType\":\"CREATE\",\"stepsConfig\":\"{\\\"steps\\\":[{\\\"stepOrder\\\":1},{\\\"stepOrder\\\":3}]}\"}]";
+
+        org.mockito.Mockito.doThrow(new com.classification.domain_system.exception.BusinessException(
+                com.classification.domain_system.exception.ErrorCode.INVALID_WORKFLOW_CONFIG,
+                "Step orders must be contiguous with no gaps"))
+                .when(workflowConfigService).saveForDomain(org.mockito.ArgumentMatchers.eq(domainId), org.mockito.ArgumentMatchers.any());
 
         mockMvc.perform(post("/api/workflow-configs/domain/{domainId}", domainId)
                 .contentType(MediaType.APPLICATION_JSON)

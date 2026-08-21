@@ -173,15 +173,47 @@ class DomainControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/domains/{domainId}/fields - 필드 조회 성공")
+    @DisplayName("GET /api/domains/{domainId}/fields - 필드 DTO 목록 조회 성공")
     void getDomainFields() throws Exception {
         // given
         UUID domainId = UUID.randomUUID();
-        given(fieldDefinitionService.getDomainFields(domainId)).willReturn(Collections.emptyList());
+        com.classification.domain_system.entity.FieldDefinition field = new com.classification.domain_system.entity.FieldDefinition();
+        field.setId(UUID.randomUUID());
+        field.setKey("field_1");
+        field.setType("TEXT");
+        field.setName(Map.of("ko", "필드1"));
+
+        given(fieldDefinitionService.getDomainFields(domainId)).willReturn(List.of(field));
 
         // when & then
         mockMvc.perform(get("/api/domains/{domainId}/fields", domainId))
             .andDo(print())
-            .andExpect(status().isOk());
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[0].key").value("field_1"))
+            .andExpect(jsonPath("$[0].name.ko").value("필드1"));
+    }
+
+    @Test
+    @DisplayName("POST /api/domains/{domainId}/fields - 필드 추가 시 FieldDefinitionResponse DTO 반환")
+    void addDomainField() throws Exception {
+        UUID domainId = UUID.randomUUID();
+        com.classification.domain_system.entity.FieldDefinition field = new com.classification.domain_system.entity.FieldDefinition();
+        field.setId(UUID.randomUUID());
+        field.setKey("field_new");
+        field.setType("NUMBER");
+        field.setName(Map.of("ko", "신규필드"));
+
+        given(fieldDefinitionService.addDomainField(any(UUID.class), any())).willReturn(field);
+
+        Map<String, Object> req = Map.of("key", "field_new", "type", "NUMBER", "name", Map.of("ko", "신규필드"), "order", 1);
+
+        mockMvc.perform(post("/api/domains/{domainId}/fields", domainId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+            .andDo(print())
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.key").value("field_new"))
+            .andExpect(jsonPath("$.name.ko").value("신규필드"));
     }
 }
