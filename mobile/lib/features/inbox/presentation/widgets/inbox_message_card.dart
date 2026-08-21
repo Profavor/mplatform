@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mplatform_mobile/core/l10n/generated/app_localizations.dart';
 import 'package:mplatform_mobile/core/utils/date_helper.dart';
+import 'package:mplatform_mobile/core/utils/html_helper.dart';
 import 'package:mplatform_mobile/core/utils/uuid_formatter.dart';
+import 'package:mplatform_mobile/features/auth/presentation/providers/auth_provider.dart';
 import 'package:mplatform_mobile/features/inbox/domain/models/inbox_message_model.dart';
 import 'package:mplatform_mobile/features/inbox/presentation/providers/inbox_provider.dart';
 
@@ -18,9 +20,10 @@ class InboxMessageCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final isUnread = !message.isRead;
+    final users = ref.watch(userListProvider).valueOrNull ?? [];
 
     // UUID 마스킹
     final formattedId = UuidFormatter.format(message.id, prefix: 'INB');
@@ -166,9 +169,9 @@ class InboxMessageCard extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 4),
-              // Body snippet
+              // Body snippet (HTML 태그 제거, UUID 치환 및 엔티티 디코딩된 플레인 텍스트)
               Text(
-                message.body,
+                HtmlHelper.toPlainText(HtmlHelper.replaceUserUuids(message.body, users)),
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.grey[600],

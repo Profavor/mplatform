@@ -7,7 +7,6 @@ import 'package:mplatform_mobile/core/utils/date_helper.dart';
 import 'package:mplatform_mobile/core/utils/l10n_helper.dart';
 import 'package:mplatform_mobile/features/records/data/repositories/records_repository.dart';
 import 'package:mplatform_mobile/features/records/domain/models/field_definition.dart';
-import 'package:mplatform_mobile/core/utils/uuid_formatter.dart';
 
 class RecordHistoryScreen extends ConsumerStatefulWidget {
   final String recordId;
@@ -74,7 +73,7 @@ class _RecordHistoryScreenState extends ConsumerState<RecordHistoryScreen> {
 
   Future<void> _showDecryptDialog(String historyId, FieldDefinition f) async {
     String reason = '';
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     
     final bool? confirm = await showDialog<bool>(
       context: context,
@@ -131,7 +130,7 @@ class _RecordHistoryScreenState extends ConsumerState<RecordHistoryScreen> {
           }
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.decryptSuccessNotice)),
+          SnackBar(content: Text(AppLocalizations.of(context).decryptSuccessNotice)),
         );
         
         Future.delayed(const Duration(seconds: 30), () {
@@ -145,7 +144,7 @@ class _RecordHistoryScreenState extends ConsumerState<RecordHistoryScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${AppLocalizations.of(context)!.decryptFailedNotice} $e')),
+          SnackBar(content: Text('${AppLocalizations.of(context).decryptFailedNotice} $e')),
         );
       }
     } finally {
@@ -161,7 +160,7 @@ class _RecordHistoryScreenState extends ConsumerState<RecordHistoryScreen> {
         : '-';
     
     final changeType = history['changeType'] ?? 'UPDATE';
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final changedByName = history['changedByName'] ?? l10n.systemapplied;
 
     Color typeColor = Colors.blue;
@@ -355,7 +354,7 @@ class _RecordHistoryScreenState extends ConsumerState<RecordHistoryScreen> {
     return Scaffold(
       backgroundColor: Colors.blueGrey[50],
       appBar: AppBar(
-        title: Text('${AppLocalizations.of(context)!.recordHISTORY} - ${widget.displayId}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
+        title: Text('${AppLocalizations.of(context).recordHISTORY} - ${widget.displayId}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
@@ -367,9 +366,9 @@ class _RecordHistoryScreenState extends ConsumerState<RecordHistoryScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator(color: Colors.deepPurple));
           } else if (snapshot.hasError) {
-            return Center(child: Text('${AppLocalizations.of(context)!.failedLoadHistory} ${snapshot.error}'));
+            return Center(child: Text('${AppLocalizations.of(context).failedLoadHistory} ${snapshot.error}'));
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return Center(child: Text(AppLocalizations.of(context)!.noHistoryData));
+            return Center(child: Text(AppLocalizations.of(context).noHistoryData));
           }
 
           final histories = snapshot.data!;

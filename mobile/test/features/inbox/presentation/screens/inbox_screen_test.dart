@@ -70,6 +70,10 @@ void main() {
       await tester.pumpWidget(createWidgetUnderTest());
       await tester.pumpAndSettle();
 
+      // Verify AppBar Title is 사내 편지함 (never 스키마 변경 이력)
+      expect(find.text('사내 편지함'), findsOneWidget);
+      expect(find.text('스키마 변경 이력'), findsNothing);
+
       // Verify Sender Name & Subject
       expect(find.text('이홍길'), findsOneWidget);
       expect(find.text('신규 마스터 스키마 결재 통지'), findsOneWidget);

@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mplatform_mobile/features/auth/domain/models/auth_response.dart';
-import 'package:mplatform_mobile/features/auth/domain/models/user_model.dart';
 
 void main() {
   group('AuthResponse & UserModel Parsing Tests (TDD - Spring Boot Flat Response Compatibility)', () {

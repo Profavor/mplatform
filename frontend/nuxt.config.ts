@@ -8,7 +8,8 @@ dns.setDefaultResultOrder('ipv4first')
 export default defineNuxtConfig({
   compatibilityDate: '2026-08-11',
   experimental: {
-    scanPageMeta: true
+    scanPageMeta: true,
+    appManifest: false
   },
   devtools: { enabled: false },
   unhead: { legacy: true },

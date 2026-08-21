@@ -62,6 +62,19 @@ public class InboxApprovalIntegrationService {
         // Let's modify InboxMessageRequest and InboxService.
     }
 
+    private String resolveUserName(String userId, String fallbackName) {
+        if (userId != null) {
+            String name = inboxService.resolveUserName(userId);
+            if (StringUtils.hasText(name) && !name.matches("^[0-9a-fA-F-]{36}$")) {
+                return name;
+            }
+        }
+        if (StringUtils.hasText(fallbackName) && !fallbackName.matches("^[0-9a-fA-F-]{36}$")) {
+            return fallbackName;
+        }
+        return "사용자";
+    }
+
     @Transactional
     public void onApprovalSubmitted(ApprovalRequest approval) {
         List<String> toList = new ArrayList<>();
@@ -77,9 +90,10 @@ public class InboxApprovalIntegrationService {
             }
         }
         
+        String requesterName = resolveUserName(approval.getRequesterId(), approval.getRequesterName());
         String actionTitle = resolveTitle(approval);
         String subject = "[결재 요청] " + actionTitle;
-        String body = "<p><strong>" + approval.getRequesterName() + "</strong> 님이 새로운 결재를 상신하였습니다.</p>"
+        String body = "<p><strong>" + requesterName + "</strong> 님이 새로운 결재를 상신하였습니다.</p>"
                     + "<p><strong>유형:</strong> " + approval.getTargetType() + "</p>"
                     + (isMemoApproval(approval) ? extractMemoSummaryHtml(approval) : "");
         
@@ -101,13 +115,14 @@ public class InboxApprovalIntegrationService {
             }
         }
         
+        String approverName = resolveUserName(step != null ? step.getAssigneeId() : null, step != null ? step.getAssigneeName() : null);
         String actionTitle = resolveTitle(approval);
-        String subject = "[결재 진행] " + actionTitle + " (" + (step.getStepOrder() != null ? step.getStepOrder() : 1) + "단계 승인)";
-        String body = "<p>" + step.getAssigneeName() + " 님이 " + (step.getStepOrder() != null ? step.getStepOrder() : 1) + "단계 결재를 승인하였습니다.</p>"
-                    + (step.getComment() != null && !step.getComment().isBlank() ? "<p><strong>의견:</strong> " + step.getComment() + "</p>" : "")
+        String subject = "[결재 진행] " + actionTitle + " (" + (step != null && step.getStepOrder() != null ? step.getStepOrder() : 1) + "단계 승인)";
+        String body = "<p><strong>" + approverName + "</strong> 님이 " + (step != null && step.getStepOrder() != null ? step.getStepOrder() : 1) + "단계 결재를 승인하였습니다.</p>"
+                    + (step != null && step.getComment() != null && !step.getComment().isBlank() ? "<p><strong>의견:</strong> " + step.getComment() + "</p>" : "")
                     + (isMemoApproval(approval) ? extractMemoSummaryHtml(approval) : "");
         
-        sendApprovalMessage(subject, body, toList, null, null, approval, step.getAssigneeId());
+        sendApprovalMessage(subject, body, toList, null, null, approval, step != null ? step.getAssigneeId() : "SYSTEM");
     }
 
     @Transactional
@@ -117,9 +132,10 @@ public class InboxApprovalIntegrationService {
             toList.add(approval.getRequesterId());
         }
         
+        String rejectorName = resolveUserName(step != null ? step.getAssigneeId() : null, step != null ? step.getAssigneeName() : null);
         String actionTitle = resolveTitle(approval);
         String subject = "[결재 반려] " + actionTitle;
-        String body = "<p>상신하신 결재가 <strong>" + (step != null ? step.getAssigneeName() : "담당자") + "</strong> 님에 의해 반려되었습니다.</p>"
+        String body = "<p>상신하신 결재가 <strong>" + rejectorName + "</strong> 님에 의해 반려되었습니다.</p>"
                     + (step != null && step.getComment() != null && !step.getComment().isBlank() ? "<p><strong>반려 사유:</strong> " + step.getComment() + "</p>" : "")
                     + (isMemoApproval(approval) ? extractMemoSummaryHtml(approval) : "");
                       

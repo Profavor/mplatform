@@ -26,14 +26,12 @@ import 'package:mplatform_mobile/features/notifications/presentation/providers/n
 import 'package:mplatform_mobile/features/records/data/repositories/records_repository.dart';
 import 'package:mplatform_mobile/features/records/presentation/providers/records_provider.dart';
 import 'package:mplatform_mobile/features/dashboard/data/repositories/dashboard_repository.dart';
-import 'package:mplatform_mobile/features/dashboard/presentation/providers/dashboard_provider.dart';
 import 'package:mplatform_mobile/features/dashboard/data/models/dashboard_stats_model.dart';
 import 'package:mplatform_mobile/features/dashboard/data/models/dq_trend_item_model.dart';
 import 'package:mplatform_mobile/features/dashboard/data/models/dq_severity_item_model.dart';
 import 'package:mplatform_mobile/features/inbox/data/repositories/inbox_repository.dart';
 import 'package:mplatform_mobile/features/inbox/domain/models/inbox_folder_count_model.dart';
 import 'package:mplatform_mobile/features/inbox/domain/models/inbox_message_model.dart';
-import 'package:mplatform_mobile/features/inbox/presentation/providers/inbox_provider.dart';
 
 import 'app_router_test.mocks.dart';
 

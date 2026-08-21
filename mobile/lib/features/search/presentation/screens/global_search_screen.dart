@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dio/dio.dart';
-import 'package:mplatform_mobile/core/storage/storage_service.dart';
 import 'package:mplatform_mobile/core/providers/core_providers.dart';
+import 'package:mplatform_mobile/core/utils/uuid_formatter.dart';
 
 class GlobalSearchScreen extends ConsumerStatefulWidget {
   const GlobalSearchScreen({super.key});
@@ -108,7 +107,7 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
                     final record = _results[index];
                     return ListTile(
                       leading: const Icon(Icons.data_object, color: Colors.indigo),
-                      title: Text(record['id'] ?? 'Unknown ID'),
+                      title: Text(UuidFormatter.format(record['id']?.toString(), prefix: 'REC')),
                       subtitle: Text(
                         record['data']?.toString() ?? 'No data',
                         maxLines: 2,

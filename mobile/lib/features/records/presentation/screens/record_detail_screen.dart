@@ -36,7 +36,7 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
 
   Future<void> _showDecryptDialog(FieldDefinition f) async {
     String reason = '';
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     
     final bool? confirm = await showDialog<bool>(
       context: context,
@@ -90,7 +90,7 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
           _decryptedValues.addAll(result);
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.decryptSuccessNotice)),
+          SnackBar(content: Text(AppLocalizations.of(context).decryptSuccessNotice)),
         );
         
         Future.delayed(const Duration(seconds: 30), () {
@@ -104,7 +104,7 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${AppLocalizations.of(context)!.decryptFailedNotice} $e')),
+          SnackBar(content: Text('${AppLocalizations.of(context).decryptFailedNotice} $e')),
         );
       }
     } finally {
@@ -122,7 +122,7 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final fallbackDisplayId = UuidFormatter.format(widget.record.recordId, prefix: 'REC');
     
     String displayId = fallbackDisplayId;

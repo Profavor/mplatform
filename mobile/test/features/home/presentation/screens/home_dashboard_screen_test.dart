@@ -2,33 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mplatform_mobile/core/l10n/generated/app_localizations.dart';
-import 'package:mplatform_mobile/features/home/presentation/screens/home_dashboard_screen.dart';
-
 import 'package:dio/dio.dart';
+import 'package:mplatform_mobile/core/l10n/generated/app_localizations.dart';
+import 'package:mplatform_mobile/core/providers/core_providers.dart';
+import 'package:mplatform_mobile/core/storage/storage_service.dart';
 import 'package:mplatform_mobile/features/approvals/data/repositories/approvals_repository.dart';
 import 'package:mplatform_mobile/features/approvals/domain/models/approval_item.dart';
 import 'package:mplatform_mobile/features/approvals/presentation/providers/approvals_provider.dart';
 import 'package:mplatform_mobile/features/chat/data/repositories/chat_repository.dart';
 import 'package:mplatform_mobile/features/chat/data/services/chat_websocket_service.dart';
-import 'package:mplatform_mobile/features/dashboard/data/models/dashboard_stats_model.dart';
-import 'package:mplatform_mobile/features/dashboard/data/models/dq_trend_item_model.dart';
-import 'package:mplatform_mobile/features/dashboard/data/models/dq_severity_item_model.dart';
-import 'package:mplatform_mobile/core/providers/core_providers.dart';
-import 'package:mplatform_mobile/core/storage/storage_service.dart';
-import 'package:dio/dio.dart';
 import 'package:mplatform_mobile/features/chat/domain/models/chat_room_model.dart';
-import 'package:mplatform_mobile/features/home/presentation/screens/home_dashboard_screen.dart';
-import 'package:mplatform_mobile/features/notifications/data/repositories/notifications_repository.dart';
-import 'package:mplatform_mobile/features/notifications/domain/models/notification_item.dart';
-import 'package:mplatform_mobile/features/notifications/presentation/providers/notifications_provider.dart';
 import 'package:mplatform_mobile/features/chat/domain/models/chat_message_model.dart';
 import 'package:mplatform_mobile/features/chat/presentation/providers/chat_provider.dart';
 import 'package:mplatform_mobile/features/dashboard/data/repositories/dashboard_repository.dart';
 import 'package:mplatform_mobile/features/dashboard/data/models/dashboard_stats_model.dart';
 import 'package:mplatform_mobile/features/dashboard/data/models/dq_trend_item_model.dart';
 import 'package:mplatform_mobile/features/dashboard/data/models/dq_severity_item_model.dart';
-import 'package:mplatform_mobile/features/dashboard/presentation/providers/dashboard_provider.dart';
+import 'package:mplatform_mobile/features/home/presentation/screens/home_dashboard_screen.dart';
+import 'package:mplatform_mobile/features/notifications/data/repositories/notifications_repository.dart';
+import 'package:mplatform_mobile/features/notifications/domain/models/notification_item.dart';
+import 'package:mplatform_mobile/features/notifications/presentation/providers/notifications_provider.dart';
 import 'package:mockito/mockito.dart';
 
 class FakeApprovalsRepo extends ApprovalsRepository {
@@ -49,7 +42,7 @@ class FakeApprovalsRepo extends ApprovalsRepository {
 class FakeChatRepo extends ChatRepository {
   FakeChatRepo() : super(Dio());
   @override
-  Future<List<ChatRoomModel>> getRooms() async => [];
+  Future<List<ChatRoomModel>> getChatRooms() async => [];
   @override
   Future<List<ChatMessageModel>> getMessages(String roomId, {int page = 0, int size = 30}) async => [];
 }
@@ -57,7 +50,7 @@ class FakeChatRepo extends ChatRepository {
 class FakeNotifRepo extends NotificationsRepository {
   FakeNotifRepo() : super(Dio());
   @override
-  Future<List<NotificationItem>> getNotifications({int page = 0, int size = 20, bool unreadOnly = false}) async => [
+  Future<List<NotificationItem>> getNotifications({int page = 0, int size = 20}) async => [
     const NotificationItem(
       id: 'notif-1',
       title: '새로운 결재 요청',
@@ -159,9 +152,6 @@ void main() {
       await tester.pumpAndSettle();
 
       // 1. Verify localized headers exist
-      final texts = tester.widgetList<Text>(find.byType(Text)).map((t) => t.data).toList();
-      print('TEXTS FOUND: $texts');
-      
       expect(find.text('거버넌스 포털 대시보드'), findsWidgets);
       expect(find.text('나의 처리 대기 현황'), findsOneWidget);
       expect(find.text('최근 변경 및 승인 활동'), findsOneWidget);

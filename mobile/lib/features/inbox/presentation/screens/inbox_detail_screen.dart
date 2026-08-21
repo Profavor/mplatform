@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:mplatform_mobile/core/l10n/generated/app_localizations.dart';
 import 'package:mplatform_mobile/core/utils/date_helper.dart';
+import 'package:mplatform_mobile/core/utils/html_helper.dart';
 import 'package:mplatform_mobile/core/utils/uuid_formatter.dart';
 import 'package:mplatform_mobile/features/auth/presentation/providers/auth_provider.dart';
 import 'package:mplatform_mobile/features/inbox/data/repositories/inbox_repository.dart';
@@ -98,7 +100,7 @@ class _InboxDetailScreenState extends ConsumerState<InboxDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final currentUser = ref.watch(authControllerProvider).valueOrNull;
 
     if (_isLoading) {
@@ -239,11 +241,40 @@ class _InboxDetailScreenState extends ConsumerState<InboxDetailScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            // Body Content
-            Text(
-              msg.body,
-              style: const TextStyle(fontSize: 15, height: 1.5),
-            ),
+            // Body Content (HTML / RichText 렌더링 지원 & UUID -> username 자동 치환)
+            () {
+              final users = ref.watch(userListProvider).valueOrNull ?? [];
+              final displayBody = HtmlHelper.replaceUserUuids(msg.body, users);
+              if (HtmlHelper.isHtml(displayBody)) {
+                return HtmlWidget(
+                  displayBody,
+                  textStyle: const TextStyle(fontSize: 15, height: 1.5, color: Colors.black87),
+                  customStylesBuilder: (element) {
+                    if (element.localName == 'blockquote') {
+                      return {
+                        'margin': '8px 0',
+                        'padding': '8px 12px',
+                        'border-left': '3px solid #ccc',
+                        'background-color': '#f9f9f9',
+                        'color': '#555555',
+                      };
+                    }
+                    if (element.localName == 'hr') {
+                      return {
+                        'margin': '12px 0',
+                        'border-top': '1px solid #e0e0e0',
+                      };
+                    }
+                    return null;
+                  },
+                );
+              } else {
+                return Text(
+                  displayBody,
+                  style: const TextStyle(fontSize: 15, height: 1.5),
+                );
+              }
+            }(),
             const SizedBox(height: 24),
             // Attachments Section
             if (msg.attachments.isNotEmpty) ...[

@@ -43,7 +43,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final state = ref.watch(inboxControllerProvider);
     final notifier = ref.read(inboxControllerProvider.notifier);
 
@@ -63,7 +63,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                   notifier.search(query);
                 },
               )
-            : Text(l10n.title),
+            : Text(l10n.inboxTitle),
         actions: [
           IconButton(
             icon: Icon(_isSearching ? Icons.close : Icons.search),
