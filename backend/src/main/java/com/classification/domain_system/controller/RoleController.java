@@ -17,14 +17,12 @@ import org.springframework.security.access.prepost.PreAuthorize;
 @RequestMapping("/api/roles")
 public class RoleController {
 
-    private final RoleRepository roleRepository;
-    private final UserRoleRepository userRoleRepository;
+    private final com.classification.domain_system.service.RoleService roleService;
     private final RoleInitializer roleInitializer;
     private final com.classification.domain_system.service.SystemSeedDumpService systemSeedDumpService;
 
-    public RoleController(RoleRepository roleRepository, UserRoleRepository userRoleRepository, RoleInitializer roleInitializer, com.classification.domain_system.service.SystemSeedDumpService systemSeedDumpService) {
-        this.roleRepository = roleRepository;
-        this.userRoleRepository = userRoleRepository;
+    public RoleController(com.classification.domain_system.service.RoleService roleService, RoleInitializer roleInitializer, com.classification.domain_system.service.SystemSeedDumpService systemSeedDumpService) {
+        this.roleService = roleService;
         this.roleInitializer = roleInitializer;
         this.systemSeedDumpService = systemSeedDumpService;
     }
@@ -32,48 +30,37 @@ public class RoleController {
     @GetMapping
     @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'role:read')")
     public ResponseEntity<List<Role>> getAllRoles() {
-        return ResponseEntity.ok(roleRepository.findAll());
+        return ResponseEntity.ok(roleService.getAllRoles());
     }
 
     @GetMapping("/org/{orgId}")
     @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'role:read')")
     public ResponseEntity<List<Role>> getRolesByOrg(@PathVariable UUID orgId) {
-        return ResponseEntity.ok(roleRepository.findByOrganizationIdOrOrganizationIdIsNull(orgId));
+        return ResponseEntity.ok(roleService.getRolesByOrg(orgId));
     }
 
     @PostMapping
     @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'role:write')")
     public ResponseEntity<Role> createRole(@RequestBody Role role) {
-        return ResponseEntity.ok(roleRepository.save(role));
+        return ResponseEntity.ok(roleService.createRole(role));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'role:write')")
     public ResponseEntity<Role> updateRole(@PathVariable UUID id, @RequestBody Role updated) {
-        return roleRepository.findById(id)
-                .map(existing -> {
-                    if (updated.getName() != null && !updated.getName().isBlank()) {
-                        existing.setName(updated.getName().trim());
-                    }
-                    existing.setDisplayName(updated.getDisplayName());
-                    existing.setDescription(updated.getDescription());
-                    existing.setPermissions(updated.getPermissions());
-                    return ResponseEntity.ok(roleRepository.save(existing));
-                })
+        return roleService.updateRole(id, updated)
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")
-    @Transactional
     @PreAuthorize("hasPermission(null, 'admin:write') or hasPermission(null, 'role:write')")
     public ResponseEntity<Void> deleteRole(@PathVariable UUID id) {
-        return roleRepository.findById(id)
-                .map(role -> {
-                    userRoleRepository.deleteByRoleId(id);
-                    roleRepository.delete(role);
-                    return ResponseEntity.ok().<Void>build();
-                })
-                .orElse(ResponseEntity.notFound().build());
+        boolean deleted = roleService.deleteRole(id);
+        if (deleted) {
+            return ResponseEntity.ok().build();
+        }
+        return ResponseEntity.notFound().build();
     }
 
     @PostMapping("/sync-defaults")

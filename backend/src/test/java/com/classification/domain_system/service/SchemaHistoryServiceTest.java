@@ -66,4 +66,37 @@ class SchemaHistoryServiceTest {
         assertThat(list.get(0).getAction()).isEqualTo("UPDATE");
     }
 
+    @Test
+    @DisplayName("getSchemaHistory - Specification 기반 페이징 조회")
+    void getSchemaHistory_Success() {
+        SchemaHistory history = new SchemaHistory();
+        history.setDomainId(domainId);
+        org.springframework.data.domain.Page<SchemaHistory> page = new org.springframework.data.domain.PageImpl<>(List.of(history));
+
+        when(schemaHistoryRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(page);
+
+        org.springframework.data.domain.Page<SchemaHistory> result = schemaHistoryService.getSchemaHistory(
+                domainId, "FIELD", "CREATE", org.springframework.data.domain.PageRequest.of(0, 20)
+        );
+
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        verify(schemaHistoryRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class), any(org.springframework.data.domain.Pageable.class));
+    }
+
+    @Test
+    @DisplayName("getSchemaHistoryById - ID로 단건 조회")
+    void getSchemaHistoryById_Success() {
+        UUID id = UUID.randomUUID();
+        SchemaHistory history = new SchemaHistory();
+        history.setId(id);
+
+        when(schemaHistoryRepository.findById(id)).thenReturn(java.util.Optional.of(history));
+
+        java.util.Optional<SchemaHistory> result = schemaHistoryService.getSchemaHistoryById(id);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().getId()).isEqualTo(id);
+        verify(schemaHistoryRepository).findById(id);
+    }
 }

@@ -122,5 +122,27 @@ public class SchemaHistoryService {
 
         return new java.util.ArrayList<>(fieldMap.values());
     }
+
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<SchemaHistory> getSchemaHistory(
+            UUID domainId, String targetType, String action, org.springframework.data.domain.Pageable pageable) {
+        org.springframework.data.jpa.domain.Specification<SchemaHistory> spec = (root, query, cb) -> {
+            java.util.List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+            predicates.add(cb.equal(root.get("domainId"), domainId));
+            if (targetType != null && !targetType.trim().isEmpty()) {
+                predicates.add(cb.equal(root.get("targetType"), targetType));
+            }
+            if (action != null && !action.trim().isEmpty()) {
+                predicates.add(cb.equal(root.get("action"), action));
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+        return repository.findAll(spec, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.Optional<SchemaHistory> getSchemaHistoryById(UUID id) {
+        return repository.findById(id);
+    }
 }
 

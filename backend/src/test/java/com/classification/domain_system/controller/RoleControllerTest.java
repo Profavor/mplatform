@@ -35,10 +35,7 @@ class RoleControllerTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private RoleRepository roleRepository;
-
-    @MockitoBean
-    private UserRoleRepository userRoleRepository;
+    private com.classification.domain_system.service.RoleService roleService;
 
     @MockitoBean
     private RoleInitializer roleInitializer;
@@ -56,22 +53,31 @@ class RoleControllerTest {
     private com.classification.domain_system.context.AuthContext authContext;
 
     @Test
-    @DisplayName("deleteRole - 역할 삭제 시 연관된 user_roles 매핑과 함께 성공적으로 삭제 처리")
+    @DisplayName("deleteRole - 역할 삭제 성공 시 200 OK")
     void deleteRole_Success() throws Exception {
         UUID roleId = UUID.randomUUID();
-        Role role = new Role();
-        role.setId(roleId);
-        role.setName("CUSTOM_ROLE");
-        role.setIsSystemRole(false);
 
-        when(roleRepository.findById(roleId)).thenReturn(Optional.of(role));
+        when(roleService.deleteRole(roleId)).thenReturn(true);
 
         mockMvc.perform(delete("/api/roles/" + roleId)
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
 
-        verify(userRoleRepository).deleteByRoleId(roleId);
-        verify(roleRepository).delete(role);
+        verify(roleService).deleteRole(roleId);
+    }
+
+    @Test
+    @DisplayName("deleteRole - 존재하지 않는 역할 삭제 시 404 Not Found")
+    void deleteRole_NotFound() throws Exception {
+        UUID roleId = UUID.randomUUID();
+
+        when(roleService.deleteRole(roleId)).thenReturn(false);
+
+        mockMvc.perform(delete("/api/roles/" + roleId)
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound());
+
+        verify(roleService).deleteRole(roleId);
     }
 
     @Test

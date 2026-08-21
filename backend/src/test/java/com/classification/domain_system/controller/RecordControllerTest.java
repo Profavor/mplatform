@@ -49,12 +49,6 @@ class RecordControllerTest {
     private ApprovalService approvalService;
 
     @MockitoBean
-    private RecordRepository recordRepository;
-
-    @MockitoBean
-    private ClassificationNodeRepository classificationNodeRepository;
-
-    @MockitoBean
     private JwtUtil jwtUtil;
 
     @MockitoBean
@@ -74,8 +68,6 @@ class RecordControllerTest {
     @BeforeEach
     void setUp() {
         nodeId = UUID.randomUUID();
-        when(recordService.prepareRecordsForRead(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        when(recordService.prepareRecordForRead(any())).thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test
@@ -108,12 +100,8 @@ class RecordControllerTest {
 
         Page<Record> page = new PageImpl<>(List.of(record), PageRequest.of(0, 100), 1);
 
-        when(recordRepository.findDynamicRecords(
-                any(List.class),
-                any(),
-                any(Map.class),
-                any(PageRequest.class)
-        )).thenReturn(page);
+        when(recordService.getRecords(eq(nodeId), any(), eq(false), eq(0), eq(100), any(Map.class)))
+                .thenReturn(page);
 
         mockMvc.perform(get("/api/nodes/{nodeId}/records", nodeId)
                 .param("page", "0")
@@ -126,16 +114,10 @@ class RecordControllerTest {
     @Test
     @DisplayName("존재하지 않는 노드 조회 시 빈 결과 반환")
     void getRecords_NodeNotFound_ReturnsEmpty() throws Exception {
-        // classificationNodeRepository가 없어도 nodeId 자체를 targetNodeIds에 추가하므로
-        // 빈 Page 결과 반환
         Page<Record> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 100), 0);
 
-        when(recordRepository.findDynamicRecords(
-                any(List.class),
-                any(),
-                any(Map.class),
-                any(PageRequest.class)
-        )).thenReturn(emptyPage);
+        when(recordService.getRecords(eq(nodeId), any(), eq(false), eq(0), eq(100), any(Map.class)))
+                .thenReturn(emptyPage);
 
         mockMvc.perform(get("/api/nodes/{nodeId}/records", nodeId)
                 .param("page", "0")

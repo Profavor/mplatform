@@ -60,28 +60,44 @@ class ApprovalServiceTest extends BaseServiceTest {
 
     @Mock
     private ApprovalDelegationService delegationService;
+    @Mock
+    private com.classification.domain_system.websocket.WebSocketPublisher webSocketPublisher;
+    @Mock
+    private BatchJobRepository batchJobRepository;
+    @Mock
+    private StagingRecordRepository stagingRecordRepository;
 
-    @org.mockito.Spy
-    @InjectMocks
+    private ApprovalFieldPermissionService fieldPermissionService;
+    private ApprovalRequestCreationService creationService;
+    private ApprovalDecisionService decisionService;
     private ApprovalQueryService approvalQueryService;
-
-    @InjectMocks
     private ApprovalService approvalService;
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
-        if (approvalQueryService == null) {
-            approvalQueryService = org.mockito.Mockito.spy(new ApprovalQueryService(
-                approvalRepository, stepRepository, domainRepository, fieldDefinitionRepository,
-                fieldDefinitionService, recordRepository, nodeRepository, dataMaskingService,
-                userRepository, roleRepository, delegationService
-            ));
-        }
+        approvalQueryService = org.mockito.Mockito.spy(new ApprovalQueryService(
+            approvalRepository, stepRepository, domainRepository, fieldDefinitionRepository,
+            fieldDefinitionService, recordRepository, nodeRepository, dataMaskingService,
+            userRepository, roleRepository, delegationService
+        ));
         workflowResolver = new com.classification.domain_system.service.WorkflowResolver(
             workflowConfigRepository, nodeRepository, domainRepository, userRepository
         );
-        org.springframework.test.util.ReflectionTestUtils.setField(approvalService, "workflowResolver", workflowResolver);
-        org.springframework.test.util.ReflectionTestUtils.setField(approvalService, "approvalQueryService", approvalQueryService);
+        fieldPermissionService = new ApprovalFieldPermissionService(userRepository);
+        creationService = new ApprovalRequestCreationService(
+            approvalRepository, stepRepository, recordRepository, nodeRepository,
+            workflowResolver, notificationFacade, dqService, matchingService,
+            fieldDefinitionRepository, calculatedFieldEvaluator, fieldPermissionService
+        );
+        decisionService = new ApprovalDecisionService(
+            approvalRepository, stepRepository, recordRepository, userRepository,
+            notificationFacade, delegationService, webSocketPublisher, batchJobRepository,
+            stagingRecordRepository
+        );
+        approvalService = new ApprovalService(
+            fieldPermissionService, creationService, decisionService, approvalQueryService
+        );
+
         given(calculatedFieldEvaluator.recomputeCalculatedFields(any(), any()))
                 .willAnswer(invocation -> invocation.getArgument(1));
         given(approvalRepository.save(any(ApprovalRequest.class)))

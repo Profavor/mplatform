@@ -372,6 +372,10 @@ import ApprovalViewerModal from '~/components/ApprovalViewerModal.vue'
 import BulkReclassifyModal from '~/components/records/BulkReclassifyModal.vue'
 import CdcStreamModal from '~/components/records/CdcStreamModal.vue'
 import ImageLightboxModal from '~/components/common/ImageLightboxModal.vue'
+import { useRecordFilters } from '~/composables/useRecordFilters'
+import { useRecordGrid } from '~/composables/useRecordGrid'
+import { useRecordModals } from '~/composables/useRecordModals'
+import { useRecordBulkActions } from '~/composables/useRecordBulkActions'
 
 const { pageTitle } = usePageTitle('records_management', '마스터 데이터 레코드 관리')
 const { customFetch } = useCustomFetch()
@@ -382,6 +386,7 @@ const { init: initToast } = useToast()
 const { gridTheme, autoSizeStrategy } = useAgGridTheme()
 const { hasPermission } = usePermission()
 const { downloadFileWithAuth } = useFileDownloader()
+const { parseJwtUserId, handleBulkDelete } = useRecordBulkActions()
 
 const showCdcStreamModal = ref(false)
 
@@ -572,19 +577,6 @@ const currentUser = computed(() => {
   }
   return null
 })
-
-const parseJwtUserId = (tStr) => {
-  if (!tStr) return null
-  try {
-    const base64Url = tStr.split('.')[1]
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
-    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''))
-    const parsed = JSON.parse(jsonPayload)
-    return parsed.userId || parsed.uuid || parsed.username || parsed.sub || null
-  } catch {
-    return null
-  }
-}
 
 const myUuid = computed(() => {
   const u = currentUser.value

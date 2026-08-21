@@ -29,7 +29,7 @@ import static org.mockito.Mockito.*;
 class SchemaHistoryControllerTest {
 
     @Mock
-    private SchemaHistoryRepository historyRepository;
+    private com.classification.domain_system.service.SchemaHistoryService schemaHistoryService;
 
     @InjectMocks
     private SchemaHistoryController schemaHistoryController;
@@ -54,7 +54,7 @@ class SchemaHistoryControllerTest {
         SchemaHistory history = createMockHistory(domainId);
         Page<SchemaHistory> page = new PageImpl<>(List.of(history));
 
-        when(historyRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(page);
+        when(schemaHistoryService.getSchemaHistory(eq(domainId), eq("FIELD"), eq("CREATE"), any(Pageable.class))).thenReturn(page);
 
         ResponseEntity<PageResponse<SchemaHistory>> response = schemaHistoryController.getSchemaHistory(
                 domainId, "FIELD", "CREATE", 0, 20
@@ -64,6 +64,7 @@ class SchemaHistoryControllerTest {
         assertNotNull(response.getBody());
         assertEquals(1, response.getBody().content().size());
         assertEquals("FIELD", response.getBody().content().get(0).getTargetType());
+        verify(schemaHistoryService).getSchemaHistory(eq(domainId), eq("FIELD"), eq("CREATE"), any(Pageable.class));
     }
 
     @Test
@@ -73,24 +74,26 @@ class SchemaHistoryControllerTest {
         SchemaHistory history = createMockHistory(UUID.randomUUID());
         history.setId(historyId);
 
-        when(historyRepository.findById(historyId)).thenReturn(Optional.of(history));
+        when(schemaHistoryService.getSchemaHistoryById(historyId)).thenReturn(Optional.of(history));
 
         ResponseEntity<SchemaHistory> response = schemaHistoryController.getSchemaHistoryById(historyId);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(historyId, response.getBody().getId());
+        verify(schemaHistoryService).getSchemaHistoryById(historyId);
     }
 
     @Test
     @DisplayName("존재하지 않는 스키마 히스토리 단건 조회 시 404 반환")
     void testGetSchemaHistoryById_NotFound() {
         UUID historyId = UUID.randomUUID();
-        when(historyRepository.findById(historyId)).thenReturn(Optional.empty());
+        when(schemaHistoryService.getSchemaHistoryById(historyId)).thenReturn(Optional.empty());
 
         ResponseEntity<SchemaHistory> response = schemaHistoryController.getSchemaHistoryById(historyId);
 
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         assertNull(response.getBody());
+        verify(schemaHistoryService).getSchemaHistoryById(historyId);
     }
 }

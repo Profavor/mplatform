@@ -20,6 +20,44 @@ import java.util.stream.Collectors;
 public class RoleService {
 
     private final RoleRepository roleRepository;
+    private final com.classification.domain_system.repository.UserRoleRepository userRoleRepository;
+
+    @Transactional(readOnly = true)
+    public List<Role> getAllRoles() {
+        return roleRepository.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Role> getRolesByOrg(UUID orgId) {
+        return roleRepository.findByOrganizationIdOrOrganizationIdIsNull(orgId);
+    }
+
+    @Transactional
+    public Role createRole(Role role) {
+        return roleRepository.save(role);
+    }
+
+    @Transactional
+    public Optional<Role> updateRole(UUID id, Role updated) {
+        return roleRepository.findById(id).map(existing -> {
+            if (updated.getName() != null && !updated.getName().isBlank()) {
+                existing.setName(updated.getName().trim());
+            }
+            existing.setDisplayName(updated.getDisplayName());
+            existing.setDescription(updated.getDescription());
+            existing.setPermissions(updated.getPermissions());
+            return roleRepository.save(existing);
+        });
+    }
+
+    @Transactional
+    public boolean deleteRole(UUID id) {
+        return roleRepository.findById(id).map(role -> {
+            userRoleRepository.deleteByRoleId(id);
+            roleRepository.delete(role);
+            return true;
+        }).orElse(false);
+    }
 
     @Transactional(readOnly = true)
     public List<RoleBackupDto> exportRolesForOrg(UUID orgId) {

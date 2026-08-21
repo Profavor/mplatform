@@ -72,39 +72,48 @@ public class DomainController {
     
     @GetMapping("/{domainId}/fields/page")
     @PreAuthorize("hasPermission(null, 'domain:read')")
-    public ResponseEntity<PageResponse<FieldDefinition>> getDomainFieldsPage(
+    public ResponseEntity<PageResponse<com.classification.domain_system.dto.FieldDefinitionResponse>> getDomainFieldsPage(
             @PathVariable UUID domainId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
         List<FieldDefinition> allFields = fieldService.getDomainFields(domainId);
         int start = Math.min(page * size, allFields.size());
         int end = Math.min((page + 1) * size, allFields.size());
-        List<FieldDefinition> content = allFields.subList(start, end);
-        Page<FieldDefinition> p = new PageImpl<>(content, PageRequest.of(page, size), allFields.size());
+        List<com.classification.domain_system.dto.FieldDefinitionResponse> content = allFields.subList(start, end)
+                .stream()
+                .map(com.classification.domain_system.dto.FieldDefinitionResponse::from)
+                .toList();
+        Page<com.classification.domain_system.dto.FieldDefinitionResponse> p = new PageImpl<>(content, PageRequest.of(page, size), allFields.size());
         return ResponseEntity.ok(PageResponse.of(p));
     }
     
     @GetMapping("/{domainId}/fields")
     @PreAuthorize("hasPermission(null, 'domain:read')")
-    public ResponseEntity<List<FieldDefinition>> getDomainFields(@PathVariable UUID domainId) {
-        return ResponseEntity.ok(fieldService.getDomainFields(domainId));
+    public ResponseEntity<List<com.classification.domain_system.dto.FieldDefinitionResponse>> getDomainFields(@PathVariable UUID domainId) {
+        List<com.classification.domain_system.dto.FieldDefinitionResponse> response = fieldService.getDomainFields(domainId)
+                .stream()
+                .map(com.classification.domain_system.dto.FieldDefinitionResponse::from)
+                .toList();
+        return ResponseEntity.ok(response);
     }
     
     @PostMapping("/{domainId}/fields")
     @PreAuthorize("hasPermission(null, 'domain:write')")
-    public ResponseEntity<FieldDefinition> addDomainField(
+    public ResponseEntity<com.classification.domain_system.dto.FieldDefinitionResponse> addDomainField(
             @PathVariable UUID domainId,
             @RequestBody FieldDefinitionRequest request) {
-        return ResponseEntity.ok(fieldService.addDomainField(domainId, request));
+        FieldDefinition created = fieldService.addDomainField(domainId, request);
+        return ResponseEntity.ok(com.classification.domain_system.dto.FieldDefinitionResponse.from(created));
     }
     
     @PutMapping("/{domainId}/fields/{fieldId}")
     @PreAuthorize("hasPermission(null, 'domain:write')")
-    public ResponseEntity<FieldDefinition> updateDomainField(
+    public ResponseEntity<com.classification.domain_system.dto.FieldDefinitionResponse> updateDomainField(
             @PathVariable UUID domainId,
             @PathVariable UUID fieldId,
             @RequestBody FieldDefinitionRequest request) {
-        return ResponseEntity.ok(fieldService.updateDomainField(domainId, fieldId, request));
+        FieldDefinition updated = fieldService.updateDomainField(domainId, fieldId, request);
+        return ResponseEntity.ok(com.classification.domain_system.dto.FieldDefinitionResponse.from(updated));
     }
 
     @DeleteMapping("/{domainId}/fields/{fieldId}")

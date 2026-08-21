@@ -296,5 +296,47 @@ public class RecordService {
         }
         return count;
     }
+
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public Page<Record> getRecords(UUID nodeId, String status, boolean includeChildren, int page, int size, Map<String, String> allParams) {
+        List<UUID> targetNodeIds = new ArrayList<>();
+        targetNodeIds.add(nodeId);
+
+        if (includeChildren) {
+            List<com.classification.domain_system.entity.ClassificationNode> children = nodeRepository.findByParentIdAndIsDeletedFalseOrderByOrderAsc(nodeId);
+            targetNodeIds.addAll(children.stream().map(com.classification.domain_system.entity.ClassificationNode::getId).toList());
+        }
+
+        Map<String, String> searchParams = new HashMap<>();
+        if (allParams != null) {
+            for (Map.Entry<String, String> entry : allParams.entrySet()) {
+                if (entry.getKey().startsWith("search_")) {
+                    searchParams.put(entry.getKey().substring(7), entry.getValue());
+                }
+            }
+        }
+
+        org.springframework.data.domain.Sort sort = org.springframework.data.domain.Sort.unsorted();
+        if (allParams != null) {
+            String sortField = allParams.get("sortField");
+            String sortOrder = allParams.get("sortOrder");
+            if (sortField == null && allParams.containsKey("sort")) {
+                String sortParam = allParams.get("sort");
+                String[] parts = sortParam.split(",");
+                sortField = parts[0];
+                if (parts.length > 1) sortOrder = parts[1];
+            }
+            if (sortField != null && !sortField.isEmpty()) {
+                org.springframework.data.domain.Sort.Direction dir = "DESC".equalsIgnoreCase(sortOrder)
+                        ? org.springframework.data.domain.Sort.Direction.DESC
+                        : org.springframework.data.domain.Sort.Direction.ASC;
+                sort = org.springframework.data.domain.Sort.by(dir, sortField);
+            }
+        }
+
+        Page<Record> records = recordRepository.findDynamicRecords(
+                targetNodeIds, status, searchParams, org.springframework.data.domain.PageRequest.of(page, size, sort));
+        return prepareRecordsForRead(records);
+    }
 }
 
