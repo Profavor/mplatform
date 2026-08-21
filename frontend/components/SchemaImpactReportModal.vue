@@ -5,6 +5,7 @@
     icon="analytics"
     v-model:fullscreen="isFullscreenModal"
     size="large"
+    :z-index="zIndex || 1200"
     hide-default-actions
     without-transitions
   >
@@ -183,6 +184,7 @@ const props = defineProps<{
   changeRequest?: any
   isSubmitMode?: boolean
   targetFieldName?: string
+  zIndex?: number
 }>()
 
 const emit = defineEmits(['update:modelValue', 'confirm', 'confirm-submit'])

@@ -164,6 +164,10 @@ const modalCustomStyle = computed(() => {
   if (customHeight.value && !isFullscreen.value) {
     styles['--app-modal-custom-height'] = `${customHeight.value}px`
   }
+  if (props.zIndex) {
+    styles['z-index'] = String(props.zIndex)
+    styles['--va-modal-z-index'] = String(props.zIndex)
+  }
   return styles
 })
 

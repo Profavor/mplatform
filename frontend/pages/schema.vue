@@ -236,6 +236,8 @@
       :domainId="selectedDomainId"
       :changeRequest="impactChangeRequest"
       :isSubmitMode="true"
+      :z-index="1200"
+      @confirm="confirmImpactAnalysisAction"
       @confirm-submit="confirmImpactAnalysisAction"
     />
 
@@ -262,14 +264,6 @@
       v-model="showFieldCommentModal"
       v-model:comment="draftFieldCommentText"
       @submit="handleSubmissionCommentSubmit"
-    />
-
-    <!-- Schema Impact Analysis Modal -->
-    <SchemaImpactReportModal
-      v-model="showImpactModal"
-      :domainId="selectedDomainId"
-      :changeRequest="impactChangeRequest"
-      @confirm="handleImpactAnalysisConfirm"
     />
 
     <!-- Approval Details Viewer Modal (Decoupled Component) -->
@@ -450,22 +444,6 @@ const executeDeleteField = async (fieldData, reasonText = '') => {
   } catch (e) {
     console.error('Failed to delete field:', e)
     showCustomAlert(t('field_delete_failed'), t('delete_error_title'), 'Error', 'error')
-  }
-}
-
-const handleImpactAnalysisConfirm = () => {
-  showImpactModal.value = false
-  if (typeof pendingFieldAction.value === 'function') {
-    const action = pendingFieldAction.value
-    pendingFieldAction.value = null
-    action()
-  } else {
-    showCustomAlert(
-      t('schema_impact_confirmed_msg'),
-      t('schema_impact_confirmed_title'),
-      t('schema_impact_confirmed_title'),
-      'success'
-    )
   }
 }
 
