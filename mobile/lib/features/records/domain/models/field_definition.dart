@@ -98,7 +98,7 @@ class FieldDefinition with _$FieldDefinition {
     @JsonKey(readValue: _readRawOptions) String? rawOptions,
     @JsonKey(readValue: _readDisplayOrder) @Default(0) int displayOrder,
     @JsonKey(readValue: _readIsEncrypted) @Default(false) bool isEncrypted,
-    String? maskingPattern,
+    @JsonKey(readValue: _readMaskingPattern) String? maskingPattern,
     @JsonKey(readValue: _readLocalizedGroup, fromJson: _parseLocalizedName) @Default('') String groupName,
     @JsonKey(readValue: _readLocalizedSector, fromJson: _parseLocalizedName) @Default('') String sectorName,
   }) = _FieldDefinition;

@@ -26,7 +26,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final state = ref.watch(notificationsControllerProvider);
 
     return Scaffold(

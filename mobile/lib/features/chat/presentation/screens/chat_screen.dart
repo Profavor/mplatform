@@ -259,7 +259,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _showDateBookmarkModal(BuildContext context, List<ChatMessageModel> messages) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final Map<String, String> dateLabels = {};
     final Map<String, int> dateMsgCounts = {};
 
@@ -1054,8 +1054,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(chatControllerProvider);
-    print('BUILD ACTIVE MESSAGES: ${state.activeMessages.length}, isLoading: ${state.isLoadingMessages}');
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final authState = ref.watch(authControllerProvider);
 
     const backgroundColor = Color(0xFFB2C7D9);

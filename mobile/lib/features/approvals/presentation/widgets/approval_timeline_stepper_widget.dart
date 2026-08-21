@@ -30,7 +30,7 @@ class ApprovalTimelineStepperWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final reqDateStr = item.requestDate != null
         ? DateHelper.formatWithOffset(item.requestDate, offsetHours, pattern: 'yyyy. MM. dd. HH:mm:ss')
         : '';

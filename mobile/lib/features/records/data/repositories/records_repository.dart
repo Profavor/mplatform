@@ -102,8 +102,7 @@ class RecordsRepository {
       final response = await _dio.get('/api/records/$recordId/history');
       final list = response.data as List<dynamic>;
       return list.cast<Map<String, dynamic>>();
-    } catch (e) {
-      print('Failed to load record history: $e');
+    } catch (_) {
       return [];
     }
   }

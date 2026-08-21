@@ -287,7 +287,7 @@ class _ApprovalsListScreenState extends ConsumerState<ApprovalsListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final state = ref.watch(approvalsControllerProvider);
 
     return DefaultTabController(

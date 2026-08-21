@@ -430,7 +430,7 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
                                           ),
                                         ),
                                       );
-                                    }).toList(),
+                                    }),
                                 ],
                               ),
                       ), // closes Container

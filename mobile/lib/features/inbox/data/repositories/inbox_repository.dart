@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mplatform_mobile/core/network/api_client.dart';
 import 'package:mplatform_mobile/core/providers/core_providers.dart';
 import 'package:mplatform_mobile/features/inbox/domain/models/inbox_folder_count_model.dart';
 import 'package:mplatform_mobile/features/inbox/domain/models/inbox_message_model.dart';

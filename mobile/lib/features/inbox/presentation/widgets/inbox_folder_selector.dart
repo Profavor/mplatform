@@ -9,7 +9,7 @@ class InboxFolderSelector extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final state = ref.watch(inboxControllerProvider);
     final notifier = ref.read(inboxControllerProvider.notifier);
 
