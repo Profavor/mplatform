@@ -1,6 +1,8 @@
 package com.classification.domain_system.service;
 
 import com.classification.domain_system.entity.MatchingRule;
+import com.classification.domain_system.exception.BusinessException;
+import com.classification.domain_system.exception.ErrorCode;
 import com.classification.domain_system.entity.Record;
 import com.classification.domain_system.repository.MatchingRuleRepository;
 import com.classification.domain_system.repository.RecordRepository;
@@ -260,8 +262,17 @@ public class MatchingService {
                     }
                 }
             }
-        } catch (Exception e) {
-            log.error("Failed to check duplicate matching rules", e);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            log.warn("Invalid data JSON provided for duplicate matching check: {}", e.getMessage());
+            return result;
+        } catch (org.springframework.dao.DataAccessException e) {
+            log.error("Database error during duplicate matching check — aborting", e);
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR,
+                "Duplicate matching check failed due to database error: " + e.getMessage());
+        } catch (RuntimeException e) {
+            log.error("Unexpected error during duplicate matching check — aborting", e);
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR,
+                "Duplicate matching check failed: " + e.getMessage());
         }
 
         return result;

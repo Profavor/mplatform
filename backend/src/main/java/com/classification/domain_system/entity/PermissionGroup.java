@@ -37,7 +37,7 @@ public class PermissionGroup {
     @Column(name = "sort_order")
     private Integer sortOrder = 0;
 
-    @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("sortOrder ASC")
     private List<PermissionItem> items = new ArrayList<>();
 

@@ -1,5 +1,7 @@
 package com.classification.domain_system.service;
 
+import com.classification.domain_system.exception.DecryptionException;
+import com.classification.domain_system.exception.EncryptionException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -10,12 +12,14 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Base64;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -132,5 +136,56 @@ class VaultTransitServiceTest {
         String result = vaultTransitService.rewrap(oldCipher);
 
         assertThat(result).isEqualTo(newCipher);
+    }
+
+    // ===== 예외 전파 검증 테스트 =====
+
+    @Test
+    @DisplayName("encrypt_RestClientException_ThrowsEncryptionException: Vault 통신 실패 시 EncryptionException 전파")
+    void encrypt_RestClientException_ThrowsEncryptionException() {
+        when(restTemplate.exchange(
+                any(String.class), eq(HttpMethod.POST), any(HttpEntity.class), eq(Map.class)
+        )).thenThrow(new RestClientException("Connection refused"));
+
+        assertThatThrownBy(() -> vaultTransitService.encrypt("test-data"))
+                .isInstanceOf(EncryptionException.class)
+                .hasMessageContaining("Vault encryption error");
+    }
+
+    @Test
+    @DisplayName("decrypt_RestClientException_ThrowsDecryptionException: Vault 통신 실패 시 DecryptionException 전파")
+    void decrypt_RestClientException_ThrowsDecryptionException() {
+        when(restTemplate.exchange(
+                any(String.class), eq(HttpMethod.POST), any(HttpEntity.class), eq(Map.class)
+        )).thenThrow(new RestClientException("Connection refused"));
+
+        assertThatThrownBy(() -> vaultTransitService.decrypt("vault:v1:some-cipher"))
+                .isInstanceOf(DecryptionException.class)
+                .hasMessageContaining("Vault decryption error");
+    }
+
+    @Test
+    @DisplayName("generateHmac_RestClientException_ThrowsEncryptionException: Vault HMAC 통신 실패 시 EncryptionException 전파")
+    void generateHmac_RestClientException_ThrowsEncryptionException() {
+        when(restTemplate.exchange(
+                any(String.class), eq(HttpMethod.POST), any(HttpEntity.class), eq(Map.class)
+        )).thenThrow(new RestClientException("Connection refused"));
+
+        assertThatThrownBy(() -> vaultTransitService.generateHmac("test-data"))
+                .isInstanceOf(EncryptionException.class)
+                .hasMessageContaining("Vault HMAC error");
+    }
+
+    @Test
+    @DisplayName("encrypt_EmptyResponse_ThrowsEncryptionException: Vault 빈 응답 시 EncryptionException 전파")
+    void encrypt_EmptyResponse_ThrowsEncryptionException() {
+        ResponseEntity<Map> emptyResponse = new ResponseEntity<>(Map.of(), HttpStatus.OK);
+        when(restTemplate.exchange(
+                any(String.class), eq(HttpMethod.POST), any(HttpEntity.class), eq(Map.class)
+        )).thenReturn(emptyResponse);
+
+        assertThatThrownBy(() -> vaultTransitService.encrypt("test-data"))
+                .isInstanceOf(EncryptionException.class)
+                .hasMessageContaining("Empty response from Vault Transit Encrypt");
     }
 }

@@ -1,6 +1,8 @@
 package com.classification.domain_system.service;
 
 import com.classification.domain_system.entity.FieldDefinition;
+import com.classification.domain_system.exception.BusinessException;
+import com.classification.domain_system.exception.ErrorCode;
 import com.classification.domain_system.entity.ClassificationNode;
 import com.classification.domain_system.entity.Record;
 import com.classification.domain_system.repository.FieldDefinitionRepository;
@@ -164,8 +166,9 @@ public class FieldDefinitionService {
         }
         try {
             approval.setChanges(objectMapper.writeValueAsString(changesMap));
-        } catch (Exception e) {
-            approval.setChanges("{}");
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR,
+                "Failed to serialize schema change approval payload: " + e.getMessage());
         }
         approval.setReason(reason);
         approval.setCurrentStepOrder(1);
@@ -231,15 +234,15 @@ public class FieldDefinitionService {
             String sql = "CREATE INDEX IF NOT EXISTS " + indexName + " ON record ((data->>'" + safeKey + "'))";
             try {
                 jdbcTemplate.execute(sql);
-            } catch (Exception e) {
-                System.err.println("Failed to create index: " + e.getMessage());
+            } catch (org.springframework.dao.DataAccessException e) {
+                log.error("Failed to create index {}: {}", indexName, e.getMessage());
             }
         } else {
             String sql = "DROP INDEX IF EXISTS " + indexName;
             try {
                 jdbcTemplate.execute(sql);
-            } catch (Exception e) {
-                System.err.println("Failed to drop index: " + e.getMessage());
+            } catch (org.springframework.dao.DataAccessException e) {
+                log.error("Failed to drop index {}: {}", indexName, e.getMessage());
             }
         }
     }
@@ -305,8 +308,9 @@ public class FieldDefinitionService {
         if (workflowConfigRepository == null || domainId == null) return false;
         try {
             return !workflowConfigRepository.findByDomainIdAndNodeIdIsNullAndActionType(domainId, "SCHEMA_CHANGE").isEmpty();
-        } catch (Exception e) {
-            return false;
+        } catch (org.springframework.dao.DataAccessException e) {
+            log.error("Failed to check schema approval config for domain {} — assuming approval required for safety", domainId, e);
+            return true;
         }
     }
 

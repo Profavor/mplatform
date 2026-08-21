@@ -71,14 +71,16 @@ public class ApprovalQueryService {
                                     } else if (node.has("en") && !node.get("en").asText().isBlank()) {
                                         return node.get("en").asText();
                                     }
-                                } catch (Exception ignored) {}
+                                } catch (com.fasterxml.jackson.core.JsonProcessingException ignored) {}
                             }
                             return raw;
                         }
                     }
                 }
             }
-        } catch (Exception e) {}
+        } catch (org.springframework.dao.DataAccessException e) {
+            log.warn("Failed to load roles for display name resolution: {}", e.getMessage());
+        }
         return roleCode;
     }
 
@@ -202,8 +204,12 @@ public class ApprovalQueryService {
                     }
                 } catch (BusinessException be) {
                     throw be;
-                } catch (Exception e) {
+                } catch (com.fasterxml.jackson.core.JsonProcessingException | IllegalArgumentException e) {
                     log.error("Failed to process dynamic search predicate", e);
+                    throw new BusinessException(ErrorCode.INVALID_INPUT, "Invalid search filter: " + e.getMessage());
+                } catch (RuntimeException e) {
+                    log.error("Failed to process dynamic search predicate", e);
+                    throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "Search predicate processing failed");
                 }
             }
             
@@ -234,7 +240,9 @@ public class ApprovalQueryService {
                             if (fd != null) nameKeyMap.put(d.getId(), fd.getKey());
                         }
                     }
-                } catch (Exception e) {}
+                } catch (org.springframework.dao.DataAccessException e) {
+                    log.warn("Failed to load domain field key mappings for sorting: {}", e.getMessage());
+                }
 
                 List<Order> orders = new ArrayList<>();
                 for (Sort.Order o : sort) {
@@ -362,7 +370,7 @@ public class ApprovalQueryService {
                         node = nodeRepository.findById(UUID.fromString(nodeIdStr)).orElse(null);
                     }
                 }
-            } catch (Exception ignored) {}
+            } catch (com.fasterxml.jackson.core.JsonProcessingException | IllegalArgumentException ignored) {}
         }
         List<FieldDefinition> fields;
         if (node != null && fieldDefinitionService != null) {
@@ -390,7 +398,7 @@ public class ApprovalQueryService {
                     maskedChanges = mapper.writeValueAsString(maskedNode);
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ignored) {}
 
         approval.setChanges(maskedChanges);
         if (approval.getSteps() == null || approval.getSteps().isEmpty()) {

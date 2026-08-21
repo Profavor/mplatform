@@ -95,7 +95,7 @@ public class UserService {
                 savedUser.getUsername(),
                 Boolean.TRUE.equals(savedUser.getIsActive())
             );
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             org.slf4j.LoggerFactory.getLogger(UserService.class).error("Failed to sync user update to Keycloak: {}", savedUser.getUsername(), e);
         }
 
@@ -106,7 +106,7 @@ public class UserService {
                 if (auth != null && auth.getName() != null) {
                     currentOperator = auth.getName();
                 }
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 // fallback
             }
 
@@ -158,7 +158,7 @@ public class UserService {
                     savedUser.getUsername(),
                     Boolean.TRUE.equals(savedUser.getIsActive())
                 );
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 org.slf4j.LoggerFactory.getLogger(UserService.class).error("Failed to sync self user email update to Keycloak: {}", savedUser.getUsername(), e);
             }
         }
@@ -178,11 +178,14 @@ public class UserService {
         return updateAdminUserInfo(userId, dto);
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public com.classification.domain_system.entity.User findByUsername(String username) {
-        com.classification.domain_system.entity.User user = userRepository.findByUsername(username)
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("User identifier cannot be empty");
+        }
+        return userRepository.findByUsername(username)
+                .or(() -> userRepository.findById(username))
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
-        return user;
     }
 
     public java.util.List<com.classification.domain_system.entity.User> getAllUsersEntity() {
@@ -257,7 +260,7 @@ public class UserService {
         // Sync to Keycloak
         try {
             keycloakAdminService.createUser(username, tempPassword, resolvedEmail, username);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             org.slf4j.LoggerFactory.getLogger(UserService.class).error("Failed to sync user creation to Keycloak: {}", username, e);
         }
         
@@ -282,7 +285,7 @@ public class UserService {
         // Sync to Keycloak
         try {
             keycloakAdminService.resetPassword(user.getUsername(), newPassword);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             org.slf4j.LoggerFactory.getLogger(UserService.class).error("Failed to sync password change to Keycloak: {}", user.getUsername(), e);
         }
     }
@@ -302,7 +305,7 @@ public class UserService {
             // Sync to Keycloak
             try {
                 keycloakAdminService.deleteUser(username);
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 org.slf4j.LoggerFactory.getLogger(UserService.class).error("Failed to sync user deletion to Keycloak: {}", username, e);
             }
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
