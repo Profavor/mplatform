@@ -29,6 +29,25 @@ void main() {
       expect(FilePreviewWidget.isHtmlContent('plain text', fieldType: 'HTML'), isTrue);
     });
 
+    test('processHtmlContent: appends baseUrl and token parameter correctly', () {
+      final html = '<p><img src="/api/files/download/05c71b0.png?name=image.png&size=68139" /></p>';
+      final processed = FilePreviewWidget.processHtmlContent(
+        html,
+        'http://localhost:8080',
+        token: 'test_token_123',
+      );
+      expect(processed, contains('src="http://localhost:8080/api/files/download/05c71b0.png?name=image.png&size=68139&token=test_token_123"'));
+
+      // Case when URL has no existing query params
+      final htmlSimple = '<p><img src="/api/files/download/photo.jpg" /></p>';
+      final processedSimple = FilePreviewWidget.processHtmlContent(
+        htmlSimple,
+        'http://localhost:8080',
+        token: 'test_token_123',
+      );
+      expect(processedSimple, contains('src="http://localhost:8080/api/files/download/photo.jpg?token=test_token_123"'));
+    });
+
     testWidgets('renders HTML content with HtmlWidget', (tester) async {
       await tester.pumpWidget(
         ProviderScope(

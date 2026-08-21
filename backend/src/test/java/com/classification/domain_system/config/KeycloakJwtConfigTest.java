@@ -32,4 +32,20 @@ class KeycloakJwtConfigTest {
         assertTrue(authorities.stream().anyMatch(a -> a.getAuthority().equals("ROLE_DATA_STEWARD")));
         assertTrue(authorities.stream().anyMatch(a -> a.getAuthority().equals("ROLE_VIEWER")));
     }
+
+    @Test
+    void testJwtDecoderCreationWithJwkSetUri() {
+        KeycloakJwtConfig config = new KeycloakJwtConfig();
+        org.springframework.test.util.ReflectionTestUtils.setField(config, "jwkSetUri", "http://localhost:8081/realms/mplatform/protocol/openid-connect/certs");
+
+        org.springframework.security.oauth2.jwt.JwtDecoder decoder = config.jwtDecoder();
+        org.junit.jupiter.api.Assertions.assertNotNull(decoder);
+    }
+
+    @Test
+    void testJwtAuthenticationConverter() {
+        KeycloakJwtConfig config = new KeycloakJwtConfig();
+        var authConverter = config.jwtAuthenticationConverter();
+        org.junit.jupiter.api.Assertions.assertNotNull(authConverter);
+    }
 }

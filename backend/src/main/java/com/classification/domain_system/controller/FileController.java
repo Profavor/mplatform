@@ -53,7 +53,12 @@ public class FileController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * 파일 메타데이터(용량, 파일명) 조회
+     * 보안 방어 심층 원칙에 따라 인증된 사용자(헤더/쿠키/토큰 파라미터)만 접근 가능
+     */
     @GetMapping("/info/{fileName:.+}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getFileInfo(@PathVariable String fileName) {
         try {
             String cleanFileName = UriUtils.decode(fileName, StandardCharsets.UTF_8);
@@ -71,7 +76,12 @@ public class FileController {
         }
     }
 
+    /**
+     * 파일 다운로드 및 인라인 스트리밍
+     * 보안 방어 심층 원칙에 따라 인증된 사용자(Bearer 토큰 / 세션 쿠키 / 토큰 파라미터)만 다운로드 가능
+     */
     @GetMapping("/download/{fileName:.+}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> downloadFile(@PathVariable String fileName,
                                           @RequestParam(value = "name", required = false) String originalName,
                                           @RequestHeader(required = false) HttpHeaders headers) {

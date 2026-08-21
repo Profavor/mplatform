@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:mplatform_mobile/core/config/app_config.dart';
+import 'package:mplatform_mobile/core/providers/core_providers.dart';
+import 'package:mplatform_mobile/core/widgets/authenticated_image.dart';
+import 'package:mplatform_mobile/core/widgets/image_viewer_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class FilePreviewWidget extends ConsumerWidget {
@@ -106,13 +109,21 @@ class FilePreviewWidget extends ConsumerWidget {
     return url;
   }
 
-  /// Replaces relative image URLs with absolute baseUrl
-  static String processHtmlContent(String html, String baseUrl) {
+  /// Replaces relative image URLs with absolute baseUrl and appends token parameter for authentication
+  static String processHtmlContent(String html, String baseUrl, {String? token}) {
     var processed = html;
     // Replace src="/api/files/... with src="http://baseUrl/api/files/...
     processed = processed.replaceAllMapped(
       RegExp(r'src=["\x27](\/api\/files\/[^\s"\x27]+)["\x27]'),
-      (match) => 'src="$baseUrl${match.group(1)}"',
+      (match) {
+        final path = match.group(1)!;
+        String fullUrl = '$baseUrl$path';
+        if (token != null && token.isNotEmpty && !fullUrl.contains('token=')) {
+          final delimiter = fullUrl.contains('?') ? '&' : '?';
+          fullUrl = '$fullUrl${delimiter}token=$token';
+        }
+        return 'src="$fullUrl"';
+      },
     );
     return processed;
   }
@@ -121,17 +132,41 @@ class FilePreviewWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final appConfig = ref.watch(appConfigProvider);
     final baseUrl = appConfig.apiBaseUrl;
+    final token = ref.watch(accessTokenProvider).valueOrNull;
 
     // 1. HTML / RichText Content Rendering
     if (isHtmlContent(rawValue, fieldType: fieldType)) {
       final rawHtml = rawValue.toString();
-      final processedHtml = processHtmlContent(rawHtml, baseUrl);
+      final processedHtml = processHtmlContent(rawHtml, baseUrl, token: token);
 
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         child: HtmlWidget(
           processedHtml,
           textStyle: fallbackTextStyle ?? const TextStyle(fontSize: 13, color: Colors.black87),
+          customWidgetBuilder: (element) {
+            if (element.localName == 'img') {
+              final src = element.attributes['src'];
+              if (src != null && src.isNotEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: GestureDetector(
+                    onTap: () => ImageViewerDialog.show(
+                      context,
+                      imageUrl: src,
+                      title: extractFileName(src),
+                    ),
+                    child: AuthenticatedImage(
+                      url: src,
+                      fit: BoxFit.contain,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                );
+              }
+            }
+            return null;
+          },
           onTapImage: (imageMetadata) {
             final src = imageMetadata.sources.firstOrNull?.url;
             if (src != null) {
@@ -166,51 +201,34 @@ class FilePreviewWidget extends ConsumerWidget {
               children: [
                 GestureDetector(
                   onTap: () => _showImageDialog(context, fullUrl, fileName),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      constraints: const BoxConstraints(maxHeight: 180, maxWidth: double.infinity),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    constraints: const BoxConstraints(maxHeight: 180, maxWidth: double.infinity),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.grey.shade100,
+                    ),
+                    child: AuthenticatedImage(
+                      url: fullUrl,
+                      fit: BoxFit.cover,
+                      borderRadius: BorderRadius.circular(8),
+                      errorWidget: Container(
+                        padding: const EdgeInsets.all(12),
                         color: Colors.grey.shade100,
-                      ),
-                      child: Image.network(
-                        fullUrl,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Container(
-                            height: 120,
-                            alignment: Alignment.center,
-                            child: CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                                  : null,
-                              strokeWidth: 2,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.broken_image, color: Colors.grey, size: 28),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                fileName,
+                                style: const TextStyle(fontSize: 12, color: Colors.black87),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            padding: const EdgeInsets.all(12),
-                            color: Colors.grey.shade100,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.broken_image, color: Colors.grey, size: 28),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    fileName,
-                                    style: const TextStyle(fontSize: 12, color: Colors.black87),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -226,6 +244,10 @@ class FilePreviewWidget extends ConsumerWidget {
             ),
           );
         } else {
+          final downloadUrlWithToken = (token != null && token.isNotEmpty && !fullUrl.contains('token='))
+              ? '$fullUrl${fullUrl.contains('?') ? '&' : '?'}token=$token'
+              : fullUrl;
+
           return Padding(
             padding: const EdgeInsets.only(top: 4.0, bottom: 4.0),
             child: Material(
@@ -234,7 +256,7 @@ class FilePreviewWidget extends ConsumerWidget {
               child: InkWell(
                 borderRadius: BorderRadius.circular(6),
                 onTap: () async {
-                  final uri = Uri.parse(fullUrl);
+                  final uri = Uri.parse(downloadUrlWithToken);
                   if (await canLaunchUrl(uri)) {
                     await launchUrl(uri, mode: LaunchMode.externalApplication);
                   }
@@ -275,53 +297,11 @@ class FilePreviewWidget extends ConsumerWidget {
   }
 
   void _showImageDialog(BuildContext context, String imageUrl, String title) {
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(16),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.black87,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AppBar(
-                    title: Text(title, style: const TextStyle(color: Colors.white, fontSize: 14)),
-                    backgroundColor: Colors.transparent,
-                    elevation: 0,
-                    automaticallyImplyLeading: false,
-                    actions: [
-                      IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white),
-                        onPressed: () => Navigator.pop(ctx),
-                      ),
-                    ],
-                  ),
-                  Flexible(
-                    child: InteractiveViewer(
-                      child: Image.network(
-                        imageUrl,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => const Padding(
-                          padding: EdgeInsets.all(32.0),
-                          child: Icon(Icons.broken_image, color: Colors.white70, size: 48),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+    ImageViewerDialog.show(
+      context,
+      imageUrl: imageUrl,
+      title: title,
     );
   }
 }
+

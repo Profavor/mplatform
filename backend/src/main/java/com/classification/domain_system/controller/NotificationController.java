@@ -23,6 +23,12 @@ public class NotificationController {
     private final NotificationService notificationService;
     private final SseNotificationService sseNotificationService;
 
+    /**
+     * 실시간 SSE(Server-Sent Events) 알림 스트림 구독
+     * 표준 브라우저 EventSource API는 커스텀 Authorization 헤더를 지원하지 않으므로,
+     * SecurityConfig 필터체인에서 permitAll로 허용하고 전달된 인증(쿠키/파라미터/헤더)이 있을 경우 해당 사용자로,
+     * 없을 경우 anonymous로 안전하게 구독을 연결합니다.
+     */
     @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter subscribe(Authentication authentication) {
         String userId = authentication != null ? authentication.getName() : "anonymous";

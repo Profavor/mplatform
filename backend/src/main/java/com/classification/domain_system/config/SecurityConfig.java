@@ -59,12 +59,15 @@ public class SecurityConfig {
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                // 인증 및 계정 관련 공개 API
                 .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/api/system/**").permitAll()
+                // 시스템 최초 설치 엔드포인트 (최초 환경 구성 및 설치 상태 조회용)
+                .requestMatchers("/api/system/install", "/api/system/install-status").permitAll()
+                // 브라우저 SSE EventSource 알림 구독 (커스텀 헤더 미지원 대응 및 익명/토큰 연결 지원)
                 .requestMatchers("/api/notifications/subscribe").permitAll()
+                // 이메일 수신 확인용 투명 1x1 픽셀 이미지 트래킹 (외부 메일 클라이언트 요청)
                 .requestMatchers("/api/inbox/track/open/**").permitAll()
-                .requestMatchers("/api/files/download/**").permitAll()
-                .requestMatchers("/api/files/info/**").permitAll()
+                // 시스템 모니터링 및 API 문서화 공개 엔드포인트
                 .requestMatchers("/actuator/**", "/api/actuator/**").permitAll()
                 .requestMatchers(
                     "/v3/api-docs/**",
@@ -74,8 +77,9 @@ public class SecurityConfig {
                     "/api/swagger-ui/**",
                     "/api/swagger-ui.html"
                 ).permitAll()
-                // Inbound Webhook: 외부 시스템이 자체 채널 시크릿 토큰으로 호출하므로 JWT 인증 제외
+                // Inbound Webhook: 외부 연계 시스템이 자체 채널 시크릿 토큰으로 호출하므로 JWT 인증 제외
                 .requestMatchers(HttpMethod.POST, "/api/integration/inbound/**").permitAll()
+                // 파일 다운로드/조회를 포함한 모든 /api/** 엔드포인트는 인증 필수
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().permitAll()
             )
@@ -126,11 +130,10 @@ public class SecurityConfig {
                 .collect(java.util.stream.Collectors.toList());
         // allowedOriginPatterns로 통일 (allowedOrigins + allowCredentials 동시 사용 시 충돌 방지)
         for (String origin : originPatterns) {
-            config.addAllowedOriginPattern(origin);
+            if (!origin.isBlank()) {
+                config.addAllowedOriginPattern(origin);
+            }
         }
-        // TODO: Move http://127.0.0.1:* to application properties if not already there
-        config.addAllowedOriginPattern("http://localhost:*");
-        config.addAllowedOriginPattern("http://127.0.0.1:*");
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("*"));
         config.setExposedHeaders(Arrays.asList("Content-Disposition", "Content-Length", "Content-Range", "Accept-Ranges"));

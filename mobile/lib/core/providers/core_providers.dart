@@ -67,3 +67,8 @@ final apiClientProvider = Provider<ApiClient>((ref) {
 final dioProvider = Provider<Dio>((ref) {
   return ref.watch(apiClientProvider).dio;
 });
+
+final accessTokenProvider = FutureProvider<String?>((ref) async {
+  final storageService = ref.watch(storageServiceProvider);
+  return storageService.getAccessToken();
+});
