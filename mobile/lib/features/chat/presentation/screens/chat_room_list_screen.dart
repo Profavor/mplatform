@@ -51,7 +51,7 @@ class _ChatRoomListScreenState extends ConsumerState<ChatRoomListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final state = ref.watch(chatControllerProvider);
     final authState = ref.watch(authControllerProvider);
     final String currentUsername = authState.value?.username ?? 'my_account';

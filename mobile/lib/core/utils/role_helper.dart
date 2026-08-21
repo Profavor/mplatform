@@ -5,7 +5,7 @@ import 'package:mplatform_mobile/core/utils/l10n_helper.dart';
 class RoleHelper {
   static String formatRoleText(String? code, BuildContext context, {bool includeIcon = true}) {
     if (code == null || code.trim().isEmpty) return '';
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final norm = code.replaceFirst(RegExp(r'^ROLE_'), '').toUpperCase().trim();
 
     switch (norm) {

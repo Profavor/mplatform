@@ -39,7 +39,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
     final prefs = ref.read(sharedPreferencesProvider);
     await prefs.setString('user_personal_timezone', tz);
     if (mounted) {
-      final l10n = AppLocalizations.of(context)!;
+      final l10n = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${l10n.timezone}: $tz')),
       );
@@ -47,7 +47,7 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
   }
 
   Future<void> _handleLogout() async {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -74,10 +74,9 @@ class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final currentUser = ref.watch(authControllerProvider).valueOrNull;
     final currentLocale = ref.watch(localeProvider);
-    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(

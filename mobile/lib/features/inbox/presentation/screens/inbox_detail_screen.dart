@@ -60,7 +60,7 @@ class _InboxDetailScreenState extends ConsumerState<InboxDetailScreen> {
   }
 
   Future<void> _handleRecall() async {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -154,8 +154,9 @@ class _InboxDetailScreenState extends ConsumerState<InboxDetailScreen> {
           IconButton(
             icon: const Icon(Icons.delete_outline),
             onPressed: () async {
+              final nav = Navigator.of(context);
               await ref.read(inboxControllerProvider.notifier).deleteMessage(msg.id);
-              if (mounted) Navigator.pop(context);
+              if (mounted) nav.pop();
             },
           ),
         ],

@@ -33,7 +33,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
 
     // 규칙: 하드코딩 금지, vue-i18n에서 변환된 AppLocalizations 기반의 동적 라벨 사용
     return Scaffold(

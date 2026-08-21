@@ -80,7 +80,7 @@ class _InboxComposeScreenState extends ConsumerState<InboxComposeScreen> {
   }
 
   Future<void> _handleSend({bool isDraft = false}) async {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final recipients = _recipientsController.text
         .split(',')
         .map((s) => s.trim())
@@ -161,7 +161,7 @@ class _InboxComposeScreenState extends ConsumerState<InboxComposeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(

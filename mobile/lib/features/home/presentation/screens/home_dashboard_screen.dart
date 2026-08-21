@@ -42,7 +42,7 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     
     final approvalsState = ref.watch(approvalsControllerProvider);
     final chatState = ref.watch(chatControllerProvider);
@@ -528,7 +528,7 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
               Icon(Icons.warning, color: Colors.amber.shade800, size: 20),
               const SizedBox(width: 8),
               Text(
-                AppLocalizations.of(context)!.dqSeverity,
+                AppLocalizations.of(context).dqSeverity,
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
             ],

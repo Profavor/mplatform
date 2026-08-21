@@ -48,8 +48,7 @@ class RecordsController extends StateNotifier<RecordsState> {
           totalPages: pageRes.totalPages,
           isLoading: false,
         );
-      } catch (e, st) {
-        print('Error loading fields or records: $e\n$st');
+      } catch (e) {
         // 도메인은 로드 성공했으나 필드나 레코드 로드 실패 시 도메인 목록은 유지
         state = state.copyWith(
           domains: domains,
@@ -58,8 +57,7 @@ class RecordsController extends StateNotifier<RecordsState> {
           errorMessage: e.toString()
         );
       }
-    } catch (e, st) {
-      print('Error loading domains: $e\n$st');
+    } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
   }
@@ -98,8 +96,7 @@ class RecordsController extends StateNotifier<RecordsState> {
         totalPages: pageRes.totalPages,
         isLoading: false,
       );
-    } catch (e, st) {
-      print('Error in selectDomain: $e\n$st');
+    } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
   }
