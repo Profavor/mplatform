@@ -159,6 +159,11 @@ public class InboxController {
             0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0, 2, 2, 0x44, 1, 0, 0x3b
     };
 
+    /**
+     * 이메일 수신 확인용 투명 1x1 GIF 이미지 트래킹 픽셀
+     * 외부 수신자의 메일 클라이언트(Outlook, Gmail 등)가 이미지를 비인증 GET 요청으로 로드하므로,
+     * SecurityConfig 필터체인에서 permitAll로 허용하여 오픈 여부를 기록하고 투명 GIF를 응답합니다.
+     */
     @GetMapping(value = "/track/open/{recipientId}", produces = MediaType.IMAGE_GIF_VALUE)
     public ResponseEntity<byte[]> trackOpen(@PathVariable UUID recipientId) {
         try {

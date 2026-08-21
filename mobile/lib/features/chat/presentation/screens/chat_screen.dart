@@ -17,7 +17,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:mplatform_mobile/features/chat/domain/models/chat_message_model.dart';
 import 'package:mplatform_mobile/features/chat/domain/models/chat_room_model.dart';
 import 'package:mplatform_mobile/features/chat/presentation/providers/chat_provider.dart';
-import 'package:mplatform_mobile/features/chat/presentation/providers/chat_state.dart';
+import 'package:mplatform_mobile/core/widgets/authenticated_image.dart';
+import 'package:mplatform_mobile/core/widgets/image_viewer_dialog.dart';
 import 'package:mplatform_mobile/core/utils/web_video_player_stub.dart' if (dart.library.html) 'package:mplatform_mobile/core/utils/web_video_player.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -927,11 +928,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             borderRadius: borderRadius,
             child: GestureDetector(
               onTap: () => _showImagePreview(context, imageUrl),
-              child: _AuthenticatedImage(
+              child: AuthenticatedImage(
                 url: imageUrl,
                 width: 200,
-                height: 200,
+                height: 150,
                 fit: BoxFit.cover,
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
           ),
@@ -1026,28 +1028,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _showImagePreview(BuildContext context, String imageUrl) {
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.black87,
-        insetPadding: const EdgeInsets.all(12),
-        child: Stack(
-          children: [
-            Center(
-              child: InteractiveViewer(
-                child: _AuthenticatedImage(url: imageUrl, fit: BoxFit.contain),
-              ),
-            ),
-            Positioned(
-              top: 8, right: 8,
-              child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white, size: 28),
-                onPressed: () => Navigator.pop(ctx),
-              ),
-            ),
-          ],
-        ),
-      ),
+    ImageViewerDialog.show(
+      context,
+      imageUrl: imageUrl,
+      title: '이미지 미리보기',
     );
   }
 
@@ -1737,80 +1721,3 @@ void _showTablePreview(BuildContext context, ParsedTable table) {
   );
 }
 
-class _AuthenticatedImage extends ConsumerStatefulWidget {
-  final String url;
-  final double? width;
-  final double? height;
-  final BoxFit? fit;
-
-  const _AuthenticatedImage({
-    required this.url,
-    this.width,
-    this.height,
-    this.fit,
-  });
-
-  @override
-  ConsumerState<_AuthenticatedImage> createState() => _AuthenticatedImageState();
-}
-
-class _AuthenticatedImageState extends ConsumerState<_AuthenticatedImage> {
-  Uint8List? _bytes;
-  bool _isLoading = true;
-  bool _hasError = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadImage();
-  }
-
-  Future<void> _loadImage() async {
-    try {
-      final dio = ref.read(dioProvider);
-      final response = await dio.get<List<int>>(
-        widget.url,
-        options: Options(responseType: ResponseType.bytes),
-      );
-      if (mounted && response.data != null) {
-        setState(() {
-          _bytes = Uint8List.fromList(response.data!);
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _hasError = true;
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Container(
-        width: widget.width,
-        height: widget.height,
-        color: Colors.grey[200],
-        child: const Center(child: CircularProgressIndicator()),
-      );
-    }
-    if (_hasError || _bytes == null) {
-      return Container(
-        width: widget.width,
-        height: widget.height,
-        color: Colors.grey[200],
-        child: const Center(child: Icon(Icons.broken_image, size: 40, color: Colors.grey)),
-      );
-    }
-    return Image.memory(
-      _bytes!,
-      width: widget.width,
-      height: widget.height,
-      fit: widget.fit,
-    );
-  }
-}

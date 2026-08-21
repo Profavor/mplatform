@@ -79,3 +79,24 @@
   - 소스코드(Vue, TS, Java) 내에 문자열을 하드코딩하거나 임의의 폴백 텍스트를 삽입하는 행위를 금지하며, 모든 문구는 `@nuxtjs/i18n` 사전(`ko.json`, `en.json`)을 통해 100% 동적으로 바인딩한다.
 - **개인화 타임존 및 GMT 시차 보정**:
   - 사용자 브라우저의 개인화 타임존 쿠키(`useTimezoneDate()`)를 조회하여 현지 시각으로 변환하며, Spring Boot의 `LocalDateTime` 오프셋 누락에 대비한 `parseDate` 방어 헬퍼 함수를 필수로 거쳐야 한다.
+
+---
+
+## 6.10 자체 JWT 및 Keycloak OIDC 하이브리드 인증 아키텍처 (Authentication & SSO Governance)
+- **하이브리드 인증 모델 설계 목적**:
+  - `mplatform`은 사내 폐쇄망/독립 로컬 실행 환경(자체 DB 기반 로그인)과 엔터프라이즈 통합 SSO 환경(Keycloak OIDC)을 단일 백엔드 엔진에서 유연하게 수용할 수 있도록 하이브리드 토큰 검증 아키텍처를 지원한다.
+- **클라이언트 및 시나리오별 인증 경로**:
+  1. **자체 로그인(내부 발급 HS256 JWT)**:
+     - `/api/auth/login`을 통해 발급되는 자체 서명 토큰(`access_token`, `refresh_token`).
+     - 웹 브라우저 및 모바일 앱의 일반 사용자 인증에 기본 사용.
+  2. **Keycloak OIDC 엔터프라이즈 SSO (JWK 기반 OIDC 토큰)**:
+     - 전사 Keycloak/IdP 인증을 통과한 엔터프라이즈 클라이언트 토큰.
+     - `KeycloakJwtConfig`가 JWK Set (`/certs`)을 기반으로 비대칭 서명(RS256)을 검증하고, `realm_access.roles` 및 `resource_access`를 Spring Security의 `GrantedAuthority`(`ROLE_*`)로 매핑.
+- **토큰 판별 우선순위 및 자동 폴백 (`JwtFilter`)**:
+  1. 클라이언트 요청의 `Authorization: Bearer <token>`, Cookie(`access_token`, `auth_token`, `jwt`), 파라미터(`token`)에서 JWT를 추출.
+  2. `JwtDecoder` 빈이 활성화되어 있을 경우 **Keycloak OIDC 토큰 검증을 최우선 시도**.
+  3. Keycloak 검증 실패 또는 OIDC 미설정 시 **시스템 내부 HS256 JWT(`JwtUtil`) 검증으로 자동 폴백**.
+  4. JWK/Issuer URI 미설정 환경에서는 `JwtDecoder` 빈이 조건부로 비활성화(`@ConditionalOnExpression`)되어 NPE 없이 안전하게 내부 JWT 모드로 구동.
+- **다중 로그인 방지 및 단일 세션 보장 (`activeSessionId`)**:
+  - 자체 JWT 및 Keycloak OIDC 인증 모두 사용자의 최신 세션 ID(`sid` / `sessionId`)를 DB `User.activeSessionId`와 대조하여, 타 기기/브라우저에서의 신규 로그인 감지 시 이전 세션을 즉각 무효화(`SESSION_EXPIRED`)하고 SSE/WebSocket을 통해 강제 로그아웃(`FORCE_LOGOUT`) 알림을 브로드캐스팅한다.
+
