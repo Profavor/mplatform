@@ -17,7 +17,6 @@ import 'package:mplatform_mobile/core/providers/core_providers.dart';
 import 'package:mplatform_mobile/features/chat/presentation/screens/chat_room_list_screen.dart';
 import 'package:mplatform_mobile/features/chat/presentation/screens/chat_screen.dart';
 import 'package:dio/dio.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'chat_screen_test.mocks.dart';
 
@@ -55,8 +54,6 @@ class FakeChatWs implements ChatWebSocketService {
   void disconnect() {}
   @override
   void dispose() {}
-  @override
-  void sendMessage(String destination, Map<String, dynamic> body) {}
   @override
   Future<void> connect() async {}
   @override
@@ -160,9 +157,6 @@ void main() {
       await tester.pumpAndSettle();
 
       // Check bubble contents and sender info
-      for (final widget in tester.allWidgets.whereType<Text>()) {
-        print('TEXT FOUND: ${widget.data}');
-      }
       expect(find.byWidgetPredicate((w) => w is Text && w.data != null && w.data!.contains('이홍길'), skipOffstage: false), findsWidgets);
       expect(find.byWidgetPredicate((w) => w is Text && w.data != null && w.data!.contains('신규 마스터 스키마'), skipOffstage: false), findsWidgets);
       expect(find.byWidgetPredicate((w) => w is Text && w.data != null && w.data!.contains('지금 검토 중입니다'), skipOffstage: false), findsWidgets);

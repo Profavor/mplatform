@@ -73,7 +73,7 @@ class _RecordsListScreenState extends ConsumerState<RecordsListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final state = ref.watch(recordsControllerProvider);
     final localizedPathsMap = _buildLocalizedPaths(state.nodeTree, context);
 

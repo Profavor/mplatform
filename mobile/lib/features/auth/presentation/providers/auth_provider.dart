@@ -85,3 +85,8 @@ final authControllerProvider = StateNotifierProvider<AuthController, AsyncValue<
   final expiredController = ref.watch(onAuthExpiredProvider.notifier);
   return AuthController(repo, expiredController);
 });
+
+final userListProvider = FutureProvider<List<UserModel>>((ref) async {
+  final repo = ref.watch(authRepositoryProvider);
+  return repo.getUsers();
+});

@@ -51,7 +51,7 @@ public class InboxService {
         return userRepository.findById(userId)
                 .map(User::getUsername)
                 .or(() -> userRepository.findByUsername(userId).map(User::getUsername))
-                .orElse(userId);
+                .orElse(userId != null && userId.matches("^[0-9a-fA-F-]{36}$") ? "사용자" : userId);
     }
 
     @Transactional

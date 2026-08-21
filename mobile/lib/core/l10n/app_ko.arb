@@ -2549,7 +2549,7 @@
   "noOrphanRecords": "모든 외래 참조 관계가 유효하며 고아 레코드가 없습니다.",
   "dqSeverityDistribution": "품질 오류 심각도별 분포",
   "dqViolationTrend": "최근 7일간 품질 오류 추이",
-  "inboxTitle": "문서함",
+  "inboxTitle": "사내 편지함",
   "inboxSubtitle": "내부 메시지 및 이메일 통합 문서함",
   "inboxFolderInbox": "받은편지함",
   "folderInbox": "받은편지함",

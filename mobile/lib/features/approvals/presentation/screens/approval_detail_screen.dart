@@ -529,12 +529,13 @@ class _ApprovalDetailScreenState extends ConsumerState<ApprovalDetailScreen> {
     final attachmentsRaw = _currentItem.payload['attachments'];
     final attachments = attachmentsRaw is List ? attachmentsRaw : [];
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue.shade200, width: 1.5),
+        side: BorderSide(color: Colors.blue.shade200, width: 1.5),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
@@ -683,12 +684,13 @@ class _ApprovalDetailScreenState extends ConsumerState<ApprovalDetailScreen> {
 
     final sectors = groupedData.keys.toList();
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue.shade200, width: 1.5),
+        side: BorderSide(color: Colors.blue.shade200, width: 1.5),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(

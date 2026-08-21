@@ -281,18 +281,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.65,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+        return Material(
+          color: Colors.transparent,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.65,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Center(
                 child: Container(
@@ -374,6 +376,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               const SizedBox(height: 12),
             ],
           ),
+        ),
         );
       },
     );
@@ -425,61 +428,64 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40, height: 4,
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
-            ),
-            ListTile(
-              leading: const Icon(Icons.copy, color: Colors.blueGrey),
-              title: const Text('복사'),
-              onTap: () {
-                Navigator.pop(ctx);
-                String copyText = msg.content;
-                if (msg.messageType == 'IMAGE') {
-                  copyText = msg.attachmentUrl ?? msg.content;
-                } else if (msg.messageType == 'FILE') {
-                  copyText = '${msg.fileName ?? ''}\n${msg.attachmentUrl ?? ''}'.trim();
-                }
-                
-                Clipboard.setData(ClipboardData(text: copyText));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('클립보드에 복사됨'), duration: Duration(seconds: 1)),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.shortcut, color: Colors.indigo),
-              title: const Text('전달'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _showForwardDialog(context, msg);
-              },
-            ),
-            if (msg.messageType == 'TEXT' || msg.messageType == 'EMOJI')
+      builder: (ctx) => Material(
+        color: Colors.transparent,
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40, height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+              ),
               ListTile(
-                leading: const Icon(Icons.translate, color: Colors.teal),
-                title: const Text('번역'),
+                leading: const Icon(Icons.copy, color: Colors.blueGrey),
+                title: const Text('복사'),
                 onTap: () {
                   Navigator.pop(ctx);
-                  _showTranslation(context, msg);
+                  String copyText = msg.content;
+                  if (msg.messageType == 'IMAGE') {
+                    copyText = msg.attachmentUrl ?? msg.content;
+                  } else if (msg.messageType == 'FILE') {
+                    copyText = '${msg.fileName ?? ''}\n${msg.attachmentUrl ?? ''}'.trim();
+                  }
+                  
+                  Clipboard.setData(ClipboardData(text: copyText));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('클립보드에 복사됨'), duration: Duration(seconds: 1)),
+                  );
                 },
               ),
-            if (isMe)
               ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text('삭제', style: TextStyle(color: Colors.red)),
+                leading: const Icon(Icons.shortcut, color: Colors.indigo),
+                title: const Text('전달'),
                 onTap: () {
                   Navigator.pop(ctx);
-                  _confirmDeleteMessage(context, msg, l10n);
+                  _showForwardDialog(context, msg);
                 },
               ),
-            const SizedBox(height: 8),
-          ],
+              if (msg.messageType == 'TEXT' || msg.messageType == 'EMOJI')
+                ListTile(
+                  leading: const Icon(Icons.translate, color: Colors.teal),
+                  title: const Text('번역'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showTranslation(context, msg);
+                  },
+                ),
+              if (isMe)
+                ListTile(
+                  leading: const Icon(Icons.delete, color: Colors.red),
+                  title: const Text('삭제', style: TextStyle(color: Colors.red)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _confirmDeleteMessage(context, msg, l10n);
+                  },
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );

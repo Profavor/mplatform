@@ -407,7 +407,7 @@ public class ApprovalService {
         draftStep.setStatus(ApprovalStatus.SUBMITTED.name());
         draftStep.setComment(request.getComment());
         approval.addStep(draftStep);
-        
+        workflowResolver.enrichUserNames(approval);
         ApprovalRequest saved = approvalRepository.save(approval);
         if (approval.getSteps() != null && !approval.getSteps().isEmpty()) {
             for (ApprovalStep s : approval.getSteps()) {
@@ -459,7 +459,7 @@ public class ApprovalService {
         draftStep.setStatus(ApprovalStatus.SUBMITTED.name());
         draftStep.setComment("Batch Import: " + recordIds.size() + " records");
         approval.addStep(draftStep);
-        
+        workflowResolver.enrichUserNames(approval);
         ApprovalRequest saved = approvalRepository.save(approval);
         if (approval.getSteps() != null && !approval.getSteps().isEmpty()) {
             for (ApprovalStep s : approval.getSteps()) {
@@ -541,6 +541,7 @@ public class ApprovalService {
         draftStep.setStatus(ApprovalStatus.SUBMITTED.name());
         draftStep.setComment(request.getComment());
         approval.addStep(draftStep);
+        workflowResolver.enrichUserNames(approval);
         ApprovalRequest saved = approvalRepository.save(approval);
         if (approval.getSteps() != null && !approval.getSteps().isEmpty()) {
             for (ApprovalStep s : approval.getSteps()) {
@@ -603,7 +604,7 @@ public class ApprovalService {
         // Update record status to PENDING_APPROVAL
         record.setStatus(RecordStatus.PENDING_APPROVAL.name());
         recordRepository.save(record);
-        
+        workflowResolver.enrichUserNames(approval);
         ApprovalRequest saved = approvalRepository.save(approval);
         if (approval.getSteps() != null && !approval.getSteps().isEmpty()) {
             for (ApprovalStep s : approval.getSteps()) {
@@ -999,6 +1000,7 @@ public class ApprovalService {
         WorkflowConfig config = configs != null && !configs.isEmpty() ? configs.get(0) : null;
         workflowResolver.buildDynamicSteps(approval, config);
         approval.setCurrentStepOrder(1);
+        workflowResolver.enrichUserNames(approval);
 
         ApprovalRequest saved = approvalRepository.save(approval);
         if (approval.getSteps() != null && !approval.getSteps().isEmpty()) {
@@ -1091,6 +1093,7 @@ public class ApprovalService {
                 }
             }
         }
+        workflowResolver.enrichUserNames(approval);
 
         ApprovalRequest saved = approvalRepository.save(approval);
         if (approval.getSteps() != null && !approval.getSteps().isEmpty()) {

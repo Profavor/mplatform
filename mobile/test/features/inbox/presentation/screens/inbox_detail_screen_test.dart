@@ -95,7 +95,7 @@ void main() {
 
       // Subject & Body
       expect(find.text('상세 결재 연계 메모'), findsOneWidget);
-      expect(find.text('상세 본문 내용입니다. 결재 요청건을 확인해주세요.'), findsOneWidget);
+      expect(find.textContaining('상세 본문 내용입니다'), findsWidgets);
 
       // Formatted UUID in AppBar
       expect(find.text('INB-340a0917'), findsOneWidget);

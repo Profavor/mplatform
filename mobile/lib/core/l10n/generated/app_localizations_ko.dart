@@ -6294,7 +6294,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get dqViolationTrend => '최근 7일간 품질 오류 추이';
 
   @override
-  String get inboxTitle => '문서함';
+  String get inboxTitle => '사내 편지함';
 
   @override
   String get inboxSubtitle => '내부 메시지 및 이메일 통합 문서함';
