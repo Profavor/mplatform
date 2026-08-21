@@ -21,7 +21,7 @@ spec:
         - "mplatform.local"
       containers:
       - name: mobile
-        image: mplatform-mobile:v24
+        image: mplatform-mobile:v25
         imagePullPolicy: Never
         ports:
         - containerPort: 80
