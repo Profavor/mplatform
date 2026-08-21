@@ -188,3 +188,15 @@ integration:
     read-timeout-ms: ${INTEGRATION_WEBSERVICE_READ_TIMEOUT_MS:10000}
   scheduler:
     pool-size: ${INTEGRATION_SCHEDULER_POOL_SIZE:4}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+    display-request-duration: true
+    enabled: true
+

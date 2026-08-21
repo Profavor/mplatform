@@ -267,6 +267,14 @@ flutter run
 
 ---
 
+## 📖 시스템 운영 가이드 및 OpenAPI (Swagger UI)
+- **공식 엔터프라이즈 운영 매뉴얼**: [`docs/OPERATION_GUIDE.md`](./docs/OPERATION_GUIDE.md) (13대 미들웨어 운영, 백업/DR, 키 로테이션, 장애 대응 SOP)
+- **대화형 Swagger UI**: [`https://mplatform.local/api/swagger-ui.html`](https://mplatform.local/api/swagger-ui.html) (`http://localhost:8080/api/swagger-ui.html`)
+- **OpenAPI v3 JSON 명세**: [`https://mplatform.local/api/v3/api-docs`](https://mplatform.local/api/v3/api-docs)
+
+---
+
 ## 🤝 Contributing & License
 - 프로젝트 기여 가이드 및 커밋 컨벤션: [`CONTRIBUTING.md`](./CONTRIBUTING.md)
 - 라이선스: [MIT License](./LICENSE)
+
