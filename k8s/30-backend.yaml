@@ -14,8 +14,8 @@ spec:
     spec:
       containers:
       - name: backend
-        image: mplatform-backend:v84
-        imagePullPolicy: Never
+        image: profavor2/mplatform-backend:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
         envFrom:

@@ -16,5 +16,4 @@ backend/data/
 backend/uploads/
 *.log
 *.txt
-deploy.ps1
 docker-data/dms/

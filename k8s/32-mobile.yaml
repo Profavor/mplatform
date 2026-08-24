@@ -21,8 +21,8 @@ spec:
         - "mplatform.local"
       containers:
       - name: mobile
-        image: mplatform-mobile:v25
-        imagePullPolicy: Never
+        image: profavor2/mplatform-mobile:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 80
           name: http

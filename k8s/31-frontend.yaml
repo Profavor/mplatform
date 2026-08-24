@@ -19,8 +19,8 @@ spec:
         - "mplatform.local"
       containers:
       - name: frontend
-        image: mplatform-frontend:v115
-        imagePullPolicy: Never
+        image: profavor2/mplatform-frontend:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3000
         envFrom:
