@@ -15,6 +15,7 @@ spec:
       labels:
         app: mailserver
     spec:
+      hostname: mail
       initContainers:
       - name: init-mailbox
         image: busybox:1.36
@@ -40,7 +41,6 @@ spec:
       - name: mailserver
         image: ghcr.io/docker-mailserver/docker-mailserver:latest
         imagePullPolicy: IfNotPresent
-        hostname: mail
         env:
         - name: OVERRIDE_HOSTNAME
           value: "mail.mplatform.com"
