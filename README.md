@@ -220,6 +220,46 @@ flutter run
 
 ---
 
+## 🐳 Docker Build & Publish Pipeline (도커 배포 파이프라인)
+
+백엔드, 프론트엔드, 모바일 3개 서비스를 원클릭으로 빌드하고 Docker Registry(Docker Hub, GHCR, 사내 Private Registry 등)에 퍼블리시할 수 있는 도구가 제공됩니다.
+
+### 1. PowerShell 스크립트 실행 (Windows)
+```powershell
+# 1) 전체 서비스(백엔드, 프론트엔드, 모바일) 빌드 및 레지스트리 푸시
+.\publish-docker.ps1 -Registry "ghcr.io/myorg" -Tag "v1.0.0"
+
+# 2) 특정 서비스만 빌드 및 푸시 (예: backend)
+.\publish-docker.ps1 -Registry "ghcr.io/myorg" -Tag "v1.0.0" -Target backend
+
+# 3) 푸시 없이 로컬 도커 이미지로만 빌드 (-NoPush)
+.\publish-docker.ps1 -Target all -Tag "local-test" -NoPush
+```
+
+### 2. Bash 스크립트 실행 (Linux / macOS / CI)
+```bash
+# 전체 서비스 빌드 및 푸시
+./publish-docker.sh ghcr.io/myorg v1.0.0 all
+
+# 특정 서비스만 빌드 및 푸시
+./publish-docker.sh ghcr.io/myorg v1.0.0 frontend
+```
+
+### 3. GitHub Actions 자동 퍼블리시 (`.github/workflows/docker-publish.yml`)
+- **릴리즈 배포**: GitHub Release가 게시되거나 `v*.*.*` 태그 푸시 시 3개 서비스가 자동으로 GitHub Container Registry(GHCR)에 빌드 & 푸시됩니다.
+- **수동 배포**: GitHub Actions 탭에서 `Build & Publish Docker Images` 워크플로우를 선택 후 버전 태그 및 빌드 대상(all / backend / frontend / mobile)을 지정하여 즉시 배포할 수 있습니다.
+
+### 4. 운영 환경 배포 (Docker Compose Production)
+```bash
+# 환경변수 설정 후 프로덕션 환경 일괄 구동
+export DOCKER_REGISTRY="ghcr.io/myorg"
+export IMAGE_TAG="v1.0.0"
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+
+---
+
 ## 🧪 Testing & TDD Quality Pipeline
 
 본 프로젝트는 사이드 이펙트 방지 및 런타임 무결성을 위해 **프론트엔드와 백엔드 모두 TDD 기반 검증 체계**를 운영합니다.
