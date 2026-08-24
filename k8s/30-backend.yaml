@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: mplatform-backend:v83
+        image: mplatform-backend:v84
         imagePullPolicy: Never
         ports:
         - containerPort: 8080
