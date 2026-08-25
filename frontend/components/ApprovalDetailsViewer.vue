@@ -197,7 +197,7 @@
                         {{ group.label }}
                       </div>
                       <div style="overflow-x: auto;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; table-layout: fixed; word-break: break-word;">
                           <thead>
                             <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
                               <th style="padding: 0.6rem 0.8rem; width: 25%; text-align: left; font-weight: 600; color: var(--va-text-secondary);">{{ $t('property_field_name') || '속성 / 필드명' }}</th>
@@ -213,13 +213,13 @@
                             </tr>
                             <tr v-for="f in group.fields" :key="f.key" style="border-bottom: 1px solid var(--va-background-border);">
                               <!-- Column 1: 속성 / 필드명 -->
-                              <td style="padding: 0.6rem 0.8rem; font-weight: 600; color: var(--va-text-primary); vertical-align: top; width: 25%;">
+                              <td style="padding: 0.6rem 0.8rem; font-weight: 600; color: var(--va-text-primary); vertical-align: top; width: 25%; word-break: break-word;">
                                 <span>{{ f.label }}</span>
                                 <va-icon v-if="f.isEncrypted" name="lock" size="small" color="warning" style="margin-left: 4px;" :title="t('encrypted_field')" />
                               </td>
 
                               <!-- Column 2: 변경 전 (Previous Value) -->
-                              <td style="padding: 0.6rem 0.8rem; color: #b91c1c; background: rgba(239, 68, 68, 0.04); vertical-align: top; width: 37.5%;">
+                              <td style="padding: 0.6rem 0.8rem; color: #b91c1c; background: rgba(239, 68, 68, 0.04); vertical-align: top; width: 37.5%; word-break: break-word;">
                                 <template v-if="request.targetType === 'RECORD_CREATE'">
                                   <span>{{ t('none') || '(없음)' }}</span>
                                 </template>
@@ -254,10 +254,23 @@
                                     </div>
                                   </template>
                                   <template v-else-if="f.type === 'IMAGE' && (f.val?.before !== undefined ? f.val.before : f.val)">
-                                    <ImageUploader :model-value="f.val?.before !== undefined ? f.val.before : f.val" readonly />
+                                    <div class="diff-image-gallery">
+                                      <div
+                                        v-for="(imgItem, imgIdx) in parseImagesList(f.val?.before !== undefined ? f.val.before : f.val)"
+                                        :key="imgIdx"
+                                        class="diff-image-thumbnail-box"
+                                        :title="t('click_to_zoom') || '클릭하여 확대 보기'"
+                                        @click="openImageLightbox(parseImagesList(f.val?.before !== undefined ? f.val.before : f.val), imgIdx)"
+                                      >
+                                        <img :src="imgItem.url" class="diff-image-thumbnail" alt="Before Image" />
+                                        <div class="diff-image-hover-overlay">
+                                          <va-icon name="zoom_in" color="#ffffff" size="18px" />
+                                        </div>
+                                      </div>
+                                    </div>
                                   </template>
                                   <template v-else-if="(f.type === 'HTML_TEXT' || f.type === 'HTML') && (f.val?.before !== undefined ? f.val.before : f.val)">
-                                    <div class="custom-html-preview" style="max-height: 200px; overflow-y: auto; padding: 0.4rem 0.6rem; background: var(--va-background-element); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 4px; font-size: 0.85rem;" v-html="f.val?.before !== undefined ? f.val.before : f.val" />
+                                    <div class="custom-html-preview" style="border: 1px solid rgba(239, 68, 68, 0.25);" @click="handleHtmlImageClick" v-html="f.val?.before !== undefined ? f.val.before : f.val" />
                                   </template>
                                   <template v-else-if="f.isEncrypted">
                                     <span v-if="(f.val?.before ?? f.val) === null || (f.val?.before ?? f.val) === undefined || (f.val?.before ?? f.val) === ''">{{ t('none') || '(없음)' }}</span>
@@ -270,7 +283,7 @@
                               </td>
 
                               <!-- Column 3: 변경 후 (New Value) -->
-                              <td style="padding: 0.6rem 0.8rem; color: #15803d; background: rgba(34, 197, 94, 0.04); font-weight: 600; vertical-align: top; width: 37.5%;">
+                              <td style="padding: 0.6rem 0.8rem; color: #15803d; background: rgba(34, 197, 94, 0.04); font-weight: 600; vertical-align: top; width: 37.5%; word-break: break-word;">
                                 <template v-if="request.targetType === 'RECORD_DELETE'">
                                   <span>{{ t('deleted') || '(삭제됨)' }}</span>
                                 </template>
@@ -305,10 +318,23 @@
                                     </div>
                                   </template>
                                   <template v-else-if="f.type === 'IMAGE' && (f.val?.after !== undefined ? f.val.after : f.val)">
-                                    <ImageUploader :model-value="f.val?.after !== undefined ? f.val.after : f.val" readonly />
+                                    <div class="diff-image-gallery">
+                                      <div
+                                        v-for="(imgItem, imgIdx) in parseImagesList(f.val?.after !== undefined ? f.val.after : f.val)"
+                                        :key="imgIdx"
+                                        class="diff-image-thumbnail-box"
+                                        :title="t('click_to_zoom') || '클릭하여 확대 보기'"
+                                        @click="openImageLightbox(parseImagesList(f.val?.after !== undefined ? f.val.after : f.val), imgIdx)"
+                                      >
+                                        <img :src="imgItem.url" class="diff-image-thumbnail" alt="After Image" />
+                                        <div class="diff-image-hover-overlay">
+                                          <va-icon name="zoom_in" color="#ffffff" size="18px" />
+                                        </div>
+                                      </div>
+                                    </div>
                                   </template>
                                   <template v-else-if="(f.type === 'HTML_TEXT' || f.type === 'HTML') && (f.val?.after !== undefined ? f.val.after : f.val)">
-                                    <div class="custom-html-preview" style="max-height: 200px; overflow-y: auto; padding: 0.4rem 0.6rem; background: var(--va-background-element); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: 4px; font-size: 0.85rem;" v-html="f.val?.after !== undefined ? f.val.after : f.val" />
+                                    <div class="custom-html-preview" style="border: 1px solid rgba(34, 197, 94, 0.25);" @click="handleHtmlImageClick" v-html="f.val?.after !== undefined ? f.val.after : f.val" />
                                   </template>
                                   <div v-else style="display:flex; align-items:center; justify-content:space-between; gap: 8px;">
                                     <template v-if="f.isEncrypted">
@@ -406,6 +432,13 @@
       v-model="showUnmaskReasonModal"
       @confirm="executeDecryptApprovalField"
     />
+
+    <!-- Image Lightbox Modal with Zoom / Magnifier -->
+    <ImageLightboxModal
+      v-model="showLightbox"
+      :images="lightboxImages"
+      :initial-index="lightboxIndex"
+    />
   </div>
 </template>
 
@@ -417,6 +450,7 @@ import ApprovalSteps from './ApprovalSteps.vue'
 import ApprovalHistoryTimeline from './approval/ApprovalHistoryTimeline.vue'
 import UnmaskReasonModal from './UnmaskReasonModal.vue'
 import ImageUploader from './common/ImageUploader.vue'
+import ImageLightboxModal from './common/ImageLightboxModal.vue'
 import { useToast } from 'vuestic-ui'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useAuthenticatedImage } from '~/composables/useAuthenticatedImage'
@@ -430,6 +464,53 @@ const pendingDecryptField = ref(null)
 const memoTransformedContent = ref('')
 
 const isRequestedDataExpanded = ref(true)
+
+// Lightbox States
+const showLightbox = ref(false)
+const lightboxImages = ref([])
+const lightboxIndex = ref(0)
+
+const parseImagesList = (val) => {
+  if (!val) return []
+  if (Array.isArray(val)) {
+    return val.map((item, idx) => {
+      if (typeof item === 'string') return { url: item, name: `Image ${idx + 1}` }
+      if (typeof item === 'object' && item?.url) return { url: item.url, name: item.name || `Image ${idx + 1}` }
+      return { url: String(item), name: `Image ${idx + 1}` }
+    })
+  }
+  if (typeof val === 'object' && val !== null) {
+    if (val.url) return [{ url: val.url, name: val.name || 'Image' }]
+    return []
+  }
+  if (typeof val === 'string') {
+    const trimmed = val.trim()
+    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        return parseImagesList(parsed)
+      } catch (e) {}
+    }
+    return [{ url: val, name: 'Image' }]
+  }
+  return []
+}
+
+const openImageLightbox = (images, initialIdx = 0) => {
+  if (!images || images.length === 0) return
+  lightboxImages.value = images
+  lightboxIndex.value = initialIdx
+  showLightbox.value = true
+}
+
+const handleHtmlImageClick = (e) => {
+  const target = e.target
+  if (target && target.tagName === 'IMG' && target.src) {
+    e.preventDefault()
+    e.stopPropagation()
+    openImageLightbox([{ url: target.src, name: target.alt || 'Image' }], 0)
+  }
+}
 
 const getParsedChanges = (changesString) => {
   if (!changesString) return null
@@ -1787,5 +1868,92 @@ const getObserversList = (obsString) => {
 
 .accordion-inner {
   overflow: hidden;
+}
+
+/* Diff Image Thumbnail Gallery */
+.diff-image-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.diff-image-thumbnail-box {
+  width: 110px;
+  height: 80px;
+  max-width: 110px;
+  max-height: 80px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--va-background-border);
+  background: var(--va-background-secondary);
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+
+.diff-image-thumbnail-box:hover {
+  transform: translateY(-2px);
+  border-color: var(--va-primary);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.diff-image-thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.diff-image-hover-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.diff-image-thumbnail-box:hover .diff-image-hover-overlay {
+  opacity: 1;
+}
+
+/* Custom HTML Preview with bounded images */
+.custom-html-preview {
+  max-height: 220px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.5rem 0.75rem;
+  background: var(--va-background-element);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  word-break: break-word;
+}
+
+.custom-html-preview :deep(img),
+.custom-html-preview img {
+  max-width: 100% !important;
+  max-height: 160px !important;
+  object-fit: contain !important;
+  border-radius: 4px;
+  cursor: zoom-in !important;
+  transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid var(--va-background-border);
+  margin: 4px 0;
+  display: block;
+}
+
+.custom-html-preview :deep(img:hover),
+.custom-html-preview img:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 </style>

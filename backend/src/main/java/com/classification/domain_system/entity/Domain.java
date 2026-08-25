@@ -79,7 +79,12 @@ public class Domain {
     @Column(name = "current_sequence", nullable = false, columnDefinition = "bigint default 0")
     private Long currentSequence = 0L;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "detail_layout_config")
+    private Map<String, Object> detailLayoutConfig = new HashMap<>();
+
     @Column(name = "created_at", updatable = false)
+
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")

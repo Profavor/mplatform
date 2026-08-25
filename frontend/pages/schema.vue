@@ -93,6 +93,15 @@
                   <va-button v-if="hasPermission('field:write') || hasPermission('field:*')" size="small" icon="add" @click="openFieldModal(null)">{{ $t('add_field') }}</va-button>
                   <va-button
                     size="small"
+                    color="primary"
+                    preset="secondary"
+                    icon="dashboard_customize"
+                    @click="showLayoutBuilderModal = true"
+                  >
+                    {{ $t('btn_layout_builder') }}
+                  </va-button>
+                  <va-button
+                    size="small"
                     color="secondary"
                     outline
                     @click="showBusinessRuleBuilderModal = true"
@@ -101,6 +110,7 @@
                   </va-button>
                   <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshSchemaData">{{ $t('refresh') }}</va-button>
                 </div>
+
               </div>
 
               <div class="schema-grid-wrapper" :class="{ 'ag-theme-quartz-dark': isDark }">
@@ -251,6 +261,16 @@
       :fieldId="dqTargetFieldId"
       :fieldName="dqTargetFieldName"
     />
+
+    <!-- Record 2D Grid Layout Builder Modal -->
+    <RecordLayoutBuilderModal
+      v-model="showLayoutBuilderModal"
+      :target-node="selectedNode"
+      :domain-id="selectedDomainId"
+      :fields="fields"
+    />
+
+
     <!-- System Notification Modal (Decoupled Component) -->
     <SystemNotificationModal
       v-model="showErrorAlertModal"
@@ -323,6 +343,7 @@ import SchemaHistoryTab from '~/components/schema/SchemaHistoryTab.vue'
 import WorkflowConfigTab from '~/components/schema/WorkflowConfigTab.vue'
 import ClassificationAxisTab from '~/components/schema/ClassificationAxisTab.vue'
 import DataProfilingTab from '~/components/schema/DataProfilingTab.vue'
+import RecordLayoutBuilderModal from '~/components/records/RecordLayoutBuilderModal.vue'
 
 const toast = useToast()
 const { customFetch } = useCustomFetch()
@@ -337,10 +358,12 @@ const isDark = computed(() => currentPresetName?.value === 'dark')
 
 const showApprovalViewer = ref(false)
 const showBusinessRuleBuilderModal = ref(false)
+const showLayoutBuilderModal = ref(false)
 const selectedApprovalRequest = ref(null)
 const showPackageModal = ref(false)
 const showOntologyModal = ref(false)
 const showCompatibilityModal = ref(false)
+
 
 const handlePackageImported = (result) => {
   if (treeRef.value?.loadTree) {

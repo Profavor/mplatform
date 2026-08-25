@@ -228,4 +228,108 @@ public class ClassificationNodeService {
 
         recordSchemaChange(domainId, "NODE", nodeId, "DELETE", beforeState, savedNode);
     }
+
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Object> getNodeLayout(UUID domainId, UUID nodeId) {
+        ClassificationNode node = nodeRepository.findById(nodeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Node not found with id: " + nodeId));
+
+        if (!node.getDomain().getId().equals(domainId)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "Node does not belong to specified domain");
+        }
+
+        java.util.Map<String, Object> foundConfig = null;
+
+        if (node.getDetailLayoutConfig() != null && !node.getDetailLayoutConfig().isEmpty()) {
+            foundConfig = node.getDetailLayoutConfig();
+        } else {
+            // Check parent nodes up the hierarchy
+            ClassificationNode current = node.getParent();
+            while (current != null) {
+                if (current.getDetailLayoutConfig() != null && !current.getDetailLayoutConfig().isEmpty()) {
+                    foundConfig = current.getDetailLayoutConfig();
+                    break;
+                }
+                current = current.getParent();
+            }
+
+            // Fallback to domain layout
+            if (foundConfig == null) {
+                Domain domain = node.getDomain();
+                if (domain != null && domain.getDetailLayoutConfig() != null && !domain.getDetailLayoutConfig().isEmpty()) {
+                    foundConfig = domain.getDetailLayoutConfig();
+                }
+            }
+        }
+
+        if (foundConfig != null && !foundConfig.isEmpty()) {
+            if (!foundConfig.containsKey("layouts") && foundConfig.containsKey("widgets")) {
+                java.util.Map<String, Object> wrapped = new java.util.HashMap<>(foundConfig);
+                java.util.Map<String, Object> defaultLayout = new java.util.HashMap<>();
+                defaultLayout.put("id", "layout_default");
+                defaultLayout.put("name", "기본 레이아웃");
+                defaultLayout.put("isDefault", true);
+                defaultLayout.put("cols", foundConfig.getOrDefault("cols", 12));
+                defaultLayout.put("rowHeight", foundConfig.getOrDefault("rowHeight", 42));
+                defaultLayout.put("widgets", foundConfig.getOrDefault("widgets", new java.util.ArrayList<>()));
+                defaultLayout.put("options", foundConfig.getOrDefault("options", new java.util.HashMap<>()));
+
+                java.util.List<java.util.Map<String, Object>> layoutList = new java.util.ArrayList<>();
+                layoutList.add(defaultLayout);
+                wrapped.put("layouts", layoutList);
+                wrapped.put("activeLayoutId", "layout_default");
+                return wrapped;
+            }
+            return foundConfig;
+        }
+
+        return new java.util.HashMap<>();
+    }
+
+    @Transactional
+    public java.util.Map<String, Object> saveNodeLayout(UUID domainId, UUID nodeId, com.classification.domain_system.dto.RecordLayoutDto layoutDto) {
+        ClassificationNode node = nodeRepository.findById(nodeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Node not found with id: " + nodeId));
+
+        if (!node.getDomain().getId().equals(domainId)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "Node does not belong to specified domain");
+        }
+
+        java.util.Map<String, Object> configMap = new java.util.HashMap<>();
+
+        if (layoutDto.getLayouts() != null && !layoutDto.getLayouts().isEmpty()) {
+            configMap.put("layouts", layoutDto.getLayouts());
+            configMap.put("activeLayoutId", layoutDto.getActiveLayoutId() != null ? layoutDto.getActiveLayoutId() : "layout_default");
+
+            java.util.Map<String, Object> firstLayout = layoutDto.getLayouts().get(0);
+            configMap.put("cols", firstLayout.getOrDefault("cols", 12));
+            configMap.put("rowHeight", firstLayout.getOrDefault("rowHeight", 42));
+            configMap.put("widgets", firstLayout.getOrDefault("widgets", new java.util.ArrayList<>()));
+            configMap.put("options", firstLayout.getOrDefault("options", new java.util.HashMap<>()));
+        } else {
+            java.util.Map<String, Object> defaultLayout = new java.util.HashMap<>();
+            defaultLayout.put("id", "layout_default");
+            defaultLayout.put("name", "기본 레이아웃");
+            defaultLayout.put("isDefault", true);
+            defaultLayout.put("cols", layoutDto.getCols() != null ? layoutDto.getCols() : 12);
+            defaultLayout.put("rowHeight", layoutDto.getRowHeight() != null ? layoutDto.getRowHeight() : 42);
+            defaultLayout.put("widgets", layoutDto.getWidgets() != null ? layoutDto.getWidgets() : new java.util.ArrayList<>());
+            defaultLayout.put("options", layoutDto.getOptions() != null ? layoutDto.getOptions() : new java.util.HashMap<>());
+
+            java.util.List<java.util.Map<String, Object>> layoutList = new java.util.ArrayList<>();
+            layoutList.add(defaultLayout);
+
+            configMap.put("layouts", layoutList);
+            configMap.put("activeLayoutId", "layout_default");
+            configMap.put("cols", layoutDto.getCols() != null ? layoutDto.getCols() : 12);
+            configMap.put("rowHeight", layoutDto.getRowHeight() != null ? layoutDto.getRowHeight() : 42);
+            configMap.put("widgets", layoutDto.getWidgets() != null ? layoutDto.getWidgets() : new java.util.ArrayList<>());
+            configMap.put("options", layoutDto.getOptions() != null ? layoutDto.getOptions() : new java.util.HashMap<>());
+        }
+
+        node.setDetailLayoutConfig(configMap);
+        nodeRepository.save(node);
+        return configMap;
+    }
 }
+

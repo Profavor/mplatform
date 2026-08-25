@@ -7,10 +7,8 @@
     v-model:fullscreen="isFullscreenModal"
     size="large"
     class="custom-record-modal"
-    without-transitions
   >
-
-    <div :style="{ maxHeight: isFullscreenModal ? 'calc(100vh - 160px)' : '60vh', overflowY: 'auto', overflowX: 'hidden', padding: '1rem', boxSizing: 'border-box', width: '100%' }">
+    <div :style="{ maxHeight: isFullscreenModal ? 'calc(100vh - 180px)' : '65vh', overflowY: 'auto', overflowX: 'hidden', padding: '1rem 0.5rem', boxSizing: 'border-box', width: '100%' }">
       <div
         v-if="!hasWorkflow"
         style="margin-bottom: 1rem; padding: 0.5rem; background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 4px; text-align: center; font-weight: bold;"
@@ -62,6 +60,7 @@
 
       <!-- Sector Content -->
       <div v-for="(sector, idx) in groupedFieldsArray" :key="sector.key" v-show="activeSectorTab === idx">
+
         <va-accordion multiple style="width: 100%;" class="mb-4">
           <va-collapse
             v-for="group in sector.groups"
@@ -379,6 +378,7 @@
       </div>
 
       <!-- Secondary Axes Section -->
+
       <div v-if="axesList.length > 0" style="margin-bottom: 1rem; margin-top: 1rem;">
         <va-accordion multiple style="width: 100%;">
           <va-collapse
@@ -427,10 +427,10 @@ import { useCookie } from '#app'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import HtmlEditor from '~/components/common/HtmlEditor.vue'
 import ImageUploader from '~/components/common/ImageUploader.vue'
-import ModalControls from '~/components/common/ModalControls.vue'
 import AppModal from '~/components/common/AppModal.vue'
 
 const { customFetch } = useCustomFetch()
+
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -459,6 +459,7 @@ const modalVisible = computed({
 })
 
 const isFullscreenModal = ref(false)
+
 watch(() => props.show, (val) => {
   if (!val) {
     isFullscreenModal.value = false
@@ -471,6 +472,7 @@ const secondaryAxesOpen = ref([true])
 const axesList = ref([])
 const allNodes = ref([])
 const localSecondaryNodeSelections = ref({})
+
 
 const availableWorkflowOptions = computed(() => {
   if (!props.availableWorkflows || props.availableWorkflows.length === 0) {

@@ -24,6 +24,23 @@
         <!-- Right: Chips & Badges & Window Controls -->
         <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-left: auto;">
 
+          <!-- Layout Switcher Select (커스텀 레이아웃이 1개 이상 있을 때 노출) -->
+          <div v-if="availableLayouts.length > 0" style="display: inline-flex; align-items: center; margin-right: 0.25rem;">
+            <va-select
+              v-model="selectedLayoutId"
+              :options="detailLayoutSelectOptions"
+              value-by="value"
+              track-by="value"
+              size="small"
+              style="width: 210px;"
+              :placeholder="$t('layout_select_label')"
+            >
+              <template #prependInner>
+                <va-icon name="dashboard" size="small" color="primary" />
+              </template>
+            </va-select>
+          </div>
+
           <!-- ID / 사번 칩 -->
           <va-chip
             v-if="headerRecordId"
@@ -129,6 +146,20 @@
       <!-- Details Tab Content -->
       <div v-show="activeMainTab === 'details'" style="overflow-y: auto; flex: 1; padding-right: 4px;">
 
+        <!-- Custom 2D Grid Layout View -->
+        <DynamicRecordLayoutRenderer
+          v-if="currentSelectedLayout && currentSelectedLayout.widgets && currentSelectedLayout.widgets.length > 0"
+          :layout-config="currentSelectedLayout"
+          :fields="fields"
+          :record="localRecord"
+          :is-editing="isEditing"
+          :selected-domain-info="selectedDomainInfo"
+          :domain-references="domainReferences"
+          @openDomainRef="$emit('openDomainRef', $event)"
+        />
+
+        <!-- Fallback: Standard Sector / Group Accordion View -->
+        <template v-else>
         <!-- Sector Sub-Tabs: Clean Underline / Small Chip style -->
         <va-tabs v-model="activeSectorTab" style="margin-bottom: 1rem;" grow>
           <template #tabs>
@@ -140,6 +171,7 @@
 
         <!-- Sector Content -->
         <div v-for="(sector, idx) in groupedFieldsArray" :key="sector.key" v-show="activeSectorTab === idx">
+
           <va-accordion multiple style="width: 100%;" class="mb-4">
             <va-collapse
               v-for="group in sector.groups"
@@ -507,7 +539,9 @@
             </va-collapse>
           </va-accordion>
         </div>
+        </template>
       </div>
+
 
       <!-- Secondary Nodes Tab Content -->
       <div v-show="activeMainTab === 'secondary'" style="flex: 1; overflow-y: auto; padding: 0.5rem;">
@@ -842,6 +876,8 @@ import HtmlEditor from '~/components/common/HtmlEditor.vue'
 import ImageUploader from '~/components/common/ImageUploader.vue'
 import ModalControls from '~/components/common/ModalControls.vue'
 import AppModal from '~/components/common/AppModal.vue'
+import DynamicRecordLayoutRenderer from './DynamicRecordLayoutRenderer.vue'
+
 
 const { downloadFileWithAuth } = useFileDownloader()
 
@@ -1217,7 +1253,82 @@ const activeMainTab = ref('details')
 const activeSectorTab = ref(0)
 const focusedDateFields = ref({})
 const localRecord = ref({})
+const customLayouts = ref([])
+const selectedLayoutId = ref('STANDARD')
+
+const availableLayouts = computed(() => customLayouts.value || [])
+
+const currentSelectedLayout = computed(() => {
+  if (!selectedLayoutId.value || selectedLayoutId.value === 'STANDARD' || availableLayouts.value.length === 0) {
+    return null
+  }
+  return availableLayouts.value.find(l => l.id === selectedLayoutId.value) || null
+})
+
+const detailLayoutSelectOptions = computed(() => {
+  const opts = [
+    {
+      text: `📋 ${t('standard_form_view') || '기본 폼 뷰 (섹터/그룹)'}`,
+      value: 'STANDARD'
+    }
+  ]
+  if (availableLayouts.value && availableLayouts.value.length > 0) {
+    availableLayouts.value.forEach(l => {
+      opts.push({
+        text: `📐 2D: ${l.name || 'Layout'}`,
+        value: l.id
+      })
+    })
+  }
+  return opts
+})
+
 const subRecords = computed(() => localRecord.value?.sourceRecords || localRecord.value?.childRecords || [])
+
+const fetchCustomLayout = async () => {
+  const domainId = props.selectedDomainInfo?.id || props.record?.domainId
+  const nodeId = props.record?.nodeId || props.record?.classificationNodeId
+  if (!domainId) return
+
+  try {
+    const url = nodeId
+      ? `/api/domains/${domainId}/nodes/${nodeId}/layout`
+      : `/api/domains/${domainId}/layout`
+    const res = await $fetch(url)
+    if (res && res.layouts && Array.isArray(res.layouts) && res.layouts.length > 0) {
+      customLayouts.value = res.layouts
+    } else if (res && res.widgets && Array.isArray(res.widgets) && res.widgets.length > 0) {
+      const defLayout = {
+        id: 'layout_default',
+        name: '기본 레이아웃',
+        isDefault: true,
+        cols: res.cols || 12,
+        rowHeight: res.rowHeight || 42,
+        widgets: res.widgets,
+        options: res.options || {}
+      }
+      customLayouts.value = [defLayout]
+    } else {
+      customLayouts.value = []
+    }
+    // 디폴트는 항상 생성 시의 표준 폼 뷰(섹터/그룹 구조)
+    selectedLayoutId.value = 'STANDARD'
+  } catch (e) {
+    customLayouts.value = []
+    selectedLayoutId.value = 'STANDARD'
+  }
+}
+
+watch(
+  () => [props.show, props.record?.id, props.record?.nodeId],
+  ([showVal]) => {
+    if (showVal) {
+      fetchCustomLayout()
+    }
+  },
+  { immediate: true }
+)
+
 
 const handleMaskedInput = (field, val) => {
   localRecord.value[field.key] = val
