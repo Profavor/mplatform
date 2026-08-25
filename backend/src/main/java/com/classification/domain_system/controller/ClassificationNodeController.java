@@ -51,4 +51,22 @@ public class ClassificationNodeController {
         nodeService.deleteNode(domainId, nodeId);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/{nodeId}/layout")
+    @PreAuthorize("hasPermission(null, 'node:read')")
+    public ResponseEntity<java.util.Map<String, Object>> getNodeLayout(
+            @PathVariable UUID domainId,
+            @PathVariable UUID nodeId) {
+        return ResponseEntity.ok(nodeService.getNodeLayout(domainId, nodeId));
+    }
+
+    @PutMapping("/{nodeId}/layout")
+    @PreAuthorize("hasPermission(null, 'node:write')")
+    public ResponseEntity<java.util.Map<String, Object>> saveNodeLayout(
+            @PathVariable UUID domainId,
+            @PathVariable UUID nodeId,
+            @RequestBody com.classification.domain_system.dto.RecordLayoutDto request) {
+        return ResponseEntity.ok(nodeService.saveNodeLayout(domainId, nodeId, request));
+    }
 }
+

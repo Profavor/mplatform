@@ -278,4 +278,20 @@ public class DomainController {
         com.classification.domain_system.dto.DomainPackageImportResult result = domainPackageService.importDomainPackage(pkg, currentUserId, overwrite);
         return ResponseEntity.ok(result);
     }
+
+    @GetMapping("/{domainId}/layout")
+    @PreAuthorize("hasPermission(null, 'domain:read')")
+    public ResponseEntity<java.util.Map<String, Object>> getDomainLayout(
+            @PathVariable UUID domainId) {
+        return ResponseEntity.ok(domainService.getDomainLayout(domainId));
+    }
+
+    @PutMapping("/{domainId}/layout")
+    @PreAuthorize("hasPermission(null, 'domain:write')")
+    public ResponseEntity<java.util.Map<String, Object>> saveDomainLayout(
+            @PathVariable UUID domainId,
+            @RequestBody com.classification.domain_system.dto.RecordLayoutDto request) {
+        return ResponseEntity.ok(domainService.saveDomainLayout(domainId, request));
+    }
 }
+

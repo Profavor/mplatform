@@ -63,6 +63,11 @@ public class ClassificationNode {
     @Column(name = "icon")
     private String icon;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "detail_layout_config")
+    private Map<String, Object> detailLayoutConfig = new HashMap<>();
+
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

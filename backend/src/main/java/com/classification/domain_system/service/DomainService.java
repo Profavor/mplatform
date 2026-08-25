@@ -109,4 +109,75 @@ public class DomainService {
     public void deleteDomain(UUID id) {
         domainRepository.deleteById(id);
     }
+
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Object> getDomainLayout(UUID domainId) {
+        Domain domain = getDomain(domainId);
+        java.util.Map<String, Object> config = domain.getDetailLayoutConfig();
+        if (config != null && !config.isEmpty()) {
+            // Backward compatibility: If legacy format without 'layouts', wrap it into layouts array
+            if (!config.containsKey("layouts") && config.containsKey("widgets")) {
+                java.util.Map<String, Object> wrapped = new java.util.HashMap<>(config);
+                java.util.Map<String, Object> defaultLayout = new java.util.HashMap<>();
+                defaultLayout.put("id", "layout_default");
+                defaultLayout.put("name", "기본 레이아웃");
+                defaultLayout.put("isDefault", true);
+                defaultLayout.put("cols", config.getOrDefault("cols", 12));
+                defaultLayout.put("rowHeight", config.getOrDefault("rowHeight", 42));
+                defaultLayout.put("widgets", config.getOrDefault("widgets", new java.util.ArrayList<>()));
+                defaultLayout.put("options", config.getOrDefault("options", new java.util.HashMap<>()));
+
+                java.util.List<java.util.Map<String, Object>> layoutList = new java.util.ArrayList<>();
+                layoutList.add(defaultLayout);
+                wrapped.put("layouts", layoutList);
+                wrapped.put("activeLayoutId", "layout_default");
+                return wrapped;
+            }
+            return config;
+        }
+        return new java.util.HashMap<>();
+    }
+
+    @Transactional
+    @CacheEvict(value = "domains", key = "#domainId")
+    public java.util.Map<String, Object> saveDomainLayout(UUID domainId, com.classification.domain_system.dto.RecordLayoutDto layoutDto) {
+        Domain domain = getDomain(domainId);
+        java.util.Map<String, Object> configMap = new java.util.HashMap<>();
+
+        if (layoutDto.getLayouts() != null && !layoutDto.getLayouts().isEmpty()) {
+            configMap.put("layouts", layoutDto.getLayouts());
+            configMap.put("activeLayoutId", layoutDto.getActiveLayoutId() != null ? layoutDto.getActiveLayoutId() : "layout_default");
+            
+            // Also maintain top-level cols/rowHeight/widgets for default layout fallback
+            java.util.Map<String, Object> firstLayout = layoutDto.getLayouts().get(0);
+            configMap.put("cols", firstLayout.getOrDefault("cols", 12));
+            configMap.put("rowHeight", firstLayout.getOrDefault("rowHeight", 42));
+            configMap.put("widgets", firstLayout.getOrDefault("widgets", new java.util.ArrayList<>()));
+            configMap.put("options", firstLayout.getOrDefault("options", new java.util.HashMap<>()));
+        } else {
+            java.util.Map<String, Object> defaultLayout = new java.util.HashMap<>();
+            defaultLayout.put("id", "layout_default");
+            defaultLayout.put("name", "기본 레이아웃");
+            defaultLayout.put("isDefault", true);
+            defaultLayout.put("cols", layoutDto.getCols() != null ? layoutDto.getCols() : 12);
+            defaultLayout.put("rowHeight", layoutDto.getRowHeight() != null ? layoutDto.getRowHeight() : 42);
+            defaultLayout.put("widgets", layoutDto.getWidgets() != null ? layoutDto.getWidgets() : new java.util.ArrayList<>());
+            defaultLayout.put("options", layoutDto.getOptions() != null ? layoutDto.getOptions() : new java.util.HashMap<>());
+
+            java.util.List<java.util.Map<String, Object>> layoutList = new java.util.ArrayList<>();
+            layoutList.add(defaultLayout);
+
+            configMap.put("layouts", layoutList);
+            configMap.put("activeLayoutId", "layout_default");
+            configMap.put("cols", layoutDto.getCols() != null ? layoutDto.getCols() : 12);
+            configMap.put("rowHeight", layoutDto.getRowHeight() != null ? layoutDto.getRowHeight() : 42);
+            configMap.put("widgets", layoutDto.getWidgets() != null ? layoutDto.getWidgets() : new java.util.ArrayList<>());
+            configMap.put("options", layoutDto.getOptions() != null ? layoutDto.getOptions() : new java.util.HashMap<>());
+        }
+
+        domain.setDetailLayoutConfig(configMap);
+        domainRepository.save(domain);
+        return configMap;
+    }
 }
+

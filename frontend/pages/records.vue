@@ -169,6 +169,7 @@
 
     <!-- Modularized Create Record Modal -->
     <RecordFormModal
+      v-model:show="showCreateModal"
       :show="showCreateModal"
       :is-edit="false"
       :record="recordFormData"
@@ -187,6 +188,7 @@
 
     <!-- Modularized Record Detail & History Drawer -->
     <RecordDetailDrawer
+      v-model:show="showDetailModal"
       :show="showDetailModal"
       :record="selectedRecordData"
       :fields="nodeFields"
@@ -217,6 +219,7 @@
 
     <!-- Dedicated Snapshot Modal -->
     <RecordDetailDrawer
+      v-model:show="showSnapshotModal"
       :show="showSnapshotModal"
       :record="snapshotRecordData"
       :snapshot-id="snapshotHistoryId"

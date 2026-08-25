@@ -88,6 +88,13 @@
         </div>
       </div>
     </div>
+
+    <!-- Image Lightbox Modal -->
+    <ImageLightboxModal
+      v-model="showLightbox"
+      :images="lightboxImages"
+      :initial-index="lightboxIndex"
+    />
   </div>
 </template>
 
@@ -95,6 +102,7 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatMultilingual } from '~/composables/useMultilingual'
+import ImageLightboxModal from '~/components/common/ImageLightboxModal.vue'
 
 const props = defineProps({
   request: { type: Object, required: true }
@@ -160,4 +168,65 @@ const groupedChangesList = computed(() => {
     }]
   }]
 })
+
+// Lightbox states & handlers
+const showLightbox = ref(false)
+const lightboxImages = ref([])
+const lightboxIndex = ref(0)
+
+const parseImagesList = (val) => {
+  if (!val) return []
+  if (Array.isArray(val)) {
+    return val.map((item, idx) => {
+      if (typeof item === 'string') return { url: item, name: `Image ${idx + 1}` }
+      if (typeof item === 'object' && item?.url) return { url: item.url, name: item.name || `Image ${idx + 1}` }
+      return { url: String(item), name: `Image ${idx + 1}` }
+    })
+  }
+  if (typeof val === 'object' && val !== null) {
+    if (val.url) return [{ url: val.url, name: val.name || 'Image' }]
+    return []
+  }
+  if (typeof val === 'string') {
+    const trimmed = val.trim()
+    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        return parseImagesList(parsed)
+      } catch (e) {}
+    }
+    return [{ url: val, name: 'Image' }]
+  }
+  return []
+}
+
+const openImageLightbox = (images, initialIdx = 0) => {
+  if (!images || images.length === 0) return
+  lightboxImages.value = images
+  lightboxIndex.value = initialIdx
+  showLightbox.value = true
+}
+
+const handleHtmlImageClick = (e) => {
+  const target = e.target
+  if (target && target.tagName === 'IMG' && target.src) {
+    e.preventDefault()
+    e.stopPropagation()
+    openImageLightbox([{ url: target.src, name: target.alt || 'Image' }], 0)
+  }
+}
 </script>
+
+<style scoped>
+.custom-scrollbar {
+  overflow-x: hidden;
+}
+
+:deep(img) {
+  max-width: 100% !important;
+  max-height: 180px !important;
+  object-fit: contain !important;
+  cursor: zoom-in !important;
+  border-radius: 4px;
+}
+</style>
