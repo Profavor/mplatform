@@ -148,18 +148,30 @@
           />
         </template>
 
-        <!-- Inline Layout Name Editing Mode -->
+        <!-- Inline Layout Name Editing Mode (Multilingual KO / EN) -->
         <template v-else>
-          <div style="display: inline-flex; align-items: center; gap: 6px;">
+          <div style="display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
             <va-input
-              v-model="layoutNameInput"
+              v-model="layoutNameKoInput"
               size="small"
-              style="width: 220px;"
-              :placeholder="$t('layout_name_placeholder')"
+              style="width: 180px;"
+              :placeholder="$t('layout_name_ko_placeholder')"
               autofocus
               @keyup.enter="confirmInlineLayout"
               @keyup.esc="cancelInlineLayout"
-            />
+            >
+              <template #prependInner><span style="font-size: 0.72rem; font-weight: 700; color: var(--va-text-secondary); margin-right: 4px;">KO</span></template>
+            </va-input>
+            <va-input
+              v-model="layoutNameEnInput"
+              size="small"
+              style="width: 180px;"
+              :placeholder="$t('layout_name_en_placeholder')"
+              @keyup.enter="confirmInlineLayout"
+              @keyup.esc="cancelInlineLayout"
+            >
+              <template #prependInner><span style="font-size: 0.72rem; font-weight: 700; color: var(--va-text-secondary); margin-right: 4px;">EN</span></template>
+            </va-input>
             <va-button size="small" color="primary" icon="check" @click="confirmInlineLayout">
               {{ $t('confirm') }}
             </va-button>
@@ -421,11 +433,11 @@
                     <span>B</span><span>I</span><span>U</span><span>H1</span><span>H2</span><span>List</span><span>Table</span>
                   </div>
                   <div class="editor-dummy-body mock-html-content">
-                    <h4 class="mock-html-title">📌 [인사 총무 공지] 2026 마스터 데이터 규정 준수 안내</h4>
-                    <p class="mock-html-p">본 임직원의 인사 정보 및 계약 데이터는 인사 시스템 및 ERP와 실시간 동기화됩니다.</p>
+                    <h4 class="mock-html-title">{{ $t('mock_notice_title') }}</h4>
+                    <p class="mock-html-p">{{ $t('mock_notice_desc') }}</p>
                     <ul class="mock-html-ul">
-                      <li>보안 등급: 1급 기밀 데이터 (암호화 적용)</li>
-                      <li>최종 승인 워크플로우: 임직원 신규 등록 승인선</li>
+                      <li>{{ $t('mock_notice_item1') }}</li>
+                      <li>{{ $t('mock_notice_item2') }}</li>
                     </ul>
                   </div>
                 </div>
@@ -439,7 +451,7 @@
                 <!-- CALLOUT PREVIEW -->
                 <div v-else-if="widget.type === 'CALLOUT'" class="inner-callout-preview">
                   <va-icon name="info" size="small" color="warning" class="mr-1" />
-                  <span>{{ getWidgetDisplayName(widget) || '💡 본 레코드 정보는 전사 데이터 거버넌스 규정에 따라 관리됩니다.' }}</span>
+                  <span>{{ getWidgetDisplayName(widget) || $t('mock_callout_desc') }}</span>
                 </div>
 
                 <!-- DIVIDER PREVIEW -->
@@ -452,33 +464,33 @@
                   <!-- TABLE / JSON SUBTABLE PREVIEW -->
                   <div v-if="isTableField(widget)" class="canvas-subtable-preview">
                     <div class="subtable-mini-bar">
-                      <span class="subtable-mini-label">🎓 학력 및 경력 이력 (Subtable)</span>
+                      <span class="subtable-mini-label">{{ $t('mock_subtable_title') }}</span>
                       <va-badge :text="'+ ' + $t('add_row')" color="info" size="small" />
                     </div>
                     <table class="subtable-mini-table">
                       <thead>
                         <tr>
                           <th style="width: 24px; text-align: center;">#</th>
-                          <th>학교/기관명 (Institution)</th>
-                          <th>전공/직무 (Major)</th>
-                          <th>학위/상태 (Degree)</th>
-                          <th>기간 (Period)</th>
+                          <th>{{ $t('mock_subtable_col_inst') }}</th>
+                          <th>{{ $t('mock_subtable_col_major') }}</th>
+                          <th>{{ $t('mock_subtable_col_degree') }}</th>
+                          <th>{{ $t('mock_subtable_col_period') }}</th>
                         </tr>
                       </thead>
                       <tbody>
                         <tr>
                           <td style="text-align: center; color: var(--va-text-secondary);">1</td>
-                          <td style="font-weight: 600; color: var(--va-primary);">서울대학교</td>
-                          <td>컴퓨터공학부</td>
-                          <td>학사 (졸업)</td>
-                          <td>2016-03 ~ 2020-02</td>
+                          <td style="font-weight: 600; color: var(--va-primary);">{{ $t('mock_subtable_r1_inst') }}</td>
+                          <td>{{ $t('mock_subtable_r1_major') }}</td>
+                          <td>{{ $t('mock_subtable_r1_degree') }}</td>
+                          <td>{{ $t('mock_subtable_r1_period') }}</td>
                         </tr>
                         <tr>
                           <td style="text-align: center; color: var(--va-text-secondary);">2</td>
-                          <td style="font-weight: 600; color: var(--va-primary);">한국과학기술원 (KAIST)</td>
-                          <td>인공지능대학원</td>
-                          <td>석사 (졸업)</td>
-                          <td>2020-03 ~ 2022-02</td>
+                          <td style="font-weight: 600; color: var(--va-primary);">{{ $t('mock_subtable_r2_inst') }}</td>
+                          <td>{{ $t('mock_subtable_r2_major') }}</td>
+                          <td>{{ $t('mock_subtable_r2_degree') }}</td>
+                          <td>{{ $t('mock_subtable_r2_period') }}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -511,7 +523,7 @@
                   <!-- BOOLEAN -->
                   <div v-else-if="getFieldType(widget) === 'BOOLEAN'" class="mock-bool-card">
                     <va-switch :model-value="true" size="small" readonly />
-                    <span class="mock-bool-label font-bold text-success">ON (재택근무 대상)</span>
+                    <span class="mock-bool-label font-bold text-success">{{ $t('mock_bool_label') }}</span>
                   </div>
 
                   <!-- DOMAIN_REF -->
@@ -537,8 +549,8 @@
                   <div v-else-if="getFieldType(widget) === 'FILE'" class="mock-file-card">
                     <va-icon name="picture_as_pdf" size="18px" color="danger" />
                     <div class="mock-file-info">
-                      <span class="mock-file-name">2026년_근로계약서_홍길동.pdf</span>
-                      <span class="mock-file-size">2.4 MB · 다운로드 가능</span>
+                      <span class="mock-file-name">{{ $t('mock_file_name') }}</span>
+                      <span class="mock-file-size">{{ $t('mock_file_size') }}</span>
                     </div>
                   </div>
 
@@ -639,13 +651,13 @@
             <span class="inspector-section-title">{{ $t('widget_label') }}</span>
             <va-input
               v-model="selectedWidgetTitleKo"
-              label="국문 라벨 (KO)"
+              :label="$t('label_ko')"
               size="small"
               class="mb-2 w-full"
             />
             <va-input
               v-model="selectedWidgetTitleEn"
-              label="영문 라벨 (EN)"
+              :label="$t('label_en')"
               size="small"
               class="w-full"
             />
@@ -742,7 +754,7 @@ const saving = ref(false)
 const layouts = ref<any[]>([
   {
     id: 'layout_default',
-    name: '기본 레이아웃',
+    name: { ko: '기본 레이아웃', en: 'Default Layout' },
     isDefault: true,
     cols: 12,
     rowHeight: 42,
@@ -753,7 +765,16 @@ const layouts = ref<any[]>([
 const activeLayoutId = ref<string>('layout_default')
 const showInlineLayoutInput = ref(false)
 const isRenaming = ref(false)
-const layoutNameInput = ref('')
+const layoutNameKoInput = ref('')
+const layoutNameEnInput = ref('')
+
+const getLayoutDisplayName = (layout: any) => {
+  if (!layout) return ''
+  if (typeof layout.name === 'object' && layout.name !== null) {
+    return layout.name[locale.value] || layout.name.ko || layout.name.en || layout.id
+  }
+  return layout.name || layout.id
+}
 
 const currentActiveLayout = computed(() => {
   return layouts.value.find(l => l.id === activeLayoutId.value) || layouts.value[0] || null
@@ -765,12 +786,13 @@ const currentLayoutIsDefault = computed(() => {
 
 const layoutSelectOptions = computed(() => {
   if (!layouts.value || layouts.value.length === 0) {
-    return [{ text: t('default_layout_badge') || '기본 레이아웃', value: 'layout_default' }]
+    return [{ text: t('default_layout_name') || 'Default Layout', value: 'layout_default' }]
   }
   return layouts.value.map(l => {
-    const isDef = l.isDefault ? ` (${t('default_layout_badge') || '기본'})` : ''
+    const isDef = l.isDefault ? ` (${t('default_layout_badge')})` : ''
+    const displayName = getLayoutDisplayName(l)
     return {
-      text: `${l.name || 'Layout'}${isDef}`,
+      text: `${displayName}${isDef}`,
       value: l.id
     }
   })
@@ -797,13 +819,13 @@ const getSampleValueForWidget = (widget: any) => {
     return '010-9876-5432'
   }
   if (key.includes('addr') || title.includes('주소')) {
-    return '서울특별시 강남구 테헤란로 152'
+    return locale.value === 'en' ? '152 Teheran-ro, Gangnam-gu, Seoul' : '서울특별시 강남구 테헤란로 152'
   }
   if (key.includes('dept') || key.includes('team') || title.includes('부서') || title.includes('소속')) {
-    return '글로벌 엔터프라이즈 DX개발팀'
+    return locale.value === 'en' ? 'Global Enterprise DX Dev Team' : '글로벌 엔터프라이즈 DX개발팀'
   }
   if (key.includes('pos') || key.includes('rank') || title.includes('직급') || title.includes('직책')) {
-    return '책임연구원 (Senior Lead)'
+    return locale.value === 'en' ? 'Senior Lead Researcher' : '책임연구원 (Senior Lead)'
   }
   if (['NUMBER', 'INTEGER', 'DECIMAL', 'FLOAT'].includes(fType) || key.includes('salary') || key.includes('pay') || key.includes('price') || title.includes('연봉') || title.includes('금액')) {
     return '65,000,000'
@@ -818,24 +840,24 @@ const getSampleValueForWidget = (widget: any) => {
     return '2026-03-02 ~ 2027-03-01'
   }
   if (['SELECT', 'CODE', 'ENUM'].includes(fType)) {
-    return '정규직 (Full-time)'
+    return locale.value === 'en' ? 'Full-time' : '정규직 (Full-time)'
   }
   if (fType === 'MULTI_SELECT') {
-    return '경영기획, IT/시스템, 글로벌사업'
+    return locale.value === 'en' ? 'Planning, IT/Systems, Global' : '경영기획, IT/시스템, 글로벌사업'
   }
   if (fType === 'BOOLEAN') {
-    return 'ON (재택근무 대상)'
+    return t('mock_bool_label')
   }
   if (fType === 'FILE') {
-    return '2026_근로계약서.pdf'
+    return t('mock_file_name')
   }
   if (['DOMAIN_REF', 'DOMAIN_REFERENCE'].includes(fType)) {
-    return 'REC-77391 (한국본사 IT부문)'
+    return 'REC-77391'
   }
   if (fType === 'CALCULATED') {
     return '72,000,000 KRW'
   }
-  return `${getWidgetDisplayName(widget)} 샘플 데이터`
+  return `${getWidgetDisplayName(widget)} ${t('mock_sample_val_suffix')}`
 }
 
 const getMultilingualSample = (widget: any) => {
@@ -1251,14 +1273,16 @@ const onLayoutChange = (newLayoutId: string) => {
 
 const openNewLayoutInline = () => {
   isRenaming.value = false
-  layoutNameInput.value = `${t('layout_select_label') || '레이아웃'} ${layouts.value.length + 1}`
+  layoutNameKoInput.value = `${t('layout_select_label')} ${layouts.value.length + 1}`
+  layoutNameEnInput.value = `Layout ${layouts.value.length + 1}`
   showInlineLayoutInput.value = true
 }
 
 const openRenameLayoutInline = () => {
   isRenaming.value = true
   const current = currentActiveLayout.value
-  layoutNameInput.value = current ? current.name : ''
+  layoutNameKoInput.value = (typeof current?.name === 'object' ? current.name.ko : current?.name) || ''
+  layoutNameEnInput.value = (typeof current?.name === 'object' ? current.name.en : '') || ''
   showInlineLayoutInput.value = true
 }
 
@@ -1267,18 +1291,26 @@ const cancelInlineLayout = () => {
 }
 
 const confirmInlineLayout = () => {
-  if (!layoutNameInput.value.trim()) return
+  const nameKo = layoutNameKoInput.value.trim()
+  const nameEn = layoutNameEnInput.value.trim()
+  if (!nameKo && !nameEn) return
+
+  const nameObj = {
+    ko: nameKo || nameEn,
+    en: nameEn || nameKo
+  }
+
   if (isRenaming.value) {
     const current = currentActiveLayout.value
     if (current) {
-      current.name = layoutNameInput.value.trim()
+      current.name = nameObj
     }
   } else {
     syncCurrentLayoutToMemory()
     const newId = 'layout_' + Date.now()
     const newLayout = {
       id: newId,
-      name: layoutNameInput.value.trim(),
+      name: nameObj,
       isDefault: layouts.value.length === 0,
       cols: 12,
       rowHeight: 42,
@@ -1300,7 +1332,14 @@ const duplicateCurrentLayout = () => {
   const newId = 'layout_' + Date.now()
   const duplicated = JSON.parse(JSON.stringify(current))
   duplicated.id = newId
-  duplicated.name = `${current.name} (${t('duplicate_layout') || '복제'})`
+  if (typeof current.name === 'object' && current.name !== null) {
+    duplicated.name = {
+      ko: `${current.name.ko || ''} (${t('duplicate_layout')})`,
+      en: `${current.name.en || current.name.ko || ''} (Copy)`
+    }
+  } else {
+    duplicated.name = `${current.name} (${t('duplicate_layout')})`
+  }
   duplicated.isDefault = false
   layouts.value.push(duplicated)
   activeLayoutId.value = newId
@@ -1350,10 +1389,10 @@ const fetchLayout = async () => {
     } else if (res && res.widgets && Array.isArray(res.widgets) && res.widgets.length > 0) {
       const defLayout = {
         id: 'layout_default',
-        name: '기본 레이아웃',
+        name: { ko: '기본 레이아웃', en: 'Default Layout' },
         isDefault: true,
         cols: res.cols || 12,
-        rowHeight: res.rowHeight || 42,
+        rowHeight: 42,
         widgets: res.widgets,
         options: res.options || {}
       }
@@ -1363,7 +1402,7 @@ const fetchLayout = async () => {
     } else {
       const defLayout = {
         id: 'layout_default',
-        name: '기본 레이아웃',
+        name: { ko: '기본 레이아웃', en: 'Default Layout' },
         isDefault: true,
         cols: 12,
         rowHeight: 42,
@@ -1378,7 +1417,7 @@ const fetchLayout = async () => {
   } catch (e) {
     const defLayout = {
       id: 'layout_default',
-      name: '기본 레이아웃',
+      name: { ko: '기본 레이아웃', en: 'Default Layout' },
       isDefault: true,
       cols: 12,
       rowHeight: 42,

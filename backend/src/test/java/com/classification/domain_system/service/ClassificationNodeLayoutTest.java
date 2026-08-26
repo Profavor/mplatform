@@ -159,4 +159,52 @@ class ClassificationNodeLayoutTest {
         assertEquals(48, inheritedLayout.get("rowHeight"));
         assertEquals(1, ((List<?>) inheritedLayout.get("widgets")).size());
     }
+
+    @Test
+    @DisplayName("다국어 레이아웃 명칭(KO/EN) 저장 및 다중 템플릿 목록 조회 성공")
+    void testSaveAndGetMultilingualLayouts() {
+        // Arrange
+        RecordLayoutDto dto = new RecordLayoutDto();
+        dto.setActiveLayoutId("layout_compact");
+
+        Map<String, Object> layout1 = new HashMap<>();
+        layout1.put("id", "layout_default");
+        layout1.put("name", Map.of("ko", "기본 그리드 뷰", "en", "Default Grid View"));
+        layout1.put("isDefault", false);
+        layout1.put("cols", 12);
+        layout1.put("rowHeight", 42);
+        layout1.put("widgets", List.of());
+
+        Map<String, Object> layout2 = new HashMap<>();
+        layout2.put("id", "layout_compact");
+        layout2.put("name", Map.of("ko", "컴팩트 요약 뷰", "en", "Compact Summary View"));
+        layout2.put("isDefault", true);
+        layout2.put("cols", 12);
+        layout2.put("rowHeight", 36);
+        layout2.put("widgets", List.of(Map.of("id", "w1", "type", "FIELD", "w", 6, "h", 1)));
+
+        dto.setLayouts(List.of(layout1, layout2));
+
+        when(nodeRepository.findById(childNodeId)).thenReturn(Optional.of(childNode));
+        when(nodeRepository.save(any(ClassificationNode.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Act
+        Map<String, Object> saved = nodeService.saveNodeLayout(domainId, childNodeId, dto);
+
+        // Assert
+        assertNotNull(saved);
+        assertEquals("layout_compact", saved.get("activeLayoutId"));
+        List<Map<String, Object>> layouts = (List<Map<String, Object>>) saved.get("layouts");
+        assertEquals(2, layouts.size());
+
+        Map<String, Object> savedLayout1 = layouts.get(0);
+        Map<?, ?> name1 = (Map<?, ?>) savedLayout1.get("name");
+        assertEquals("기본 그리드 뷰", name1.get("ko"));
+        assertEquals("Default Grid View", name1.get("en"));
+
+        Map<String, Object> savedLayout2 = layouts.get(1);
+        Map<?, ?> name2 = (Map<?, ?>) savedLayout2.get("name");
+        assertEquals("컴팩트 요약 뷰", name2.get("ko"));
+        assertEquals("Compact Summary View", name2.get("en"));
+    }
 }

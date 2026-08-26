@@ -120,7 +120,7 @@ public class DomainService {
                 java.util.Map<String, Object> wrapped = new java.util.HashMap<>(config);
                 java.util.Map<String, Object> defaultLayout = new java.util.HashMap<>();
                 defaultLayout.put("id", "layout_default");
-                defaultLayout.put("name", "기본 레이아웃");
+                defaultLayout.put("name", java.util.Map.of("ko", "기본 레이아웃", "en", "Default Layout"));
                 defaultLayout.put("isDefault", true);
                 defaultLayout.put("cols", config.getOrDefault("cols", 12));
                 defaultLayout.put("rowHeight", config.getOrDefault("rowHeight", 42));
@@ -157,7 +157,7 @@ public class DomainService {
         } else {
             java.util.Map<String, Object> defaultLayout = new java.util.HashMap<>();
             defaultLayout.put("id", "layout_default");
-            defaultLayout.put("name", "기본 레이아웃");
+            defaultLayout.put("name", java.util.Map.of("ko", "기본 레이아웃", "en", "Default Layout"));
             defaultLayout.put("isDefault", true);
             defaultLayout.put("cols", layoutDto.getCols() != null ? layoutDto.getCols() : 12);
             defaultLayout.put("rowHeight", layoutDto.getRowHeight() != null ? layoutDto.getRowHeight() : 42);

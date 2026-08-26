@@ -194,7 +194,7 @@
                 :type="isEditing ? 'date' : 'text'"
                 class="w-full"
                 :readonly="!isEditing || widget.options?.readOnly"
-                :placeholder="locale === 'en' ? 'YYYY-MM-DD' : '연도-월-일'"
+                :placeholder="$t('date_placeholder')"
               >
                 <template #prependInner>
                   <va-icon name="calendar_today" size="small" color="primary" />
@@ -353,7 +353,7 @@
                       <tr>
                         <th style="width: 32px; text-align: center;">#</th>
                         <th v-for="col in getTableColumns(getFieldDefinition(widget.fieldKey), record[widget.fieldKey])" :key="col.key">
-                          {{ col.name?.ko || col.key }}
+                          {{ getTranslatedColName(col.name) || col.key }}
                         </th>
                         <th v-if="isEditing && !widget.options?.readOnly" style="width: 40px;"></th>
                       </tr>
