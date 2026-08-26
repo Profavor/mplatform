@@ -3,7 +3,7 @@ export default defineEventHandler((event) => {
     return
   }
   const config = useRuntimeConfig(event)
-  let rawUrl = config.public.apiBaseUrl || process.env.API_BASE_URL || process.env.NUXT_PUBLIC_API_BASE_URL || process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8080'
+  let rawUrl = process.env.API_BASE_URL || config.public.apiBaseUrl || process.env.NUXT_PUBLIC_API_BASE_URL || process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8080'
 
   if (rawUrl && !rawUrl.startsWith('http://') && !rawUrl.startsWith('https://')) {
     rawUrl = `https://${rawUrl}`

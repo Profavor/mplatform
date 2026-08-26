@@ -80,16 +80,18 @@ export default defineNuxtConfig({
     defaultProvider: 'keycloak',
     providers: {
       keycloak: {
-        baseUrl: process.env.OAUTH2_ISSUER_URI || 'http://localhost:8081/realms/mplatform',
+        baseUrl: process.env.OAUTH2_ISSUER_URI || '/auth/realms/mplatform',
         clientId: 'mdm-frontend',
         exposeAccessToken: true,
+        validateAccessToken: false,
+        validateIdToken: false,
         scope: ['openid', 'profile', 'email'],
         clientSecret: 'secret',
         authenticationScheme: 'body',
         pkce: false,
         nonce: false,
-        redirectUri: process.env.KEYCLOAK_REDIRECT_URI || 'http://localhost:3000/auth/keycloak/callback',
-        logoutRedirectUri: process.env.KEYCLOAK_LOGOUT_REDIRECT_URI || 'http://localhost:3000/login'
+        redirectUri: process.env.KEYCLOAK_REDIRECT_URI || '/auth/keycloak/callback',
+        logoutRedirectUri: process.env.KEYCLOAK_LOGOUT_REDIRECT_URI || '/login'
       }
     },
     session: {

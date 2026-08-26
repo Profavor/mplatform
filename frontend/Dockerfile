@@ -7,17 +7,17 @@ COPY package*.json ./
 COPY patch-oidc.js ./
 RUN npm ci
 
-ARG API_BASE_URL=http://localhost:8080
+ARG API_BASE_URL=http://backend:8080
 ENV API_BASE_URL=$API_BASE_URL
-ENV NUXT_PUBLIC_API_BASE=$API_BASE_URL
+ENV NUXT_PUBLIC_API_BASE=""
 
 # Copy application source code
 COPY . .
 
 
 # Build Nuxt 3 SSR application
-ENV OAUTH2_ISSUER_URI="http://mplatform.local/auth/realms/mplatform"
-ENV KEYCLOAK_REDIRECT_URI="http://mplatform.local/auth/keycloak/callback"
+ENV OAUTH2_ISSUER_URI="/auth/realms/mplatform"
+ENV KEYCLOAK_REDIRECT_URI="/auth/keycloak/callback"
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npm run build
 
@@ -26,9 +26,9 @@ FROM node:24-alpine AS runner
 WORKDIR /app
 RUN apk add --no-cache tzdata
 
-ARG API_BASE_URL=http://localhost:8080
+ARG API_BASE_URL=http://backend:8080
 ENV API_BASE_URL=$API_BASE_URL
-ENV NUXT_PUBLIC_API_BASE=$API_BASE_URL
+ENV NUXT_PUBLIC_API_BASE=""
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
