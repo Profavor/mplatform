@@ -13,7 +13,7 @@
         <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
           <h3 style="margin: 0; padding: 0; font-size: 1.05rem; font-weight: 800; color: var(--va-text-primary); text-transform: uppercase; display: inline-flex; align-items: center; gap: 0.4rem; line-height: 1.2;">
             <va-icon :name="isSnapshotMode ? 'history' : 'badge'" color="primary" size="22px" />
-            <span>{{ isSnapshotMode ? 'RECORD SNAPSHOT' : 'RECORD DETAILS' }}</span>
+            <span>{{ isSnapshotMode ? $t('record_snapshot') : $t('record_details') }}</span>
           </h3>
           
           <span v-if="headerRecordTitle" style="font-size: 1.15rem; font-weight: 800; color: var(--va-primary); border-left: 2px solid var(--va-background-border); padding-left: 0.6rem; margin-left: 0.2rem;">
@@ -105,7 +105,7 @@
         {{ t('pending_approval_notice') }}
       </div>
       <div v-if="isEditing && !hasUpdateWorkflow" style="margin-bottom: 1rem; padding: 0.5rem; background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 4px; text-align: center; font-weight: bold;">
-        This classification node does not have an UPDATE workflow configured. You cannot save records.
+        {{ $t('no_update_workflow_warning') }}
       </div>
 
       <!-- Main Drawer Tabs: Modern Segmented Pill Control -->
@@ -117,7 +117,7 @@
           style="flex: 1; border: none; padding: 8px; cursor: pointer; border-radius: 6px; font-weight: 600; display: flex; align-items: center; justify-content: center; background: transparent; transition: all 0.2s;"
         >
           <span style="margin-right: 6px;">📄</span>
-          <span>{{ t('details_info') || (i18nLocale === 'en' ? 'Details' : '상세 정보') }}</span>
+          <span>{{ $t('details_info') }}</span>
         </button>
         <button
           v-if="!isSnapshotMode"
@@ -127,7 +127,7 @@
           style="flex: 1; border: none; padding: 8px; cursor: pointer; border-radius: 6px; font-weight: 600; display: flex; align-items: center; justify-content: center; background: transparent; transition: all 0.2s;"
         >
           <span style="margin-right: 6px;">🌿</span>
-          <span>{{ t('secondary_nodes_tab') || (i18nLocale === 'en' ? 'Secondary Nodes' : '다축/보조 노드') }}</span>
+          <span>{{ $t('secondary_nodes_tab') }}</span>
           <span class="tab-badge" style="margin-left: 6px; background: rgba(0,0,0,0.1); padding: 2px 6px; border-radius: 10px; font-size: 0.75rem;">{{ secondaryNodes?.length || 0 }}</span>
         </button>
         <button
@@ -138,7 +138,7 @@
           style="flex: 1; border: none; padding: 8px; cursor: pointer; border-radius: 6px; font-weight: 600; display: flex; align-items: center; justify-content: center; background: transparent; transition: all 0.2s;"
         >
           <span style="margin-right: 6px;">📜</span>
-          <span>{{ t('change_history_tab') || (i18nLocale === 'en' ? 'Change History' : '변경 이력') }}</span>
+          <span>{{ $t('change_history_tab') }}</span>
           <span class="tab-badge" style="margin-left: 6px; background: rgba(0,0,0,0.1); padding: 2px 6px; border-radius: 10px; font-size: 0.75rem;">{{ history?.length || 0 }}</span>
         </button>
       </div>
@@ -194,7 +194,7 @@
                       <div style="display: flex; flex-direction: column; gap: 0.25rem; width: 100%; box-sizing: border-box; min-width: 0; --va-input-font-size: 0.9rem;">
                         <span :style="{ fontSize: '0.75rem', color: evalConditionRule(field, localRecord).highlight ? 'var(--va-primary)' : 'var(--va-text-secondary)', fontWeight: evalConditionRule(field, localRecord).highlight ? '800' : '600', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px', minHeight: '18px', lineHeight: '18px' }">
                           <va-icon v-if="evalConditionRule(field, localRecord).highlight" name="star" size="small" color="primary" />
-                          {{ getTranslatedName(field.name) }}{{ evalConditionRule(field, localRecord).required ? ' *' : '' }}{{ field.type === 'CALCULATED' ? ' (계산됨)' : '' }}
+                          {{ getTranslatedName(field.name) }}{{ evalConditionRule(field, localRecord).required ? ' *' : '' }}{{ field.type === 'CALCULATED' ? ' (' + $t('calculated') + ')' : '' }}
                           <va-popover v-if="hasHint(field.hint)" :message="getTranslatedName(field.hint)" trigger="hover" placement="top">
                             <va-icon name="info" size="small" color="info" style="cursor: help; margin-left: 2px;" />
                           </va-popover>
@@ -1265,17 +1265,26 @@ const currentSelectedLayout = computed(() => {
   return availableLayouts.value.find(l => l.id === selectedLayoutId.value) || null
 })
 
+const getLayoutDisplayName = (layout) => {
+  if (!layout) return ''
+  if (typeof layout.name === 'object' && layout.name !== null) {
+    return layout.name[locale.value] || layout.name.ko || layout.name.en || layout.id
+  }
+  return layout.name || layout.id
+}
+
 const detailLayoutSelectOptions = computed(() => {
   const opts = [
     {
-      text: `📋 ${t('standard_form_view') || '기본 폼 뷰 (섹터/그룹)'}`,
+      text: `📋 ${t('standard_form_view')}`,
       value: 'STANDARD'
     }
   ]
   if (availableLayouts.value && availableLayouts.value.length > 0) {
     availableLayouts.value.forEach(l => {
+      const lName = getLayoutDisplayName(l)
       opts.push({
-        text: `📐 2D: ${l.name || 'Layout'}`,
+        text: `📐 2D: ${lName}`,
         value: l.id
       })
     })
@@ -1300,10 +1309,10 @@ const fetchCustomLayout = async () => {
     } else if (res && res.widgets && Array.isArray(res.widgets) && res.widgets.length > 0) {
       const defLayout = {
         id: 'layout_default',
-        name: '기본 레이아웃',
+        name: { ko: '기본 레이아웃', en: 'Default Layout' },
         isDefault: true,
         cols: res.cols || 12,
-        rowHeight: res.rowHeight || 42,
+        rowHeight: 42,
         widgets: res.widgets,
         options: res.options || {}
       }

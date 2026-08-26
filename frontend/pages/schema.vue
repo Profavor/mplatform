@@ -90,11 +90,19 @@
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 0.4rem;">
-                  <va-button v-if="hasPermission('field:write') || hasPermission('field:*')" size="small" icon="add" @click="openFieldModal(null)">{{ $t('add_field') }}</va-button>
                   <va-button
+                    v-if="hasPermission('field:write') || hasPermission('field:*')"
                     size="small"
                     color="primary"
-                    preset="secondary"
+                    icon="add"
+                    @click="openFieldModal(null)"
+                  >
+                    {{ $t('add_field') }}
+                  </va-button>
+                  <va-button
+                    size="small"
+                    color="info"
+                    outline
                     icon="dashboard_customize"
                     @click="showLayoutBuilderModal = true"
                   >
@@ -102,13 +110,22 @@
                   </va-button>
                   <va-button
                     size="small"
-                    color="secondary"
+                    color="warning"
                     outline
+                    icon="rule"
                     @click="showBusinessRuleBuilderModal = true"
                   >
-                    <va-icon name="rule" class="mr-1" /> {{ $t('business_rule_builder') }}
+                    {{ $t('business_rule_builder') }}
                   </va-button>
-                  <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshSchemaData">{{ $t('refresh') }}</va-button>
+                  <va-button
+                    size="small"
+                    color="secondary"
+                    outline
+                    icon="refresh"
+                    @click="refreshSchemaData"
+                  >
+                    {{ $t('refresh') }}
+                  </va-button>
                 </div>
 
               </div>

@@ -84,4 +84,58 @@ describe('Record 2D Grid Layout Builder & Renderer Logic', () => {
     expect(unplacedFields.length).toBe(2)
     expect(unplacedFields.map(f => f.key)).toEqual(['emp_name', 'intro'])
   })
+
+  it('다국어 객체 형태의 레이아웃 명칭(KO/EN)을 현재 로케일에 맞게 정확히 반환해야 한다', () => {
+    const getLayoutDisplayName = (layout: any, currentLocale: string) => {
+      if (!layout) return ''
+      if (typeof layout.name === 'object' && layout.name !== null) {
+        return layout.name[currentLocale] || layout.name.ko || layout.name.en || layout.id
+      }
+      return layout.name || layout.id
+    }
+
+    const multiLangLayout = {
+      id: 'layout_1',
+      name: { ko: '상세 계약 뷰', en: 'Detailed Contract View' }
+    }
+
+    expect(getLayoutDisplayName(multiLangLayout, 'ko')).toBe('상세 계약 뷰')
+    expect(getLayoutDisplayName(multiLangLayout, 'en')).toBe('Detailed Contract View')
+  })
+
+  it('레거시 단일 문자열 레이아웃 명칭도 하위 호환되어 정상 반환되어야 한다', () => {
+    const getLayoutDisplayName = (layout: any, currentLocale: string) => {
+      if (!layout) return ''
+      if (typeof layout.name === 'object' && layout.name !== null) {
+        return layout.name[currentLocale] || layout.name.ko || layout.name.en || layout.id
+      }
+      return layout.name || layout.id
+    }
+
+    const legacyLayout = {
+      id: 'layout_legacy',
+      name: '기본 레이아웃'
+    }
+
+    expect(getLayoutDisplayName(legacyLayout, 'ko')).toBe('기본 레이아웃')
+    expect(getLayoutDisplayName(legacyLayout, 'en')).toBe('기본 레이아웃')
+  })
+
+  it('서브테이블 컬럼명 및 위젯 타이틀의 다국어 객체가 현재 로케일로 올바르게 해석되어야 한다', () => {
+    const getTranslatedColName = (name: any, currentLocale: string) => {
+      if (!name) return ''
+      if (typeof name === 'object') {
+        return name[currentLocale] || name.ko || name.en || ''
+      }
+      return String(name)
+    }
+
+    const colObj = { ko: '학교명', en: 'School Name' }
+    expect(getTranslatedColName(colObj, 'ko')).toBe('학교명')
+    expect(getTranslatedColName(colObj, 'en')).toBe('School Name')
+
+    const stringCol = 'Custom Col'
+    expect(getTranslatedColName(stringCol, 'ko')).toBe('Custom Col')
+  })
 })
+
