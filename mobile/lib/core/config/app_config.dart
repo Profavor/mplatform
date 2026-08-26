@@ -42,7 +42,7 @@ class AppConfig {
             issuer: envIssuer.isNotEmpty ? envIssuer : '$origin/auth/realms/mplatform',
             apiBaseUrl: envApiBase.isNotEmpty ? envApiBase : origin,
             clientId: envClientId.isNotEmpty ? envClientId : 'mdm-mobile',
-            redirectUri: envRedirectUri.isNotEmpty ? envRedirectUri : '$origin/mobile',
+            redirectUri: envRedirectUri.isNotEmpty ? envRedirectUri : '$origin/mobile/',
           );
         }
       } catch (_) {}
@@ -58,6 +58,15 @@ class AppConfig {
 
   factory AppConfig.fromJson(Map<String, dynamic> json) {
     final dynamicBase = AppConfig.dynamicDefault();
+    if (kIsWeb) {
+      final origin = Uri.base.origin;
+      return AppConfig(
+        issuer: '$origin/auth/realms/mplatform',
+        apiBaseUrl: origin,
+        clientId: json['clientId'] as String? ?? json['MOBILE_CLIENT_ID'] as String? ?? 'mdm-mobile',
+        redirectUri: '$origin/mobile/',
+      );
+    }
     return AppConfig(
       issuer: json['issuer'] as String? ?? json['MOBILE_OIDC_ISSUER'] as String? ?? dynamicBase.issuer,
       apiBaseUrl: json['apiBaseUrl'] as String? ?? json['MOBILE_API_BASE_URL'] as String? ?? dynamicBase.apiBaseUrl,
