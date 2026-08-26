@@ -303,6 +303,18 @@
               </div>
               <va-icon name="add" size="small" color="secondary" />
             </div>
+
+            <!-- Specialized Summary Widget -->
+            <div class="palette-item" @click="addCustomWidget('SPECIALIZED_SUMMARY', 12, 4)">
+              <div class="palette-item-icon">
+                <va-icon name="auto_awesome" size="small" color="warning" />
+              </div>
+              <div class="palette-item-info">
+                <span class="palette-item-name">{{ $t('specialized_templates') }}</span>
+                <span class="palette-item-desc">{{ $t('widget_size_hint', { w: 12, h: 4 }) }}</span>
+              </div>
+              <va-icon name="add" size="small" color="secondary" />
+            </div>
           </div>
         </div>
       </div>
@@ -457,6 +469,17 @@
                 <!-- DIVIDER PREVIEW -->
                 <div v-else-if="widget.type === 'DIVIDER'" class="inner-divider-preview">
                   <hr class="canvas-divider-hr" />
+                </div>
+
+                <!-- SPECIALIZED SUMMARY PREVIEW -->
+                <div v-else-if="widget.type === 'SPECIALIZED_SUMMARY'" class="inner-specialized-preview" style="padding: 0.75rem; background: var(--va-background-element); border-radius: 8px;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <va-icon name="auto_awesome" color="warning" size="small" />
+                    <strong style="color: var(--va-text-primary); font-size: 0.9rem;">{{ $t('specialized_templates') }}</strong>
+                  </div>
+                  <div style="font-size: 0.8rem; color: var(--va-text-secondary); line-height: 1.4;">
+                    {{ $t('specialized_templates_desc') }}
+                  </div>
                 </div>
 
                 <!-- FIELD PREVIEW (TYPE SPECIFIC WITH RICH MOCK DATA) -->
@@ -1087,6 +1110,7 @@ const addPredefinedFieldWidget = (field: any) => {
 
   widgets.value.push(newWidget)
   selectedWidgetId.value = newWidget.id
+  resolveWidgetCollisions(newWidget)
 }
 
 const addCustomWidget = (type: string, defaultW: number, defaultH: number) => {
@@ -1104,6 +1128,7 @@ const addCustomWidget = (type: string, defaultW: number, defaultH: number) => {
 
   widgets.value.push(newWidget)
   selectedWidgetId.value = newWidget.id
+  resolveWidgetCollisions(newWidget)
 }
 
 const findNextAvailablePosition = (w: number, h: number) => {
@@ -1121,6 +1146,51 @@ const deleteWidget = (widgetId: string) => {
   widgets.value = widgets.value.filter(w => w.id !== widgetId)
   if (selectedWidgetId.value === widgetId) {
     selectedWidgetId.value = null
+  }
+}
+
+// 2D Collision Push-down Algorithm Logic
+const isOverlapping = (
+  w1: { x: number; y: number; w: number; h: number },
+  w2: { x: number; y: number; w: number; h: number }
+) => {
+  return !(
+    w1.x + w1.w <= w2.x ||
+    w2.x + w2.w <= w1.x ||
+    w1.y + w1.h <= w2.y ||
+    w2.y + w2.h <= w1.y
+  )
+}
+
+const resolveWidgetCollisions = (targetWidget: any) => {
+  if (!targetWidget) return
+  const others = widgets.value.filter((w: any) => w.id !== targetWidget.id)
+  let changed = true
+  let iterations = 0
+  const maxIterations = 50
+
+  while (changed && iterations < maxIterations) {
+    changed = false
+    iterations++
+
+    // 1. Check collisions with targetWidget
+    for (const other of others) {
+      if (isOverlapping(targetWidget, other)) {
+        other.y = targetWidget.y + targetWidget.h
+        changed = true
+      }
+    }
+
+    // 2. Cascading check among other widgets (sorted by y ascending)
+    others.sort((a: any, b: any) => a.y - b.y || a.x - b.x)
+    for (let i = 0; i < others.length; i++) {
+      for (let j = i + 1; j < others.length; j++) {
+        if (isOverlapping(others[i], others[j])) {
+          others[j].y = others[i].y + others[i].h
+          changed = true
+        }
+      }
+    }
   }
 }
 
@@ -1159,6 +1229,7 @@ const startResize = (widget: any, event: MouseEvent) => {
     resizingWidgetId.value = null
     window.removeEventListener('mousemove', onMouseMove)
     window.removeEventListener('mouseup', onMouseUp)
+    resolveWidgetCollisions(widget)
   }
 
   window.addEventListener('mousemove', onMouseMove)
@@ -1193,6 +1264,7 @@ const startDragMove = (widget: any, event: MouseEvent) => {
   const onMouseUp = () => {
     window.removeEventListener('mousemove', onMouseMove)
     window.removeEventListener('mouseup', onMouseUp)
+    resolveWidgetCollisions(widget)
   }
 
   window.addEventListener('mousemove', onMouseMove)

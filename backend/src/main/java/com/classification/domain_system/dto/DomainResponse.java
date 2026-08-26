@@ -27,6 +27,8 @@ public class DomainResponse {
     private Integer sortOrder;
     private String numberingPattern;
     private boolean autoDqScanEnabled;
+    private String domainType;
+    private String specializedCategory;
     private Long currentSequence;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -48,6 +50,8 @@ public class DomainResponse {
                 .sortOrder(domain.getSortOrder())
                 .numberingPattern(domain.getNumberingPattern())
                 .autoDqScanEnabled(domain.isAutoDqScanEnabled())
+                .domainType(domain.getDomainType() != null ? domain.getDomainType() : "GENERAL")
+                .specializedCategory(domain.getSpecializedCategory())
                 .currentSequence(domain.getCurrentSequence())
                 .createdAt(domain.getCreatedAt())
                 .updatedAt(domain.getUpdatedAt())

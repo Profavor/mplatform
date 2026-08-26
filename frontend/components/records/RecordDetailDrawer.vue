@@ -146,6 +146,12 @@
       <!-- Details Tab Content -->
       <div v-show="activeMainTab === 'details'" style="overflow-y: auto; flex: 1; padding-right: 4px;">
 
+        <!-- Specialized Domain Header Widget -->
+        <SpecializedDomainWidgetRenderer
+          :domain="selectedDomainInfo"
+          :record-data="localRecord"
+        />
+
         <!-- Custom 2D Grid Layout View -->
         <DynamicRecordLayoutRenderer
           v-if="currentSelectedLayout && currentSelectedLayout.widgets && currentSelectedLayout.widgets.length > 0"
@@ -877,6 +883,7 @@ import ImageUploader from '~/components/common/ImageUploader.vue'
 import ModalControls from '~/components/common/ModalControls.vue'
 import AppModal from '~/components/common/AppModal.vue'
 import DynamicRecordLayoutRenderer from './DynamicRecordLayoutRenderer.vue'
+import SpecializedDomainWidgetRenderer from './specialized/SpecializedDomainWidgetRenderer.vue'
 
 
 const { downloadFileWithAuth } = useFileDownloader()

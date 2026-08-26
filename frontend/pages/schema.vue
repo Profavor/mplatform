@@ -183,6 +183,7 @@
       :mapping-error="mappingError"
       @save="saveDomain"
       @open-icon-picker="openIconPicker"
+      @provision-success="onDomainProvisionSuccess"
     />
 
     <SchemaNodeModal
@@ -1645,6 +1646,13 @@ const saveDomain = async () => {
     console.error('Domain Save Error Details:', e.response?._data)
     showCustomAlert('Domain Save Error: ' + msg, 'Error', 'Error', 'error')
   }
+}
+
+const onDomainProvisionSuccess = async (provisionedDomain) => {
+  showDomainModal.value = false
+  await useDomain().fetchDomains(true)
+  await loadTree()
+  showCustomAlert(t('template_provision_success'), t('success'), 'Success', 'success')
 }
 
 const saveNode = async () => {

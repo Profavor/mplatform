@@ -175,7 +175,15 @@
             <hr class="custom-divider" />
           </div>
 
-          <!-- 6. STANDARD FIELD / SPECIALIZED FORM WIDGETS -->
+          <!-- 6. SPECIALIZED DOMAIN SUMMARY WIDGET -->
+          <div v-else-if="widget.type === 'SPECIALIZED_SUMMARY'" class="w-full">
+            <SpecializedDomainWidgetRenderer
+              :domain="selectedDomainInfo"
+              :record-data="record?.data || record || {}"
+            />
+          </div>
+
+          <!-- 7. STANDARD FIELD / SPECIALIZED FORM WIDGETS -->
           <div v-else class="widget-field-box">
             <div class="widget-box-header">
               <span class="widget-box-title">
@@ -432,6 +440,7 @@ import { useI18n } from 'vue-i18n'
 import HtmlEditor from '~/components/common/HtmlEditor.vue'
 import ImageUploader from '~/components/common/ImageUploader.vue'
 import ImageLightboxModal from '~/components/common/ImageLightboxModal.vue'
+import SpecializedDomainWidgetRenderer from './specialized/SpecializedDomainWidgetRenderer.vue'
 
 const props = defineProps({
   layoutConfig: {

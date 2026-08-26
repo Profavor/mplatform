@@ -137,5 +137,98 @@ describe('Record 2D Grid Layout Builder & Renderer Logic', () => {
     const stringCol = 'Custom Col'
     expect(getTranslatedColName(stringCol, 'ko')).toBe('Custom Col')
   })
+
+  // 2D Collision Push-down Algorithm Logic Helper
+  const isOverlapping = (
+    w1: { x: number; y: number; w: number; h: number },
+    w2: { x: number; y: number; w: number; h: number }
+  ) => {
+    return !(
+      w1.x + w1.w <= w2.x ||
+      w2.x + w2.w <= w1.x ||
+      w1.y + w1.h <= w2.y ||
+      w2.y + w2.h <= w1.y
+    )
+  }
+
+  const resolveWidgetCollisions = (
+    targetWidget: { id: string; x: number; y: number; w: number; h: number },
+    allWidgets: Array<{ id: string; x: number; y: number; w: number; h: number }>
+  ) => {
+    const others = allWidgets.filter(w => w.id !== targetWidget.id)
+    let changed = true
+    let iterations = 0
+    const maxIterations = 50
+
+    while (changed && iterations < maxIterations) {
+      changed = false
+      iterations++
+
+      // 1. Check collisions with targetWidget
+      for (const other of others) {
+        if (isOverlapping(targetWidget, other)) {
+          other.y = targetWidget.y + targetWidget.h
+          changed = true
+        }
+      }
+
+      // 2. Cascading check among other widgets (sorted by y ascending)
+      others.sort((a, b) => a.y - b.y || a.x - b.x)
+      for (let i = 0; i < others.length; i++) {
+        for (let j = i + 1; j < others.length; j++) {
+          if (isOverlapping(others[i], others[j])) {
+            others[j].y = others[i].y + others[i].h
+            changed = true
+          }
+        }
+      }
+    }
+  }
+
+  it('위젯 중간 끼워넣기 시 동일 위치의 기존 위젯이 아래로 밀려나야 한다', () => {
+    const w1 = { id: 'w1', x: 0, y: 0, w: 6, h: 2 }
+    const wNew = { id: 'wNew', x: 0, y: 0, w: 6, h: 2 }
+    const allWidgets = [w1, wNew]
+
+    resolveWidgetCollisions(wNew, allWidgets)
+
+    expect(wNew.y).toBe(0)
+    expect(w1.y).toBe(2) // wNew(0+2) 아래로 밀려남
+    expect(isOverlapping(wNew, w1)).toBe(false)
+  })
+
+  it('위젯 중간 끼워넣기 시 연쇄적으로 위치한 하위 위젯들도 순차적으로 밀려나야 한다', () => {
+    const w1 = { id: 'w1', x: 0, y: 0, w: 6, h: 2 }
+    const w2 = { id: 'w2', x: 0, y: 2, w: 6, h: 2 }
+    const w3 = { id: 'w3', x: 0, y: 4, w: 6, h: 2 }
+    const wNew = { id: 'wNew', x: 0, y: 0, w: 6, h: 3 } // 높이 3짜리 위젯 끼워넣기
+    const allWidgets = [w1, w2, w3, wNew]
+
+    resolveWidgetCollisions(wNew, allWidgets)
+
+    expect(wNew.y).toBe(0)
+    expect(w1.y).toBe(3) // wNew(0+3) 바로 아래
+    expect(w2.y).toBe(5) // w1(3+2) 바로 아래
+    expect(w3.y).toBe(7) // w2(5+2) 바로 아래
+
+    // 어떤 위젯도 겹치지 않아야 함
+    expect(isOverlapping(wNew, w1)).toBe(false)
+    expect(isOverlapping(w1, w2)).toBe(false)
+    expect(isOverlapping(w2, w3)).toBe(false)
+  })
+
+  it('가로로 분할된 영역(X좌표가 다른 위젯)은 Y축 충돌이 없으므로 밀려나지 않아야 한다', () => {
+    const leftWidget = { id: 'left', x: 0, y: 0, w: 6, h: 4 }
+    const rightWidget = { id: 'right', x: 6, y: 0, w: 6, h: 4 }
+    const insertedLeft = { id: 'insLeft', x: 0, y: 0, w: 6, h: 2 }
+    const allWidgets = [leftWidget, rightWidget, insertedLeft]
+
+    resolveWidgetCollisions(insertedLeft, allWidgets)
+
+    expect(insertedLeft.y).toBe(0)
+    expect(leftWidget.y).toBe(2) // 좌측 위젯만 밀려남
+    expect(rightWidget.y).toBe(0) // 우측 위젯은 x=6으로 겹치지 않으므로 y=0 유지
+  })
 })
+
 

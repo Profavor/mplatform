@@ -76,6 +76,12 @@ public class Domain {
     @Column(name = "auto_dq_scan_enabled", nullable = false)
     private boolean autoDqScanEnabled = false;
 
+    @Column(name = "domain_type", length = 50)
+    private String domainType = "GENERAL";
+
+    @Column(name = "specialized_category", length = 50)
+    private String specializedCategory;
+
     @Column(name = "current_sequence", nullable = false, columnDefinition = "bigint default 0")
     private Long currentSequence = 0L;
 
