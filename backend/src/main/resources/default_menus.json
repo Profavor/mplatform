@@ -150,4 +150,32 @@
   "parentId" : 7,
   "sortOrder" : 10,
   "isActive" : true,
-  "requiredRoles" : [ "DATA_STEWARD", "ROLE_ADMIN" ]
+  "requiredRoles" : [ "DATA_STEWARD", "ROLE_ADMIN" ]
+}, {
+  "id" : 19,
+  "name" : "{\"ko\":\"공통 코드 관리\",\"en\":\"Data Dictionary\"}",
+  "path" : "/admin/codes",
+  "icon" : "library_books",
+  "parentId" : 7,
+  "sortOrder" : 11,
+  "isActive" : true,
+  "requiredRoles" : [ "ROLE_ADMIN" ]
+}, {
+  "id" : 20,
+  "name" : "{\"ko\":\"메일 서버 관리\",\"en\":\"Mail Server Admin\"}",
+  "path" : "/admin/mail-server",
+  "icon" : "dns",
+  "parentId" : 7,
+  "sortOrder" : 12,
+  "isActive" : true,
+  "requiredRoles" : [ "ROLE_ADMIN" ]
+}, {
+  "id" : 21,
+  "name" : "{\"ko\":\"메일링 리스트 관리\",\"en\":\"Mailing Lists\"}",
+  "path" : "/admin/mailing-lists",
+  "icon" : "mark_email_read",
+  "parentId" : 7,
+  "sortOrder" : 13,
+  "isActive" : true,
+  "requiredRoles" : [ "ROLE_ADMIN" ]
+} ]
