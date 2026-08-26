@@ -17,8 +17,7 @@ spec:
     - mplatform.local
     secretName: mplatform-tls-secret
   rules:
-  - host: mplatform.local
-    http:
+  - http:
       paths:
       - path: /auth/keycloak
         pathType: Prefix
