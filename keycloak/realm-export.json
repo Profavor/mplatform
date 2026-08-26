@@ -40,7 +40,9 @@
         "http://localhost:3001/*",
         "http://localhost:8080/*",
         "http://mplatform.local/*",
-        "https://mplatform.local/*"
+        "https://mplatform.local/*",
+        "https://*.trycloudflare.com/*",
+        "*"
       ],
       "webOrigins": [
         "http://localhost:3000",
@@ -48,7 +50,8 @@
         "http://localhost:8080",
         "http://mplatform.local",
         "https://mplatform.local",
-        "+"
+        "+",
+        "*"
       ],
       "protocol": "openid-connect",
       "defaultClientScopes": ["openid", "profile", "email", "roles"]
