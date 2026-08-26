@@ -17,6 +17,17 @@ public class MailAccountController {
 
     private final MailAccountService mailAccountService;
 
+    @GetMapping("/status")
+    public ResponseEntity<?> getStatus() {
+        return ResponseEntity.ok(mailAccountService.getServerStatus());
+    }
+
+    @PostMapping("/accounts/sync")
+    public ResponseEntity<?> syncAccounts() {
+        mailAccountService.syncAllAccounts();
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/accounts")
     public ResponseEntity<?> listAccounts() throws IOException {
         return ResponseEntity.ok(mailAccountService.listAccounts());

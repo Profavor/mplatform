@@ -37,7 +37,7 @@ public class MailingListService {
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
 
-    @Value("${mail.postfix.config-path:/etc/postfix}")
+    @Value("${mail.config-path:${mail.postfix.config-path:/var/mail-config}}")
     private String postfixConfigPath;
 
     @Transactional
@@ -59,9 +59,9 @@ public class MailingListService {
             }
         }
 
-        mailingListRepository.save(list);
-        
         processMembers(list, request.getMemberUserIds(), request.getMemberExternalEmails());
+
+        mailingListRepository.save(list);
 
         syncPostfixAliases();
         return toResponse(list);

@@ -24,10 +24,10 @@
         <div style="display: flex; gap: 2rem; align-items: center;">
           <div style="display: flex; align-items: center; gap: 0.5rem;">
             <div :style="{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: isServerConnected ? 'var(--va-success)' : 'var(--va-danger)' }"></div>
-            <span style="font-weight: 600;">{{ isServerConnected ? 'Connected' : 'Disconnected' }}</span>
+            <span style="font-weight: 600;">{{ isServerConnected ? $t('inbox.server_connected') : $t('inbox.server_disconnected') }}</span>
           </div>
           <div v-if="serverStatus.domain" style="display: flex; gap: 0.5rem;">
-            <span style="color: var(--va-text-secondary);">Domain:</span>
+            <span style="color: var(--va-text-secondary);">{{ $t('inbox.mail_domain') }}:</span>
             <span style="font-weight: 600;">{{ serverStatus.domain }}</span>
           </div>
         </div>
@@ -72,16 +72,16 @@
     <!-- Create Modal -->
     <va-modal v-model="showCreateModal" :title="$t('inbox.create_account')" size="small">
       <div style="display: flex; flex-direction: column; gap: 1rem; padding: 1rem 0;">
-        <va-input v-model="newAccount.email" label="Email" placeholder="username" required>
+        <va-input v-model="newAccount.email" :label="$t('inbox.group_email')" :placeholder="$t('inbox.group_email_placeholder')" required>
           <template #appendInner>
             <span style="color: var(--va-text-secondary);">@mplatform.com</span>
           </template>
         </va-input>
-        <va-input v-model="newAccount.password" type="password" label="Password" required />
+        <va-input v-model="newAccount.password" type="password" :label="$t('inbox.new_password')" required />
       </div>
       <template #footer>
-        <va-button preset="plain" color="secondary" @click="showCreateModal = false">{{ $t('cancel', 'Cancel') }}</va-button>
-        <va-button color="primary" @click="createAccount" :loading="isCreating">{{ $t('save', 'Save') }}</va-button>
+        <va-button preset="plain" color="secondary" @click="showCreateModal = false">{{ $t('inbox.cancel') }}</va-button>
+        <va-button color="primary" @click="createAccount" :loading="isCreating">{{ $t('inbox.create_account') }}</va-button>
       </template>
     </va-modal>
 
@@ -89,11 +89,11 @@
     <va-modal v-model="showPasswordModal" :title="$t('inbox.change_password')" size="small">
       <div style="display: flex; flex-direction: column; gap: 1rem; padding: 1rem 0;">
         <div style="font-weight: 600; margin-bottom: 0.5rem;">{{ selectedEmail }}</div>
-        <va-input v-model="newPassword" type="password" label="New Password" required />
+        <va-input v-model="newPassword" type="password" :label="$t('inbox.new_password')" required />
       </div>
       <template #footer>
-        <va-button preset="plain" color="secondary" @click="showPasswordModal = false">{{ $t('cancel', 'Cancel') }}</va-button>
-        <va-button color="primary" @click="changePassword" :loading="isChangingPassword">{{ $t('save', 'Save') }}</va-button>
+        <va-button preset="plain" color="secondary" @click="showPasswordModal = false">{{ $t('inbox.cancel') }}</va-button>
+        <va-button color="primary" @click="changePassword" :loading="isChangingPassword">{{ $t('inbox.change_password') }}</va-button>
       </template>
     </va-modal>
   </div>
@@ -159,33 +159,37 @@ const defaultColDef = {
   minWidth: 120
 }
 
-const formatBytes = (bytes: number) => {
+const formatBytes = (bytes: any) => {
   if (!bytes) return '0 B'
+  const num = typeof bytes === 'number' ? bytes : parseFloat(bytes)
+  if (isNaN(num) || num <= 0) return typeof bytes === 'string' ? bytes : '0 B'
   const k = 1024
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  const i = Math.floor(Math.log(num) / Math.log(k))
+  if (i < 0 || i >= sizes.length) return `${num} B`
+  return parseFloat((num / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
 const columnDefs = computed(() => [
-  { field: 'email', headerName: 'Email', width: 250 },
+  { field: 'email', headerName: t('inbox.group_email'), width: 250 },
   {
     field: 'userId',
-    headerName: 'User Name',
+    headerName: t('inbox.user_name'),
     width: 200,
     valueGetter: (params: any) => {
+      if (params.data?.userName) return params.data.userName
       const id = params.data?.userId
       return id ? userStore.getUserName(id) : '-'
     }
   },
   {
     field: 'active',
-    headerName: 'Status',
+    headerName: t('common.status'),
     width: 120,
     cellRenderer: (params: any) => {
-      const isActive = params.value
+      const isActive = params.data?.isActive ?? params.value ?? true
       const color = isActive ? 'success' : 'danger'
-      const text = isActive ? 'Active' : 'Inactive'
+      const text = isActive ? t('inbox.status_active') : t('inbox.status_inactive')
       return `<span style="padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; background-color: var(--va-${color}); color: white;">${text}</span>`
     }
   },
@@ -202,17 +206,17 @@ const columnDefs = computed(() => [
     valueFormatter: (params: any) => formatBytes(params.value)
   },
   {
-    headerName: 'Actions',
+    headerName: t('inbox.actions'),
     width: 250,
     sortable: false,
     cellRenderer: (params: any) => {
       if (!params.data) return ''
       return `
         <div style="display: flex; gap: 8px; align-items: center; height: 100%;">
-          <button class="va-button va-button--small va-button--outline va-button--primary" data-action="password" data-email="${params.data.email}">
+          <button style="padding: 4px 10px; border-radius: 6px; border: 1px solid var(--va-primary); background: transparent; color: var(--va-primary); font-size: 0.8rem; cursor: pointer; font-weight: 600;" data-action="password" data-email="${params.data.email}">
             ${t('inbox.change_password')}
           </button>
-          <button class="va-button va-button--small va-button--outline va-button--danger" data-action="delete" data-email="${params.data.email}">
+          <button style="padding: 4px 10px; border-radius: 6px; border: 1px solid var(--va-danger); background: transparent; color: var(--va-danger); font-size: 0.8rem; cursor: pointer; font-weight: 600;" data-action="delete" data-email="${params.data.email}">
             ${t('inbox.delete_account')}
           </button>
         </div>
@@ -230,8 +234,9 @@ const createDatasource = () => ({
 
     try {
       const res = await customFetch(`/api/admin/mail/accounts?page=${page}&size=${size}`)
-      const content = res?.content || res?.data || (Array.isArray(res) ? res : [])
-      const total = res?.totalElements ?? res?.total ?? content.length
+      const allRows = Array.isArray(res) ? res : (res?.content || res?.data || [])
+      const total = res?.totalElements ?? res?.total ?? allRows.length
+      const content = Array.isArray(res) ? allRows.slice(startRow, endRow) : allRows
 
       params.successCallback(content, total)
     } catch (e) {
@@ -244,28 +249,8 @@ const createDatasource = () => ({
 const onGridReady = (params: any) => {
   gridApi = params.api
   gridApi.setGridOption('datasource', createDatasource())
-
-  // Event delegation for action buttons
-  params.api.getGridOption('onCellClicked', (e: any) => {
-    if (!e.event?.target) return
-    const target = e.event.target as HTMLElement
-    const btn = target.closest('button[data-action]')
-    if (!btn) return
-    
-    const action = btn.getAttribute('data-action')
-    const email = btn.getAttribute('data-email')
-    
-    if (action === 'password' && email) {
-      selectedEmail.value = email
-      newPassword.value = ''
-      showPasswordModal.value = true
-    } else if (action === 'delete' && email) {
-      confirmDelete(email)
-    }
-  })
 }
 
-// Add native event listener for cell clicks to handle inner HTML buttons since AG-Grid Vue3 wrapper can sometimes be tricky
 const setupCellClickDelegate = () => {
   if (typeof document === 'undefined') return
   document.addEventListener('click', (e) => {
@@ -273,7 +258,6 @@ const setupCellClickDelegate = () => {
     const btn = target.closest('button[data-action]')
     if (!btn) return
     
-    // Ensure it's from our grid
     if (!btn.closest('.ag-theme-quartz') && !btn.closest('.ag-theme-quartz-dark')) return
     
     e.preventDefault()
@@ -304,7 +288,7 @@ const refreshGrid = () => {
 
 const createAccount = async () => {
   if (!newAccount.value.email || !newAccount.value.password) {
-    initToast({ message: 'Email and password are required', color: 'warning' })
+    initToast({ message: t('inbox.group_name_email_required'), color: 'warning' })
     return
   }
 
@@ -318,12 +302,12 @@ const createAccount = async () => {
       method: 'POST',
       body: { email: fullEmail, password: newAccount.value.password }
     })
-    initToast({ message: 'Account created successfully', color: 'success' })
+    initToast({ message: t('inbox.account_created'), color: 'success' })
     showCreateModal.value = false
     newAccount.value = { email: '', password: '' }
     refreshGrid()
   } catch (e: any) {
-    initToast({ message: e.message || 'Failed to create account', color: 'danger' })
+    initToast({ message: e.message || t('inbox.save_failed'), color: 'danger' })
   } finally {
     isCreating.value = false
   }
@@ -331,7 +315,7 @@ const createAccount = async () => {
 
 const changePassword = async () => {
   if (!newPassword.value) {
-    initToast({ message: 'Password is required', color: 'warning' })
+    initToast({ message: t('inbox.password_required', 'Password is required'), color: 'warning' })
     return
   }
 
@@ -341,10 +325,10 @@ const changePassword = async () => {
       method: 'PUT',
       body: { password: newPassword.value }
     })
-    initToast({ message: 'Password updated successfully', color: 'success' })
+    initToast({ message: t('inbox.password_updated'), color: 'success' })
     showPasswordModal.value = false
   } catch (e: any) {
-    initToast({ message: e.message || 'Failed to update password', color: 'danger' })
+    initToast({ message: e.message || t('inbox.save_failed'), color: 'danger' })
   } finally {
     isChangingPassword.value = false
   }
@@ -353,9 +337,9 @@ const changePassword = async () => {
 const confirmDelete = async (email: string) => {
   const result = await confirm({
     title: t('inbox.delete_account'),
-    message: `Are you sure you want to delete the account ${email}?`,
-    okText: t('delete', 'Delete'),
-    cancelText: t('cancel', 'Cancel')
+    message: t('inbox.delete_account_confirm', { email }),
+    okText: t('inbox.delete_account'),
+    cancelText: t('inbox.cancel')
   })
 
   if (result) {
@@ -363,10 +347,10 @@ const confirmDelete = async (email: string) => {
       await customFetch(`/api/admin/mail/accounts/${encodeURIComponent(email)}`, {
         method: 'DELETE'
       })
-      initToast({ message: 'Account deleted successfully', color: 'success' })
+      initToast({ message: t('inbox.account_deleted'), color: 'success' })
       refreshGrid()
     } catch (e: any) {
-      initToast({ message: e.message || 'Failed to delete account', color: 'danger' })
+      initToast({ message: e.message || t('inbox.delete_failed'), color: 'danger' })
     }
   }
 }
@@ -376,16 +360,16 @@ const confirmSync = async () => {
     title: t('inbox.sync_accounts'),
     message: t('inbox.sync_accounts_confirm'),
     okText: t('inbox.sync_accounts'),
-    cancelText: t('cancel', 'Cancel')
+    cancelText: t('inbox.cancel')
   })
 
   if (result) {
     try {
       await customFetch('/api/admin/mail/accounts/sync', { method: 'POST' })
-      initToast({ message: 'Accounts synchronized successfully', color: 'success' })
+      initToast({ message: t('inbox.sync_accounts_success'), color: 'success' })
       refreshGrid()
     } catch (e: any) {
-      initToast({ message: e.message || 'Failed to sync accounts', color: 'danger' })
+      initToast({ message: e.message || t('inbox.sync_accounts_failed'), color: 'danger' })
     }
   }
 }

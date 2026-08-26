@@ -15,7 +15,7 @@
           {{ $t('inbox.create_mailing_list') }}
         </va-button>
         <va-button preset="outline" color="primary" icon="sync" size="small" @click="syncAliases">
-          Sync Postfix Aliases
+          {{ $t('inbox.sync_aliases') }}
         </va-button>
       </div>
     </div>
@@ -50,8 +50,8 @@
     <!-- Create/Edit Modal -->
     <va-modal v-model="showModal" :title="isEditing ? $t('inbox.edit_mailing_list') : $t('inbox.create_mailing_list')" size="medium">
       <div style="display: flex; flex-direction: column; gap: 1.25rem; padding: 1rem 0;">
-        <va-input v-model="formData.groupName" label="Group Name" placeholder="e.g. Development Team" required />
-        <va-input v-model="formData.email" :label="$t('inbox.group_email')" placeholder="dev-team" required>
+        <va-input v-model="formData.groupName" :label="$t('inbox.group_name')" :placeholder="$t('inbox.group_name_placeholder')" required />
+        <va-input v-model="formData.email" :label="$t('inbox.group_email')" :placeholder="$t('inbox.group_email_placeholder')" required>
           <template #appendInner>
             <span style="color: var(--va-text-secondary);">@mplatform.com</span>
           </template>
@@ -59,16 +59,16 @@
         
         <!-- Description -->
         <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-          <label style="font-size: 0.85rem; font-weight: 600; color: var(--va-text-primary);">Description</label>
-          <va-input v-model="formData.description.ko" placeholder="설명 (한국어)" />
-          <va-input v-model="formData.description.en" placeholder="Description (English)" />
+          <label style="font-size: 0.85rem; font-weight: 600; color: var(--va-text-primary);">{{ $t('common.description') }}</label>
+          <va-input v-model="formData.description.ko" :placeholder="$t('inbox.description_ko')" />
+          <va-input v-model="formData.description.en" :placeholder="$t('inbox.description_en')" />
         </div>
 
         <!-- Members Section -->
         <div style="display: flex; flex-direction: column; gap: 1rem; background: var(--va-background-element); padding: 1rem; border-radius: 8px; border: 1px solid var(--va-background-border);">
           <div style="font-weight: 600; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
             <va-icon name="people" color="primary" size="small" />
-            Members
+            {{ $t('inbox.members') }}
           </div>
           
           <InboxRecipientPicker 
@@ -78,12 +78,12 @@
           
           <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
             <va-input v-model="externalEmailInput" :label="$t('inbox.add_external_email')" placeholder="user@example.com" style="flex: 1;" @keyup.enter="addExternalEmail" />
-            <va-button color="primary" preset="outline" icon="add" @click="addExternalEmail">Add</va-button>
+            <va-button color="primary" preset="outline" icon="add" @click="addExternalEmail">{{ $t('common.add') }}</va-button>
           </div>
           
           <!-- Member List with Remove Buttons -->
           <div v-if="formData.members.length > 0" style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
-            <label style="font-size: 0.8rem; font-weight: 600; color: var(--va-text-secondary);">Selected Members ({{ formData.members.length }})</label>
+            <label style="font-size: 0.8rem; font-weight: 600; color: var(--va-text-secondary);">{{ $t('inbox.selected_members') }} ({{ formData.members.length }})</label>
             <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
               <va-chip
                 v-for="member in formData.members"
@@ -102,8 +102,8 @@
       </div>
 
       <template #footer>
-        <va-button preset="plain" color="secondary" @click="showModal = false">{{ $t('cancel', 'Cancel') }}</va-button>
-        <va-button color="primary" @click="saveMailingList" :loading="isSaving">{{ $t('save', 'Save') }}</va-button>
+        <va-button preset="plain" color="secondary" @click="showModal = false">{{ $t('inbox.cancel') }}</va-button>
+        <va-button color="primary" @click="saveMailingList" :loading="isSaving">{{ isEditing ? $t('inbox.edit_mailing_list') : $t('inbox.create_mailing_list') }}</va-button>
       </template>
     </va-modal>
   </div>
@@ -155,41 +155,47 @@ const defaultColDef = {
 }
 
 const columnDefs = computed(() => [
-  { field: 'groupName', headerName: 'Group Name', width: 200 },
-  { field: 'email', headerName: 'Email Address', width: 250 },
   {
-    field: 'members',
-    headerName: 'Members',
+    field: 'name',
+    headerName: t('inbox.group_name'),
+    width: 200,
+    valueGetter: (params: any) => params.data?.name || params.data?.groupName || ''
+  },
+  { field: 'email', headerName: t('inbox.group_email'), width: 250 },
+  {
+    field: 'memberCount',
+    headerName: t('inbox.members'),
     width: 150,
+    valueGetter: (params: any) => params.data?.memberCount ?? params.data?.members?.length ?? 0,
     valueFormatter: (params: any) => {
-      const arr = params.value || []
-      return t('inbox.member_count', { count: arr.length })
+      const count = params.value ?? 0
+      return t('inbox.member_count', { count })
     }
   },
   {
     field: 'active',
-    headerName: 'Status',
+    headerName: t('common.status'),
     width: 120,
     cellRenderer: (params: any) => {
-      const isActive = params.value !== false
+      const isActive = params.data?.active ?? params.data?.isActive ?? (params.value !== false)
       const color = isActive ? 'success' : 'danger'
-      const text = isActive ? 'Active' : 'Inactive'
+      const text = isActive ? t('inbox.status_active') : t('inbox.status_inactive')
       return `<span style="padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; background-color: var(--va-${color}); color: white;">${text}</span>`
     }
   },
   {
-    headerName: 'Actions',
+    headerName: t('inbox.actions'),
     width: 200,
     sortable: false,
     cellRenderer: (params: any) => {
       if (!params.data) return ''
       return `
         <div style="display: flex; gap: 8px; align-items: center; height: 100%;">
-          <button class="va-button va-button--small va-button--outline va-button--primary" data-action="edit" data-id="${params.data.id}">
-            Edit
+          <button style="padding: 4px 10px; border-radius: 6px; border: 1px solid var(--va-primary); background: transparent; color: var(--va-primary); font-size: 0.8rem; cursor: pointer; font-weight: 600;" data-action="edit" data-id="${params.data.id}">
+            ${t('inbox.edit')}
           </button>
-          <button class="va-button va-button--small va-button--outline va-button--danger" data-action="delete" data-id="${params.data.id}">
-            Delete
+          <button style="padding: 4px 10px; border-radius: 6px; border: 1px solid var(--va-danger); background: transparent; color: var(--va-danger); font-size: 0.8rem; cursor: pointer; font-weight: 600;" data-action="delete" data-id="${params.data.id}" data-name="${params.data.name || ''}">
+            ${t('inbox.delete')}
           </button>
         </div>
       `
@@ -236,13 +242,14 @@ const setupCellClickDelegate = () => {
     
     const action = btn.getAttribute('data-action')
     const id = btn.getAttribute('data-id')
+    const name = btn.getAttribute('data-name')
     
     if (!id) return
 
     if (action === 'edit') {
       await openEditModal(id)
     } else if (action === 'delete') {
-      await confirmDelete(id)
+      await confirmDelete(id, name || undefined)
     }
   })
 }
@@ -258,6 +265,7 @@ const refreshGrid = () => {
 }
 
 const resolveMemberName = (idOrEmail: string) => {
+  if (!idOrEmail) return ''
   if (idOrEmail.includes('@')) return idOrEmail
   return userStore.getUserName(idOrEmail)
 }
@@ -266,7 +274,7 @@ const addExternalEmail = () => {
   const val = externalEmailInput.value.trim()
   if (!val) return
   if (!val.includes('@')) {
-    initToast({ message: 'Please enter a valid email address', color: 'warning' })
+    initToast({ message: t('inbox.enter_valid_email'), color: 'warning' })
     return
   }
   if (!formData.value.members.includes(val)) {
@@ -302,32 +310,61 @@ const openEditModal = async (id: string) => {
       const rawEmail = data.email || ''
       const emailPrefix = rawEmail.includes('@') ? rawEmail.split('@')[0] : rawEmail
 
+      const memberList: string[] = []
+      if (Array.isArray(data.members)) {
+        for (const m of data.members) {
+          if (typeof m === 'string') {
+            memberList.push(m)
+          } else if (m?.externalEmail) {
+            memberList.push(m.externalEmail)
+          } else if (m?.userId) {
+            memberList.push(m.userId)
+          }
+        }
+      }
+
       formData.value = {
-        groupName: data.groupName || '',
+        groupName: data.name || data.groupName || '',
         email: emailPrefix,
         description: data.description || { ko: '', en: '' },
-        members: [...(data.members || [])]
+        members: memberList
       }
       externalEmailInput.value = ''
       showModal.value = true
     }
   } catch (e: any) {
-    initToast({ message: 'Failed to load mailing list details', color: 'danger' })
+    initToast({ message: e.message || t('inbox.load_failed', 'Failed to load details'), color: 'danger' })
   }
 }
 
 const saveMailingList = async () => {
   if (!formData.value.groupName || !formData.value.email) {
-    initToast({ message: 'Group Name and Email are required', color: 'warning' })
+    initToast({ message: t('inbox.group_name_email_required'), color: 'warning' })
     return
   }
 
   isSaving.value = true
   try {
-    const fullEmail = `${formData.value.email}@mplatform.com`
+    const fullEmail = formData.value.email.includes('@') 
+      ? formData.value.email 
+      : `${formData.value.email}@mplatform.com`
+
+    const userIds: string[] = []
+    const extEmails: string[] = []
+    for (const m of formData.value.members) {
+      if (typeof m === 'string' && m.includes('@')) {
+        extEmails.push(m)
+      } else if (typeof m === 'string' && m) {
+        userIds.push(m)
+      }
+    }
+
     const payload = {
-      ...formData.value,
-      email: fullEmail
+      name: formData.value.groupName,
+      email: fullEmail,
+      description: formData.value.description,
+      memberUserIds: userIds,
+      memberExternalEmails: extEmails
     }
 
     if (isEditing.value && editingId.value) {
@@ -335,39 +372,39 @@ const saveMailingList = async () => {
         method: 'PUT',
         body: payload
       })
-      initToast({ message: 'Mailing list updated successfully', color: 'success' })
+      initToast({ message: t('inbox.save_success'), color: 'success' })
     } else {
       await customFetch('/api/admin/mailing-lists', {
         method: 'POST',
         body: payload
       })
-      initToast({ message: 'Mailing list created successfully', color: 'success' })
+      initToast({ message: t('inbox.save_success'), color: 'success' })
     }
     
     showModal.value = false
     refreshGrid()
   } catch (e: any) {
-    initToast({ message: e.message || 'Failed to save mailing list', color: 'danger' })
+    initToast({ message: e.message || t('inbox.save_failed', 'Failed to save'), color: 'danger' })
   } finally {
     isSaving.value = false
   }
 }
 
-const confirmDelete = async (id: string) => {
+const confirmDelete = async (id: string, name?: string) => {
   const result = await confirm({
-    title: 'Delete Mailing List',
-    message: 'Are you sure you want to delete this mailing list?',
-    okText: t('delete', 'Delete'),
-    cancelText: t('cancel', 'Cancel')
+    title: t('inbox.delete_mailing_list'),
+    message: t('inbox.delete_mailing_list_confirm', { name: name || '' }),
+    okText: t('inbox.delete'),
+    cancelText: t('inbox.cancel')
   })
 
   if (result) {
     try {
       await customFetch(`/api/admin/mailing-lists/${id}`, { method: 'DELETE' })
-      initToast({ message: 'Mailing list deleted successfully', color: 'success' })
+      initToast({ message: t('inbox.delete_success'), color: 'success' })
       refreshGrid()
     } catch (e: any) {
-      initToast({ message: e.message || 'Failed to delete mailing list', color: 'danger' })
+      initToast({ message: e.message || t('inbox.delete_failed', 'Failed to delete'), color: 'danger' })
     }
   }
 }
@@ -375,9 +412,9 @@ const confirmDelete = async (id: string) => {
 const syncAliases = async () => {
   try {
     await customFetch('/api/admin/mailing-lists/sync-aliases', { method: 'POST' })
-    initToast({ message: 'Postfix aliases synchronized successfully', color: 'success' })
+    initToast({ message: t('inbox.sync_aliases_success'), color: 'success' })
   } catch (e: any) {
-    initToast({ message: e.message || 'Failed to sync aliases', color: 'danger' })
+    initToast({ message: e.message || t('inbox.sync_aliases_failed'), color: 'danger' })
   }
 }
 </script>

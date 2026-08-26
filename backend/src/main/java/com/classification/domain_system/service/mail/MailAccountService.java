@@ -2,6 +2,8 @@ package com.classification.domain_system.service.mail;
 
 import com.classification.domain_system.dto.MailAccountResponse;
 import com.classification.domain_system.entity.User;
+import com.classification.domain_system.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,15 +21,21 @@ import java.util.stream.Collectors;
  * the postfix-accounts.cf configuration file.
  */
 @Service
+@RequiredArgsConstructor
 public class MailAccountService {
 
     private static final Logger log = LoggerFactory.getLogger(MailAccountService.class);
 
-    @Value("${mail.account.config-path:./docker-data/dms/config}")
+    private final UserRepository userRepository;
+
+    @Value("${mail.config-path:${mail.account.config-path:/var/mail-config}}")
     private String configPath;
 
     @Value("${mail.domain:mplatform.com}")
     private String mailDomain;
+
+    @Value("${mail.host:mailserver}")
+    private String mailHost;
 
     @Value("${mail.account.auto-create:true}")
     private boolean autoCreate;
@@ -92,16 +100,24 @@ public class MailAccountService {
         Path accountsFile = getAccountsFilePath();
         if (!Files.exists(accountsFile)) return Collections.emptyList();
 
-        return Files.readAllLines(accountsFile).stream()
-                .filter(line -> line.contains("|"))
-                .map(line -> {
-                    String email = line.substring(0, line.indexOf('|'));
-                    return MailAccountResponse.builder()
-                            .email(email)
-                            .isActive(true)
-                            .build();
-                })
-                .collect(Collectors.toList());
+        List<MailAccountResponse> result = new ArrayList<>();
+        for (String line : Files.readAllLines(accountsFile)) {
+            if (!line.contains("|")) continue;
+            String email = line.substring(0, line.indexOf('|'));
+            String username = email.contains("@") ? email.substring(0, email.indexOf('@')) : email;
+
+            MailAccountResponse.MailAccountResponseBuilder builder = MailAccountResponse.builder()
+                    .email(email)
+                    .isActive(true);
+
+            userRepository.findByEmail(email).or(() -> userRepository.findByUsername(username)).ifPresent(u -> {
+                builder.userId(u.getId());
+                builder.userName(u.getUsername());
+            });
+
+            result.add(builder.build());
+        }
+        return result;
     }
 
     /**
@@ -116,6 +132,34 @@ public class MailAccountService {
         } catch (IOException e) {
             log.error("Failed to sync mail account for user: {}", user.getUsername(), e);
         }
+    }
+
+    /**
+     * Sync all platform users to mail accounts.
+     */
+    public void syncAllAccounts() {
+        List<User> users = userRepository.findAll();
+        for (User user : users) {
+            syncUserAccount(user);
+        }
+        log.info("Synced {} users to mail accounts", users.size());
+    }
+
+    /**
+     * Get mail server connection status and domain.
+     */
+    public Map<String, Object> getServerStatus() {
+        Map<String, Object> status = new HashMap<>();
+        status.put("domain", mailDomain);
+        boolean connected = false;
+        try (java.net.Socket socket = new java.net.Socket()) {
+            socket.connect(new java.net.InetSocketAddress(mailHost, 25), 2000);
+            connected = true;
+        } catch (Exception ignored) {
+        }
+        status.put("connected", connected);
+        status.put("status", connected ? "ok" : "disconnected");
+        return status;
     }
 
     private Path getAccountsFilePath() {

@@ -35,8 +35,21 @@
       "directAccessGrantsEnabled": true,
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
-      "redirectUris": ["http://localhost:3000/*", "http://localhost:3001/*", "http://localhost:8080/*"],
-      "webOrigins": ["http://localhost:3000", "http://localhost:3001", "http://localhost:8080"],
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "http://localhost:3001/*",
+        "http://localhost:8080/*",
+        "http://mplatform.local/*",
+        "https://mplatform.local/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:8080",
+        "http://mplatform.local",
+        "https://mplatform.local",
+        "+"
+      ],
       "protocol": "openid-connect",
       "defaultClientScopes": ["openid", "profile", "email", "roles"]
     },
