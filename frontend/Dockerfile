@@ -43,6 +43,9 @@ ENV HOST=0.0.0.0
 # Copy built output bundle from builder (standalone bundle)
 COPY --from=builder /app/.output /app/.output
 
+# Copy node_modules for SSR external dependencies (e.g. undio)
+COPY --from=builder /app/node_modules /app/node_modules
+
 # Fix Nitro static asset resolution in Docker multi-stage
 RUN mkdir -p /app/.output/server/chunks/public && \
     cp -rn /app/.output/public/* /app/.output/server/chunks/public/ 2>/dev/null || true
