@@ -1,5 +1,7 @@
 # 1. 개요 (Platform Overview)
 
+> **문서 버전 (Version)**: v1.1.0
+
 ## 1.1 플랫폼 비전 및 목표
 본 플랫폼은 기업 및 조직 내에 파편화되어 분산 관리되던 마스터 데이터(Customer, Product, Vendor, Employee, Organization 등)를 단일 플랫폼으로 통합하고 정제하여 **전사 단일 진실 공급원(Single Source of Truth, Golden Record)**을 확립하기 위한 **엔터프라이즈 마스터 데이터 관리(Master Data Management, MDM) 시스템**이다.
 
@@ -52,3 +54,19 @@
 | **비즈니스 용어사전 & 온톨로지** | Business Glossary & Semantic Ontology | 전사 표준 비즈니스 용어를 정의하고 물리 메타데이터 필드와 양방향 매핑하며, 도메인 간 관계를 온톨로지 지식 그래프로 모델링하여 자연어 스마트 쿼리 및 비정형 데이터 추출을 지원하는 지능화 체계. |
 | **Zero-Fallback i18n & 타임존** | Zero-Fallback i18n & Timezone Governance | 소스코드 내 하드코딩된 라벨이나 임의 폴백 문자열을 원천 배제하고 100% 로케일 사전에 동기화하며, 사용자 개인화 타임존 쿠키와 방어 헬퍼 함수(`parseDate`)를 통해 시차 왜곡을 완벽 방지하는 UI 규약. |
 | **TDD & Nuxt 정적 컴파일 검증** | TDD & Static AST Build Pipeline | 백엔드의 고정 암호문 회귀 검증(Golden Sample Validation)을 포함한 JUnit 5 테스트와, 프론트엔드의 유닛 테스트 및 Nuxt 정적 번들 빌드(`npm run build`) 결합 검증을 통해 런타임 오류를 사전에 100% 억제하는 CI/CD 무결성 체계. |
+
+---
+
+# 3. 플랫폼 개발 규모 및 시스템 현황 (Platform Scale & Metrics)
+
+| 구분 | 항목 | 규모 / 스펙 | 세부 설명 |
+|---|---|---|---|
+| **버전 정보** | 플랫폼 릴리즈 버전 | **v1.1.0** | 차세대 엔터프라이즈 MDM 아키텍처 v1.1.0 프로덕션 릴리즈 |
+| **백엔드 도메인 모델** | JPA 엔티티 (Entities) | **67개 (+ 7 enums)** | PostgreSQL 15 기반 마스터 데이터, 동적 스키마, 거버넌스, 연계, 감사 엔티티 및 Enum |
+| **백엔드 컨트롤러** | API 컨트롤러 (Controllers) | **94개** | REST API & STOMP WebSocket 전수 컨트롤러 |
+| **백엔드 서비스** | 서비스 클래스 (Service classes) | **144개** | 동적 상속, DQ 자율 치유, 매칭, 결재, 해시체인, 암호화 및 연계 서비스 |
+| **백엔드 테스트** | JUnit 5 테스트 (Backend tests) | **228개** | 고정 암호문 회귀 검증(Golden Sample) 및 단위/통합 테스트 스위트 |
+| **프론트엔드 테스트** | Vitest 테스트 스펙 (Frontend test specs) | **173개** | 단위 및 컴포넌트 유닛 테스트 스펙 |
+| **프론트엔드 화면** | Nuxt 3 페이지 (Frontend pages) | **25개** | 마스터 데이터, 결재, 거버넌스, 모니터링 전용 페이지 |
+| **프론트엔드 컴포넌트** | Vue 3 컴포넌트 (Frontend components) | **161개** | AG-Grid, Drawer, Dialog, 차트 등 재사용 가능한 고성능 UI 컴포넌트 |
+| **인프라 & 배포** | K8s 매니페스트 (K8s manifests) | **19종** | Production 배포를 위한 Ingress, StatefulSet, Deployment, ConfigMap 등 매니페스트 |

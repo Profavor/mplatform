@@ -1,6 +1,6 @@
 # 2. 데이터 모델 (PostgreSQL 스키마 명세)
 
-본 문서는 PostgreSQL 15 및 Spring Data JPA 기반으로 구축된 MDM 플랫폼의 전체 62개 엔티티 및 테이블 스키마에 대한 상세 명세서이다.
+본 문서는 PostgreSQL 15 및 Spring Data JPA 기반으로 구축된 MDM 플랫폼의 전체 67개 엔티티 및 7개 enum 및 테이블 스키마에 대한 상세 명세서이다.
 
 ---
 
