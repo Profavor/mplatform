@@ -21,6 +21,24 @@
                 {{ getWidgetTitle(widget) }}
                 <span v-if="isFieldRequired(widget)" class="required-star">*</span>
               </span>
+              <!-- Decrypt Action for Single Row -->
+              <span v-if="!isEditing && isFieldEncrypted(widget)" class="decrypt-control-box" style="margin-left: 6px; display: inline-flex; align-items: center; gap: 4px; font-size: 0.72rem;">
+                <va-icon name="lock" size="12px" color="#888" />
+                <template v-if="getDecryptedFieldValue(widget.fieldKey) === undefined">
+                  <span class="decrypt-action-btn" style="cursor: pointer; text-decoration: underline; color: var(--va-primary);" @click.stop="onRequestDecrypt(widget.fieldKey)">
+                    {{ $t('view_original') }}
+                  </span>
+                </template>
+                <template v-else>
+                  <span class="decrypt-action-btn" style="cursor: pointer; text-decoration: underline; color: var(--va-primary);" @click.stop="onHideDecrypt(widget.fieldKey)">
+                    {{ $t('hide_original') }}
+                  </span>
+                  <span v-if="getDecryptRemainingTime(widget.fieldKey)" style="margin-left: 2px; font-variant-numeric: tabular-nums; color: #888;">
+                    (00:{{ String(getDecryptRemainingTime(widget.fieldKey)).padStart(2, '0') }})
+                  </span>
+                </template>
+                <va-icon v-if="decryptingFields?.[widget.fieldKey]" name="sync" size="12px" spin />
+              </span>
             </div>
 
             <div class="single-row-center">
@@ -36,9 +54,49 @@
               </div>
 
               <!-- MULTILINGUAL -->
-              <div v-else-if="getFieldType(widget) === 'MULTILINGUAL'" class="single-row-multi">
-                <span class="sample-chip-tag">KO</span><span class="sample-val-text">{{ getMultilingualValue(record[widget.fieldKey], 'ko') || '-' }}</span>
-                <span class="sample-chip-tag ml-2">EN</span><span class="sample-val-text">{{ getMultilingualValue(record[widget.fieldKey], 'en') || '-' }}</span>
+              <div v-else-if="getFieldType(widget) === 'MULTILINGUAL'" class="single-row-multi-wrapper">
+                <!-- VIEW MODE -->
+                <template v-if="!isEditing">
+                  <div class="single-row-multi" :class="{ 'doc-val-box-interactive': widget.fieldKey }" @click="onCellClick(widget)">
+                    <template v-if="getMultilingualValue(getFieldValue(widget.fieldKey), 'ko') || getMultilingualValue(getFieldValue(widget.fieldKey), 'en')">
+                      <span v-if="getMultilingualValue(getFieldValue(widget.fieldKey), 'ko')" class="multi-chip-item">
+                        <span class="sample-chip-tag">KO</span><span class="sample-val-text">{{ getMultilingualValue(getFieldValue(widget.fieldKey), 'ko') }}</span>
+                      </span>
+                      <span v-if="getMultilingualValue(getFieldValue(widget.fieldKey), 'en')" class="multi-chip-item ml-2">
+                        <span class="sample-chip-tag">EN</span><span class="sample-val-text">{{ getMultilingualValue(getFieldValue(widget.fieldKey), 'en') }}</span>
+                      </span>
+                    </template>
+                    <span v-else class="sample-val-text text-secondary">-</span>
+                    <span v-if="widget.fieldKey" class="doc-cell-edit-icon" :title="$t('records.click_to_edit')">
+                      <va-icon name="edit" size="12px" color="secondary" />
+                    </span>
+                  </div>
+                </template>
+                <!-- EDIT MODE (Compact Side-by-Side Inputs) -->
+                <template v-else>
+                  <div class="single-row-multi-edit">
+                    <va-input
+                      :model-value="getMultilingualValue(getFieldValue(widget.fieldKey), 'ko')"
+                      @update:model-value="(val) => setMultilingualValue(widget.fieldKey, 'ko', val)"
+                      :readonly="widget.options?.readOnly"
+                      class="single-row-lang-input"
+                      size="small"
+                      :placeholder="$t('records.multilingual_placeholder_ko')"
+                    >
+                      <template #prependInner><span class="sample-chip-tag">KO</span></template>
+                    </va-input>
+                    <va-input
+                      :model-value="getMultilingualValue(getFieldValue(widget.fieldKey), 'en')"
+                      @update:model-value="(val) => setMultilingualValue(widget.fieldKey, 'en', val)"
+                      :readonly="widget.options?.readOnly"
+                      class="single-row-lang-input ml-1"
+                      size="small"
+                      :placeholder="$t('records.multilingual_placeholder_en')"
+                    >
+                      <template #prependInner><span class="sample-chip-tag">EN</span></template>
+                    </va-input>
+                  </div>
+                </template>
               </div>
 
               <!-- FILE -->
@@ -70,27 +128,73 @@
               </div>
 
               <!-- STANDARD VALUE / INPUT -->
-              <div v-else class="single-row-val-box">
-                <va-input
-                  v-if="['TEXT', 'NUMBER', 'INTEGER', 'DECIMAL', 'FLOAT', 'DATE', 'DATETIME', 'EMAIL', 'PHONE'].includes(getFieldType(widget))"
-                  :model-value="getFieldType(widget) === 'DATE' ? formatDateValue(record[widget.fieldKey]) : record[widget.fieldKey]"
-                  @update:model-value="(val) => setFieldValue(widget.fieldKey, val)"
-                  :type="getFieldType(widget) === 'DATE' ? (isEditing ? 'date' : 'text') : (['NUMBER', 'INTEGER', 'DECIMAL', 'FLOAT'].includes(getFieldType(widget)) ? 'number' : 'text')"
-                  class="single-row-input"
-                  :readonly="!isEditing || widget.options?.readOnly"
-                />
-                <va-select
-                  v-else-if="['SELECT', 'MULTI_SELECT', 'CODE', 'ENUM'].includes(getFieldType(widget))"
-                  :model-value="record[widget.fieldKey]"
-                  @update:model-value="(val) => setFieldValue(widget.fieldKey, val)"
-                  :options="getFieldOptions(getFieldDefinition(widget.fieldKey))"
-                  :multiple="getFieldType(widget) === 'MULTI_SELECT' || getFieldDefinition(widget.fieldKey)?.isMultiValue"
-                  class="single-row-input"
-                  :readonly="!isEditing || widget.options?.readOnly"
-                />
-                <div v-else class="sample-val-text">
-                  {{ record[widget.fieldKey] ?? '-' }}
-                </div>
+              <div class="single-row-val-box" :class="{ 'doc-val-box-interactive': !isEditing && widget.fieldKey }" @click="!isEditing && onCellClick(widget)">
+                <!-- VIEW MODE (Clean Text / Chips / Badges) -->
+                <template v-if="!isEditing">
+                  <div v-if="['SELECT', 'MULTI_SELECT', 'CODE', 'ENUM'].includes(getFieldType(widget))" class="doc-chips-row">
+                    <template v-if="getSelectOptionLabels(widget.fieldKey, getFieldValue(widget.fieldKey)).length > 0">
+                      <va-chip
+                        v-for="(lbl, lIdx) in getSelectOptionLabels(widget.fieldKey, getFieldValue(widget.fieldKey))"
+                        :key="lIdx"
+                        size="small"
+                        outline
+                        color="primary"
+                      >
+                        {{ lbl }}
+                      </va-chip>
+                    </template>
+                    <span v-else class="sample-val-text text-secondary">-</span>
+                  </div>
+                  <div v-else-if="['HTML', 'HTML_TEXT', 'RICHTEXT', 'EDITOR'].includes(getFieldType(widget))" class="doc-text-value">
+                    <div v-if="getFieldValue(widget.fieldKey)" v-html="getFieldValue(widget.fieldKey)"></div>
+                    <span v-else class="sample-val-text text-secondary">-</span>
+                  </div>
+                  <div v-else-if="getFieldType(widget) === 'EMAIL'" class="doc-text-value">
+                    <a v-if="getFieldValue(widget.fieldKey)" :href="'mailto:' + getFieldValue(widget.fieldKey)" class="doc-link" @click.stop>{{ getFieldValue(widget.fieldKey) }}</a>
+                    <span v-else class="sample-val-text text-secondary">-</span>
+                  </div>
+                  <div v-else-if="getFieldType(widget) === 'PHONE'" class="doc-text-value">
+                    <a v-if="getFieldValue(widget.fieldKey)" :href="'tel:' + getFieldValue(widget.fieldKey)" class="doc-link" @click.stop>{{ getFieldValue(widget.fieldKey) }}</a>
+                    <span v-else class="sample-val-text text-secondary">-</span>
+                  </div>
+                  <div v-else-if="getFieldType(widget) === 'DATE'" class="doc-text-value">
+                    <span v-if="getFieldValue(widget.fieldKey)">{{ formatDateValue(getFieldValue(widget.fieldKey)) }}</span>
+                    <span v-else class="sample-val-text text-secondary">-</span>
+                  </div>
+                  <div v-else class="sample-val-text">
+                    {{ getFieldValue(widget.fieldKey) ?? '-' }}
+                  </div>
+                  <span v-if="widget.fieldKey" class="doc-cell-edit-icon" :title="$t('click_to_edit')">
+                    <va-icon name="edit" size="12px" color="secondary" />
+                  </span>
+                </template>
+
+                <!-- EDIT MODE (Interactive Form Controls) -->
+                <template v-else>
+                  <va-input
+                    v-if="['TEXT', 'NUMBER', 'INTEGER', 'DECIMAL', 'FLOAT', 'DATE', 'DATETIME', 'EMAIL', 'PHONE'].includes(getFieldType(widget))"
+                    :model-value="getFieldType(widget) === 'DATE' ? formatDateValue(getFieldValue(widget.fieldKey)) : getFieldValue(widget.fieldKey)"
+                    @update:model-value="(val) => setFieldValue(widget.fieldKey, val)"
+                    :type="getFieldType(widget) === 'DATE' ? 'date' : (['NUMBER', 'INTEGER', 'DECIMAL', 'FLOAT'].includes(getFieldType(widget)) ? 'number' : (getFieldType(widget) === 'EMAIL' ? 'email' : (getFieldType(widget) === 'PHONE' ? 'tel' : 'text')))"
+                    class="single-row-input"
+                    :readonly="widget.options?.readOnly"
+                  />
+                  <va-select
+                    v-else-if="['SELECT', 'MULTI_SELECT', 'CODE', 'ENUM'].includes(getFieldType(widget))"
+                    :model-value="getFieldValue(widget.fieldKey)"
+                    @update:model-value="(val) => setFieldValue(widget.fieldKey, val)"
+                    :options="getFieldOptions(getFieldDefinition(widget.fieldKey))"
+                    :multiple="getFieldType(widget) === 'MULTI_SELECT' || getFieldDefinition(widget.fieldKey)?.isMultiValue"
+                    value-by="value"
+                    text-by="text"
+                    :teleport="true"
+                    class="single-row-input"
+                    :readonly="widget.options?.readOnly"
+                  />
+                  <div v-else class="sample-val-text">
+                    {{ getFieldValue(widget.fieldKey) ?? '-' }}
+                  </div>
+                </template>
               </div>
             </div>
           </div>
@@ -146,11 +250,25 @@
                 {{ getWidgetTitle(widget) }}
                 <span v-if="isFieldRequired(widget)" class="required-star">*</span>
               </span>
+              <span v-if="!isEditing && widget.fieldKey" class="doc-cell-edit-icon" :title="$t('click_to_edit')" @click="onCellClick(widget)">
+                <va-icon name="edit" size="12px" color="secondary" />
+              </span>
             </div>
             <div class="widget-editor-content" :style="{ height: getEditorContentHeight(widget) }">
+              <div
+                v-if="!isEditing"
+                class="doc-html-box"
+                :class="{ 'doc-interactive': widget.fieldKey }"
+                @click="onCellClick(widget)"
+              >
+                <div v-if="getFieldValue(widget.fieldKey)" v-html="getFieldValue(widget.fieldKey)" class="doc-html-inner"></div>
+                <span v-else class="text-secondary">-</span>
+              </div>
               <HtmlEditor
-                v-model="record[widget.fieldKey]"
-                :readonly="!isEditing || widget.options?.readOnly"
+                v-else
+                :model-value="getFieldValue(widget.fieldKey) || ''"
+                @update:model-value="(val) => setFieldValue(widget.fieldKey, val)"
+                :readonly="widget.options?.readOnly"
                 :placeholder="getWidgetTitle(widget)"
               />
             </div>
@@ -191,118 +309,83 @@
                 {{ getWidgetTitle(widget) }}
                 <span v-if="isFieldRequired(widget)" class="required-star">*</span>
               </span>
+              <!-- Decrypt Action for Multi Row -->
+              <span v-if="!isEditing && isFieldEncrypted(widget)" class="decrypt-control-box" style="margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: #888;">
+                <va-icon name="lock" size="13px" />
+                <template v-if="getDecryptedFieldValue(widget.fieldKey) === undefined">
+                  <span class="decrypt-action-btn" style="cursor: pointer; text-decoration: underline; color: var(--va-primary);" @click.stop="onRequestDecrypt(widget.fieldKey)">
+                    {{ $t('view_original') }}
+                  </span>
+                </template>
+                <template v-else>
+                  <span class="decrypt-action-btn" style="cursor: pointer; text-decoration: underline; color: var(--va-primary);" @click.stop="onHideDecrypt(widget.fieldKey)">
+                    {{ $t('hide_original') }}
+                  </span>
+                  <span v-if="getDecryptRemainingTime(widget.fieldKey)" style="margin-left: 2px; font-variant-numeric: tabular-nums;">
+                    (00:{{ String(getDecryptRemainingTime(widget.fieldKey)).padStart(2, '0') }})
+                  </span>
+                </template>
+                <va-icon v-if="decryptingFields?.[widget.fieldKey]" name="sync" size="13px" spin />
+              </span>
             </div>
 
-            <div class="field-control-wrapper">
-              <!-- (1) DATE Input -->
-              <va-input
-                v-if="getFieldType(widget) === 'DATE'"
-                :model-value="formatDateValue(record[widget.fieldKey])"
-                @update:model-value="(val) => setFieldValue(widget.fieldKey, val)"
-                :type="isEditing ? 'date' : 'text'"
-                class="w-full"
-                :readonly="!isEditing || widget.options?.readOnly"
-                :placeholder="$t('date_placeholder')"
-              >
-                <template #prependInner>
-                  <va-icon name="calendar_today" size="small" color="primary" />
-                </template>
-              </va-input>
-
-              <!-- (2) DATETIME Input -->
-              <va-input
-                v-else-if="getFieldType(widget) === 'DATETIME'"
-                :model-value="record[widget.fieldKey]"
-                @update:model-value="(val) => setFieldValue(widget.fieldKey, val)"
-                :type="isEditing ? 'datetime-local' : 'text'"
-                class="w-full"
-                :readonly="!isEditing || widget.options?.readOnly"
-              >
-                <template #prependInner>
-                  <va-icon name="schedule" size="small" color="primary" />
-                </template>
-              </va-input>
-
-              <!-- (3) NUMBER / INTEGER / DECIMAL / FLOAT -->
-              <va-input
-                v-else-if="['NUMBER', 'INTEGER', 'DECIMAL', 'FLOAT'].includes(getFieldType(widget))"
-                :model-value="record[widget.fieldKey]"
-                @update:model-value="(val) => setFieldValue(widget.fieldKey, val)"
-                type="number"
-                class="w-full"
-                :readonly="!isEditing || widget.options?.readOnly"
-              >
-                <template #prependInner>
-                  <va-icon name="pin" size="small" color="primary" />
-                </template>
-              </va-input>
-
-              <!-- (4) SELECT / MULTI_SELECT / CODE / ENUM -->
-              <va-select
-                v-else-if="['SELECT', 'MULTI_SELECT', 'CODE', 'ENUM'].includes(getFieldType(widget))"
-                :model-value="record[widget.fieldKey]"
-                @update:model-value="(val) => setFieldValue(widget.fieldKey, val)"
-                :options="getFieldOptions(getFieldDefinition(widget.fieldKey))"
-                :multiple="getFieldType(widget) === 'MULTI_SELECT' || getFieldDefinition(widget.fieldKey)?.isMultiValue"
-                class="w-full"
-                :readonly="!isEditing || widget.options?.readOnly"
-                clearable
-              />
-
-              <!-- (5) BOOLEAN Switch -->
-              <div v-else-if="getFieldType(widget) === 'BOOLEAN'" class="boolean-control-wrapper">
-                <va-switch
-                  :model-value="!!record[widget.fieldKey]"
-                  @update:model-value="(val) => setFieldValue(widget.fieldKey, val)"
-                  :readonly="!isEditing || widget.options?.readOnly"
-                  size="small"
-                />
-                <span class="boolean-label">{{ record[widget.fieldKey] ? $t('yes') : $t('no') }}</span>
-              </div>
-
-              <!-- (6) DOMAIN_REF / DOMAIN_REFERENCE -->
-              <div v-else-if="['DOMAIN_REF', 'DOMAIN_REFERENCE'].includes(getFieldType(widget))" class="domain-ref-display w-full">
-                <va-input
-                  :model-value="formatDomainRef(record[widget.fieldKey])"
-                  readonly
-                  class="w-full"
-                >
-                  <template #appendInner v-if="isEditing">
-                    <va-button size="small" preset="plain" icon="search" @click="$emit('openDomainRef', getFieldDefinition(widget.fieldKey))" />
-                  </template>
-                </va-input>
-              </div>
-
-              <!-- (7) MULTILINGUAL Input (KO / EN) -->
-              <div v-else-if="getFieldType(widget) === 'MULTILINGUAL'" class="multilingual-control-box w-full">
-                <div style="display: flex; gap: 0.5rem; width: 100%;">
-                  <va-input
-                    :model-value="getMultilingualValue(record[widget.fieldKey], 'ko')"
-                    @update:model-value="(val) => setMultilingualValue(widget.fieldKey, 'ko', val)"
-                    :readonly="!isEditing || widget.options?.readOnly"
-                    style="flex: 1;"
-                    size="small"
-                  >
-                    <template #prependInner><span class="lang-tag">KO</span></template>
-                  </va-input>
-                  <va-input
-                    :model-value="getMultilingualValue(record[widget.fieldKey], 'en')"
-                    @update:model-value="(val) => setMultilingualValue(widget.fieldKey, 'en', val)"
-                    :readonly="!isEditing || widget.options?.readOnly"
-                    style="flex: 1;"
-                    size="small"
-                  >
-                    <template #prependInner><span class="lang-tag">EN</span></template>
-                  </va-input>
-                </div>
-              </div>
-
-              <!-- (8) FILE Upload & List -->
-              <div v-else-if="getFieldType(widget) === 'FILE'" class="file-control-box w-full">
-                <div v-if="!isEditing" class="file-chips-list">
-                  <template v-if="getFilesList(record[widget.fieldKey]).length > 0">
+            <div class="field-control-wrapper" :class="{ 'doc-field-wrapper-interactive': !isEditing && widget.fieldKey && !isTableField(widget) }" @click="!isEditing && !isTableField(widget) && onCellClick(widget)">
+              <!-- ================= VIEW MODE (Clean Doc-style Presentation) ================= -->
+              <template v-if="!isEditing">
+                <!-- (1) SELECT / MULTI_SELECT / CODE / ENUM -->
+                <div v-if="['SELECT', 'MULTI_SELECT', 'CODE', 'ENUM'].includes(getFieldType(widget))" class="doc-chips-row">
+                  <template v-if="getSelectOptionLabels(widget.fieldKey, getFieldValue(widget.fieldKey)).length > 0">
                     <va-chip
-                      v-for="(fObj, fIdx) in getFilesList(record[widget.fieldKey])"
+                      v-for="(lbl, lIdx) in getSelectOptionLabels(widget.fieldKey, getFieldValue(widget.fieldKey))"
+                      :key="lIdx"
+                      size="small"
+                      outline
+                      color="primary"
+                    >
+                      {{ lbl }}
+                    </va-chip>
+                  </template>
+                  <span v-else class="text-secondary">-</span>
+                </div>
+
+                <!-- (2) DATE / DATETIME -->
+                <div v-else-if="getFieldType(widget) === 'DATE'" class="doc-text-card-value">
+                  <span>{{ formatDateValue(getFieldValue(widget.fieldKey)) || '-' }}</span>
+                </div>
+                <div v-else-if="getFieldType(widget) === 'DATETIME'" class="doc-text-card-value">
+                  <span>{{ getFieldValue(widget.fieldKey) || '-' }}</span>
+                </div>
+
+                <!-- (3) BOOLEAN -->
+                <div v-else-if="getFieldType(widget) === 'BOOLEAN'" class="doc-text-card-value">
+                  <span>{{ getFieldValue(widget.fieldKey) ? $t('yes') : $t('no') }}</span>
+                </div>
+
+                <!-- (4) DOMAIN_REF / DOMAIN_REFERENCE -->
+                <div v-else-if="['DOMAIN_REF', 'DOMAIN_REFERENCE'].includes(getFieldType(widget))" class="doc-text-card-value">
+                  <span class="doc-ref-badge" @click.stop="$emit('openDomainRef', getFieldDefinition(widget.fieldKey))">
+                    🔗 {{ formatDomainRef(getFieldValue(widget.fieldKey)) || '-' }}
+                  </span>
+                </div>
+
+                <!-- (5) MULTILINGUAL -->
+                <div v-else-if="getFieldType(widget) === 'MULTILINGUAL'" class="doc-multi-card-value">
+                  <div v-if="getMultilingualValue(getFieldValue(widget.fieldKey), 'ko')" class="doc-lang-row">
+                    <span class="sample-chip-tag">KO</span>
+                    <span class="ml-1">{{ getMultilingualValue(getFieldValue(widget.fieldKey), 'ko') }}</span>
+                  </div>
+                  <div v-if="getMultilingualValue(getFieldValue(widget.fieldKey), 'en')" class="doc-lang-row">
+                    <span class="sample-chip-tag">EN</span>
+                    <span class="ml-1">{{ getMultilingualValue(getFieldValue(widget.fieldKey), 'en') }}</span>
+                  </div>
+                  <span v-if="!getMultilingualValue(getFieldValue(widget.fieldKey), 'ko') && !getMultilingualValue(getFieldValue(widget.fieldKey), 'en')" class="text-secondary">-</span>
+                </div>
+
+                <!-- (6) FILE -->
+                <div v-else-if="getFieldType(widget) === 'FILE'" class="file-chips-list">
+                  <template v-if="getFilesList(getFieldValue(widget.fieldKey)).length > 0">
+                    <va-chip
+                      v-for="(fObj, fIdx) in getFilesList(getFieldValue(widget.fieldKey))"
                       :key="fIdx"
                       size="small"
                       outline
@@ -313,112 +396,284 @@
                       {{ fObj.name || fObj }}
                     </va-chip>
                   </template>
-                  <span v-else class="empty-text">{{ $t('no_file_data') }}</span>
+                  <span v-else class="text-secondary">{{ $t('no_file_data') }}</span>
                 </div>
-                <div v-else class="file-uploader-box">
-                  <va-file-upload
-                    :model-value="[]"
-                    @update:model-value="handleFilesUpload(widget.fieldKey, $event)"
-                    dropzone
-                    class="w-full"
+
+                <!-- (7) TABLE -->
+                <div v-else-if="isTableField(widget)" class="subtable-container w-full">
+                  <div class="subtable-toolbar">
+                    <div class="subtable-title">
+                      <va-badge :text="getTableRows(getFieldValue(widget.fieldKey)).length + ' ' + $t('rows')" color="info" size="small" />
+                    </div>
+                  </div>
+                  <div v-if="getTableRows(getFieldValue(widget.fieldKey)).length === 0" class="empty-subtable-prompt">
+                    <va-icon name="table_rows" size="medium" color="secondary" />
+                    <span>{{ $t('empty_table_data') }}</span>
+                  </div>
+                  <div v-else class="subtable-scroll-wrapper">
+                    <table class="rendered-subtable">
+                      <thead>
+                        <tr>
+                          <th v-for="col in getTableColumns(getFieldDefinition(widget.fieldKey))" :key="col.key">
+                            {{ col.name }}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="(row, rIdx) in getTableRows(getFieldValue(widget.fieldKey))" :key="rIdx">
+                          <td v-for="col in getTableColumns(getFieldDefinition(widget.fieldKey))" :key="col.key">
+                            {{ row[col.key] ?? '-' }}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- (8) LONG_TEXT / TEXTAREA -->
+                <div v-else-if="['LONG_TEXT', 'TEXTAREA'].includes(getFieldType(widget))" class="doc-textarea-value">
+                  {{ getFieldValue(widget.fieldKey) || '-' }}
+                </div>
+
+                <!-- (9) CALCULATED -->
+                <div v-else-if="getFieldType(widget) === 'CALCULATED'" class="doc-text-card-value font-semibold">
+                  <span>{{ getFieldValue(widget.fieldKey) || '-' }}</span>
+                </div>
+
+                <!-- (10) EMAIL -->
+                <div v-else-if="getFieldType(widget) === 'EMAIL'" class="doc-text-card-value">
+                  <a v-if="getFieldValue(widget.fieldKey)" :href="'mailto:' + getFieldValue(widget.fieldKey)" class="doc-link" @click.stop>{{ getFieldValue(widget.fieldKey) }}</a>
+                  <span v-else class="text-secondary">-</span>
+                </div>
+
+                <!-- (11) PHONE -->
+                <div v-else-if="getFieldType(widget) === 'PHONE'" class="doc-text-card-value">
+                  <a v-if="getFieldValue(widget.fieldKey)" :href="'tel:' + getFieldValue(widget.fieldKey)" class="doc-link" @click.stop>{{ getFieldValue(widget.fieldKey) }}</a>
+                  <span v-else class="text-secondary">-</span>
+                </div>
+
+                <!-- (12) NUMBER & DEFAULT TEXT -->
+                <div v-else class="doc-text-card-value">
+                  <span>{{ getFieldValue(widget.fieldKey) ?? '-' }}</span>
+                </div>
+
+                <!-- Edit Hover Indicator -->
+                <span v-if="widget.fieldKey && !isTableField(widget)" class="doc-cell-edit-icon" :title="$t('click_to_edit')">
+                  <va-icon name="edit" size="12px" color="secondary" />
+                </span>
+              </template>
+
+              <!-- ================= EDIT MODE (Interactive Form Controls) ================= -->
+              <template v-else>
+                <!-- (1) DATE Input -->
+                <va-input
+                  v-if="getFieldType(widget) === 'DATE'"
+                  :model-value="formatDateValue(getFieldValue(widget.fieldKey))"
+                  @update:model-value="(val) => setFieldValue(widget.fieldKey, val)"
+                  type="date"
+                  class="w-full"
+                  :readonly="widget.options?.readOnly"
+                  :placeholder="$t('date_placeholder')"
+                >
+                  <template #prependInner>
+                    <va-icon name="calendar_today" size="small" color="primary" />
+                  </template>
+                </va-input>
+
+                <!-- (2) DATETIME Input -->
+                <va-input
+                  v-else-if="getFieldType(widget) === 'DATETIME'"
+                  :model-value="getFieldValue(widget.fieldKey)"
+                  @update:model-value="(val) => setFieldValue(widget.fieldKey, val)"
+                  type="datetime-local"
+                  class="w-full"
+                  :readonly="widget.options?.readOnly"
+                >
+                  <template #prependInner>
+                    <va-icon name="schedule" size="small" color="primary" />
+                  </template>
+                </va-input>
+
+                <!-- (3) NUMBER / INTEGER / DECIMAL / FLOAT -->
+                <va-input
+                  v-else-if="['NUMBER', 'INTEGER', 'DECIMAL', 'FLOAT'].includes(getFieldType(widget))"
+                  :model-value="getFieldValue(widget.fieldKey)"
+                  @update:model-value="(val) => setFieldValue(widget.fieldKey, val)"
+                  type="number"
+                  class="w-full"
+                  :readonly="widget.options?.readOnly"
+                >
+                  <template #prependInner>
+                    <va-icon name="pin" size="small" color="primary" />
+                  </template>
+                </va-input>
+
+                <!-- (4) SELECT / MULTI_SELECT / CODE / ENUM -->
+                <va-select
+                  v-else-if="['SELECT', 'MULTI_SELECT', 'CODE', 'ENUM'].includes(getFieldType(widget))"
+                  :model-value="getFieldValue(widget.fieldKey)"
+                  @update:model-value="(val) => setFieldValue(widget.fieldKey, val)"
+                  :options="getFieldOptions(getFieldDefinition(widget.fieldKey))"
+                  :multiple="getFieldType(widget) === 'MULTI_SELECT' || getFieldDefinition(widget.fieldKey)?.isMultiValue"
+                  value-by="value"
+                  text-by="text"
+                  :teleport="true"
+                  class="w-full"
+                  :readonly="widget.options?.readOnly"
+                  clearable
+                />
+
+                <!-- (5) BOOLEAN Switch -->
+                <div v-else-if="getFieldType(widget) === 'BOOLEAN'" class="boolean-control-wrapper">
+                  <va-switch
+                    :model-value="!!getFieldValue(widget.fieldKey)"
+                    @update:model-value="(val) => setFieldValue(widget.fieldKey, val)"
+                    :readonly="widget.options?.readOnly"
+                    size="small"
                   />
+                  <span class="boolean-label">{{ getFieldValue(widget.fieldKey) ? $t('yes') : $t('no') }}</span>
                 </div>
-              </div>
 
-              <!-- (9) TABLE / JSON SUBTABLE GRID -->
-              <div v-else-if="isTableField(widget)" class="subtable-container w-full">
-                <div class="subtable-toolbar">
-                  <div class="subtable-title">
-                    <va-badge :text="getTableRows(record[widget.fieldKey]).length + ' ' + $t('rows')" color="info" size="small" />
-                  </div>
-                  <div v-if="isEditing && !widget.options?.readOnly" class="subtable-actions">
-                    <va-button size="small" icon="add" @click="addTableRow(widget.fieldKey, getTableColumns(getFieldDefinition(widget.fieldKey)))">
-                      {{ $t('add_row') }}
-                    </va-button>
-                    <va-button
-                      v-if="getTableRows(record[widget.fieldKey]).length > 0"
-                      preset="secondary"
-                      color="danger"
+                <!-- (6) DOMAIN_REF / DOMAIN_REFERENCE -->
+                <div v-else-if="['DOMAIN_REF', 'DOMAIN_REFERENCE'].includes(getFieldType(widget))" class="domain-ref-display w-full">
+                  <va-input
+                    :model-value="formatDomainRef(getFieldValue(widget.fieldKey))"
+                    readonly
+                    class="w-full"
+                  >
+                    <template #appendInner>
+                      <va-button size="small" preset="plain" icon="search" @click="$emit('openDomainRef', getFieldDefinition(widget.fieldKey))" />
+                    </template>
+                  </va-input>
+                </div>
+
+                <!-- (7) MULTILINGUAL Input (KO / EN) -->
+                <div v-else-if="getFieldType(widget) === 'MULTILINGUAL'" class="multilingual-control-box w-full">
+                  <div style="display: flex; gap: 0.5rem; width: 100%;">
+                    <va-input
+                      :model-value="getMultilingualValue(getFieldValue(widget.fieldKey), 'ko')"
+                      @update:model-value="(val) => setMultilingualValue(widget.fieldKey, 'ko', val)"
+                      :readonly="widget.options?.readOnly"
+                      style="flex: 1;"
                       size="small"
-                      icon="delete_sweep"
-                      @click="clearTableRows(widget.fieldKey)"
                     >
-                      {{ $t('clear_all_rows') }}
-                    </va-button>
+                      <template #prependInner><span class="lang-tag">KO</span></template>
+                    </va-input>
+                    <va-input
+                      :model-value="getMultilingualValue(getFieldValue(widget.fieldKey), 'en')"
+                      @update:model-value="(val) => setMultilingualValue(widget.fieldKey, 'en', val)"
+                      :readonly="widget.options?.readOnly"
+                      style="flex: 1;"
+                      size="small"
+                    >
+                      <template #prependInner><span class="lang-tag">EN</span></template>
+                    </va-input>
                   </div>
                 </div>
 
-                <!-- Empty State -->
-                <div v-if="getTableRows(record[widget.fieldKey]).length === 0" class="empty-subtable-prompt">
-                  <va-icon name="table_rows" size="medium" color="secondary" />
-                  <span>{{ $t('empty_table_data') }}</span>
+                <!-- (8) FILE Upload & List -->
+                <div v-else-if="getFieldType(widget) === 'FILE'" class="file-control-box w-full">
+                  <div class="file-uploader-box">
+                    <va-file-upload
+                      :model-value="[]"
+                      @update:model-value="handleFilesUpload(widget.fieldKey, $event)"
+                      dropzone
+                      class="w-full"
+                    />
+                  </div>
                 </div>
 
-                <!-- Table Content -->
-                <div v-else class="subtable-scroll-wrapper">
-                  <table class="rendered-subtable">
-                    <thead>
-                      <tr>
-                        <th style="width: 32px; text-align: center;">#</th>
-                        <th v-for="col in getTableColumns(getFieldDefinition(widget.fieldKey), record[widget.fieldKey])" :key="col.key">
-                          {{ getTranslatedColName(col.name) || col.key }}
-                        </th>
-                        <th v-if="isEditing && !widget.options?.readOnly" style="width: 40px;"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr v-for="(row, rIdx) in getTableRows(record[widget.fieldKey])" :key="rIdx">
-                        <td style="text-align: center; color: var(--va-text-secondary); font-size: 0.75rem;">{{ rIdx + 1 }}</td>
-                        <td v-for="col in getTableColumns(getFieldDefinition(widget.fieldKey), record[widget.fieldKey])" :key="col.key">
-                          <va-input
-                            v-if="isEditing && !widget.options?.readOnly"
-                            v-model="row[col.key]"
-                            size="small"
-                            class="subtable-cell-input"
-                          />
-                          <span v-else class="subtable-cell-text">{{ row[col.key] ?? '-' }}</span>
-                        </td>
-                        <td v-if="isEditing && !widget.options?.readOnly" style="text-align: center;">
-                          <va-button preset="plain" color="danger" icon="delete" size="small" @click="deleteTableRow(widget.fieldKey, rIdx)" />
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                <!-- (9) TABLE / JSON SUBTABLE GRID -->
+                <div v-else-if="isTableField(widget)" class="subtable-container w-full">
+                  <div class="subtable-toolbar">
+                    <div class="subtable-title">
+                      <va-badge :text="getTableRows(getFieldValue(widget.fieldKey)).length + ' ' + $t('rows')" color="info" size="small" />
+                    </div>
+                    <div v-if="!widget.options?.readOnly" class="subtable-actions">
+                      <va-button size="small" icon="add" @click="addTableRow(widget.fieldKey, getTableColumns(getFieldDefinition(widget.fieldKey)))">
+                        {{ $t('add_row') }}
+                      </va-button>
+                      <va-button
+                        v-if="getTableRows(getFieldValue(widget.fieldKey)).length > 0"
+                        preset="secondary"
+                        color="danger"
+                        size="small"
+                        icon="delete_sweep"
+                        @click="clearTableRows(widget.fieldKey)"
+                      >
+                        {{ $t('clear_all_rows') }}
+                      </va-button>
+                    </div>
+                  </div>
+
+                  <!-- Empty State -->
+                  <div v-if="getTableRows(getFieldValue(widget.fieldKey)).length === 0" class="empty-subtable-prompt">
+                    <va-icon name="table_rows" size="medium" color="secondary" />
+                    <span>{{ $t('empty_table_data') }}</span>
+                  </div>
+
+                  <!-- Table Content -->
+                  <div v-else class="subtable-scroll-wrapper">
+                    <table class="rendered-subtable">
+                      <thead>
+                        <tr>
+                          <th v-for="col in getTableColumns(getFieldDefinition(widget.fieldKey))" :key="col.key">
+                            {{ col.name }}
+                          </th>
+                          <th v-if="!widget.options?.readOnly" style="width: 50px;"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="(row, rIdx) in getTableRows(getFieldValue(widget.fieldKey))" :key="rIdx">
+                          <td v-for="col in getTableColumns(getFieldDefinition(widget.fieldKey))" :key="col.key">
+                            <va-input
+                              v-model="row[col.key]"
+                              class="subtable-cell-input"
+                              :readonly="widget.options?.readOnly"
+                            />
+                          </td>
+                          <td v-if="!widget.options?.readOnly" style="text-align: center;">
+                            <va-button preset="plain" color="danger" icon="delete" size="small" @click="deleteTableRow(widget.fieldKey, rIdx)" />
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
 
-              <!-- (10) LONG_TEXT / TEXTAREA -->
-              <va-textarea
-                v-else-if="['LONG_TEXT', 'TEXTAREA'].includes(getFieldType(widget))"
-                :model-value="record[widget.fieldKey]"
-                @update:model-value="(val) => setFieldValue(widget.fieldKey, val)"
-                class="w-full"
-                :readonly="!isEditing || widget.options?.readOnly"
-                :min-rows="2"
-                :max-rows="6"
-              />
+                <!-- (10) LONG_TEXT / TEXTAREA -->
+                <va-textarea
+                  v-else-if="['LONG_TEXT', 'TEXTAREA'].includes(getFieldType(widget))"
+                  :model-value="getFieldValue(widget.fieldKey)"
+                  @update:model-value="(val) => setFieldValue(widget.fieldKey, val)"
+                  class="w-full"
+                  :readonly="widget.options?.readOnly"
+                  :min-rows="2"
+                  :max-rows="6"
+                />
 
-              <!-- (11) CALCULATED (Read-only styled) -->
-              <va-input
-                v-else-if="getFieldType(widget) === 'CALCULATED'"
-                :model-value="record[widget.fieldKey]"
-                readonly
-                class="w-full calculated-input"
-              >
-                <template #prependInner>
-                  <va-icon name="functions" size="small" color="primary" />
-                </template>
-              </va-input>
+                <!-- (11) CALCULATED (Read-only styled) -->
+                <va-input
+                  v-else-if="getFieldType(widget) === 'CALCULATED'"
+                  :model-value="getFieldValue(widget.fieldKey)"
+                  readonly
+                  class="w-full calculated-input"
+                >
+                  <template #prependInner>
+                    <va-icon name="functions" size="small" color="primary" />
+                  </template>
+                </va-input>
 
-              <!-- (12) DEFAULT TEXT -->
-              <va-input
-                v-else
-                :model-value="record[widget.fieldKey]"
-                @update:model-value="(val) => setFieldValue(widget.fieldKey, val)"
-                type="text"
-                class="w-full"
-                :readonly="!isEditing || widget.options?.readOnly"
-              />
+                <!-- (12) DEFAULT TEXT -->
+                <va-input
+                  v-else
+                  :model-value="getFieldValue(widget.fieldKey)"
+                  @update:model-value="(val) => setFieldValue(widget.fieldKey, val)"
+                  type="text"
+                  class="w-full"
+                  :readonly="widget.options?.readOnly"
+                />
+              </template>
             </div>
           </div>
         </template>
@@ -466,10 +721,22 @@ const props = defineProps({
   domainReferences: {
     type: Object,
     default: () => ({})
+  },
+  decryptedValues: {
+    type: Object,
+    default: () => ({})
+  },
+  decryptRemainingTime: {
+    type: Object,
+    default: () => ({})
+  },
+  decryptingFields: {
+    type: Object,
+    default: () => ({})
   }
 })
 
-const emit = defineEmits(['update:record', 'openDomainRef', 'requestDecrypt'])
+const emit = defineEmits(['update:record', 'openDomainRef', 'requestDecrypt', 'hideDecrypt', 'startEdit'])
 
 const { t, locale } = useI18n()
 
@@ -552,9 +819,9 @@ const gridContainerStyle = computed(() => ({
 }))
 
 const getWidgetStyle = (widget: any) => {
-  const x = Math.max(0, Number(widget.x) || 0)
-  const y = Math.max(0, Number(widget.y) || 0)
   const w = Math.min(cols.value, Math.max(1, Number(widget.w) || 1))
+  const x = Math.max(0, Math.min(cols.value - w, Number(widget.x) || 0))
+  const y = Math.max(0, Number(widget.y) || 0)
   const h = Math.max(1, Number(widget.h) || 1)
 
   return {
@@ -575,7 +842,12 @@ const getEditorContentHeight = (widget: any) => {
 }
 
 const getFieldDefinition = (fieldKey: string) => {
-  return props.fields.find((f: any) => f.key === fieldKey)
+  if (!fieldKey || !props.fields) return undefined
+  const upperKey = fieldKey.toUpperCase()
+  const matched = props.fields.filter((f: any) => f.key && f.key.toUpperCase() === upperKey)
+  if (matched.length === 0) return undefined
+  const enc = matched.find((f: any) => f.isEncrypted || f.encryptionType)
+  return enc || matched[0]
 }
 
 const getFieldType = (widget: any) => {
@@ -648,31 +920,196 @@ const formatDateValue = (val: any) => {
 }
 
 const setFieldValue = (fieldKey: string, val: any) => {
+  if (!fieldKey || !props.record) return
+  if (props.record[fieldKey] !== undefined) {
+    props.record[fieldKey] = val
+    return
+  }
+  const upper = fieldKey.toUpperCase()
+  if (props.record[upper] !== undefined) {
+    props.record[upper] = val
+    return
+  }
+  const lower = fieldKey.toLowerCase()
+  if (props.record[lower] !== undefined) {
+    props.record[lower] = val
+    return
+  }
   props.record[fieldKey] = val
 }
 
 const getMultilingualValue = (obj: any, lang: string) => {
-  if (!obj || typeof obj !== 'object') return ''
-  return obj[lang] || ''
+  if (obj === undefined || obj === null) return ''
+  let targetObj = obj
+  if (typeof obj === 'string') {
+    const trimmed = obj.trim()
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        targetObj = JSON.parse(trimmed)
+      } catch {
+        return lang === 'ko' ? trimmed : ''
+      }
+    } else {
+      return lang === 'ko' ? trimmed : ''
+    }
+  }
+  if (typeof targetObj === 'object' && targetObj !== null) {
+    const val = targetObj[lang] !== undefined ? targetObj[lang] : (targetObj[lang.toUpperCase()] !== undefined ? targetObj[lang.toUpperCase()] : targetObj[lang.toLowerCase()])
+    return val !== undefined && val !== null ? String(val) : ''
+  }
+  return ''
 }
 
 const setMultilingualValue = (fieldKey: string, lang: string, val: string) => {
-  if (!props.record[fieldKey] || typeof props.record[fieldKey] !== 'object') {
-    props.record[fieldKey] = { ko: '', en: '' }
+  if (!fieldKey || !props.record) return
+  let targetKey = fieldKey
+  if (props.record[fieldKey] !== undefined) {
+    targetKey = fieldKey
+  } else if (props.record[fieldKey.toUpperCase()] !== undefined) {
+    targetKey = fieldKey.toUpperCase()
+  } else if (props.record[fieldKey.toLowerCase()] !== undefined) {
+    targetKey = fieldKey.toLowerCase()
   }
-  props.record[fieldKey][lang] = val
+
+  let currentObj = props.record[targetKey]
+  if (typeof currentObj === 'string') {
+    try {
+      currentObj = JSON.parse(currentObj)
+    } catch {
+      currentObj = { ko: currentObj, en: '' }
+    }
+  }
+  if (!currentObj || typeof currentObj !== 'object') {
+    currentObj = { ko: '', en: '' }
+  }
+  currentObj[lang] = val
+  props.record[targetKey] = currentObj
+}
+
+const isFieldEncrypted = (widget: any) => {
+  if (!widget?.fieldKey) return false
+  const fd: any = getFieldDefinition(widget.fieldKey)
+  return !!(fd?.isEncrypted || fd?.encryptionType)
+}
+
+const getDecryptedFieldValue = (fieldKey: string) => {
+  if (!props.decryptedValues || !fieldKey) return undefined
+  if (props.decryptedValues[fieldKey] !== undefined && props.decryptedValues[fieldKey] !== null) {
+    return props.decryptedValues[fieldKey]
+  }
+  const lower = fieldKey.toLowerCase()
+  if (props.decryptedValues[lower] !== undefined && props.decryptedValues[lower] !== null) {
+    return props.decryptedValues[lower]
+  }
+  const upper = fieldKey.toUpperCase()
+  if (props.decryptedValues[upper] !== undefined && props.decryptedValues[upper] !== null) {
+    return props.decryptedValues[upper]
+  }
+  return undefined
+}
+
+const getDecryptRemainingTime = (fieldKey: string) => {
+  if (!props.decryptRemainingTime || !fieldKey) return 0
+  if (props.decryptRemainingTime[fieldKey]) return props.decryptRemainingTime[fieldKey]
+  const lower = fieldKey.toLowerCase()
+  if (props.decryptRemainingTime[lower]) return props.decryptRemainingTime[lower]
+  const upper = fieldKey.toUpperCase()
+  if (props.decryptRemainingTime[upper]) return props.decryptRemainingTime[upper]
+  return 0
+}
+
+const onRequestDecrypt = (fieldKey: string) => {
+  emit('requestDecrypt', fieldKey)
+}
+
+const onHideDecrypt = (fieldKey: string) => {
+  emit('hideDecrypt', fieldKey)
+}
+
+const getFieldValue = (fieldKey: string) => {
+  if (!fieldKey) return undefined
+  const decrypted = getDecryptedFieldValue(fieldKey)
+  if (decrypted !== undefined && decrypted !== null) return decrypted
+  if (!props.record) return undefined
+  if (props.record[fieldKey] !== undefined) return props.record[fieldKey]
+  const upper = fieldKey.toUpperCase()
+  if (props.record[upper] !== undefined) return props.record[upper]
+  const lower = fieldKey.toLowerCase()
+  if (props.record[lower] !== undefined) return props.record[lower]
+  return undefined
+}
+
+const onCellClick = (widget: any) => {
+  if (!props.isEditing && widget?.fieldKey) {
+    emit('startEdit', widget.fieldKey)
+  }
 }
 
 const getFieldOptions = (field: any) => {
   if (!field || !field.options) return []
-  if (Array.isArray(field.options)) return field.options
-  try {
-    const parsed = JSON.parse(field.options)
-    if (Array.isArray(parsed)) return parsed
-  } catch (e) {
-    return field.options.split(',').map((s: string) => ({ text: s.trim(), value: s.trim() }))
+  let rawList: any = field.options
+  if (typeof field.options === 'string') {
+    const trimmed = field.options.trim()
+    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+      try {
+        rawList = JSON.parse(trimmed)
+      } catch (e) {
+        return trimmed.split(',').map((s: string) => ({ text: s.trim(), value: s.trim() }))
+      }
+    } else {
+      return trimmed.split(',').map((s: string) => ({ text: s.trim(), value: s.trim() }))
+    }
+  }
+
+  if (Array.isArray(rawList)) {
+    return rawList.map((o: any) => {
+      if (typeof o === 'string' || typeof o === 'number') {
+        return { text: String(o), value: String(o) }
+      }
+      if (o && typeof o === 'object') {
+        const val = o.value !== undefined ? o.value : (o.key !== undefined ? o.key : (o.code !== undefined ? o.code : ''))
+        let textLabel: any = null
+        if (o.label && typeof o.label === 'object') {
+          textLabel = o.label[locale.value] || o.label.ko || o.label.en
+        } else if (o.name && typeof o.name === 'object') {
+          textLabel = o.name[locale.value] || o.name.ko || o.name.en
+        } else {
+          textLabel = o.label || o.name || o.text || o.title || o.displayName
+        }
+        if (typeof textLabel === 'object' && textLabel !== null) {
+          textLabel = textLabel[locale.value] || textLabel.ko || textLabel.en || String(val)
+        }
+        return { text: String(textLabel || val || ''), value: val }
+      }
+      return { text: String(o), value: String(o) }
+    })
   }
   return []
+}
+
+const getSelectOptionLabels = (fieldKey: string, val: any) => {
+  if (val === undefined || val === null || val === '') return []
+  const field: any = getFieldDefinition(fieldKey)
+  const options = getFieldOptions(field)
+  let vals: any[] = []
+  if (Array.isArray(val)) {
+    vals = val
+  } else if (typeof val === 'string' && val.startsWith('[') && val.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(val)
+      vals = Array.isArray(parsed) ? parsed : [val]
+    } catch {
+      vals = val.includes(',') ? val.split(',').map(s => s.trim()) : [val]
+    }
+  } else if (typeof val === 'string' && val.includes(',')) {
+    vals = val.split(',').map(s => s.trim())
+  } else {
+    vals = [val]
+  }
+  return vals.map((v: any) => {
+    const matched = options.find((opt: any) => String(opt.value) === String(v))
+    return matched ? matched.text : String(v)
+  })
 }
 
 const formatDomainRef = (val: any) => {
@@ -897,6 +1334,31 @@ const clearTableRows = (fieldKey: string) => {
   display: flex;
   align-items: center;
   gap: 6px;
+  width: 100%;
+}
+
+.single-row-multi-wrapper {
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.single-row-multi-edit {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 4px;
+}
+
+.single-row-lang-input {
+  flex: 1;
+  min-width: 0;
+  --va-input-font-size: 0.8rem;
+}
+
+.multi-chip-item {
+  display: inline-flex;
+  align-items: center;
 }
 
 .single-row-section {
@@ -1139,6 +1601,126 @@ const clearTableRows = (fieldKey: string) => {
   justify-content: center;
   padding: 1.5rem;
   color: var(--va-text-secondary, #94a3b8);
-  font-size: 0.82rem;
+}
+
+/* Document-style Presentation & Clean View */
+.doc-val-box-interactive,
+.doc-field-wrapper-interactive {
+  cursor: pointer;
+  position: relative;
+  border-radius: 4px;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.doc-val-box-interactive:hover,
+.doc-field-wrapper-interactive:hover {
+  background-color: rgba(var(--va-primary-rgb, 37, 99, 235), 0.04);
+}
+
+.doc-cell-edit-icon {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.doc-val-box-interactive:hover .doc-cell-edit-icon,
+.doc-field-wrapper-interactive:hover .doc-cell-edit-icon,
+.widget-box-header:hover .doc-cell-edit-icon {
+  opacity: 1;
+}
+
+.doc-chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.doc-text-value {
+  font-size: 0.875rem;
+  color: var(--va-text-primary, #1e293b);
+  word-break: break-all;
+}
+
+.doc-text-card-value {
+  font-size: 0.875rem;
+  color: var(--va-text-primary, #1e293b);
+  padding: 4px 6px;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  word-break: break-all;
+}
+
+.doc-multi-card-value {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 2px 4px;
+}
+
+.doc-lang-row {
+  display: flex;
+  align-items: center;
+  font-size: 0.84rem;
+}
+
+.doc-textarea-value {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--va-text-primary, #1e293b);
+  padding: 6px 8px;
+  background: var(--va-background-element, #f8fafc);
+  border-radius: 4px;
+  border: 1px solid var(--va-background-border, #e2e8f0);
+}
+
+.doc-html-box {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  padding: 8px 12px;
+  background: var(--va-background-element, #ffffff);
+  border: 1px solid var(--va-background-border, #e2e8f0);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--va-text-primary, #1e293b);
+}
+
+.doc-html-box.doc-interactive {
+  cursor: pointer;
+}
+
+.doc-html-box.doc-interactive:hover {
+  border-color: var(--va-primary, #2563eb);
+}
+
+.doc-ref-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: rgba(var(--va-primary-rgb, 37, 99, 235), 0.08);
+  color: var(--va-primary, #2563eb);
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.doc-ref-badge:hover {
+  text-decoration: underline;
+}
+
+.doc-link {
+  color: var(--va-primary, #2563eb);
+  text-decoration: underline;
+  cursor: pointer;
 }
 </style>

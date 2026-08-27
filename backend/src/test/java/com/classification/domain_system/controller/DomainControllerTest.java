@@ -268,4 +268,17 @@ class DomainControllerTest {
                 .andExpect(jsonPath("$.domainType").value("SPECIALIZED"))
                 .andExpect(jsonPath("$.specializedCategory").value("CUSTOMER"));
     }
+
+    @Test
+    @DisplayName("DELETE /api/domains/{id} - 도메인 삭제 성공")
+    void deleteDomain() throws Exception {
+        UUID domainId = UUID.randomUUID();
+        org.mockito.Mockito.doNothing().when(domainService).deleteDomain(domainId);
+
+        mockMvc.perform(delete("/api/domains/{id}", domainId))
+                .andDo(print())
+                .andExpect(status().isNoContent());
+
+        org.mockito.Mockito.verify(domainService).deleteDomain(domainId);
+    }
 }

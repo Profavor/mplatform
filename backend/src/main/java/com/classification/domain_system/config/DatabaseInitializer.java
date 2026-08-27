@@ -42,6 +42,28 @@ public class DatabaseInitializer implements ApplicationRunner {
                         + "ALTER TABLE approval_step ADD COLUMN IF NOT EXISTS escalated_at TIMESTAMP;";
                 entityManager.createNativeQuery(ensureSlaColumnsSql).executeUpdate();
             } catch (Exception ignored) {}
+
+            // Ensure ON DELETE CASCADE/SET NULL on tables referencing record(id)
+            try {
+                String ensureRecordFkCascadeSql = 
+                    "ALTER TABLE dq_violation DROP CONSTRAINT IF EXISTS fkiyvb583s9upl4prtl1bho9kw1;"
+                    + "ALTER TABLE dq_violation ADD CONSTRAINT fkiyvb583s9upl4prtl1bho9kw1 FOREIGN KEY (record_id) REFERENCES record(id) ON DELETE CASCADE;"
+                    + "ALTER TABLE record_secondary_node DROP CONSTRAINT IF EXISTS fk4gi888ouu16rl8gikxod61v68;"
+                    + "ALTER TABLE record_secondary_node ADD CONSTRAINT fk4gi888ouu16rl8gikxod61v68 FOREIGN KEY (record_id) REFERENCES record(id) ON DELETE CASCADE;"
+                    + "ALTER TABLE record_field_source DROP CONSTRAINT IF EXISTS fksack7ykq36libnbl0tijbwvg8;"
+                    + "ALTER TABLE record_field_source ADD CONSTRAINT fksack7ykq36libnbl0tijbwvg8 FOREIGN KEY (record_id) REFERENCES record(id) ON DELETE CASCADE;"
+                    + "ALTER TABLE match_candidate DROP CONSTRAINT IF EXISTS fk4jhsvm9jbj308q2gy9x8bnw77;"
+                    + "ALTER TABLE match_candidate ADD CONSTRAINT fk4jhsvm9jbj308q2gy9x8bnw77 FOREIGN KEY (existing_record_id) REFERENCES record(id) ON DELETE CASCADE;"
+                    + "ALTER TABLE integration_logs DROP CONSTRAINT IF EXISTS fkjnr7c768g2v41h8xuauxc8t3u;"
+                    + "ALTER TABLE integration_logs ADD CONSTRAINT fkjnr7c768g2v41h8xuauxc8t3u FOREIGN KEY (record_id) REFERENCES record(id) ON DELETE SET NULL;"
+                    + "ALTER TABLE record DROP CONSTRAINT IF EXISTS fk6iako2qqonoa9pvw3jdh8yjw8;"
+                    + "ALTER TABLE record ADD CONSTRAINT fk6iako2qqonoa9pvw3jdh8yjw8 FOREIGN KEY (merged_into_record_id) REFERENCES record(id) ON DELETE SET NULL;"
+                    + "ALTER TABLE record_history DROP CONSTRAINT IF EXISTS fk3n0uq2afivhyimre1l9h92lhl;";
+                entityManager.createNativeQuery(ensureRecordFkCascadeSql).executeUpdate();
+                log.info("Successfully ensured ON DELETE CASCADE / SET NULL on tables referencing record(id).");
+            } catch (Exception ex) {
+                log.warn("Could not ensure record FK cascade constraints: {}", ex.getMessage());
+            }
         } catch (Exception e) {
             log.warn("Failed to create GIN index on record.data. It may already exist or DB is not PostgreSQL: {}", e.getMessage());
         }

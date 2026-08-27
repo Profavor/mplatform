@@ -292,6 +292,8 @@
   "layout_saved_success": "레이아웃이 성공적으로 저장되었습니다.",
   "layout_save_failed": "레이아웃 저장 중 오류가 발생했습니다.",
   "drag_to_resize_hint": "우측 하단 모서리를 드래그하여 가로/세로 크기 조절",
+  "drag_width_resize_hint": "우측 모서리를 드래그하여 가로 너비(1~12칸) 조절",
+  "drag_height_resize_hint": "하단 테두리를 드래그하여 세로 높이 조절",
   "confirm_clear_layout": "배치된 모든 위젯을 비우시겠습니까?",
   "no_unplaced_fields": "모든 필드가 캔버스에 배치되었습니다.",
   "widget_label": "표시 라벨",

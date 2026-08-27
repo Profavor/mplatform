@@ -132,10 +132,26 @@ public class DqRuleEngine {
             // Skip NOT_NULL / LENGTH / REGEX DQ rules for Auto-Numbering fields during creation
             boolean isAutoNumbering = isAutoNumberingField(currentDomain, field, effectiveFields);
 
+            JsonNode valueNode = getValueNodeCaseInsensitive(dataNode, field.getKey());
+
+            // Intrinsic validation for EMAIL field type
+            if ("EMAIL".equalsIgnoreCase(field.getType()) && valueNode != null && !valueNode.isNull()) {
+                String textVal = valueNode.asText().trim();
+                if (!textVal.isBlank() && !textVal.contains("*") && !textVal.startsWith("vault:") && !textVal.startsWith("ENC(")) {
+                    if (!EMAIL_PATTERN.matcher(textVal).matches()) {
+                        result.addViolation(
+                                field.getKey(),
+                                "EMAIL_FORMAT",
+                                "ERROR",
+                                Map.of("ko", "올바른 이메일 형식이 아닙니다.", "en", "Invalid email format."),
+                                textVal
+                        );
+                    }
+                }
+            }
+
             List<DqRule> fieldRules = rulesByField.getOrDefault(field.getId(), Collections.emptyList());
             if (fieldRules.isEmpty()) continue;
-
-            JsonNode valueNode = dataNode.get(field.getKey());
 
             for (DqRule rule : fieldRules) {
                 if (isAutoNumbering && (rule.getRuleType() == DqRuleType.NOT_NULL || rule.getRuleType() == DqRuleType.LENGTH || rule.getRuleType() == DqRuleType.REGEX)) {
@@ -169,8 +185,25 @@ public class DqRuleEngine {
             }
         }
 
-
         return result;
+    }
+
+    private static final java.util.regex.Pattern EMAIL_PATTERN =
+            java.util.regex.Pattern.compile("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+
+    private JsonNode getValueNodeCaseInsensitive(JsonNode dataNode, String fieldKey) {
+        if (dataNode == null || fieldKey == null) return null;
+        if (dataNode.has(fieldKey)) return dataNode.get(fieldKey);
+        if (dataNode.has(fieldKey.toUpperCase())) return dataNode.get(fieldKey.toUpperCase());
+        if (dataNode.has(fieldKey.toLowerCase())) return dataNode.get(fieldKey.toLowerCase());
+        Iterator<String> it = dataNode.fieldNames();
+        while (it.hasNext()) {
+            String fn = it.next();
+            if (fn.equalsIgnoreCase(fieldKey)) {
+                return dataNode.get(fn);
+            }
+        }
+        return null;
     }
 
     /**

@@ -1375,7 +1375,7 @@ const getGroupedChangesList = (changesString, targetType) => {
       valAfter = parsed[key]
     }
     
-    const foundField = Object.values(fieldNameMap.value || {}).find(field => field && field.key && (String(field.key).toUpperCase() === key || String(field.key).toLowerCase() === key.toLowerCase()))
+    const foundField = Object.values(fieldNameMap.value || {}).find(field => field && field.key && (String(field.key).toUpperCase() === String(key).toUpperCase()))
     let inferredType = foundField ? foundField.type : undefined;
     const strValCheck = String(valAfter || valBefore || '');
     if (!inferredType && (strValCheck.includes('/api/files/download/') || strValCheck.includes('name='))) {

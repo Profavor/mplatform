@@ -49,9 +49,10 @@
                 @loaded="onTreeLoaded"
               />
             </div>
-            <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; padding: 0 0.5rem;">
-              <va-button v-if="hasPermission('domain:write') || hasPermission('domain:*')" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="create_new_folder" @click="openDomainModal()" color="primary">{{ $t('domain') }}</va-button>
-              <va-button v-if="hasPermission('node:write') || hasPermission('node:*')" style="flex: 1; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="note_add" @click="openNodeModal()" :disabled="!selectedNode" color="primary" :preset="selectedNode ? 'primary' : 'secondary'">{{ $t('node') }}</va-button>
+            <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; padding: 0 0.5rem; flex-wrap: wrap;">
+              <va-button v-if="hasPermission('domain:write') || hasPermission('domain:*')" style="flex: 1; min-width: 90px; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="create_new_folder" @click="openDomainModal()" color="primary">{{ $t('domain') }}</va-button>
+              <va-button v-if="hasPermission('node:write') || hasPermission('node:*')" style="flex: 1; min-width: 90px; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="note_add" @click="openNodeModal()" :disabled="!selectedNode" color="primary" :preset="selectedNode ? 'primary' : 'secondary'">{{ $t('node') }}</va-button>
+              <va-button v-if="(hasPermission('domain:write') || hasPermission('domain:*')) && selectedNode && selectedNode.isDomain" style="flex: 1; min-width: 100%; border-radius: 8px; margin-top: 0.25rem;" icon="delete_outline" @click="handleDomainDelete(selectedNode)" color="danger" preset="outline">{{ $t('records.delete_domain_btn') }}</va-button>
             </div>
             <div style="margin-top: 0.75rem; padding: 0 0.5rem;">
               <va-button preset="secondary" style="width: 100%;" @click="showRequestAccessModal = true">{{ $t('request_domain_access') }}</va-button>
@@ -71,8 +72,8 @@
               <template #tabs>
                 <va-tab>{{ $t('tab_fields') }}</va-tab>
                 <va-tab>{{ $t('schema_history.title') }}</va-tab>
-                <va-tab v-if="selectedNode && selectedNode.type === 'domain'">{{ $t('classification_axes') }}</va-tab>
-                <va-tab v-if="selectedNode && selectedNode.type === 'domain'">{{ $t('data_profiling') }}</va-tab>
+                <va-tab v-if="isDomainSelected">{{ $t('classification_axes') }}</va-tab>
+                <va-tab v-if="isDomainSelected">{{ $t('data_profiling') }}</va-tab>
               </template>
             </va-tabs>
           </va-card-title>
@@ -156,13 +157,13 @@
             </div>
 
             <!-- Classification Axes Tab (Domain Only) -->
-            <div v-if="selectedNode && selectedNode.type === 'domain'" v-show="activeTab === 2" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 1rem;">
-              <ClassificationAxisTab :domain-id="selectedNode.id" />
+            <div v-if="isDomainSelected" v-show="activeTab === 2" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 1rem;">
+              <ClassificationAxisTab :domain-id="selectedNode.domainId || selectedNode.id" />
             </div>
 
             <!-- Data Profiling Tab (Domain Only) -->
-            <div v-if="selectedNode && selectedNode.type === 'domain'" v-show="activeTab === 3" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
-              <DataProfilingTab :domain-id="selectedNode.id" />
+            <div v-if="isDomainSelected" v-show="activeTab === 3" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+              <DataProfilingTab :domain-id="selectedNode.domainId || selectedNode.id" />
             </div>
           </va-card-content>
         </va-card>
@@ -563,7 +564,17 @@ const createFieldsDatasource = () => {
           : `/api/nodes/${selectedNode.value.id}/fields/effective/page?page=${page}&size=${size}`;
           
         const pageData = await customFetch(endpoint);
-        params.successCallback(pageData.content, pageData.totalElements);
+        let list = pageData?.content || [];
+        if (Array.isArray(list)) {
+          const uMap = new Map();
+          list.forEach(f => {
+            if (!f) return;
+            const k = f.id || f.key;
+            if (k && !uMap.has(k)) uMap.set(k, f);
+          });
+          list = Array.from(uMap.values());
+        }
+        params.successCallback(list, pageData.totalElements);
       } catch (e) {
         console.error('Failed to load fields page:', e);
         params.failCallback();
@@ -642,6 +653,26 @@ const newDomain = ref({
   sortOrder: 0,
   autoDqScanEnabled: false
 })
+const parseName = (nameObj) => {
+  if (!nameObj) return { ko: '', en: '' }
+  if (typeof nameObj === 'object') return nameObj
+  try {
+    const parsed = JSON.parse(nameObj)
+    if (typeof parsed === 'object' && parsed !== null) {
+      return parsed
+    }
+    return { ko: String(nameObj), en: String(nameObj) }
+  } catch (e) {
+    return { ko: String(nameObj), en: String(nameObj) }
+  }
+}
+
+const getTranslatedName = (nameObj) => {
+  if (!nameObj) return ''
+  const parsed = parseName(nameObj)
+  return parsed[currentLocale.value] || parsed.ko || parsed.en || (typeof nameObj === 'string' ? nameObj : '')
+}
+
 const domainFieldOptions = ref([])
 const mappingError = ref({ id: false, name: false })
 
@@ -747,15 +778,89 @@ const groupColumnDefs = [
   }
 ]
 
+const normalizeOptionsToList = (opts) => {
+  if (!opts) return []
+  let raw = opts
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim()
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        raw = JSON.parse(trimmed)
+      } catch (e) {
+        return trimmed.split(',').map((s, idx) => ({
+          key: s.trim(),
+          label: { ko: s.trim(), en: s.trim() },
+          order: idx
+        }))
+      }
+    } else {
+      return trimmed.split(',').map((s, idx) => ({
+        key: s.trim(),
+        label: { ko: s.trim(), en: s.trim() },
+        order: idx
+      }))
+    }
+  }
+
+  let list = []
+  if (Array.isArray(raw)) {
+    list = raw
+  } else if (raw && typeof raw === 'object') {
+    if (Array.isArray(raw.optionsList)) {
+      list = raw.optionsList
+    } else if (Array.isArray(raw.options)) {
+      list = raw.options
+    }
+  }
+
+  return list.map((o, idx) => {
+    if (typeof o === 'string' || typeof o === 'number') {
+      return {
+        key: String(o),
+        label: { ko: String(o), en: String(o) },
+        order: idx
+      }
+    }
+    if (o && typeof o === 'object') {
+      const k = o.key !== undefined ? o.key : (o.value !== undefined ? o.value : (o.code !== undefined ? o.code : ''))
+      const koLabel = typeof o.label === 'object' ? (o.label?.ko || o.label?.en || '') : (o.label || o.name || o.text || o.title || k)
+      const enLabel = typeof o.label === 'object' ? (o.label?.en || o.label?.ko || '') : (o.nameEn || o.label || o.name || o.text || o.title || k)
+      return {
+        key: String(k),
+        label: { ko: String(koLabel), en: String(enLabel) },
+        order: o.order !== undefined ? o.order : idx
+      }
+    }
+    return {
+      key: '',
+      label: { ko: '', en: '' },
+      order: idx
+    }
+  })
+}
+
+const updateGridRowData = (api, data) => {
+  if (!api) return
+  if (typeof api.setGridOption === 'function') {
+    api.setGridOption('rowData', data)
+  } else if (typeof api.setRowData === 'function') {
+    api.setRowData(data)
+  }
+}
+
 const onOptionsGridReady = (params) => {
   optionsGridApi.value = params.api
+  if (newFieldOptionsList.value && newFieldOptionsList.value.length > 0) {
+    updateGridRowData(params.api, newFieldOptionsList.value)
+  }
 }
 
 const addGridOption = () => {
-  newFieldOptionsList.value.push({ key: '', label: { ko: '', en: '' }, order: 0 })
-  if (optionsGridApi.value) {
-    optionsGridApi.value.setRowData(newFieldOptionsList.value)
-  }
+  newFieldOptionsList.value = [
+    ...newFieldOptionsList.value,
+    { key: '', label: { ko: '', en: '' }, order: newFieldOptionsList.value.length }
+  ]
+  updateGridRowData(optionsGridApi.value, newFieldOptionsList.value)
 }
 
 const removeSelectedGridOption = () => {
@@ -764,7 +869,7 @@ const removeSelectedGridOption = () => {
   if (selectedNodes.length > 0) {
     const selectedData = selectedNodes.map(node => node.data)
     newFieldOptionsList.value = newFieldOptionsList.value.filter(opt => !selectedData.includes(opt))
-    optionsGridApi.value.setRowData(newFieldOptionsList.value)
+    updateGridRowData(optionsGridApi.value, newFieldOptionsList.value)
   }
 }
 
@@ -864,6 +969,11 @@ const groupOptions = computed(() => {
       value: g.id
     }
   })
+})
+
+const isDomainSelected = computed(() => {
+  if (!selectedNode.value) return false
+  return selectedNode.value.isDomain === true || selectedNode.value.type === 'domain' || (selectedNode.value.id && selectedNode.value.domainId === selectedNode.value.id)
 })
 
 const fieldTypes = computed(() => {
@@ -998,7 +1108,16 @@ const columnDefs = computed(() => [
   { headerName: 'Order', field: 'order', sortable: true, width: 90 },
   { headerName: 'Grid Width', field: 'gridWidth', sortable: true, width: 120 },
   { headerName: 'AG-Grid Width', field: 'tableColumnWidth', sortable: true, width: 130 },
-  { headerName: 'Type', field: 'type', sortable: true, width: 150 },
+  { 
+    headerName: 'Type', 
+    field: 'type', 
+    sortable: true, 
+    width: 170,
+    valueGetter: (params) => {
+      if (!params.data || !params.data.type) return '';
+      return codeStore.getCodeName('FIELD_TYPE', params.data.type, params.data.type);
+    }
+  },
   { 
     headerName: 'Required', 
     field: 'required', 
@@ -1320,7 +1439,17 @@ const onNodeSelected = async (nodes) => {
     ])
     domainSectors.value = sData
     domainGroups.value = gData
-    fields.value = fData || []
+    const uniqueFieldsMap = new Map()
+    if (Array.isArray(fData)) {
+      fData.forEach(f => {
+        if (!f) return
+        const k = f.id || f.key
+        if (k && !uniqueFieldsMap.has(k)) {
+          uniqueFieldsMap.set(k, f)
+        }
+      })
+    }
+    fields.value = Array.from(uniqueFieldsMap.values())
     
     workflowConfigs.value = {
       CREATE: { steps: [], observerIds: [] },
@@ -1410,23 +1539,27 @@ const handleNodeEdit = async (node) => {
   if (targetNode.isDomain) {
     try {
       const dFields = await customFetch(`/api/domains/${targetNode.id}/fields`)
-      domainFieldOptions.value = dFields.map(f => {
-        const pName = typeof f.name === 'string' ? JSON.parse(f.name || '{}') : (f.name || {})
-        return {
-          value: f.id,
-          text: pName[currentLocale.value] || pName.ko || pName.en || f.key || 'Unknown',
-          type: f.type
-        }
-      })
+      if (Array.isArray(dFields)) {
+        domainFieldOptions.value = dFields.map(f => {
+          const labelText = getTranslatedName(f.name) || f.key || 'Unknown'
+          return {
+            value: f.id,
+            text: `${labelText} (${f.key})`,
+            type: f.type
+          }
+        })
+      } else {
+        domainFieldOptions.value = []
+      }
     } catch (e) {
       domainFieldOptions.value = []
     }
     const rawDomain = targetNode.originalData || {}
-    const pDesc = typeof rawDomain.description === 'string' ? JSON.parse(rawDomain.description || '{}') : (rawDomain.description || {})
+    const pDesc = parseName(rawDomain.description)
     newDomain.value = { 
       ...targetNode, 
-      name: { ...(targetNode.originalNameMap || {ko:'', en:''}) },
-      description: { ko: pDesc.ko || '', en: pDesc.en || '' },
+      name: { ...(targetNode.originalNameMap || parseName(targetNode.name)) },
+      description: { ko: pDesc?.ko || '', en: pDesc?.en || '' },
       identifierFieldId: rawDomain.identifierFieldId || null,
       displayNameFieldId: rawDomain.displayNameFieldId || null,
       descriptionFieldId: rawDomain.descriptionFieldId || null,
@@ -1462,11 +1595,6 @@ const openNodeModal = () => {
   showNodeModal.value = true
 }
 
-const getTranslatedName = (nameObj) => {
-  if (!nameObj) return ''
-  if (typeof nameObj === 'string') return nameObj
-  return nameObj[currentLocale.value] || nameObj['ko'] || nameObj['en'] || Object.values(nameObj)[0] || ''
-}
 
 const availableConditionFields = computed(() => {
   return (fields.value || [])
@@ -1534,10 +1662,8 @@ const openFieldModal = async (rowData = null) => {
       gridWidth: rowData.gridWidth || null,
       tableColumnWidth: rowData.tableColumnWidth || null
     }
-    if (['SELECT', 'MULTI_SELECT', 'ENUM'].includes(rowData.type)) {
-      try {
-        newFieldOptionsList.value = JSON.parse(rowData.options || '[]')
-      } catch (e) { newFieldOptionsList.value = [] }
+    if (['SELECT', 'MULTI_SELECT', 'ENUM', 'CODE'].includes(rowData.type)) {
+      newFieldOptionsList.value = normalizeOptionsToList(rowData.options)
     } else {
       newFieldOptionsList.value = []
     }
@@ -1680,9 +1806,40 @@ const saveNode = async () => {
   }
 }
 
+const handleDomainDelete = async (node) => {
+  const target = node || selectedNode.value
+  if (!target) return
+
+  const domainId = target.isDomain ? target.id : (target.domainId || selectedDomainId.value)
+  if (!domainId) return
+
+  const domainName = target.label || (target.originalNameMap ? (target.originalNameMap[currentLocale.value] || target.originalNameMap.ko || target.originalNameMap.en) : (selectedDomainName.value || 'Domain'))
+  const confirmMsg = t('records.delete_domain_confirm_desc', { name: domainName })
+  if (!confirm(confirmMsg)) return
+
+  try {
+    await customFetch(`/api/domains/${domainId}`, {
+      method: 'DELETE'
+    })
+    try {
+      toast.init({
+        message: t('records.delete_domain_success'),
+        color: 'success'
+      })
+    } catch (ignored) {}
+    selectedNode.value = null
+    await loadTree()
+  } catch (e) {
+    showCustomAlert(e.message || '도메인 삭제 실패', 'Delete Error', 'Error', 'error')
+  }
+}
+
 const handleNodeDelete = async (node) => {
   const target = node || selectedNode.value
-  if (!target || target.isDomain) return
+  if (!target) return
+  if (target.isDomain) {
+    return handleDomainDelete(target)
+  }
 
   const nodeName = target.label || (target.originalNameMap ? (target.originalNameMap[currentLocale.value] || target.originalNameMap.ko || target.originalNameMap.en) : 'Node')
   const confirmMsg = t('confirm_delete_node', { name: nodeName })
@@ -1717,7 +1874,7 @@ const saveField = async () => {
   }
   
   let existingOptsObj = {}
-  if (['SELECT', 'MULTI_SELECT', 'ENUM'].includes(newField.value.type)) {
+  if (['SELECT', 'MULTI_SELECT', 'ENUM', 'CODE'].includes(newField.value.type)) {
     const hasEmptyKey = newFieldOptionsList.value.some(opt => !opt.key || String(opt.key).trim() === '')
     if (hasEmptyKey) {
       showCustomAlert(t('enter_key_all_options'), 'Input Missing', 'Warning', 'warning')

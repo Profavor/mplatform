@@ -88,10 +88,15 @@ class DqRuleEngineTest {
     }
 
     private void setupFieldAndRule(FieldDefinition field, DqRule rule) {
-        rule.setFieldDefinition(field);
         when(fieldDefinitionService.getEffectiveFields(nodeId)).thenReturn(List.of(field));
-        when(dqRuleRepository.findByFieldDefinition_IdInAndIsActiveTrueOrderBySortOrderAsc(List.of(field.getId())))
-                .thenReturn(List.of(rule));
+        if (rule != null) {
+            rule.setFieldDefinition(field);
+            when(dqRuleRepository.findByFieldDefinition_IdInAndIsActiveTrueOrderBySortOrderAsc(List.of(field.getId())))
+                    .thenReturn(List.of(rule));
+        } else {
+            when(dqRuleRepository.findByFieldDefinition_IdInAndIsActiveTrueOrderBySortOrderAsc(List.of(field.getId())))
+                    .thenReturn(Collections.emptyList());
+        }
     }
 
     // ─── NOT_NULL Tests ──────────────────────────────────────────────
@@ -587,6 +592,53 @@ class DqRuleEngineTest {
 
             assertThat(result.isValid()).isTrue();
             assertThat(result.getViolations()).isEmpty();
+        }
+    }
+
+    // ─── EMAIL Field Type & Case-Insensitive Matching Tests ──────────────
+
+    @Nested
+    @DisplayName("EMAIL 필드 타입 내장 검증 및 대소문자 무관 키 매핑 테스트")
+    class EmailValidationAndCaseInsensitiveTests {
+
+        @Test
+        @DisplayName("EMAIL 타입 필드에 잘못된 이메일 형식 입력 시 위반사항을 반환한다")
+        void evaluate_InvalidEmailFormat_ReturnsViolation() {
+            FieldDefinition field = makeField("contact_email", "EMAIL");
+            setupFieldAndRule(field, null);
+
+            DqEvaluationResult result = engine.evaluate(nodeId, "{\"contact_email\":\"invalid-email-address\"}");
+
+            assertThat(result.isValid()).isFalse();
+            assertThat(result.getViolations()).hasSize(1);
+            assertThat(result.getViolations().get(0).getRuleType()).isEqualTo("EMAIL_FORMAT");
+            assertThat(result.getViolations().get(0).getFieldKey()).isEqualTo("contact_email");
+        }
+
+        @Test
+        @DisplayName("EMAIL 타입 필드에 올바른 이메일 형식 입력 시 위반사항 없이 통과한다")
+        void evaluate_ValidEmailFormat_Passes() {
+            FieldDefinition field = makeField("contact_email", "EMAIL");
+            setupFieldAndRule(field, null);
+
+            DqEvaluationResult result = engine.evaluate(nodeId, "{\"contact_email\":\"test.user@company.com\"}");
+
+            assertThat(result.isValid()).isTrue();
+            assertThat(result.getViolations()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("데이터 키와 필드 정의 키의 대소문자가 다르더라도 정상 매핑되어 검증된다")
+        void evaluate_CaseInsensitiveKeyMapping_EvaluatesCorrectly() {
+            FieldDefinition field = makeField("TAX_INVOICE_EMAIL", "EMAIL");
+            setupFieldAndRule(field, null);
+
+            // Payload has lowercase key 'tax_invoice_email'
+            DqEvaluationResult result = engine.evaluate(nodeId, "{\"tax_invoice_email\":\"invalid-format\"}");
+
+            assertThat(result.isValid()).isFalse();
+            assertThat(result.getViolations()).hasSize(1);
+            assertThat(result.getViolations().get(0).getFieldKey()).isEqualTo("TAX_INVOICE_EMAIL");
         }
     }
 }

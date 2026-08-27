@@ -23,8 +23,44 @@ public class SpecializedDomainTemplateDto {
     private Map<String, String> rootNodeName;
     private String identifierFieldKey;
     private String displayNameFieldKey;
+    private List<ClassificationNodeTemplateDto> nodes;
+    private List<SectorTemplateDto> sectors;
     private List<FieldTemplateDto> fields;
     private List<DqRuleTemplateDto> dqRules;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SectorTemplateDto {
+        private String code;
+        private Map<String, String> name;
+        private Integer order;
+        private List<FieldGroupTemplateDto> groups;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class FieldGroupTemplateDto {
+        private String code;
+        private Map<String, String> name;
+        private Integer order;
+        private Boolean isDefaultOpen;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ClassificationNodeTemplateDto {
+        private String code;
+        private Map<String, String> name;
+        private String icon;
+        private String parentCode; // null if child of root node
+        private Integer order;
+    }
 
     @Data
     @Builder
@@ -34,6 +70,7 @@ public class SpecializedDomainTemplateDto {
         private String key;
         private Map<String, String> name;
         private Map<String, String> hint;
+        private String groupCode;
         private String type; // TEXT, NUMBER, DATE, BOOLEAN, SELECT, EMAIL
         private String unit;
         private Boolean required;
@@ -41,6 +78,7 @@ public class SpecializedDomainTemplateDto {
         private Boolean isFilterable;
         private Boolean isGridVisible;
         private Integer gridWidth;
+        private Integer tableColumnWidth;
         private Integer order;
         private String options;
     }

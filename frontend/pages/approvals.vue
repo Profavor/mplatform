@@ -647,7 +647,7 @@ const getGroupedChangesList = (changesString, targetType) => {
       valAfter = parsed[key]
     }
     
-    const f = fieldNameMap.value[key] || { name: key, fieldGroup: null }
+    const f = fieldNameMap.value[key] || fieldNameMap.value[key.toUpperCase()] || fieldNameMap.value[key.toLowerCase()] || Object.values(fieldNameMap.value || {}).find(field => field && field.key && String(field.key).toUpperCase() === String(key).toUpperCase()) || { name: key, fieldGroup: null }
     
     const parseName = (nameObj) => {
       if (!nameObj) return null;

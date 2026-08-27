@@ -66,7 +66,7 @@
       class="mb-4 w-full" 
     />
     
-    <div v-if="['SELECT', 'MULTI_SELECT', 'ENUM'].includes(newField.type)" class="mb-4 w-full" style="border: 1px solid #ccc; padding: 1rem; border-radius: 8px;">
+    <div v-if="['SELECT', 'MULTI_SELECT', 'ENUM', 'CODE'].includes(newField.type)" class="mb-4 w-full" style="border: 1px solid #ccc; padding: 1rem; border-radius: 8px;">
       <label style="font-weight: bold; margin-bottom: 0.5rem; display: block;">{{ t('options_settings') }}</label>
       
       <div style="margin-bottom: 0.5rem; display: flex; gap: 0.5rem; justify-content: flex-end;">
@@ -259,11 +259,11 @@
 
         <div 
           class="option-pill" 
-          :class="{ active: newField.isEncrypted, disabled: newField.type !== 'TEXT' }" 
-          :style="{ opacity: newField.type === 'TEXT' ? 1 : 0.45, cursor: newField.type === 'TEXT' ? 'pointer' : 'not-allowed' }"
-          @click="newField.type === 'TEXT' && (newField.isEncrypted = !newField.isEncrypted)"
+          :class="{ active: newField.isEncrypted, disabled: !isEncryptableType(newField.type) }" 
+          :style="{ opacity: isEncryptableType(newField.type) ? 1 : 0.45, cursor: isEncryptableType(newField.type) ? 'pointer' : 'not-allowed' }"
+          @click="isEncryptableType(newField.type) && (newField.isEncrypted = !newField.isEncrypted)"
         >
-          <va-checkbox v-model="newField.isEncrypted" :disabled="newField.type !== 'TEXT'" @click.stop />
+          <va-checkbox v-model="newField.isEncrypted" :disabled="!isEncryptableType(newField.type)" @click.stop />
           <va-icon name="lock" size="small" :color="newField.isEncrypted ? 'warning' : 'secondary'" />
           <span style="flex: 1;">{{ t('encrypted') }}</span>
         </div>
@@ -433,9 +433,13 @@ const props = defineProps({
   canEdit: { type: Boolean, default: true }
 })
 
+const isEncryptableType = (type) => ['TEXT', 'EMAIL', 'PHONE', 'HTML_TEXT', 'MULTILINGUAL'].includes(type)
+
 watch(() => props.newField?.type, (newType) => {
-  if (newType !== 'TEXT' && props.newField) {
+  if (!isEncryptableType(newType) && props.newField) {
     props.newField.isEncrypted = false
+  } else if (newType === 'EMAIL' && props.newField && props.newField.isEncrypted && !props.newField.maskingPattern) {
+    props.newField.maskingPattern = 'EMAIL'
   }
 })
 

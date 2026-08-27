@@ -781,13 +781,46 @@ public class FieldDefinitionService {
                 
             List<FieldDefinition> inheritedFields = fieldRepository.findByDefinedAtNode_IdIn(pathIds);
             
-            effectiveFields.addAll(domainFields);
-            effectiveFields.addAll(inheritedFields);
-            effectiveFields.addAll(nodeFields);
+            java.util.Map<Object, FieldDefinition> uniqueMap = new java.util.LinkedHashMap<>();
+            if (domainFields != null) {
+                for (FieldDefinition f : domainFields) {
+                    if (f != null) {
+                        Object key = f.getId() != null ? f.getId() : (f.getKey() != null ? f.getKey() : f);
+                        uniqueMap.put(key, f);
+                    }
+                }
+            }
+            if (inheritedFields != null) {
+                for (FieldDefinition f : inheritedFields) {
+                    if (f != null) {
+                        Object key = f.getId() != null ? f.getId() : (f.getKey() != null ? f.getKey() : f);
+                        uniqueMap.put(key, f);
+                    }
+                }
+            }
+            if (nodeFields != null) {
+                for (FieldDefinition f : nodeFields) {
+                    if (f != null) {
+                        Object key = f.getId() != null ? f.getId() : (f.getKey() != null ? f.getKey() : f);
+                        uniqueMap.put(key, f);
+                    }
+                }
+            }
+            effectiveFields = new java.util.ArrayList<>(uniqueMap.values());
         } else {
             Domain domain = domainRepository.findById(nodeId).orElse(null);
             if (domain != null) {
-                effectiveFields.addAll(fieldRepository.findDomainFieldsWithSort(domain.getId()));
+                List<FieldDefinition> domainFields = fieldRepository.findDomainFieldsWithSort(domain.getId());
+                java.util.Map<Object, FieldDefinition> uniqueMap = new java.util.LinkedHashMap<>();
+                if (domainFields != null) {
+                    for (FieldDefinition f : domainFields) {
+                        if (f != null) {
+                            Object key = f.getId() != null ? f.getId() : (f.getKey() != null ? f.getKey() : f);
+                            uniqueMap.put(key, f);
+                        }
+                    }
+                }
+                effectiveFields = new java.util.ArrayList<>(uniqueMap.values());
             }
         }
 

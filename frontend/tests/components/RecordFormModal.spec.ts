@@ -203,4 +203,74 @@ describe('RecordFormModal.vue - JSON Table Sub-Schema', () => {
     expect((wrapper.vm as any).localRecord.EP_NAME).toBe('인치국')
     expect((wrapper.vm as any).localRecord.REF_TEST).toBe('REC-9999')
   })
+
+  it('populates fields case-insensitively from record props', async () => {
+    const wrapper = mount(RecordFormModal, {
+      props: {
+        show: true,
+        isEdit: false,
+        fields: [
+          { id: 'f-1', key: 'CUSTOMER_NO', name: { ko: '고객번호' }, type: 'TEXT', order: 1 },
+          { id: 'f-2', key: 'contact_email', name: { ko: '이메일' }, type: 'EMAIL', order: 2 }
+        ],
+        record: {
+          customer_no: 'C-1001',
+          CONTACT_EMAIL: 'user@example.com'
+        }
+      },
+      global: {
+        mocks: { $t: (k: string) => k },
+        stubs: {
+          'va-modal': { template: '<div><slot /><slot name="footer" /></div>', props: ['modelValue'] },
+          'va-tabs': true,
+          'va-tab': true,
+          'va-accordion': { template: '<div><slot /></div>' },
+          'va-collapse': { template: '<div><slot /></div>' },
+          'va-input': true,
+          'va-select': true,
+          'va-checkbox': true,
+          'va-icon': true,
+          'va-button': { template: '<button class="va-btn-stub" @click="$emit(\'click\')"><slot /></button>' }
+        }
+      }
+    })
+
+    expect((wrapper.vm as any).localRecord.CUSTOMER_NO).toBe('C-1001')
+    expect((wrapper.vm as any).localRecord.contact_email).toBe('user@example.com')
+  })
+
+  it('validates EMAIL field format correctly', () => {
+    const wrapper = mount(RecordFormModal, {
+      props: {
+        show: true,
+        isEdit: false,
+        fields: [
+          { id: 'f-1', key: 'email', name: { ko: '이메일' }, type: 'EMAIL', order: 1 }
+        ]
+      },
+      global: {
+        mocks: { $t: (k: string) => k },
+        stubs: {
+          'va-modal': { template: '<div><slot /><slot name="footer" /></div>', props: ['modelValue'] },
+          'va-tabs': true,
+          'va-tab': true,
+          'va-accordion': { template: '<div><slot /></div>' },
+          'va-collapse': { template: '<div><slot /></div>' },
+          'va-input': true,
+          'va-select': true,
+          'va-checkbox': true,
+          'va-icon': true,
+          'va-button': { template: '<button class="va-btn-stub" @click="$emit(\'click\')"><slot /></button>' }
+        }
+      }
+    })
+
+    const rules = (wrapper.vm as any).getFieldRules({ type: 'EMAIL' })
+    expect(rules.length).toBe(1)
+    const emailRule = rules[0]
+    expect(emailRule('valid.email@domain.com')).toBe(true)
+    expect(emailRule('invalid-email')).toBe('invalid_email_format')
+    expect(emailRule('')).toBe(true)
+    expect(emailRule(null)).toBe(true)
+  })
 })

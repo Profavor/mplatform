@@ -111,4 +111,50 @@ describe('FieldModal.vue - Table Sub-Schema Builder', () => {
     expect(wrapper.text()).toContain('table_schema_settings')
     expect(wrapper.text()).not.toContain('no_table_columns_defined')
   })
+
+  it('allows encryption for EMAIL field type', async () => {
+    const fieldObj = {
+      name: { ko: '이메일', en: 'Email' },
+      hint: { ko: '', en: '' },
+      key: 'CONTACT_EMAIL',
+      type: 'EMAIL',
+      required: false,
+      isEncrypted: false,
+      order: 1
+    }
+    const wrapper = mount(FieldModal, {
+      props: {
+        modelValue: true,
+        isEditMode: true,
+        newField: fieldObj,
+        fieldTypes: [{ label: '이메일', value: 'EMAIL' }],
+        maskingPatternOptions: [{ label: '이메일 마스킹', value: 'EMAIL' }]
+      },
+      global: {
+        mocks: {
+          $t: (k: string) => k
+        },
+        stubs: {
+          'va-modal': {
+            template: '<div><h1>{{ title }}</h1><slot /></div>',
+            props: ['title']
+          },
+          'va-input': true,
+          'va-select': true,
+          'va-checkbox': true,
+          'va-icon': true,
+          'ag-grid-vue': true,
+          'va-alert': true,
+          'va-button': true
+        }
+      }
+    })
+
+    const encPill = wrapper.findAll('.option-pill').find(p => p.text().includes('encrypted'))
+    expect(encPill).toBeDefined()
+    expect(encPill?.classes()).not.toContain('disabled')
+
+    await encPill?.trigger('click')
+    expect(fieldObj.isEncrypted).toBe(true)
+  })
 })

@@ -60,7 +60,7 @@ class RecordServiceEncryptionPreserveTest {
 
         when(fieldDefinitionService.getEffectiveFields(nodeId)).thenReturn(List.of(rrnField));
 
-        String existingDataJson = "{\"rrn\":\"EXISTING_CIPHERTEXT_123\",\"_idx_rrn\":\"existing_blind_index\",\"salary\":70000000}";
+        String existingDataJson = "{\"rrn\":\"EXISTING_CIPHERTEXT_123\",\"_idx_rrn\":\"existing_blind_index\",\"_mask_rrn\":\"860104-1******\",\"salary\":70000000}";
         String incomingDataJson = "{\"rrn\":\"860104-1******\",\"salary\":80000000}";
 
         String resultJson = recordService.processDataForSave(nodeId, incomingDataJson, existingDataJson);
@@ -68,6 +68,7 @@ class RecordServiceEncryptionPreserveTest {
         Map<String, Object> resultMap = objectMapper.readValue(resultJson, Map.class);
         assertThat(resultMap.get("rrn")).isEqualTo("EXISTING_CIPHERTEXT_123");
         assertThat(resultMap.get("_idx_rrn")).isEqualTo("existing_blind_index");
+        assertThat(resultMap.get("_mask_rrn")).isEqualTo("860104-1******");
         assertThat(resultMap.get("salary")).isEqualTo(80000000);
 
         // 암호화 메서드가 불필요하게 마스킹 문자열로 호출되지 않아야 함

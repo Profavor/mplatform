@@ -307,7 +307,10 @@ const downloadTemplate = async () => {
       } catch (e) {}
     }
 
-    const excelWidth = (f.gridWidth && f.gridWidth > 0) ? (f.gridWidth / 8) : 25;
+    const agWidth = (f.tableColumnWidth && f.tableColumnWidth > 0) ? f.tableColumnWidth : null;
+    const excelWidth = agWidth
+      ? Math.max(15, Math.min(60, Math.round(agWidth / 7.5)))
+      : ((f.gridWidth && f.gridWidth > 0) ? Math.max(15, f.gridWidth * 2.5) : 25);
 
     if (f.type === 'MULTILINGUAL') {
       headers.push(`${fieldName} (ko)`);

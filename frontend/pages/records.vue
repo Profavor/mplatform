@@ -204,7 +204,7 @@
       :selected-domain-info="selectedDomainInfo"
       :domain-references="domainReferences"
       :user-list="userList"
-      @close="showDetailModal = false"
+      @close="handleCloseDetailModal"
       @delete="requestDeleteRecord"
       @unmerge="handleUnmergeRecord"
       @openHistory="openHistory"
@@ -470,7 +470,10 @@ const handleDownloadTemplate = async () => {
         } catch (e) {}
       }
 
-      const excelWidth = (f.gridWidth && f.gridWidth > 0) ? (f.gridWidth / 8) : 25
+      const agWidth = (f.tableColumnWidth && f.tableColumnWidth > 0) ? f.tableColumnWidth : null
+      const excelWidth = agWidth
+        ? Math.max(15, Math.min(60, Math.round(agWidth / 7.5)))
+        : ((f.gridWidth && f.gridWidth > 0) ? Math.max(15, f.gridWidth * 2.5) : 25)
 
       if (f.type === 'MULTILINGUAL') {
         headers.push(`${fieldName} (ko)`)
@@ -860,31 +863,56 @@ const getTranslatedName = (nameObj) => {
 
 const parseOptions = (opts) => {
   if (!opts) return []
+  let rawList = opts
   if (typeof opts === 'string') {
-    if (opts.trim().startsWith('[')) {
-      try { 
-        const parsed = JSON.parse(opts) 
-        const mapped = parsed.map(o => {
-          if (typeof o === 'string') return { text: o, value: o, order: 0 }
-          return {
-            value: o.key,
-            text: o.label?.[currentLocale.value] || o.label?.ko || o.label?.en || o.key,
-            order: o.order || 0
-          }
-        })
-        return mapped.sort((a, b) => a.order - b.order)
-      } catch(e){}
+    const trimmed = opts.trim()
+    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+      try {
+        rawList = JSON.parse(trimmed)
+      } catch (e) {
+        return trimmed.split(',').map((s) => ({ text: s.trim(), value: s.trim() }))
+      }
+    } else {
+      return trimmed.split(',').map((s) => ({ text: s.trim(), value: s.trim() }))
     }
-    return opts.split(',').map(s => {
-      const val = s.trim();
-      return { text: val, value: val };
-    })
   }
-  return opts
+
+  if (Array.isArray(rawList)) {
+    const mapped = rawList.map((o) => {
+      if (typeof o === 'string' || typeof o === 'number') {
+        return { text: String(o), value: String(o), order: 0 }
+      }
+      if (o && typeof o === 'object') {
+        const val = o.value !== undefined ? o.value : (o.key !== undefined ? o.key : (o.code !== undefined ? o.code : ''))
+        const textLabel = getTranslatedName(o.label || o.name || o.text || o.title || o.displayName) || (val ? String(val) : '')
+        return {
+          value: val,
+          text: textLabel,
+          order: o.order !== undefined ? o.order : (o.sortOrder !== undefined ? o.sortOrder : 0)
+        }
+      }
+      return { text: String(o), value: String(o), order: 0 }
+    })
+    return mapped.sort((a, b) => (a.order || 0) - (b.order || 0))
+  }
+
+  return []
 }
 
 const route = useRoute()
+const router = useRouter()
 const initialRouteHandled = ref(false)
+
+// Modals and UI State
+const showDetailModal = ref(false)
+const showRequiredWarningModal = ref(false)
+const missingRequiredFields = ref([])
+const firstMissingFieldKey = ref(null)
+const showErrorAlertModal = ref(false)
+const errorAlertTitle = ref('')
+const errorAlertHeader = ref('')
+const errorAlertMessage = ref('')
+const errorAlertType = ref('error')
 
 function findNodeInTree(nodeId, nodesList = treeNodes.value) {
   if (!nodesList || !Array.isArray(nodesList)) return null
@@ -1054,6 +1082,14 @@ const openRecordDetailModal = async (record) => {
     }
   }
 
+  // targetDomainInfo가 아직 없으면 동적으로 로드
+  const targetDomainId = record.domainId || record.node?.domainId || (record.node?.domain ? record.node.domain.id : null)
+  if (targetDomainId && !selectedDomainInfo.value) {
+    try {
+      selectedDomainInfo.value = await customFetch(`/api/domains/${targetDomainId}`).catch(() => null)
+    } catch (e) {}
+  }
+
   const data = processRecordDataWithFields(record.data, nodeFields.value)
 
   // 메타 필드(id, domainId, status 등)를 필드 데이터와 함께 병합
@@ -1073,8 +1109,22 @@ const openRecordDetailModal = async (record) => {
   isSnapshotMode.value = false
   hasPendingUpdate.value = record.status === 'PENDING_APPROVAL' || false
   
-  openHistory()
+  if (record.id && route.query.recordId !== record.id) {
+    router.replace({ query: { ...route.query, recordId: record.id } })
+  }
+  
   showDetailModal.value = true
+  openHistory().catch(e => console.error('Failed to load history on record open:', e))
+}
+
+const handleCloseDetailModal = () => {
+  showDetailModal.value = false
+  if (route.query.recordId) {
+    const nextQuery = { ...route.query }
+    delete nextQuery.recordId
+    delete nextQuery._t
+    router.replace({ query: nextQuery })
+  }
 }
 
 const handleUnmergeRecord = async (record) => {
@@ -1094,7 +1144,7 @@ const handleUnmergeRecord = async (record) => {
       method: 'POST'
     })
     init({ message: t('merge.unmerge_success'), color: 'success' })
-    showDetailModal.value = false
+    handleCloseDetailModal()
     refreshRecords()
   } catch (e) {
     init({ message: t('merge.unmerge_fail'), color: 'danger' })
@@ -1126,7 +1176,7 @@ const loadRecordByQueryId = async (recordId) => {
       if (targetNode) {
         await selectNode(targetNode)
       }
-      openRecordDetailModal(rec)
+      await openRecordDetailModal(rec)
     }
   } catch (e) {
     console.error('Failed to load record by query params:', e)
@@ -1136,7 +1186,7 @@ const loadRecordByQueryId = async (recordId) => {
 watch(
   () => [route.query.recordId, route.query._t],
   ([newRecordId]) => {
-    if (newRecordId) {
+    if (newRecordId && !showDetailModal.value) {
       loadRecordByQueryId(newRecordId)
     }
   }
@@ -1149,9 +1199,17 @@ const handleGlobalSearchSelect = (e) => {
   }
 }
 
-onMounted(() => {
-  if (typeof window !== 'undefined') {
+onMounted(async () => {
+  if (process.client) {
     window.addEventListener('global-search:select-record', handleGlobalSearchSelect)
+    window.addEventListener('approval-updated', refreshRecords)
+  }
+
+  // 새로고침 시 URL에 recordId가 있으면 트리를 기다리지 않고 즉시 레코드 디테일 모달 오픈
+  const queryRecordId = route.query.recordId
+  if (queryRecordId) {
+    initialRouteHandled.value = true
+    await loadRecordByQueryId(queryRecordId)
   }
 })
 
@@ -1214,14 +1272,6 @@ const refreshRecords = () => {
     gridApi.value.purgeInfiniteCache()
   }
 }
-
-onMounted(async () => {
-  await loadTree()
-  await handleInitialRouteParams()
-  if (process.client) {
-    window.addEventListener('approval-updated', refreshRecords)
-  }
-})
 
 onUnmounted(() => {
   if (process.client) {
@@ -1327,6 +1377,7 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
   const defs = [
     { 
       field: 'id', 
+      colId: 'sys_record_id',
       headerName: 'ID', 
       sortable: true, 
       width: 140,
@@ -1336,10 +1387,9 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
         return v.length > 8 ? 'REC-' + v.substring(0, 8) : v;
       }
     },
-
-
     { 
       field: 'nodeName', 
+      colId: 'sys_node_name',
       headerName: t('classification_node'), 
       sortable: true, 
       width: 180,
@@ -1370,12 +1420,20 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
   ]
   
   const groupMap = {}
+  const seenColIds = new Set(['sys_record_id', 'sys_node_name', 'sys_record_status'])
 
-  fields.forEach(f => {
+  ;(fields || []).forEach((f, idx) => {
+    let rawColId = f.key || `field_${idx}`
+    let uniqueColId = rawColId
+    if (seenColIds.has(uniqueColId)) {
+      uniqueColId = `${rawColId}_${f.id || idx}`
+    }
+    seenColIds.add(uniqueColId)
+
     const colDef = {
       headerName: getTranslatedName(f.name),
       field: `data.${f.key}`,
-      colId: f.key,
+      colId: uniqueColId,
       valueGetter: (params) => {
         if (!params.data || !params.data.data) return null;
         const d = params.data.data;
@@ -1999,16 +2057,7 @@ const onGridReady = (params) => {
   fetchRecords()
 }
 
-const showDetailModal = ref(false)
-const showRequiredWarningModal = ref(false)
-const missingRequiredFields = ref([])
-const firstMissingFieldKey = ref(null)
 
-const showErrorAlertModal = ref(false)
-const errorAlertTitle = ref('')
-const errorAlertHeader = ref('')
-const errorAlertMessage = ref('')
-const errorAlertType = ref('error')
 
 const showCustomAlert = (msg, header = '', title = '', type = 'error') => {
   errorAlertMessage.value = msg
@@ -2247,7 +2296,6 @@ const viewDiffDetails = (prev, next, isPendingCreation = false) => {
 
 const openHistory = async () => {
   if (!selectedRecordId.value) return
-  showLoading('이력을 불러오는 중입니다...')
   try {
     const res = await customFetch(`/api/records/${selectedRecordId.value}/history`)
     historyLogs.value = res || []
@@ -2279,9 +2327,6 @@ const openHistory = async () => {
     }
   } catch (e) {
     console.error('Failed to load history', e)
-    showCustomAlert(t('failed_load_history'), t('error'), t('notification'), 'error')
-  } finally {
-    hideLoading()
   }
 }
 

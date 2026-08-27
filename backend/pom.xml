@@ -10,8 +10,8 @@
 	</parent>
 	<groupId>com.classification</groupId>
 	<artifactId>domain-system</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
-	<name/>
+	<version>1.1.0</version>
+	<name>domain-system</name>
 	<description/>
 	<url/>
 	<licenses>

@@ -25,6 +25,7 @@ public class DqViolation {
     private UUID recordId;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
     @JoinColumn(name = "record_id", insertable = false, updatable = false)
     private Record record;
 

@@ -292,6 +292,8 @@
   "layout_saved_success": "Layout saved successfully.",
   "layout_save_failed": "Failed to save layout.",
   "drag_to_resize_hint": "Drag bottom-right corner to resize width & height",
+  "drag_width_resize_hint": "Drag right border to resize width (1~12 cols)",
+  "drag_height_resize_hint": "Drag bottom border to resize height",
   "confirm_clear_layout": "Are you sure you want to clear all widgets on the canvas?",
   "no_unplaced_fields": "All fields are placed on the canvas.",
   "widget_label": "Display Label",

@@ -58,9 +58,18 @@ public class DomainController {
     
     @PutMapping("/{id}")
     @PreAuthorize("hasPermission(null, 'domain:write')")
-    public ResponseEntity<com.classification.domain_system.dto.DomainResponse> updateDomain(@PathVariable UUID id, @RequestBody DomainRequest request) {
+    public ResponseEntity<com.classification.domain_system.dto.DomainResponse> updateDomain(
+            @PathVariable UUID id, 
+            @RequestBody DomainRequest request) {
         Domain domain = domainService.updateDomain(id, request);
         return ResponseEntity.ok(com.classification.domain_system.dto.DomainResponse.from(domain));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'domain:write') or hasPermission(null, 'domain:*')")
+    public ResponseEntity<Void> deleteDomain(@PathVariable UUID id) {
+        domainService.deleteDomain(id);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")

@@ -27,6 +27,8 @@ public class RecordService {
     private final FieldDefinitionService fieldDefinitionService;
     private final AuthContext authContext;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private static final java.util.regex.Pattern EMAIL_PATTERN =
+            java.util.regex.Pattern.compile("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
 
     @org.springframework.transaction.annotation.Transactional
     public com.classification.domain_system.dto.RecordBulkReclassifyResult bulkReclassifyRecords(
@@ -146,6 +148,27 @@ public class RecordService {
             boolean modified = false;
 
             for (FieldDefinition field : fields) {
+                if ("EMAIL".equalsIgnoreCase(field.getType()) && field.getKey() != null) {
+                    String matchedKey = null;
+                    for (String k : dataMap.keySet()) {
+                        if (k.equalsIgnoreCase(field.getKey())) {
+                            matchedKey = k;
+                            break;
+                        }
+                    }
+                    if (matchedKey != null) {
+                        Object rawValObj = dataMap.get(matchedKey);
+                        if (rawValObj instanceof String rawVal && !rawVal.isBlank() && !rawVal.contains("*")) {
+                            if (!rawVal.startsWith("vault:") && !rawVal.startsWith("ENC(") && !EMAIL_PATTERN.matcher(rawVal.trim()).matches()) {
+                                throw new com.classification.domain_system.exception.BusinessException(
+                                        com.classification.domain_system.exception.ErrorCode.INVALID_INPUT,
+                                        "Invalid email format for field " + field.getKey() + ": " + rawVal
+                                );
+                            }
+                        }
+                    }
+                }
+
                 if (Boolean.TRUE.equals(field.getIsEncrypted()) && field.getKey() != null) {
                     String matchedKey = null;
                     for (String k : dataMap.keySet()) {
@@ -174,6 +197,10 @@ public class RecordService {
                                         if (existingMap.containsKey(existingIdxKey)) {
                                             dataMap.put(existingIdxKey, existingMap.get(existingIdxKey));
                                         }
+                                        String existingMaskKey = "_mask_" + field.getKey();
+                                        if (existingMap.containsKey(existingMaskKey)) {
+                                            dataMap.put(existingMaskKey, existingMap.get(existingMaskKey));
+                                        }
                                         modified = true;
                                     }
                                 }
@@ -184,13 +211,27 @@ public class RecordService {
                             if (!testDecrypt.equals(rawVal)) {
                                 String blindIndex = fieldEncryptionService.generateBlindIndex(testDecrypt);
                                 dataMap.put("_idx_" + field.getKey(), blindIndex);
+                                String maskKey = "_mask_" + field.getKey();
+                                if (!dataMap.containsKey(maskKey) || dataMap.get(maskKey) == null) {
+                                    String pattern = field.getMaskingPattern();
+                                    String maskVal = (pattern != null && !pattern.isBlank())
+                                            ? dataMaskingService.maskByPattern(pattern, testDecrypt)
+                                            : (testDecrypt.length() <= 6 ? "******" : testDecrypt.substring(0, 2) + "****" + testDecrypt.substring(testDecrypt.length() - 2));
+                                    dataMap.put(maskKey, maskVal);
+                                    modified = true;
+                                }
                                 continue;
                             }
-                            // 3. rawVal is new PLAINTEXT typed by user -> encrypt it!
+                            // 3. rawVal is new PLAINTEXT typed by user -> encrypt it and generate mask cache!
                             String encrypted = fieldEncryptionService.encrypt(rawVal);
                             String blindIndex = fieldEncryptionService.generateBlindIndex(rawVal);
+                            String pattern = field.getMaskingPattern();
+                            String maskVal = (pattern != null && !pattern.isBlank())
+                                    ? dataMaskingService.maskByPattern(pattern, rawVal)
+                                    : (rawVal.length() <= 6 ? "******" : rawVal.substring(0, 2) + "****" + rawVal.substring(rawVal.length() - 2));
                             dataMap.put(matchedKey, encrypted);
                             dataMap.put("_idx_" + field.getKey(), blindIndex);
+                            dataMap.put("_mask_" + field.getKey(), maskVal);
                             modified = true;
                         }
                     }
@@ -248,7 +289,7 @@ public class RecordService {
             if (newJson == null || newJson.isBlank()) return Collections.emptyList();
             try {
                 Map<String, Object> newMap = objectMapper.readValue(newJson, new TypeReference<Map<String, Object>>() {});
-                return newMap.keySet().stream().filter(k -> !k.startsWith("_idx_") && !isMetadataKey(k)).toList();
+                return newMap.keySet().stream().filter(k -> !k.startsWith("_idx_") && !k.startsWith("_mask_") && !isMetadataKey(k)).toList();
             } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
                 return Collections.emptyList();
             }
@@ -256,7 +297,7 @@ public class RecordService {
         if (newJson == null || newJson.isBlank()) {
             try {
                 Map<String, Object> prevMap = objectMapper.readValue(prevJson, new TypeReference<Map<String, Object>>() {});
-                return prevMap.keySet().stream().filter(k -> !k.startsWith("_idx_") && !isMetadataKey(k)).toList();
+                return prevMap.keySet().stream().filter(k -> !k.startsWith("_idx_") && !k.startsWith("_mask_") && !isMetadataKey(k)).toList();
             } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
                 return Collections.emptyList();
             }
@@ -271,7 +312,7 @@ public class RecordService {
 
             List<String> changed = new ArrayList<>();
             for (String key : allKeys) {
-                if (key.startsWith("_idx_") || isMetadataKey(key)) continue;
+                if (key.startsWith("_idx_") || key.startsWith("_mask_") || isMetadataKey(key)) continue;
                 Object prevVal = prevMap.get(key);
                 Object newVal = newMap.get(key);
                 if (!Objects.equals(prevVal, newVal)) {

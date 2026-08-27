@@ -260,4 +260,18 @@ class CustomRecordRepositoryImplTest {
         verify(query, times(2)).setParameter(eq("searchValStr0"), anyString());
         verify(query, times(2)).setParameter(eq("searchValStrLower0"), anyString());
     }
+
+    @Test
+    @DisplayName("검색 시 safeKey에 대한 _mask_ 필드 조건이 SQL에 포함되어 마스킹 정보로 조회가 가능해야 한다")
+    void findDynamicRecords_IncludesMaskFieldInSql() {
+        Map<String, String> params = new HashMap<>();
+        params.put("resident_number", "900101");
+        params.put("op_resident_number", "STARTS_WITH");
+
+        customRecordRepository.findDynamicRecords(
+                List.of(nodeId), null, params, PageRequest.of(0, 10));
+
+        verify(entityManager).createNativeQuery(contains("_mask_resident_number"), eq(Record.class));
+    }
 }
+

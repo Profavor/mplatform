@@ -3,6 +3,11 @@ kind: Deployment
 metadata:
   name: frontend
   namespace: mdm-system
+  labels:
+    app: frontend
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/version: "1.0.6"
+    version: "1.0.6"
 spec:
   replicas: 1
   selector:
@@ -12,6 +17,9 @@ spec:
     metadata:
       labels:
         app: frontend
+        app.kubernetes.io/name: frontend
+        app.kubernetes.io/version: "1.0.9"
+        version: "1.0.9"
     spec:
       hostAliases:
       - ip: "10.100.179.117"
@@ -19,7 +27,7 @@ spec:
         - "mplatform.local"
       containers:
       - name: frontend
-        image: profavor2/mplatform-frontend:latest
+        image: profavor2/mplatform-frontend:1.0.9
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3000

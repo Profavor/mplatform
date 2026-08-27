@@ -61,7 +61,7 @@
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem;">
           <va-select
             v-model="newDomain.identifierFieldId"
-            :options="domainFieldOptions.filter(o => o.type === 'TEXT')"
+            :options="domainFieldOptions.filter(o => ['TEXT', 'STRING', 'AUTO_INCREMENT'].includes(o.type))"
             value-by="value"
             text-by="text"
             :label="`${$t('id_attribute')}*`"
@@ -71,7 +71,7 @@
           />
           <va-select
             v-model="newDomain.displayNameFieldId"
-            :options="domainFieldOptions.filter(o => o.type === 'MULTILINGUAL' || o.type === 'MULTILINGUAL_TEXT' || o.type === 'TEXT')"
+            :options="domainFieldOptions.filter(o => ['MULTILINGUAL', 'MULTILINGUAL_TEXT', 'I18N'].includes(o.type))"
             value-by="value"
             text-by="text"
             :label="`${$t('name_attribute')}*`"
@@ -81,7 +81,7 @@
           />
           <va-select
             v-model="newDomain.descriptionFieldId"
-            :options="domainFieldOptions.filter(o => o.type === 'MULTILINGUAL' || o.type === 'MULTILINGUAL_TEXT' || o.type === 'TEXT')"
+            :options="domainFieldOptions.filter(o => ['MULTILINGUAL', 'MULTILINGUAL_TEXT', 'I18N', 'MULTILINGUAL_HTML'].includes(o.type))"
             value-by="value"
             text-by="text"
             :label="$t('description')"
@@ -90,7 +90,7 @@
           />
           <va-select
             v-model="newDomain.imageFieldId"
-            :options="domainFieldOptions.filter(o => o.type === 'IMAGE' || o.type === 'IMAGE_FILE')"
+            :options="domainFieldOptions.filter(o => ['IMAGE', 'IMAGE_FILE', 'FILE'].includes(o.type))"
             value-by="value"
             text-by="text"
             label="Image"

@@ -194,7 +194,6 @@
     "members": "멤버",
     "selected_members": "선택된 멤버",
     "member_count": "{count}명",
-    "add_external_email": "외부 이메일 추가",
     "enter_valid_email": "올바른 이메일 주소를 입력해주세요.",
     "group_name_email_required": "그룹명과 그룹 이메일은 필수 입력 항목입니다.",
     "sync_aliases": "Postfix 가상 별칭 동기화",

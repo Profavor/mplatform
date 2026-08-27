@@ -91,7 +91,17 @@ public class DataMaskingService {
             if (fields != null) {
                 for (FieldDefinition f : fields) {
                     if (f.getKey() != null) {
-                        fieldMap.put(f.getKey().toLowerCase(), f);
+                        String lKey = f.getKey().toLowerCase();
+                        FieldDefinition existing = fieldMap.get(lKey);
+                        if (existing == null) {
+                            fieldMap.put(lKey, f);
+                        } else if (!Boolean.TRUE.equals(existing.getIsEncrypted()) && Boolean.TRUE.equals(f.getIsEncrypted())) {
+                            // 암호화 속성을 가진 필드 정의를 최우선 적용 (대소문자/상속 덮어쓰기 방어)
+                            fieldMap.put(lKey, f);
+                        } else if (existing.getMaskingPattern() == null && f.getMaskingPattern() != null) {
+                            // 마스킹 패턴이 설정된 필드 정의 우선 적용
+                            fieldMap.put(lKey, f);
+                        }
                     }
                 }
             }
@@ -107,14 +117,20 @@ public class DataMaskingService {
                     continue;
                 }
 
-                // 1. Encrypted field handling
-                if (Boolean.TRUE.equals(fd.getIsEncrypted()) && val instanceof String valStr && fieldEncryptionService != null) {
-                    String decrypted = fieldEncryptionService.decrypt(valStr);
-                    if (canUnmask) {
-                        result.put(key, decrypted);
+                // 1. Encrypted field handling - 방안 1: 조회 시 decrypt() 절대 호출 금지, _mask_ 캐시 우선 반환
+                if (Boolean.TRUE.equals(fd.getIsEncrypted())) {
+                    String maskKey = "_mask_" + key;
+                    String maskKeyLower = "_mask_" + key.toLowerCase();
+                    String maskKeyUpper = "_mask_" + key.toUpperCase();
+                    Object maskVal = map.get(maskKey);
+                    if (maskVal == null) maskVal = map.get(maskKeyLower);
+                    if (maskVal == null) maskVal = map.get(maskKeyUpper);
+
+                    if (maskVal instanceof String maskStr && !maskStr.isBlank()) {
+                        result.put(key, maskStr);
                     } else {
-                        String pattern = isSpecificMaskingPattern(fd.getMaskingPattern()) ? fd.getMaskingPattern() : "RRN";
-                        result.put(key, maskByPattern(pattern, decrypted));
+                        // _mask_ 캐시가 없는 레코드: 안전하게 고정 마스킹 처리 (복호화 연산 0)
+                        result.put(key, "********");
                     }
                     continue;
                 }

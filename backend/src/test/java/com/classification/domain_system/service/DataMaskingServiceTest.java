@@ -23,6 +23,7 @@ public class DataMaskingServiceTest {
 
     @Mock private RecordRepository recordRepository;
     @Mock private com.classification.domain_system.repository.FieldDefinitionRepository fieldDefinitionRepository;
+    @Mock private FieldEncryptionService fieldEncryptionService;
 
     @InjectMocks
     private DataMaskingService dataMaskingService;
@@ -99,4 +100,81 @@ public class DataMaskingServiceTest {
         assertThat(response.getMaskedData().get("phone")).isEqualTo("010-1234-5678");
         assertThat(response.getMaskedData().get("email")).isEqualTo("hong@company.com");
     }
+
+    @Test
+    @DisplayName("maskJsonData: 암호화 필드 조회 시 decrypt()를 호출하지 않고 _mask_ 캐시 값을 반환해야 한다")
+    void testMaskJsonDataUsesMaskCacheWithoutDecryption() throws Exception {
+        FieldDefinition fEnc = new FieldDefinition();
+        fEnc.setKey("resident_number");
+        fEnc.setIsEncrypted(true);
+        fEnc.setMaskingPattern("RRN");
+
+        String dataJson = "{\"resident_number\":\"vault:v1:k8s928374982374\",\"_mask_resident_number\":\"900101-1******\"}";
+
+        String resultJson = dataMaskingService.maskJsonData(dataJson, java.util.List.of(fEnc), false);
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        java.util.Map<String, Object> map = mapper.readValue(resultJson, java.util.Map.class);
+
+        assertThat(map.get("resident_number")).isEqualTo("900101-1******");
+        org.mockito.Mockito.verify(fieldEncryptionService, org.mockito.Mockito.never()).decrypt(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    @DisplayName("maskJsonData: canUnmask가 true이더라도 암호화 필드를 자동 복호화하지 않고 마스킹 값을 반환해야 한다")
+    void testMaskJsonDataDoesNotAutoDecryptEvenWhenCanUnmaskIsTrue() throws Exception {
+        FieldDefinition fEnc = new FieldDefinition();
+        fEnc.setKey("resident_number");
+        fEnc.setIsEncrypted(true);
+        fEnc.setMaskingPattern("RRN");
+
+        String dataJson = "{\"resident_number\":\"vault:v1:k8s928374982374\",\"_mask_resident_number\":\"900101-1******\"}";
+
+        // canUnmask = true로 조회하더라도 자동 복호화 금지!
+        String resultJson = dataMaskingService.maskJsonData(dataJson, java.util.List.of(fEnc), true);
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        java.util.Map<String, Object> map = mapper.readValue(resultJson, java.util.Map.class);
+
+        assertThat(map.get("resident_number")).isEqualTo("900101-1******");
+        org.mockito.Mockito.verify(fieldEncryptionService, org.mockito.Mockito.never()).decrypt(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    @DisplayName("maskJsonData: _mask_ 캐시가 없는 기존 데이터의 경우 복호화 없이 ******** 고정 마스킹을 반환해야 한다")
+    void testMaskJsonDataFallsBackToStaticMaskWhenNoCache() throws Exception {
+        FieldDefinition fEnc = new FieldDefinition();
+        fEnc.setKey("credit_card");
+        fEnc.setIsEncrypted(true);
+
+        String dataJson = "{\"credit_card\":\"vault:v1:legacyCiphertext\"}";
+
+        String resultJson = dataMaskingService.maskJsonData(dataJson, java.util.List.of(fEnc), false);
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        java.util.Map<String, Object> map = mapper.readValue(resultJson, java.util.Map.class);
+
+        assertThat(map.get("credit_card")).isEqualTo("********");
+        org.mockito.Mockito.verify(fieldEncryptionService, org.mockito.Mockito.never()).decrypt(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    @DisplayName("maskJsonData: 대소문자 다른 필드 정의가 중복 존재할 때 isEncrypted=true가 우선 적용되어 마스킹되는지 검증")
+    void testMaskJsonDataEncryptedPriorityCaseInsensitive() {
+        FieldDefinition upperEnc = new FieldDefinition();
+        upperEnc.setKey("TAX_INVOICE_EMAIL");
+        upperEnc.setIsEncrypted(true);
+        upperEnc.setMaskingPattern("EMAIL");
+
+        FieldDefinition lowerPlain = new FieldDefinition();
+        lowerPlain.setKey("tax_invoice_email");
+        lowerPlain.setIsEncrypted(false);
+
+        // 노드/도메인 상속으로 인해 소문자(미암호화)가 리스트 뒤에 오더라도 암호화 플래그가 보존되어야 함
+        java.util.List<FieldDefinition> fields = java.util.List.of(upperEnc, lowerPlain);
+
+        String json = "{\"tax_invoice_email\":\"money@mplatform.com\",\"_mask_tax_invoice_email\":\"m***@mplatform.com\"}";
+        String result = dataMaskingService.maskJsonData(json, fields, false);
+
+        assertThat(result).contains("m***@mplatform.com");
+        assertThat(result).doesNotContain("money@mplatform.com");
+    }
 }
+
