@@ -26,7 +26,7 @@
       <!-- Action Buttons -->
       <div class="node-actions" v-if="showEdit">
         <va-button class="action-btn" icon="edit" size="small" @click.stop="handleNodeEdit(node)" preset="plain" :color="node.id === selectedNode?.id ? '#ffffff' : 'primary'" />
-        <va-button v-if="!node.isDomain" class="action-btn delete-btn" icon="delete" size="small" @click.stop="handleNodeDelete(node)" preset="plain" :color="node.id === selectedNode?.id ? '#ffffff' : 'danger'" />
+        <va-button class="action-btn delete-btn" icon="delete" size="small" @click.stop="handleNodeDelete(node)" preset="plain" :color="node.id === selectedNode?.id ? '#ffffff' : 'danger'" />
       </div>
     </div>
 

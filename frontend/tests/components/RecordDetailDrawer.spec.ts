@@ -62,7 +62,10 @@ describe('RecordDetailDrawer.vue - Encrypted Masking & Domain Reference', () => 
           'va-button': true,
           'UnmaskReasonModal': true,
           'UserProfileModal': true,
-          'AgGridVue': true
+          'AgGridVue': true,
+          'RecordLayoutBuilderModal': true,
+          'va-select': true,
+          'va-chip': true
         }
       }
     })
@@ -121,7 +124,10 @@ describe('RecordDetailDrawer.vue - Encrypted Masking & Domain Reference', () => 
           'va-button': true,
           'UnmaskReasonModal': true,
           'UserProfileModal': true,
-          'AgGridVue': true
+          'AgGridVue': true,
+          'RecordLayoutBuilderModal': true,
+          'va-select': true,
+          'va-chip': true
         }
       }
     })
@@ -134,6 +140,7 @@ describe('RecordDetailDrawer.vue - Encrypted Masking & Domain Reference', () => 
     const wrapper = mount(RecordDetailDrawer, {
       props: {
         show: true,
+        canWrite: true,
         record: {
           id: 'REC-123',
           resident_number: '860104-1******'
@@ -165,7 +172,10 @@ describe('RecordDetailDrawer.vue - Encrypted Masking & Domain Reference', () => 
           'va-button': true,
           'UnmaskReasonModal': true,
           'UserProfileModal': true,
-          'AgGridVue': true
+          'AgGridVue': true,
+          'RecordLayoutBuilderModal': true,
+          'va-select': true,
+          'va-chip': true
         }
       }
     })
@@ -177,8 +187,29 @@ describe('RecordDetailDrawer.vue - Encrypted Masking & Domain Reference', () => 
     expect(vm.getDecryptedFieldValue('residentNumber')).toBe('860104-1234567')
 
     await wrapper.vm.$nextTick()
+    // View mode renders text in .doc-field-value
+    const docVal = wrapper.find('.doc-field-value')
+    expect(docVal.exists()).toBe(true)
+    expect(docVal.text()).toContain('860104-1234567')
+
+    // When isEditing is enabled, form input is rendered
+    vm.isEditing = true
+    await wrapper.vm.$nextTick()
     const input = wrapper.find('.va-input-stub')
+    expect(input.exists()).toBe(true)
     expect(input.attributes('value')).toBe('860104-1234567')
+
+    // Switching back to view mode
+    vm.isEditing = false
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.doc-field-value').exists()).toBe(true)
+
+    // Clicking editable field switches to isEditing = true
+    const editableField = wrapper.find('.doc-field-editable')
+    if (editableField.exists()) {
+      await editableField.trigger('click')
+      expect(vm.isEditing).toBe(true)
+    }
   })
 
   it('correctly detects changed keys using log.changedFields even when masked strings are identical', () => {
@@ -201,7 +232,10 @@ describe('RecordDetailDrawer.vue - Encrypted Masking & Domain Reference', () => 
           'va-button': true,
           'UnmaskReasonModal': true,
           'UserProfileModal': true,
-          'AgGridVue': true
+          'AgGridVue': true,
+          'RecordLayoutBuilderModal': true,
+          'va-select': true,
+          'va-chip': true
         }
       }
     })

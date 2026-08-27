@@ -194,7 +194,6 @@
     "members": "Members",
     "selected_members": "Selected Members",
     "member_count": "{count} members",
-    "add_external_email": "Add External Email",
     "enter_valid_email": "Please enter a valid email address.",
     "group_name_email_required": "Group Name and Email are required.",
     "sync_aliases": "Sync Postfix Aliases",

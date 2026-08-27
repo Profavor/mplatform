@@ -1,14 +1,15 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 set -e
 
 # ==============================================================================
 # MPlatform Kubernetes Deployment Script (Bash)
 # ==============================================================================
 
-REGISTRY="${1:-${DOCKER_REGISTRY:-}}"
-TAG="${2:-${IMAGE_TAG:-latest}}"
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PKG_VERSION=$(grep -m1 '"version"' "$SCRIPT_DIR/frontend/package.json" 2>/dev/null | awk -F'"' '{print $4}')
+
+REGISTRY="${1:-${DOCKER_REGISTRY:-}}"
+TAG="${2:-${IMAGE_TAG:-${PKG_VERSION:-latest}}}"
 K8S_DIR="$SCRIPT_DIR/k8s"
 
 echo "================================================================"

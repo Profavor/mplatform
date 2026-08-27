@@ -5,6 +5,8 @@
     no-padding
     hide-default-actions
     without-transitions
+    :z-index="1200"
+    :zIndex="1200"
     class="record-layout-builder-modal"
   >
     <!-- Custom Clean Header Bar -->
@@ -227,7 +229,7 @@
 
             <div
               v-for="field in filteredUnplacedFields"
-              :key="field.id"
+              :key="field.id || field.key"
               class="palette-item palette-field-item"
               @click="addPredefinedFieldWidget(field)"
             >
@@ -303,6 +305,18 @@
               </div>
               <va-icon name="add" size="small" color="secondary" />
             </div>
+
+            <!-- Specialized Summary Widget -->
+            <div class="palette-item" @click="addCustomWidget('SPECIALIZED_SUMMARY', 12, 4)">
+              <div class="palette-item-icon">
+                <va-icon name="auto_awesome" size="small" color="warning" />
+              </div>
+              <div class="palette-item-info">
+                <span class="palette-item-name">{{ $t('specialized_templates') }}</span>
+                <span class="palette-item-desc">{{ $t('widget_size_hint', { w: 12, h: 4 }) }}</span>
+              </div>
+              <va-icon name="add" size="small" color="secondary" />
+            </div>
           </div>
         </div>
       </div>
@@ -311,6 +325,7 @@
       <div class="canvas-workspace-area" ref="canvasAreaRef">
         <div
           class="grid-canvas-container"
+          ref="gridContainerRef"
           :style="canvasGridStyle"
         >
           <div
@@ -459,6 +474,17 @@
                   <hr class="canvas-divider-hr" />
                 </div>
 
+                <!-- SPECIALIZED SUMMARY PREVIEW -->
+                <div v-else-if="widget.type === 'SPECIALIZED_SUMMARY'" class="inner-specialized-preview" style="padding: 0.75rem; background: var(--va-background-element); border-radius: 8px;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <va-icon name="auto_awesome" color="warning" size="small" />
+                    <strong style="color: var(--va-text-primary); font-size: 0.9rem;">{{ $t('specialized_templates') }}</strong>
+                  </div>
+                  <div style="font-size: 0.8rem; color: var(--va-text-secondary); line-height: 1.4;">
+                    {{ $t('specialized_templates_desc') }}
+                  </div>
+                </div>
+
                 <!-- FIELD PREVIEW (TYPE SPECIFIC WITH RICH MOCK DATA) -->
                 <div v-else class="inner-field-preview">
                   <!-- TABLE / JSON SUBTABLE PREVIEW -->
@@ -569,11 +595,25 @@
               </div>
             </template>
 
-            <!-- Resize Handle (Bottom-Right) -->
+            <!-- 1. Right Edge Resize Handle (East / Width Only) -->
             <div
-              class="widget-resize-handle"
+              class="widget-resize-handle-e"
+              :title="$t('drag_width_resize_hint')"
+              @mousedown.stop.prevent="startResize(widget, $event, 'e')"
+            />
+
+            <!-- 2. Bottom Edge Resize Handle (South / Height Only) -->
+            <div
+              class="widget-resize-handle-s"
+              :title="$t('drag_height_resize_hint')"
+              @mousedown.stop.prevent="startResize(widget, $event, 's')"
+            />
+
+            <!-- 3. Corner Resize Handle (South-East / Width & Height) -->
+            <div
+              class="widget-resize-handle-se"
               :title="$t('drag_to_resize_hint')"
-              @mousedown.stop="startResize(widget, $event)"
+              @mousedown.stop.prevent="startResize(widget, $event, 'se')"
             >
               <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
                 <path d="M9 1L1 9M9 5L5 9M9 9L9 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
@@ -878,21 +918,26 @@ const resizingW = ref(1)
 const resizingH = ref(1)
 
 const canvasAreaRef = ref<HTMLElement | null>(null)
+const gridContainerRef = ref<HTMLElement | null>(null)
+
+const effectiveDomainId = computed(() => {
+  return props.domainId || props.targetNode?.domainId || (props.targetNode?.type === 'domain' || props.targetNode?.isDomain ? props.targetNode?.id : '') || ''
+})
 
 const isDomainTarget = computed(() => {
   if (!props.targetNode) return true
   if (props.targetNode.type === 'domain' || props.targetNode.isDomain) return true
-  if (props.domainId && props.targetNode.id === props.domainId) return true
+  if (effectiveDomainId.value && props.targetNode.id === effectiveDomainId.value) return true
   return false
 })
 
 const formatTargetName = computed(() => {
   if (!props.targetNode) return ''
   const nameObj = props.targetNode.name
-  if (typeof nameObj === 'object') {
+  if (typeof nameObj === 'object' && nameObj !== null) {
     return nameObj[locale.value] || nameObj.ko || nameObj.en || ''
   }
-  return String(nameObj || '')
+  return String(nameObj || props.targetNode.label || '')
 })
 
 const unplacedFields = computed(() => {
@@ -979,7 +1024,8 @@ const getWidgetCanvasStyle = (widget: any) => ({
 })
 
 const getFieldDefinition = (fieldKey: string) => {
-  return props.fields.find((f: any) => f.key === fieldKey)
+  if (!fieldKey) return undefined
+  return props.fields.find((f: any) => f.key && f.key.toUpperCase() === fieldKey.toUpperCase())
 }
 
 const getFieldType = (widget: any) => {
@@ -1051,7 +1097,7 @@ const getWidgetDisplayName = (widget: any) => {
     return widget.title
   }
   if (widget.fieldKey) {
-    const field: any = props.fields.find((f: any) => f.key === widget.fieldKey)
+    const field: any = getFieldDefinition(widget.fieldKey)
     return getFieldName(field) || widget.fieldKey
   }
   return widget.type
@@ -1063,7 +1109,8 @@ const addPredefinedFieldWidget = (field: any) => {
   const isEditor = field.type === 'HTML' || field.type === 'RICHTEXT' || field.key.includes('desc') || field.key.includes('content')
   const isTable = field.type === 'TABLE' || field.type === 'JSON' || field.isTable || (field.options && String(field.options).includes('tableSchema'))
   
-  const w = isEditor || isTable ? 12 : (isImage ? 3 : (field.gridWidth || 4))
+  const customCol = (field.colSpan || field.layoutWidth) && Number(field.colSpan || field.layoutWidth) <= cols.value ? Number(field.colSpan || field.layoutWidth) : null
+  const w = isEditor || isTable ? cols.value : (isImage ? 3 : (customCol || 4))
   const h = isEditor ? 8 : (isTable ? 5 : (isImage ? 4 : 1))
   const type = isImage ? 'IMAGE' : (isEditor ? 'EDITOR' : (isTable ? 'TABLE' : 'FIELD'))
 
@@ -1087,6 +1134,7 @@ const addPredefinedFieldWidget = (field: any) => {
 
   widgets.value.push(newWidget)
   selectedWidgetId.value = newWidget.id
+  resolveWidgetCollisions(newWidget)
 }
 
 const addCustomWidget = (type: string, defaultW: number, defaultH: number) => {
@@ -1104,6 +1152,7 @@ const addCustomWidget = (type: string, defaultW: number, defaultH: number) => {
 
   widgets.value.push(newWidget)
   selectedWidgetId.value = newWidget.id
+  resolveWidgetCollisions(newWidget)
 }
 
 const findNextAvailablePosition = (w: number, h: number) => {
@@ -1124,9 +1173,56 @@ const deleteWidget = (widgetId: string) => {
   }
 }
 
+// 2D Collision Push-down Algorithm Logic
+const isOverlapping = (
+  w1: { x: number; y: number; w: number; h: number },
+  w2: { x: number; y: number; w: number; h: number }
+) => {
+  return !(
+    w1.x + w1.w <= w2.x ||
+    w2.x + w2.w <= w1.x ||
+    w1.y + w1.h <= w2.y ||
+    w2.y + w2.h <= w1.y
+  )
+}
+
+const resolveWidgetCollisions = (targetWidget: any) => {
+  if (!targetWidget) return
+  const others = widgets.value.filter((w: any) => w.id !== targetWidget.id)
+  let changed = true
+  let iterations = 0
+  const maxIterations = 50
+
+  while (changed && iterations < maxIterations) {
+    changed = false
+    iterations++
+
+    // 1. Check collisions with targetWidget
+    for (const other of others) {
+      if (isOverlapping(targetWidget, other)) {
+        other.y = targetWidget.y + targetWidget.h
+        changed = true
+      }
+    }
+
+    // 2. Cascading check among other widgets (sorted by y ascending)
+    others.sort((a: any, b: any) => a.y - b.y || a.x - b.x)
+    for (let i = 0; i < others.length; i++) {
+      for (let j = i + 1; j < others.length; j++) {
+        if (isOverlapping(others[i], others[j])) {
+          others[j].y = others[i].y + others[i].h
+          changed = true
+        }
+      }
+    }
+  }
+}
+
 // 2D Mouse Drag Resizing
-const startResize = (widget: any, event: MouseEvent) => {
+const startResize = (widget: any, event: MouseEvent, direction: 'e' | 's' | 'se' = 'se') => {
   event.preventDefault()
+  event.stopPropagation()
+  selectedWidgetId.value = widget.id
   resizingWidgetId.value = widget.id
   resizingW.value = widget.w
   resizingH.value = widget.h
@@ -1136,18 +1232,27 @@ const startResize = (widget: any, event: MouseEvent) => {
   const startW = widget.w
   const startH = widget.h
 
-  const canvasEl = canvasAreaRef.value
-  const colWidth = canvasEl ? canvasEl.clientWidth / cols.value : 80
+  const containerEl = gridContainerRef.value || canvasAreaRef.value
+  const gap = 8
+  const containerWidth = containerEl ? (containerEl.clientWidth - 20) : 960
+  const colStep = Math.max(30, (containerWidth - (cols.value - 1) * gap) / cols.value + gap)
 
   const onMouseMove = (moveEvent: MouseEvent) => {
     const deltaX = moveEvent.clientX - startMouseX
     const deltaY = moveEvent.clientY - startMouseY
 
-    const colDelta = Math.round(deltaX / colWidth)
-    const rowDelta = Math.round(deltaY / rowHeight.value)
+    const colDelta = Math.round(deltaX / colStep)
+    const rowDelta = Math.round(deltaY / (rowHeight.value + gap))
 
-    const newW = Math.max(1, Math.min(cols.value - widget.x, startW + colDelta))
-    const newH = Math.max(1, Math.min(30, startH + rowDelta))
+    let newW = startW
+    let newH = startH
+
+    if (direction === 'e' || direction === 'se') {
+      newW = Math.max(1, Math.min(cols.value - widget.x, startW + colDelta))
+    }
+    if (direction === 's' || direction === 'se') {
+      newH = Math.max(1, Math.min(30, startH + rowDelta))
+    }
 
     widget.w = newW
     widget.h = newH
@@ -1159,6 +1264,7 @@ const startResize = (widget: any, event: MouseEvent) => {
     resizingWidgetId.value = null
     window.removeEventListener('mousemove', onMouseMove)
     window.removeEventListener('mouseup', onMouseUp)
+    resolveWidgetCollisions(widget)
   }
 
   window.addEventListener('mousemove', onMouseMove)
@@ -1167,21 +1273,24 @@ const startResize = (widget: any, event: MouseEvent) => {
 
 // Drag Move
 const startDragMove = (widget: any, event: MouseEvent) => {
+  if (resizingWidgetId.value) return
   selectedWidgetId.value = widget.id
   const startMouseX = event.clientX
   const startMouseY = event.clientY
   const startX = widget.x
   const startY = widget.y
 
-  const canvasEl = canvasAreaRef.value
-  const colWidth = canvasEl ? canvasEl.clientWidth / cols.value : 80
+  const containerEl = gridContainerRef.value || canvasAreaRef.value
+  const gap = 8
+  const containerWidth = containerEl ? (containerEl.clientWidth - 20) : 960
+  const colStep = Math.max(30, (containerWidth - (cols.value - 1) * gap) / cols.value + gap)
 
   const onMouseMove = (moveEvent: MouseEvent) => {
     const deltaX = moveEvent.clientX - startMouseX
     const deltaY = moveEvent.clientY - startMouseY
 
-    const colDelta = Math.round(deltaX / colWidth)
-    const rowDelta = Math.round(deltaY / rowHeight.value)
+    const colDelta = Math.round(deltaX / colStep)
+    const rowDelta = Math.round(deltaY / (rowHeight.value + gap))
 
     const newX = Math.max(0, Math.min(cols.value - widget.w, startX + colDelta))
     const newY = Math.max(0, Math.min(50, startY + rowDelta))
@@ -1193,6 +1302,7 @@ const startDragMove = (widget: any, event: MouseEvent) => {
   const onMouseUp = () => {
     window.removeEventListener('mousemove', onMouseMove)
     window.removeEventListener('mouseup', onMouseUp)
+    resolveWidgetCollisions(widget)
   }
 
   window.addEventListener('mousemove', onMouseMove)
@@ -1210,7 +1320,8 @@ const autoGenerateLayout = () => {
     const isEditor = field.type === 'HTML' || field.type === 'RICHTEXT' || field.key.includes('desc') || field.key.includes('content')
     const isTable = field.type === 'TABLE' || field.type === 'JSON' || field.isTable || (field.options && String(field.options).includes('tableSchema'))
 
-    const w = isEditor || isTable ? 12 : (isImage ? 3 : (field.gridWidth || 4))
+    const customCol = (field.colSpan || field.layoutWidth) && Number(field.colSpan || field.layoutWidth) <= cols.value ? Number(field.colSpan || field.layoutWidth) : null
+    const w = isEditor || isTable ? cols.value : (isImage ? 3 : (customCol || 4))
     const h = isEditor ? 8 : (isTable ? 5 : (isImage ? 4 : 1))
     const type = isImage ? 'IMAGE' : (isEditor ? 'EDITOR' : (isTable ? 'TABLE' : 'FIELD'))
 
@@ -1258,7 +1369,22 @@ const loadLayoutToCanvas = (targetLayout: any) => {
   if (!targetLayout) return
   cols.value = targetLayout.cols || 12
   rowHeight.value = targetLayout.rowHeight || 42
-  widgets.value = JSON.parse(JSON.stringify(targetLayout.widgets || []))
+  const rawWidgets = JSON.parse(JSON.stringify(targetLayout.widgets || []))
+  widgets.value = rawWidgets.map((w: any) => {
+    let sanitizedW = w.w || 4
+    if (sanitizedW > cols.value) {
+      sanitizedW = 4
+    }
+    sanitizedW = Math.max(1, Math.min(cols.value, sanitizedW))
+    const sanitizedX = Math.max(0, Math.min(cols.value - sanitizedW, w.x || 0))
+    return {
+      ...w,
+      w: sanitizedW,
+      x: sanitizedX,
+      h: Math.max(1, w.h || 1),
+      y: Math.max(0, w.y || 0)
+    }
+  })
   selectedWidgetId.value = null
 }
 
@@ -1369,16 +1495,20 @@ const deleteCurrentLayout = () => {
 }
 
 const getApiUrl = () => {
-  if (isDomainTarget.value || !props.targetNode?.id || props.targetNode.id === props.domainId) {
-    return `/api/domains/${props.domainId}/layout`
+  const dId = effectiveDomainId.value
+  if (!dId) return ''
+  if (isDomainTarget.value || !props.targetNode?.id || props.targetNode.id === dId) {
+    return `/api/domains/${dId}/layout`
   }
-  return `/api/domains/${props.domainId}/nodes/${props.targetNode.id}/layout`
+  return `/api/domains/${dId}/nodes/${props.targetNode.id}/layout`
 }
 
 const fetchLayout = async () => {
-  if (!props.domainId && !props.targetNode?.id) return
+  const dId = effectiveDomainId.value
+  if (!dId) return
   try {
     const url = getApiUrl()
+    if (!url) return
     const res = await customFetch(url)
     if (res && res.layouts && Array.isArray(res.layouts) && res.layouts.length > 0) {
       layouts.value = res.layouts
@@ -1432,10 +1562,13 @@ const fetchLayout = async () => {
 }
 
 const saveLayout = async () => {
+  const dId = effectiveDomainId.value
+  if (!dId) return
   syncCurrentLayoutToMemory()
   saving.value = true
   try {
     const url = getApiUrl()
+    if (!url) return
     const payload = {
       activeLayoutId: activeLayoutId.value,
       layouts: layouts.value
@@ -1461,7 +1594,7 @@ watch(() => props.modelValue, (newVal) => {
   if (newVal) {
     fetchLayout()
   }
-})
+}, { immediate: true })
 </script>
 
 <style scoped>
@@ -2104,8 +2237,40 @@ watch(() => props.modelValue, (newVal) => {
   color: var(--va-text-primary, #f8fafc);
 }
 
-/* Resize Handle */
-.widget-resize-handle {
+/* Edge & Corner Resize Handles */
+.widget-resize-handle-e {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+  z-index: 15;
+  transition: background-color 0.15s, opacity 0.15s;
+}
+
+.widget-resize-handle-e:hover {
+  background: var(--va-primary, #154ec1);
+  opacity: 0.7;
+}
+
+.widget-resize-handle-s {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 8px;
+  cursor: ns-resize;
+  z-index: 15;
+  transition: background-color 0.15s, opacity 0.15s;
+}
+
+.widget-resize-handle-s:hover {
+  background: var(--va-primary, #154ec1);
+  opacity: 0.7;
+}
+
+.widget-resize-handle-se {
   position: absolute;
   bottom: 2px;
   right: 2px;
@@ -2116,9 +2281,10 @@ watch(() => props.modelValue, (newVal) => {
   align-items: center;
   justify-content: center;
   color: var(--va-text-secondary, #94a3b8);
+  z-index: 20;
 }
 
-.widget-resize-handle:hover {
+.widget-resize-handle-se:hover {
   color: var(--va-primary, #154ec1);
 }
 

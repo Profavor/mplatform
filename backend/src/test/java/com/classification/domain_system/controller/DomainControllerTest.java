@@ -56,6 +56,12 @@ class DomainControllerTest {
     private FieldGroupService fieldGroupService;
 
     @MockitoBean
+    private com.classification.domain_system.service.DomainPackageService domainPackageService;
+
+    @MockitoBean
+    private com.classification.domain_system.service.SpecializedDomainTemplateService specializedDomainTemplateService;
+
+    @MockitoBean
     private com.classification.domain_system.service.dq.DqRuleEngine dqRuleEngine;
 
     @MockitoBean
@@ -72,9 +78,6 @@ class DomainControllerTest {
 
     @MockitoBean
     private com.classification.domain_system.service.DqScoreSnapshotService dqScoreSnapshotService;
-
-    @MockitoBean
-    private com.classification.domain_system.service.DomainPackageService domainPackageService;
 
     private Domain createTestDomain(UUID id, String koName, String enName) {
         Domain domain = new Domain();
@@ -215,5 +218,67 @@ class DomainControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.key").value("field_new"))
             .andExpect(jsonPath("$.name.ko").value("신규필드"));
+    }
+
+    @Test
+    @DisplayName("GET /api/domains/specialized-templates - 6개 특화도메인 템플릿 목록 반환")
+    void getSpecializedTemplates() throws Exception {
+        com.classification.domain_system.dto.SpecializedDomainTemplateDto template =
+                com.classification.domain_system.dto.SpecializedDomainTemplateDto.builder()
+                        .category("CUSTOMER")
+                        .name(Map.of("ko", "고객 마스터"))
+                        .icon("person_pin")
+                        .build();
+
+        given(specializedDomainTemplateService.getTemplates()).willReturn(List.of(template));
+
+        mockMvc.perform(get("/api/domains/specialized-templates"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].category").value("CUSTOMER"))
+                .andExpect(jsonPath("$[0].name.ko").value("고객 마스터"));
+    }
+
+    @Test
+    @DisplayName("POST /api/domains/specialized-provision - 특화도메인 원클릭 프로비저닝 성공")
+    void provisionSpecializedDomain() throws Exception {
+        UUID domainId = UUID.randomUUID();
+        com.classification.domain_system.dto.DomainResponse response =
+                com.classification.domain_system.dto.DomainResponse.builder()
+                        .id(domainId)
+                        .domainType("SPECIALIZED")
+                        .specializedCategory("CUSTOMER")
+                        .name(Map.of("ko", "고객 마스터"))
+                        .build();
+
+        given(specializedDomainTemplateService.provisionDomain(any())).willReturn(response);
+
+        com.classification.domain_system.dto.SpecializedDomainProvisionRequest request =
+                com.classification.domain_system.dto.SpecializedDomainProvisionRequest.builder()
+                        .category("CUSTOMER")
+                        .build();
+
+        mockMvc.perform(post("/api/domains/specialized-provision")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(domainId.toString()))
+                .andExpect(jsonPath("$.domainType").value("SPECIALIZED"))
+                .andExpect(jsonPath("$.specializedCategory").value("CUSTOMER"));
+    }
+
+    @Test
+    @DisplayName("DELETE /api/domains/{id} - 도메인 삭제 성공")
+    void deleteDomain() throws Exception {
+        UUID domainId = UUID.randomUUID();
+        org.mockito.Mockito.doNothing().when(domainService).deleteDomain(domainId);
+
+        mockMvc.perform(delete("/api/domains/{id}", domainId))
+                .andDo(print())
+                .andExpect(status().isNoContent());
+
+        org.mockito.Mockito.verify(domainService).deleteDomain(domainId);
     }
 }

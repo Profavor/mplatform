@@ -233,5 +233,36 @@ class SensitiveDataServiceTest {
         assertThat(result).containsEntry("RESIDENT_NUMBER", "860104-1234567");
         assertThat(result).containsEntry("residentNumber", "860104-1234567");
     }
+
+    @Test
+    @DisplayName("decryptRecordFields - 마스킹된 값(*)과 원문 암호문이 공존할 때 원문을 우선 선택하여 복호화한다")
+    void decryptRecordFields_PreferUnmaskedCipherOverMasked() {
+        UUID recordId = UUID.randomUUID();
+        UUID nodeId = UUID.randomUUID();
+
+        ClassificationNode node = new ClassificationNode();
+        node.setId(nodeId);
+
+        com.classification.domain_system.entity.Record record = new com.classification.domain_system.entity.Record();
+        record.setId(recordId);
+        record.setNode(node);
+        // 대문자 키에는 마스킹된 별표(*) 문자열, 소문자 키에는 원문 암호문이 들어있는 상황
+        record.setData("{\"CONTACT_EMAIL\":\"h***@mplatform.com\",\"contact_email\":\"hahaha@mplatform.com\"}");
+
+        FieldDefinition field = new FieldDefinition();
+        field.setKey("CONTACT_EMAIL");
+        field.setIsEncrypted(true);
+
+        when(recordRepository.findById(recordId)).thenReturn(Optional.of(record));
+        when(fieldDefinitionService.getEffectiveFields(nodeId)).thenReturn(List.of(field));
+        when(encryptionService.decrypt("hahaha@mplatform.com")).thenReturn("hahaha@mplatform.com");
+        when(authContext.getUserId()).thenReturn("user-admin");
+
+        Map<String, String> result = sensitiveDataService.decryptRecordFields(recordId, List.of("CONTACT_EMAIL"), "개인정보 열람", "127.0.0.1");
+
+        // 마스킹된 h***@mplatform.com이 아닌 실제 원문 hahaha@mplatform.com이 반환되어야 함
+        assertThat(result).containsEntry("CONTACT_EMAIL", "hahaha@mplatform.com");
+        assertThat(result).containsEntry("contact_email", "hahaha@mplatform.com");
+    }
 }
 

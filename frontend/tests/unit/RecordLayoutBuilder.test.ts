@@ -137,5 +137,189 @@ describe('Record 2D Grid Layout Builder & Renderer Logic', () => {
     const stringCol = 'Custom Col'
     expect(getTranslatedColName(stringCol, 'ko')).toBe('Custom Col')
   })
+
+  // 2D Collision Push-down Algorithm Logic Helper
+  const isOverlapping = (
+    w1: { x: number; y: number; w: number; h: number },
+    w2: { x: number; y: number; w: number; h: number }
+  ) => {
+    return !(
+      w1.x + w1.w <= w2.x ||
+      w2.x + w2.w <= w1.x ||
+      w1.y + w1.h <= w2.y ||
+      w2.y + w2.h <= w1.y
+    )
+  }
+
+  const resolveWidgetCollisions = (
+    targetWidget: { id: string; x: number; y: number; w: number; h: number },
+    allWidgets: Array<{ id: string; x: number; y: number; w: number; h: number }>
+  ) => {
+    const others = allWidgets.filter(w => w.id !== targetWidget.id)
+    let changed = true
+    let iterations = 0
+    const maxIterations = 50
+
+    while (changed && iterations < maxIterations) {
+      changed = false
+      iterations++
+
+      // 1. Check collisions with targetWidget
+      for (const other of others) {
+        if (isOverlapping(targetWidget, other)) {
+          other.y = targetWidget.y + targetWidget.h
+          changed = true
+        }
+      }
+
+      // 2. Cascading check among other widgets (sorted by y ascending)
+      others.sort((a, b) => a.y - b.y || a.x - b.x)
+      for (let i = 0; i < others.length; i++) {
+        for (let j = i + 1; j < others.length; j++) {
+          if (isOverlapping(others[i], others[j])) {
+            others[j].y = others[i].y + others[i].h
+            changed = true
+          }
+        }
+      }
+    }
+  }
+
+  it('위젯 중간 끼워넣기 시 동일 위치의 기존 위젯이 아래로 밀려나야 한다', () => {
+    const w1 = { id: 'w1', x: 0, y: 0, w: 6, h: 2 }
+    const wNew = { id: 'wNew', x: 0, y: 0, w: 6, h: 2 }
+    const allWidgets = [w1, wNew]
+
+    resolveWidgetCollisions(wNew, allWidgets)
+
+    expect(wNew.y).toBe(0)
+    expect(w1.y).toBe(2) // wNew(0+2) 아래로 밀려남
+    expect(isOverlapping(wNew, w1)).toBe(false)
+  })
+
+  it('위젯 중간 끼워넣기 시 연쇄적으로 위치한 하위 위젯들도 순차적으로 밀려나야 한다', () => {
+    const w1 = { id: 'w1', x: 0, y: 0, w: 6, h: 2 }
+    const w2 = { id: 'w2', x: 0, y: 2, w: 6, h: 2 }
+    const w3 = { id: 'w3', x: 0, y: 4, w: 6, h: 2 }
+    const wNew = { id: 'wNew', x: 0, y: 0, w: 6, h: 3 } // 높이 3짜리 위젯 끼워넣기
+    const allWidgets = [w1, w2, w3, wNew]
+
+    resolveWidgetCollisions(wNew, allWidgets)
+
+    expect(wNew.y).toBe(0)
+    expect(w1.y).toBe(3) // wNew(0+3) 바로 아래
+    expect(w2.y).toBe(5) // w1(3+2) 바로 아래
+    expect(w3.y).toBe(7) // w2(5+2) 바로 아래
+
+    // 어떤 위젯도 겹치지 않아야 함
+    expect(isOverlapping(wNew, w1)).toBe(false)
+    expect(isOverlapping(w1, w2)).toBe(false)
+    expect(isOverlapping(w2, w3)).toBe(false)
+  })
+
+  it('가로로 분할된 영역(X좌표가 다른 위젯)은 Y축 충돌이 없으므로 밀려나지 않아야 한다', () => {
+    const leftWidget = { id: 'left', x: 0, y: 0, w: 6, h: 4 }
+    const rightWidget = { id: 'right', x: 6, y: 0, w: 6, h: 4 }
+    const insertedLeft = { id: 'insLeft', x: 0, y: 0, w: 6, h: 2 }
+    const allWidgets = [leftWidget, rightWidget, insertedLeft]
+
+    resolveWidgetCollisions(insertedLeft, allWidgets)
+
+    expect(insertedLeft.y).toBe(0)
+    expect(leftWidget.y).toBe(2) // 좌측 위젯만 밀려남
+    expect(rightWidget.y).toBe(0) // 우측 위젯은 x=6으로 겹치지 않으므로 y=0 유지
+  })
+
+  // Helper functions under test
+  const calculateDefaultWidgetWidth = (field: { type?: string; key?: string; gridWidth?: number; colSpan?: number; layoutWidth?: number }, maxCols = 12) => {
+    const isImage = field.type === 'IMAGE' || (field.key || '').includes('photo') || (field.key || '').includes('image')
+    const isEditor = field.type === 'HTML' || field.type === 'RICHTEXT' || (field.key || '').includes('desc') || (field.key || '').includes('content')
+    const isTable = field.type === 'TABLE' || field.type === 'JSON'
+
+    if (isEditor || isTable) return maxCols
+    if (isImage) return 3
+
+    // DO NOT use field.gridWidth (which is pixel width like 160px)
+    const customCol = field.colSpan || field.layoutWidth
+    if (customCol && typeof customCol === 'number' && customCol >= 1 && customCol <= maxCols) {
+      return customCol
+    }
+    return 4 // default 4 cols (3 per row)
+  }
+
+  const sanitizeWidgetDimensions = (widget: { x?: number; y?: number; w?: number; h?: number }, maxCols = 12) => {
+    let w = widget.w || 4
+    if (w > maxCols) {
+      w = 4
+    }
+    w = Math.max(1, Math.min(maxCols, w))
+    const x = Math.max(0, Math.min(maxCols - w, widget.x || 0))
+    const h = Math.max(1, widget.h || 1)
+    const y = Math.max(0, widget.y || 0)
+    return { ...widget, x, y, w, h }
+  }
+
+  const calculateResizeBounds = (
+    widget: { x: number; y: number; w: number; h: number },
+    startW: number,
+    startH: number,
+    colDelta: number,
+    rowDelta: number,
+    direction: 'e' | 's' | 'se',
+    maxCols = 12
+  ) => {
+    let newW = startW
+    let newH = startH
+
+    if (direction === 'e' || direction === 'se') {
+      newW = Math.max(1, Math.min(maxCols - widget.x, startW + colDelta))
+    }
+    if (direction === 's' || direction === 'se') {
+      newH = Math.max(1, Math.min(30, startH + rowDelta))
+    }
+    return { newW, newH }
+  }
+
+  it('AG-Grid용 gridWidth(예: 160px)가 있어도 레이아웃 가로칸수(w)는 4칸으로 정상 산출되어야 한다', () => {
+    const fieldWith160Px = { key: 'customer_no', type: 'TEXT', gridWidth: 160 }
+    const width = calculateDefaultWidgetWidth(fieldWith160Px, 12)
+    expect(width).toBe(4)
+    expect(width).not.toBe(160)
+  })
+
+  it('에디터 및 테이블 필드는 가로 12칸 전체를 차지해야 한다', () => {
+    const editorField = { key: 'content_html', type: 'HTML', gridWidth: 300 }
+    const tableField = { key: 'items', type: 'TABLE', gridWidth: 400 }
+    expect(calculateDefaultWidgetWidth(editorField, 12)).toBe(12)
+    expect(calculateDefaultWidgetWidth(tableField, 12)).toBe(12)
+  })
+
+  it('기존에 w=160으로 잘못 저장된 레거시 위젯은 12컬럼 이하(기본 4칸)로 자동 정규화되어야 한다', () => {
+    const legacyWidget = { id: 'leg1', x: 0, y: 0, w: 160, h: 1 }
+    const sanitized = sanitizeWidgetDimensions(legacyWidget, 12)
+    expect(sanitized.w).toBe(4)
+    expect(sanitized.x).toBe(0)
+    expect(sanitized.w + sanitized.x).toBeLessThanOrEqual(12)
+  })
+
+  it('우측 경계(East) 리사이즈 핸들 드래그 시 높이는 유지되고 너비(w)만 1~12 사이로 변경되어야 한다', () => {
+    const widget = { id: 'w1', x: 0, y: 0, w: 4, h: 2 }
+    // 2칸 늘리기
+    const resizedPlus = calculateResizeBounds(widget, 4, 2, 2, 5, 'e', 12)
+    expect(resizedPlus.newW).toBe(6)
+    expect(resizedPlus.newH).toBe(2) // 높이는 유지
+
+    // 12칸 초과 드래그 시 12로 클램핑
+    const resizedMax = calculateResizeBounds(widget, 4, 2, 20, 0, 'e', 12)
+    expect(resizedMax.newW).toBe(12)
+  })
+
+  it('위젯의 x 좌표가 8일 때 우측 리사이즈는 남은 컬럼(4칸)을 초과할 수 없어야 한다', () => {
+    const widget = { id: 'w1', x: 8, y: 0, w: 2, h: 1 }
+    const resized = calculateResizeBounds(widget, 2, 1, 10, 0, 'e', 12)
+    expect(resized.newW).toBe(4) // 12 - 8 = 4
+    expect(widget.x + resized.newW).toBe(12)
+  })
 })
+
 

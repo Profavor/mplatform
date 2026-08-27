@@ -4,6 +4,8 @@ import dns from 'dns'
 // Force IPv4 for localhost to fix Node 18+ Docker connectivity issues
 dns.setDefaultResultOrder('ipv4first')
 
+import pkg from './package.json'
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2026-08-11',
@@ -80,16 +82,18 @@ export default defineNuxtConfig({
     defaultProvider: 'keycloak',
     providers: {
       keycloak: {
-        baseUrl: process.env.OAUTH2_ISSUER_URI || 'http://localhost:8081/realms/mplatform',
+        baseUrl: process.env.OAUTH2_ISSUER_URI || '/auth/realms/mplatform',
         clientId: 'mdm-frontend',
         exposeAccessToken: true,
+        validateAccessToken: false,
+        validateIdToken: false,
         scope: ['openid', 'profile', 'email'],
         clientSecret: 'secret',
         authenticationScheme: 'body',
         pkce: false,
         nonce: false,
-        redirectUri: process.env.KEYCLOAK_REDIRECT_URI || 'http://localhost:3000/auth/keycloak/callback',
-        logoutRedirectUri: process.env.KEYCLOAK_LOGOUT_REDIRECT_URI || 'http://localhost:3000/login'
+        redirectUri: process.env.KEYCLOAK_REDIRECT_URI || '/auth/keycloak/callback',
+        logoutRedirectUri: process.env.KEYCLOAK_LOGOUT_REDIRECT_URI || '/login'
       }
     },
     session: {
@@ -118,6 +122,8 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     public: {
+      appVersion: process.env.APP_VERSION || (pkg.version ? `v${pkg.version}` : 'v1.0.0'),
+      buildTime: new Date().toISOString(),
       apiBaseUrl: process.env.API_BASE_URL || process.env.NUXT_PUBLIC_API_BASE_URL || process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8080',
       agGridLicense: process.env.AG_GRID_LICENSE,
       accessTokenExpirationSec: Number(process.env.JWT_ACCESS_EXPIRATION_SEC || 1800),
@@ -144,6 +150,20 @@ export default defineNuxtConfig({
           changeOrigin: true
         }
       }
+    }
+  },
+  nitro: {
+    externals: {
+      inline: [
+        '@tiptap/vue-3',
+        '@tiptap/core',
+        '@tiptap/starter-kit',
+        '@tiptap/extension-color',
+        '@tiptap/extension-text-style',
+        'vue',
+        '@vue/server-renderer'
+      ],
+      trace: false
     }
   }
 })

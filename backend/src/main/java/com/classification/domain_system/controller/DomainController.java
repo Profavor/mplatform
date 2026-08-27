@@ -37,6 +37,7 @@ public class DomainController {
     private final SectorService sectorService;
     private final FieldGroupService fieldGroupService;
     private final com.classification.domain_system.service.DomainPackageService domainPackageService;
+    private final com.classification.domain_system.service.SpecializedDomainTemplateService specializedDomainTemplateService;
     
     @PostMapping
     @PreAuthorize("hasPermission(null, 'domain:write')")
@@ -57,9 +58,18 @@ public class DomainController {
     
     @PutMapping("/{id}")
     @PreAuthorize("hasPermission(null, 'domain:write')")
-    public ResponseEntity<com.classification.domain_system.dto.DomainResponse> updateDomain(@PathVariable UUID id, @RequestBody DomainRequest request) {
+    public ResponseEntity<com.classification.domain_system.dto.DomainResponse> updateDomain(
+            @PathVariable UUID id, 
+            @RequestBody DomainRequest request) {
         Domain domain = domainService.updateDomain(id, request);
         return ResponseEntity.ok(com.classification.domain_system.dto.DomainResponse.from(domain));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasPermission(null, 'domain:write') or hasPermission(null, 'domain:*')")
+    public ResponseEntity<Void> deleteDomain(@PathVariable UUID id) {
+        domainService.deleteDomain(id);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")
@@ -292,6 +302,19 @@ public class DomainController {
             @PathVariable UUID domainId,
             @RequestBody com.classification.domain_system.dto.RecordLayoutDto request) {
         return ResponseEntity.ok(domainService.saveDomainLayout(domainId, request));
+    }
+
+    @GetMapping("/specialized-templates")
+    @PreAuthorize("hasPermission(null, 'domain:read')")
+    public ResponseEntity<List<com.classification.domain_system.dto.SpecializedDomainTemplateDto>> getSpecializedTemplates() {
+        return ResponseEntity.ok(specializedDomainTemplateService.getTemplates());
+    }
+
+    @PostMapping("/specialized-provision")
+    @PreAuthorize("hasPermission(null, 'domain:write')")
+    public ResponseEntity<com.classification.domain_system.dto.DomainResponse> provisionSpecializedDomain(
+            @RequestBody com.classification.domain_system.dto.SpecializedDomainProvisionRequest request) {
+        return ResponseEntity.ok(specializedDomainTemplateService.provisionDomain(request));
     }
 }
 

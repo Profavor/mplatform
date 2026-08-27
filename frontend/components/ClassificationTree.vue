@@ -42,6 +42,7 @@
 import { ref, watch, onMounted } from 'vue'
 import { useCookie } from '#app'
 import { useI18n } from 'vue-i18n'
+import { useCustomFetch } from '~/composables/useCustomFetch'
 
 const props = defineProps({
   selectedNode: {
@@ -65,7 +66,7 @@ const props = defineProps({
 const emit = defineEmits(['select', 'edit', 'delete', 'loaded'])
 
 const { t } = useI18n()
-const token = useCookie('auth_token')
+const { customFetch } = useCustomFetch()
 const currentLocale = useCookie('locale', { default: () => 'ko' })
 const treeNodes = ref([])
 
@@ -92,9 +93,7 @@ const loadAxisOptions = async (domains) => {
   const opts = [{ value: '__primary__', text: `${t('axis.primary_tree')}` }]
   for (const d of domains) {
     try {
-      const axes = await $fetch(`/api/domains/${d.id}/axes`, {
-        headers: { Authorization: `Bearer ${token.value}` }
-      })
+      const axes = await customFetch(`/api/domains/${d.id}/axes`).catch(() => [])
       if (Array.isArray(axes)) {
         axes.forEach(axis => {
           const axisName = typeof axis.name === 'object' && axis.name !== null
@@ -115,11 +114,12 @@ const loadAxisOptions = async (domains) => {
 }
 
 const loadTree = async () => {
-  if (!token.value) return;
   try {
-    const domains = await $fetch('/api/domains', {
-      headers: { Authorization: `Bearer ${token.value}` }
-    })
+    const domains = await customFetch('/api/domains').catch(() => [])
+    if (!domains || !Array.isArray(domains)) {
+      emit('loaded', [])
+      return
+    }
     
     // Load Axes options once when domains are fetched
     await loadAxisOptions(domains)
@@ -131,9 +131,7 @@ const loadTree = async () => {
         ? `/api/domains/${d.id}/nodes/tree`
         : `/api/domains/${d.id}/nodes/tree?axisId=${selectedAxisId.value}`
 
-      const nodes = await $fetch(url, {
-        headers: { Authorization: `Bearer ${token.value}` }
-      })
+      const nodes = await customFetch(url).catch(() => [])
       
       const formatNode = (n) => {
         const pName = parseName(n.name);
@@ -158,7 +156,7 @@ const loadTree = async () => {
         isDomain: true,
         icon: d.icon || null,
         expanded: true,
-        children: nodes.map(formatNode),
+        children: Array.isArray(nodes) ? nodes.map(formatNode) : [],
         originalNameMap: dName,
         originalData: d
       })
@@ -167,6 +165,7 @@ const loadTree = async () => {
     emit('loaded', builtTree)
   } catch (error) {
     console.error('Failed to load tree:', error.message || error)
+    emit('loaded', [])
   }
 }
 

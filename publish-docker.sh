@@ -1,25 +1,27 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 set -e
 
 # ==============================================================================
 # MPlatform Docker Build & Publish Automation Script (Bash)
 # ==============================================================================
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PKG_VERSION=$(grep -m1 '"version"' "$SCRIPT_DIR/frontend/package.json" 2>/dev/null | awk -F'"' '{print $4}')
+
 REGISTRY="${1:-${DOCKER_REGISTRY:-mplatform}}"
-TAG="${2:-${IMAGE_TAG:-latest}}"
+TAG="${2:-${IMAGE_TAG:-${PKG_VERSION:-latest}}}"
 TARGET="${3:-all}"
 PUSH="${PUSH:-true}"
 INCLUDE_LATEST="${INCLUDE_LATEST:-true}"
 NO_CACHE="${NO_CACHE:-false}"
 
 REGISTRY="${REGISTRY%/}"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "================================================================"
 echo "  MPlatform Docker Build & Publish Pipeline"
 echo "================================================================"
 echo " Registry:         $REGISTRY"
-echo " Tag:              $TAG"
+echo " Version/Tag:      $TAG (Package: ${PKG_VERSION:-N/A})"
 echo " Target:           $TARGET"
 echo " Push to Registry: $PUSH"
 echo " Include Latest:   $INCLUDE_LATEST"

@@ -52,14 +52,14 @@
       <!-- Sector Tabs -->
       <va-tabs v-model="activeSectorTab" style="margin-bottom: 1rem;">
         <template #tabs>
-          <va-tab v-for="(sector, idx) in groupedFieldsArray" :key="sector.key" :name="idx">
+          <va-tab v-for="sector in groupedFieldsArray" :key="sector.key" :name="sector.key">
             {{ sector.label }}
           </va-tab>
         </template>
       </va-tabs>
 
       <!-- Sector Content -->
-      <div v-for="(sector, idx) in groupedFieldsArray" :key="sector.key" v-show="activeSectorTab === idx">
+      <div v-for="(sector, idx) in groupedFieldsArray" :key="sector.key" v-show="activeSectorTab === sector.key || (!activeSectorTab && idx === 0) || activeSectorTab === idx">
 
         <va-accordion multiple style="width: 100%;" class="mb-4">
           <va-collapse
@@ -90,16 +90,17 @@
                         </va-popover>
                       </span>
 
-                      <!-- Text / Number / Date -->
+                      <!-- Text / Number / Date / Email / Phone -->
                       <va-input
-                        v-if="['TEXT', 'NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER', 'DATE'].includes(field.type)"
+                        v-if="['TEXT', 'NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER', 'DATE', 'EMAIL', 'PHONE'].includes(field.type)"
                         :model-value="localRecord[field.key]"
                         @update:model-value="(val) => handleMaskedInput(field, val)"
-                        :type="field.type === 'DATE' ? (focusedDateFields[field.key] || localRecord[field.key] ? 'date' : 'text') : (['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type) ? 'number' : 'text')"
+                        :type="field.type === 'DATE' ? (focusedDateFields[field.key] || localRecord[field.key] ? 'date' : 'text') : (['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type) ? 'number' : (field.type === 'EMAIL' ? 'email' : (field.type === 'PHONE' ? 'tel' : 'text')))"
                         :readonly="evalConditionRule(field, localRecord).readOnly"
                         :disabled="isAutoNumberingField(field) || evalConditionRule(field, localRecord).disabled"
+                        :rules="getFieldRules(field)"
                         :lang="locale === 'en' ? 'en-US' : 'ko-KR'"
-                        :placeholder="isAutoNumberingField(field) ? (locale === 'en' ? 'Auto-generated on final approval' : '자동 채번됩니다 (최종 승인 시)') : (field.type === 'DATE' ? (locale === 'en' ? 'YYYY-MM-DD' : '연도-월-일') : '')"
+                        :placeholder="isAutoNumberingField(field) ? (locale === 'en' ? 'Auto-generated on final approval' : '자동 채번됩니다 (최종 승인 시)') : (field.type === 'DATE' ? (locale === 'en' ? 'YYYY-MM-DD' : '연도-월-일') : (field.type === 'EMAIL' ? 'example@domain.com' : ''))"
                         class="w-full"
                         @focus="focusedDateFields[field.key] = true"
                         @blur="focusedDateFields[field.key] = false"
@@ -164,11 +165,12 @@
 
                       <!-- Select -->
                       <va-select
-                        v-else-if="['SELECT', 'MULTI_SELECT'].includes(field.type)"
+                        v-else-if="['SELECT', 'MULTI_SELECT', 'CODE'].includes(field.type)"
                         v-model="localRecord[field.key]"
                         :options="parseOptions(field.options)"
                         :multiple="field.type === 'MULTI_SELECT' || field.isMultiValue"
                         value-by="value"
+                        text-by="text"
                         class="w-full"
                         :readonly="evalConditionRule(field, localRecord).readOnly"
                       />
@@ -382,7 +384,7 @@
       <div v-if="axesList.length > 0" style="margin-bottom: 1rem; margin-top: 1rem;">
         <va-accordion multiple style="width: 100%;">
           <va-collapse
-            header="다중 분류 축 (Secondary Axes)"
+            :header="$t('axis.select_nodes_for_axis')"
             solid
             color="background-element"
             v-model="secondaryAxesOpen"
@@ -399,7 +401,7 @@
                   text-by="label"
                   multiple
                   searchable
-                  :placeholder="getNodesForAxis(axis.id).length > 0 ? '노드 선택 (Select nodes)' : '등록된 축 노드 없음 (No nodes registered)'"
+                  :placeholder="getNodesForAxis(axis.id).length > 0 ? $t('axis.select_nodes_for_axis') : $t('axis.no_nodes_registered')"
                   :disabled="getNodesForAxis(axis.id).length === 0"
                 />
               </div>
@@ -424,11 +426,15 @@
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
 import { useCookie } from '#app'
+import { useI18n } from 'vue-i18n'
+import { useToast } from 'vuestic-ui'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import HtmlEditor from '~/components/common/HtmlEditor.vue'
 import ImageUploader from '~/components/common/ImageUploader.vue'
 import AppModal from '~/components/common/AppModal.vue'
 
+const { t } = useI18n()
+const { init: notifyToast } = useToast()
 const { customFetch } = useCustomFetch()
 
 
@@ -468,7 +474,7 @@ watch(() => props.show, (val) => {
 
 const selectedWorkflowId = ref('')
 
-const secondaryAxesOpen = ref([true])
+const secondaryAxesOpen = ref([false])
 const axesList = ref([])
 const allNodes = ref([])
 const localSecondaryNodeSelections = ref({})
@@ -539,7 +545,7 @@ const modalTitle = computed(() => {
   return props.nodeLabel ? `Create Record in ${props.nodeLabel}` : 'Create Record'
 })
 
-const activeSectorTab = ref(0)
+const activeSectorTab = ref('')
 const focusedDateFields = ref({})
 const localRecord = ref({})
 
@@ -558,11 +564,40 @@ const openDomainRefPicker = (fieldKey) => {
   })
 }
 
+const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+
+const getFieldRules = (field) => {
+  const rules = []
+  if (field && field.type === 'EMAIL') {
+    rules.push((val) => {
+      if (!val || String(val).trim() === '') return true
+      return emailRegex.test(String(val).trim()) || (t('invalid_email_format') || (locale.value === 'ko' ? '올바른 이메일 형식을 입력해주세요.' : 'Please enter a valid email address.'))
+    })
+  }
+  return rules
+}
+
+const populateRecordWithFields = (rawRecord) => {
+  const result = rawRecord ? { ...rawRecord } : {}
+  if (props.fields && rawRecord) {
+    const rawKeys = Object.keys(rawRecord)
+    props.fields.forEach(f => {
+      if (f.key && result[f.key] === undefined) {
+        const matchKey = rawKeys.find(k => k.toUpperCase() === f.key.toUpperCase())
+        if (matchKey && result[matchKey] !== undefined) {
+          result[f.key] = result[matchKey]
+        }
+      }
+    })
+  }
+  return result
+}
+
 watch(
   () => props.show,
   (isOpen) => {
     if (isOpen) {
-      localRecord.value = props.record ? { ...props.record } : {}
+      localRecord.value = populateRecordWithFields(props.record)
       if (props.fields) {
         props.fields.forEach(f => {
           if (f.type === 'JSON') {
@@ -590,10 +625,11 @@ watch(
       if (!props.show) localRecord.value = {}
       return
     }
+    const populated = populateRecordWithFields(newVal)
     if (props.show && Object.keys(localRecord.value).length > 0) {
-      localRecord.value = { ...localRecord.value, ...newVal }
+      localRecord.value = { ...localRecord.value, ...populated }
     } else {
-      localRecord.value = { ...newVal }
+      localRecord.value = { ...populated }
     }
     // Parse JSON fields if they come as string or null
     if (props.fields) {
@@ -704,6 +740,22 @@ const handleClose = () => {
 }
 
 const handleSave = () => {
+  // Validate EMAIL fields
+  if (props.fields) {
+    for (const f of props.fields) {
+      if (f.type === 'EMAIL') {
+        const val = localRecord.value[f.key]
+        if (val && typeof val === 'string' && val.trim() !== '' && !val.includes('*') && !val.startsWith('vault:') && !val.startsWith('ENC(') && !emailRegex.test(val.trim())) {
+          notifyToast({
+            message: `${getTranslatedName(f.name)}: ${t('invalid_email_format') || (locale.value === 'ko' ? '올바른 이메일 형식을 입력해주세요.' : 'Please enter a valid email address.')}`,
+            color: 'danger'
+          })
+          return
+        }
+      }
+    }
+  }
+
   // Flatten secondary nodes
   const secNodes = []
   Object.values(localSecondaryNodeSelections.value).forEach(arr => {
@@ -752,16 +804,16 @@ const groupedFieldsArray = computed(() => {
   const sortedFields = [...(props.fields || [])].sort((a, b) => (a.order || 0) - (b.order || 0))
 
   sortedFields.forEach((f) => {
-    const sObj = f.fieldGroup?.sector
-    const gObj = f.fieldGroup
+    const sObj = f.fieldGroup?.sector || f.sector || null
+    const gObj = f.fieldGroup || f.group || null
 
-    const sName = getTranslatedName(sObj?.name) || (locale.value === 'ko' ? '일반' : 'General')
-    const sKey = sObj?.id || 'default'
-    const sOrder = sObj?.sortOrder || 0
+    const sName = getTranslatedName(sObj?.name) || (typeof sObj === 'string' ? sObj : '') || t('common.general') || (locale.value === 'ko' ? '일반' : 'General')
+    const sKey = sObj?.id || sObj?.key || (sObj?.name ? (typeof sObj.name === 'string' ? sObj.name : sObj.name.ko || sObj.name.en) : 'default')
+    const sOrder = sObj?.sortOrder ?? sObj?.order ?? 0
 
-    const gName = getTranslatedName(gObj?.name) || (locale.value === 'ko' ? '기본 필드' : 'Fields')
-    const gKey = gObj?.id || 'default'
-    const gOrder = gObj?.sortOrder || 0
+    const gName = getTranslatedName(gObj?.name) || (typeof gObj === 'string' ? gObj : '') || t('common.fields') || (locale.value === 'ko' ? '기본 필드' : 'Fields')
+    const gKey = gObj?.id || gObj?.key || (gObj?.name ? (typeof gObj.name === 'string' ? gObj.name : gObj.name.ko || gObj.name.en) : 'default')
+    const gOrder = gObj?.sortOrder ?? gObj?.order ?? 0
 
     if (!map.has(sKey)) {
       map.set(sKey, { key: sKey, label: sName, order: sOrder, groups: new Map() })
@@ -795,29 +847,54 @@ const groupedFieldsArray = computed(() => {
   return filteredSectors
 })
 
+watch(
+  groupedFieldsArray,
+  (arr) => {
+    if (arr && arr.length > 0) {
+      if (!arr.some((s) => s.key === activeSectorTab.value)) {
+        activeSectorTab.value = arr[0].key
+      }
+    }
+  },
+  { immediate: true }
+)
+
 const parseOptions = (opts) => {
   if (!opts) return []
+  let rawList = opts
   if (typeof opts === 'string') {
-    if (opts.trim().startsWith('[')) {
+    const trimmed = opts.trim()
+    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
       try {
-        const parsed = JSON.parse(opts)
-        const mapped = parsed.map((o) => {
-          if (typeof o === 'string') return { text: o, value: o, order: 0 }
-          return {
-            value: o.key,
-            text: o.label?.[locale.value] || o.label?.ko || o.label?.en || o.key,
-            order: o.order || 0
-          }
-        })
-        return mapped.sort((a, b) => a.order - b.order)
-      } catch (e) {}
+        rawList = JSON.parse(trimmed)
+      } catch (e) {
+        return trimmed.split(',').map((s) => ({ text: s.trim(), value: s.trim() }))
+      }
+    } else {
+      return trimmed.split(',').map((s) => ({ text: s.trim(), value: s.trim() }))
     }
-    return opts.split(',').map((s) => {
-      const val = s.trim()
-      return { text: val, value: val }
-    })
   }
-  return opts
+
+  if (Array.isArray(rawList)) {
+    const mapped = rawList.map((o) => {
+      if (typeof o === 'string' || typeof o === 'number') {
+        return { text: String(o), value: String(o), order: 0 }
+      }
+      if (o && typeof o === 'object') {
+        const val = o.value !== undefined ? o.value : (o.key !== undefined ? o.key : (o.code !== undefined ? o.code : ''))
+        const textLabel = getTranslatedName(o.label || o.name || o.text || o.title || o.displayName) || (val ? String(val) : '')
+        return {
+          value: val,
+          text: textLabel,
+          order: o.order !== undefined ? o.order : (o.sortOrder !== undefined ? o.sortOrder : 0)
+        }
+      }
+      return { text: String(o), value: String(o), order: 0 }
+    })
+    return mapped.sort((a, b) => (a.order || 0) - (b.order || 0))
+  }
+
+  return []
 }
 
 const domainRefResolvedCache = ref({})
@@ -908,7 +985,7 @@ const getDomainRefDisplayName = (fieldKey, recordId) => {
   return recordId
 }
 
-const evaluateConditionExpression = (expr, formData) => {
+function evaluateConditionExpression(expr, formData) {
   if (!expr || !expr.trim() || !formData) return false
   try {
     const replaced = expr.replace(/#{([a-zA-Z0-9_]+)}/g, (_, key) => {
@@ -997,7 +1074,7 @@ watch(() => props.show, (val) => {
   }
 })
 
-const evalConditionRule = (field, formData) => {
+function evalConditionRule(field, formData) {
   const defaultRes = {
     show: true,
     highlight: field?.isHighlighted || false,

@@ -58,6 +58,9 @@ public class ApprovalEventListener {
     @org.springframework.context.annotation.Lazy
     private com.classification.domain_system.service.InboxApprovalIntegrationService inboxApprovalIntegrationService;
 
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
+
     @EventListener
     @Transactional
     public void onApprovalRequestCreated(ApprovalRequestCreatedEvent event) {
@@ -329,6 +332,32 @@ public class ApprovalEventListener {
                     .orElseThrow(() -> new RuntimeException("Record not found"));
             String deletedData = record.getData();
             logHistory(record, "DELETE", approval.getRequesterId(), deletedData, null, approval.getId());
+
+            try {
+                if (entityManager != null) {
+                    entityManager.createQuery("DELETE FROM DqViolation v WHERE v.recordId = :recordId")
+                            .setParameter("recordId", record.getId())
+                            .executeUpdate();
+                    entityManager.createQuery("DELETE FROM RecordSecondaryNode r WHERE r.recordId = :recordId")
+                            .setParameter("recordId", record.getId())
+                            .executeUpdate();
+                    entityManager.createQuery("DELETE FROM RecordFieldSource s WHERE s.recordId = :recordId")
+                            .setParameter("recordId", record.getId())
+                            .executeUpdate();
+                    entityManager.createQuery("DELETE FROM MatchCandidate m WHERE m.existingRecordId = :recordId")
+                            .setParameter("recordId", record.getId())
+                            .executeUpdate();
+                    entityManager.createNativeQuery("UPDATE integration_logs SET record_id = NULL WHERE record_id = :recordId")
+                            .setParameter("recordId", record.getId())
+                            .executeUpdate();
+                    entityManager.createNativeQuery("UPDATE record SET merged_into_record_id = NULL WHERE merged_into_record_id = :recordId")
+                            .setParameter("recordId", record.getId())
+                            .executeUpdate();
+                }
+            } catch (Exception ex) {
+                log.warn("Non-fatal error clearing record dependencies before deletion: {}", ex.getMessage());
+            }
+
             recordRepository.delete(record);
             applicationEventPublisher.publishEvent(new MasterDataChangedEvent(this, record.getId(), record.getNode().getId(), "DELETE", deletedData));
         } else if (ApprovalTargetType.RECORD_MERGE.name().equals(approval.getTargetType())) {

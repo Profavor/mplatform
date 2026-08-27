@@ -4,7 +4,7 @@
       <template #top>
         <va-navbar :color="isDark ? '#1F2937' : 'primary'">
           <template #left>
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap;">
               <va-button preset="plain" style="color: white !important; padding: 0;" @click="showSidebar = !showSidebar">
                 <va-icon name="menu" class="mobile-menu-btn" style="cursor: pointer; font-size: 28px; color: white;" />
               </va-button>
@@ -12,6 +12,13 @@
                 <span class="full-title">Domain Governance System</span>
                 <span class="short-title">Domain System</span>
               </va-navbar-item>
+              <va-badge
+                v-if="appVersion"
+                :text="formattedBuildTime ? `${appVersion} (${formattedBuildTime})` : appVersion"
+                color="warning"
+                size="small"
+                style="font-family: monospace; font-size: 0.75rem; font-weight: 800; white-space: nowrap; margin-left: 0.25rem;"
+              />
             </div>
           </template>
           <template #right>
@@ -165,6 +172,12 @@
         <va-sidebar v-show="showSidebar" v-model="showSidebar" width="18.5rem" :minimized="false" class="responsive-sidebar" :class="{ 'dark-theme-sidebar': isDark }">
           <SidebarMenuItem v-for="menu in filteredMenus" :key="menu.id" :menu="menu" />
         </va-sidebar>
+        <!-- Mobile Sidebar Backdrop Overlay -->
+        <div
+          v-if="isMobile && showSidebar"
+          class="sidebar-mobile-backdrop"
+          @click="showSidebar = false"
+        />
       </template>
       
       <template #content>
@@ -251,6 +264,24 @@ import ChangePasswordForm from '~/components/auth/ChangePasswordForm.vue'
 import { useRoles } from '~/composables/useRoles'
 
 const { t, locale, setLocale } = useI18n()
+const config = useRuntimeConfig()
+const appVersion = computed(() => config.public.appVersion || 'v1.0.0')
+const formattedBuildTime = computed(() => {
+  const bt = config.public.buildTime
+  if (!bt) return ''
+  try {
+    const d = new Date(bt)
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    const h = String(d.getHours()).padStart(2, '0')
+    const min = String(d.getMinutes()).padStart(2, '0')
+    return `${y}.${m}.${day} ${h}:${min}`
+  } catch (e) {
+    return String(bt)
+  }
+})
+
 const colors = useColors()
 const applyPreset = colors?.applyPreset || (() => {})
 const currentPresetName = colors?.currentPresetName
@@ -541,18 +572,14 @@ onMounted(async () => {
     document.body.style.fontSize = savedFontSize.value
     document.documentElement.style.setProperty('--app-font-size', savedFontSize.value)
   }
-  
-  await syncCurrentUserInfo()
-  await fetchMenus(true)
-  await fetchUserOrganizationName()
-  await fetchDepartmentRoles()
-  await initGlobalRoles()
 
+  updateNavbarHeight()
   if (window.innerWidth < 768) {
     isMobile.value = true
     showSidebar.value = false
   }
   window.addEventListener('resize', () => {
+    updateNavbarHeight()
     const isNowMobile = window.innerWidth < 768
     if (isMobile.value && !isNowMobile) {
       showSidebar.value = true // Restore on PC
@@ -560,7 +587,25 @@ onMounted(async () => {
     isMobile.value = isNowMobile
   })
   isMounted.value = true
+  
+  await syncCurrentUserInfo()
+  await fetchMenus(true)
+  await fetchUserOrganizationName()
+  await fetchDepartmentRoles()
+  await initGlobalRoles()
 })
+
+const updateNavbarHeight = () => {
+  if (typeof document !== 'undefined') {
+    const navbarEl = document.querySelector('.va-navbar')
+    if (navbarEl) {
+      const height = navbarEl.getBoundingClientRect().height
+      if (height > 0) {
+        document.documentElement.style.setProperty('--app-navbar-height', `${height}px`)
+      }
+    }
+  }
+}
 
 watch(route, () => {
   if (isMobile.value) {
@@ -658,7 +703,7 @@ body {
 }
 .responsive-main {
   padding: 1rem;
-  height: calc(100vh - 64px);
+  height: calc(100vh - var(--app-navbar-height, 64px));
   box-sizing: border-box;
   overflow-y: auto;
   overflow-x: hidden;
@@ -672,6 +717,8 @@ body {
 .va-sidebar {
   border-right: 1px solid var(--va-background-border);
   overflow-x: hidden !important;
+  overflow-y: auto !important;
+  height: calc(100vh - var(--app-navbar-height, 64px));
   transition: all 0.2s ease;
 }
 .responsive-sidebar:not(.va-sidebar--hidden) {
@@ -774,6 +821,7 @@ body {
   }
   .responsive-main {
     padding: 0.25rem !important;
+    height: calc(100vh - var(--app-navbar-height, 64px)) !important;
   }
   .username-text {
     display: none;
@@ -782,9 +830,25 @@ body {
     padding-right: 0.75rem;
   }
   .responsive-sidebar {
-    position: absolute;
-    z-index: 1000;
-    height: 100%;
+    position: fixed !important;
+    top: var(--app-navbar-height, 64px) !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    height: calc(100dvh - var(--app-navbar-height, 64px)) !important;
+    max-height: calc(100dvh - var(--app-navbar-height, 64px)) !important;
+    z-index: 1000 !important;
+    overflow-y: auto !important;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.25);
+  }
+  .sidebar-mobile-backdrop {
+    position: fixed;
+    top: var(--app-navbar-height, 64px);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(2px);
+    z-index: 999;
   }
   .full-title { display: none; }
   .short-title { display: inline; font-size: 1.1rem; }

@@ -1,12 +1,13 @@
 <template>
-  <AppModal
-    v-model="modalVisible"
-    hide-default-actions
-    v-model:fullscreen="isFullscreenModal"
-    size="large"
-    class="custom-record-modal"
-    without-transitions
-  >
+  <div class="record-detail-drawer-root">
+    <AppModal
+      v-model="modalVisible"
+      hide-default-actions
+      v-model:fullscreen="isFullscreenModal"
+      size="large"
+      class="custom-record-modal"
+      without-transitions
+    >
     <template #header>
       <div class="custom-modal-header-wrapper" style="display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 32px; gap: 0.75rem; flex-wrap: wrap;">
         <!-- Left: Icon & Main Title & Name -->
@@ -24,21 +25,30 @@
         <!-- Right: Chips & Badges & Window Controls -->
         <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-left: auto;">
 
-          <!-- Layout Switcher Select (커스텀 레이아웃이 1개 이상 있을 때 노출) -->
-          <div v-if="availableLayouts.length > 0" style="display: inline-flex; align-items: center; margin-right: 0.25rem;">
+          <!-- Layout Switcher & Builder Toolbar -->
+          <div style="display: inline-flex; align-items: center; gap: 4px; margin-right: 0.25rem;">
             <va-select
               v-model="selectedLayoutId"
               :options="detailLayoutSelectOptions"
               value-by="value"
               track-by="value"
               size="small"
-              style="width: 210px;"
+              style="width: 200px;"
               :placeholder="$t('layout_select_label')"
             >
               <template #prependInner>
                 <va-icon name="dashboard" size="small" color="primary" />
               </template>
             </va-select>
+
+            <va-button
+              preset="secondary"
+              size="small"
+              icon="dashboard_customize"
+              color="primary"
+              :title="$t('btn_layout_builder')"
+              @click="showLayoutBuilderModal = true"
+            />
           </div>
 
           <!-- ID / 사번 칩 -->
@@ -146,6 +156,13 @@
       <!-- Details Tab Content -->
       <div v-show="activeMainTab === 'details'" style="overflow-y: auto; flex: 1; padding-right: 4px;">
 
+        <!-- Domain Record Header Widget: identifierFieldId/displayNameFieldId/descriptionFieldId/imageFieldId 기반 동적 렌더링 -->
+        <SpecializedDomainWidgetRenderer
+          :domain="selectedDomainInfo"
+          :record-data="localRecord"
+          :fields="fields"
+        />
+
         <!-- Custom 2D Grid Layout View -->
         <DynamicRecordLayoutRenderer
           v-if="currentSelectedLayout && currentSelectedLayout.widgets && currentSelectedLayout.widgets.length > 0"
@@ -155,7 +172,13 @@
           :is-editing="isEditing"
           :selected-domain-info="selectedDomainInfo"
           :domain-references="domainReferences"
+          :decrypted-values="decryptedValues"
+          :decrypt-remaining-time="decryptRemainingTime"
+          :decrypting-fields="decryptingFields"
           @openDomainRef="$emit('openDomainRef', $event)"
+          @startEdit="canWrite && !isSnapshotMode && (isEditing = true)"
+          @requestDecrypt="requestDecryptRecordField"
+          @hideDecrypt="hideDecryptedField"
         />
 
         <!-- Fallback: Standard Sector / Group Accordion View -->
@@ -163,14 +186,14 @@
         <!-- Sector Sub-Tabs: Clean Underline / Small Chip style -->
         <va-tabs v-model="activeSectorTab" style="margin-bottom: 1rem;" grow>
           <template #tabs>
-            <va-tab v-for="(sector, idx) in groupedFieldsArray" :key="sector.key" :name="idx">
+            <va-tab v-for="sector in groupedFieldsArray" :key="sector.key" :name="sector.key">
               {{ sector.label }}
             </va-tab>
           </template>
         </va-tabs>
 
         <!-- Sector Content -->
-        <div v-for="(sector, idx) in groupedFieldsArray" :key="sector.key" v-show="activeSectorTab === idx">
+        <div v-for="(sector, idx) in groupedFieldsArray" :key="sector.key" v-show="activeSectorTab === sector.key || (!activeSectorTab && idx === 0) || activeSectorTab === idx">
 
           <va-accordion multiple style="width: 100%;" class="mb-4">
             <va-collapse
@@ -218,91 +241,96 @@
                           </span>
                         </span>
 
-                        <va-input
-                          v-if="['TEXT', 'NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER', 'DATE'].includes(field.type)"
-                          :model-value="field.type === 'DATE' && !isEditing ? formatDateForDisplay(getDecryptedFieldValue(field.key) ?? localRecord[field.key]) : (getDecryptedFieldValue(field.key) ?? localRecord[field.key])"
-                          @update:model-value="(val) => handleMaskedInput(field, val)"
-                          :type="field.type === 'DATE' ? (isEditing ? 'date' : 'text') : (['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type) ? 'number' : 'text')"
-                          class="w-full"
-                          :readonly="!isEditing || evalConditionRule(field, localRecord).readOnly"
-                          :disabled="isEditing && (isAutoNumberingField(field) || evalConditionRule(field, localRecord).disabled)"
-                          :lang="locale === 'en' ? 'en-US' : 'ko-KR'"
-                          :placeholder="isEditing && isAutoNumberingField(field) ? (locale === 'en' ? 'Auto-generated on final approval' : '자동 채번됩니다 (최종 승인 시)') : (field.type === 'DATE' ? (locale === 'en' ? 'YYYY-MM-DD' : '연도-월-일') : '')"
-                          @focus="focusedDateFields['edit_' + field.key] = true"
-                          @blur="focusedDateFields['edit_' + field.key] = false"
-                        />
+                        <!-- ================= VIEW MODE (Doc-style Clean View) ================= -->
+                        <div
+                          v-if="!isEditing && field.type !== 'JSON'"
+                          class="doc-field-wrapper"
+                          :class="{ 'doc-field-editable': canWrite && !isSnapshotMode }"
+                          @click="startEditingField(field.key)"
+                        >
+                          <!-- 1. Text / Number / Email / Phone / Date / Calculated -->
+                          <div v-if="['TEXT', 'NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER', 'DATE', 'EMAIL', 'PHONE', 'CALCULATED'].includes(field.type)" class="doc-field-value">
+                            <template v-if="hasFieldValue(field)">
+                              <a v-if="field.type === 'EMAIL'" :href="'mailto:' + getFieldDisplayValue(field)" class="doc-link" @click.stop>{{ getFieldDisplayValue(field) }}</a>
+                              <a v-else-if="field.type === 'PHONE'" :href="'tel:' + getFieldDisplayValue(field)" class="doc-link" @click.stop>{{ getFieldDisplayValue(field) }}</a>
+                              <span v-else-if="field.type === 'DATE'" class="doc-text">{{ formatDateForDisplay(getFieldDisplayValue(field)) }}</span>
+                              <span v-else-if="field.type === 'CALCULATED'" class="doc-text font-semibold">{{ getFieldDisplayValue(field) }}</span>
+                              <span v-else class="doc-text">{{ getFieldDisplayValue(field) }}</span>
+                            </template>
+                            <span v-else class="doc-empty">-</span>
+                          </div>
 
-                        <div v-else-if="field.type === 'DOMAIN_REFERENCE'" class="w-full" style="display: flex; gap: 0.5rem; align-items: center;">
-                          <va-input
-                            :model-value="getDomainRefDisplayName(field.key, localRecord[field.key])"
-                            readonly
-                            style="flex: 1;"
-                          />
-                          <va-button v-if="isEditing" icon="search" @click="openDomainRefPicker(field.key)" />
-                        </div>
+                          <!-- 2. DOMAIN_REFERENCE -->
+                          <div v-else-if="field.type === 'DOMAIN_REFERENCE'" class="doc-field-value">
+                            <span v-if="hasFieldValue(field)" class="doc-ref-badge" @click.stop="openDomainRefPicker(field.key)">
+                              🔗 {{ getDomainRefDisplayName(field.key, localRecord[field.key]) }}
+                            </span>
+                            <span v-else class="doc-empty">-</span>
+                          </div>
 
-                        <!-- Multilingual Edit -->
-                        <div v-else-if="field.type === 'MULTILINGUAL'" class="w-full" style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
-                          <va-input v-model="localRecord[field.key].ko" style="flex: 1; min-width: 0;" :readonly="!isEditing" class="slim-multilingual-input">
-                            <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">{{ locale === 'en' ? 'Korean' : '한국어' }}</span></template>
-                          </va-input>
-                          <va-input v-model="localRecord[field.key].en" style="flex: 1; min-width: 0;" :readonly="!isEditing" class="slim-multilingual-input">
-                            <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">{{ locale === 'en' ? 'English' : '영어' }}</span></template>
-                          </va-input>
-                        </div>
+                          <!-- 3. MULTILINGUAL -->
+                          <div v-else-if="field.type === 'MULTILINGUAL'" class="doc-field-value doc-multilingual">
+                            <div v-if="localRecord[field.key]?.ko" class="doc-lang-row">
+                              <span class="lang-badge">KO</span>
+                              <span class="doc-text">{{ localRecord[field.key].ko }}</span>
+                            </div>
+                            <div v-if="localRecord[field.key]?.en" class="doc-lang-row">
+                              <span class="lang-badge">EN</span>
+                              <span class="doc-text">{{ localRecord[field.key].en }}</span>
+                            </div>
+                            <span v-if="!localRecord[field.key]?.ko && !localRecord[field.key]?.en" class="doc-empty">-</span>
+                          </div>
 
-                        <va-input
-                          v-else-if="field.type === 'CALCULATED'"
-                          v-model="localRecord[field.key]"
-                          readonly
-                          class="w-full"
-                          style="background-color: #f4f6f8;"
-                        />
+                          <!-- 4. HTML_TEXT / HTML / RICHTEXT / EDITOR -->
+                          <div v-else-if="['HTML_TEXT', 'HTML', 'RICHTEXT', 'EDITOR'].includes(field.type)" class="doc-field-value doc-html">
+                            <div v-if="hasFieldValue(field)" v-html="getFieldDisplayValue(field)"></div>
+                            <span v-else class="doc-empty">-</span>
+                          </div>
 
-                        <!-- HTML Editor (Rich Text) -->
-                        <div v-else-if="field.type === 'HTML_TEXT' || field.type === 'HTML'" class="w-full">
-                          <HtmlEditor
-                            v-model="localRecord[field.key]"
-                            :readonly="!isEditing || evalConditionRule(field, localRecord).readOnly"
-                            :disabled="isEditing && evalConditionRule(field, localRecord).disabled"
-                            :placeholder="getTranslatedName(field.hint) || $t('editor_placeholder')"
-                          />
-                        </div>
+                          <!-- 5. SELECT / MULTI_SELECT / CODE -->
+                          <div v-else-if="['SELECT', 'MULTI_SELECT', 'CODE'].includes(field.type)" class="doc-field-value">
+                            <template v-if="getSelectDisplayLabels(field).length > 0">
+                              <va-chip
+                                v-for="(lbl, sIdx) in getSelectDisplayLabels(field)"
+                                :key="sIdx"
+                                size="small"
+                                outline
+                                color="primary"
+                                style="margin-right: 4px; margin-bottom: 2px;"
+                              >
+                                {{ lbl }}
+                              </va-chip>
+                            </template>
+                            <span v-else class="doc-empty">-</span>
+                          </div>
 
-                        <va-select
-                          v-else-if="['SELECT', 'MULTI_SELECT'].includes(field.type)"
-                          v-model="localRecord[field.key]"
-                          :options="parseOptions(field.options)"
-                          :multiple="field.type === 'MULTI_SELECT' || field.isMultiValue"
-                          value-by="value"
-                          class="w-full"
-                          :readonly="!isEditing"
-                        />
+                          <!-- 6. BOOLEAN -->
+                          <div v-else-if="field.type === 'BOOLEAN'" class="doc-field-value">
+                            <va-chip
+                              size="small"
+                              :color="localRecord[field.key] ? 'success' : 'secondary'"
+                              outline
+                            >
+                              {{ localRecord[field.key] ? (locale === 'en' ? 'Yes' : '예') : (locale === 'en' ? 'No' : '아니오') }}
+                            </va-chip>
+                          </div>
 
-                        <va-checkbox
-                          v-else-if="field.type === 'BOOLEAN'"
-                          v-model="localRecord[field.key]"
-                          class="w-full"
-                          :readonly="!isEditing"
-                        />
+                          <!-- 7. IMAGE -->
+                          <div v-else-if="field.type === 'IMAGE'" class="doc-field-value">
+                            <ImageUploader
+                              v-model="localRecord[field.key]"
+                              :multiple="field.isMultiValue"
+                              :readonly="true"
+                            />
+                          </div>
 
-                        <!-- Image Uploader & Carousel Gallery -->
-                        <div v-else-if="field.type === 'IMAGE'" class="w-full">
-                          <ImageUploader
-                            v-model="localRecord[field.key]"
-                            :multiple="field.isMultiValue"
-                            :readonly="!isEditing || evalConditionRule(field, localRecord).readOnly"
-                            :disabled="isEditing && evalConditionRule(field, localRecord).disabled"
-                          />
-                        </div>
-
-                        <div v-else-if="field.type === 'FILE'" class="w-full">
-                          <div v-if="!isEditing" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                            <template v-if="getFilesList(localRecord[field.key]).length > 0">
+                          <!-- 8. FILE -->
+                          <div v-else-if="field.type === 'FILE'" class="doc-field-value">
+                            <div v-if="getFilesList(localRecord[field.key]).length > 0" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                               <va-chip
                                 v-for="(fileObj, i) in getFilesList(localRecord[field.key])"
                                 :key="i"
-                                @click="downloadFileWithAuth(fileObj.url || fileObj, fileObj.name || extractFilename(fileObj.url || fileObj))"
+                                @click.stop="downloadFileWithAuth(fileObj.url || fileObj, fileObj.name || extractFilename(fileObj.url || fileObj))"
                                 outline
                                 icon="download"
                                 color="primary"
@@ -310,10 +338,107 @@
                               >
                                 {{ fileObj.name || extractFilename(fileObj.url || fileObj) }}
                               </va-chip>
-                            </template>
-                            <span v-else>-</span>
+                            </div>
+                            <span v-else class="doc-empty">-</span>
                           </div>
-                          <template v-else>
+
+                          <!-- 9. DATE_RANGE -->
+                          <div v-else-if="field.type === 'DATE_RANGE'" class="doc-field-value">
+                            <span v-if="hasFieldValue(field)" class="doc-text">
+                              {{ (getDecryptedFieldValue(field.key) ?? localRecord[field.key] ?? '').replace('~', ' ~ ') }}
+                            </span>
+                            <span v-else class="doc-empty">-</span>
+                          </div>
+
+                          <!-- Edit Hover Action Indicator -->
+                          <span v-if="canWrite && !isSnapshotMode" class="doc-edit-icon" :title="$t('click_to_edit')">
+                            <va-icon name="edit" size="14px" color="secondary" />
+                          </span>
+                        </div>
+
+                        <!-- ================= EDIT MODE (Form Input Controls) ================= -->
+                        <template v-else-if="field.type !== 'JSON'">
+                          <va-input
+                            v-if="['TEXT', 'NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER', 'DATE', 'EMAIL', 'PHONE'].includes(field.type)"
+                            :model-value="getDecryptedFieldValue(field.key) ?? localRecord[field.key]"
+                            @update:model-value="(val) => handleMaskedInput(field, val)"
+                            :type="field.type === 'DATE' ? 'date' : (['NUMBER', 'DECIMAL', 'FLOAT', 'INTEGER'].includes(field.type) ? 'number' : (field.type === 'EMAIL' ? 'email' : (field.type === 'PHONE' ? 'tel' : 'text')))"
+                            class="w-full"
+                            :readonly="evalConditionRule(field, localRecord).readOnly"
+                            :disabled="isAutoNumberingField(field) || evalConditionRule(field, localRecord).disabled"
+                            :rules="getFieldRules(field)"
+                            :lang="locale === 'en' ? 'en-US' : 'ko-KR'"
+                            :placeholder="isAutoNumberingField(field) ? (locale === 'en' ? 'Auto-generated on final approval' : '자동 채번됩니다 (최종 승인 시)') : (field.type === 'DATE' ? (locale === 'en' ? 'YYYY-MM-DD' : '연도-월-일') : (field.type === 'EMAIL' ? 'example@domain.com' : ''))"
+                            @focus="focusedDateFields['edit_' + field.key] = true"
+                            @blur="focusedDateFields['edit_' + field.key] = false"
+                          />
+
+                          <div v-else-if="field.type === 'DOMAIN_REFERENCE'" class="w-full" style="display: flex; gap: 0.5rem; align-items: center;">
+                            <va-input
+                              :model-value="getDomainRefDisplayName(field.key, localRecord[field.key])"
+                              readonly
+                              style="flex: 1;"
+                            />
+                            <va-button icon="search" @click="openDomainRefPicker(field.key)" />
+                          </div>
+
+                          <!-- Multilingual Edit -->
+                          <div v-else-if="field.type === 'MULTILINGUAL'" class="w-full" style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
+                            <va-input v-model="localRecord[field.key].ko" style="flex: 1; min-width: 0;" class="slim-multilingual-input">
+                              <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">{{ locale === 'en' ? 'Korean' : '한국어' }}</span></template>
+                            </va-input>
+                            <va-input v-model="localRecord[field.key].en" style="flex: 1; min-width: 0;" class="slim-multilingual-input">
+                              <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">{{ locale === 'en' ? 'English' : '영어' }}</span></template>
+                            </va-input>
+                          </div>
+
+                          <va-input
+                            v-else-if="field.type === 'CALCULATED'"
+                            v-model="localRecord[field.key]"
+                            readonly
+                            class="w-full"
+                            style="background-color: #f4f6f8;"
+                          />
+
+                          <!-- HTML Editor (Rich Text) -->
+                          <div v-else-if="['HTML_TEXT', 'HTML', 'RICHTEXT', 'EDITOR'].includes(field.type)" class="w-full">
+                            <HtmlEditor
+                              v-model="localRecord[field.key]"
+                              :readonly="evalConditionRule(field, localRecord).readOnly"
+                              :disabled="evalConditionRule(field, localRecord).disabled"
+                              :placeholder="getTranslatedName(field.hint) || $t('editor_placeholder')"
+                            />
+                          </div>
+
+                          <va-select
+                            v-else-if="['SELECT', 'MULTI_SELECT', 'CODE'].includes(field.type)"
+                            v-model="localRecord[field.key]"
+                            :options="parseOptions(field.options)"
+                            :multiple="field.type === 'MULTI_SELECT' || field.isMultiValue"
+                            value-by="value"
+                            text-by="text"
+                            track-by="value"
+                            :teleport="true"
+                            class="w-full"
+                          />
+
+                          <va-checkbox
+                            v-else-if="field.type === 'BOOLEAN'"
+                            v-model="localRecord[field.key]"
+                            class="w-full"
+                          />
+
+                          <!-- Image Uploader & Carousel Gallery -->
+                          <div v-else-if="field.type === 'IMAGE'" class="w-full">
+                            <ImageUploader
+                              v-model="localRecord[field.key]"
+                              :multiple="field.isMultiValue"
+                              :readonly="evalConditionRule(field, localRecord).readOnly"
+                              :disabled="evalConditionRule(field, localRecord).disabled"
+                            />
+                          </div>
+
+                          <div v-else-if="field.type === 'FILE'" class="w-full">
                             <va-file-upload
                               :model-value="[]"
                               @update:model-value="handleFilesAdded(field, $event)"
@@ -348,17 +473,9 @@
                                 </div>
                               </div>
                             </transition-group>
-                          </template>
-                        </div>
-                        <div v-else-if="field.type === 'DATE_RANGE'" class="w-full" style="display: flex; gap: 0.5rem; flex-direction: row; align-items: center; min-width: 0;">
-                          <template v-if="!isEditing">
-                            <va-input
-                              :model-value="(getDecryptedFieldValue(field.key) ?? localRecord[field.key] ?? '').replace('~', ' ~ ')"
-                              readonly
-                              class="w-full"
-                            />
-                          </template>
-                          <template v-else>
+                          </div>
+
+                          <div v-else-if="field.type === 'DATE_RANGE'" class="w-full" style="display: flex; gap: 0.5rem; flex-direction: row; align-items: center; min-width: 0;">
                             <va-input
                               :model-value="(localRecord[field.key] || '').split('~')[0] || ''"
                               @update:model-value="(val) => { const arr = (localRecord[field.key] || '').split('~'); arr[0] = val; localRecord[field.key] = arr.join('~'); if (arr.length === 1) localRecord[field.key] += '~'; }"
@@ -384,8 +501,8 @@
                               @focus="focusedDateFields['edit_' + field.key + '_end'] = true"
                               @blur="focusedDateFields['edit_' + field.key + '_end'] = false"
                             />
-                          </template>
-                        </div>
+                          </div>
+                        </template>
 
                         <!-- JSON Sub-Table / Table Schema -->
                         <div v-else-if="field.type === 'JSON'" class="w-full">
@@ -658,18 +775,18 @@
                           <!-- If NOT JSON and NOT FILE Type -->
                           <div v-if="getFieldByKey(fieldKey)?.type !== 'JSON' && getFieldByKey(fieldKey)?.type !== 'FILE'" style="display: flex; align-items: center; gap: 0.5rem; flex: 1; flex-wrap: wrap;">
                             <span style="text-decoration: line-through; color: var(--va-danger); background: rgba(229, 57, 53, 0.1); padding: 0.1rem 0.4rem; border-radius: 4px;">
-                              {{ getDecryptedFieldValue(log.id + '_' + fieldKey) || formatDiffValue(fieldKey, safeParseJson(log.previousData)[fieldKey]) }}
+                              {{ getDecryptedFieldValue(log.id + '_' + fieldKey + '_prev') || formatDiffValue(fieldKey, getHistoryVal(log.previousData, fieldKey)) }}
                             </span>
                             <va-icon name="arrow_forward" size="small" color="secondary" />
                             <span style="color: var(--va-success); background: rgba(30, 203, 114, 0.1); padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 600;">
-                              {{ getDecryptedFieldValue(log.id + '_' + fieldKey) || formatDiffValue(fieldKey, safeParseJson(log.newData)[fieldKey]) }}
+                              {{ getDecryptedFieldValue(log.id + '_' + fieldKey + '_new') || getDecryptedFieldValue(log.id + '_' + fieldKey) || formatDiffValue(fieldKey, getHistoryVal(log.newData, fieldKey)) }}
                             </span>
                             <!-- Decrypt Button for History -->
                             <span v-if="getFieldByKey(fieldKey)?.isEncrypted" style="margin-left:8px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; color:#888;">
                               <va-icon name="lock" size="small" />
                               <template v-if="getDecryptedFieldValue(log.id + '_' + fieldKey) === undefined">
                                 <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary);" @click.stop="requestDecryptHistoryField(log.id, fieldKey)">
-                                  {{ t('view_original') }}
+                                   {{ t('view_original') }}
                                 </span>
                               </template>
                               <template v-else>
@@ -686,9 +803,9 @@
 
                           <!-- If FILE Type: Render Download Links -->
                           <div v-else-if="getFieldByKey(fieldKey)?.type === 'FILE'" style="display: flex; align-items: center; gap: 0.5rem; flex: 1; flex-wrap: wrap;">
-                            <div v-if="getFilesList(safeParseJson(log.previousData)[fieldKey]).length > 0" style="display: flex; flex-direction: column; gap: 2px;">
+                            <div v-if="getFilesList(getHistoryVal(log.previousData, fieldKey)).length > 0" style="display: flex; flex-direction: column; gap: 2px;">
                               <a
-                                v-for="(fUrl, fIdx) in getFilesList(safeParseJson(log.previousData)[fieldKey])"
+                                v-for="(fUrl, fIdx) in getFilesList(getHistoryVal(log.previousData, fieldKey))"
                                 :key="fIdx"
                                 href="#"
                                 @click.prevent="downloadFileWithAuth(fUrl.url || fUrl, fUrl.name || extractFilename(fUrl.url || fUrl))"
@@ -703,9 +820,9 @@
 
                             <va-icon name="arrow_forward" size="small" color="secondary" />
 
-                            <div v-if="getFilesList(safeParseJson(log.newData)[fieldKey]).length > 0" style="display: flex; flex-direction: column; gap: 2px;">
+                            <div v-if="getFilesList(getHistoryVal(log.newData, fieldKey)).length > 0" style="display: flex; flex-direction: column; gap: 2px;">
                               <a
-                                v-for="(fUrl, fIdx) in getFilesList(safeParseJson(log.newData)[fieldKey])"
+                                v-for="(fUrl, fIdx) in getFilesList(getHistoryVal(log.newData, fieldKey))"
                                 :key="fIdx"
                                 href="#"
                                 @click.prevent="downloadFileWithAuth(fUrl.url || fUrl, fUrl.name || extractFilename(fUrl.url || fUrl))"
@@ -722,20 +839,20 @@
 
                         <!-- If JSON Type: Render Sub-Table Diff -->
                         <div v-if="getFieldByKey(fieldKey)?.type === 'JSON'" style="margin-top: 0.25rem;">
-                          <div v-if="getTableRows(safeParseJson(log.newData)[fieldKey]).length > 0" style="border: 1px solid var(--va-background-border); border-radius: 6px; overflow: hidden; background: var(--va-background-element);">
+                          <div v-if="getTableRows(getHistoryVal(log.newData, fieldKey)).length > 0" style="border: 1px solid var(--va-background-border); border-radius: 6px; overflow: hidden; background: var(--va-background-element);">
                             <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
                               <thead>
                                 <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
                                   <th style="padding: 0.4rem 0.5rem; width: 35px; text-align: center; color: var(--va-text-secondary);">#</th>
-                                  <th v-for="col in getTableColumns(getFieldByKey(fieldKey), getTableRows(safeParseJson(log.newData)[fieldKey]))" :key="col.key" style="padding: 0.4rem 0.6rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
+                                  <th v-for="col in getTableColumns(getFieldByKey(fieldKey), getTableRows(getHistoryVal(log.newData, fieldKey)))" :key="col.key" style="padding: 0.4rem 0.6rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
                                     {{ getTranslatedColName(col.name) }}
                                   </th>
                                 </tr>
                               </thead>
                               <tbody>
-                                <tr v-for="(row, rIdx) in getTableRows(safeParseJson(log.newData)[fieldKey])" :key="rIdx" style="border-bottom: 1px solid var(--va-background-border);">
+                                <tr v-for="(row, rIdx) in getTableRows(getHistoryVal(log.newData, fieldKey))" :key="rIdx" style="border-bottom: 1px solid var(--va-background-border);">
                                   <td style="padding: 0.4rem 0.5rem; text-align: center; color: var(--va-text-secondary); font-size: 0.75rem;">{{ rIdx + 1 }}</td>
-                                  <td v-for="col in getTableColumns(getFieldByKey(fieldKey), getTableRows(safeParseJson(log.newData)[fieldKey]))" :key="col.key" style="padding: 0.4rem 0.6rem; color: var(--va-text-primary);">
+                                  <td v-for="col in getTableColumns(getFieldByKey(fieldKey), getTableRows(getHistoryVal(log.newData, fieldKey)))" :key="col.key" style="padding: 0.4rem 0.6rem; color: var(--va-text-primary);">
                                     {{ formatTableCellVal(row[col.key], col) }}
                                   </td>
                                 </tr>
@@ -794,9 +911,17 @@
       </va-button>
       <va-button
         v-if="activeMainTab === 'details' && isEditing && !isSnapshotMode && canWrite"
+        preset="secondary"
+        color="secondary"
+        @click="cancelEditing"
+      >
+        {{ t('btn_cancel') }}
+      </va-button>
+      <va-button
+        v-if="activeMainTab === 'details' && isEditing && !isSnapshotMode && canWrite"
         color="success"
         :disabled="!hasUpdateWorkflow"
-        @click="$emit('save', { ...localRecord })"
+        @click="handleSaveRecord"
       >
         {{ t('btn_save') }}
       </va-button>
@@ -862,6 +987,16 @@
       </div>
     </div>
   </AppModal>
+
+    <!-- Record 2D Grid Layout Builder Modal -->
+    <RecordLayoutBuilderModal
+      v-model="showLayoutBuilderModal"
+      :domain-id="selectedDomainInfo?.id || record?.domainId"
+      :target-node="record?.classificationNode || (record?.nodeId ? { id: record.nodeId } : null)"
+      :fields="fields"
+      @saved="onLayoutBuilderSaved"
+    />
+  </div>
 </template>
 
 <script setup>
@@ -877,14 +1012,18 @@ import ImageUploader from '~/components/common/ImageUploader.vue'
 import ModalControls from '~/components/common/ModalControls.vue'
 import AppModal from '~/components/common/AppModal.vue'
 import DynamicRecordLayoutRenderer from './DynamicRecordLayoutRenderer.vue'
+import SpecializedDomainWidgetRenderer from './specialized/SpecializedDomainWidgetRenderer.vue'
+import RecordLayoutBuilderModal from './RecordLayoutBuilderModal.vue'
+import { useCustomFetch } from '~/composables/useCustomFetch'
 
-
+const { customFetch } = useCustomFetch()
 const { downloadFileWithAuth } = useFileDownloader()
 
 const { gridTheme } = useAgGridTheme()
 
 const showUnmergePreview = ref(false)
 const showUnmaskReasonModal = ref(false)
+const showLayoutBuilderModal = ref(false)
 
 const pendingDecryptAction = ref(null)
 
@@ -960,23 +1099,142 @@ const safeParseJson = (val) => {
   try { return JSON.parse(val); } catch (e) { return {}; }
 };
 
+const getHistoryVal = (dataObj, key) => {
+  if (!dataObj || !key) return undefined;
+  const obj = safeParseJson(dataObj);
+  if (obj[key] !== undefined) return obj[key];
+  const lower = String(key).toLowerCase();
+  const upper = String(key).toUpperCase();
+  if (obj[upper] !== undefined) return obj[upper];
+  if (obj[lower] !== undefined) return obj[lower];
+  for (const k of Object.keys(obj)) {
+    if (k.toLowerCase() === lower) {
+      return obj[k];
+    }
+  }
+  return undefined;
+};
+
+const isDiffEqual = (v1, v2) => {
+  if (v1 === v2) return true;
+  if ((v1 === null || v1 === undefined || v1 === '') && (v2 === null || v2 === undefined || v2 === '')) return true;
+
+  // Object equality check
+  if (typeof v1 === 'object' && typeof v2 === 'object' && v1 !== null && v2 !== null) {
+    return JSON.stringify(v1) === JSON.stringify(v2);
+  }
+
+  // Multilingual object vs simple string check
+  if (typeof v1 === 'object' && v1 !== null && typeof v2 === 'string') {
+    const text = v1.ko || v1.en || Object.values(v1)[0];
+    if (text === v2) return true;
+  }
+  if (typeof v2 === 'object' && v2 !== null && typeof v1 === 'string') {
+    const text = v2.ko || v2.en || Object.values(v2)[0];
+    if (text === v1) return true;
+  }
+
+  // Number vs String number
+  if (typeof v1 === 'number' && typeof v2 === 'string') return String(v1) === v2.trim();
+  if (typeof v2 === 'number' && typeof v1 === 'string') return String(v2) === v1.trim();
+
+  return JSON.stringify(v1) === JSON.stringify(v2);
+};
+
 const getChangedKeys = (prev, curr, log) => {
   if (log && Array.isArray(log.changedFields) && log.changedFields.length > 0) {
     return log.changedFields;
   }
-  if (!prev || !curr) return [];
+  if (!prev && !curr) return [];
   const prevObj = safeParseJson(prev);
   const currObj = safeParseJson(curr);
-  const keys = new Set([...Object.keys(prevObj), ...Object.keys(currObj)]);
+
+  const ignoredKeys = new Set([
+    'id', 'createdat', 'updatedat', 'createdby', 'updatedby',
+    'domainid', 'status', 'nodeid', 'version', 'sourcesystem'
+  ]);
+
+  const keyMap = new Map(); // upperKey -> canonicalKey
+  const processKeys = (obj) => {
+    for (const k of Object.keys(obj)) {
+      if (!k || k.startsWith('_idx_') || ignoredKeys.has(k.toLowerCase())) continue;
+      const upper = k.toUpperCase();
+      if (!keyMap.has(upper)) {
+        const matchedField = props.fields?.find(f => f.key && f.key.toUpperCase() === upper);
+        keyMap.set(upper, matchedField ? matchedField.key : k);
+      }
+    }
+  };
+  processKeys(prevObj);
+  processKeys(currObj);
+
   const changed = [];
-  for (const k of keys) {
-    if (k === 'id' || k === 'createdAt' || k === 'updatedAt' || k === 'createdBy' || k === 'updatedBy' || k === 'domainId' || k === 'status') continue;
-    if (k.startsWith('_idx_')) continue;
-    if (JSON.stringify(prevObj[k]) !== JSON.stringify(currObj[k])) {
-      changed.push(k);
+  for (const [upper, canonicalKey] of keyMap.entries()) {
+    const valPrev = getHistoryVal(prevObj, upper);
+    const valCurr = getHistoryVal(currObj, upper);
+    if (!isDiffEqual(valPrev, valCurr)) {
+      changed.push(canonicalKey);
     }
   }
   return changed;
+};
+
+const getSelectDisplayLabels = (field) => {
+  if (!field) return [];
+  let rawVal = localRecord.value?.[field.key];
+  if (rawVal === undefined || rawVal === null || rawVal === '') {
+    if (field.key) {
+      rawVal = localRecord.value?.[field.key.toUpperCase()] ?? localRecord.value?.[field.key.toLowerCase()];
+    }
+  }
+  if (rawVal === undefined || rawVal === null || rawVal === '') return [];
+  const options = parseOptions(field.options);
+  if (!options || options.length === 0) return [String(rawVal)];
+
+  const vals = Array.isArray(rawVal) ? rawVal : [rawVal];
+  return vals.map((v) => {
+    const matched = options.find((opt) => String(opt.value) === String(v));
+    return matched ? matched.text : String(v);
+  });
+};
+
+const getFieldDisplayValue = (field) => {
+  if (!field) return '';
+  const decrypted = getDecryptedFieldValue(field.key);
+  if (decrypted !== undefined && decrypted !== null) return decrypted;
+  if (!localRecord.value) return '';
+  if (localRecord.value[field.key] !== undefined && localRecord.value[field.key] !== null) {
+    return localRecord.value[field.key];
+  }
+  if (field.key) {
+    const upperKey = field.key.toUpperCase();
+    if (localRecord.value[upperKey] !== undefined && localRecord.value[upperKey] !== null) {
+      return localRecord.value[upperKey];
+    }
+    const lowerKey = field.key.toLowerCase();
+    if (localRecord.value[lowerKey] !== undefined && localRecord.value[lowerKey] !== null) {
+      return localRecord.value[lowerKey];
+    }
+  }
+  return '';
+};
+
+const hasFieldValue = (field) => {
+  const v = getFieldDisplayValue(field);
+  return v !== undefined && v !== null && String(v).trim() !== '';
+};
+
+const startEditingField = (fieldKey) => {
+  if (props.canWrite && !props.isSnapshotMode) {
+    isEditing.value = true;
+  }
+};
+
+const cancelEditing = () => {
+  if (props.record) {
+    localRecord.value = populateRecordWithFields(props.record);
+  }
+  isEditing.value = false;
 };
 
 const getTableRows = (val) => {
@@ -1250,7 +1508,7 @@ watch(
 )
 
 const activeMainTab = ref('details')
-const activeSectorTab = ref(0)
+const activeSectorTab = ref('')
 const focusedDateFields = ref({})
 const localRecord = ref({})
 const customLayouts = ref([])
@@ -1303,7 +1561,7 @@ const fetchCustomLayout = async () => {
     const url = nodeId
       ? `/api/domains/${domainId}/nodes/${nodeId}/layout`
       : `/api/domains/${domainId}/layout`
-    const res = await $fetch(url)
+    const res = await customFetch(url)
     if (res && res.layouts && Array.isArray(res.layouts) && res.layouts.length > 0) {
       customLayouts.value = res.layouts
     } else if (res && res.widgets && Array.isArray(res.widgets) && res.widgets.length > 0) {
@@ -1320,12 +1578,13 @@ const fetchCustomLayout = async () => {
     } else {
       customLayouts.value = []
     }
-    // 디폴트는 항상 생성 시의 표준 폼 뷰(섹터/그룹 구조)
-    selectedLayoutId.value = 'STANDARD'
   } catch (e) {
     customLayouts.value = []
-    selectedLayoutId.value = 'STANDARD'
   }
+}
+
+const onLayoutBuilderSaved = async () => {
+  await fetchCustomLayout()
 }
 
 watch(
@@ -1666,11 +1925,58 @@ const openDomainRefPicker = (fieldKey) => {
   })
 }
 
+const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+
+const getFieldRules = (field) => {
+  const rules = []
+  if (field && field.type === 'EMAIL') {
+    rules.push((val) => {
+      if (!val || String(val).trim() === '') return true
+      return emailRegex.test(String(val).trim()) || (t('invalid_email_format') || (locale.value === 'ko' ? '올바른 이메일 형식을 입력해주세요.' : 'Please enter a valid email address.'))
+    })
+  }
+  return rules
+}
+
+const populateRecordWithFields = (rawRecord) => {
+  const result = rawRecord ? { ...rawRecord } : {}
+  if (props.fields && rawRecord) {
+    const rawKeys = Object.keys(rawRecord)
+    props.fields.forEach(f => {
+      if (f.key && result[f.key] === undefined) {
+        const matchKey = rawKeys.find(k => k.toUpperCase() === f.key.toUpperCase())
+        if (matchKey && result[matchKey] !== undefined) {
+          result[f.key] = result[matchKey]
+        }
+      }
+    })
+  }
+  return result
+}
+
+const handleSaveRecord = () => {
+  if (props.fields) {
+    for (const f of props.fields) {
+      if (f.type === 'EMAIL') {
+        const val = localRecord.value[f.key]
+        if (val && typeof val === 'string' && val.trim() !== '' && !val.includes('*') && !val.startsWith('vault:') && !val.startsWith('ENC(') && !emailRegex.test(val.trim())) {
+          useToast().init({
+            message: `${getTranslatedName(f.name)}: ${t('invalid_email_format') || (locale.value === 'ko' ? '올바른 이메일 형식을 입력해주세요.' : 'Please enter a valid email address.')}`,
+            color: 'danger'
+          })
+          return
+        }
+      }
+    }
+  }
+  emit('save', { ...localRecord.value })
+}
+
 watch(() => props.show, (val) => {
   if (val) {
     isEditing.value = props.isEditingRecord || false
     activeMainTab.value = 'details'
-    localRecord.value = props.record ? { ...props.record } : {}
+    localRecord.value = populateRecordWithFields(props.record)
     loadSecondaryNodes()
   } else {
     isEditing.value = false
@@ -1685,10 +1991,11 @@ watch(
       if (!props.show) localRecord.value = {}
       return
     }
+    const populated = populateRecordWithFields(newVal)
     if (props.show && Object.keys(localRecord.value).length > 0) {
-      localRecord.value = { ...localRecord.value, ...newVal }
+      localRecord.value = { ...localRecord.value, ...populated }
     } else {
-      localRecord.value = { ...newVal }
+      localRecord.value = { ...populated }
     }
     if (props.fields) {
       props.fields.forEach(f => {
@@ -1980,21 +2287,34 @@ const hasHint = (hintObj) => {
   return !!(parsed && (parsed.ko || parsed.en))
 }
 
+
 const groupedFieldsArray = computed(() => {
   const map = new Map()
+  const seenIds = new Set()
+  const seenKeys = new Set()
+
   const sortedFields = [...(props.fields || [])].sort((a, b) => (a.order || 0) - (b.order || 0))
 
   sortedFields.forEach((f) => {
-    const sObj = f.fieldGroup?.sector
-    const gObj = f.fieldGroup
+    if (!f) return
+    // ID 또는 Key 기준 대소문자 무시 중복 방어
+    const fId = f.id || f.key
+    const upperKey = f.key ? String(f.key).toUpperCase() : (fId ? String(fId).toUpperCase() : null)
+    if (fId && seenIds.has(fId)) return
+    if (upperKey && seenKeys.has(upperKey)) return
+    if (fId) seenIds.add(fId)
+    if (upperKey) seenKeys.add(upperKey)
 
-    const sName = getTranslatedName(sObj?.name) || (locale.value === 'ko' ? '일반' : 'General')
-    const sKey = sObj?.id || 'default'
-    const sOrder = sObj?.sortOrder || 0
+    const sObj = f.fieldGroup?.sector || f.sector || null
+    const gObj = f.fieldGroup || f.group || null
 
-    const gName = getTranslatedName(gObj?.name) || (locale.value === 'ko' ? '기본 필드' : 'Fields')
-    const gKey = gObj?.id || 'default'
-    const gOrder = gObj?.sortOrder || 0
+    const sName = getTranslatedName(sObj?.name) || (typeof sObj === 'string' ? sObj : '') || t('common.general') || (locale.value === 'ko' ? '일반' : 'General')
+    const sKey = sObj?.id || sObj?.key || (sObj?.name ? (typeof sObj.name === 'string' ? sObj.name : sObj.name.ko || sObj.name.en) : 'default')
+    const sOrder = sObj?.sortOrder ?? sObj?.order ?? 0
+
+    const gName = getTranslatedName(gObj?.name) || (typeof gObj === 'string' ? gObj : '') || t('common.fields') || (locale.value === 'ko' ? '기본 필드' : 'Fields')
+    const gKey = gObj?.id || gObj?.key || (gObj?.name ? (typeof gObj.name === 'string' ? gObj.name : gObj.name.ko || gObj.name.en) : 'default')
+    const gOrder = gObj?.sortOrder ?? gObj?.order ?? 0
 
     if (!map.has(sKey)) {
       map.set(sKey, { key: sKey, label: sName, order: sOrder, groups: new Map() })
@@ -2017,29 +2337,54 @@ const groupedFieldsArray = computed(() => {
   })
 })
 
+watch(
+  groupedFieldsArray,
+  (arr) => {
+    if (arr && arr.length > 0) {
+      if (!arr.some((s) => s.key === activeSectorTab.value)) {
+        activeSectorTab.value = arr[0].key
+      }
+    }
+  },
+  { immediate: true }
+)
+
 const parseOptions = (opts) => {
   if (!opts) return []
+  let rawList = opts
   if (typeof opts === 'string') {
-    if (opts.trim().startsWith('[')) {
+    const trimmed = opts.trim()
+    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
       try {
-        const parsed = JSON.parse(opts)
-        const mapped = parsed.map((o) => {
-          if (typeof o === 'string') return { text: o, value: o, order: 0 }
-          return {
-            value: o.key,
-            text: o.label?.[locale.value] || o.label?.ko || o.label?.en || o.key,
-            order: o.order || 0
-          }
-        })
-        return mapped.sort((a, b) => a.order - b.order)
-      } catch (e) {}
+        rawList = JSON.parse(trimmed)
+      } catch (e) {
+        return trimmed.split(',').map((s) => ({ text: s.trim(), value: s.trim() }))
+      }
+    } else {
+      return trimmed.split(',').map((s) => ({ text: s.trim(), value: s.trim() }))
     }
-    return opts.split(',').map((s) => {
-      const val = s.trim()
-      return { text: val, value: val }
-    })
   }
-  return opts
+
+  if (Array.isArray(rawList)) {
+    const mapped = rawList.map((o) => {
+      if (typeof o === 'string' || typeof o === 'number') {
+        return { text: String(o), value: String(o), order: 0 }
+      }
+      if (o && typeof o === 'object') {
+        const val = o.value !== undefined ? o.value : (o.key !== undefined ? o.key : (o.code !== undefined ? o.code : ''))
+        const textLabel = getTranslatedName(o.label || o.name || o.text || o.title || o.displayName) || (val ? String(val) : '')
+        return {
+          value: val,
+          text: textLabel,
+          order: o.order !== undefined ? o.order : (o.sortOrder !== undefined ? o.sortOrder : 0)
+        }
+      }
+      return { text: String(o), value: String(o), order: 0 }
+    })
+    return mapped.sort((a, b) => (a.order || 0) - (b.order || 0))
+  }
+
+  return []
 }
 
 const formatDateForDisplay = (val) => {
@@ -2444,5 +2789,96 @@ const removeFile = (fieldKey, index) => {
 }
 .slim-multilingual-input :deep(.va-input-wrapper__field) {
   align-items: center;
+}
+
+/* Document-style Clean View */
+.doc-field-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 36px;
+  padding: 0.35rem 0.6rem;
+  background: var(--va-background-element, #ffffff);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  transition: all 0.15s ease-in-out;
+  position: relative;
+}
+.doc-field-editable {
+  cursor: pointer;
+}
+.doc-field-editable:hover {
+  background: rgba(var(--va-primary-rgb, 21, 101, 192), 0.04);
+  border-color: rgba(var(--va-primary-rgb, 21, 101, 192), 0.25);
+}
+.doc-field-editable:hover .doc-edit-icon {
+  opacity: 1;
+}
+.doc-edit-icon {
+  opacity: 0;
+  transition: opacity 0.15s ease-in-out;
+  margin-left: 8px;
+  display: flex;
+  align-items: center;
+}
+.doc-field-value {
+  font-size: 0.925rem;
+  color: var(--va-text-primary, #1e293b);
+  word-break: break-word;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.5;
+}
+.doc-empty {
+  color: #94a3b8;
+  font-weight: 500;
+}
+.doc-text {
+  color: var(--va-text-primary, #1e293b);
+}
+.doc-link {
+  color: var(--va-primary, #2563eb);
+  text-decoration: none;
+}
+.doc-link:hover {
+  text-decoration: underline;
+}
+.doc-multilingual {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.doc-lang-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lang-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+}
+.doc-ref-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.doc-ref-badge:hover {
+  background: #dbeafe;
+}
+.doc-html {
+  font-size: 0.9rem;
+  line-height: 1.6;
 }
 </style>

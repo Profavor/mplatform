@@ -23,7 +23,7 @@ public class RecordHistory {
     private UUID recordId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "record_id", insertable = false, updatable = false)
+    @JoinColumn(name = "record_id", insertable = false, updatable = false, foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
     private Record record;
 
     @Column(name = "change_type", nullable = false, length = 20)

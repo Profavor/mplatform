@@ -17,6 +17,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.classification.domain_system.entity.ClassificationAxis;
+import com.classification.domain_system.repository.ClassificationAxisRepository;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -30,6 +33,9 @@ public class ClassificationNodeServiceTest {
 
     @Mock
     private DomainRepository domainRepository;
+
+    @Mock
+    private ClassificationAxisRepository axisRepository;
 
     @InjectMocks
     private ClassificationNodeService classificationNodeService;
@@ -107,6 +113,7 @@ public class ClassificationNodeServiceTest {
     @Test
     void getTree_Success() {
         ClassificationNode rootNode = new ClassificationNode();
+        when(axisRepository.findByDomainIdAndIsDefaultTrue(domainId)).thenReturn(Optional.empty());
         when(nodeRepository.findByDomain_IdAndAxisIsNullAndParentIsNullAndIsDeletedFalseOrderByOrderAsc(domainId))
                 .thenReturn(List.of(rootNode));
 
@@ -114,5 +121,23 @@ public class ClassificationNodeServiceTest {
 
         assertThat(tree).hasSize(1);
         verify(nodeRepository, times(1)).findByDomain_IdAndAxisIsNullAndParentIsNullAndIsDeletedFalseOrderByOrderAsc(domainId);
+    }
+
+    @Test
+    void getTree_WithDefaultAxis_Success() {
+        ClassificationAxis defaultAxis = new ClassificationAxis();
+        UUID axisId = UUID.randomUUID();
+        defaultAxis.setId(axisId);
+        defaultAxis.setIsDefault(true);
+
+        ClassificationNode rootNode = new ClassificationNode();
+        when(axisRepository.findByDomainIdAndIsDefaultTrue(domainId)).thenReturn(Optional.of(defaultAxis));
+        when(nodeRepository.findByDomain_IdAndAxis_IdAndParentIsNullAndIsDeletedFalseOrderByOrderAsc(domainId, axisId))
+                .thenReturn(List.of(rootNode));
+
+        List<ClassificationNode> tree = classificationNodeService.getTree(domainId);
+
+        assertThat(tree).hasSize(1);
+        verify(nodeRepository, times(1)).findByDomain_IdAndAxis_IdAndParentIsNullAndIsDeletedFalseOrderByOrderAsc(domainId, axisId);
     }
 }

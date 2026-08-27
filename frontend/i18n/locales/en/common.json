@@ -1,4 +1,6 @@
 {
+  "click_to_edit": "Click to edit",
+  "invalid_email_format": "Please enter a valid email address.",
   "standard_form_view": "Standard Form View (Sectors/Groups)",
   "layout_select_label": "Layout",
   "add_new_layout": "Add New Layout",
@@ -196,7 +198,6 @@
   "bulk_approve_loading": "Bulk approving...",
   "bulk_reject": "Bulk Reject",
   "bulk_reject_loading": "Bulk rejecting...",
-  "calculated": "Calculated",
   "calculated_suffix": "(Calculated)",
   "cancel": "Cancel",
   "change_content": "Changes",

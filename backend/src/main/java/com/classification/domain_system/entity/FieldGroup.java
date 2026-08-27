@@ -52,6 +52,7 @@ public class FieldGroup {
         Map<String, Object> map = new HashMap<>();
         map.put("id", sector.getId());
         map.put("name", sector.getName());
+        map.put("sortOrder", sector.getSortOrder());
         return map;
     }
 }

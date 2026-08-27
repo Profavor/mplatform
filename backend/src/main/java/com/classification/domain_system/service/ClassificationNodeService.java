@@ -105,6 +105,8 @@ public class ClassificationNodeService {
             node.setAxis(axis);
         } else if (parent != null && parent.getAxis() != null) {
             node.setAxis(parent.getAxis());
+        } else {
+            axisRepository.findByDomainIdAndIsDefaultTrue(domainId).ifPresent(node::setAxis);
         }
         
         ClassificationNode savedNode = nodeRepository.save(node);
@@ -139,7 +141,15 @@ public class ClassificationNodeService {
         if (axisId != null) {
             roots = nodeRepository.findByDomain_IdAndAxis_IdAndParentIsNullAndIsDeletedFalseOrderByOrderAsc(domainId, axisId);
         } else {
-            roots = nodeRepository.findByDomain_IdAndAxisIsNullAndParentIsNullAndIsDeletedFalseOrderByOrderAsc(domainId);
+            java.util.Optional<ClassificationAxis> defaultAxis = axisRepository.findByDomainIdAndIsDefaultTrue(domainId);
+            if (defaultAxis.isPresent()) {
+                roots = nodeRepository.findByDomain_IdAndAxis_IdAndParentIsNullAndIsDeletedFalseOrderByOrderAsc(domainId, defaultAxis.get().getId());
+            } else {
+                roots = nodeRepository.findByDomain_IdAndAxisIsNullAndParentIsNullAndIsDeletedFalseOrderByOrderAsc(domainId);
+            }
+            if (roots == null || roots.isEmpty()) {
+                roots = nodeRepository.findByDomain_IdAndParentIsNullAndIsDeletedFalseOrderByOrderAsc(domainId);
+            }
         }
         initializeChildrenRecursively(roots);
         return roots;

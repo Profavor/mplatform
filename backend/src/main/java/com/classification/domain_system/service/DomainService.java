@@ -104,9 +104,40 @@ public class DomainService {
         return domainRepository.save(domain);
     }
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
     @Transactional
     @CacheEvict(value = "domains", key = "#id")
     public void deleteDomain(UUID id) {
+        if (jdbcTemplate != null) {
+            // 안전하게 해당 도메인에 속한 자식 레코드 및 설정들을 순서대로 개별 삭제 (TRUNCATE 금지 준수)
+            try {
+                jdbcTemplate.update("DELETE FROM dq_violation WHERE record_id IN (SELECT r.id FROM record r JOIN classification_node n ON r.node_id = n.id WHERE n.domain_id = ?)", id);
+                jdbcTemplate.update("DELETE FROM record_secondary_node WHERE record_id IN (SELECT r.id FROM record r JOIN classification_node n ON r.node_id = n.id WHERE n.domain_id = ?)", id);
+                jdbcTemplate.update("DELETE FROM record_field_source WHERE record_id IN (SELECT r.id FROM record r JOIN classification_node n ON r.node_id = n.id WHERE n.domain_id = ?)", id);
+                jdbcTemplate.update("DELETE FROM match_candidate WHERE domain_id = ? OR existing_record_id IN (SELECT r.id FROM record r JOIN classification_node n ON r.node_id = n.id WHERE n.domain_id = ?)", id, id);
+                jdbcTemplate.update("DELETE FROM record_history WHERE record_id IN (SELECT r.id FROM record r JOIN classification_node n ON r.node_id = n.id WHERE n.domain_id = ?)", id);
+                jdbcTemplate.update("DELETE FROM record WHERE node_id IN (SELECT n.id FROM classification_node n WHERE n.domain_id = ?)", id);
+                jdbcTemplate.update("DELETE FROM dq_score_snapshot WHERE domain_id = ?", id);
+                jdbcTemplate.update("DELETE FROM dq_scan_schedule WHERE domain_id = ?", id);
+                jdbcTemplate.update("DELETE FROM dq_rule WHERE domain_id = ?", id);
+                jdbcTemplate.update("DELETE FROM matching_rule WHERE domain_id = ?", id);
+                jdbcTemplate.update("DELETE FROM survivorship_rule WHERE domain_id = ?", id);
+                jdbcTemplate.update("DELETE FROM source_priority WHERE domain_id = ?", id);
+                jdbcTemplate.update("DELETE FROM domain_access_request WHERE domain_id = ?", id);
+                jdbcTemplate.update("DELETE FROM domain_permission WHERE domain_id = ?", id);
+                jdbcTemplate.update("DELETE FROM workflow_config WHERE domain_id = ?", id);
+                jdbcTemplate.update("UPDATE domain SET identifier_field_id = NULL, display_name_field_id = NULL, description_field_id = NULL, image_field_id = NULL WHERE id = ?", id);
+                jdbcTemplate.update("DELETE FROM field_definition WHERE domain_id = ? OR defined_at_node_id IN (SELECT id FROM classification_node WHERE domain_id = ?)", id, id);
+                jdbcTemplate.update("DELETE FROM field_group WHERE domain_id = ?", id);
+                jdbcTemplate.update("DELETE FROM sector WHERE domain_id = ?", id);
+                jdbcTemplate.update("DELETE FROM classification_node WHERE domain_id = ?", id);
+                jdbcTemplate.update("DELETE FROM classification_axis WHERE domain_id = ?", id);
+            } catch (Exception e) {
+                org.slf4j.LoggerFactory.getLogger(DomainService.class).warn("Notice during cascade delete for domain {}: {}", id, e.getMessage());
+            }
+        }
         domainRepository.deleteById(id);
     }
 

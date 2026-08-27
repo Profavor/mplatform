@@ -475,12 +475,23 @@ public class SensitiveDataService {
 
             for (FieldDefinition field : fields) {
                 if (field.getKey() != null) {
-                    String matchedKey = null;
+                    List<String> candidateKeys = new ArrayList<>();
                     for (String k : dataMap.keySet()) {
                         if (k.equalsIgnoreCase(field.getKey()) || (field.getId() != null && k.equalsIgnoreCase(String.valueOf(field.getId())))) {
-                            matchedKey = k;
+                            candidateKeys.add(k);
+                        }
+                    }
+
+                    String matchedKey = null;
+                    for (String ck : candidateKeys) {
+                        Object val = dataMap.get(ck);
+                        if (val instanceof String s && !s.isBlank() && !s.contains("*")) {
+                            matchedKey = ck;
                             break;
                         }
+                    }
+                    if (matchedKey == null && !candidateKeys.isEmpty()) {
+                        matchedKey = candidateKeys.get(0);
                     }
                     if (matchedKey != null) {
                         boolean matchesFilter = (filterSet == null);

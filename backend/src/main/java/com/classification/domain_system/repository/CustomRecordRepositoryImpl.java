@@ -76,7 +76,9 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
 
                     String cond = " AND (" + pgPrefix +
                             " (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ") " +
+                            " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'_mask_" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ") " +
                             " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'" + safeKey.toLowerCase() + "', '') ILIKE :searchValLike" + paramIndex + ") " +
+                            " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'_mask_" + safeKey.toLowerCase() + "', '') ILIKE :searchValLike" + paramIndex + ") " +
                             " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->'" + safeKey + "'->>'ko', '') ILIKE :searchValLike" + paramIndex + ") " +
                             " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->'" + safeKey + "'->>'en', '') ILIKE :searchValLike" + paramIndex + ") " +
                             " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->'" + safeKey.toLowerCase() + "'->>'ko', '') ILIKE :searchValLike" + paramIndex + ") " +
@@ -237,7 +239,9 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                         String f = fields[i].replaceAll("[^a-zA-Z0-9_]", "_");
                         if (i > 0) multiCond.append(" OR ");
                             multiCond.append(" ((NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'").append(f).append("', '') ILIKE :searchValLike").append(paramIndex).append(") ")
+                                     .append(" OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'_mask_").append(f).append("', '') ILIKE :searchValLike").append(paramIndex).append(") ")
                                      .append(" OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'").append(f.toLowerCase()).append("', '') ILIKE :searchValLike").append(paramIndex).append(") ")
+                                     .append(" OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'_mask_").append(f.toLowerCase()).append("', '') ILIKE :searchValLike").append(paramIndex).append(") ")
                                      .append(" OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->'").append(f).append("'->>'ko', '') ILIKE :searchValLike").append(paramIndex).append(") ")
                                      .append(" OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->'").append(f).append("'->>'en', '') ILIKE :searchValLike").append(paramIndex).append(") ")
                                      .append(" OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->'").append(f.toLowerCase()).append("'->>'ko', '') ILIKE :searchValLike").append(paramIndex).append(") ")
@@ -262,7 +266,9 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
 
                     String cond = " AND (" + pgPrefix +
                             " (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ") " +
+                            " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'_mask_" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ") " +
                             " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'" + safeKey.toLowerCase() + "', '') ILIKE :searchValLike" + paramIndex + ") " +
+                            " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->>'_mask_" + safeKey.toLowerCase() + "', '') ILIKE :searchValLike" + paramIndex + ") " +
                             " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->'" + safeKey + "'->>'ko', '') ILIKE :searchValLike" + paramIndex + ") " +
                             " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->'" + safeKey + "'->>'en', '') ILIKE :searchValLike" + paramIndex + ") " +
                             " OR (NULLIF(CAST(COALESCE(r.searchable_data, r.data) AS jsonb)->'" + safeKey.toLowerCase() + "'->>'ko', '') ILIKE :searchValLike" + paramIndex + ") " +

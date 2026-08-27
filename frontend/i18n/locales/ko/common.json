@@ -1,4 +1,6 @@
 {
+  "click_to_edit": "클릭하여 수정",
+  "invalid_email_format": "올바른 이메일 형식을 입력해주세요.",
   "standard_form_view": "기본 폼 뷰 (섹터/그룹)",
   "layout_select_label": "화면 레이아웃",
   "add_new_layout": "새 레이아웃 추가",
@@ -196,7 +198,6 @@
   "bulk_approve_loading": "일괄 승인 처리 중...",
   "bulk_reject": "일괄 반려",
   "bulk_reject_loading": "일괄 반려 처리 중...",
-  "calculated": "수식",
   "calculated_suffix": "(계산됨)",
   "cancel": "취소",
   "change_content": "변경내용",

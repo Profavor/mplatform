@@ -123,7 +123,7 @@ const initAndActivateClient = () => {
     }
   } catch {}
 
-  if (!wsUrl) {
+  if (typeof window !== 'undefined' && window.location?.origin) {
     const wsBase = window.location.origin.replace(/^http/, 'ws')
     wsUrl = `${wsBase}/ws-stomp`
   }

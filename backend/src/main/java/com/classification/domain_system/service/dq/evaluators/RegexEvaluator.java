@@ -38,7 +38,12 @@ public class RegexEvaluator implements RuleEvaluator {
 
         try {
             JsonNode paramsNode = objectMapper.readTree(rule.getParams());
-            String patternStr = paramsNode.get("pattern").asText();
+            JsonNode patternNode = paramsNode.has("pattern") ? paramsNode.get("pattern") : paramsNode.get("regex");
+            if (patternNode == null || patternNode.isNull() || patternNode.asText().isBlank()) {
+                log.warn("Regex pattern missing in DQ rule params for field {}", field.getKey());
+                return Optional.empty();
+            }
+            String patternStr = patternNode.asText();
             String textValue = value.asText();
 
             if (patternStr.length() > MAX_PATTERN_LENGTH) {

@@ -495,6 +495,15 @@
         },
         "sortOrder": 14,
         "isActive": true
+      },
+      {
+        "detailCode": "EMAIL",
+        "name": {
+          "ko": "✉️ 이메일 (Email)",
+          "en": "✉️ Email Address"
+        },
+        "sortOrder": 15,
+        "isActive": true
       }
     ]
   },

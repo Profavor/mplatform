@@ -60,6 +60,22 @@ public class FieldDefinitionResponse {
             groupDto.setSortOrder(entity.getFieldGroup().getSortOrder());
             groupDto.setIsDefaultOpen(entity.getFieldGroup().getIsDefaultOpen());
             groupDto.setSectorId(entity.getFieldGroup().getSectorId());
+            if (entity.getFieldGroup().getSector() != null) {
+                SectorDto sectorDto = new SectorDto();
+                sectorDto.setId(entity.getFieldGroup().getSector().getId());
+                sectorDto.setName(entity.getFieldGroup().getSector().getName());
+                sectorDto.setSortOrder(entity.getFieldGroup().getSector().getSortOrder());
+                try {
+                    if (entity.getFieldGroup().getSector().getDomain() != null) {
+                        sectorDto.setDomainId(entity.getFieldGroup().getSector().getDomain().getId());
+                    } else if (entity.getDomainId() != null) {
+                        sectorDto.setDomainId(entity.getDomainId());
+                    }
+                } catch (Exception ignored) {
+                    sectorDto.setDomainId(entity.getDomainId());
+                }
+                groupDto.setSector(sectorDto);
+            }
         }
 
         return FieldDefinitionResponse.builder()

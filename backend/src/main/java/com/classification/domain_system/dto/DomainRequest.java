@@ -17,4 +17,6 @@ public class DomainRequest {
     private Integer sortOrder;
     private String numberingPattern;
     private Boolean autoDqScanEnabled;
+    private String domainType;
+    private String specializedCategory;
 }
