@@ -8,6 +8,11 @@ vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string) => key })
 }))
 
+vi.mock('vue-router', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  useRoute: () => ({ path: '/', query: {}, params: {} })
+}))
+
 const mockFetchFolderCounts = vi.fn().mockResolvedValue([
   { folder: 'INBOX', total: 10, unread: 3 }
 ])
@@ -30,8 +35,19 @@ vi.mock('~/composables/useInbox', () => ({
   })
 }))
 
+vi.mock('~/composables/useWebSocket', () => ({
+  useWebSocket: () => ({
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+    isConnected: { value: false }
+  })
+}))
+
 describe('InboxModal', () => {
   beforeEach(() => {
+    if (typeof document !== 'undefined') {
+      document.body.innerHTML = ''
+    }
     if (typeof localStorage !== 'undefined') {
       localStorage.clear()
     }
@@ -42,11 +58,15 @@ describe('InboxModal', () => {
       activeWrapper.unmount()
       activeWrapper = null
     }
+    if (typeof document !== 'undefined') {
+      document.body.innerHTML = ''
+    }
   })
 
   const defaultGlobal = {
     mocks: {
-      $t: (key: string) => key
+      $t: (key: string) => key,
+      $route: { path: '/', query: {}, params: {} }
     },
     stubs: {
       AppModal: {
@@ -56,6 +76,16 @@ describe('InboxModal', () => {
       VaButton: {
         template: '<button class="va-button" :class="$attrs.class" @click="$emit(\'click\')"><slot /></button>'
       },
+      VaButtonGroup: {
+        template: '<div class="va-button-group"><slot /></div>'
+      },
+      VaIcon: true,
+      VaBadge: true,
+      VaDropdown: true,
+      VaSidebar: true,
+      VaSidebarItem: true,
+      VaConfig: true,
+      SidebarMenuItem: true,
       InboxFolderSidebar: { template: '<div class="folder-sidebar-stub" />' },
       InboxMessageList: { template: '<div class="message-list-stub" />' },
       InboxMessageDetail: { template: '<div class="message-detail-stub" />' },

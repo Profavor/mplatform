@@ -231,8 +231,8 @@ const resetModalSize = () => {
 
 const onStartResize = (e: MouseEvent, direction: string) => {
   if (!props.resizable || isFullscreen.value) return
-  e.preventDefault()
-  e.stopPropagation()
+  if (typeof e.preventDefault === 'function') e.preventDefault()
+  if (typeof e.stopPropagation === 'function') e.stopPropagation()
 
   isResizing.value = true
 

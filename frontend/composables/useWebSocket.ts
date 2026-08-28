@@ -123,9 +123,13 @@ const initAndActivateClient = () => {
     }
   } catch {}
 
-  if (typeof window !== 'undefined' && window.location?.origin) {
+  if (!wsUrl && typeof window !== 'undefined' && window.location?.origin && window.location.origin !== 'null') {
     const wsBase = window.location.origin.replace(/^http/, 'ws')
     wsUrl = `${wsBase}/ws-stomp`
+  }
+
+  if (!wsUrl) {
+    wsUrl = 'ws://localhost:8080/ws-stomp'
   }
 
   sharedClient = new Client({

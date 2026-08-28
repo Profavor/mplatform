@@ -62,10 +62,10 @@ spring:
         spring.json.trusted.packages: "*"
 
   rabbitmq:
-    host: ${RABBITMQ_HOST}
-    port: ${RABBITMQ_PORT}
-    username: ${RABBITMQ_USERNAME}
-    password: ${RABBITMQ_PASSWORD}
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
 
   mail:
     host: ${MAIL_SMTP_HOST:localhost}
@@ -166,6 +166,10 @@ management:
   metrics:
     tags:
       application: domain-system
+    enable:
+      process: false
+      system: false
+      jvm: false
 
 storage:
   type: ${STORAGE_TYPE}

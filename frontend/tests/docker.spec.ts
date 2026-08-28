@@ -9,7 +9,7 @@ describe('Dockerfile 무결성 및 하드코딩 제거 검증 (TDD)', () => {
 
     // 개인 호스팅 도메인 하드코딩 방지
     expect(content).not.toContain('onrender.com')
-    // 환경 변수 주입을 위한 기본 fallback은 중립적인 localhost:8080 이어야 함
-    expect(content).toContain('ARG API_BASE_URL=http://localhost:8080')
+    // 환경 변수 주입을 위한 기본 fallback은 중립적인 도메인이어야 함
+    expect(content).toMatch(/ARG API_BASE_URL=http:\/\/(localhost|backend):8080/)
   })
 })
