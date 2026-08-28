@@ -1,8 +1,23 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { serializeGridState, deserializeGridState } from '../../composables/useGridState'
 
+const storageMap = new Map<string, string>()
+const mockLocalStorage = {
+  getItem: (key: string) => storageMap.get(key) ?? null,
+  setItem: (key: string, val: string) => storageMap.set(key, String(val)),
+  removeItem: (key: string) => storageMap.delete(key),
+  clear: () => storageMap.clear(),
+}
+
 describe('useGridState Composable (TDD)', () => {
   beforeEach(() => {
+    if (typeof globalThis.localStorage === 'undefined') {
+      Object.defineProperty(globalThis, 'localStorage', {
+        value: mockLocalStorage,
+        writable: true,
+        configurable: true
+      })
+    }
     localStorage.clear()
   })
 

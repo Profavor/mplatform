@@ -196,7 +196,7 @@ const setViewMode = (mode: 'split' | 'list') => {
   viewMode.value = mode
   if (typeof window !== 'undefined') {
     try {
-      localStorage.setItem('inbox_view_mode', mode)
+      window.localStorage?.setItem('inbox_view_mode', mode)
     } catch (e) {
       console.debug('Failed to save view mode to localStorage', e)
     }
@@ -421,10 +421,12 @@ const handleRefreshCountsEvent = () => {
 
 onMounted(() => {
   if (typeof window !== 'undefined') {
-    const saved = localStorage.getItem('inbox_view_mode')
-    if (saved === 'list' || saved === 'split') {
-      viewMode.value = saved
-    }
+    try {
+      const saved = window.localStorage?.getItem('inbox_view_mode')
+      if (saved === 'list' || saved === 'split') {
+        viewMode.value = saved
+      }
+    } catch {}
     window.addEventListener('inbox-refresh-counts', handleRefreshCountsEvent)
     window.addEventListener('inbox-message-received', handleRefreshCountsEvent)
   }

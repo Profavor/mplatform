@@ -38,7 +38,7 @@ describe('SchemaTreeNode.vue', () => {
     }))
   })
 
-  it('does not render delete button for domain root node', () => {
+  it('renders delete button for domain root node and emits delete event', async () => {
     const wrapper = mount(SchemaTreeNode, {
       props: {
         node: {
@@ -54,14 +54,21 @@ describe('SchemaTreeNode.vue', () => {
         stubs: {
           'va-icon': true,
           'va-button': {
-            template: '<button @click="$emit(\'click\')"><slot /></button>'
+            template: '<button class="va-button-stub" @click="$emit(\'click\', $event)"><slot /></button>'
           }
         }
       }
     })
 
-    const buttons = wrapper.findAll('button')
-    // Domain should only have edit button, no delete button
-    expect(buttons.length).toBe(1)
+    const deleteBtn = wrapper.find('.delete-btn')
+    expect(deleteBtn.exists()).toBe(true)
+    await deleteBtn.trigger('click')
+
+    expect(wrapper.emitted('delete')).toBeTruthy()
+    expect(wrapper.emitted('delete')?.[0][0]).toEqual(expect.objectContaining({
+      id: 'domain-123',
+      label: '임직원 (Domain)',
+      isDomain: true
+    }))
   })
 })
