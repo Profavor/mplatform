@@ -72,13 +72,13 @@ graph TD
 |---|---|---|
 | **Backend** | **Spring Boot 4.1.0 (Java 17)** | Spring Data JPA, Spring Data Envers, Spring Integration, Spring Kafka, Spring AMQP, Spring Retry |
 | **Security & Enc** | **Keycloak 24 + Vault 1.15** | OIDC/RBAC, 32바이트 AES 하이브리드 암호화, SHA-256 HMAC Blind Indexing, Vault Transit HSM |
-| **Frontend** | **Nuxt 3 (^3.17.7) + Vue 3** | TypeScript (^5.9.3), Vuestic UI, AG-Grid Vue3 (^34.3.1 Enterprise 객체 구문), ECharts, STOMP |
+| **Frontend** | **Nuxt 3 (^3.21.11) + Vue 3** | TypeScript (^5.9.3), Vuestic UI, AG-Grid Vue3 (^34.3.1 Enterprise 서버사이드 페이징), ECharts, STOMP, Tiptap 에디터 |
 | **Mobile** | **Flutter 3.x (Dart)** | Riverpod (상태관리), GoRouter, Dio (타임존/보안 인터셉터), STOMP 실시간 채팅, Web/iOS/Android |
 | **Database & Cache** | **PostgreSQL 15 + Redis** | PostGIS 공간 지원, JSONB 메타데이터, 분산 캐시 & Local In-Memory Fallback |
 | **Storage & Search** | **MinIO + OpenSearch 2.11** | S3 호환 오브젝트 스토리지, 다차원 형태소 분석 및 전역 전문 검색 엔진 |
 | **Messaging** | **Kafka + RabbitMQ** | 실시간 CDC 변경 스트리밍, 비동기 배치, 아웃바운드 연계 큐 |
 | **Monitoring** | **Prometheus + Grafana** | Micrometer 기반 JVM/HTTP/DB 커넥션풀 메트릭 수집 및 시각화 대시보드 |
-| **DevOps & Infra** | **Docker & Kubernetes** | 16종 k8s 매니페스트 완비, GitHub Actions CI/CD 파이프라인 |
+| **DevOps & Infra** | **Docker & Kubernetes** | 19종 k8s 매니페스트 완비, GitHub Actions CI/CD 파이프라인 |
 
 ---
 
@@ -138,7 +138,7 @@ graph TD
 - **거버넌스 AI 코파일럿 (`GovernanceCopilotService`)**: 거버넌스 정책 및 스키마 질의응답.
 
 ### 9. 🌐 고성능 협업 워크스페이스 & 크로스플랫폼 모바일
-- **Nuxt 3 반응형 웹 콘솔**: AG-Grid Vue3 (v32+ 서버사이드 페이징), ECharts, Zero-Fallback `@nuxtjs/i18n`, 개인화 타임존 지원.
+- **Nuxt 3 반응형 웹 콘솔**: AG-Grid Vue3 (v34+ Enterprise 서버사이드 페이징), ECharts, Zero-Fallback `@nuxtjs/i18n`, 개인화 타임존 지원.
 - **8방향 리사이즈 인앱 메신저**: 실시간 웹소켓 채팅, 원클릭 다국어 번역, 대화형 엑셀/테이블 뷰어, 시스템 라디오.
 - **Flutter 모바일 앱**: 결재 승인/반려, 대시보드, 레코드 탐색, 인앱 채팅, 실시간 푸시 알림.
 
@@ -207,16 +207,16 @@ flutter run
 
 | 번호 | 문서 파일 | 주요 내용 |
 |:---:|---|---|
-| **1** | [`1_overview.md`](./spac/1_overview.md) | MDM 플랫폼 아키텍처 개요, 10대 핵심 개념 및 도메인 모델 원칙 |
-| **2** | [`2_data_model.md`](./spac/2_data_model.md) | PostgreSQL 62개 엔티티 스키마, 인덱스, JSONB 및 관계 구조 명세 |
+| **1** | [`1_overview.md`](./spac/1_overview.md) | MDM 플랫폼 아키텍처 개요, 12대 핵심 개념 및 도메인 모델 원칙 |
+| **2** | [`2_data_model.md`](./spac/2_data_model.md) | PostgreSQL 67개 엔티티 스키마, 인덱스, JSONB 및 관계 구조 명세 |
 | **3** | [`3_business_logic.md`](./spac/3_business_logic.md) | 동적 상속, DQ 룰 엔진, 자율 정제, 결재 위임/에스컬레이션, 해시체인, 암호화 로직 |
-| **4** | [`4_api_spec.md`](./spac/4_api_spec.md) | 91개 컨트롤러의 REST API & WebSocket 엔드포인트 전수 명세 |
+| **4** | [`4_api_spec.md`](./spac/4_api_spec.md) | 94개 컨트롤러의 REST API & WebSocket 엔드포인트 전수 명세 |
 | **5** | [`5_scenarios_and_erd.md`](./spac/5_scenarios_and_erd.md) | 통합 Mermaid ERD 다이어그램 및 15대 엔드투엔드 실무 운영 시나리오 |
 | **6** | [`6_governance.md`](./spac/6_governance.md) | 해시체인 원장, 컴플라이언스, 용어사전, 성숙도, UI 표출 거버넌스 규약 |
 | **7** | [`7_integration_feature_spec.md`](./spac/7_integration_feature_spec.md) | Inbound/Outbound, DLQ 백오프, CDC 스트리밍, 파이프라인 자가 치유 명세 |
 | **8** | [`8_platform_features.md`](./spac/8_platform_features.md) | Vault 암호화, 이상 탐지 레이더, 신선도 히트맵, SLA 계약, 모니터링 명세 |
 | **9** | [`9_mobile_architecture.md`](./spac/9_mobile_architecture.md) | Flutter 크로스플랫폼 모바일 앱 아키텍처, Riverpod 상태 관리, 화면 명세 |
-| **10** | [`10_infrastructure_and_deployment.md`](./spac/10_infrastructure_and_deployment.md) | K8s 16종 매니페스트 배포, Vault Transit 설정, Grafana 대시보드, CI/CD 가이드 |
+| **10** | [`10_infrastructure_and_deployment.md`](./spac/10_infrastructure_and_deployment.md) | K8s 19종 매니페스트 배포, Vault Transit 설정, Grafana 대시보드, CI/CD 가이드 |
 
 ---
 
@@ -224,25 +224,25 @@ flutter run
 
 백엔드, 프론트엔드, 모바일 3개 서비스를 원클릭으로 빌드하고 Docker Registry(Docker Hub, GHCR, 사내 Private Registry 등)에 퍼블리시할 수 있는 도구가 제공됩니다.
 
-### 1. PowerShell 스크립트 실행 (Windows)
-```powershell
-# 1) 전체 서비스(백엔드, 프론트엔드, 모바일) 빌드 및 레지스트리 푸시
-.\publish-docker.ps1 -Registry "ghcr.io/myorg" -Tag "v1.0.0"
-
-# 2) 특정 서비스만 빌드 및 푸시 (예: backend)
-.\publish-docker.ps1 -Registry "ghcr.io/myorg" -Tag "v1.0.0" -Target backend
-
-# 3) 푸시 없이 로컬 도커 이미지로만 빌드 (-NoPush)
-.\publish-docker.ps1 -Target all -Tag "local-test" -NoPush
-```
-
-### 2. Bash 스크립트 실행 (Linux / macOS / CI)
+### 1. 도커 이미지 빌드 및 퍼블리시 (Bash)
 ```bash
 # 전체 서비스 빌드 및 푸시
-./publish-docker.sh ghcr.io/myorg v1.0.0 all
+./publish-docker.sh ghcr.io/myorg v1.1.0 all
 
 # 특정 서비스만 빌드 및 푸시
-./publish-docker.sh ghcr.io/myorg v1.0.0 frontend
+./publish-docker.sh ghcr.io/myorg v1.1.0 frontend
+
+# 푸시 없이 로컬 도커 이미지로만 빌드
+./publish-docker.sh mplatform local-test all --no-push
+```
+
+### 2. Kubernetes 배포 (Bash)
+```bash
+# 전체 서비스 배포
+./deploy.sh
+
+# 레지스트리 및 태그 지정 배포
+./deploy.sh ghcr.io/myorg v1.1.0
 ```
 
 ### 3. GitHub Actions 자동 퍼블리시 (`.github/workflows/docker-publish.yml`)
@@ -253,7 +253,7 @@ flutter run
 ```bash
 # 환경변수 설정 후 프로덕션 환경 일괄 구동
 export DOCKER_REGISTRY="ghcr.io/myorg"
-export IMAGE_TAG="v1.0.0"
+export IMAGE_TAG="v1.1.0"
 docker-compose -f docker-compose.prod.yml up -d
 ```
 
@@ -265,14 +265,14 @@ docker-compose -f docker-compose.prod.yml up -d
 본 프로젝트는 사이드 이펙트 방지 및 런타임 무결성을 위해 **프론트엔드와 백엔드 모두 TDD 기반 검증 체계**를 운영합니다.
 
 - **Backend (JUnit 5 & Golden Sample)**:
-  - 47개 이상의 단위/통합 테스트 클래스 운영.
+  - 228개 이상의 단위/통합 테스트 클래스 운영.
   - `FieldEncryptionServiceTest`의 고정 암호문(Golden Sample) 회귀 검증을 통해 암호화 역방향 호환성 100% 보장.
   ```bash
   cd backend
   ./mvnw test
   ```
 - **Frontend (Vitest & Nuxt AST Static Compile)**:
-  - 91개 이상의 단위/컴포넌트 테스트 스펙.
+  - 173개 이상의 단위/컴포넌트 테스트 스펙.
   - `npm test` 구동 시 유닛 테스트와 `npm run build`(Nuxt 정적 컴파일 검증)를 결합하여 Vue AST 및 SSR 호환성 사전 검증.
   ```bash
   cd frontend
@@ -286,6 +286,7 @@ docker-compose -f docker-compose.prod.yml up -d
 | 구분 | Endpoint | Method | 설명 |
 |---|---|:---:|---|
 | **도메인/스키마** | `/domains` | `GET, POST` | 도메인 CRUD 및 루트 필드 관리 |
+| **도메인/스키마** | `/domains/{id}` | `GET, PUT, DELETE` | 도메인 상세 조회, 수정, Cascade 삭제 |
 | **다축 분류** | `/domains/{domainId}/axes` | `GET, POST` | 다축 분류체계 CRUD 및 노드 매핑 |
 | **레코드/다축** | `/records/{id}/secondary-nodes` | `GET, POST` | 레코드 서브 분류축 노드 등록/조회 |
 | **Excel 사전검증** | `/nodes/{nodeId}/records/batch-validate` | `POST` | 대량 업로드 행 단위 DQ 사전 검증 |
