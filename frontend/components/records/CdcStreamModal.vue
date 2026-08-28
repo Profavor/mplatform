@@ -506,6 +506,10 @@ const formatValue = (val: any, fieldKey?: string): string => {
     return `REC-${val.substring(0, 8)}`
   }
 
+  if (typeof val === 'string' && (val.includes('<p>') || val.includes('<br>') || val.includes('<div>') || val.includes('<span>'))) {
+    return val.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim() || '-'
+  }
+
   let obj = val
   if (typeof val === 'string' && val.trim().startsWith('{') && val.trim().endsWith('}')) {
     try { obj = JSON.parse(val) } catch (e) {}
@@ -527,38 +531,60 @@ const formatValue = (val: any, fieldKey?: string): string => {
   return String(val)
 }
 
+const stripHtmlTags = (s: any) => {
+  if (!s || typeof s !== 'string') return s || '';
+  return s.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+};
+
 const diffItems = computed(() => {
   if (!selectedEvent.value) return []
   const before = selectedEvent.value.beforePayload || {}
   const after = selectedEvent.value.afterPayload || {}
   const changedFields = (selectedEvent.value as any).changedFields || []
 
+  const ignoredKeys = new Set(['id', 'domainId', 'nodeId', 'createdAt', 'updatedAt', 'version', 'status', 'changeType', 'sourceSystem'])
+
   const allKeys = Array.from(new Set([
     ...changedFields,
     ...Object.keys(before),
     ...Object.keys(after)
-  ])).filter(k => !k.startsWith('_idx_') && k !== 'id' && k !== 'domainId' && k !== 'nodeId' && k !== 'createdAt' && k !== 'updatedAt')
+  ])).filter(k => k && !k.startsWith('_') && !ignoredKeys.has(k))
 
   if (allKeys.length === 0) return []
 
-  return allKeys.map(k => {
+  const items: any[] = []
+  for (const k of allKeys) {
     const bVal = before[k]
     const aVal = after[k]
     const bFormatted = formatValue(bVal, k)
     const aFormatted = formatValue(aVal, k)
-    const isExplicitlyChanged = changedFields.includes(k)
-    const isChanged = isExplicitlyChanged || bFormatted !== aFormatted || JSON.stringify(bVal) !== JSON.stringify(aVal)
 
-    return {
+    const strB = (bFormatted === '-' || bFormatted === '(없음)' || bFormatted === null || bFormatted === undefined) ? '' : String(bFormatted).trim()
+    const strA = (aFormatted === '-' || aFormatted === '(없음)' || aFormatted === null || aFormatted === undefined) ? '' : String(aFormatted).trim()
+
+    // 1. Same string -> unchanged
+    if (strB === strA) continue;
+
+    // 2. Same HTML text -> unchanged
+    if (stripHtmlTags(strB) === stripHtmlTags(strA) && stripHtmlTags(strB) !== '') continue;
+
+    // 3. Object JSON identical -> unchanged
+    if (typeof bVal === 'object' || typeof aVal === 'object') {
+      if (JSON.stringify(bVal || {}) === JSON.stringify(aVal || {})) continue;
+    }
+
+    items.push({
       key: k,
       label: getFieldLabel(k),
       before: bFormatted,
       after: aFormatted,
       rawBefore: bVal,
       rawAfter: aVal,
-      isChanged
-    }
-  })
+      isChanged: true
+    })
+  }
+
+  return items
 })
 
 const loadDomainReferences = async (fields: any[]) => {

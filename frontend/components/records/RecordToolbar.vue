@@ -68,15 +68,6 @@
 
       <va-button
         size="small"
-        color="success"
-        outline
-        @click="$emit('downloadTemplate')"
-      >
-        <va-icon name="download" class="mr-1" /> {{ t('download_template') }}
-      </va-button>
-
-      <va-button
-        size="small"
         color="warning"
         outline
         @click="$emit('openExport')"

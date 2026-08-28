@@ -28,6 +28,10 @@ public class EnumEvaluator implements RuleEvaluator {
             return Optional.empty();
         }
 
+        if (isMaskedOrEncrypted(value)) {
+            return Optional.empty();
+        }
+
         try {
             JsonNode paramsNode = objectMapper.readTree(rule.getParams());
             JsonNode valuesNode = paramsNode.get("values");

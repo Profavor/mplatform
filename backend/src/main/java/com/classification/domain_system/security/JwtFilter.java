@@ -221,33 +221,33 @@ public class JwtFilter extends OncePerRequestFilter {
                     }
 
                     if (tokenSessionId != null) {
-                        Long authTime = null;
+                        Long iatSec = jwt.getIssuedAt() != null ? jwt.getIssuedAt().getEpochSecond() : null;
+                        Long authTimeSec = null;
                         Object authTimeObj = jwt.getClaim("auth_time");
                         if (authTimeObj instanceof Number num) {
-                            authTime = num.longValue();
+                            authTimeSec = num.longValue();
                         } else if (authTimeObj instanceof java.time.Instant instant) {
-                            authTime = instant.getEpochSecond();
-                        } else if (jwt.getIssuedAt() != null) {
-                            authTime = jwt.getIssuedAt().getEpochSecond();
+                            authTimeSec = instant.getEpochSecond();
                         }
 
-                        long tokenTime = authTime != null ? authTime : (jwt.getIssuedAt() != null ? jwt.getIssuedAt().getEpochSecond() : 0L);
+                        long nowSec = System.currentTimeMillis() / 1000L;
+                        long tokenTime = iatSec != null ? iatSec : (authTimeSec != null ? authTimeSec : nowSec);
                         long storedTime = lastLoginSec != null ? lastLoginSec : 0L;
 
                         if (activeSessionId == null) {
                             u.setActiveSessionId(tokenSessionId);
-                            u.setLastLoginEpochSec(tokenTime > 0 ? tokenTime : System.currentTimeMillis() / 1000L);
+                            u.setLastLoginEpochSec(tokenTime > 0 ? tokenTime : nowSec);
                             repo.saveAndFlush(u);
                         } else if (!activeSessionId.equals(tokenSessionId)) {
-                            if (tokenTime >= storedTime) {
-                                // Newer login from Keycloak! Broadcast FORCE_LOGOUT to previous session and adopt new session
+                            // 토큰 발급 시각이 기존 저장 시각 이상이거나, 최근 1시간(3600초) 이내의 유효 토큰인 경우 새로운 로그인으로 채택
+                            if (tokenTime >= storedTime || (nowSec - tokenTime < 3600)) {
                                 sendForceLogout(u);
                                 u.setActiveSessionId(tokenSessionId);
-                                u.setLastLoginEpochSec(tokenTime);
+                                u.setLastLoginEpochSec(Math.max(tokenTime, nowSec));
                                 repo.saveAndFlush(u);
                                 log.info("Keycloak active session switched to newer login for user: {}, sid: {}", preferredUsername, tokenSessionId);
                             } else {
-                                log.warn("Keycloak session invalidated due to newer login for user: {}", preferredUsername);
+                                log.warn("Keycloak session invalidated due to older session token for user: {}", preferredUsername);
                                 sendSessionExpiredError(response, "Session expired due to login from another device.");
                                 return true;
                             }

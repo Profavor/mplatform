@@ -21,4 +21,6 @@ public interface DomainRepository extends JpaRepository<Domain, UUID> {
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT d FROM Domain d WHERE d.id = :id")
     java.util.Optional<Domain> findWithLockById(@Param("id") UUID id);
+
+    java.util.Optional<Domain> findBySpecializedCategory(String specializedCategory);
 }

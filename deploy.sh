@@ -35,8 +35,8 @@ if [ -n "$REGISTRY" ]; then
     REGISTRY="${REGISTRY%/}"
     echo "==> Setting remote registry image paths..."
     kubectl set image deployment/backend backend="$REGISTRY/mplatform-backend:$TAG" -n mdm-system
-    kubectl set image deployment/frontend frontend="$REGISTRY/mplatform-frontend:$Tag" -n mdm-system
-    kubectl set image deployment/mobile mobile="$REGISTRY/mplatform-mobile:$Tag" -n mdm-system
+    kubectl set image deployment/frontend frontend="$REGISTRY/mplatform-frontend:$TAG" -n mdm-system
+    kubectl set image deployment/mobile mobile="$REGISTRY/mplatform-mobile:$TAG" -n mdm-system
 fi
 
 echo "==> Restarting Deployments to pick up new images..."
@@ -49,4 +49,9 @@ kubectl rollout status deployment backend -n mdm-system --timeout=180s
 kubectl rollout status deployment frontend -n mdm-system --timeout=180s
 kubectl rollout status deployment mobile -n mdm-system --timeout=180s
 
-echo "[SUCCESS] All MPlatform deployments rolled out successfully!"
+echo "==> Current Cluster Pod Status:"
+kubectl get pods -n mdm-system
+
+echo "================================================================"
+echo " [SUCCESS] All MPlatform deployments rolled out successfully!"
+echo "================================================================"

@@ -143,20 +143,24 @@ const groupedChangesList = computed(() => {
     ...(Array.isArray(changedFields) ? changedFields : []),
     ...Object.keys(before),
     ...Object.keys(after)
-  ]))
-  const fields = allKeys.map(k => {
-    const isExplicitlyChanged = Array.isArray(changedFields) && changedFields.includes(k)
-    return {
-      key: k,
-      label: k,
-      val: isUpdate ? {
-        before: before[k],
-        after: after[k],
-        isChanged: isExplicitlyChanged || (JSON.stringify(before[k]) !== JSON.stringify(after[k]))
-      } : after[k],
-      gridWidth: 12
-    }
-  })
+  ])).filter(k => k && !k.startsWith('_'))
+
+  const fields = allKeys
+    .map(k => {
+      const isExplicit = Array.isArray(changedFields) && changedFields.includes(k)
+      const isChanged = isExplicit || (JSON.stringify(before[k] ?? '') !== JSON.stringify(after[k] ?? ''))
+      return {
+        key: k,
+        label: k,
+        val: isUpdate ? {
+          before: before[k],
+          after: after[k],
+          isChanged
+        } : after[k],
+        gridWidth: 12
+      }
+    })
+    .filter(f => !isUpdate || (f.val && f.val.isChanged))
 
   return [{
     key: 'default',

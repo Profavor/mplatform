@@ -2,6 +2,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, VueWrapper } from '@vue/test-utils'
 import InboxModal from '../../components/inbox/InboxModal.vue'
 
+class MockWebSocket {
+  onopen = null
+  onclose = null
+  onmessage = null
+  onerror = null
+  send = vi.fn()
+  close = vi.fn()
+}
+// @ts-ignore
+global.WebSocket = MockWebSocket
+
 let activeWrapper: VueWrapper | null = null
 
 vi.mock('vue-i18n', () => ({

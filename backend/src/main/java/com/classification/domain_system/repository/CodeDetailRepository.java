@@ -12,4 +12,5 @@ public interface CodeDetailRepository extends JpaRepository<CodeDetail, UUID> {
     List<CodeDetail> findByCodeGroupIdOrderBySortOrderAsc(UUID groupId);
     List<CodeDetail> findByCodeGroupIdAndIsActiveTrue(UUID groupId);
     List<CodeDetail> findByCodeGroupGroupCode(String groupCode);
+    List<CodeDetail> findByCodeGroupGroupCodeAndIsActiveTrue(String groupCode);
 }

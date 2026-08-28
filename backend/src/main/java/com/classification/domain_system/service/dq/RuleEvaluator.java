@@ -20,4 +20,16 @@ public interface RuleEvaluator {
      * @return Optional.empty() if valid, Optional.of(errorMessage) if violated
      */
     Optional<String> evaluate(FieldDefinition field, DqRule rule, JsonNode value, EvaluationContext context);
+
+    /**
+     * Checks if the value is masked (e.g. contains '*') or encrypted (e.g. 'vault:', 'ENC(')
+     * to prevent false positive DQ violations.
+     */
+    default boolean isMaskedOrEncrypted(JsonNode value) {
+        if (value == null || value.isNull() || !value.isTextual()) {
+            return false;
+        }
+        String text = value.asText().trim();
+        return text.contains("*") || text.startsWith("vault:") || text.startsWith("ENC(");
+    }
 }

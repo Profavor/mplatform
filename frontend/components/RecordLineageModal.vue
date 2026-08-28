@@ -1026,6 +1026,9 @@ const formatDisplayValue = (k: string, val: any): string => {
       return val
     }
   }
+  if (typeof val === 'string' && (val.includes('<p>') || val.includes('<br>') || val.includes('<div>') || val.includes('<span>'))) {
+    return val.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim() || (t('none') || '-');
+  }
   let obj = val
   if (typeof val === 'string' && val.trim().startsWith('{') && val.trim().endsWith('}')) {
     try { obj = JSON.parse(val) } catch (e) {}
@@ -1055,23 +1058,49 @@ const diffRows = computed(() => {
     ...(Array.isArray(changedFields) ? changedFields : []),
     ...Object.keys(prev),
     ...Object.keys(next)
-  ])).filter(k => !k.startsWith('_idx_'))
+  ])).filter(k => k && !k.startsWith('_'))
 
-  const rows: Array<{ key: string; before: string; after: string; rawBefore: any; rawAfter: any }> = []
+  const stripHtmlTags = (s: any) => {
+    if (!s || typeof s !== 'string') return s || '';
+    return s.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+  };
+
+  const rows: Array<{ key: string; label: string; before: string; after: string; rawBefore: any; rawAfter: any }> = []
 
   for (const k of allKeys) {
-    const isExplicitlyChanged = Array.isArray(changedFields) && changedFields.includes(k)
+    const f = getFieldByKey(k)
+    const label = f ? (typeof f.name === 'object' ? (f.name[locale?.value || 'ko'] || f.name.ko || f.name.en) : f.name) : k
+
+    if (String(k).startsWith('_') || String(label).startsWith('_')) continue;
+
     const bStr = formatDisplayValue(k, prev[k])
     const aStr = formatDisplayValue(k, next[k])
-    if (isExplicitlyChanged || bStr !== aStr || JSON.stringify(prev[k]) !== JSON.stringify(next[k])) {
-      rows.push({
-        key: k,
-        before: bStr,
-        after: aStr,
-        rawBefore: prev[k],
-        rawAfter: next[k]
-      })
+
+    const strBefore = (bStr === '-' || bStr === t('none') || bStr === '(없음)' || bStr === null || bStr === undefined) ? '' : String(bStr).trim()
+    const strAfter = (aStr === '-' || aStr === t('none') || aStr === '(없음)' || aStr === null || aStr === undefined) ? '' : String(aStr).trim()
+
+    // Same string -> unchanged
+    if (strBefore === strAfter) continue;
+
+    // Same text when HTML tags stripped -> unchanged
+    if (stripHtmlTags(strBefore) === stripHtmlTags(strAfter) && stripHtmlTags(strBefore) !== '') continue;
+
+    // Encrypted mask identical (e.g. ******** vs ********) -> unchanged
+    if (isFieldEncrypted(k) && strBefore === strAfter) continue;
+
+    // Object JSON identical -> unchanged
+    if (typeof prev[k] === 'object' || typeof next[k] === 'object') {
+      if (JSON.stringify(prev[k] || {}) === JSON.stringify(next[k] || {})) continue;
     }
+
+    rows.push({
+      key: k,
+      label,
+      before: bStr,
+      after: aStr,
+      rawBefore: prev[k],
+      rawAfter: next[k]
+    })
   }
 
   return rows

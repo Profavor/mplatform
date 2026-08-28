@@ -369,5 +369,14 @@
   "fields_count": "{count} Standard Fields",
   "dq_rules_count": "{count} DQ Rules",
   "select_template": "Select Template",
-  "pattern_preview": "Pattern Preview"
+  "pattern_preview": "Pattern Preview",
+  "group_delete_failed": "Failed to delete group.",
+  "save_node_failed": "Failed to save node.",
+  "save_field_failed": "Failed to save field.",
+  "save_workflows_success": "Workflow configurations saved successfully.",
+  "save_workflows_failed": "Failed to save workflows.",
+  "sector_save_success_count": "{count} sector(s) saved successfully.",
+  "sector_save_failed": "Failed to save some sectors.",
+  "group_save_success_count": "{count} group(s) saved successfully.",
+  "group_save_failed": "Failed to save some groups."
 }

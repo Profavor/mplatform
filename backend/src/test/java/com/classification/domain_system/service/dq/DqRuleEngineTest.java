@@ -27,6 +27,7 @@ class DqRuleEngineTest {
     @Mock private ClassificationNodeRepository nodeRepository;
     @Mock private DqViolationRepository violationRepository;
     @Mock private RecordRepository recordRepository;
+    @Mock private FieldDefinitionRepository fieldDefinitionRepository;
     @Mock private JdbcTemplate jdbcTemplate;
     @Mock private Environment environment;
 
@@ -55,7 +56,7 @@ class DqRuleEngineTest {
         );
 
         engine = new DqRuleEngine(evaluators, fieldDefinitionService, dqRuleRepository,
-                nodeRepository, violationRepository, recordRepository);
+                nodeRepository, violationRepository, recordRepository, fieldDefinitionRepository);
 
         // Default mock: node lookup returns a node with domain
         ClassificationNode node = new ClassificationNode();

@@ -1,231 +1,344 @@
 <template>
-  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-3xl flex flex-col max-h-[90vh]">
-      <!-- Header -->
-      <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-        <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ t('excel_uploader.title') }}</h3>
-        <button @click="$emit('close')" class="text-gray-400 hover:text-gray-500 focus:outline-none">
-          <span class="text-2xl">&times;</span>
-        </button>
+  <AppModal
+    :model-value="true"
+    :title="t('excel_uploader.title') || '엑셀 / CSV 대량 업로드 (Bulk Import)'"
+    icon="upload_file"
+    size="large"
+    hide-default-actions
+    @update:model-value="$emit('close')"
+  >
+    <div style="display: flex; flex-direction: column; gap: 1.25rem; min-height: 480px; max-height: 75vh;">
+      <!-- Modern Multi-Step Stepper Header -->
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 10px; gap: 0.5rem; flex-wrap: wrap;">
+        <div
+          v-for="(st, idx) in stepsMeta"
+          :key="st.step"
+          style="display: flex; align-items: center; gap: 0.5rem; cursor: default;"
+          :style="{ opacity: step >= st.step ? 1 : 0.45 }"
+        >
+          <div
+            style="width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.82rem; font-weight: 700; transition: all 0.2s;"
+            :style="{
+              background: step === st.step ? 'var(--va-primary)' : (step > st.step ? 'var(--va-success)' : 'var(--va-background-border)'),
+              color: '#ffffff',
+              boxShadow: step === st.step ? '0 2px 8px rgba(37, 99, 235, 0.35)' : 'none'
+            }"
+          >
+            <va-icon v-if="step > st.step" name="check" size="small" color="#fff" />
+            <span v-else>{{ idx + 1 }}</span>
+          </div>
+          <div style="display: flex; flex-direction: column;">
+            <span style="font-size: 0.85rem; font-weight: 700; color: var(--va-text-primary);">{{ st.label }}</span>
+            <span style="font-size: 0.72rem; color: var(--va-text-secondary);">{{ st.desc }}</span>
+          </div>
+          <va-icon v-if="idx < stepsMeta.length - 1" name="chevron_right" size="small" color="secondary" style="margin-left: 0.5rem;" />
+        </div>
       </div>
 
-      <!-- Body -->
-      <div class="p-6 overflow-y-auto flex-1">
-        <div v-if="uploadErrorMsg" class="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded-md text-sm flex justify-between items-center">
-          <span>{{ uploadErrorMsg }}</span>
-          <button @click="uploadErrorMsg = ''" class="font-bold ml-2">&times;</button>
+      <!-- Global Error Alert -->
+      <va-alert v-if="uploadErrorMsg" color="danger" outline closeable @update:model-value="uploadErrorMsg = ''" style="margin: 0;">
+        ⚠️ {{ uploadErrorMsg }}
+      </va-alert>
+
+      <!-- Step 1: File Upload & Template Download -->
+      <div v-if="step === 1" style="display: flex; flex-direction: column; gap: 1.25rem; flex: 1;">
+        <!-- Template Download Banner -->
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; background: rgba(37, 99, 235, 0.04); border: 1px solid rgba(37, 99, 235, 0.18); border-radius: 10px;">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <div style="width: 40px; height: 40px; border-radius: 8px; background: rgba(37, 99, 235, 0.1); display: flex; align-items: center; justify-content: center;">
+              <va-icon name="description" color="primary" size="1.4rem" />
+            </div>
+            <div>
+              <div style="font-weight: 700; font-size: 0.95rem; color: var(--va-text-primary);">표준 엑셀 템플릿 제공</div>
+              <div style="font-size: 0.8rem; color: var(--va-text-secondary); margin-top: 2px;">
+                현재 스키마에 정의된 필드 구조(코드, 유효성 검칙 목록)가 포함된 표준 서식입니다.
+              </div>
+            </div>
+          </div>
+          <va-button color="primary" outline size="small" icon="download" @click="downloadTemplate">
+            {{ t('excel_uploader.download_template') || '템플릿 다운로드 (.xlsx)' }}
+          </va-button>
         </div>
-        
-        <!-- Step 1: File Upload -->
-        <div v-if="step === 1" class="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-10 bg-gray-50 dark:bg-gray-900">
+
+        <!-- Drag & Drop Zone -->
+        <div
+          style="flex: 1; min-height: 240px; border: 2px dashed var(--va-primary); border-radius: 12px; background: var(--va-background-element); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; text-align: center; cursor: pointer; transition: all 0.2s;"
+          @click="$refs.fileInput?.click()"
+          @dragover.prevent
+          @drop.prevent="handleDrop"
+        >
+          <input ref="fileInput" type="file" accept=".xlsx, .xls, .csv" style="display: none;" @change="handleFileUpload" />
           
-          <div class="mb-6 flex flex-col items-center">
-            <p class="text-sm text-gray-500 mb-2">{{ t('excel_uploader.supported_formats') }}</p>
-            <button @click="downloadTemplate" class="text-sm text-blue-600 hover:text-blue-800 underline flex items-center gap-1">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-              {{ t('excel_uploader.download_template') }}
-            </button>
+          <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(37, 99, 235, 0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
+            <va-icon name="cloud_upload" color="primary" size="2.5rem" />
           </div>
+          
+          <h4 style="font-size: 1.05rem; font-weight: 700; color: var(--va-text-primary); margin-bottom: 0.35rem;">
+            {{ t('excel_uploader.drag_drop_file') || '파일을 드래그하여 놓거나 클릭하여 선택하세요' }}
+          </h4>
+          <p style="font-size: 0.82rem; color: var(--va-text-secondary); margin-bottom: 1rem;">
+            {{ t('excel_uploader.supported_formats') || '지원 형식: .xlsx, .xls, .csv (최대 50MB, 10,000행)' }}
+          </p>
 
-          <svg class="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-          <p class="text-gray-700 dark:text-gray-300 mb-4 text-center">{{ t('excel_uploader.drag_drop_file') }}</p>
-          <input type="file" ref="fileInput" accept=".xlsx, .xls, .csv" class="hidden" @change="handleFileUpload" />
-          <button @click="$refs.fileInput.click()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors">
-            {{ t('excel_uploader.selected_file') }}
-          </button>
+          <va-button color="primary" size="small" icon="folder_open">
+            {{ t('excel_uploader.selected_file') || '파일 찾아보기' }}
+          </va-button>
+        </div>
+      </div>
+
+      <!-- Step 2: Smart Column Mapping -->
+      <div v-else-if="step === 2" style="display: flex; flex-direction: column; gap: 1rem; flex: 1; overflow: hidden;">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: var(--va-background-element); border-radius: 8px; border: 1px solid var(--va-background-border);">
+          <div>
+            <span style="font-weight: 700; font-size: 0.95rem; color: var(--va-text-primary);">
+              총 <b>{{ parsedData.length.toLocaleString() }}</b>개의 데이터 행(Row)이 감지되었습니다.
+            </span>
+            <div style="font-size: 0.8rem; color: var(--va-text-secondary); margin-top: 2px;">
+              업로드할 파일의 엑셀 열(헤더)과 시스템 마스터 필드를 매핑해주세요. (자동 매핑 완료)
+            </div>
+          </div>
+          <va-badge :text="`${nodeFields.length}개 대상 필드`" color="info" />
         </div>
 
-        <!-- Step 2: Mapping -->
-        <div v-else-if="step === 2" class="space-y-6">
-          <div class="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-md">
-            <p class="text-sm text-blue-700 dark:text-blue-300">
-              {{ t('excel_uploader.step2') }} ({{ parsedData.length }} rows)
-            </p>
+        <div style="flex: 1; overflow-y: auto; border: 1px solid var(--va-background-border); border-radius: 8px; background: var(--va-background-card);">
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left;">
+            <thead>
+              <tr style="position: sticky; top: 0; z-index: 2; background: var(--va-background-secondary); border-bottom: 2px solid var(--va-background-border);">
+                <th style="padding: 0.6rem 0.8rem; width: 45%; font-weight: 700; color: var(--va-text-primary);">{{ t('excel_uploader.target_field') || '시스템 마스터 필드' }}</th>
+                <th style="padding: 0.6rem 0.8rem; width: 55%; font-weight: 700; color: var(--va-text-primary);">{{ t('excel_uploader.source_column') || '엑셀 파일 열 (Source Column)' }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="field in nodeFields"
+                :key="field.id"
+                style="border-bottom: 1px solid var(--va-background-border);"
+              >
+                <td style="padding: 0.65rem 0.8rem; vertical-align: middle;">
+                  <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+                    <span style="font-weight: 600; color: var(--va-text-primary);">{{ getTranslatedName(field.name) }}</span>
+                    <span style="font-size: 0.75rem; color: var(--va-text-secondary); font-family: monospace;">({{ field.key }})</span>
+                    <va-badge v-if="field.required" text="필수" color="danger" size="small" />
+                    <va-badge v-if="field.type === 'MULTILINGUAL'" text="다국어" color="info" size="small" />
+                    <va-badge v-if="field.isEncrypted" text="암호화" color="warning" size="small" />
+                  </div>
+                </td>
+                <td style="padding: 0.5rem 0.8rem; vertical-align: middle;">
+                  <!-- Multilingual (ko/en) -->
+                  <div v-if="field.type === 'MULTILINGUAL'" style="display: flex; flex-direction: column; gap: 0.4rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                      <va-badge text="KO" color="primary" size="small" />
+                      <select v-model="mapping[field.key + '_ko']" class="mapping-select">
+                        <option :value="null">{{ t('excel_uploader.ignore_column') || '(열 매핑 제외)' }}</option>
+                        <option v-for="header in excelHeaders" :key="header" :value="header">{{ header }}</option>
+                      </select>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                      <va-badge text="EN" color="secondary" size="small" />
+                      <select v-model="mapping[field.key + '_en']" class="mapping-select">
+                        <option :value="null">{{ t('excel_uploader.ignore_column') || '(열 매핑 제외)' }}</option>
+                        <option v-for="header in excelHeaders" :key="header" :value="header">{{ header }}</option>
+                      </select>
+                    </div>
+                  </div>
+                  <!-- Normal Fields -->
+                  <div v-else>
+                    <select v-model="mapping[field.key]" class="mapping-select">
+                      <option :value="null">{{ t('excel_uploader.ignore_column') || '(열 매핑 제외)' }}</option>
+                      <option v-for="header in excelHeaders" :key="header" :value="header">{{ header }}</option>
+                    </select>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Step 3: Data Quality (DQ) Validation Report -->
+      <div v-else-if="step === 3" style="display: flex; flex-direction: column; gap: 1rem; flex: 1; overflow: hidden;">
+        <!-- Loading State -->
+        <div v-if="validating" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem; gap: 1rem;">
+          <va-progress-circle indeterminate color="primary" size="large" />
+          <div style="font-weight: 700; font-size: 1rem; color: var(--va-text-primary);">
+            데이터 품질 검칙(DQ) 및 무결성 검증 중...
+          </div>
+          <div style="font-size: 0.85rem; color: var(--va-text-secondary);">
+            필수값, 정규식 포맷, 도메인 참조 무결성 등을 전수 검사하고 있습니다.
+          </div>
+        </div>
+
+        <!-- Validation Result -->
+        <template v-else-if="validationResult">
+          <!-- Summary Metric Cards -->
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem;">
+            <div style="padding: 0.75rem 1rem; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 8px;">
+              <div style="font-size: 0.75rem; color: var(--va-text-secondary); font-weight: 600;">총 검사 행수</div>
+              <div style="font-size: 1.25rem; font-weight: 800; color: var(--va-text-primary); margin-top: 2px;">
+                {{ validationResult.totalRows.toLocaleString() }}
+              </div>
+            </div>
+            <div style="padding: 0.75rem 1rem; background: rgba(34, 197, 94, 0.06); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: 8px;">
+              <div style="font-size: 0.75rem; color: #15803d; font-weight: 600;">정상 통과</div>
+              <div style="font-size: 1.25rem; font-weight: 800; color: #15803d; margin-top: 2px;">
+                {{ validationResult.validRows.toLocaleString() }}
+              </div>
+            </div>
+            <div style="padding: 0.75rem 1rem; background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px;">
+              <div style="font-size: 0.75rem; color: #b91c1c; font-weight: 600;">오류 및 위반</div>
+              <div style="font-size: 1.25rem; font-weight: 800; color: #b91c1c; margin-top: 2px;">
+                {{ validationResult.invalidRows.toLocaleString() }}
+              </div>
+            </div>
+            <div style="padding: 0.75rem 1rem; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 8px;">
+              <div style="font-size: 0.75rem; color: var(--va-text-secondary); font-weight: 600;">적합률</div>
+              <div style="font-size: 1.25rem; font-weight: 800; color: var(--va-primary); margin-top: 2px;">
+                {{ Math.round((validationResult.validRows / (validationResult.totalRows || 1)) * 100) }}%
+              </div>
+            </div>
           </div>
 
-          <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead class="bg-gray-50 dark:bg-gray-800">
-                <tr>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{{ t('excel_uploader.target_field') }}</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{{ t('excel_uploader.source_column') }}</th>
+          <!-- Filter & Toggle Bar -->
+          <div v-if="validationResult.invalidRows > 0" style="display: flex; justify-content: space-between; align-items: center;">
+            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--va-text-primary);">
+              <input type="checkbox" v-model="showOnlyErrors" style="cursor: pointer;" />
+              <span>오류 발생 행만 모아보기 ({{ validationResult.invalidRows }}건)</span>
+            </label>
+          </div>
+
+          <!-- DQ Violation Table -->
+          <div style="flex: 1; overflow-y: auto; border: 1px solid var(--va-background-border); border-radius: 8px; background: var(--va-background-card);">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem; text-align: left;">
+              <thead>
+                <tr style="position: sticky; top: 0; z-index: 2; background: var(--va-background-secondary); border-bottom: 2px solid var(--va-background-border);">
+                  <th style="padding: 0.5rem 0.6rem; width: 60px; text-align: center;">행 번호</th>
+                  <th style="padding: 0.5rem 0.6rem; width: 80px; text-align: center;">검증 결과</th>
+                  <th style="padding: 0.5rem 0.6rem; width: 140px;">대상 필드</th>
+                  <th style="padding: 0.5rem 0.6rem; width: 90px; text-align: center;">심각도</th>
+                  <th style="padding: 0.5rem 0.6rem;">위반 사유 및 검칙</th>
+                  <th style="padding: 0.5rem 0.6rem; width: 150px;">입력된 값</th>
                 </tr>
               </thead>
-              <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                <tr v-for="field in nodeFields" :key="field.id">
-                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
-                    {{ getTranslatedName(field.name) }}
-                    <span v-if="field.type === 'MULTILINGUAL'" class="text-xs font-normal text-blue-500 bg-blue-100 px-2 py-0.5 rounded ml-2">(i18n)</span>
-                    <span v-if="field.required" class="text-red-500">*</span>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <div v-if="field.type === 'MULTILINGUAL'" class="flex flex-col gap-2">
-                      <div class="flex items-center gap-2">
-                        <span class="text-xs font-bold w-6">ko:</span>
-                        <select v-model="mapping[field.key + '_ko']" class="block w-full pl-3 pr-10 py-1 text-base border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md transition-colors">
-                          <option :value="null">{{ t('excel_uploader.ignore_column') }}</option>
-                          <option v-for="header in excelHeaders" :key="header" :value="header">{{ header }}</option>
-                        </select>
-                      </div>
-                      <div class="flex items-center gap-2">
-                        <span class="text-xs font-bold w-6">en:</span>
-                        <select v-model="mapping[field.key + '_en']" class="block w-full pl-3 pr-10 py-1 text-base border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md transition-colors">
-                          <option :value="null">{{ t('excel_uploader.ignore_column') }}</option>
-                          <option v-for="header in excelHeaders" :key="header" :value="header">{{ header }}</option>
-                        </select>
-                      </div>
-                    </div>
-                    <select v-else v-model="mapping[field.key]" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md transition-colors">
-                      <option :value="null">{{ t('excel_uploader.ignore_column') }}</option>
-                      <option v-for="header in excelHeaders" :key="header" :value="header">
-                        {{ header }}
-                      </option>
-                    </select>
-                  </td>
-                </tr>
+              <tbody>
+                <template v-for="row in filteredValidationDetails" :key="row.rowNumber">
+                  <!-- Valid Row -->
+                  <tr v-if="row.violations.length === 0" style="border-bottom: 1px solid var(--va-background-border);">
+                    <td style="padding: 0.45rem 0.6rem; text-align: center; font-weight: bold; font-family: monospace;">{{ row.rowNumber + 1 }}</td>
+                    <td style="padding: 0.45rem 0.6rem; text-align: center;">
+                      <va-badge text="통과" color="success" size="small" />
+                    </td>
+                    <td colspan="4" style="padding: 0.45rem 0.6rem; color: var(--va-text-secondary); font-style: italic;">
+                      검칙 위반 없음 (정상 데이터)
+                    </td>
+                  </tr>
+                  <!-- Invalid Row with Violations -->
+                  <tr v-for="(v, vIdx) in row.violations" :key="`${row.rowNumber}-${vIdx}`" style="border-bottom: 1px solid var(--va-background-border); background: rgba(239, 68, 68, 0.03);">
+                    <td v-if="vIdx === 0" :rowspan="row.violations.length" style="padding: 0.45rem 0.6rem; text-align: center; font-weight: bold; font-family: monospace; border-right: 1px solid var(--va-background-border); vertical-align: top;">
+                      {{ row.rowNumber + 1 }}
+                    </td>
+                    <td v-if="vIdx === 0" :rowspan="row.violations.length" style="padding: 0.45rem 0.6rem; text-align: center; border-right: 1px solid var(--va-background-border); vertical-align: top;">
+                      <va-badge text="오류" color="danger" size="small" />
+                    </td>
+                    <td style="padding: 0.45rem 0.6rem; font-weight: 600;">
+                      <code>{{ v.fieldKey }}</code>
+                    </td>
+                    <td style="padding: 0.45rem 0.6rem; text-align: center;">
+                      <va-badge :text="v.severity" :color="v.severity === 'ERROR' ? 'danger' : 'warning'" size="small" />
+                    </td>
+                    <td style="padding: 0.45rem 0.6rem; color: var(--va-danger); font-weight: 500;">
+                      {{ getValidationMessage(v.message) }}
+                    </td>
+                    <td style="padding: 0.45rem 0.6rem; font-family: monospace; color: var(--va-text-secondary); word-break: break-all;">
+                      {{ v.actualValue || '(빈 값)' }}
+                    </td>
+                  </tr>
+                </template>
               </tbody>
             </table>
           </div>
-        </div>
+        </template>
+      </div>
 
-        <!-- Step 3: Validation Report -->
-        <div v-else-if="step === 3" class="space-y-4">
-          <!-- Validating Spinner -->
-          <div v-if="validating" class="flex flex-col items-center justify-center p-10 space-y-3">
-            <div class="w-full bg-gray-200 rounded-full h-3 dark:bg-gray-700 overflow-hidden">
-              <div class="bg-indigo-500 h-3 rounded-full animate-pulse" style="width: 60%"></div>
-            </div>
-            <p class="text-sm font-medium text-gray-600 dark:text-gray-300">{{ t('excel_uploader.row_validating') }}</p>
+      <!-- Step 4: Uploading Execution -->
+      <div v-else-if="step === 4" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem 1.5rem; gap: 1.25rem; flex: 1;">
+        <div style="width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 0.75rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 700; font-size: 1rem; color: var(--va-text-primary);">
+              {{ progress === 100 ? '업로드 완료!' : '데이터 일괄 반영 중...' }}
+            </span>
+            <span style="font-weight: 800; color: var(--va-primary); font-size: 1.1rem;">
+              {{ Math.round(progress) }}%
+            </span>
           </div>
 
-          <!-- Validation Result -->
-          <template v-else-if="validationResult">
-            <!-- Summary Banner -->
-            <div class="rounded-lg p-4 flex items-center gap-4"
-                 :class="validationResult.invalidRows === 0
-                   ? 'bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800'
-                   : 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800'">
-              <div class="text-3xl">{{ validationResult.invalidRows === 0 ? '✅' : '⚠️' }}</div>
-              <div>
-                <p class="font-semibold text-sm" :class="validationResult.invalidRows === 0 ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'">
-                  {{ validationResult.invalidRows === 0 ? t('excel_uploader.all_rows_valid') : t('excel_uploader.violations_found', { count: validationResult.invalidRows }) }}
-                </p>
-                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {{ t('excel_uploader.validation_summary', {
-                    total: validationResult.totalRows,
-                    valid: validationResult.validRows,
-                    invalid: validationResult.invalidRows
-                  }) }}
-                </p>
-              </div>
-            </div>
+          <va-progress-bar
+            :model-value="progress"
+            color="primary"
+            size="large"
+            animated
+          />
 
-            <!-- Filter Toggle -->
-            <div v-if="validationResult.invalidRows > 0" class="flex items-center gap-2">
-              <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none">
-                <input type="checkbox" v-model="showOnlyErrors" class="rounded border-gray-300 text-red-600 focus:ring-red-500" />
-                {{ t('excel_uploader.show_only_errors') }}
-              </label>
-            </div>
-
-            <!-- Violation Details Table -->
-            <div v-if="filteredValidationDetails.length > 0" class="overflow-x-auto max-h-[45vh] overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg">
-              <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-                <thead class="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10">
-                  <tr>
-                    <th class="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300 w-16">{{ t('excel_uploader.col_row') }}</th>
-                    <th class="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300 w-20">{{ t('excel_uploader.col_result') }}</th>
-                    <th class="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300">{{ t('excel_uploader.col_violated_field') }}</th>
-                    <th class="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300">{{ t('excel_uploader.col_severity') }}</th>
-                    <th class="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300">{{ t('excel_uploader.col_violation_reason') }}</th>
-                    <th class="px-4 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300">{{ t('excel_uploader.col_input_value') }}</th>
-                  </tr>
-                </thead>
-                <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800">
-                  <template v-for="row in filteredValidationDetails" :key="row.rowNumber">
-                    <!-- Row with no violations -->
-                    <tr v-if="row.violations.length === 0" class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                      <td class="px-4 py-2 font-mono text-gray-700 dark:text-gray-300">{{ row.rowNumber + 1 }}</td>
-                      <td class="px-4 py-2">
-                        <span class="inline-flex items-center gap-1 text-green-600 dark:text-green-400 font-medium text-xs">
-                          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                          통과
-                        </span>
-                      </td>
-                      <td colspan="4" class="px-4 py-2 text-gray-400 dark:text-gray-500 italic">-</td>
-                    </tr>
-                    <!-- Row with violations: one <tr> per violation -->
-                    <tr v-for="(v, vIdx) in row.violations" :key="`${row.rowNumber}-${vIdx}`" class="hover:bg-red-50/50 dark:hover:bg-red-900/10">
-                      <td v-if="vIdx === 0" :rowspan="row.violations.length" class="px-4 py-2 font-mono text-gray-700 dark:text-gray-300 align-top border-r border-gray-100 dark:border-gray-800">
-                        {{ row.rowNumber + 1 }}
-                      </td>
-                      <td v-if="vIdx === 0" :rowspan="row.violations.length" class="px-4 py-2 align-top border-r border-gray-100 dark:border-gray-800">
-                        <span class="inline-flex items-center gap-1 text-red-600 dark:text-red-400 font-medium text-xs">
-                          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
-                          실패
-                        </span>
-                      </td>
-                      <td class="px-4 py-2">
-                        <code class="text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-800 dark:text-gray-200">{{ v.fieldKey }}</code>
-                      </td>
-                      <td class="px-4 py-2">
-                        <span class="text-xs font-medium px-2 py-0.5 rounded-full"
-                              :class="v.severity === 'ERROR'
-                                ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300'
-                                : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300'">
-                          {{ v.severity }}
-                        </span>
-                      </td>
-                      <td class="px-4 py-2 text-gray-600 dark:text-gray-400 text-xs">
-                        {{ getValidationMessage(v.message) }}
-                      </td>
-                      <td class="px-4 py-2">
-                        <code class="text-xs bg-gray-50 dark:bg-gray-800 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-400">
-                          {{ v.actualValue || '(빈 값)' }}
-                        </code>
-                      </td>
-                    </tr>
-                  </template>
-                </tbody>
-              </table>
-            </div>
-          </template>
-        </div>
-
-        <!-- Step 4: Upload Progress -->
-        <div v-else-if="step === 4" class="flex flex-col items-center justify-center p-10 space-y-4">
-          <div class="w-full bg-gray-200 rounded-full h-4 dark:bg-gray-700 mb-2 overflow-hidden relative">
-            <div class="bg-blue-600 h-4 rounded-full transition-all duration-300" :style="{ width: progress + '%' }"></div>
-          </div>
-          <p class="text-lg font-medium text-gray-700 dark:text-gray-300">
-            Processing... {{ Math.round(progress) }}%
+          <p v-if="uploadError" style="color: var(--va-danger); font-size: 0.85rem; text-align: center;">
+            ❌ {{ uploadError }}
           </p>
-          <p v-if="uploadError" class="text-red-600 dark:text-red-400 mt-4">{{ uploadError }}</p>
         </div>
       </div>
 
-      <!-- Footer -->
-      <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 bg-gray-50 dark:bg-gray-800">
-        <button v-if="step !== 4" @click="$emit('close')" class="px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600 transition-colors">
-          {{ t('excel_uploader.btn_cancel') }}
-        </button>
-        <button v-if="step === 2" @click="runValidation" class="px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
-          {{ t('excel_uploader.btn_validate_upload') }}
-        </button>
-        <button v-if="step === 3 && !validating && validationResult" @click="step = 2" class="px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600 transition-colors">
-          {{ t('excel_uploader.btn_edit_mapping') }}
-        </button>
-        <button v-if="step === 3 && !validating && validationResult" @click="proceedUpload" class="px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white transition-colors"
-                :class="validationResult.invalidRows === 0 ? 'bg-green-600 hover:bg-green-700' : 'bg-orange-500 hover:bg-orange-600'"
-                :title="validationResult.invalidRows > 0 ? t('excel_uploader.tooltip_valid_only') : ''">
-          {{ validationResult.invalidRows === 0 ? t('excel_uploader.btn_start_upload') : t('excel_uploader.btn_upload_valid_only', { count: validationResult.validRows }) }}
-        </button>
-        <button v-if="step === 4 && progress === 100" @click="$emit('close')" class="px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors">
-          {{ t('excel_uploader.btn_done') }}
-        </button>
+      <!-- Actions / Footer Buttons -->
+      <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.5rem; border-top: 1px solid var(--va-background-border); margin-top: auto;">
+        <div>
+          <va-button
+            v-if="step > 1 && step < 4 && !validating"
+            preset="secondary"
+            icon="arrow_back"
+            @click="step--"
+          >
+            이전 단계
+          </va-button>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem;">
+          <va-button
+            v-if="step !== 4"
+            preset="secondary"
+            @click="$emit('close')"
+          >
+            {{ t('excel_uploader.btn_cancel') || '취소' }}
+          </va-button>
+
+          <!-- Step 2 -> Step 3 -->
+          <va-button
+            v-if="step === 2"
+            color="primary"
+            icon-right="arrow_forward"
+            @click="runValidation"
+          >
+            {{ t('excel_uploader.btn_validate_upload') || '데이터 품질 검증 시작' }}
+          </va-button>
+
+          <!-- Step 3 Upload Action -->
+          <va-button
+            v-if="step === 3 && !validating && validationResult"
+            :color="validationResult.invalidRows === 0 ? 'success' : 'warning'"
+            icon="cloud_upload"
+            @click="proceedUpload"
+          >
+            {{ validationResult.invalidRows === 0 ? (t('excel_uploader.btn_start_upload') || '전체 일괄 업로드 실행') : (t('excel_uploader.btn_upload_valid_only', { count: validationResult.validRows }) || `정상 데이터(${validationResult.validRows}건)만 업로드`) }}
+          </va-button>
+
+          <!-- Step 4 Finish Action -->
+          <va-button
+            v-if="step === 4 && progress === 100"
+            color="success"
+            icon="check"
+            @click="$emit('close')"
+          >
+            {{ t('excel_uploader.btn_done') || '완료' }}
+          </va-button>
+        </div>
       </div>
     </div>
-  </div>
+  </AppModal>
 </template>
 
 <script setup>
@@ -258,6 +371,13 @@ const currentUser = computed(() => {
 });
 
 
+const stepsMeta = computed(() => [
+  { step: 1, label: t('excel_uploader.step1_title') || '파일 선택', desc: t('excel_uploader.step1_desc') || '템플릿 및 파일 등록' },
+  { step: 2, label: t('excel_uploader.step2_title') || '필드 매핑', desc: t('excel_uploader.step2_desc') || '엑셀 열과 스키마 연결' },
+  { step: 3, label: t('excel_uploader.step3_title') || '품질 검증', desc: t('excel_uploader.step3_desc') || 'DQ 검칙 무결성 검사' },
+  { step: 4, label: t('excel_uploader.step4_title') || '일괄 업로드', desc: t('excel_uploader.step4_desc') || '마스터 레코드 반영' }
+]);
+
 const step = ref(1);
 const uploadErrorMsg = ref('');
 const parsedData = ref([]);
@@ -270,6 +390,13 @@ const uploadError = ref(null);
 const validating = ref(false);
 const validationResult = ref(null);
 const showOnlyErrors = ref(true);
+
+const handleDrop = (e) => {
+  const files = e.dataTransfer?.files;
+  if (files && files.length > 0) {
+    handleFileUpload({ target: { files } });
+  }
+};
 
 const getTranslatedName = (nameObj) => {
 
@@ -605,3 +732,21 @@ const getValidationMessage = (msgMap) => {
   return msgMap[locale.value] || msgMap.ko || msgMap.en || Object.values(msgMap)[0] || '검증 규칙 위반';
 };
 </script>
+
+<style scoped>
+.mapping-select {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--va-background-border);
+  border-radius: 6px;
+  background: var(--va-background-element);
+  color: var(--va-text-primary);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.mapping-select:focus {
+  border-color: var(--va-primary);
+}
+</style>

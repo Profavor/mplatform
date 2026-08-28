@@ -1015,6 +1015,7 @@ import DynamicRecordLayoutRenderer from './DynamicRecordLayoutRenderer.vue'
 import SpecializedDomainWidgetRenderer from './specialized/SpecializedDomainWidgetRenderer.vue'
 import RecordLayoutBuilderModal from './RecordLayoutBuilderModal.vue'
 import { useCustomFetch } from '~/composables/useCustomFetch'
+import { parseOptions } from '~/utils/optionParser'
 
 const { customFetch } = useCustomFetch()
 const { downloadFileWithAuth } = useFileDownloader()
@@ -1115,9 +1116,22 @@ const getHistoryVal = (dataObj, key) => {
   return undefined;
 };
 
+const stripHtmlTags = (s) => {
+  if (!s || typeof s !== 'string') return s || '';
+  return s.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+};
+
 const isDiffEqual = (v1, v2) => {
   if (v1 === v2) return true;
   if ((v1 === null || v1 === undefined || v1 === '') && (v2 === null || v2 === undefined || v2 === '')) return true;
+
+  const s1 = (v1 === null || v1 === undefined) ? '' : String(v1).trim();
+  const s2 = (v2 === null || v2 === undefined) ? '' : String(v2).trim();
+
+  if (s1 === s2) return true;
+
+  // HTML tag stripped comparison (e.g. <p>니가 나를 모르는데</p> vs 니가 나를 모르는데)
+  if (stripHtmlTags(s1) === stripHtmlTags(s2) && stripHtmlTags(s1) !== '') return true;
 
   // Object equality check
   if (typeof v1 === 'object' && typeof v2 === 'object' && v1 !== null && v2 !== null) {
@@ -1127,11 +1141,11 @@ const isDiffEqual = (v1, v2) => {
   // Multilingual object vs simple string check
   if (typeof v1 === 'object' && v1 !== null && typeof v2 === 'string') {
     const text = v1.ko || v1.en || Object.values(v1)[0];
-    if (text === v2) return true;
+    if (text === v2 || stripHtmlTags(text) === stripHtmlTags(v2)) return true;
   }
   if (typeof v2 === 'object' && v2 !== null && typeof v1 === 'string') {
     const text = v2.ko || v2.en || Object.values(v2)[0];
-    if (text === v1) return true;
+    if (text === v1 || stripHtmlTags(text) === stripHtmlTags(v1)) return true;
   }
 
   // Number vs String number
@@ -1142,9 +1156,6 @@ const isDiffEqual = (v1, v2) => {
 };
 
 const getChangedKeys = (prev, curr, log) => {
-  if (log && Array.isArray(log.changedFields) && log.changedFields.length > 0) {
-    return log.changedFields;
-  }
   if (!prev && !curr) return [];
   const prevObj = safeParseJson(prev);
   const currObj = safeParseJson(curr);
@@ -1154,25 +1165,35 @@ const getChangedKeys = (prev, curr, log) => {
     'domainid', 'status', 'nodeid', 'version', 'sourcesystem'
   ]);
 
+  const rawCandidates = Array.isArray(log?.changedFields) && log.changedFields.length > 0
+    ? log.changedFields
+    : [...Object.keys(prevObj || {}), ...Object.keys(currObj || {})];
+
   const keyMap = new Map(); // upperKey -> canonicalKey
-  const processKeys = (obj) => {
-    for (const k of Object.keys(obj)) {
-      if (!k || k.startsWith('_idx_') || ignoredKeys.has(k.toLowerCase())) continue;
-      const upper = k.toUpperCase();
-      if (!keyMap.has(upper)) {
-        const matchedField = props.fields?.find(f => f.key && f.key.toUpperCase() === upper);
-        keyMap.set(upper, matchedField ? matchedField.key : k);
-      }
+  for (const k of rawCandidates) {
+    if (!k || k.startsWith('_') || ignoredKeys.has(k.toLowerCase())) continue;
+    const upper = k.toUpperCase();
+    if (!keyMap.has(upper)) {
+      const matchedField = props.fields?.find(f => f.key && f.key.toUpperCase() === upper);
+      keyMap.set(upper, matchedField ? matchedField.key : k);
     }
+  }
+
+  const isEncryptedField = (k) => {
+    const f = props.fields?.find(f => f.key === k || (f.key && f.key.toUpperCase() === k.toUpperCase()));
+    return Boolean(f?.isEncrypted || f?.encryptionType);
   };
-  processKeys(prevObj);
-  processKeys(currObj);
 
   const changed = [];
   for (const [upper, canonicalKey] of keyMap.entries()) {
     const valPrev = getHistoryVal(prevObj, upper);
     const valCurr = getHistoryVal(currObj, upper);
-    if (!isDiffEqual(valPrev, valCurr)) {
+    const isExplicit = Array.isArray(log?.changedFields) && log.changedFields.some(ck => ck && ck.toUpperCase() === upper);
+    const isEncrypted = isEncryptedField(canonicalKey) || String(valPrev || '').includes('***') || String(valCurr || '').includes('***');
+
+    if (isExplicit && isEncrypted) {
+      changed.push(canonicalKey);
+    } else if (!isDiffEqual(valPrev, valCurr)) {
       changed.push(canonicalKey);
     }
   }
@@ -1308,6 +1329,9 @@ const formatDiffValue = (key, val) => {
   }
   if (f && f.type === 'DATE_RANGE' && typeof val === 'string') {
     return val.replace('~', ' ~ ');
+  }
+  if (typeof val === 'string' && (val.includes('<p>') || val.includes('<br>') || val.includes('<div>') || val.includes('<span>'))) {
+    return val.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim() || '-';
   }
   let obj = val;
   if (typeof val === 'string') {
@@ -2349,43 +2373,7 @@ watch(
   { immediate: true }
 )
 
-const parseOptions = (opts) => {
-  if (!opts) return []
-  let rawList = opts
-  if (typeof opts === 'string') {
-    const trimmed = opts.trim()
-    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
-      try {
-        rawList = JSON.parse(trimmed)
-      } catch (e) {
-        return trimmed.split(',').map((s) => ({ text: s.trim(), value: s.trim() }))
-      }
-    } else {
-      return trimmed.split(',').map((s) => ({ text: s.trim(), value: s.trim() }))
-    }
-  }
 
-  if (Array.isArray(rawList)) {
-    const mapped = rawList.map((o) => {
-      if (typeof o === 'string' || typeof o === 'number') {
-        return { text: String(o), value: String(o), order: 0 }
-      }
-      if (o && typeof o === 'object') {
-        const val = o.value !== undefined ? o.value : (o.key !== undefined ? o.key : (o.code !== undefined ? o.code : ''))
-        const textLabel = getTranslatedName(o.label || o.name || o.text || o.title || o.displayName) || (val ? String(val) : '')
-        return {
-          value: val,
-          text: textLabel,
-          order: o.order !== undefined ? o.order : (o.sortOrder !== undefined ? o.sortOrder : 0)
-        }
-      }
-      return { text: String(o), value: String(o), order: 0 }
-    })
-    return mapped.sort((a, b) => (a.order || 0) - (b.order || 0))
-  }
-
-  return []
-}
 
 const formatDateForDisplay = (val) => {
   if (!val) return ''

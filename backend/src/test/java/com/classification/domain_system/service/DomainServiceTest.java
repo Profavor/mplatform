@@ -228,4 +228,26 @@ class DomainServiceTest extends BaseServiceTest {
             verify(domainRepository).save(any(Domain.class));
         }
     }
+
+    @Nested
+    @DisplayName("deleteDomain")
+    class DeleteDomain {
+
+        @Test
+        @DisplayName("성공 - 도메인과 연관된 자식 및 결재 데이터를 순서대로 안전하게 삭제한다")
+        void success() {
+            // given
+            UUID domainId = UUID.randomUUID();
+            org.springframework.jdbc.core.JdbcTemplate mockJdbc = org.mockito.Mockito.mock(org.springframework.jdbc.core.JdbcTemplate.class);
+            org.springframework.test.util.ReflectionTestUtils.setField(domainService, "jdbcTemplate", mockJdbc);
+
+            // when
+            domainService.deleteDomain(domainId);
+
+            // then
+            verify(domainRepository).deleteById(domainId);
+            verify(mockJdbc, org.mockito.Mockito.atLeastOnce()).update(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(domainId));
+        }
+    }
 }
+

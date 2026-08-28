@@ -162,14 +162,18 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { useToast } from 'vuestic-ui'
 import AiDqRecommendations from '~/components/dq/AiDqRecommendations.vue'
 import DqKpiCards from '~/components/dq/DqKpiCards.vue'
 import DqScoreTrendCard from '~/components/dq/DqScoreTrendCard.vue'
 import DqViolationsTable from '~/components/dq/DqViolationsTable.vue'
 import { usePageTitle } from '~/composables/usePageTitle'
+import { useCustomFetch } from '~/composables/useCustomFetch'
 
 const { t, locale } = useI18n()
 const { pageTitle } = usePageTitle('dq_dashboard_title', '데이터 품질 진단 대시보드')
+const { init: notify } = useToast()
+const customFetch = useCustomFetch()
 
 const domains = ref([])
 const selectedDomainId = ref(null)
@@ -214,16 +218,9 @@ const severityOptions = [
   { label: 'WARNING', value: 'WARNING' }
 ]
 
-const token = useCookie('auth_token')
-
-const getHeaders = () => {
-  return token.value ? { Authorization: `Bearer ${token.value}` } : {}
-}
-
 async function fetchDomainFields(domainId) {
   try {
-    const headers = getHeaders()
-    const fields = await $fetch(`/api/domains/${domainId}/fields`, { headers })
+    const fields = await customFetch(`/api/domains/${domainId}/fields`)
     const map = {}
     for (const f of (fields || [])) {
       let nameObj = f.name
@@ -320,12 +317,11 @@ async function fetchViolations() {
 
   loadingViolations.value = true
   try {
-    const headers = getHeaders()
     let url = `/api/domains/${domainId}/dq-violations?page=${violationPage.value}&size=${violationSize.value}`
     if (filterSeverity.value) url += `&severity=${encodeURIComponent(filterSeverity.value)}`
     if (filterFieldKey.value) url += `&fieldKey=${encodeURIComponent(filterFieldKey.value)}`
 
-    const res = await $fetch(url, { headers })
+    const res = await customFetch(url)
     violationList.value = res.content || []
     totalViolationsCount.value = res.totalElements || 0
     totalViolationPages.value = res.totalPages || 0
@@ -341,7 +337,6 @@ const trendPeriod = ref(30)
 
 async function fetchRecentSnapshots(domainId) {
   try {
-    const headers = getHeaders()
     let url = `/api/domains/${domainId}/dq-score/recent`
 
     if (trendPeriod.value > 0) {
@@ -350,7 +345,7 @@ async function fetchRecentSnapshots(domainId) {
       url = `/api/domains/${domainId}/dq-score/trend?from=${fromDate.toISOString()}&to=${now.toISOString()}`
     }
 
-    const list = await $fetch(url, { headers })
+    const list = await customFetch(url)
     recentSnapshots.value = list || []
   } catch (e) {
     console.error('Failed to fetch DQ score trend snapshots:', e)
@@ -380,17 +375,23 @@ const maxTrendScore = computed(() => {
 async function triggerScan() {
   const val = selectedDomainId.value
   const domainId = typeof val === 'object' && val !== null ? (val.value || val.id) : val
-  if (!domainId) return
+  if (!domainId) {
+    notify({ message: '진단할 도메인을 먼저 선택해주세요.', color: 'warning' })
+    return
+  }
 
   scanning.value = true
+  notify({ message: 'DQ 진단 스캔을 시작합니다...', color: 'info' })
   try {
-    const headers = getHeaders()
-    const score = await $fetch(`/api/domains/${domainId}/dq-scan`, { method: 'POST', headers })
+    const score = await customFetch(`/api/domains/${domainId}/dq-scan`, { method: 'POST' })
     scoreData.value = score
     violationPage.value = 0
     await Promise.all([fetchViolations(), fetchRecentSnapshots(domainId)])
+    const scorePoint = score?.score ?? 100
+    notify({ message: `DQ 진단 스캔이 완료되었습니다. (진단 점수: ${scorePoint}점)`, color: 'success' })
   } catch (e) {
     console.error('DQ scan error:', e)
+    notify({ message: `DQ 진단 스캔 실패: ${e?.data?.message || e?.message || '알 수 없는 오류'}`, color: 'danger' })
   } finally {
     scanning.value = false
   }
@@ -405,7 +406,7 @@ function goToRecord(recordId) {
 
 onMounted(async () => {
   try {
-    const res = await $fetch('/api/domains', { headers: getHeaders() })
+    const res = await customFetch('/api/domains')
     domains.value = (res || []).map(d => {
       let nameObj = d.name
       if (typeof nameObj === 'string') {
@@ -445,11 +446,10 @@ watch(selectedDomainId, async (val) => {
   filterFieldKey.value = ''
 
   try {
-    const headers = getHeaders()
     await fetchDomainFields(domainId)
     const [score, rules] = await Promise.all([
-      $fetch(`/api/domains/${domainId}/dq-score`, { headers }),
-      $fetch(`/api/domains/${domainId}/dq-rules-count`, { headers }).catch((e) => {
+      customFetch(`/api/domains/${domainId}/dq-score`),
+      customFetch(`/api/domains/${domainId}/dq-rules-count`).catch((e) => {
         console.error('Failed to fetch dq-rules-count:', e)
         return { count: 0 }
       })
@@ -474,20 +474,16 @@ const fetchDashboardData = async () => {
 
   loading.value = true
   try {
-    const headers = getHeaders()
     await fetchDomainFields(domainId)
     const [score, rules] = await Promise.all([
-      $fetch(`/api/domains/${domainId}/dq-score`, { headers }),
-      $fetch(`/api/domains/${domainId}/dq-rules-count`, { headers }).catch((e) => {
-        console.error('Failed to fetch dq-rules-count:', e)
-        return { count: 0 }
-      })
+      customFetch(`/api/domains/${domainId}/dq-score`),
+      customFetch(`/api/domains/${domainId}/dq-rules-count`).catch(() => ({ count: 0 }))
     ])
     scoreData.value = score
     ruleCount.value = rules?.count ?? 0
     await Promise.all([fetchViolations(), fetchRecentSnapshots(domainId)])
   } catch (e) {
-    console.error('Failed to refresh DQ score:', e)
+    console.error('Failed to fetch dashboard data:', e)
   } finally {
     loading.value = false
   }

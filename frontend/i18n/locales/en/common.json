@@ -267,6 +267,10 @@
   "delete_failed": "Failed to delete.",
   "delete_success": "Delete Completed",
   "deleted_status": "Deleted",
+  "save_success_title": "Saved Successfully",
+  "save_error_title": "Save Error",
+  "node": "Node",
+  "domain": "Domain",
   "department": "Department",
   "description": "Description",
   "description_col": "Description",
@@ -935,5 +939,24 @@
   "data_lineage": "Data Lineage",
   "data_lineage_desc": "Visualize reference and data flow lineage between domains, taxonomy nodes, and external channels.",
   "lineage_nodes": "Lineage Nodes",
-  "lineage_relationships": "Data Pipeline Flows"
+  "lineage_relationships": "Data Pipeline Flows",
+  "footer": {
+    "system_name": "Domain Governance System",
+    "system_desc": "Enterprise Master Data & Domain Governance Platform",
+    "copyright": "© {year} Domain Governance System. All rights reserved.",
+    "status_operational": "All Systems Operational",
+    "privacy_policy": "Privacy Policy",
+    "terms_of_service": "Terms of Service",
+    "documentation": "Docs & API",
+    "support": "Support / Helpdesk",
+    "github_repo": "GitHub Repository",
+    "environment": "Enterprise Edition",
+    "version": "Version",
+    "privacy_modal_title": "Privacy Policy",
+    "privacy_modal_content": "Domain Governance System strictly safeguards user privacy in compliance with applicable laws, enforcing role-based access control and audit logging across all master data assets.",
+    "terms_modal_title": "Terms of Service",
+    "terms_modal_content": "All data assets and classification hierarchies within this platform must be accessed and managed strictly following authorized workflow policies. Unauthorized export or tampering is prohibited.",
+    "support_modal_title": "Technical Support & Inquiries",
+    "support_modal_content": "For technical assistance, permission requests, or pipeline integration issues, please reach out to the Governance Administration Team or submit an issue on the GitHub repository."
+  }
 }

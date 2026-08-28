@@ -151,30 +151,54 @@ const showActionModal = ref(false)
 const selectedPendingStep = ref(null)
 const pendingSelectedRows = ref([])
 
+const formatTargetInfo = (req) => {
+  if (!req) return ''
+  const tType = req.targetType || ''
+  if (tType === 'MEMO') {
+    return t('memo_approval') || '일반 결재'
+  }
+  const dName = req.domainName ? formatMultilingual(req.domainName) : ''
+  const cName = req.classificationName ? formatMultilingual(req.classificationName) : ''
+  if (dName && cName) return `${dName} > ${cName}`
+  if (dName) return dName
+  if (cName) return cName
+  return t('general_approval') || '일반'
+}
+
 const getPendingColumnDefs = () => [
   { colId: 'p_checkbox', headerName: '', field: 'checkbox', width: 50, suppressSizeToFit: true },
-  { colId: 'p_targetType', field: 'approvalRequest.targetType', headerName: t('target_type'), width: 130, minWidth: 120 },
-  { colId: 'p_domainName', field: 'approvalRequest.domainName', headerName: t('colDomain'), width: 140, valueFormatter: params => formatMultilingual(params.value) },
-  { colId: 'p_classificationName', field: 'approvalRequest.classificationName', headerName: t('colClassification'), width: 150, valueFormatter: params => formatMultilingual(params.value) },
-  { colId: 'p_idAttribute', field: 'approvalRequest.idAttribute', headerName: t('colIdAttr'), width: 150, valueFormatter: params => formatMultilingual(params.value) },
-  { colId: 'p_nameAttribute', field: 'approvalRequest.nameAttribute', headerName: t('colNameAttr'), width: 180, valueFormatter: params => formatMultilingual(params.value) },
-  { colId: 'p_summary', field: 'approvalRequest.summary', headerName: t('colSummary'), flex: 1, minWidth: 200, tooltipField: 'approvalRequest.summary' },
+  { colId: 'p_targetType', field: 'approvalRequest.targetType', headerName: t('target_type'), width: 120, minWidth: 100 },
+  { 
+    colId: 'p_targetInfo', 
+    headerName: t('colDomain') || '도메인 / 대상', 
+    width: 160, 
+    minWidth: 140, 
+    valueGetter: params => formatTargetInfo(params.data?.approvalRequest) 
+  },
+  { colId: 'p_summary', field: 'approvalRequest.summary', headerName: t('colSummary'), flex: 1, minWidth: 220, tooltipField: 'approvalRequest.summary' },
+  { 
+    colId: 'p_requester', 
+    headerName: t('requester') || '기안자', 
+    width: 130, 
+    minWidth: 110, 
+    valueGetter: params => params.data?.approvalRequest?.requesterName || params.data?.approvalRequest?.requesterUsername || '-' 
+  },
   { 
     colId: 'p_steps',
     field: 'approvalRequest.steps', 
     headerName: t('approval_line'), 
-    flex: 3, 
-    minWidth: 300,
+    flex: 2, 
+    minWidth: 240,
     valueFormatter: params => getApprovalLineString(params.value)
   },
-  { colId: 'p_createdAt', field: 'createdAt', headerName: t('created'), width: 180, minWidth: 150, valueFormatter: params => params.value ? formatDate(params.value) : '' },
-  { colId: 'p_stepType', field: 'stepType', headerName: t('step_type'), width: 120, minWidth: 100 },
+  { colId: 'p_createdAt', field: 'createdAt', headerName: t('created'), width: 160, minWidth: 140, valueFormatter: params => params.value ? formatDate(params.value) : '' },
+  { colId: 'p_stepType', field: 'stepType', headerName: t('step_type'), width: 110, minWidth: 90 },
   {
     colId: 'p_action',
     headerName: t('action'),
     field: 'id',
-    width: 120,
-    minWidth: 100,
+    width: 100,
+    minWidth: 90,
     suppressSizeToFit: true,
     cellRenderer: (params) => {
       const eDiv = document.createElement('div')
@@ -352,22 +376,24 @@ const selectedRequest = ref(null)
 
 const getMyRequestsColumnDefs = () => [
   { colId: 'm_id', field: 'id', headerName: t('id'), width: 110, minWidth: 90, valueFormatter: params => formatApprovalCode(params.value) },
-  { colId: 'm_targetType', field: 'targetType', headerName: t('target_type'), width: 130, minWidth: 120 },
-
-  { colId: 'm_domainName', field: 'domainName', headerName: t('colDomain'), width: 140, valueFormatter: params => formatMultilingual(params.value) },
-  { colId: 'm_classificationName', field: 'classificationName', headerName: t('colClassification'), width: 150, valueFormatter: params => formatMultilingual(params.value) },
-  { colId: 'm_idAttribute', field: 'idAttribute', headerName: t('colIdAttr'), width: 150, valueFormatter: params => formatMultilingual(params.value) },
-  { colId: 'm_nameAttribute', field: 'nameAttribute', headerName: t('colNameAttr'), width: 180, valueFormatter: params => formatMultilingual(params.value) },
-  { colId: 'm_summary', field: 'summary', headerName: t('colSummary'), flex: 1, minWidth: 200, tooltipField: 'summary' },
+  { colId: 'm_targetType', field: 'targetType', headerName: t('target_type'), width: 120, minWidth: 100 },
+  { 
+    colId: 'm_targetInfo', 
+    headerName: t('colDomain') || '도메인 / 대상', 
+    width: 160, 
+    minWidth: 140, 
+    valueGetter: params => formatTargetInfo(params.data) 
+  },
+  { colId: 'm_summary', field: 'summary', headerName: t('colSummary'), flex: 1, minWidth: 220, tooltipField: 'summary' },
   { 
     colId: 'm_steps',
     field: 'steps', 
     headerName: t('approval_line'), 
-    flex: 3, 
-    minWidth: 300,
+    flex: 2, 
+    minWidth: 240,
     valueFormatter: params => getApprovalLineString(params.value)
   },
-  { colId: 'm_createdAt', field: 'createdAt', headerName: t('created'), width: 180, minWidth: 150, valueFormatter: params => params.value ? formatDate(params.value) : '' },
+  { colId: 'm_createdAt', field: 'createdAt', headerName: t('created'), width: 160, minWidth: 140, valueFormatter: params => params.value ? formatDate(params.value) : '' },
   { colId: 'm_status', field: 'status', headerName: t('status'), width: 110, minWidth: 90, 
     cellRenderer: params => {
       if (!params || !params.value) return '';
