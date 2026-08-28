@@ -25,10 +25,12 @@ spec:
         - |
           echo "Initializing mailbox structure and accounts..."
           mkdir -p /var/mail/mplatform.com/admin/cur /var/mail/mplatform.com/admin/new /var/mail/mplatform.com/admin/tmp
+          mkdir -p /var/mail/mplatform.com/superadmin/cur /var/mail/mplatform.com/superadmin/new /var/mail/mplatform.com/superadmin/tmp
           chmod -R 777 /var/mail
           mkdir -p /tmp/docker-mailserver
           if [ ! -f /tmp/docker-mailserver/postfix-accounts.cf ]; then
-            echo "admin@mplatform.com|{SHA512-CRYPT}\$6\$5NKLqvuCmfPD/JwM\$FyYzkh27WNJGZgblBwMs/TX8INzQP5z38qcann172wpprBQ2wJ4U9Zf4ELQfNHboSrwcYoUfu4zk4LYSMiLAi/" > /tmp/docker-mailserver/postfix-accounts.cf
+            echo "admin@mplatform.com|{SHA512-CRYPT}\$6\$NLMHP13IgrZcpo8t\$kLqxaPgY3LNW17aTDOK49Od4FyiHOd5QViQkyIfAsDRCJCYJE79Odug/EfzL/Jm1XIdC78UNS/dXd248rp/JD." > /tmp/docker-mailserver/postfix-accounts.cf
+            echo "superadmin@mplatform.com|{SHA512-CRYPT}\$6\$NLMHP13IgrZcpo8t\$kLqxaPgY3LNW17aTDOK49Od4FyiHOd5QViQkyIfAsDRCJCYJE79Odug/EfzL/Jm1XIdC78UNS/dXd248rp/JD." >> /tmp/docker-mailserver/postfix-accounts.cf
           fi
           touch /tmp/docker-mailserver/postfix-virtual.cf
           chmod -R 777 /tmp/docker-mailserver

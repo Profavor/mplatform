@@ -122,13 +122,8 @@
                 <strong>{{ getWidgetTitle(widget) }}</strong>
               </div>
 
-              <!-- DIVIDER -->
-              <div v-else-if="widget.type === 'DIVIDER'" class="w-full">
-                <hr class="canvas-divider-hr" />
-              </div>
-
-              <!-- STANDARD VALUE / INPUT -->
-              <div class="single-row-val-box" :class="{ 'doc-val-box-interactive': !isEditing && widget.fieldKey }" @click="!isEditing && onCellClick(widget)">
+              <!-- STANDARD VALUE / INPUT (v-else so it does not render alongside MULTILINGUAL/BOOLEAN/FILE/SECTION/DIVIDER) -->
+              <div v-else class="single-row-val-box" :class="{ 'doc-val-box-interactive': !isEditing && widget.fieldKey }" @click="!isEditing && onCellClick(widget)">
                 <!-- VIEW MODE (Clean Text / Chips / Badges) -->
                 <template v-if="!isEditing">
                   <div v-if="['SELECT', 'MULTI_SELECT', 'CODE', 'ENUM'].includes(getFieldType(widget))" class="doc-chips-row">
@@ -696,6 +691,7 @@ import HtmlEditor from '~/components/common/HtmlEditor.vue'
 import ImageUploader from '~/components/common/ImageUploader.vue'
 import ImageLightboxModal from '~/components/common/ImageLightboxModal.vue'
 import SpecializedDomainWidgetRenderer from './specialized/SpecializedDomainWidgetRenderer.vue'
+import { parseOptions } from '~/utils/optionParser'
 
 const props = defineProps({
   layoutConfig: {
@@ -1047,44 +1043,7 @@ const onCellClick = (widget: any) => {
 
 const getFieldOptions = (field: any) => {
   if (!field || !field.options) return []
-  let rawList: any = field.options
-  if (typeof field.options === 'string') {
-    const trimmed = field.options.trim()
-    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
-      try {
-        rawList = JSON.parse(trimmed)
-      } catch (e) {
-        return trimmed.split(',').map((s: string) => ({ text: s.trim(), value: s.trim() }))
-      }
-    } else {
-      return trimmed.split(',').map((s: string) => ({ text: s.trim(), value: s.trim() }))
-    }
-  }
-
-  if (Array.isArray(rawList)) {
-    return rawList.map((o: any) => {
-      if (typeof o === 'string' || typeof o === 'number') {
-        return { text: String(o), value: String(o) }
-      }
-      if (o && typeof o === 'object') {
-        const val = o.value !== undefined ? o.value : (o.key !== undefined ? o.key : (o.code !== undefined ? o.code : ''))
-        let textLabel: any = null
-        if (o.label && typeof o.label === 'object') {
-          textLabel = o.label[locale.value] || o.label.ko || o.label.en
-        } else if (o.name && typeof o.name === 'object') {
-          textLabel = o.name[locale.value] || o.name.ko || o.name.en
-        } else {
-          textLabel = o.label || o.name || o.text || o.title || o.displayName
-        }
-        if (typeof textLabel === 'object' && textLabel !== null) {
-          textLabel = textLabel[locale.value] || textLabel.ko || textLabel.en || String(val)
-        }
-        return { text: String(textLabel || val || ''), value: val }
-      }
-      return { text: String(o), value: String(o) }
-    })
-  }
-  return []
+  return parseOptions(field.options, locale.value)
 }
 
 const getSelectOptionLabels = (fieldKey: string, val: any) => {

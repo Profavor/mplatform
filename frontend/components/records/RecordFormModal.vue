@@ -432,6 +432,7 @@ import { useCustomFetch } from '~/composables/useCustomFetch'
 import HtmlEditor from '~/components/common/HtmlEditor.vue'
 import ImageUploader from '~/components/common/ImageUploader.vue'
 import AppModal from '~/components/common/AppModal.vue'
+import { parseOptions } from '~/utils/optionParser'
 
 const { t } = useI18n()
 const { init: notifyToast } = useToast()
@@ -859,43 +860,7 @@ watch(
   { immediate: true }
 )
 
-const parseOptions = (opts) => {
-  if (!opts) return []
-  let rawList = opts
-  if (typeof opts === 'string') {
-    const trimmed = opts.trim()
-    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
-      try {
-        rawList = JSON.parse(trimmed)
-      } catch (e) {
-        return trimmed.split(',').map((s) => ({ text: s.trim(), value: s.trim() }))
-      }
-    } else {
-      return trimmed.split(',').map((s) => ({ text: s.trim(), value: s.trim() }))
-    }
-  }
 
-  if (Array.isArray(rawList)) {
-    const mapped = rawList.map((o) => {
-      if (typeof o === 'string' || typeof o === 'number') {
-        return { text: String(o), value: String(o), order: 0 }
-      }
-      if (o && typeof o === 'object') {
-        const val = o.value !== undefined ? o.value : (o.key !== undefined ? o.key : (o.code !== undefined ? o.code : ''))
-        const textLabel = getTranslatedName(o.label || o.name || o.text || o.title || o.displayName) || (val ? String(val) : '')
-        return {
-          value: val,
-          text: textLabel,
-          order: o.order !== undefined ? o.order : (o.sortOrder !== undefined ? o.sortOrder : 0)
-        }
-      }
-      return { text: String(o), value: String(o), order: 0 }
-    })
-    return mapped.sort((a, b) => (a.order || 0) - (b.order || 0))
-  }
-
-  return []
-}
 
 const domainRefResolvedCache = ref({})
 const resolvingRefMap = {}

@@ -36,6 +36,11 @@ public class RegexEvaluator implements RuleEvaluator {
             return Optional.empty();
         }
 
+        // Skip masked or encrypted values to prevent false positive DQ errors
+        if (isMaskedOrEncrypted(value)) {
+            return Optional.empty();
+        }
+
         try {
             JsonNode paramsNode = objectMapper.readTree(rule.getParams());
             JsonNode patternNode = paramsNode.has("pattern") ? paramsNode.get("pattern") : paramsNode.get("regex");

@@ -132,19 +132,11 @@ const activeFilterCount = computed(() => {
   return Object.keys(props.activeFilters).filter(k => props.activeFilters[k]).length
 })
 
+import { parseOptions } from '~/utils/optionParser'
+
 const formatFieldName = (nameObj: any) => {
   if (!nameObj) return ''
   return formatMultilingual(nameObj)
-}
-
-const parseOptions = (optionsStr: any) => {
-  if (!optionsStr) return []
-  if (Array.isArray(optionsStr)) return optionsStr
-  try {
-    return JSON.parse(optionsStr)
-  } catch {
-    return []
-  }
 }
 
 const updateDraftFilter = (key: string, val: any) => {

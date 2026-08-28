@@ -1,7 +1,7 @@
 <template>
   <div class="records-grid-wrapper" style="width: 100%; height: 100%; min-height: 400px;">
     <ag-grid-vue
-      style="width: 100%; height: 100%;"
+      style="width: 100%; height: 100%; min-height: 400px;"
       :theme="gridTheme"
       :autoSizeStrategy="autoSizeStrategy"
       :columnDefs="columnDefs"

@@ -369,5 +369,14 @@
   "fields_count": "{count}개 표준 필드",
   "dq_rules_count": "{count}개 DQ 검칙",
   "select_template": "템플릿 선택",
-  "pattern_preview": "채번 패턴"
+  "pattern_preview": "채번 패턴",
+  "group_delete_failed": "그룹 삭제 중 오류가 발생했습니다.",
+  "save_node_failed": "노드 저장 중 오류가 발생했습니다.",
+  "save_field_failed": "필드 저장 중 오류가 발생했습니다.",
+  "save_workflows_success": "워크플로우 설정이 성공적으로 저장되었습니다.",
+  "save_workflows_failed": "워크플로우 설정 저장에 실패했습니다.",
+  "sector_save_success_count": "섹터 {count}건이 성공적으로 저장되었습니다.",
+  "sector_save_failed": "일부 섹터 저장 중 오류가 발생했습니다.",
+  "group_save_success_count": "그룹 {count}건이 성공적으로 저장되었습니다.",
+  "group_save_failed": "일부 그룹 저장 중 오류가 발생했습니다."
 }

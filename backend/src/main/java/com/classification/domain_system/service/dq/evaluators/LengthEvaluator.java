@@ -26,6 +26,10 @@ public class LengthEvaluator implements RuleEvaluator {
             return Optional.empty();
         }
 
+        if (isMaskedOrEncrypted(value)) {
+            return Optional.empty();
+        }
+
         String textValue = value.asText();
         int length = textValue.length();
 

@@ -143,4 +143,95 @@ describe('ApprovalDetailsViewer Component - RECORD_UPDATE Filtering Test', () =>
 
     expect(wrapper.text()).toContain('860104-1******')
   })
+
+  it('_MASK_CONTACT_EMAIL 등 내부 메타 키는 결재 내역에 노출되지 않아야 함', () => {
+    const mockRequest = {
+      id: 'req-meta-key-1',
+      targetType: 'RECORD_UPDATE',
+      changes: JSON.stringify({
+        before: {
+          _MASK_CONTACT_EMAIL: null,
+          contact_email: 'test@old.com'
+        },
+        after: {
+          _MASK_CONTACT_EMAIL: 'r***@naver.com',
+          contact_email: 'test@new.com'
+        }
+      }),
+      steps: []
+    }
+
+    const wrapper = mount(ApprovalDetailsViewer, {
+      props: { request: mockRequest },
+      global: {
+        mocks: { $t: (key: string) => key },
+        stubs: { VaIcon: true, VaBadge: true, VaButton: true, VaChip: true, ApprovalSteps: true, VaModal: true, VaInput: true, 'va-modal': true, 'va-input': true }
+      }
+    })
+
+    const text = wrapper.text()
+    expect(text).not.toContain('_MASK_CONTACT_EMAIL')
+    expect(text).toContain('test@new.com')
+  })
+
+  it('변경 전후 값이 동일한 필드(예: 니가 나를 모르는데)는 diff에 노출되지 않아야 함', () => {
+    const mockRequest = {
+      id: 'req-same-val-1',
+      targetType: 'RECORD_UPDATE',
+      changes: JSON.stringify({
+        before: {
+          MEMO: '니가 나를 모르는데',
+          PHONE: '010-1111-2222'
+        },
+        after: {
+          MEMO: '니가 나를 모르는데',
+          PHONE: '010-9999-8888'
+        }
+      }),
+      steps: []
+    }
+
+    const wrapper = mount(ApprovalDetailsViewer, {
+      props: { request: mockRequest },
+      global: {
+        mocks: { $t: (key: string) => key },
+        stubs: { VaIcon: true, VaBadge: true, VaButton: true, VaChip: true, ApprovalSteps: true, VaModal: true, VaInput: true, 'va-modal': true, 'va-input': true }
+      }
+    })
+
+    const text = wrapper.text()
+    expect(text).not.toContain('니가 나를 모르는데')
+    expect(text).toContain('010-9999-8888')
+  })
+
+  it('HTML <p> 태그 차이만 있고 실제 텍스트가 동일한 경우(<p>니가 나를 모르는데</p> vs 니가 나를 모르는데) diff에 노출되지 않아야 함', () => {
+    const mockRequest = {
+      id: 'req-html-tag-1',
+      targetType: 'RECORD_UPDATE',
+      changes: JSON.stringify({
+        before: {
+          MEMO: '<p>니가 나를 모르는데</p>',
+          TITLE: '이전 제목'
+        },
+        after: {
+          MEMO: '니가 나를 모르는데',
+          TITLE: '새로운 제목'
+        }
+      }),
+      steps: []
+    }
+
+    const wrapper = mount(ApprovalDetailsViewer, {
+      props: { request: mockRequest },
+      global: {
+        mocks: { $t: (key: string) => key },
+        stubs: { VaIcon: true, VaBadge: true, VaButton: true, VaChip: true, ApprovalSteps: true, VaModal: true, VaInput: true, 'va-modal': true, 'va-input': true }
+      }
+    })
+
+    const text = wrapper.text()
+    expect(text).not.toContain('니가 나를 모르는데')
+    expect(text).toContain('새로운 제목')
+  })
 })
+

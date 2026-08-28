@@ -12,13 +12,6 @@
                 <span class="full-title">Domain Governance System</span>
                 <span class="short-title">Domain System</span>
               </va-navbar-item>
-              <va-badge
-                v-if="appVersion"
-                :text="formattedBuildTime ? `${appVersion} (${formattedBuildTime})` : appVersion"
-                color="warning"
-                size="small"
-                style="font-family: monospace; font-size: 0.75rem; font-weight: 800; white-space: nowrap; margin-left: 0.25rem;"
-              />
             </div>
           </template>
           <template #right>
@@ -182,7 +175,10 @@
       
       <template #content>
         <main class="responsive-main" :style="{ backgroundColor: isDark ? 'var(--va-background-primary)' : '#f4f6f8' }">
-          <slot />
+          <div class="main-content-body">
+            <slot />
+          </div>
+          <AppFooter />
         </main>
 
         <!-- Personal Settings Modal -->
@@ -256,6 +252,7 @@ import { useColors } from 'vuestic-ui'
 import { useMenu } from '~/composables/useMenu'
 import GlobalSearch from '~/components/layout/GlobalSearch.vue'
 import NotificationBell from '~/components/layout/NotificationBell.vue'
+import AppFooter from '~/components/layout/AppFooter.vue'
 import InAppMessenger from '~/components/chat/InAppMessenger.vue'
 import SystemRadioWidget from '~/components/chat/SystemRadioWidget.vue'
 import AdminMusicControlModal from '~/components/chat/AdminMusicControlModal.vue'
@@ -265,7 +262,7 @@ import { useRoles } from '~/composables/useRoles'
 
 const { t, locale, setLocale } = useI18n()
 const config = useRuntimeConfig()
-const appVersion = computed(() => config.public.appVersion || 'v1.0.0')
+const appVersion = computed(() => config.public.appVersion || '')
 const formattedBuildTime = computed(() => {
   const bt = config.public.buildTime
   if (!bt) return ''
@@ -702,13 +699,23 @@ body {
   display: inline-flex !important;
 }
 .responsive-main {
-  padding: 1rem;
+  padding: 0;
   height: calc(100vh - var(--app-navbar-height, 64px));
+  height: calc(100dvh - var(--app-navbar-height, 64px));
+  min-height: calc(100dvh - var(--app-navbar-height, 64px));
+  width: 100%;
   box-sizing: border-box;
   overflow-y: auto;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
+}
+.main-content-body {
+  padding: 1rem;
+  flex: 1 0 auto;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 .short-title { display: none; }
 
@@ -820,8 +827,11 @@ body {
     overflow-x: hidden;
   }
   .responsive-main {
-    padding: 0.25rem !important;
+    padding: 0 !important;
     height: calc(100vh - var(--app-navbar-height, 64px)) !important;
+  }
+  .main-content-body {
+    padding: 0.25rem !important;
   }
   .username-text {
     display: none;

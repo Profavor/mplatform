@@ -15,10 +15,17 @@
           <va-button 
             size="large" 
             class="w-full mt-2 luxury-btn" 
+            :loading="isButtonLoading"
+            :disabled="isButtonDisabled"
             @click="handleLogin"
           >
-            {{ $t('btn_login') || 'Login with Keycloak' }}
+            {{ buttonLabel }}
           </va-button>
+          
+          <div v-if="isRedirecting || isCheckingAuth" style="margin-top: 1rem; text-align: center; font-size: 0.85rem; color: var(--va-text-secondary); display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
+            <va-progress-circle indeterminate size="16px" color="primary" />
+            <span>{{ isRedirecting ? $t('auth_redirecting') : $t('auth_checking') }}</span>
+          </div>
         </va-card-content>
       </va-card>
 
@@ -30,8 +37,8 @@
 </template>
 
 <script setup>
-import { onMounted, computed } from 'vue'
-import { useRoute } from '#app'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useRoute, navigateTo, useCookie } from '#app'
 import { useI18n } from 'vue-i18n'
 import { useToast, useColors } from 'vuestic-ui'
 
@@ -47,36 +54,76 @@ const currentPresetName = colors?.currentPresetName
 const isDark = computed(() => currentPresetName?.value === 'dark')
 
 const { loggedIn, login, logout } = useOidcAuth()
+const authToken = useCookie('auth_token')
 
-onMounted(async () => {
-  const token = useCookie('auth_token').value
-  if (route.query.error || route.query.expired || !token) {
+const isCheckingAuth = ref(true)
+const isLoggingIn = ref(false)
+const isRedirecting = ref(false)
+
+const isButtonDisabled = computed(() => isLoggingIn.value || isRedirecting.value || isCheckingAuth.value)
+const isButtonLoading = computed(() => isLoggingIn.value || isRedirecting.value || isCheckingAuth.value)
+
+const buttonLabel = computed(() => {
+  if (isRedirecting.value) return t('auth_redirecting')
+  if (isLoggingIn.value) return t('btn_logging_in')
+  if (isCheckingAuth.value) return t('auth_checking')
+  return t('btn_login')
+})
+
+const redirectToDashboard = () => {
+  if (isRedirecting.value) return
+  isRedirecting.value = true
+  navigateTo('/', { replace: true })
+}
+
+const checkAuthentication = async () => {
+  const token = authToken.value
+  if (route.query.error || route.query.expired) {
     if (loggedIn.value) {
       try {
         await logout('keycloak')
       } catch (e) {}
     }
-    if (route.query.error || route.query.expired) {
-      initToast({
-        message: t('auth_login_error_message') || '다른 기기에서 로그인되었거나 세션이 만료되었습니다. 다시 로그인해주세요.',
-        color: 'danger',
-        duration: 5000,
-        position: 'top-right'
-      })
-    }
+    initToast({
+      message: t('auth_login_error_message'),
+      color: 'danger',
+      duration: 5000,
+      position: 'top-right'
+    })
+    isCheckingAuth.value = false
     return
   }
 
   if (loggedIn.value && token) {
-    navigateTo('/')
+    redirectToDashboard()
     return
   }
+  isCheckingAuth.value = false
+}
+
+// Keycloak 콜백 복귀 시 비동기로 세션 및 토큰이 채워지는 즉시 감지하여 대시보드로 이동
+watch([loggedIn, () => authToken.value], ([isLoggedIn, currentToken]) => {
+  if (isLoggedIn && currentToken && !route.query.error && !route.query.expired) {
+    redirectToDashboard()
+  }
+}, { immediate: true })
+
+onMounted(async () => {
+  await checkAuthentication()
 })
 
 const handleLogin = async () => {
+  if (isButtonDisabled.value) return
+  isLoggingIn.value = true
+
   try {
-    await login('keycloak')
+    const loginPromise = login('keycloak')
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('TIMEOUT')), 3000)
+    )
+    await Promise.race([loginPromise, timeoutPromise])
   } catch (e) {
+    console.warn('OIDC client login failed or timed out, falling back to direct login redirect', e)
     window.location.href = '/auth/keycloak/login'
   }
 }

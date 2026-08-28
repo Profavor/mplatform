@@ -18,12 +18,36 @@
 
     <div class="records-container records-layout" style="flex: 1; min-height: 0;">
     <!-- Left Column: Classification Tree -->
-    <div class="left-tree records-tree-column">
-      <h3 style="padding: 0.5rem; margin: 0; border-bottom: 1px solid #ddd; font-size: 1rem; font-weight: bold; color: #555; text-transform: uppercase;">
-        {{ $t('classification_tree') }}
-      </h3>
-      <div style="flex: 1; overflow-y: auto;">
-        <va-card flat>
+    <div class="left-tree records-tree-column" :class="{ 'tree-collapsed': !showTree }">
+      <div
+        class="tree-header"
+        @click="showTree = !showTree"
+        style="display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.85rem; border-bottom: 1px solid var(--va-background-border); cursor: pointer; user-select: none; background: var(--va-background-element); border-top-left-radius: 8px; border-top-right-radius: 8px;"
+      >
+        <div style="display: flex; align-items: center; gap: 0.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+          <va-icon name="account_tree" size="small" color="primary" />
+          <span style="font-size: 0.9rem; font-weight: 700; color: var(--va-text-primary); text-transform: uppercase;">
+            {{ $t('classification_tree') }}
+          </span>
+          <va-badge
+            v-if="!showTree && selectedNode"
+            :text="formatNodeName(selectedNode.name)"
+            color="primary"
+            size="small"
+            style="margin-left: 0.25rem;"
+          />
+        </div>
+        <va-button
+          preset="plain"
+          size="small"
+          :icon="showTree ? 'expand_less' : 'expand_more'"
+          style="padding: 0; min-width: 24px;"
+          :title="showTree ? ($t('collapse') || '접기') : ($t('expand') || '펼치기')"
+        />
+      </div>
+
+      <div v-show="showTree" style="flex: 1; overflow-y: auto;">
+        <va-card flat style="border-radius: 0;">
           <va-card-content style="padding: 0;">
             <ClassificationTree
               ref="treeRef"
@@ -106,7 +130,7 @@
       />
       
       <!-- 3. Grid Container with RecordToolbar directly on top of AG-Grid -->
-      <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+      <div style="flex: 1; display: flex; flex-direction: column; min-height: 480px;">
         <RecordToolbar
           :selected-node="selectedNode"
           :selected-record-rows="selectedRecordRows"
@@ -123,11 +147,11 @@
           @refresh="refreshRecords"
         />
 
-        <va-card v-if="selectedNode" style="width: 100%; flex: 1; display: flex; flex-direction: column; min-height: 0; border-top-left-radius: 0; border-top-right-radius: 0; border-top: none;">
-          <va-card-content style="padding: 0; flex: 1; display: flex; flex-direction: column; min-height: 0;">
+        <va-card v-if="selectedNode" style="width: 100%; flex: 1; display: flex; flex-direction: column; min-height: 480px; border-top-left-radius: 0; border-top-right-radius: 0; border-top: none;">
+          <va-card-content style="padding: 0; flex: 1; display: flex; flex-direction: column; min-height: 480px;">
             <div class="records-grid-wrapper" :class="{ 'ag-theme-quartz-dark': isDark }">
               <ag-grid-vue
-                style="width: 100%; height: 100%;"
+                style="width: 100%; height: 100%; min-height: 450px;"
                 :theme="gridTheme"
                 :autoSizeStrategy="autoSizeStrategy"
                 :columnDefs="columnDefs"
@@ -375,6 +399,7 @@ import ApprovalViewerModal from '~/components/ApprovalViewerModal.vue'
 import BulkReclassifyModal from '~/components/records/BulkReclassifyModal.vue'
 import CdcStreamModal from '~/components/records/CdcStreamModal.vue'
 import ImageLightboxModal from '~/components/common/ImageLightboxModal.vue'
+import { parseOptions } from '~/utils/optionParser'
 import { useRecordFilters } from '~/composables/useRecordFilters'
 import { useRecordGrid } from '~/composables/useRecordGrid'
 import { useRecordModals } from '~/composables/useRecordModals'
@@ -392,6 +417,7 @@ const { downloadFileWithAuth } = useFileDownloader()
 const { parseJwtUserId, handleBulkDelete } = useRecordBulkActions()
 
 const showCdcStreamModal = ref(false)
+const showTree = ref(true)
 
 // AG-Grid Image Lightbox State
 const showGridImageLightbox = ref(false)
@@ -861,43 +887,7 @@ const getTranslatedName = (nameObj) => {
   return pName?.[currentLocale.value] || pName?.ko || pName?.en || ''
 }
 
-const parseOptions = (opts) => {
-  if (!opts) return []
-  let rawList = opts
-  if (typeof opts === 'string') {
-    const trimmed = opts.trim()
-    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
-      try {
-        rawList = JSON.parse(trimmed)
-      } catch (e) {
-        return trimmed.split(',').map((s) => ({ text: s.trim(), value: s.trim() }))
-      }
-    } else {
-      return trimmed.split(',').map((s) => ({ text: s.trim(), value: s.trim() }))
-    }
-  }
 
-  if (Array.isArray(rawList)) {
-    const mapped = rawList.map((o) => {
-      if (typeof o === 'string' || typeof o === 'number') {
-        return { text: String(o), value: String(o), order: 0 }
-      }
-      if (o && typeof o === 'object') {
-        const val = o.value !== undefined ? o.value : (o.key !== undefined ? o.key : (o.code !== undefined ? o.code : ''))
-        const textLabel = getTranslatedName(o.label || o.name || o.text || o.title || o.displayName) || (val ? String(val) : '')
-        return {
-          value: val,
-          text: textLabel,
-          order: o.order !== undefined ? o.order : (o.sortOrder !== undefined ? o.sortOrder : 0)
-        }
-      }
-      return { text: String(o), value: String(o), order: 0 }
-    })
-    return mapped.sort((a, b) => (a.order || 0) - (b.order || 0))
-  }
-
-  return []
-}
 
 const route = useRoute()
 const router = useRouter()
@@ -2986,9 +2976,14 @@ const saveRecord = async () => {
 .records-tree-column {
   width: 300px;
   min-width: 300px;
-  border-right: 1px solid #ddd;
+  border-right: 1px solid var(--va-background-border);
   display: flex;
   flex-direction: column;
+  transition: all 0.25s ease;
+}
+.records-tree-column.tree-collapsed {
+  width: 220px;
+  min-width: 220px;
 }
 .records-detail-column {
   flex: 1;
@@ -3001,7 +2996,8 @@ const saveRecord = async () => {
 .records-grid-wrapper {
   flex: 1;
   width: 100%;
-  min-height: 0;
+  min-height: 480px;
+  height: 100%;
 }
 
 @media (max-width: 768px) {
@@ -3012,14 +3008,21 @@ const saveRecord = async () => {
     width: 100%;
     min-width: 100%;
     border-right: none;
-    border-bottom: 1px solid #ddd;
-    max-height: 250px;
+    border-bottom: 1px solid var(--va-background-border);
+    max-height: 320px;
+  }
+  .records-tree-column.tree-collapsed {
+    width: 100%;
+    min-width: 100%;
+    max-height: 48px;
+    height: auto;
   }
   .records-detail-column {
-    padding: 0.25rem 0;
+    padding: 0.5rem 0 0 0;
   }
   .records-grid-wrapper {
-    height: 400px;
+    min-height: 480px;
+    height: 520px;
   }
 }
 

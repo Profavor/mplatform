@@ -307,5 +307,6 @@
   "delete_domain_btn": "Delete Domain",
   "delete_domain_confirm_title": "Delete Domain Permanently",
   "delete_domain_confirm_desc": "Are you sure you want to permanently delete domain [{name}]? All associated classification nodes, field definitions, and master records will be permanently removed.",
-  "delete_domain_success": "Domain deleted successfully."
+  "delete_domain_success": "Domain deleted successfully.",
+  "delete_domain_failed": "Failed to delete domain."
 }

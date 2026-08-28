@@ -269,7 +269,7 @@
                                       </div>
                                     </div>
                                   </template>
-                                  <template v-else-if="(f.type === 'HTML_TEXT' || f.type === 'HTML') && (f.val?.before !== undefined ? f.val.before : f.val)">
+                                  <template v-else-if="(['HTML_TEXT', 'HTML', 'RICHTEXT', 'RICH_TEXT'].includes(f.type) || (typeof (f.val?.before !== undefined ? f.val.before : f.val) === 'string' && (f.val?.before !== undefined ? f.val.before : f.val).includes('<p>'))) && (f.val?.before !== undefined ? f.val.before : f.val)">
                                     <div class="custom-html-preview" style="border: 1px solid rgba(239, 68, 68, 0.25);" @click="handleHtmlImageClick" v-html="f.val?.before !== undefined ? f.val.before : f.val" />
                                   </template>
                                   <template v-else-if="f.isEncrypted">
@@ -333,7 +333,7 @@
                                       </div>
                                     </div>
                                   </template>
-                                  <template v-else-if="(f.type === 'HTML_TEXT' || f.type === 'HTML') && (f.val?.after !== undefined ? f.val.after : f.val)">
+                                  <template v-else-if="(['HTML_TEXT', 'HTML', 'RICHTEXT', 'RICH_TEXT'].includes(f.type) || (typeof (f.val?.after !== undefined ? f.val.after : f.val) === 'string' && (f.val?.after !== undefined ? f.val.after : f.val).includes('<p>'))) && (f.val?.after !== undefined ? f.val.after : f.val)">
                                     <div class="custom-html-preview" style="border: 1px solid rgba(34, 197, 94, 0.25);" @click="handleHtmlImageClick" v-html="f.val?.after !== undefined ? f.val.after : f.val" />
                                   </template>
                                   <div v-else style="display:flex; align-items:center; justify-content:space-between; gap: 8px;">
@@ -454,6 +454,7 @@ import ImageLightboxModal from './common/ImageLightboxModal.vue'
 import { useToast } from 'vuestic-ui'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useAuthenticatedImage } from '~/composables/useAuthenticatedImage'
+import { parseOptions } from '~/utils/optionParser'
 const { t } = useI18n()
 const { init } = useToast()
 const { customFetch } = useCustomFetch()
@@ -1326,11 +1327,14 @@ const getGroupedChangesList = (changesString, targetType) => {
   
   const normalizeData = (dataObj) => {
     const normalized = {};
+    if (!dataObj || typeof dataObj !== 'object') return normalized;
     Object.keys(dataObj).forEach(k => {
-      if (k.toLowerCase().startsWith('_idx_')) return;
+      // Exclude all internal metadata keys starting with '_' (_mask_, _encrypted_, _idx_, _raw_, etc.)
+      if (k.startsWith('_')) return;
       normalized[k.toUpperCase()] = dataObj[k];
     });
     Object.values(fieldNameMap.value || {}).forEach(f => {
+      if (!f || !f.key) return;
       const uKey = String(f.key).toUpperCase();
       if (f.type === 'MULTILINGUAL' && normalized[uKey] !== undefined && normalized[uKey] !== null) {
         if (typeof normalized[uKey] === 'string') {
@@ -1363,7 +1367,9 @@ const getGroupedChangesList = (changesString, targetType) => {
   } else {
     keysToProcess = Object.keys(parsed)
   }
-  keysToProcess = keysToProcess.filter(k => !k.toLowerCase().startsWith('_idx_'))
+  
+  // Filter out any internal keys
+  keysToProcess = keysToProcess.filter(k => k && !k.startsWith('_'))
   
   keysToProcess.forEach(key => {
     let valBefore = null
@@ -1384,6 +1390,8 @@ const getGroupedChangesList = (changesString, targetType) => {
     const fieldLabelName = foundField ? foundField.name : (inferredType === 'FILE' ? '파일' : key);
     const f = foundField ? { ...foundField, type: foundField.type || inferredType } : { name: fieldLabelName, type: inferredType, fieldGroup: null };
     
+    if (String(f.name || '').startsWith('_') || String(f.key || key).startsWith('_')) return;
+
     const parseName = (nameObj) => {
       if (!nameObj) return null;
       if (typeof nameObj === 'string') {
@@ -1446,7 +1454,7 @@ const getGroupedChangesList = (changesString, targetType) => {
         if (primary && secondary && primary !== secondary) {
           return `${primary} (${secondary})`;
         }
-        return primary || secondary || JSON.stringify(obj);
+        return primary || secondary || '-';
       }
       return val;
     };
@@ -1466,7 +1474,7 @@ const getGroupedChangesList = (changesString, targetType) => {
     } else if (f.type === 'FILE') {
       displayValBefore = valBefore;
       displayValAfter = valAfter;
-    } else if (f.type === 'MULTILINGUAL' || typeof valAfter === 'object' || typeof valBefore === 'object' || (typeof valAfter === 'string' && valAfter.trim().startsWith('{')) || (typeof valBefore === 'string' && valBefore.trim().startsWith('{'))) {
+    } else if (f.type === 'MULTILINGUAL' || (typeof valAfter === 'object' && valAfter !== null) || (typeof valBefore === 'object' && valBefore !== null)) {
       try {
         if (targetType === 'RECORD_UPDATE') {
           displayValBefore = parseMultilingual(valBefore);
@@ -1475,16 +1483,13 @@ const getGroupedChangesList = (changesString, targetType) => {
           displayValAfter = parseMultilingual(valAfter);
         }
       } catch (e) {}
-    } else if (['SELECT', 'MULTI_SELECT'].includes(f.type) && f.options) {
+    } else if (['SELECT', 'MULTI_SELECT', 'CODE'].includes(f.type) && f.options) {
       try {
-        const opts = JSON.parse(f.options);
+        const opts = parseOptions(f.options, currentLocale.value);
         const mapVal = (v) => {
           if (!v) return v;
-          const found = opts.find(o => o.key === v);
-          if (found && found.label) {
-            return found.label[currentLocale.value] || found.label.ko || found.label.en || v;
-          }
-          return v;
+          const found = opts.find(o => String(o.value) === String(v) || String(o.text) === String(v));
+          return found ? found.text : v;
         };
         
         if (targetType === 'RECORD_UPDATE') {
@@ -1528,42 +1533,30 @@ const getGroupedChangesList = (changesString, targetType) => {
 
     let finalVal = null;
     if (targetType === 'RECORD_UPDATE') {
-      const vBefore = displayValBefore || '-';
-      const vAfter = displayValAfter || '-';
+      const vBefore = displayValBefore !== undefined && displayValBefore !== null ? displayValBefore : '-';
+      const vAfter = displayValAfter !== undefined && displayValAfter !== null ? displayValAfter : '-';
 
       let isActuallyChanged = false;
-      const isExplicitlyChanged = changedFieldsList.some(k => 
-        k.toUpperCase() === key.toUpperCase() || 
-        (f.key && k.toUpperCase() === String(f.key).toUpperCase())
-      );
 
-      const isMaskedOrEncrypted = Boolean(f.isEncrypted) || 
-        String(vBefore).includes('***') || 
-        String(vAfter).includes('***') ||
-        String(key).toUpperCase().includes('NUMBER') ||
-        String(key).toUpperCase().includes('RESIDENT') ||
-        String(key).toUpperCase().includes('P_NUMBER');
+      const strBefore = (vBefore === '-' || vBefore === null || vBefore === undefined) ? '' : String(vBefore).trim();
+      const strAfter = (vAfter === '-' || vAfter === null || vAfter === undefined) ? '' : String(vAfter).trim();
 
-      if (isExplicitlyChanged || isMaskedOrEncrypted) {
-        isActuallyChanged = true;
+      const stripHtmlTags = (s) => {
+        if (!s || typeof s !== 'string') return s || '';
+        return s.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+      };
+
+      if (strBefore === strAfter) {
+        isActuallyChanged = false;
+      } else if (stripHtmlTags(strBefore) === stripHtmlTags(strAfter) && stripHtmlTags(strBefore) !== '') {
+        isActuallyChanged = false;
       } else {
-        const strBefore = (vBefore === '-' || vBefore === null || vBefore === undefined) ? '' : String(vBefore).trim();
-        const strAfter = (vAfter === '-' || vAfter === null || vAfter === undefined) ? '' : String(vAfter).trim();
-
-        if (strBefore !== strAfter) {
-          if (f.type === 'FILE') {
-            if (strAfter !== '' && strAfter !== '-') {
-              isActuallyChanged = true;
-            }
-          } else {
-            const multiBefore = parseMultilingual(valBefore);
-            const multiAfter = parseMultilingual(valAfter);
-            if (multiBefore && multiAfter && String(multiBefore).trim() === String(multiAfter).trim()) {
-              isActuallyChanged = false;
-            } else {
-              isActuallyChanged = true;
-            }
-          }
+        if (typeof valBefore === 'object' || typeof valAfter === 'object') {
+          const rawB = JSON.stringify(valBefore || {});
+          const rawA = JSON.stringify(valAfter || {});
+          isActuallyChanged = (rawB !== rawA) && (strBefore !== strAfter);
+        } else {
+          isActuallyChanged = true;
         }
       }
 
@@ -1594,20 +1587,6 @@ const getGroupedChangesList = (changesString, targetType) => {
       })
     })
     sectors = sectors.filter(s => s.groups.size > 0)
-
-    // Fallback: If all filtered out but parsed data exists, retain all original fields
-    if (sectors.length === 0 && sectorsArray.length > 0) {
-      sectors = sectorsArray;
-      sectors.forEach(s => {
-        s.groups.forEach(g => {
-          g.fields.forEach(f => {
-            if (f.val && typeof f.val === 'object') {
-              f.val.isChanged = true;
-            }
-          })
-        })
-      })
-    }
   }
 
   sectors.sort((a, b) => a.order - b.order)

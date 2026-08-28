@@ -29,11 +29,11 @@ public class DqViolation {
     @JoinColumn(name = "record_id", insertable = false, updatable = false)
     private Record record;
 
-    @Column(name = "dq_rule_id", nullable = false)
+    @Column(name = "dq_rule_id", nullable = true)
     private UUID dqRuleId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "dq_rule_id", insertable = false, updatable = false)
+    @JoinColumn(name = "dq_rule_id", insertable = false, updatable = false, nullable = true)
     private DqRule dqRule;
 
     @Column(name = "field_key", nullable = false, length = 100)

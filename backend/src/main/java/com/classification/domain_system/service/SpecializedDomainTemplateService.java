@@ -31,6 +31,7 @@ public class SpecializedDomainTemplateService {
     private final DqRuleRepository dqRuleRepository;
     private final SectorRepository sectorRepository;
     private final FieldGroupRepository fieldGroupRepository;
+    private final CodeDetailRepository codeDetailRepository;
 
     private static final Map<String, SpecializedDomainTemplateDto> TEMPLATES = new LinkedHashMap<>();
 
@@ -114,7 +115,7 @@ public class SpecializedDomainTemplateService {
                         FieldTemplateDto.builder().key("credit_limit").groupCode("CREDIT_FINANCE_GROUP").name(Map.of("ko", "여신한도액", "en", "Credit Limit")).type("NUMBER").unit("KRW").required(false).isGridVisible(true).gridWidth(3).tableColumnWidth(140).order(21).build(),
                         FieldTemplateDto.builder().key("tax_invoice_email").groupCode("CREDIT_FINANCE_GROUP").name(Map.of("ko", "전자세금계산서 이메일", "en", "Tax Invoice Email")).type("EMAIL").required(false).isGridVisible(true).gridWidth(4).tableColumnWidth(200).order(22).build(),
 
-                        FieldTemplateDto.builder().key("memo").groupCode("REMARKS_GROUP").name(Map.of("ko", "고객 특이사항 및 히스토리", "en", "Remarks & History")).type("RICHTEXT").required(false).isGridVisible(false).gridWidth(8).tableColumnWidth(250).order(23).build()
+                        FieldTemplateDto.builder().key("memo").groupCode("REMARKS_GROUP").name(Map.of("ko", "고객 특이사항 및 히스토리", "en", "Remarks & History")).type("HTML_TEXT").required(false).isGridVisible(false).gridWidth(8).tableColumnWidth(250).order(23).build()
                 ))
                 .dqRules(List.of(
                         DqRuleTemplateDto.builder().fieldKey("customer_name").ruleType("NOT_NULL").severity("ERROR").message(Map.of("ko", "고객명은 필수 입력 항목입니다.", "en", "Customer name is required.")).build(),
@@ -199,7 +200,7 @@ public class SpecializedDomainTemplateService {
                         FieldTemplateDto.builder().key("iso_certified").groupCode("QUALITY_EVAL_GROUP").name(Map.of("ko", "ISO 품질인증 보유", "en", "ISO Certified")).type("BOOLEAN").required(false).isGridVisible(true).gridWidth(2).tableColumnWidth(120).order(22).build(),
                         FieldTemplateDto.builder().key("esg_grade").groupCode("QUALITY_EVAL_GROUP").name(Map.of("ko", "ESG 종합등급", "en", "ESG Grade")).type("SELECT").required(false).isFilterable(true).isGridVisible(true).gridWidth(2).tableColumnWidth(120).order(23)
                                 .options("[{\"key\":\"A_PLUS\",\"value\":\"A_PLUS\",\"label\":{\"ko\":\"A+\",\"en\":\"A+\"}},{\"key\":\"A\",\"value\":\"A\",\"label\":{\"ko\":\"A\",\"en\":\"A\"}},{\"key\":\"B_PLUS\",\"value\":\"B_PLUS\",\"label\":{\"ko\":\"B+\",\"en\":\"B+\"}},{\"key\":\"B\",\"value\":\"B\",\"label\":{\"ko\":\"B\",\"en\":\"B\"}},{\"key\":\"C\",\"value\":\"C\",\"label\":{\"ko\":\"C\",\"en\":\"C\"}}]").build(),
-                        FieldTemplateDto.builder().key("notes").groupCode("QUALITY_EVAL_GROUP").name(Map.of("ko", "거래처 평가 및 협의사항", "en", "Evaluation Remarks")).type("RICHTEXT").required(false).isGridVisible(false).gridWidth(8).tableColumnWidth(250).order(24).build()
+                        FieldTemplateDto.builder().key("notes").groupCode("QUALITY_EVAL_GROUP").name(Map.of("ko", "거래처 평가 및 협의사항", "en", "Evaluation Remarks")).type("HTML_TEXT").required(false).isGridVisible(false).gridWidth(8).tableColumnWidth(250).order(24).build()
                 ))
                 .dqRules(List.of(
                         DqRuleTemplateDto.builder().fieldKey("vendor_name").ruleType("NOT_NULL").severity("ERROR").message(Map.of("ko", "거래처명은 필수 입력 항목입니다.", "en", "Vendor name is required.")).build(),
@@ -278,7 +279,7 @@ public class SpecializedDomainTemplateService {
                         FieldTemplateDto.builder().key("is_active").groupCode("COMMERCE_STATUS_GROUP").name(Map.of("ko", "판매 상태", "en", "Is Active")).type("BOOLEAN").required(false).isFilterable(true).isGridVisible(true).gridWidth(2).tableColumnWidth(110).order(19).build(),
                         FieldTemplateDto.builder().key("safety_cert_no").groupCode("COMMERCE_STATUS_GROUP").name(Map.of("ko", "KC/CE 인증번호", "en", "Safety Cert No")).type("TEXT").required(false).isGridVisible(true).gridWidth(3).tableColumnWidth(160).order(20).build(),
                         FieldTemplateDto.builder().key("short_description").groupCode("COMMERCE_STATUS_GROUP").name(Map.of("ko", "상품 요약 설명", "en", "Short Description")).type("TEXT").required(false).isGridVisible(false).gridWidth(4).tableColumnWidth(220).order(21).build(),
-                        FieldTemplateDto.builder().key("detail_description").groupCode("COMMERCE_STATUS_GROUP").name(Map.of("ko", "상품 상세 기술서", "en", "Detail Description")).type("RICHTEXT").required(false).isGridVisible(false).gridWidth(8).tableColumnWidth(250).order(22).build()
+                        FieldTemplateDto.builder().key("detail_description").groupCode("COMMERCE_STATUS_GROUP").name(Map.of("ko", "상품 상세 기술서", "en", "Detail Description")).type("HTML_TEXT").required(false).isGridVisible(false).gridWidth(8).tableColumnWidth(250).order(22).build()
                 ))
                 .dqRules(List.of(
                         DqRuleTemplateDto.builder().fieldKey("product_name").ruleType("NOT_NULL").severity("ERROR").message(Map.of("ko", "상품명은 필수 입력 항목입니다.", "en", "Product name is required.")).build(),
@@ -356,7 +357,7 @@ public class SpecializedDomainTemplateService {
                         FieldTemplateDto.builder().key("shelf_life_days").groupCode("STORAGE_ENV_GROUP").name(Map.of("ko", "유효보관기한", "en", "Shelf Life")).type("NUMBER").unit("일").required(false).isGridVisible(true).gridWidth(2).tableColumnWidth(120).order(18).build(),
 
                         FieldTemplateDto.builder().key("standard_cost").groupCode("COSTING_GROUP").name(Map.of("ko", "표준원가", "en", "Standard Cost")).type("NUMBER").unit("KRW").required(false).isGridVisible(true).gridWidth(3).tableColumnWidth(140).order(19).build(),
-                        FieldTemplateDto.builder().key("technical_notes").groupCode("COSTING_GROUP").name(Map.of("ko", "자재 기술 특기사항", "en", "Technical Notes")).type("RICHTEXT").required(false).isGridVisible(false).gridWidth(8).tableColumnWidth(250).order(20).build()
+                        FieldTemplateDto.builder().key("technical_notes").groupCode("COSTING_GROUP").name(Map.of("ko", "자재 기술 특기사항", "en", "Technical Notes")).type("HTML_TEXT").required(false).isGridVisible(false).gridWidth(8).tableColumnWidth(250).order(20).build()
                 ))
                 .dqRules(List.of(
                         DqRuleTemplateDto.builder().fieldKey("material_name").ruleType("NOT_NULL").severity("ERROR").message(Map.of("ko", "자재명은 필수 입력 항목입니다.", "en", "Material name is required.")).build(),
@@ -446,7 +447,7 @@ public class SpecializedDomainTemplateService {
                         FieldTemplateDto.builder().key("emergency_phone").groupCode("EMERGENCY_GROUP").name(Map.of("ko", "비상연락처 전화번호", "en", "Emergency Phone")).type("TEXT").required(false).isGridVisible(false).gridWidth(3).tableColumnWidth(150).order(20).build(),
 
                         FieldTemplateDto.builder().key("duty_description").groupCode("CAREER_GROUP").name(Map.of("ko", "주요 담당 업무", "en", "Duty Description")).type("TEXT").required(false).isGridVisible(false).gridWidth(4).tableColumnWidth(220).order(21).build(),
-                        FieldTemplateDto.builder().key("career_summary").groupCode("CAREER_GROUP").name(Map.of("ko", "주요 경력 및 이력", "en", "Career Summary")).type("RICHTEXT").required(false).isGridVisible(false).gridWidth(8).tableColumnWidth(250).order(22).build()
+                        FieldTemplateDto.builder().key("career_summary").groupCode("CAREER_GROUP").name(Map.of("ko", "주요 경력 및 이력", "en", "Career Summary")).type("HTML_TEXT").required(false).isGridVisible(false).gridWidth(8).tableColumnWidth(250).order(22).build()
                 ))
                 .dqRules(List.of(
                         DqRuleTemplateDto.builder().fieldKey("employee_name").ruleType("NOT_NULL").severity("ERROR").message(Map.of("ko", "임직원 성명은 필수 입력 항목입니다.", "en", "Employee name is required.")).build(),
@@ -529,7 +530,7 @@ public class SpecializedDomainTemplateService {
                                 .options("[{\"key\":\"T_PLUS_2\",\"value\":\"T_PLUS_2\",\"label\":{\"ko\":\"T+2일 결제\",\"en\":\"T+2\"}},{\"key\":\"T_PLUS_1\",\"value\":\"T_PLUS_1\",\"label\":{\"ko\":\"T+1일 결제\",\"en\":\"T+1\"}}]").build(),
 
                         FieldTemplateDto.builder().key("investor_relations_url").groupCode("IR_INFO_GROUP").name(Map.of("ko", "IR 웹사이트 링크", "en", "IR URL")).type("TEXT").required(false).isGridVisible(false).gridWidth(4).tableColumnWidth(200).order(18).build(),
-                        FieldTemplateDto.builder().key("business_summary").groupCode("IR_INFO_GROUP").name(Map.of("ko", "주요 사업 내용 및 투자설명", "en", "Business Summary")).type("RICHTEXT").required(false).isGridVisible(false).gridWidth(8).tableColumnWidth(250).order(19).build()
+                        FieldTemplateDto.builder().key("business_summary").groupCode("IR_INFO_GROUP").name(Map.of("ko", "주요 사업 내용 및 투자설명", "en", "Business Summary")).type("HTML_TEXT").required(false).isGridVisible(false).gridWidth(8).tableColumnWidth(250).order(19).build()
                 ))
                 .dqRules(List.of(
                         DqRuleTemplateDto.builder().fieldKey("stock_name").ruleType("NOT_NULL").severity("ERROR").message(Map.of("ko", "종목명은 필수 입력 항목입니다.", "en", "Stock name is required.")).build(),
@@ -553,65 +554,112 @@ public class SpecializedDomainTemplateService {
         return template;
     }
 
+    private Set<String> getValidFieldTypes() {
+        try {
+            if (codeDetailRepository != null) {
+                List<CodeDetail> details = codeDetailRepository.findByCodeGroupGroupCodeAndIsActiveTrue("FIELD_TYPE");
+                if (details != null && !details.isEmpty()) {
+                    return details.stream()
+                            .map(CodeDetail::getDetailCode)
+                            .filter(Objects::nonNull)
+                            .map(String::toUpperCase)
+                            .collect(Collectors.toSet());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to load FIELD_TYPE common codes, falling back to default set", e);
+        }
+        return Set.of(
+                "TEXT", "NUMBER", "DATE", "BOOLEAN", "JSON", "SELECT",
+                "DOMAIN_REFERENCE", "TIME", "HTML_TEXT", "CALCULATED",
+                "MULTILINGUAL", "FILE", "IMAGE", "DATE_RANGE", "EMAIL"
+        );
+    }
+
     @Transactional
     public DomainResponse provisionDomain(SpecializedDomainProvisionRequest request) {
         String category = request.getCategory() != null ? request.getCategory().toUpperCase() : "";
         SpecializedDomainTemplateDto template = getTemplate(category);
+        Set<String> validFieldTypes = getValidFieldTypes();
 
-        // 1. Create Domain
-        Domain domain = new Domain();
-        domain.setDomainType("SPECIALIZED");
-        domain.setSpecializedCategory(category);
+        // 1. Find existing domain for Merge or Create new Domain
+        Domain domain = domainRepository.findBySpecializedCategory(category).orElse(null);
+        if (domain == null) {
+            domain = new Domain();
+            domain.setDomainType("SPECIALIZED");
+            domain.setSpecializedCategory(category);
+            domain.setSortOrder(0);
+        }
+
         domain.setName(request.getName() != null && !request.getName().isEmpty() ? request.getName() : template.getName());
         domain.setDescription(request.getDescription() != null ? request.getDescription() : template.getDescription());
         domain.setIcon(request.getIcon() != null && !request.getIcon().isBlank() ? request.getIcon() : template.getIcon());
         domain.setNumberingPattern(request.getNumberingPattern() != null && !request.getNumberingPattern().isBlank() ? request.getNumberingPattern() : template.getNumberingPattern());
         domain.setAutoDqScanEnabled(true);
-        domain.setSortOrder(0);
 
         Domain savedDomain = domainRepository.save(domain);
+        UUID domainId = savedDomain.getId();
 
-        // 2. Create Classification Axis
-        ClassificationAxis axis = new ClassificationAxis();
-        axis.setDomain(savedDomain);
-        axis.setAxisCode(template.getAxisCode());
-        axis.setName(template.getAxisName());
-        axis.setIsDefault(true);
-        axis.setSortOrder(0);
-        ClassificationAxis savedAxis = axisRepository.save(axis);
+        // 2. Merge/Create Classification Axis
+        ClassificationAxis axis;
+        List<ClassificationAxis> existingAxes = axisRepository.findByDomainIdOrderBySortOrderAsc(domainId);
+        if (existingAxes != null && !existingAxes.isEmpty()) {
+            axis = existingAxes.stream()
+                    .filter(a -> template.getAxisCode().equalsIgnoreCase(a.getAxisCode()))
+                    .findFirst()
+                    .orElse(existingAxes.get(0));
+            axis.setName(template.getAxisName());
+        } else {
+            axis = new ClassificationAxis();
+            axis.setDomain(savedDomain);
+            axis.setAxisCode(template.getAxisCode());
+            axis.setName(template.getAxisName());
+            axis.setIsDefault(true);
+            axis.setSortOrder(0);
+            axis = axisRepository.save(axis);
+        }
 
-        // 3. Create Root Node
-        ClassificationNode rootNode = new ClassificationNode();
-        rootNode.setDomain(savedDomain);
-        rootNode.setAxis(savedAxis);
-        rootNode.setName(template.getRootNodeName());
-        rootNode.setPath("/" + template.getAxisCode().toLowerCase());
-        rootNode.setDepth(0);
-        rootNode.setOrder(0);
-        rootNode.setIsDeleted(false);
-        ClassificationNode savedRootNode = nodeRepository.save(rootNode);
+        // 3. Merge/Create Predefined Child Classification Nodes (No dummy root node)
+        createPredefinedNodes(savedDomain, axis, template);
 
-        // 3-1. Create Predefined Child Classification Nodes
-        createPredefinedNodes(savedDomain, savedAxis, savedRootNode, template);
-
-        // 3-2. Create Predefined Sectors & Field Groups
+        // 4. Merge/Create Predefined Sectors & Field Groups
         Map<String, FieldGroup> createdGroups = createSectorsAndFieldGroups(savedDomain, template);
 
-        // 4. Create Standard FieldDefinitions
+        // 5. Merge/Create Standard FieldDefinitions
+        Map<String, FieldDefinition> existingFieldMap = new HashMap<>();
+        List<FieldDefinition> existingFields = fieldDefinitionRepository.findByDomain_Id(domainId);
+        if (existingFields != null) {
+            for (FieldDefinition fd : existingFields) {
+                if (fd.getKey() != null) {
+                    existingFieldMap.put(fd.getKey().toUpperCase(), fd);
+                }
+            }
+        }
+
         Map<String, FieldDefinition> createdFields = new HashMap<>();
         if (template.getFields() != null) {
             for (FieldTemplateDto ft : template.getFields()) {
-                FieldDefinition fd = new FieldDefinition();
+                String fieldKey = ft.getKey();
+                String upperKey = fieldKey != null ? fieldKey.toUpperCase() : "";
+                FieldDefinition fd = existingFieldMap.getOrDefault(upperKey, new FieldDefinition());
+
                 fd.setDomain(savedDomain);
-                fd.setDefinedAtNode(savedRootNode);
+                fd.setDefinedAtNode(null); // Global domain field (no dummy root node)
+
                 String upperGroupCode = ft.getGroupCode() != null ? ft.getGroupCode().toUpperCase() : null;
                 if (upperGroupCode != null && createdGroups.containsKey(upperGroupCode)) {
                     fd.setFieldGroup(createdGroups.get(upperGroupCode));
                 }
-                fd.setKey(ft.getKey());
+
+                fd.setKey(fieldKey);
                 fd.setName(ft.getName());
                 fd.setHint(ft.getHint());
-                fd.setType(ft.getType());
+
+                // Field Type validation against Common Codes
+                String rawType = ft.getType() != null ? ft.getType().toUpperCase() : "TEXT";
+                String finalType = validFieldTypes.contains(rawType) ? rawType : "TEXT";
+                fd.setType(finalType);
+
                 fd.setUnit(ft.getUnit());
                 fd.setRequired(Boolean.TRUE.equals(ft.getRequired()));
                 fd.setIsSearchable(Boolean.TRUE.equals(ft.getIsSearchable()));
@@ -621,14 +669,14 @@ public class SpecializedDomainTemplateService {
                 fd.setOptions(ft.getOptions());
 
                 FieldDefinition savedFd = fieldDefinitionRepository.save(fd);
-                if (ft.getKey() != null) {
-                    createdFields.put(ft.getKey().toUpperCase(), savedFd);
-                    createdFields.put(ft.getKey().toLowerCase(), savedFd);
+                if (fieldKey != null) {
+                    createdFields.put(fieldKey.toUpperCase(), savedFd);
+                    createdFields.put(fieldKey.toLowerCase(), savedFd);
                 }
             }
         }
 
-        // 5. Bind Identifier and Display Name fields to Domain
+        // 6. Bind Identifier and Display Name fields to Domain
         String idKey = template.getIdentifierFieldKey() != null ? template.getIdentifierFieldKey().toUpperCase() : "";
         String nameKey = template.getDisplayNameFieldKey() != null ? template.getDisplayNameFieldKey().toUpperCase() : "";
         if (createdFields.containsKey(idKey)) {
@@ -639,18 +687,32 @@ public class SpecializedDomainTemplateService {
         }
         savedDomain = domainRepository.save(savedDomain);
 
-        // 6. Create Standard DqRules
+        // 7. Merge/Create Standard DqRules
         if (template.getDqRules() != null) {
+            Map<String, DqRule> existingDqRuleMap = new HashMap<>();
+            List<DqRule> existingDqRules = dqRuleRepository.findByDomainId(domainId);
+            if (existingDqRules != null) {
+                for (DqRule r : existingDqRules) {
+                    if (r.getFieldDefinition() != null && r.getRuleType() != null) {
+                        String ruleKey = r.getFieldDefinition().getId() + "_" + r.getRuleType().name();
+                        existingDqRuleMap.put(ruleKey, r);
+                    }
+                }
+            }
+
             int sortOrder = 0;
             for (DqRuleTemplateDto rt : template.getDqRules()) {
                 String fieldKey = rt.getFieldKey() != null ? rt.getFieldKey().toUpperCase() : "";
                 FieldDefinition targetField = createdFields.get(fieldKey);
                 if (targetField != null) {
-                    DqRule rule = new DqRule();
+                    DqRuleType ruleType = DqRuleType.valueOf(rt.getRuleType());
+                    String ruleKey = targetField.getId() + "_" + ruleType.name();
+                    DqRule rule = existingDqRuleMap.getOrDefault(ruleKey, new DqRule());
+
                     rule.setDomainId(savedDomain.getId());
-                    rule.setNodeId(savedRootNode.getId());
+                    rule.setNodeId(null);
                     rule.setFieldDefinition(targetField);
-                    rule.setRuleType(DqRuleType.valueOf(rt.getRuleType()));
+                    rule.setRuleType(ruleType);
                     rule.setSeverity(DqSeverity.valueOf(rt.getSeverity()));
                     rule.setParams(rt.getParams());
                     rule.setMessage(rt.getMessage());
@@ -664,41 +726,84 @@ public class SpecializedDomainTemplateService {
         return DomainResponse.from(savedDomain);
     }
 
-    public void createPredefinedNodes(Domain domain, ClassificationAxis axis, ClassificationNode rootNode, SpecializedDomainTemplateDto template) {
+    public void createPredefinedNodes(Domain domain, ClassificationAxis axis, SpecializedDomainTemplateDto template) {
         if (template.getNodes() == null || template.getNodes().isEmpty()) return;
 
-        Map<String, ClassificationNode> createdNodes = new HashMap<>();
+        List<ClassificationNode> existingNodes = nodeRepository.findByDomain_Id(domain.getId());
+        Map<String, ClassificationNode> existingNodeMap = new HashMap<>();
+        if (existingNodes != null) {
+            for (ClassificationNode n : existingNodes) {
+                if (n.getName() != null) {
+                    String koName = n.getName().get("ko");
+                    if (koName != null) existingNodeMap.put(koName.toUpperCase(), n);
+                    String enName = n.getName().get("en");
+                    if (enName != null) existingNodeMap.put(enName.toUpperCase(), n);
+                }
+            }
+        }
+
+        Map<String, ClassificationNode> processedNodes = new HashMap<>();
+        String axisPath = "/" + (axis.getAxisCode() != null ? axis.getAxisCode().toLowerCase() : "axis");
+
         for (ClassificationNodeTemplateDto nt : template.getNodes()) {
-            ClassificationNode parentNode = nt.getParentCode() != null && createdNodes.containsKey(nt.getParentCode())
-                    ? createdNodes.get(nt.getParentCode())
-                    : rootNode;
+            ClassificationNode parentNode = nt.getParentCode() != null && processedNodes.containsKey(nt.getParentCode())
+                    ? processedNodes.get(nt.getParentCode())
+                    : null;
 
             String nodeNameStr = nt.getName() != null ? nt.getName().getOrDefault("ko", nt.getName().get("en")) : nt.getCode();
-            int parentDepth = (parentNode != null && parentNode.getDepth() != null) ? parentNode.getDepth() : 0;
-            String parentPath = (parentNode != null && parentNode.getPath() != null) ? parentNode.getPath() : "";
+            int nodeDepth = parentNode != null && parentNode.getDepth() != null ? parentNode.getDepth() + 1 : 0;
+            String parentPath = parentNode != null && parentNode.getPath() != null ? parentNode.getPath() : axisPath;
+            String nodePath = parentPath + "/" + nodeNameStr;
 
-            ClassificationNode node = new ClassificationNode();
+            String matchKey = nodeNameStr != null ? nodeNameStr.toUpperCase() : "";
+            ClassificationNode node = existingNodeMap.getOrDefault(matchKey, new ClassificationNode());
+
             node.setDomain(domain);
             node.setAxis(axis);
             node.setParent(parentNode);
             node.setName(nt.getName());
-            node.setPath(parentPath + "/" + nodeNameStr);
-            node.setDepth(parentDepth + 1);
+            node.setPath(nodePath);
+            node.setDepth(nodeDepth);
             node.setOrder(nt.getOrder() != null ? nt.getOrder() : 0);
             node.setIcon(nt.getIcon());
             node.setIsDeleted(false);
 
             ClassificationNode savedNode = nodeRepository.save(node);
-            createdNodes.put(nt.getCode(), savedNode != null ? savedNode : node);
+            processedNodes.put(nt.getCode(), savedNode != null ? savedNode : node);
         }
     }
 
     public Map<String, FieldGroup> createSectorsAndFieldGroups(Domain domain, SpecializedDomainTemplateDto template) {
-        Map<String, FieldGroup> createdGroups = new HashMap<>();
-        if (template.getSectors() == null || template.getSectors().isEmpty()) return createdGroups;
+        Map<String, FieldGroup> processedGroups = new HashMap<>();
+        if (template.getSectors() == null || template.getSectors().isEmpty()) return processedGroups;
+
+        List<Sector> existingSectors = sectorRepository.findByDomainIdOrderBySortOrderAsc(domain.getId());
+        Map<String, Sector> existingSectorMap = new HashMap<>();
+        if (existingSectors != null) {
+            for (Sector s : existingSectors) {
+                if (s.getName() != null) {
+                    String ko = s.getName().get("ko");
+                    if (ko != null) existingSectorMap.put(ko.toUpperCase(), s);
+                }
+            }
+        }
+
+        List<FieldGroup> existingGroups = fieldGroupRepository.findByDomainIdOrderBySortOrderAsc(domain.getId());
+        Map<String, FieldGroup> existingGroupMap = new HashMap<>();
+        if (existingGroups != null) {
+            for (FieldGroup fg : existingGroups) {
+                if (fg.getName() != null) {
+                    String ko = fg.getName().get("ko");
+                    if (ko != null) existingGroupMap.put(ko.toUpperCase(), fg);
+                }
+            }
+        }
 
         for (SectorTemplateDto st : template.getSectors()) {
-            Sector sector = new Sector();
+            String sectorNameKo = st.getName() != null ? st.getName().get("ko") : "";
+            String matchKey = sectorNameKo != null ? sectorNameKo.toUpperCase() : "";
+            Sector sector = existingSectorMap.getOrDefault(matchKey, new Sector());
+
             sector.setDomain(domain);
             sector.setName(st.getName());
             sector.setSortOrder(st.getOrder() != null ? st.getOrder() : 0);
@@ -706,7 +811,10 @@ public class SpecializedDomainTemplateService {
 
             if (st.getGroups() != null) {
                 for (FieldGroupTemplateDto gt : st.getGroups()) {
-                    FieldGroup group = new FieldGroup();
+                    String groupNameKo = gt.getName() != null ? gt.getName().get("ko") : "";
+                    String grpMatchKey = groupNameKo != null ? groupNameKo.toUpperCase() : "";
+                    FieldGroup group = existingGroupMap.getOrDefault(grpMatchKey, new FieldGroup());
+
                     group.setDomain(domain);
                     group.setSector(savedSector);
                     group.setName(gt.getName());
@@ -714,12 +822,12 @@ public class SpecializedDomainTemplateService {
                     group.setIsDefaultOpen(gt.getIsDefaultOpen() != null ? gt.getIsDefaultOpen() : true);
                     FieldGroup savedGroup = fieldGroupRepository.save(group);
                     if (gt.getCode() != null) {
-                        createdGroups.put(gt.getCode().toUpperCase(), savedGroup);
-                        createdGroups.put(gt.getCode().toLowerCase(), savedGroup);
+                        processedGroups.put(gt.getCode().toUpperCase(), savedGroup);
+                        processedGroups.put(gt.getCode().toLowerCase(), savedGroup);
                     }
                 }
             }
         }
-        return createdGroups;
+        return processedGroups;
     }
 }

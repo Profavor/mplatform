@@ -267,7 +267,19 @@ const formatTargetType = (type) => {
   if (type === 'RECORD_UPDATE') return t('targetRecordUpdate')
   if (type === 'RECORD_DELETE') return t('targetRecordDelete')
   if (type === 'BULK_UPLOAD') return t('targetBulkUpload')
+  if (type === 'MEMO') return t('targetMemo') || '일반 메모 결재'
   return type
+}
+
+const formatTargetInfo = (flow) => {
+  if (!flow) return ''
+  if (flow.targetType === 'MEMO') return t('targetMemo') || '일반 메모 결재'
+  const d = flow.domainName ? parseLocalizedValue(flow.domainName) : ''
+  const c = flow.classificationName ? parseLocalizedValue(flow.classificationName) : ''
+  if (d && c) return `${d} > ${c}`
+  if (d) return d
+  if (c) return c
+  return '-'
 }
 
 const parseDate = (dateString) => {
@@ -343,48 +355,22 @@ const columnDefs = computed(() => [
     valueFormatter: (params) => formatTargetType(params.value),
     filter: 'agSetColumnFilter',
     filterParams: {
-      values: ['RECORD_CREATE', 'RECORD_UPDATE', 'RECORD_DELETE', 'BULK_UPLOAD'],
+      values: ['RECORD_CREATE', 'RECORD_UPDATE', 'RECORD_DELETE', 'BULK_UPLOAD', 'MEMO'],
       valueFormatter: (params) => formatTargetType(params.value)
     }
   },
   { 
-    headerName: t('colDomain'), 
+    headerName: t('colDomain') || '도메인 / 대상', 
     field: 'domainName', 
-    width: 140,
-    filter: 'agSetColumnFilter',
-    filterParams: {
-      values: domainFilterValues.value
-    }
-  },
-  { 
-    headerName: t('colClassification'), 
-    field: 'classificationName', 
-    width: 150,
-    filter: 'agSetColumnFilter',
-    filterParams: {
-      values: classificationFilterValues.value
-    }
-  },
-  { 
-    headerName: t('colIdAttr'), 
-    field: 'idAttribute', 
-    width: 150,
-    filter: 'agTextColumnFilter',
-    sortable: false
-  },
-  { 
-    headerName: t('colNameAttr'), 
-    field: 'nameAttribute', 
-    width: 180,
-    valueFormatter: (params) => parseLocalizedValue(params.value),
-    filter: 'agTextColumnFilter',
-    sortable: false
+    width: 170,
+    valueGetter: (params) => formatTargetInfo(params.data),
+    filter: 'agTextColumnFilter'
   },
   { 
     headerName: t('colSummary'), 
     field: 'summary', 
     flex: 1,
-    minWidth: 200,
+    minWidth: 220,
     tooltipField: 'summary',
     filter: 'agTextColumnFilter',
     sortable: false
@@ -392,14 +378,14 @@ const columnDefs = computed(() => [
   { 
     headerName: t('colRequester'), 
     field: 'requesterId', 
-    width: 120,
+    width: 130,
     valueGetter: (params) => getRequesterName(params.data),
     filter: 'agTextColumnFilter'
   },
   { 
     headerName: t('colCreatedAt'), 
     field: 'createdAt', 
-    width: 150,
+    width: 160,
     valueFormatter: (params) => formatDate(params.value),
     filter: 'agDateColumnFilter',
     sort: 'desc'
@@ -407,7 +393,7 @@ const columnDefs = computed(() => [
   { 
     headerName: t('colStatus'), 
     field: 'status', 
-    width: 100,
+    width: 110,
     valueFormatter: (params) => getStatusText(params.value),
     filter: 'agSetColumnFilter',
     filterParams: {

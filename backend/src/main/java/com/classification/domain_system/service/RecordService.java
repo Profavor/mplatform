@@ -148,93 +148,83 @@ public class RecordService {
             boolean modified = false;
 
             for (FieldDefinition field : fields) {
-                if ("EMAIL".equalsIgnoreCase(field.getType()) && field.getKey() != null) {
-                    String matchedKey = null;
-                    for (String k : dataMap.keySet()) {
-                        if (k.equalsIgnoreCase(field.getKey())) {
-                            matchedKey = k;
+                if (field.getKey() == null) continue;
+
+                String matchedKey = null;
+                for (String k : dataMap.keySet()) {
+                    if (k.equalsIgnoreCase(field.getKey())) {
+                        matchedKey = k;
+                        break;
+                    }
+                }
+                if (matchedKey == null) continue;
+
+                Object rawValObj = dataMap.get(matchedKey);
+                if (!(rawValObj instanceof String rawVal) || rawVal.isBlank()) continue;
+
+                // 1. General Masking Preservation: If rawVal contains '*', preserve original value from existing record
+                if (rawVal.contains("*") && existingMap != null) {
+                    String existingKey = null;
+                    for (String ek : existingMap.keySet()) {
+                        if (ek.equalsIgnoreCase(field.getKey())) {
+                            existingKey = ek;
                             break;
                         }
                     }
-                    if (matchedKey != null) {
-                        Object rawValObj = dataMap.get(matchedKey);
-                        if (rawValObj instanceof String rawVal && !rawVal.isBlank() && !rawVal.contains("*")) {
-                            if (!rawVal.startsWith("vault:") && !rawVal.startsWith("ENC(") && !EMAIL_PATTERN.matcher(rawVal.trim()).matches()) {
-                                throw new com.classification.domain_system.exception.BusinessException(
-                                        com.classification.domain_system.exception.ErrorCode.INVALID_INPUT,
-                                        "Invalid email format for field " + field.getKey() + ": " + rawVal
-                                );
-                            }
+                    if (existingKey != null && existingMap.get(existingKey) != null) {
+                        dataMap.put(matchedKey, existingMap.get(existingKey));
+                        String existingIdxKey = "_idx_" + field.getKey();
+                        if (existingMap.containsKey(existingIdxKey)) {
+                            dataMap.put(existingIdxKey, existingMap.get(existingIdxKey));
                         }
+                        String existingMaskKey = "_mask_" + field.getKey();
+                        if (existingMap.containsKey(existingMaskKey)) {
+                            dataMap.put(existingMaskKey, existingMap.get(existingMaskKey));
+                        }
+                        modified = true;
+                    }
+                    continue;
+                }
+
+                // 2. EMAIL format validation
+                if ("EMAIL".equalsIgnoreCase(field.getType())) {
+                    if (!rawVal.startsWith("vault:") && !rawVal.startsWith("ENC(") && !EMAIL_PATTERN.matcher(rawVal.trim()).matches()) {
+                        throw new com.classification.domain_system.exception.BusinessException(
+                                com.classification.domain_system.exception.ErrorCode.INVALID_INPUT,
+                                "Invalid email format for field " + field.getKey() + ": " + rawVal
+                        );
                     }
                 }
 
-                if (Boolean.TRUE.equals(field.getIsEncrypted()) && field.getKey() != null) {
-                    String matchedKey = null;
-                    for (String k : dataMap.keySet()) {
-                        if (k.equalsIgnoreCase(field.getKey())) {
-                            matchedKey = k;
-                            break;
-                        }
-                    }
-                    if (matchedKey != null) {
-                        Object rawValObj = dataMap.get(matchedKey);
-                        if (rawValObj instanceof String rawVal && !rawVal.isBlank()) {
-                            // 1. If rawVal contains masking asterisks '*', preserve original ciphertext from existing record
-                            if (rawVal.contains("*")) {
-                                if (existingMap != null) {
-                                    String existingKey = null;
-                                    for (String ek : existingMap.keySet()) {
-                                        if (ek.equalsIgnoreCase(field.getKey())) {
-                                            existingKey = ek;
-                                            break;
-                                        }
-                                    }
-                                    if (existingKey != null && existingMap.get(existingKey) != null) {
-                                        Object existingVal = existingMap.get(existingKey);
-                                        dataMap.put(matchedKey, existingVal);
-                                        String existingIdxKey = "_idx_" + field.getKey();
-                                        if (existingMap.containsKey(existingIdxKey)) {
-                                            dataMap.put(existingIdxKey, existingMap.get(existingIdxKey));
-                                        }
-                                        String existingMaskKey = "_mask_" + field.getKey();
-                                        if (existingMap.containsKey(existingMaskKey)) {
-                                            dataMap.put(existingMaskKey, existingMap.get(existingMaskKey));
-                                        }
-                                        modified = true;
-                                    }
-                                }
-                                continue;
-                            }
-                            // 2. If rawVal is ALREADY valid ciphertext, do not double encrypt
-                            String testDecrypt = fieldEncryptionService.decrypt(rawVal);
-                            if (!testDecrypt.equals(rawVal)) {
-                                String blindIndex = fieldEncryptionService.generateBlindIndex(testDecrypt);
-                                dataMap.put("_idx_" + field.getKey(), blindIndex);
-                                String maskKey = "_mask_" + field.getKey();
-                                if (!dataMap.containsKey(maskKey) || dataMap.get(maskKey) == null) {
-                                    String pattern = field.getMaskingPattern();
-                                    String maskVal = (pattern != null && !pattern.isBlank())
-                                            ? dataMaskingService.maskByPattern(pattern, testDecrypt)
-                                            : (testDecrypt.length() <= 6 ? "******" : testDecrypt.substring(0, 2) + "****" + testDecrypt.substring(testDecrypt.length() - 2));
-                                    dataMap.put(maskKey, maskVal);
-                                    modified = true;
-                                }
-                                continue;
-                            }
-                            // 3. rawVal is new PLAINTEXT typed by user -> encrypt it and generate mask cache!
-                            String encrypted = fieldEncryptionService.encrypt(rawVal);
-                            String blindIndex = fieldEncryptionService.generateBlindIndex(rawVal);
+                // 3. Encryption handling
+                if (Boolean.TRUE.equals(field.getIsEncrypted())) {
+                    // If rawVal is ALREADY valid ciphertext, do not double encrypt
+                    String testDecrypt = fieldEncryptionService.decrypt(rawVal);
+                    if (!testDecrypt.equals(rawVal)) {
+                        String blindIndex = fieldEncryptionService.generateBlindIndex(testDecrypt);
+                        dataMap.put("_idx_" + field.getKey(), blindIndex);
+                        String maskKey = "_mask_" + field.getKey();
+                        if (!dataMap.containsKey(maskKey) || dataMap.get(maskKey) == null) {
                             String pattern = field.getMaskingPattern();
                             String maskVal = (pattern != null && !pattern.isBlank())
-                                    ? dataMaskingService.maskByPattern(pattern, rawVal)
-                                    : (rawVal.length() <= 6 ? "******" : rawVal.substring(0, 2) + "****" + rawVal.substring(rawVal.length() - 2));
-                            dataMap.put(matchedKey, encrypted);
-                            dataMap.put("_idx_" + field.getKey(), blindIndex);
-                            dataMap.put("_mask_" + field.getKey(), maskVal);
+                                    ? dataMaskingService.maskByPattern(pattern, testDecrypt)
+                                    : (testDecrypt.length() <= 6 ? "******" : testDecrypt.substring(0, 2) + "****" + testDecrypt.substring(testDecrypt.length() - 2));
+                            dataMap.put(maskKey, maskVal);
                             modified = true;
                         }
+                        continue;
                     }
+                    // rawVal is new PLAINTEXT typed by user -> encrypt it and generate mask cache!
+                    String encrypted = fieldEncryptionService.encrypt(rawVal);
+                    String blindIndex = fieldEncryptionService.generateBlindIndex(rawVal);
+                    String pattern = field.getMaskingPattern();
+                    String maskVal = (pattern != null && !pattern.isBlank())
+                            ? dataMaskingService.maskByPattern(pattern, rawVal)
+                            : (rawVal.length() <= 6 ? "******" : rawVal.substring(0, 2) + "****" + rawVal.substring(rawVal.length() - 2));
+                    dataMap.put(matchedKey, encrypted);
+                    dataMap.put("_idx_" + field.getKey(), blindIndex);
+                    dataMap.put("_mask_" + field.getKey(), maskVal);
+                    modified = true;
                 }
             }
 

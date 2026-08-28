@@ -2,7 +2,9 @@ package com.classification.domain_system.service.dq;
 
 import com.classification.domain_system.entity.*;
 import com.classification.domain_system.repository.*;
+import com.classification.domain_system.service.DataMaskingService;
 import com.classification.domain_system.service.FieldDefinitionService;
+import com.classification.domain_system.service.FieldEncryptionService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
@@ -25,6 +27,9 @@ public class DqRuleEngine {
     private final ClassificationNodeRepository nodeRepository;
     private final DqViolationRepository violationRepository;
     private final RecordRepository recordRepository;
+    private final FieldDefinitionRepository fieldDefinitionRepository;
+    private final FieldEncryptionService fieldEncryptionService;
+    private final DataMaskingService dataMaskingService;
     private final ObjectMapper objectMapper;
 
     public DqRuleEngine(List<RuleEvaluator> evaluators,
@@ -32,7 +37,22 @@ public class DqRuleEngine {
                         DqRuleRepository dqRuleRepository,
                         ClassificationNodeRepository nodeRepository,
                         DqViolationRepository violationRepository,
-                        RecordRepository recordRepository) {
+                        RecordRepository recordRepository,
+                        FieldDefinitionRepository fieldDefinitionRepository) {
+        this(evaluators, fieldDefinitionService, dqRuleRepository, nodeRepository,
+                violationRepository, recordRepository, fieldDefinitionRepository, null, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public DqRuleEngine(List<RuleEvaluator> evaluators,
+                        FieldDefinitionService fieldDefinitionService,
+                        DqRuleRepository dqRuleRepository,
+                        ClassificationNodeRepository nodeRepository,
+                        DqViolationRepository violationRepository,
+                        RecordRepository recordRepository,
+                        FieldDefinitionRepository fieldDefinitionRepository,
+                        @org.springframework.beans.factory.annotation.Autowired(required = false) FieldEncryptionService fieldEncryptionService,
+                        @org.springframework.beans.factory.annotation.Autowired(required = false) DataMaskingService dataMaskingService) {
         this.evaluatorMap = evaluators.stream()
                 .collect(Collectors.toMap(RuleEvaluator::supports, e -> e));
         this.fieldDefinitionService = fieldDefinitionService;
@@ -40,6 +60,9 @@ public class DqRuleEngine {
         this.nodeRepository = nodeRepository;
         this.violationRepository = violationRepository;
         this.recordRepository = recordRepository;
+        this.fieldDefinitionRepository = fieldDefinitionRepository;
+        this.fieldEncryptionService = fieldEncryptionService;
+        this.dataMaskingService = dataMaskingService;
         this.objectMapper = new ObjectMapper();
     }
 
@@ -111,7 +134,10 @@ public class DqRuleEngine {
         Map<UUID, List<DqRule>> rulesByField = allRules.stream()
                 .collect(Collectors.groupingBy(r -> r.getFieldDefinition().getId()));
 
-        EvaluationContext context = new EvaluationContext(domainId, nodeId, dataNode, recordId);
+        // Decrypt encrypted fields into plaintext JsonNode for accurate DQ evaluation
+        JsonNode plainDataNode = decryptDataNodeForDq(dataNode, effectiveFields);
+
+        EvaluationContext context = new EvaluationContext(domainId, nodeId, plainDataNode, recordId);
         Domain currentDomain = node != null ? node.getDomain() : null;
 
         for (FieldDefinition field : effectiveFields) {
@@ -124,7 +150,7 @@ public class DqRuleEngine {
             }
 
             // Skip DQ validation if field is hidden, read-only, or disabled by condition rules
-            if (!shouldValidateDqForField(field, dataNode)) {
+            if (!shouldValidateDqForField(field, plainDataNode)) {
                 log.debug("Skipping DQ validation for field {} due to condition rule", field.getKey());
                 continue;
             }
@@ -132,21 +158,20 @@ public class DqRuleEngine {
             // Skip NOT_NULL / LENGTH / REGEX DQ rules for Auto-Numbering fields during creation
             boolean isAutoNumbering = isAutoNumberingField(currentDomain, field, effectiveFields);
 
-            JsonNode valueNode = getValueNodeCaseInsensitive(dataNode, field.getKey());
+            JsonNode valueNode = getValueNodeCaseInsensitive(plainDataNode, field.getKey());
 
-            // Intrinsic validation for EMAIL field type
+            // Intrinsic validation for EMAIL field type (evaluated on decrypted plaintext)
             if ("EMAIL".equalsIgnoreCase(field.getType()) && valueNode != null && !valueNode.isNull()) {
                 String textVal = valueNode.asText().trim();
-                if (!textVal.isBlank() && !textVal.contains("*") && !textVal.startsWith("vault:") && !textVal.startsWith("ENC(")) {
-                    if (!EMAIL_PATTERN.matcher(textVal).matches()) {
-                        result.addViolation(
-                                field.getKey(),
-                                "EMAIL_FORMAT",
-                                "ERROR",
-                                Map.of("ko", "올바른 이메일 형식이 아닙니다.", "en", "Invalid email format."),
-                                textVal
-                        );
-                    }
+                if (!textVal.isBlank() && !EMAIL_PATTERN.matcher(textVal).matches()) {
+                    String displayActual = resolveDisplayActualValue(field, textVal, dataNode);
+                    result.addViolation(
+                            field.getKey(),
+                            "EMAIL_FORMAT",
+                            "ERROR",
+                            Map.of("ko", "올바른 이메일 형식이 아닙니다.", "en", "Invalid email format."),
+                            displayActual
+                    );
                 }
             }
 
@@ -172,13 +197,14 @@ public class DqRuleEngine {
                             ? rule.getMessage()
                             : Map.of("en", violation.get(), "ko", violation.get());
 
-                    String actualValue = valueNode != null ? valueNode.asText() : "null";
+                    String rawActual = valueNode != null ? valueNode.asText() : "null";
+                    String displayActual = resolveDisplayActualValue(field, rawActual, dataNode);
                     result.addViolation(
                             field.getKey(),
                             rule.getRuleType().name(),
                             rule.getSeverity().name(),
                             message,
-                            actualValue,
+                            displayActual,
                             rule.getId()
                     );
                 }
@@ -186,6 +212,81 @@ public class DqRuleEngine {
         }
 
         return result;
+    }
+
+    private JsonNode decryptDataNodeForDq(JsonNode dataNode, List<FieldDefinition> effectiveFields) {
+        if (dataNode == null || !dataNode.isObject() || fieldEncryptionService == null) {
+            return dataNode;
+        }
+        com.fasterxml.jackson.databind.node.ObjectNode plainNode = dataNode.deepCopy();
+        Map<String, FieldDefinition> fieldMap = new HashMap<>();
+        if (effectiveFields != null) {
+            for (FieldDefinition f : effectiveFields) {
+                if (f.getKey() != null) {
+                    fieldMap.put(f.getKey().toLowerCase(), f);
+                }
+            }
+        }
+
+        var it = dataNode.fields();
+        while (it.hasNext()) {
+            var entry = it.next();
+            String key = entry.getKey();
+            // 메타 필드(_idx_, _mask_ 등)는 복호화 대상에서 제외
+            if (key.startsWith("_")) {
+                continue;
+            }
+            JsonNode valNode = entry.getValue();
+            if (valNode.isTextual()) {
+                String rawText = valNode.asText();
+                FieldDefinition fd = fieldMap.get(key.toLowerCase());
+                boolean isEncField = fd != null && Boolean.TRUE.equals(fd.getIsEncrypted());
+                boolean isCipher = fieldEncryptionService.isEncrypted(rawText);
+
+                if (isEncField || isCipher) {
+                    try {
+                        if (isCipher) {
+                            String decrypted = fieldEncryptionService.decrypt(rawText);
+                            plainNode.put(key, decrypted);
+                        }
+                    } catch (Exception e) {
+                        log.warn("Field decryption failed for {}: {}", key, e.getMessage());
+                    }
+                }
+            }
+        }
+        return plainNode;
+    }
+
+    private String resolveDisplayActualValue(FieldDefinition field, String rawActual, JsonNode dataNode) {
+        if (rawActual == null || "null".equals(rawActual)) {
+            return "null";
+        }
+        if (field == null) {
+            return rawActual;
+        }
+        // 1. If dataNode contains cached masked value, use it
+        if (dataNode != null && field.getKey() != null) {
+            String maskKey = "_mask_" + field.getKey();
+            JsonNode maskNode = dataNode.get(maskKey);
+            if (maskNode != null && !maskNode.isNull() && !maskNode.asText().isBlank()) {
+                return maskNode.asText();
+            }
+        }
+        // 2. If field is encrypted or has masking pattern, apply masking
+        if (Boolean.TRUE.equals(field.getIsEncrypted())) {
+            if (fieldEncryptionService != null && fieldEncryptionService.isEncrypted(rawActual)) {
+                return "******";
+            }
+            if (dataMaskingService != null && field.getMaskingPattern() != null) {
+                return dataMaskingService.maskByPattern(field.getMaskingPattern(), rawActual);
+            }
+            return rawActual.length() <= 6 ? "******" : rawActual.substring(0, 2) + "****" + rawActual.substring(rawActual.length() - 2);
+        }
+        if (dataMaskingService != null && field.getMaskingPattern() != null) {
+            return dataMaskingService.maskByPattern(field.getMaskingPattern(), rawActual);
+        }
+        return rawActual;
     }
 
     private static final java.util.regex.Pattern EMAIL_PATTERN =
@@ -236,7 +337,7 @@ public class DqRuleEngine {
                 for (DqEvaluationResult.Violation v : evalResult.getViolations()) {
                     DqViolation violation = new DqViolation();
                     violation.setRecordId(record.getId());
-                    violation.setDqRuleId(v.getRuleId() != null ? v.getRuleId() : UUID.randomUUID());
+                    violation.setDqRuleId(v.getRuleId());
                     violation.setFieldKey(v.getFieldKey());
                     violation.setSeverity(v.getSeverity());
                     violation.setMessage(v.getMessage());
@@ -488,29 +589,63 @@ public class DqRuleEngine {
     }
 
     private String extractRecordIdentifier(com.classification.domain_system.entity.Record record) {
-        if (record == null || record.getData() == null) {
-            return record != null ? record.getId().toString().substring(0, 8) : "N/A";
+        if (record == null) {
+            return "N/A";
+        }
+        if (record.getData() == null || record.getData().isBlank()) {
+            return formatRecordCode(record.getId());
         }
         try {
             JsonNode node = objectMapper.readTree(record.getData());
-            String[] preferredKeys = {"name", "NAME", "emp_id", "TICKER", "ticker", "code", "title", "department", "dept", "id"};
-            for (String k : preferredKeys) {
-                if (node.has(k) && !node.get(k).isNull()) {
-                    String val = node.get(k).asText().trim();
-                    if (!val.isEmpty()) return val;
+
+            // 1. If Domain has configured identifierFieldId, prioritize that specific field
+            if (record.getNode() != null && record.getNode().getDomain() != null) {
+                Domain domain = record.getNode().getDomain();
+                UUID idFieldId = domain.getIdentifierFieldId();
+                if (idFieldId != null) {
+                    Optional<FieldDefinition> idFd = fieldDefinitionRepository.findById(idFieldId);
+                    if (idFd.isPresent() && idFd.get().getKey() != null) {
+                        String idKey = idFd.get().getKey();
+                        JsonNode valNode = getValueNodeCaseInsensitive(node, idKey);
+                        if (valNode != null && !valNode.isNull()) {
+                            String val = stripHtml(valNode.asText());
+                            if (!val.isBlank()) return val;
+                        }
+                    }
                 }
             }
-            var fields = node.fields();
-            while (fields.hasNext()) {
-                var entry = fields.next();
-                if (entry.getValue().isTextual() && !entry.getValue().asText().trim().isEmpty()) {
-                    return entry.getValue().asText().trim();
+
+            // 2. Strict ID/Code key preference list (NO name, title, description, memo)
+            String[] preferredIdKeys = {
+                    "customer_no", "CUSTOMER_NO", "material_code", "MATERIAL_CODE",
+                    "sku_code", "SKU_CODE", "vendor_code", "VENDOR_CODE",
+                    "emp_id", "EMP_ID", "emp_no", "EMP_NO",
+                    "ticker", "TICKER", "item_code", "ITEM_CODE", "stock_code", "STOCK_CODE",
+                    "code", "CODE", "no", "NO", "id", "ID"
+            };
+
+            for (String k : preferredIdKeys) {
+                JsonNode valNode = getValueNodeCaseInsensitive(node, k);
+                if (valNode != null && !valNode.isNull()) {
+                    String val = stripHtml(valNode.asText());
+                    if (!val.isBlank()) return val;
                 }
             }
         } catch (Exception e) {
             // fallback
         }
-        return record.getId().toString().substring(0, 8);
+        return formatRecordCode(record.getId());
+    }
+
+    private String stripHtml(String text) {
+        if (text == null) return "";
+        return text.replaceAll("<[^>]*>", "").replaceAll("&nbsp;", " ").trim();
+    }
+
+    private String formatRecordCode(UUID id) {
+        if (id == null) return "N/A";
+        String idStr = id.toString().replace("-", "");
+        return "REC-" + idStr.substring(0, Math.min(8, idStr.length())).toUpperCase();
     }
 
     private boolean isAutoNumberingField(Domain domain, FieldDefinition field, List<FieldDefinition> effectiveFields) {

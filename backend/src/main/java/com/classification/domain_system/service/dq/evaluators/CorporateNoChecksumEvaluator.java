@@ -26,6 +26,10 @@ public class CorporateNoChecksumEvaluator implements RuleEvaluator {
             return Optional.empty();
         }
 
+        if (isMaskedOrEncrypted(value)) {
+            return Optional.empty();
+        }
+
         String raw = value.asText().replaceAll("[^0-9]", "");
         if (raw.length() != 13) {
             return Optional.of("법인등록번호는 하이픈 제외 13자리 숫자여야 합니다. (입력값: " + value.asText() + ")");

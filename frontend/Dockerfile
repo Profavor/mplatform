@@ -1,30 +1,4 @@
-# Stage 1: Build stage
-FROM node:24-slim AS builder
-WORKDIR /app
-
-# Copy package files and install dependencies (cached unless package*.json changes)
-COPY package*.json ./
-COPY patch-oidc.js ./
-RUN npm ci
-
-# Cache bust for source code changes
-ARG CACHEBUST=1
-RUN echo "Cache bust: $CACHEBUST"
-
-ARG API_BASE_URL=http://backend:8080
-ENV API_BASE_URL=$API_BASE_URL
-ENV NUXT_PUBLIC_API_BASE=""
-
-# Copy application source code
-COPY . .
-
-# Build Nuxt 3 SSR application
-ENV OAUTH2_ISSUER_URI="/auth/realms/mplatform"
-ENV KEYCLOAK_REDIRECT_URI="/auth/keycloak/callback"
-ENV NODE_OPTIONS="--max-old-space-size=4096"
-RUN npm run build
-
-# Stage 2: Runtime stage
+# Runtime stage (Pre-built standalone output from host npm run build)
 FROM node:24-slim AS runner
 WORKDIR /app
 
@@ -40,16 +14,19 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
 
-# Copy built output bundle from builder (standalone bundle)
-COPY --from=builder /app/.output /app/.output
+# Copy built standalone output bundle and node_modules from host (No npm install inside docker!)
+COPY .output /app/.output
+COPY node_modules /app/node_modules
 
-# Copy node_modules for SSR external dependencies (e.g. undio)
-COPY --from=builder /app/node_modules /app/node_modules
+# Symlink host build path to container node_modules for ESM absolute path compatibility
+RUN mkdir -p /home/profavor/dev/mplatform/frontend && \
+    ln -s /app/node_modules /home/profavor/dev/mplatform/frontend/node_modules
 
-# Fix Nitro static asset resolution in Docker multi-stage
+# Fix Nitro static asset resolution
 RUN mkdir -p /app/.output/server/chunks/public && \
     cp -rn /app/.output/public/* /app/.output/server/chunks/public/ 2>/dev/null || true
 
 EXPOSE 3000
 
 CMD ["node", "/app/.output/server/index.mjs"]
+

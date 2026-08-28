@@ -30,13 +30,23 @@
     
     <div class="schema-layout" style="flex: 1; min-height: 0;">
       <!-- Tree Column -->
-      <div class="schema-tree-column">
-        <va-card>
-          <va-card-title>
-            {{ $t('classification_tree') }}
+      <div class="schema-tree-column" :class="{ 'tree-collapsed': !showTree }">
+        <va-card class="schema-tree-card">
+          <va-card-title
+            class="schema-tree-card-title"
+            @click="showTree = !showTree"
+            style="cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center;"
+          >
+            <div style="display: flex; align-items: center; gap: 0.4rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              <va-icon name="account_tree" size="small" color="primary" />
+              <span>{{ $t('classification_tree') }}</span>
+              <va-badge v-if="!showTree && selectedNode" :text="selectedNode.label || selectedNode.name" color="primary" size="small" style="margin-left: 0.25rem;" />
+            </div>
+            <va-button preset="plain" size="small" :icon="showTree ? 'expand_less' : 'expand_more'" style="padding: 0; min-width: 24px;" />
           </va-card-title>
-          <va-card-content>
-            <div class="schema-tree-wrapper">
+          <div v-show="showTree" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
+          <va-card-content class="schema-tree-card-content">
+            <div class="schema-tree-wrapper custom-scrollbar">
               <ClassificationTree
                 ref="treeRef"
                 :selectedNode="selectedNode"
@@ -49,18 +59,19 @@
                 @loaded="onTreeLoaded"
               />
             </div>
-            <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; padding: 0 0.5rem; flex-wrap: wrap;">
-              <va-button v-if="hasPermission('domain:write') || hasPermission('domain:*')" style="flex: 1; min-width: 90px; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="create_new_folder" @click="openDomainModal()" color="primary">{{ $t('domain') }}</va-button>
-              <va-button v-if="hasPermission('node:write') || hasPermission('node:*')" style="flex: 1; min-width: 90px; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="note_add" @click="openNodeModal()" :disabled="!selectedNode" color="primary" :preset="selectedNode ? 'primary' : 'secondary'">{{ $t('node') }}</va-button>
-              <va-button v-if="(hasPermission('domain:write') || hasPermission('domain:*')) && selectedNode && selectedNode.isDomain" style="flex: 1; min-width: 100%; border-radius: 8px; margin-top: 0.25rem;" icon="delete_outline" @click="handleDomainDelete(selectedNode)" color="danger" preset="outline">{{ $t('records.delete_domain_btn') }}</va-button>
-            </div>
-            <div style="margin-top: 0.75rem; padding: 0 0.5rem;">
-              <va-button preset="secondary" style="width: 100%;" @click="showRequestAccessModal = true">{{ $t('request_domain_access') }}</va-button>
-            </div>
-            <div style="margin-top: 0.75rem; padding: 0 0.5rem;">
-              <va-button style="width: 100%; border-radius: 8px; font-weight: 600;" color="info" icon="tune" @click="openSectorGroupModal" :disabled="!treeNodes || treeNodes.length === 0" preset="secondary">{{ $t('manage_sectors_groups') }}</va-button>
+            <div class="schema-tree-actions">
+              <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <va-button v-if="hasPermission('domain:write') || hasPermission('domain:*')" style="flex: 1; min-width: 80px; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="create_new_folder" size="small" @click="openDomainModal()" color="primary">{{ $t('domain') }}</va-button>
+                <va-button v-if="hasPermission('node:write') || hasPermission('node:*')" style="flex: 1; min-width: 80px; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="note_add" size="small" @click="openNodeModal()" :disabled="!selectedNode" color="primary" :preset="selectedNode ? 'primary' : 'secondary'">{{ $t('node') }}</va-button>
+                <va-button v-if="(hasPermission('domain:write') || hasPermission('domain:*')) && selectedNode && selectedNode.isDomain" style="flex: 1; min-width: 100%; border-radius: 8px; margin-top: 0.15rem;" icon="delete_outline" size="small" @click="handleDomainDelete(selectedNode)" color="danger" preset="outline">{{ $t('delete_domain_btn') }}</va-button>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.5rem;">
+                <va-button preset="secondary" size="small" style="width: 100%; font-size: 0.8rem;" @click="showRequestAccessModal = true">{{ $t('request_domain_access') }}</va-button>
+                <va-button style="width: 100%; border-radius: 8px; font-weight: 600; font-size: 0.8rem;" color="info" icon="tune" size="small" @click="openSectorGroupModal" :disabled="!treeNodes || treeNodes.length === 0" preset="secondary">{{ $t('manage_sectors_groups') }}</va-button>
+              </div>
             </div>
           </va-card-content>
+          </div>
         </va-card>
       </div>
       
@@ -382,6 +393,7 @@ const selectedApprovalRequest = ref(null)
 const showPackageModal = ref(false)
 const showOntologyModal = ref(false)
 const showCompatibilityModal = ref(false)
+const showTree = ref(true)
 
 
 const handlePackageImported = (result) => {
@@ -1401,10 +1413,10 @@ const saveWorkflowConfigs = async () => {
       method: 'POST',
       body: payloads
     })
-    showCustomAlert('Workflow configurations saved successfully.', 'Save Success', 'Notification', 'success')
+    showCustomAlert(t('save_workflows_success'), t('save_success_title'), t('notification'), 'success')
   } catch (e) {
     console.error('Failed to save workflows', e)
-    showCustomAlert('Failed to save workflows.', 'Save Failed', 'Error', 'error')
+    showCustomAlert(t('save_workflows_failed'), t('save_error_title'), t('error'), 'error')
   } finally {
     isSavingWorkflows.value = false
   }
@@ -1802,7 +1814,7 @@ const saveNode = async () => {
     showNodeModal.value = false
     await loadTree()
   } catch (e) {
-    showCustomAlert('Error saving node', 'Save Error', 'Error', 'error')
+    showCustomAlert(t('save_node_failed'), t('save_error_title'), t('error'), 'error')
   }
 }
 
@@ -1813,8 +1825,8 @@ const handleDomainDelete = async (node) => {
   const domainId = target.isDomain ? target.id : (target.domainId || selectedDomainId.value)
   if (!domainId) return
 
-  const domainName = target.label || (target.originalNameMap ? (target.originalNameMap[currentLocale.value] || target.originalNameMap.ko || target.originalNameMap.en) : (selectedDomainName.value || 'Domain'))
-  const confirmMsg = t('records.delete_domain_confirm_desc', { name: domainName })
+  const domainName = target.label || (target.originalNameMap ? (target.originalNameMap[currentLocale.value] || target.originalNameMap.ko || target.originalNameMap.en) : (selectedDomainName.value || t('domain')))
+  const confirmMsg = t('delete_domain_confirm_desc', { name: domainName })
   if (!confirm(confirmMsg)) return
 
   try {
@@ -1823,14 +1835,14 @@ const handleDomainDelete = async (node) => {
     })
     try {
       toast.init({
-        message: t('records.delete_domain_success'),
+        message: t('delete_domain_success'),
         color: 'success'
       })
     } catch (ignored) {}
     selectedNode.value = null
     await loadTree()
   } catch (e) {
-    showCustomAlert(e.message || '도메인 삭제 실패', 'Delete Error', 'Error', 'error')
+    showCustomAlert(e.message || t('delete_domain_failed'), t('delete_error_title'), t('error'), 'error')
   }
 }
 
@@ -1841,7 +1853,7 @@ const handleNodeDelete = async (node) => {
     return handleDomainDelete(target)
   }
 
-  const nodeName = target.label || (target.originalNameMap ? (target.originalNameMap[currentLocale.value] || target.originalNameMap.ko || target.originalNameMap.en) : 'Node')
+  const nodeName = target.label || (target.originalNameMap ? (target.originalNameMap[currentLocale.value] || target.originalNameMap.ko || target.originalNameMap.en) : t('node'))
   const confirmMsg = t('confirm_delete_node', { name: nodeName })
   if (!confirm(confirmMsg)) return
 
@@ -1862,7 +1874,7 @@ const handleNodeDelete = async (node) => {
     }
     await loadTree()
   } catch (e) {
-    showCustomAlert(e.message || t('node_delete_failed'), 'Delete Error', 'Error', 'error')
+    showCustomAlert(e.message || t('node_delete_failed'), t('delete_error_title'), t('error'), 'error')
   }
 }
 
@@ -2017,7 +2029,7 @@ const executePendingFieldSave = async () => {
     showFieldCommentModal.value = false
     await onNodeSelected(selectedNode.value)
   } catch (error) {
-    showCustomAlert('Error saving field', 'Save Error', 'Error', 'error')
+    showCustomAlert(t('save_field_failed'), t('save_error_title'), t('error'), 'error')
   }
 }
 
@@ -2070,9 +2082,9 @@ const saveAllSectors = async () => {
 
   domainSectors.value = await customFetch(`/api/domains/${dId}/sectors`)
   if (!hasError) {
-    showCustomAlert(`섹터 ${saveCount}건이 성공적으로 저장되었습니다.`, '저장 완료', 'Notification', 'success')
+    showCustomAlert(t('sector_save_success_count', { count: saveCount }), t('save_success_title'), t('notification'), 'success')
   } else {
-    showCustomAlert('일부 섹터 저장 중 오류가 발생했습니다.', '저장 오류', 'Error', 'error')
+    showCustomAlert(t('sector_save_failed'), t('save_error_title'), t('error'), 'error')
   }
 }
 
@@ -2114,9 +2126,9 @@ const saveAllGroups = async () => {
 
   domainGroups.value = await customFetch(`/api/domains/${dId}/groups`)
   if (!hasError) {
-    showCustomAlert(`그룹 ${saveCount}건이 성공적으로 저장되었습니다.`, '저장 완료', 'Notification', 'success')
+    showCustomAlert(t('group_save_success_count', { count: saveCount }), t('save_success_title'), t('notification'), 'success')
   } else {
-    showCustomAlert('일부 그룹 저장 중 오류가 발생했습니다.', '저장 오류', 'Error', 'error')
+    showCustomAlert(t('group_save_failed'), t('save_error_title'), t('error'), 'error')
   }
 }
 
@@ -2162,7 +2174,7 @@ const deleteGroup = async (id) => {
     })
     domainGroups.value = await customFetch(`/api/domains/${dId}/groups`)
     cancelEditGroup()
-  } catch (e) { showCustomAlert('Error deleting group.', 'Delete Error', 'Error', 'error') }
+  } catch (e) { showCustomAlert(t('group_delete_failed'), t('delete_error_title'), t('error'), 'error') }
 }
 
 onMounted(() => {
@@ -2181,28 +2193,66 @@ onUnmounted(() => {
 <style scoped>
 .schema-layout {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.75rem;
   width: 100%;
   height: 100%;
   min-height: 0;
 }
 .schema-tree-column {
   width: 300px;
-  min-width: 300px;
-  max-width: 300px;
+  min-width: 260px;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.schema-tree-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.schema-tree-card-title {
+  flex: 0 0 auto;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--va-background-border);
+  font-size: 0.95rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+}
+:deep(.schema-tree-card-content) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0.75rem;
   overflow: hidden;
 }
 .schema-tree-wrapper {
-  max-height: 400px;
+  flex: 1 1 auto;
+  min-height: 120px;
   overflow-y: auto;
-  overflow-x: hidden;
-  margin-bottom: 1rem;
+  overflow-x: auto;
+  padding-right: 0.25rem;
+  overscroll-behavior: contain;
+}
+.schema-tree-actions {
+  flex: 0 0 auto;
+  margin-top: auto;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--va-background-border);
 }
 .schema-detail-column {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
+  height: 100%;
+  min-height: 0;
 }
 .schema-grid-wrapper {
   flex: 1;
@@ -2210,17 +2260,56 @@ onUnmounted(() => {
   min-height: 0;
 }
 
+/* Custom Scrollbar */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(21, 78, 193, 0.4) transparent;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(21, 78, 193, 0.35);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(21, 78, 193, 0.65);
+}
+
+@media (max-width: 1024px) {
+  .schema-tree-column {
+    width: 250px;
+    min-width: 240px;
+    max-width: 260px;
+  }
+}
+
 @media (max-width: 768px) {
   .schema-layout {
     flex-direction: column;
+    overflow-y: auto;
   }
   .schema-tree-column {
     width: 100%;
     max-width: 100%;
     min-width: 100%;
+    height: auto;
+    flex: 0 0 auto;
+    transition: all 0.2s ease;
+  }
+  .schema-tree-column.tree-collapsed {
+    max-height: 48px;
+  }
+  .schema-tree-card {
+    height: auto;
   }
   .schema-tree-wrapper {
-    max-height: 250px;
+    max-height: 280px;
+    min-height: 160px;
   }
   .schema-detail-column {
     width: 100%;

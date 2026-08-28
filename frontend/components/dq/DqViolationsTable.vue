@@ -74,7 +74,7 @@
                 <td>
                   <div class="record-id-cell">
                     <va-icon name="folder" size="small" color="primary" />
-                    <span>{{ v.recordIdentifier || formatRecordCode(v.recordId) }}</span>
+                    <span>{{ getRecordIdentifierDisplay(v) }}</span>
                   </div>
                 </td>
                 <td>
@@ -219,6 +219,15 @@ const formatDateTime = (dateStr?: string) => {
   } catch (e) {
     return dateStr
   }
+}
+
+const getRecordIdentifierDisplay = (v?: any) => {
+  if (!v) return '-'
+  if (v.recordIdentifier && typeof v.recordIdentifier === 'string') {
+    const stripped = v.recordIdentifier.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()
+    if (stripped) return stripped
+  }
+  return formatRecordCode(v.recordId)
 }
 
 defineExpose({

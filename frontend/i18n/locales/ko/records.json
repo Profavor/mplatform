@@ -307,5 +307,6 @@
   "delete_domain_btn": "도메인 삭제",
   "delete_domain_confirm_title": "도메인 영구 삭제",
   "delete_domain_confirm_desc": "정말로 [{name}] 도메인을 삭제하시겠습니까? 연결된 하위 분류 노드, 필드 정의 및 마스터 데이터 레코드가 모두 영구 삭제됩니다.",
-  "delete_domain_success": "도메인이 성공적으로 삭제되었습니다."
+  "delete_domain_success": "도메인이 성공적으로 삭제되었습니다.",
+  "delete_domain_failed": "도메인 삭제 중 오류가 발생했습니다."
 }
