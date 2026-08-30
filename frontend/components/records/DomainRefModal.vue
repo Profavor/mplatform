@@ -46,7 +46,7 @@
       </div>
 
       <!-- AG Grid with Infinite Server-Side Pagination -->
-      <div :class="{ 'ag-theme-quartz-dark': isDark }" style="flex: 1; width: 100%; min-height: 0;">
+      <div :class="{ 'ag-theme-quartz-dark': isDark }" style="flex: 1; width: 100%; min-height: 300px;">
         <AgGridVue
           style="width: 100%; height: 100%;"
           :theme="gridTheme"

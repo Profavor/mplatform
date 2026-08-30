@@ -327,38 +327,63 @@ const cleanOldProcessedNotifs = () => {
 }
 
 const handleIncomingNotification = (rawPayload) => {
+  if (!rawPayload) return
+
   let payload = rawPayload
   if (typeof rawPayload === 'string') {
     try {
       payload = JSON.parse(rawPayload)
     } catch {
-      payload = { title: rawPayload, message: '', type: 'INFO' }
+      // Non-JSON plain strings (e.g. heartbeat/status text) should not be converted to notifications
+      return
     }
   }
-  if (!payload) return
+  if (!payload || typeof payload !== 'object') return
 
-  if (payload.eventType === 'CHAT_MESSAGE' || payload.eventType === 'MUSIC_PLAY' || payload.eventType === 'MUSIC_STOP') {
+  const itemType = String(payload.type || '').toUpperCase()
+  const eventType = String(payload.eventType || '').toUpperCase()
+
+  // 1. Filter out chat presence, typing, and music events
+  if (eventType === 'PRESENCE_UPDATE' || itemType === 'PRESENCE_UPDATE') {
+    if (process.client) {
+      window.dispatchEvent(new CustomEvent('chat-presence-updated', { detail: payload }))
+    }
+    return
+  }
+
+  if (eventType === 'TYPING' || itemType === 'TYPING') {
+    if (process.client) {
+      window.dispatchEvent(new CustomEvent('chat-typing', { detail: payload }))
+    }
+    return
+  }
+
+  if (eventType === 'CHAT_MESSAGE' || eventType === 'MUSIC_PLAY' || eventType === 'MUSIC_STOP') {
     if (process.client) {
       window.dispatchEvent(new CustomEvent('chat-message-received', { detail: payload }))
     }
-    if (payload.eventType === 'CHAT_MESSAGE') return
+    return
   }
 
-  if (payload.eventType === 'ROOM_READ') {
+  if (eventType === 'ROOM_READ') {
     if (process.client) {
       window.dispatchEvent(new CustomEvent('chat-room-read', { detail: payload }))
     }
     return
   }
 
-  if (payload.eventType === 'MESSAGE_DELETED') {
+  if (eventType === 'MESSAGE_DELETED') {
     if (process.client) {
       window.dispatchEvent(new CustomEvent('chat-message-deleted', { detail: payload }))
     }
     return
   }
 
-  if (payload.eventType === 'FORCE_LOGOUT') {
+  if (eventType === 'PING' || itemType === 'PING' || eventType === 'PONG' || itemType === 'PONG' || eventType === 'HEARTBEAT' || itemType === 'HEARTBEAT') {
+    return
+  }
+
+  if (eventType === 'FORCE_LOGOUT') {
     notifyToast({
       message: payload.message || '다른 기기에서 로그인되어 현재 세션이 종료되었습니다.',
       color: 'danger',
@@ -381,19 +406,31 @@ const handleIncomingNotification = (rawPayload) => {
     return
   }
 
-  const itemType = String(payload.type || 'INFO').toUpperCase()
-  const notifTitle = payload.title || (payload.eventType === 'INBOX_MESSAGE' || payload.type === 'NEW_MESSAGE' ? t('inbox.new_message_received') : t('notifications.title'))
-  const notifMessage = payload.message || payload.content || (payload.subject ? `${payload.senderName || payload.senderId || ''}: ${payload.subject}` : '')
+  // 2. Validate payload has meaningful notification content or valid identifier
+  const hasRawTitle = Boolean(payload.title && String(payload.title).trim())
+  const hasRawMessage = Boolean((payload.message || payload.content || payload.subject) && String(payload.message || payload.content || payload.subject).trim())
+  const hasLink = Boolean(payload.linkUrl || payload.link || payload.url)
   const notifId = (payload.id && isValidUuid(String(payload.id))) ? String(payload.id) : (payload.notificationId && isValidUuid(String(payload.notificationId)) ? String(payload.notificationId) : null)
   const messageId = payload.messageId || payload.inboxMessageId || null
+
+  const isInboxEvent = eventType === 'INBOX_MESSAGE' || itemType === 'INBOX_MESSAGE' || itemType === 'NEW_MESSAGE' || eventType === 'NEW_MESSAGE'
+
+  // If there is no title, no message, no valid ID, no link, and it's not a recognized inbox event, discard empty payload
+  if (!hasRawTitle && !hasRawMessage && !notifId && !messageId && !hasLink && !isInboxEvent) {
+    return
+  }
+
+  const finalType = itemType || 'INFO'
+  const notifTitle = payload.title || (isInboxEvent ? t('inbox.new_message_received') : t('notifications.title'))
+  const notifMessage = payload.message || payload.content || (payload.subject ? `${payload.senderName || payload.senderId || ''}: ${payload.subject}` : '')
 
   // Deduplication check
   cleanOldProcessedNotifs()
   const dedupKey = notifId
     ? `id_${notifId}`
     : (messageId
-      ? `msg_${messageId}_${payload.eventType || itemType}`
-      : `${itemType}_${notifTitle}_${notifMessage}_${payload.senderId || ''}`)
+      ? `msg_${messageId}_${payload.eventType || finalType}`
+      : `${finalType}_${notifTitle}_${notifMessage}_${payload.senderId || ''}`)
 
   const now = Date.now()
   if (recentProcessedNotifs.has(dedupKey) && (now - (recentProcessedNotifs.get(dedupKey) || 0)) < 5000) {
@@ -416,10 +453,10 @@ const handleIncomingNotification = (rawPayload) => {
   const newNotif = {
     id: notifId || Date.now() + Math.random(),
     messageId: messageId,
-    eventType: payload.eventType || (itemType === 'INBOX_MESSAGE' ? 'INBOX_MESSAGE' : null),
+    eventType: payload.eventType || (finalType === 'INBOX_MESSAGE' ? 'INBOX_MESSAGE' : null),
     title: notifTitle,
     message: notifMessage,
-    type: itemType,
+    type: finalType,
     linkUrl: payload.linkUrl || payload.link || payload.url || null,
     read: false,
     createdAt: payload.createdAt || payload.timestamp || new Date().toISOString()

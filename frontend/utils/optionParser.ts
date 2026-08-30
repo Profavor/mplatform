@@ -82,3 +82,45 @@ export function parseOptions(opts: any, currentLocale: string = 'ko'): SelectOpt
 
   return []
 }
+
+/**
+ * Formats a raw value (single, array, or JSON/comma-separated string) using the parsed option labels for the given locale.
+ */
+export function formatOptionLabel(opts: any, rawVal: any, currentLocale: string = 'ko'): string {
+  if (rawVal === undefined || rawVal === null || rawVal === '') return ''
+  const parsed = parseOptions(opts, currentLocale)
+  if (!parsed || parsed.length === 0) return String(rawVal)
+
+  let arr: any[] = []
+  if (Array.isArray(rawVal)) {
+    arr = rawVal
+  } else if (typeof rawVal === 'string') {
+    const trimmed = rawVal.trim()
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const p = JSON.parse(trimmed)
+        if (Array.isArray(p)) arr = p
+        else arr = [rawVal]
+      } catch (e) {
+        arr = [rawVal]
+      }
+    } else if (trimmed.includes(',')) {
+      arr = trimmed.split(',').map((s) => s.trim())
+    } else {
+      arr = [rawVal]
+    }
+  } else {
+    arr = [rawVal]
+  }
+
+  const findLabel = (v: any) => {
+    const strV = String(v).trim()
+    const matched = parsed.find(
+      (opt) => String(opt.value) === strV || String(opt.text) === strV
+    )
+    return matched ? matched.text : strV
+  }
+
+  return arr.map(findLabel).join(', ')
+}
+

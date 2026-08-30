@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseOptions } from '../../utils/optionParser'
+import { parseOptions, formatOptionLabel } from '../../utils/optionParser'
 
 describe('optionParser', () => {
   it('should parse DB optionsList JSON object correctly', () => {
@@ -51,4 +51,45 @@ describe('optionParser', () => {
     expect(parseOptions('')).toEqual([])
     expect(parseOptions({})).toEqual([])
   })
+
+  describe('formatOptionLabel', () => {
+    const optionsObj = {
+      optionsList: [
+        { key: 'MALE', label: { en: 'Male', ko: '남성' }, value: 'MALE' },
+        { key: 'FEMALE', label: { en: 'Female', ko: '여성' }, value: '여성' },
+        { key: 'OTHER', label: { en: 'Other', ko: '기타' }, value: 'OTHER' }
+      ]
+    }
+
+    it('formats single option value to localized label', () => {
+      expect(formatOptionLabel(optionsObj, 'MALE', 'ko')).toBe('남성')
+      expect(formatOptionLabel(optionsObj, 'MALE', 'en')).toBe('Male')
+      expect(formatOptionLabel(optionsObj, 'UNKNOWN', 'ko')).toBe('UNKNOWN')
+    })
+
+    it('formats array option values to comma-separated localized labels', () => {
+      expect(formatOptionLabel(optionsObj, ['MALE', 'OTHER'], 'ko')).toBe('남성, 기타')
+      expect(formatOptionLabel(optionsObj, ['MALE', 'OTHER'], 'en')).toBe('Male, Other')
+    })
+
+    it('formats stringified array option values', () => {
+      expect(formatOptionLabel(optionsObj, '["MALE", "OTHER"]', 'ko')).toBe('남성, 기타')
+    })
+
+    it('formats comma-separated string option values', () => {
+      expect(formatOptionLabel(optionsObj, 'MALE, OTHER', 'en')).toBe('Male, Other')
+    })
+
+    it('returns empty string for null/undefined/empty value', () => {
+      expect(formatOptionLabel(optionsObj, null, 'ko')).toBe('')
+      expect(formatOptionLabel(optionsObj, undefined, 'ko')).toBe('')
+      expect(formatOptionLabel(optionsObj, '', 'ko')).toBe('')
+    })
+
+    it('returns raw value if options is missing or empty', () => {
+      expect(formatOptionLabel(null, 'ACTIVE', 'ko')).toBe('ACTIVE')
+      expect(formatOptionLabel('', 'ACTIVE', 'ko')).toBe('ACTIVE')
+    })
+  })
 })
+

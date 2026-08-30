@@ -26,7 +26,7 @@
             <va-button size="small" color="danger" icon="delete" @click="$emit('delete-selected-sector')" :outline="isDark">{{ t('remove_selected') }}</va-button>
           </div>
         </div>
-        <div :class="{ 'ag-theme-quartz-dark': isDark }" style="flex: 1; width: 100%;">
+        <div :class="{ 'ag-theme-quartz-dark': isDark }" style="flex: 1; width: 100%; min-height: 200px;">
           <AgGridVue
             style="width: 100%; height: 100%;"
             :theme="gridTheme"
@@ -51,7 +51,7 @@
             <va-button size="small" color="danger" icon="delete" @click="$emit('delete-selected-group')" :outline="isDark">{{ t('remove_selected') }}</va-button>
           </div>
         </div>
-        <div :class="{ 'ag-theme-quartz-dark': isDark }" style="flex: 1; width: 100%;">
+        <div :class="{ 'ag-theme-quartz-dark': isDark }" style="flex: 1; width: 100%; min-height: 200px;">
           <AgGridVue
             style="width: 100%; height: 100%;"
             :theme="gridTheme"

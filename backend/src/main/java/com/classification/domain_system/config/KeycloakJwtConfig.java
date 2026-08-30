@@ -46,12 +46,20 @@ public class KeycloakJwtConfig {
     @Bean
     @ConditionalOnExpression("!T(org.springframework.util.StringUtils).isEmpty('${spring.security.oauth2.resourceserver.jwt.jwk-set-uri:}') || !T(org.springframework.util.StringUtils).isEmpty('${spring.security.oauth2.resourceserver.jwt.issuer-uri:}')")
     public JwtDecoder jwtDecoder() {
+        org.springframework.security.oauth2.jwt.NimbusJwtDecoder decoder = null;
         if (jwkSetUri != null && !jwkSetUri.isBlank()) {
-            return org.springframework.security.oauth2.jwt.NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
+            decoder = org.springframework.security.oauth2.jwt.NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
+        } else if (issuerUri != null && !issuerUri.isBlank()) {
+            decoder = (org.springframework.security.oauth2.jwt.NimbusJwtDecoder) JwtDecoders.fromIssuerLocation(issuerUri);
         }
-        if (issuerUri != null && !issuerUri.isBlank()) {
-            return JwtDecoders.fromIssuerLocation(issuerUri);
+        
+        if (decoder != null) {
+            // Cloudflare 터널 등 외부 프록시 환경에서 동적으로 변경되는 issuer(iss) 클레임 검증을 우회하기 위해
+            // 기본 JwtValidators 대신 JwtTimestampValidator(만료 시간 검증)만 사용하도록 덮어씁니다.
+            decoder.setJwtValidator(new org.springframework.security.oauth2.jwt.JwtTimestampValidator());
+            return decoder;
         }
+
         throw new IllegalStateException("Neither jwk-set-uri nor issuer-uri is configured for JwtDecoder");
     }
 

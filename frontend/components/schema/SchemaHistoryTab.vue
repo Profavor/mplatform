@@ -31,10 +31,10 @@
             <!-- Data Row -->
             <tr style="border-bottom: 1px solid var(--va-background-border); transition: background 0.15s ease;">
               <td style="padding: 0.75rem 1rem;">
-                <va-badge :text="$t('schema_history.' + (row.targetType || '').toLowerCase())" :color="getTypeColor(row.targetType)" />
+                <va-badge :text="codeStore.getCodeName('TARGET_TYPE', row.targetType, $t('schema_history.' + (row.targetType || '').toLowerCase()))" :color="getTypeColor(row.targetType)" />
               </td>
               <td style="padding: 0.75rem 1rem;">
-                <va-badge :text="$t('schema_history.' + (row.action || '').toLowerCase())" :color="getActionColor(row.action)" />
+                <va-badge :text="codeStore.getCodeName('SCHEMA_ACTION', row.action, $t('schema_history.' + (row.action || '').toLowerCase()))" :color="getActionColor(row.action)" />
               </td>
               <td style="padding: 0.75rem 1rem; font-weight: 600;">
                 {{ userStore.getUserName(row.changedBy) || '-' }}
@@ -125,8 +125,8 @@
 import { ref, watch } from 'vue'
 import { useToast } from 'vuestic-ui'
 import { useCustomFetch } from '~/composables/useCustomFetch'
-import { useTimezoneDate } from '~/composables/useTimezoneDate'
 import { useUserStore } from '~/stores/useUserStore'
+import { useCodeStore } from '~/stores/useCodeStore'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
@@ -137,7 +137,9 @@ const { init } = useToast()
 const { customFetch } = useCustomFetch()
 const { formatWithTimezone } = useTimezoneDate()
 const userStore = useUserStore()
+const codeStore = useCodeStore()
 userStore.fetchUserMap()
+codeStore.preloadGroups(['TARGET_TYPE', 'SCHEMA_ACTION']).catch(console.error)
 const { t, te, locale } = useI18n()
 
 const isLoading = ref(false)

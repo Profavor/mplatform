@@ -35,6 +35,14 @@ public class ChatMessageController {
     private final AuthContext authContext;
     private final com.classification.domain_system.websocket.PresenceEventListener presenceEventListener;
     private final FileStorageService fileStorageService;
+    private final com.classification.domain_system.service.UserService userService;
+    private final com.classification.domain_system.repository.UserRepository userRepository;
+
+    @GetMapping("/users")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<UserController.UserDto>> getChatUsers() {
+        return ResponseEntity.ok(userService.getAllUsers());
+    }
 
     @GetMapping("/presence")
     @PreAuthorize("isAuthenticated()")
@@ -44,10 +52,21 @@ public class ChatMessageController {
 
     private String getAuthenticatedUserId() {
         String uid = authContext.getUserId();
-        if (uid == null || uid.isBlank()) {
-            throw new CustomAccessDeniedException("Unauthenticated user");
+        if (uid != null && !uid.isBlank()) {
+            return uid;
         }
-        return uid;
+        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
+            String name = auth.getName();
+            if (userRepository != null) {
+                var uOpt = userRepository.findByUsername(name);
+                if (uOpt.isPresent() && uOpt.get().getId() != null) {
+                    return uOpt.get().getId();
+                }
+            }
+            return name;
+        }
+        throw new CustomAccessDeniedException("Unauthenticated user");
     }
 
     @Data

@@ -75,7 +75,7 @@
           <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshGrid">{{ $t('refresh') }}</va-button>
         </div>
         <va-card-content>
-          <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 500px; width: 100%;">
+          <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 500px; width: 100%; min-height: 300px;">
             <client-only>
               <ag-grid-vue
                 v-if="isMounted"
@@ -129,7 +129,7 @@
           <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshLoginGrid">{{ $t('refresh') }}</va-button>
         </div>
         <va-card-content>
-          <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 500px; width: 100%;">
+          <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 500px; width: 100%; min-height: 300px;">
             <client-only>
               <ag-grid-vue
                 v-if="isMounted"
@@ -160,7 +160,7 @@
           <div class="mb-2" style="font-size: 0.85rem; color: var(--va-text-secondary);">
             * Double click on any row to view full stack trace details.
           </div>
-          <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 600px; width: 100%;">
+          <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 600px; width: 100%; min-height: 300px;">
             <client-only>
               <ag-grid-vue
                 v-if="isMounted"
@@ -264,7 +264,7 @@
         </div>
 
         <va-card-content style="padding: 0;">
-          <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 560px; width: 100%;">
+          <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 560px; width: 100%; min-height: 300px;">
             <client-only>
               <ag-grid-vue
                 v-if="isMounted"
@@ -343,7 +343,7 @@
           <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="fetchSensitiveAccessLogs(1)">{{ $t('refresh') }}</va-button>
         </div>
         <va-card-content>
-          <div style="height: 500px; width: 100%;">
+          <div style="height: 500px; width: 100%; min-height: 300px;">
               <ag-grid-vue
               style="width: 100%; height: 100%;"
               :class="{ 'ag-theme-quartz-dark': isDark }"

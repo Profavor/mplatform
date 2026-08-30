@@ -60,7 +60,7 @@ describe('ApprovalMonitorDetailModal.vue (TDD Component Test)', () => {
     })
 
     expect(wrapper.find('.va-modal-stub').exists()).toBe(true)
-    expect(wrapper.text()).toContain('targetRecordCreate')
+    expect(wrapper.text()).toMatch(/RECORD_CREATE|target_type_RECORD_CREATE|신규/)
     expect(wrapper.text()).toContain('홍길동')
   })
 

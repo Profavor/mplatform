@@ -23,7 +23,7 @@
       </div>
       
       <va-card-content style="flex: 1; display: flex; flex-direction: column; padding: 0; min-height: 0;">
-        <div :class="{ 'ag-theme-quartz-dark': isDark }" style="flex: 1; width: 100%; height: 100%;">
+        <div :class="{ 'ag-theme-quartz-dark': isDark }" style="flex: 1; width: 100%; height: 100%; min-height: 400px;">
           <ag-grid-vue
             style="width: 100%; height: 100%;"
             :theme="gridTheme"
@@ -159,10 +159,13 @@ const messages = {
   }
 }
 
-const { t, te, locale } = useI18n({ messages, useScope: 'local', inheritLocale: true })
+const codeStore = useCodeStore()
+codeStore.preloadGroups(['TARGET_TYPE', 'APPROVAL_STATUS']).catch(console.error)
 
 const getStatusText = (status) => {
   if (!status) return '';
+  const codeName = codeStore.getCodeName('APPROVAL_STATUS', status, null)
+  if (codeName && codeName !== status) return codeName;
   const key = 'status_' + String(status).toLowerCase();
   if (te(key)) return t(key);
   return status;
@@ -262,25 +265,7 @@ const formatStepAssignee = (s, req) => {
   return getUserName(s.assigneeId) || t('unassigned')
 }
 
-const formatTargetType = (type) => {
-  if (type === 'RECORD_CREATE' || type === 'RECORD') return t('targetRecordCreate')
-  if (type === 'RECORD_UPDATE') return t('targetRecordUpdate')
-  if (type === 'RECORD_DELETE') return t('targetRecordDelete')
-  if (type === 'BULK_UPLOAD') return t('targetBulkUpload')
-  if (type === 'MEMO') return t('targetMemo') || '일반 메모 결재'
-  return type
-}
-
-const formatTargetInfo = (flow) => {
-  if (!flow) return ''
-  if (flow.targetType === 'MEMO') return t('targetMemo') || '일반 메모 결재'
-  const d = flow.domainName ? parseLocalizedValue(flow.domainName) : ''
-  const c = flow.classificationName ? parseLocalizedValue(flow.classificationName) : ''
-  if (d && c) return `${d} > ${c}`
-  if (d) return d
-  if (c) return c
-  return '-'
-}
+const formatTargetType = (type) => getRequestTypeLabel(type)
 
 const parseDate = (dateString) => {
   if (!dateString) return null
@@ -351,11 +336,15 @@ const columnDefs = computed(() => [
   { 
     headerName: t('colTargetType'), 
     field: 'targetType', 
-    width: 130,
+    width: 140,
+    cellRenderer: (params) => {
+      if (!params || !params.value) return ''
+      return createTargetTypeBadgeElement(params.value, isDark.value)
+    },
     valueFormatter: (params) => formatTargetType(params.value),
     filter: 'agSetColumnFilter',
     filterParams: {
-      values: ['RECORD_CREATE', 'RECORD_UPDATE', 'RECORD_DELETE', 'BULK_UPLOAD', 'MEMO'],
+      values: ['RECORD_CREATE', 'RECORD_UPDATE', 'RECORD_DELETE', 'BULK_UPLOAD', 'SCHEMA', 'MEMO'],
       valueFormatter: (params) => formatTargetType(params.value)
     }
   },

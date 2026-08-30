@@ -87,8 +87,8 @@
                 </td>
                 <td>
                   <va-badge
-                    :text="v.severity"
-                    :color="v.severity === 'ERROR' ? 'danger' : 'warning'"
+                    :text="codeStore.getCodeName('DQ_SEVERITY', v.severity, v.severity)"
+                    :color="v.severity === 'ERROR' || v.severity === 'CRITICAL' || v.severity === 'HIGH' ? 'danger' : 'warning'"
                     class="severity-badge-table"
                   />
                 </td>
@@ -158,9 +158,11 @@
 import { useI18n } from 'vue-i18n'
 import { formatWithTimezone } from '~/composables/useTimezoneDate'
 import { formatRecordCode } from '~/utils/formatters'
-
+import { useCodeStore } from '~/stores/useCodeStore'
 
 const { t, locale } = useI18n()
+const codeStore = useCodeStore()
+codeStore.loadGroup('DQ_SEVERITY').catch(console.error)
 
 const props = defineProps<{
   violationList: any[]

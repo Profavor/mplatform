@@ -156,13 +156,6 @@
       <!-- Details Tab Content -->
       <div v-show="activeMainTab === 'details'" style="overflow-y: auto; flex: 1; padding-right: 4px;">
 
-        <!-- Domain Record Header Widget: identifierFieldId/displayNameFieldId/descriptionFieldId/imageFieldId 기반 동적 렌더링 -->
-        <SpecializedDomainWidgetRenderer
-          :domain="selectedDomainInfo"
-          :record-data="localRecord"
-          :fields="fields"
-        />
-
         <!-- Custom 2D Grid Layout View -->
         <DynamicRecordLayoutRenderer
           v-if="currentSelectedLayout && currentSelectedLayout.widgets && currentSelectedLayout.widgets.length > 0"
@@ -1016,9 +1009,12 @@ import SpecializedDomainWidgetRenderer from './specialized/SpecializedDomainWidg
 import RecordLayoutBuilderModal from './RecordLayoutBuilderModal.vue'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { parseOptions } from '~/utils/optionParser'
+import { useCodeStore } from '~/stores/useCodeStore'
 
 const { customFetch } = useCustomFetch()
 const { downloadFileWithAuth } = useFileDownloader()
+const codeStore = useCodeStore()
+codeStore.loadGroup('TARGET_TYPE').catch(console.error)
 
 const { gridTheme } = useAgGridTheme()
 
@@ -1393,19 +1389,23 @@ const historyGridColumnDefs = computed(() => {
         const span = document.createElement('span');
         span.style.cssText = 'display: inline-flex; align-items: center; justify-content: center; height: 22px; padding: 0 6px; border-radius: 4px; font-weight: 700; font-size: 11px; color: white; box-sizing: border-box;';
 
+        const codeName = codeStore.getCodeName('TARGET_TYPE', val, null)
+        const i18nKey = `target_type_${val}`
+        const translated = t(i18nKey)
+        const label = (codeName && codeName !== val) ? codeName : ((translated && translated !== i18nKey) ? translated : (t(val.toLowerCase()) || val))
+
         if (val === 'PENDING_APPROVAL') {
           span.style.background = '#e6a23c';
-          span.innerText = t('pending_approval');
-        } else if (val === 'CREATE') {
-          span.style.background = '#1ebc72';
-          span.innerText = 'CREATE';
-        } else if (val === 'DELETE') {
-          span.style.background = '#e53935';
-          span.innerText = 'DELETE';
+        } else if (val === 'CREATE' || val === 'RECORD_CREATE' || val === 'RECORD') {
+          span.style.background = '#10b981';
+        } else if (val === 'UPDATE' || val === 'RECORD_UPDATE') {
+          span.style.background = '#f59e0b';
+        } else if (val === 'DELETE' || val === 'RECORD_DELETE') {
+          span.style.background = '#ef4444';
         } else {
           span.style.background = '#2c82e0';
-          span.innerText = val;
         }
+        span.innerText = label;
         return span;
       }
     },
@@ -2868,5 +2868,22 @@ const removeFile = (fieldKey, index) => {
 .doc-html {
   font-size: 0.9rem;
   line-height: 1.6;
+}
+
+.custom-modal-header-wrapper {
+  margin: 0 !important;
+  width: 100%;
+}
+
+:deep(.custom-record-modal .va-modal__header) {
+  padding: 0.75rem 1.25rem 0.5rem 1.25rem !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  min-height: 38px !important;
+}
+
+:deep(.custom-record-modal .va-modal__message) {
+  padding-top: 0.25rem !important;
 }
 </style>

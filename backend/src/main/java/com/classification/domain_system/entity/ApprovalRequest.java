@@ -55,6 +55,38 @@ public class ApprovalRequest {
     @JoinColumn(name = "node_id")
     private ClassificationNode classificationNode;
 
+    @com.fasterxml.jackson.annotation.JsonProperty("domainName")
+    public Object getDomainName() {
+        if (classificationNode != null && classificationNode.getDomain() != null) {
+            return classificationNode.getDomain().getName();
+        }
+        return null;
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("domainId")
+    public UUID getDomainId() {
+        if (classificationNode != null && classificationNode.getDomain() != null) {
+            return classificationNode.getDomain().getId();
+        }
+        return null;
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("classificationName")
+    public Object getClassificationName() {
+        if (classificationNode != null) {
+            return classificationNode.getName();
+        }
+        return null;
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("classificationId")
+    public UUID getClassificationId() {
+        if (classificationNode != null) {
+            return classificationNode.getId();
+        }
+        return null;
+    }
+
     @Column(name = "current_step_order")
     private Integer currentStepOrder;
 

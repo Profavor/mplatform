@@ -14,6 +14,7 @@ export function prepareFetchOptions(options: any = {}, token?: string | null, ti
   return {
     ...options,
     headers,
+    credentials: 'include' // Allow sending cookies in cross-origin or proxy environments
   }
 }
 
@@ -59,12 +60,31 @@ export function useCustomFetch(urlOrOptions?: any, options?: any): any {
       if (cookieToken) return String(cookieToken)
     } catch (e) {}
 
+    if (import.meta.client) {
+      try {
+        const cookies = document.cookie.split(';')
+        for (const cookie of cookies) {
+          const [name, val] = cookie.trim().split('=')
+          if ((name === 'auth_token' || name === 'token') && val) {
+            return decodeURIComponent(val)
+          }
+        }
+      } catch (e) {}
+    }
+
     try {
       const { user, loggedIn } = useOidcAuth()
       if (loggedIn.value && user.value?.accessToken) {
         return String(user.value.accessToken)
       }
     } catch (e) {}
+
+    if (import.meta.client) {
+      try {
+        const stored = localStorage.getItem('auth_token') || localStorage.getItem('token')
+        if (stored) return stored
+      } catch (e) {}
+    }
 
     return null
   }

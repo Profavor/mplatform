@@ -344,7 +344,8 @@
 <script setup>
 import { ref, computed } from 'vue';
 import ExcelJS from 'exceljs';
-import { saveAs } from 'file-saver';
+import fileSaver from 'file-saver';
+const saveAs = fileSaver?.saveAs || fileSaver;
 import { useI18n } from 'vue-i18n';
 import { useCookie } from '#app';
 import { useCustomFetch } from '~/composables/useCustomFetch';

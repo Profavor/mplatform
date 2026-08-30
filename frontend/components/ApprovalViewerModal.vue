@@ -17,8 +17,8 @@
             </h3>
             <va-badge 
               v-if="request?.targetType"
-              :text="request.targetType.startsWith('SCHEMA_') ? (t('schema_change', '스키마 변경')) : request.targetType" 
-              color="primary" 
+              :text="getRequestTypeLabel(request.targetType)" 
+              :color="getRequestTypeColor(request.targetType)" 
             />
           </div>
 
@@ -56,8 +56,10 @@ import ApprovalDetailsViewer from '~/components/ApprovalDetailsViewer.vue'
 import ModalControls from '~/components/common/ModalControls.vue'
 import AppModal from '~/components/common/AppModal.vue'
 import { formatWithTimezone } from '~/composables/useTimezoneDate'
+import { useApprovalEnricher } from '~/composables/useApprovalEnricher'
 
 const { t } = useI18n()
+const { getRequestTypeLabel, getRequestTypeColor } = useApprovalEnricher()
 const isFullscreenModal = ref(false)
 
 const props = defineProps<{

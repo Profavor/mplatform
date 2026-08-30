@@ -78,7 +78,7 @@
 
       <!-- AG-Grid -->
       <va-card style="flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; padding: 0.5rem;">
-        <div :class="{ 'ag-theme-quartz-dark': isDark }" style="width: 100%; height: 100%; flex: 1;">
+        <div :class="{ 'ag-theme-quartz-dark': isDark }" style="width: 100%; height: 100%; flex: 1; min-height: 400px;">
           <client-only>
             <ag-grid-vue
               v-if="isMounted"

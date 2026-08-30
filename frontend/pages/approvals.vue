@@ -43,7 +43,7 @@
         </div>
       </div>
 
-      <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 320px; width: 100%;">
+      <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 320px; width: 100%; min-height: 200px;">
         <AgGridVue
           key="pending-grid"
           id="pending-grid"
@@ -81,7 +81,7 @@
         </div>
       </div>
 
-      <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 320px; width: 100%;">
+      <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 320px; width: 100%; min-height: 200px;">
         <AgGridVue
           key="my-requests-grid"
           id="my-requests-grid"
@@ -139,7 +139,9 @@ import { formatApprovalCode } from '../utils/formatters'
 
 
 const route = useRoute()
-const { loadMetadata, enrichRequest } = useApprovalEnricher()
+const codeStore = useCodeStore()
+codeStore.preloadGroups(['TARGET_TYPE', 'APPROVAL_STATUS', 'RECORD_STATUS']).catch(console.error)
+const { loadMetadata, enrichRequest, createTargetTypeBadgeElement, formatTargetInfo } = useApprovalEnricher()
 const { formatMultilingual } = useMultilingual()
 
 const { gridTheme, autoSizeStrategy } = useAgGridTheme()
@@ -151,27 +153,23 @@ const showActionModal = ref(false)
 const selectedPendingStep = ref(null)
 const pendingSelectedRows = ref([])
 
-const formatTargetInfo = (req) => {
-  if (!req) return ''
-  const tType = req.targetType || ''
-  if (tType === 'MEMO') {
-    return t('memo_approval') || '일반 결재'
-  }
-  const dName = req.domainName ? formatMultilingual(req.domainName) : ''
-  const cName = req.classificationName ? formatMultilingual(req.classificationName) : ''
-  if (dName && cName) return `${dName} > ${cName}`
-  if (dName) return dName
-  if (cName) return cName
-  return t('general_approval') || '일반'
-}
-
 const getPendingColumnDefs = () => [
   { colId: 'p_checkbox', headerName: '', field: 'checkbox', width: 50, suppressSizeToFit: true },
-  { colId: 'p_targetType', field: 'approvalRequest.targetType', headerName: t('target_type'), width: 120, minWidth: 100 },
+  { 
+    colId: 'p_targetType', 
+    field: 'approvalRequest.targetType', 
+    headerName: t('target_type'), 
+    width: 140, 
+    minWidth: 120,
+    cellRenderer: params => {
+      if (!params || !params.value) return ''
+      return createTargetTypeBadgeElement(params.value, isDark.value)
+    }
+  },
   { 
     colId: 'p_targetInfo', 
     headerName: t('colDomain') || '도메인 / 대상', 
-    width: 160, 
+    width: 180, 
     minWidth: 140, 
     valueGetter: params => formatTargetInfo(params.data?.approvalRequest) 
   },
@@ -192,7 +190,32 @@ const getPendingColumnDefs = () => [
     valueFormatter: params => getApprovalLineString(params.value)
   },
   { colId: 'p_createdAt', field: 'createdAt', headerName: t('created'), width: 160, minWidth: 140, valueFormatter: params => params.value ? formatDate(params.value) : '' },
-  { colId: 'p_stepType', field: 'stepType', headerName: t('step_type'), width: 110, minWidth: 90 },
+  { 
+    colId: 'p_stepType', 
+    field: 'stepType', 
+    headerName: t('step_type'), 
+    width: 110, 
+    minWidth: 90,
+    cellRenderer: params => {
+      if (!params || !params.value) return ''
+      const codeName = codeStore.getCodeName('STEP_TYPE', params.value, null)
+      const i18nKey = `step_type_${params.value?.toLowerCase()}`
+      const translated = t(i18nKey)
+      const label = (codeName && codeName !== params.value) ? codeName : ((translated && translated !== i18nKey) ? translated : params.value)
+      const span = document.createElement('span')
+      span.style.display = 'inline-flex'
+      span.style.alignItems = 'center'
+      span.style.padding = '2px 8px'
+      span.style.borderRadius = '4px'
+      span.style.fontSize = '0.8rem'
+      span.style.fontWeight = '600'
+      span.style.background = isDark.value ? 'rgba(255,255,255,0.1)' : 'var(--va-background-element)'
+      span.style.color = 'var(--va-text-primary)'
+      span.style.border = '1px solid var(--va-background-border)'
+      span.innerText = label
+      return span
+    }
+  },
   {
     colId: 'p_action',
     headerName: t('action'),
@@ -376,11 +399,21 @@ const selectedRequest = ref(null)
 
 const getMyRequestsColumnDefs = () => [
   { colId: 'm_id', field: 'id', headerName: t('id'), width: 110, minWidth: 90, valueFormatter: params => formatApprovalCode(params.value) },
-  { colId: 'm_targetType', field: 'targetType', headerName: t('target_type'), width: 120, minWidth: 100 },
+  { 
+    colId: 'm_targetType', 
+    field: 'targetType', 
+    headerName: t('target_type'), 
+    width: 140, 
+    minWidth: 120,
+    cellRenderer: params => {
+      if (!params || !params.value) return ''
+      return createTargetTypeBadgeElement(params.value, isDark.value)
+    }
+  },
   { 
     colId: 'm_targetInfo', 
     headerName: t('colDomain') || '도메인 / 대상', 
-    width: 160, 
+    width: 180, 
     minWidth: 140, 
     valueGetter: params => formatTargetInfo(params.data) 
   },
@@ -394,18 +427,42 @@ const getMyRequestsColumnDefs = () => [
     valueFormatter: params => getApprovalLineString(params.value)
   },
   { colId: 'm_createdAt', field: 'createdAt', headerName: t('created'), width: 160, minWidth: 140, valueFormatter: params => params.value ? formatDate(params.value) : '' },
-  { colId: 'm_status', field: 'status', headerName: t('status'), width: 110, minWidth: 90, 
+  { colId: 'm_status', field: 'status', headerName: t('status'), width: 130, minWidth: 100, 
     cellRenderer: params => {
       if (!params || !params.value) return '';
-      const color = params.value === 'PENDING' ? '#fbbf24' : (params.value === 'APPROVED' ? '#22c55e' : '#ef4444');
+      const label = codeStore.getCodeName('APPROVAL_STATUS', params.value, params.value);
+      const isApproved = params.value === 'APPROVED';
+      const isPending = params.value === 'PENDING';
+      const isRejected = params.value === 'REJECTED';
+      
       const span = document.createElement('span');
-      span.style.color = 'white';
-      span.style.backgroundColor = color;
-      span.style.padding = '2px 8px';
-      span.style.borderRadius = '4px';
-      span.style.fontSize = '0.8rem';
-      span.style.fontWeight = 'bold';
-      span.innerText = params.value;
+      span.style.display = 'inline-flex';
+      span.style.alignItems = 'center';
+      span.style.justifyContent = 'center';
+      span.style.padding = '3px 10px';
+      span.style.borderRadius = '9999px';
+      span.style.fontSize = '0.75rem';
+      span.style.fontWeight = '600';
+      span.style.whiteSpace = 'nowrap';
+      
+      if (isApproved) {
+        span.style.backgroundColor = isDark.value ? 'rgba(16, 185, 129, 0.2)' : '#ecfdf5';
+        span.style.color = isDark.value ? '#34d399' : '#059669';
+        span.style.border = isDark.value ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid #a7f3d0';
+      } else if (isPending) {
+        span.style.backgroundColor = isDark.value ? 'rgba(245, 158, 11, 0.2)' : '#fffbeb';
+        span.style.color = isDark.value ? '#fbbf24' : '#d97706';
+        span.style.border = isDark.value ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid #fde68a';
+      } else if (isRejected) {
+        span.style.backgroundColor = isDark.value ? 'rgba(239, 68, 68, 0.2)' : '#fef2f2';
+        span.style.color = isDark.value ? '#f87171' : '#dc2626';
+        span.style.border = isDark.value ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid #fecaca';
+      } else {
+        span.style.backgroundColor = isDark.value ? 'rgba(156, 163, 175, 0.2)' : '#f3f4f6';
+        span.style.color = isDark.value ? '#9ca3af' : '#4b5563';
+        span.style.border = isDark.value ? '1px solid rgba(156, 163, 175, 0.4)' : '1px solid #e5e7eb';
+      }
+      span.innerText = label;
       return span;
     }
   },

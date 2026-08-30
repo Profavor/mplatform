@@ -231,26 +231,107 @@ export const useApprovalEnricher = () => {
 
   const getRequestTypeLabel = (type: string): string => {
     if (!type) return t('other_request')
-    if (type === 'MEMO') return t('target_type_MEMO', '메모 결재')
+    
+    // 1. Check CodeStore first (100% DB Common Code)
+    const codeName = codeStore.getCodeName('TARGET_TYPE', type, null)
+    if (codeName && codeName !== type) return codeName
+
+    // 2. Check i18n locales
     const i18nKey = `target_type_${type}`
     const translated = t(i18nKey)
     if (translated && translated !== i18nKey) return translated
 
-    const codeName = codeStore.getCodeName('TARGET_TYPE', type, null)
-    if (codeName && codeName !== type) return codeName
+    const i18nKeyLower = `target_type_${type.toLowerCase()}`
+    const translatedLower = t(i18nKeyLower)
+    if (translatedLower && translatedLower !== i18nKeyLower) return translatedLower
 
-    if (type === 'RECORD_CREATE') return t('record_create')
-    if (type === 'RECORD_UPDATE') return t('record_update')
-    if (type === 'RECORD_DELETE') return t('record_delete')
-    if (type === 'DOMAIN_RECORD_CREATE') return t('domain_record_create')
     return type || t('other_request')
   }
 
   const getRequestTypeColor = (type: string): string => {
-    if (type === 'RECORD_CREATE' || type === 'DOMAIN_RECORD_CREATE') return 'success'
+    if (type === 'RECORD_CREATE' || type === 'RECORD' || type === 'DOMAIN_RECORD_CREATE') return 'success'
     if (type === 'RECORD_UPDATE') return 'warning'
     if (type === 'RECORD_DELETE') return 'danger'
-    return 'primary'
+    if (type?.startsWith('SCHEMA')) return 'info'
+    if (type === 'MEMO') return 'primary'
+    return 'secondary'
+  }
+
+  const createTargetTypeBadgeElement = (type: string, isDarkTheme = false): HTMLElement => {
+    const label = getRequestTypeLabel(type)
+    const colorKey = getRequestTypeColor(type)
+    
+    const colorMapLight: Record<string, { bg: string; text: string; border: string }> = {
+      success: { bg: '#ecfdf5', text: '#059669', border: '#a7f3d0' },
+      warning: { bg: '#fffbeb', text: '#d97706', border: '#fde68a' },
+      danger: { bg: '#fef2f2', text: '#dc2626', border: '#fecaca' },
+      info: { bg: '#eff6ff', text: '#2563eb', border: '#bfdbfe' },
+      primary: { bg: '#eef2ff', text: '#4f46e5', border: '#c7d2fe' },
+      secondary: { bg: '#f3f4f6', text: '#4b5563', border: '#e5e7eb' }
+    }
+    
+    const colorMapDark: Record<string, { bg: string; text: string; border: string }> = {
+      success: { bg: 'rgba(16, 185, 129, 0.2)', text: '#34d399', border: 'rgba(16, 185, 129, 0.4)' },
+      warning: { bg: 'rgba(245, 158, 11, 0.2)', text: '#fbbf24', border: 'rgba(245, 158, 11, 0.4)' },
+      danger: { bg: 'rgba(239, 68, 68, 0.2)', text: '#f87171', border: 'rgba(239, 68, 68, 0.4)' },
+      info: { bg: 'rgba(59, 130, 246, 0.2)', text: '#60a5fa', border: 'rgba(59, 130, 246, 0.4)' },
+      primary: { bg: 'rgba(99, 102, 241, 0.2)', text: '#818cf8', border: 'rgba(99, 102, 241, 0.4)' },
+      secondary: { bg: 'rgba(156, 163, 175, 0.2)', text: '#9ca3af', border: 'rgba(156, 163, 175, 0.4)' }
+    }
+
+    const themeMap = isDarkTheme ? colorMapDark : colorMapLight
+    const theme = themeMap[colorKey] || themeMap.secondary
+
+    const span = document.createElement('span')
+    span.style.display = 'inline-flex'
+    span.style.alignItems = 'center'
+    span.style.justifyContent = 'center'
+    span.style.padding = '3px 10px'
+    span.style.borderRadius = '9999px'
+    span.style.fontSize = '0.75rem'
+    span.style.fontWeight = '600'
+    span.style.backgroundColor = theme.bg
+    span.style.color = theme.text
+    span.style.border = `1px solid ${theme.border}`
+    span.style.whiteSpace = 'nowrap'
+    span.style.letterSpacing = '-0.01em'
+    span.innerText = label
+    return span
+  }
+
+  const formatTargetInfo = (req: any): string => {
+    if (!req) return ''
+    const tType = req.targetType || ''
+    if (tType === 'MEMO') {
+      return t('memo_approval', '메모 결재')
+    }
+
+    // 1. Direct domainName / classificationName from API or enriched object
+    let dName = req.domainName ? formatMultilingual(req.domainName) : ''
+    let cName = req.classificationName ? formatMultilingual(req.classificationName) : ''
+
+    // 2. Check classificationNode structure
+    if (!dName && req.classificationNode?.domain?.name) {
+      dName = formatMultilingual(req.classificationNode.domain.name)
+    }
+    if (!cName && req.classificationNode?.name) {
+      cName = formatMultilingual(req.classificationNode.name)
+    }
+
+    // 3. Check loaded metadata mappings by IDs
+    const nodeId = req.classificationNode?.id || req.nodeId
+    const domainId = req.domainId || req.classificationNode?.domainId || (nodeId ? nodeToDomainMap.value[nodeId] : null)
+    if (!dName && domainId && domains.value[domainId]) {
+      dName = getTranslatedName(domains.value[domainId])
+    }
+    if (!cName && nodeId && nodes.value[nodeId]) {
+      cName = getTranslatedName(nodes.value[nodeId])
+    }
+
+    if (dName && cName) return `${dName} > ${cName}`
+    if (dName) return dName
+    if (cName) return cName
+    return t('general_approval', '일반 결재')
   }
 
   const formatDate = (dateString: string | Date | null | undefined): string => {
@@ -266,6 +347,8 @@ export const useApprovalEnricher = () => {
     getClassificationName,
     getRequestTypeLabel,
     getRequestTypeColor,
+    createTargetTypeBadgeElement,
+    formatTargetInfo,
     formatDate
   }
 }

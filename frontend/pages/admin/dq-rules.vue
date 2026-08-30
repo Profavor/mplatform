@@ -70,7 +70,7 @@
               <va-icon name="playlist_add_check" size="4rem" color="secondary" style="opacity: 0.5; margin-bottom: 1rem;" />
               <div style="font-size: 1.1rem; font-weight: 600;">{{ $t('dq_select_node_field_guide') }}</div>
             </div>
-            <div v-else :class="{ 'ag-theme-quartz-dark': isDark }" style="flex: 1; width: 100%; height: 100%;">
+            <div v-else :class="{ 'ag-theme-quartz-dark': isDark }" style="flex: 1; width: 100%; height: 100%; min-height: 400px;">
               <ag-grid-vue
                 style="width: 100%; height: 100%;"
                 :theme="gridTheme"

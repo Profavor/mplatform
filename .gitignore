@@ -17,3 +17,6 @@ backend/uploads/
 *.log
 *.txt
 docker-data/dms/
+frontend/test_*.js
+frontend/scratch_*.js
+

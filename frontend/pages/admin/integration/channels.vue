@@ -998,13 +998,14 @@ const recentLogColumnDefs = computed(() => [
       const div = document.createElement('div')
       div.style.cssText = 'display: flex; align-items: center; height: 100%;'
       const isSuccess = params.value === 'SUCCESS'
+      const label = codeStore.getCodeName('INTEGRATION_STATUS', params.value, params.value || 'SUCCESS')
       const pill = document.createElement('span')
       pill.style.cssText = `padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 0.75rem; font-family: inherit; ${
         isSuccess
           ? 'background: rgba(46, 125, 50, 0.12); color: var(--va-success); border: 1px solid rgba(46, 125, 50, 0.3);'
           : 'background: rgba(229, 57, 53, 0.12); color: var(--va-danger); border: 1px solid rgba(229, 57, 53, 0.3);'
       }`
-      pill.textContent = params.value || 'SUCCESS'
+      pill.textContent = label
       div.appendChild(pill)
       return div
     }

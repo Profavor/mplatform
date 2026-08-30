@@ -373,7 +373,7 @@
           </va-input>
         </div>
 
-        <div :class="{ 'ag-theme-quartz-dark': isDark }" style="width: 100%; height: 350px;">
+        <div :class="{ 'ag-theme-quartz-dark': isDark }" style="width: 100%; height: 350px; min-height: 200px;">
           <AgGridVue
             style="width: 100%; height: 100%;"
             :theme="gridTheme"

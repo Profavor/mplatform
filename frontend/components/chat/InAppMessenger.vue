@@ -1,8 +1,8 @@
 <!-- InAppMessenger.vue: In-App Messenger Component -->
 <template>
   <div class="in-app-messenger-container">
-    <!-- Floating Toggle Button -->
-    <div style="position: fixed; bottom: 24px; right: 24px; z-index: 999; display: inline-flex;">
+    <!-- Floating Toggle Button (hidden on mobile when panel is open) -->
+    <div v-show="!isMobileView || !isOpen" style="position: fixed; bottom: 24px; right: 24px; z-index: 999; display: inline-flex;">
       <va-button
         preset="primary"
         :class="['messenger-toggle-btn', { 'has-unread-pulse': totalUnreadCount > 0 && !isOpen }]"
@@ -26,21 +26,23 @@
       class="messenger-panel"
       :style="panelComputedStyle"
     >
-      <!-- 8-Direction Edge & Corner Resize Handles -->
-      <div class="resize-handle-top" style="position: absolute; top: 0; left: 0; width: 100%; height: 8px; cursor: ns-resize; z-index: 1002;" @mousedown="startResize('top', $event)" />
-      <div class="resize-handle-bottom" style="position: absolute; bottom: 0; left: 0; width: 100%; height: 8px; cursor: ns-resize; z-index: 1002;" @mousedown="startResize('bottom', $event)" />
-      <div class="resize-handle-left" style="position: absolute; top: 0; left: 0; width: 8px; height: 100%; cursor: ew-resize; z-index: 1002;" @mousedown="startResize('left', $event)" />
-      <div class="resize-handle-right" style="position: absolute; top: 0; right: 0; width: 8px; height: 100%; cursor: ew-resize; z-index: 1002;" @mousedown="startResize('right', $event)" />
+      <!-- 8-Direction Edge & Corner Resize Handles (desktop only) -->
+      <template v-if="!isMobileView">
+        <div class="resize-handle-top" style="position: absolute; top: 0; left: 0; width: 100%; height: 8px; cursor: ns-resize; z-index: 1002;" @mousedown="startResize('top', $event)" />
+        <div class="resize-handle-bottom" style="position: absolute; bottom: 0; left: 0; width: 100%; height: 8px; cursor: ns-resize; z-index: 1002;" @mousedown="startResize('bottom', $event)" />
+        <div class="resize-handle-left" style="position: absolute; top: 0; left: 0; width: 8px; height: 100%; cursor: ew-resize; z-index: 1002;" @mousedown="startResize('left', $event)" />
+        <div class="resize-handle-right" style="position: absolute; top: 0; right: 0; width: 8px; height: 100%; cursor: ew-resize; z-index: 1002;" @mousedown="startResize('right', $event)" />
 
-      <div class="resize-handle-top-left" style="position: absolute; top: 0; left: 0; width: 14px; height: 14px; cursor: nwse-resize; z-index: 1003;" @mousedown="startResize('top-left', $event)" />
-      <div class="resize-handle-top-right" style="position: absolute; top: 0; right: 0; width: 14px; height: 14px; cursor: nesw-resize; z-index: 1003;" @mousedown="startResize('top-right', $event)" />
-      <div class="resize-handle-bottom-left" style="position: absolute; bottom: 0; left: 0; width: 14px; height: 14px; cursor: nesw-resize; z-index: 1003;" @mousedown="startResize('bottom-left', $event)" />
-      <div class="resize-handle-bottom-right" style="position: absolute; bottom: 0; right: 0; width: 14px; height: 14px; cursor: nwse-resize; z-index: 1003;" @mousedown="startResize('bottom-right', $event)" />
-      <!-- Header (Draggable Handle) -->
+        <div class="resize-handle-top-left" style="position: absolute; top: 0; left: 0; width: 14px; height: 14px; cursor: nwse-resize; z-index: 1003;" @mousedown="startResize('top-left', $event)" />
+        <div class="resize-handle-top-right" style="position: absolute; top: 0; right: 0; width: 14px; height: 14px; cursor: nesw-resize; z-index: 1003;" @mousedown="startResize('top-right', $event)" />
+        <div class="resize-handle-bottom-left" style="position: absolute; bottom: 0; left: 0; width: 14px; height: 14px; cursor: nesw-resize; z-index: 1003;" @mousedown="startResize('bottom-left', $event)" />
+        <div class="resize-handle-bottom-right" style="position: absolute; bottom: 0; right: 0; width: 14px; height: 14px; cursor: nwse-resize; z-index: 1003;" @mousedown="startResize('bottom-right', $event)" />
+      </template>
+      <!-- Header (Draggable on desktop only) -->
       <div
         class="messenger-header"
-        style="padding: 14px 16px; background: var(--va-primary); color: white; display: flex; align-items: center; justify-content: space-between; cursor: move; user-select: none;"
-        @mousedown="startDrag"
+        :style="`padding: 14px 16px; background: var(--va-primary); color: white; display: flex; align-items: center; justify-content: space-between; user-select: none; cursor: ${isMobileView ? 'default' : 'move'};`"
+        @mousedown="!isMobileView && startDrag($event)"
       >
         <div style="display: flex; align-items: center; gap: 8px;">
           <va-button v-if="activeRoom" preset="plain" color="#ffffff" size="small" @click.stop="activeRoom = null">
@@ -375,6 +377,7 @@
             </div>
           </div>
           </template>
+          <div ref="bottomAnchorRef" class="scroll-bottom-anchor" style="height: 1px; width: 100%; pointer-events: none;"></div>
         </div>
 
         <!-- Calendar Jump Dialog -->
@@ -415,37 +418,43 @@
         </AppModal>
 
         <!-- Input Area -->
-        <div class="chat-input-area" style="padding: 10px; background: var(--va-background-element); border-top: 1px solid var(--va-background-border); display: flex; flex-direction: column; gap: 6px;">
+        <div class="chat-input-area" style="padding: 10px; background: var(--va-background-element); border-top: 1px solid var(--va-background-border); display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; z-index: 10;">
           <!-- Quick Emoji Toolbar -->
           <div style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px;">
-            <span v-for="emoji in quickEmojis" :key="emoji" style="cursor: pointer; font-size: 1.2rem;" @click="sendEmoji(emoji)">{{ emoji }}</span>
+            <span v-for="emoji in quickEmojis" :key="emoji" style="cursor: pointer; font-size: 1.2rem; user-select: none;" @click="sendEmoji(emoji)">{{ emoji }}</span>
           </div>
 
-          <div style="display: flex; align-items: center; gap: 6px;">
+          <form class="chat-input-form" style="display: flex; align-items: center; gap: 6px; width: 100%;" @submit.prevent="sendTextMessage">
             <input ref="fileInputRef" type="file" style="display: none;" @change="handleFileSelect" />
-            <va-button preset="plain" color="primary" size="small" :title="$t('messenger.attachFileTooltip')" @click="triggerFileInput">
+            <va-button type="button" preset="plain" color="primary" size="small" :title="$t('messenger.attachFileTooltip')" @click="triggerFileInput">
               <va-icon name="attach_file" size="22px" />
             </va-button>
-            <va-input
-              v-model="inputMsg"
-              :placeholder="$t('messenger.placeholderMsg')"
-              style="flex: 1;"
-              @keyup.enter="sendTextMessage"
-              @paste="handlePaste"
-            >
-              <template #appendInner>
-                <va-dropdown :close-on-content-click="false" trigger="click" placement="top-end">
-                  <template #anchor>
-                    <va-icon name="sentiment_satisfied_alt" size="small" style="cursor: pointer" />
-                  </template>
-                  <ClientOnly>
-                    <EmojiPicker :native="true" @select="(e) => inputMsg += e.i" />
-                  </ClientOnly>
-                </va-dropdown>
-              </template>
-            </va-input>
-            <va-button preset="primary" @click="sendTextMessage">{{ $t('messenger.sendBtn') }}</va-button>
-          </div>
+            <div class="chat-input-wrapper" style="flex: 1; display: flex; align-items: center; background: var(--va-background-primary); border: 1px solid var(--va-background-border); border-radius: 8px; padding: 4px 10px; gap: 6px; min-width: 0;">
+              <input
+                ref="chatInputRef"
+                v-model="inputMsg"
+                type="text"
+                enterkeyhint="send"
+                :placeholder="$t('messenger.placeholderMsg')"
+                class="chat-text-input"
+                style="flex: 1; border: none; outline: none; background: transparent; color: var(--va-text-primary); font-size: 0.95rem; min-width: 0; padding: 4px 0;"
+                @input="onTextInput"
+                @keydown.enter="handleInputEnter"
+                @compositionstart="isComposing = true"
+                @compositionend="onCompositionEnd"
+                @paste="handlePaste"
+              />
+              <va-dropdown :close-on-content-click="false" trigger="click" placement="top-end">
+                <template #anchor>
+                  <va-icon name="sentiment_satisfied_alt" size="small" style="cursor: pointer; color: var(--va-text-secondary);" />
+                </template>
+                <ClientOnly>
+                  <EmojiPicker :native="true" @select="(e: any) => insertEmoji(e.i)" />
+                </ClientOnly>
+              </va-dropdown>
+            </div>
+            <va-button type="submit" preset="primary" :loading="isSending">{{ $t('messenger.sendBtn') }}</va-button>
+          </form>
         </div>
       </div>
     </div>
@@ -806,7 +815,7 @@ const EmojiPicker = defineAsyncComponent(() => import('vue3-emoji-picker'))
 import 'vue3-emoji-picker/css'
 
 const { t } = useI18n()
-const { customFetch } = useCustomFetch()
+const { customFetch, getAuthToken } = useCustomFetch()
 const authUserStore = useAuthUser()
 
 // Drag & Resize Position State
@@ -939,10 +948,47 @@ const stopResizing = () => {
   window.removeEventListener('mouseup', stopResizing)
 }
 
+const isMobileView = ref(false)
+
+const checkMobileView = () => {
+  isMobileView.value = window.innerWidth <= 768
+}
+
+onMounted(() => {
+  checkMobileView()
+  window.addEventListener('resize', checkMobileView)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobileView)
+})
+
 const panelComputedStyle = computed(() => {
+  // Mobile: wide panel (90vw), anchored below navbar to avoid header cutoff
+  if (isMobileView.value) {
+    return {
+      position: 'fixed',
+      zIndex: '10005',
+      top: 'calc(var(--app-navbar-height, 64px) + 8px)',
+      left: '5vw',
+      width: '90vw',
+      height: 'calc(100dvh - var(--app-navbar-height, 64px) - 20px)',
+      maxWidth: '90vw',
+      maxHeight: 'calc(100dvh - var(--app-navbar-height, 64px) - 20px)',
+      background: 'var(--va-background-secondary)',
+      borderRadius: '14px',
+      boxShadow: '0 16px 40px rgba(0,0,0,0.3)',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      border: '1px solid var(--va-background-border)'
+    } as Record<string, string>
+  }
+
+  // Desktop: floating panel
   const styleObj: Record<string, string> = {
     position: 'fixed',
-    zIndex: '1000',
+    zIndex: '10005',
     width: `${panelWidth.value}px`,
     height: `${panelHeight.value}px`,
     maxWidth: '95vw',
@@ -1248,11 +1294,12 @@ const loadAuthenticatedImage = async (url: string) => {
   loadingBlobUrls.add(url)
   try {
     const blob: any = await customFetch(url, {
-      responseType: 'blob'
+      responseType: 'blob',
+      silent: true
     })
     imageBlobUrls.value[url] = URL.createObjectURL(blob)
   } catch (e) {
-    console.error('Failed to load authenticated image blob:', e)
+    console.debug('Failed to load authenticated image blob:', e)
   } finally {
     loadingBlobUrls.delete(url)
   }
@@ -1298,7 +1345,8 @@ const uploadAndSendFile = async (file: File) => {
   try {
     const res: any = await customFetch('/api/chat/upload', {
       method: 'POST',
-      body: formData
+      body: formData,
+      silent: true
     })
 
     if (res && res.fileUrl) {
@@ -1336,7 +1384,8 @@ const downloadAuthenticatedFile = async (msg: any) => {
   if (!msg.fileUrl || !tokenCookie.value) return
   try {
     const blob: any = await customFetch(msg.fileUrl, {
-      responseType: 'blob'
+      responseType: 'blob',
+      silent: true
     })
     const downloadUrl = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -1401,11 +1450,14 @@ const toggleTranslateMsg = async () => {
   }
 }
 
-const quickEmojis = ['👍', '❤️', '😂', '🎉', '🔥', '✅', '🙏']
-
-const tokenCookie = useCookie('auth_token')
+const authTokenCookie = useCookie('auth_token')
+const legacyTokenCookie = useCookie('token')
 const userCookie = useCookie('user_data')
 const onlineUsernames = ref<Set<string>>(new Set())
+
+const tokenCookie = computed(() => {
+  return getAuthToken() || authTokenCookie.value || legacyTokenCookie.value || (authUserStore as any)?.token || ''
+})
 
 const parseJwtUserId = (token: any) => {
   if (!token) return null
@@ -1514,14 +1566,14 @@ const toggleMessenger = async () => {
 const fetchRooms = async () => {
   if (!tokenCookie.value) return
   try {
-    rooms.value = await customFetch('/api/chat/rooms')
+    rooms.value = await customFetch('/api/chat/rooms', { silent: true })
   } catch (e) {}
 }
 
 const fetchRoomMessages = async (roomId: string) => {
   if (!tokenCookie.value) return
   try {
-    messages.value = await customFetch(`/api/chat/rooms/${roomId}/messages`)
+    messages.value = await customFetch(`/api/chat/rooms/${roomId}/messages`, { silent: true })
     scrollToBottom()
   } catch (e) {}
 }
@@ -1530,19 +1582,75 @@ const isMyMsg = (msg: any) => {
   return String(msg.senderId) === String(myUuid.value)
 }
 
+const isComposing = ref(false)
+const isSending = ref(false)
+const chatInputRef = ref<HTMLInputElement | null>(null)
+const bottomAnchorRef = ref<HTMLElement | null>(null)
+
+const onTextInput = (e: Event) => {
+  inputMsg.value = (e.target as HTMLInputElement).value
+}
+
+const onCompositionEnd = (e: CompositionEvent) => {
+  isComposing.value = false
+  inputMsg.value = (e.target as HTMLInputElement).value
+}
+
+const insertEmoji = (emoji: string) => {
+  inputMsg.value += emoji
+  if (chatInputRef.value) {
+    chatInputRef.value.value = inputMsg.value
+    chatInputRef.value.focus()
+  }
+}
+
+const handleInputEnter = (e: KeyboardEvent) => {
+  if (isComposing.value || e.isComposing || e.keyCode === 229) return
+  if (e.shiftKey) return
+  e.preventDefault()
+  sendTextMessage()
+}
+
+const appendOrUpdateMessage = (newMsg: any) => {
+  if (!newMsg || !newMsg.id) return
+  const idx = messages.value.findIndex((m: any) => String(m.id) === String(newMsg.id))
+  if (idx >= 0) {
+    messages.value[idx] = newMsg
+  } else {
+    messages.value.push(newMsg)
+  }
+  scrollToBottom()
+}
+
 const sendTextMessage = async () => {
-  if (!inputMsg.value.trim() || !activeRoom.value) return
-  const text = inputMsg.value.trim()
+  const rawVal = chatInputRef.value ? chatInputRef.value.value : inputMsg.value
+  const text = (rawVal || '').trim()
+  if (!text) return
+  if (!activeRoom.value) {
+    console.warn('Cannot send message: no active chat room selected')
+    return
+  }
+  if (isSending.value) return
+  
   inputMsg.value = ''
-  await postMessage('TEXT', text)
+  if (chatInputRef.value) chatInputRef.value.value = ''
+  
+  try {
+    await postMessage('TEXT', text)
+  } catch (err) {
+    inputMsg.value = text
+    if (chatInputRef.value) chatInputRef.value.value = text
+  }
 }
 
 const sendEmoji = async (emoji: string) => {
-  if (!activeRoom.value) return
+  if (!activeRoom.value || isSending.value) return
   await postMessage('EMOJI', emoji)
 }
 
 const postMessage = async (type: string, content: string, fileUrl?: string, fileName?: string, fileSize?: number) => {
+  if (!activeRoom.value) return
+  isSending.value = true
   try {
     const res = await customFetch(`/api/chat/rooms/${activeRoom.value.id}/messages`, {
       method: 'POST',
@@ -1556,9 +1664,18 @@ const postMessage = async (type: string, content: string, fileUrl?: string, file
         fileSize
       }
     })
-    messages.value.push(res)
-    scrollToBottom()
-  } catch (e) {}
+    if (res) {
+      appendOrUpdateMessage(res)
+    }
+  } catch (e) {
+    console.error('Failed to post message:', e)
+    throw e
+  } finally {
+    isSending.value = false
+    nextTick(() => {
+      chatInputRef.value?.focus()
+    })
+  }
 }
 
 const handlePaste = async (event: ClipboardEvent) => {
@@ -1619,7 +1736,8 @@ const createNewRoom = async () => {
         roomName: newRoomName.value || '신규 그룹방',
         isGroup: true,
         memberUserIds: finalMembers
-      }
+      },
+      silent: true
     })
     showCreateModal.value = false
     newRoomName.value = ''
@@ -1632,7 +1750,7 @@ const createNewRoom = async () => {
 const showMembersModal = async () => {
   if (!activeRoom.value || !tokenCookie.value) return
   try {
-    roomMembers.value = await customFetch(`/api/chat/rooms/${activeRoom.value.id}/members`)
+    roomMembers.value = await customFetch(`/api/chat/rooms/${activeRoom.value.id}/members`, { silent: true })
     showMembersModalFlag.value = true
   } catch (e) {}
 }
@@ -1667,7 +1785,8 @@ const leaveRoom = async () => {
   if (!activeRoom.value || !tokenCookie.value) return
   try {
     await customFetch(`/api/chat/rooms/${activeRoom.value.id}/members`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      silent: true
     })
     showLeaveConfirmModal.value = false
     activeRoom.value = null
@@ -1681,7 +1800,8 @@ const deleteRoom = async () => {
   if (!activeRoom.value || !tokenCookie.value) return
   try {
     await customFetch(`/api/chat/rooms/${activeRoom.value.id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      silent: true
     })
     showDeleteConfirmModal.value = false
     activeRoom.value = null
@@ -1700,11 +1820,12 @@ const kickMember = async () => {
   if (!activeRoom.value || !tokenCookie.value || !targetMemberToKick.value) return
   try {
     await customFetch(`/api/chat/rooms/${activeRoom.value.id}/members/${targetMemberToKick.value.userId}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      silent: true
     })
     showKickConfirmModal.value = false
     targetMemberToKick.value = null
-    roomMembers.value = await customFetch(`/api/chat/rooms/${activeRoom.value.id}/members`)
+    roomMembers.value = await customFetch(`/api/chat/rooms/${activeRoom.value.id}/members`, { silent: true })
   } catch (e) {
     console.error('Failed to kick member:', e)
   }
@@ -1725,7 +1846,8 @@ const delegateCreator = async () => {
       headers: { 
         'Content-Type': 'application/json'
       },
-      body: { newCreatorId: targetMemberToDelegate.value.userId }
+      body: { newCreatorId: targetMemberToDelegate.value.userId },
+      silent: true
     })
     showDelegateConfirmModal.value = false
     targetMemberToDelegate.value = null
@@ -1752,11 +1874,12 @@ const inviteMembers = async () => {
       body: { 
         userIds: selectedInviteUserIds.value,
         pastMessageHours: Number(pastMessageHoursOption.value) || 0
-      }
+      },
+      silent: true
     })
     showInviteModal.value = false
     // Refresh members
-    roomMembers.value = await customFetch(`/api/chat/rooms/${activeRoom.value.id}/members`)
+    roomMembers.value = await customFetch(`/api/chat/rooms/${activeRoom.value.id}/members`, { silent: true })
     fetchRooms()
   } catch (e) {
     console.error('Failed to invite members:', e)
@@ -1778,7 +1901,7 @@ const totalUnreadCount = ref(0)
 const fetchTotalUnreadCount = async () => {
   if (!tokenCookie.value) return
   try {
-    const res = await customFetch('/api/chat/unread-count')
+    const res = await customFetch('/api/chat/unread-count', { silent: true })
     totalUnreadCount.value = Number(res || 0)
   } catch (e) {}
 }
@@ -1788,13 +1911,17 @@ const selectRoom = async (room: any) => {
   await markAsRead(room.id)
   await fetchRoomMessages(room.id)
   scrollToBottom()
+  nextTick(() => {
+    chatInputRef.value?.focus()
+  })
 }
 
 const markAsRead = async (roomId: string) => {
   if (!tokenCookie.value) return
   try {
     await customFetch(`/api/chat/rooms/${roomId}/read`, {
-      method: 'POST'
+      method: 'POST',
+      silent: true
     })
     fetchTotalUnreadCount()
   } catch (e) {}
@@ -1943,23 +2070,36 @@ const jumpToDate = (dateKey: string) => {
   })
 }
 
-const scrollToBottom = () => {
+const scrollToBottom = (forceSmooth = false) => {
+  const doScroll = () => {
+    if (bottomAnchorRef.value) {
+      bottomAnchorRef.value.scrollIntoView({ behavior: forceSmooth ? 'smooth' : 'auto', block: 'end' })
+    }
+    const container = msgContainer.value || document.querySelector('.messages-area')
+    if (container) {
+      container.scrollTop = container.scrollHeight
+    }
+  }
+
   nextTick(() => {
-    if (msgContainer.value) {
-      msgContainer.value.scrollTop = msgContainer.value.scrollHeight
-    }
+    doScroll()
+    requestAnimationFrame(doScroll)
   })
-  setTimeout(() => {
-    if (msgContainer.value) {
-      msgContainer.value.scrollTop = msgContainer.value.scrollHeight
-    }
-  }, 50)
-  setTimeout(() => {
-    if (msgContainer.value) {
-      msgContainer.value.scrollTop = msgContainer.value.scrollHeight
-    }
-  }, 180)
+  setTimeout(doScroll, 40)
+  setTimeout(doScroll, 120)
+  setTimeout(doScroll, 250)
+  setTimeout(doScroll, 500)
 }
+
+watch(() => messages.value.length, () => {
+  scrollToBottom()
+})
+
+watch(() => activeRoom.value?.id, (newId) => {
+  if (newId) {
+    scrollToBottom()
+  }
+})
 
 const handleIncomingChatMessage = (event: any) => {
   const detail = event?.detail
@@ -1968,9 +2108,13 @@ const handleIncomingChatMessage = (event: any) => {
   fetchTotalUnreadCount()
   fetchRooms()
 
-  // 메신저 모달 창이 열려 있고(isOpen) 해당 방을 활성 열람 중일 때만 읽음 처리!
+  // 메신저 모달 창이 열려 있고(isOpen) 해당 방을 활성 열람 중일 때
   if (isOpen.value && activeRoom.value && String(activeRoom.value.id) === String(detail.roomId)) {
-    fetchRoomMessages(activeRoom.value.id)
+    if (detail.message) {
+      appendOrUpdateMessage(detail.message)
+    } else {
+      fetchRoomMessages(activeRoom.value.id)
+    }
     markAsRead(activeRoom.value.id)
   }
 }
@@ -2260,8 +2404,8 @@ onMounted(async () => {
   }
   if (tokenCookie.value) {
     try {
-      availableUsers.value = await customFetch('/api/users')
-      const initPresence = await customFetch<string[]>('/api/chat/presence')
+      availableUsers.value = await customFetch('/api/chat/users', { silent: true })
+      const initPresence = await customFetch<string[]>('/api/chat/presence', { silent: true })
       if (Array.isArray(initPresence)) {
         onlineUsernames.value = new Set(initPresence)
       }

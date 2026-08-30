@@ -255,7 +255,7 @@
             @update:model-value="val => emit('update:uiMappingRootPath', val)"
           />
 
-          <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 360px; width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid var(--va-background-border);">
+          <div :class="{ 'ag-theme-quartz-dark': isDark }" style="height: 360px; min-height: 200px; width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid var(--va-background-border);">
             <client-only>
               <AgGridVue
                 v-if="modelValue"
