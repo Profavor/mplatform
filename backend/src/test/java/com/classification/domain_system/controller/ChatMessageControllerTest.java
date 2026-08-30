@@ -39,8 +39,24 @@ class ChatMessageControllerTest {
     @Mock
     private com.classification.domain_system.service.storage.FileStorageService fileStorageService;
 
+    @Mock
+    private com.classification.domain_system.service.UserService userService;
+
     @InjectMocks
     private ChatMessageController chatMessageController;
+
+    @Test
+    @DisplayName("채팅용 사용자 목록 조회 성공")
+    void testGetChatUsers_Success() {
+        UserController.UserDto u1 = new UserController.UserDto("u1", "user1", "user1@example.com", "ROLE_USER", null, null, null, true, false, null, null);
+        when(userService.getAllUsers()).thenReturn(List.of(u1));
+
+        ResponseEntity<List<UserController.UserDto>> response = chatMessageController.getChatUsers();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(1, response.getBody().size());
+        assertEquals("user1", response.getBody().get(0).getUsername());
+    }
 
     @Test
     @DisplayName("온라인 사용자 목록 조회 성공")

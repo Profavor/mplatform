@@ -33,6 +33,31 @@ class MenuControllerTest {
     private MenuController menuController;
 
     @Test
+    @DisplayName("인증된 사용자의 메뉴 접근 기록 시 해당 사용자 ID로 정상 로깅된다")
+    void testLogAccessWithAuthenticatedUser() {
+        when(request.getHeader("X-Forwarded-For")).thenReturn(null);
+        when(request.getRemoteAddr()).thenReturn("127.0.0.1");
+        when(request.getHeader("User-Agent")).thenReturn("Mozilla/5.0");
+
+        org.springframework.security.core.Authentication auth = org.mockito.Mockito.mock(org.springframework.security.core.Authentication.class);
+        when(auth.isAuthenticated()).thenReturn(true);
+        when(auth.getName()).thenReturn("superadmin");
+
+        Map<String, Object> payload = Map.of("menuId", 10, "menuPath", "/records");
+
+        var response = menuController.logAccess(payload, auth, request);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(menuService).logAccess(
+                eq(10L),
+                eq("/records"),
+                eq("superadmin"),
+                eq("Mozilla/5.0"),
+                eq("127.0.0.1")
+        );
+    }
+
+    @Test
     @DisplayName("X-Forwarded-For 헤더에 여러 IP가 나열된 경우 첫 번째 프록시 IP만 45자 이내로 파싱하여 메뉴 액세스 로그에 저장한다")
     void testLogAccessParsesFirstIpFromMultiProxyHeader() {
         String rawMultiIpHeader = "203.0.113.195, 70.41.3.18, 150.172.238.178, 10.200.0.15";

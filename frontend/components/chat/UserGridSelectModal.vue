@@ -21,7 +21,7 @@
         </va-input>
       </div>
 
-      <div :class="{ 'ag-theme-quartz-dark': isDark }" style="width: 100%; height: 380px; border: 1px solid var(--va-background-border); border-radius: 8px; overflow: hidden;">
+      <div :class="{ 'ag-theme-quartz-dark': isDark }" style="width: 100%; height: 380px; min-height: 200px; border: 1px solid var(--va-background-border); border-radius: 8px; overflow: hidden;">
         <client-only>
           <ag-grid-vue
             v-if="isMounted"

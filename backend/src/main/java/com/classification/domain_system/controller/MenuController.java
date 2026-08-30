@@ -71,11 +71,12 @@ public class MenuController {
     }
 
     @PostMapping("/access")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> logAccess(@RequestBody Map<String, Object> payload, Authentication authentication, jakarta.servlet.http.HttpServletRequest request) {
         Long menuId = payload.get("menuId") != null ? Long.valueOf(payload.get("menuId").toString()) : null;
         String menuPath = (String) payload.get("menuPath");
-        String userId = authentication != null ? authentication.getName() : "anonymous";
+        String userId = (authentication != null && authentication.isAuthenticated() && !"anonymousUser".equals(authentication.getName())) 
+                ? authentication.getName() 
+                : "anonymous";
         String userAgent = request.getHeader("User-Agent");
         String clientIp = ClientIpUtil.getClientIp(request);
         menuService.logAccess(menuId, menuPath, userId, userAgent, clientIp);

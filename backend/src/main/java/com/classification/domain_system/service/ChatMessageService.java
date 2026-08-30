@@ -307,22 +307,56 @@ public class ChatMessageService {
         private int unreadCount;
     }
 
+    private Optional<ChatMessageRoomMember> findMember(UUID roomId, String userIdOrName) {
+        if (roomId == null || userIdOrName == null) return Optional.empty();
+        Optional<ChatMessageRoomMember> memberOpt = memberRepository.findByRoomIdAndUserId(roomId, userIdOrName);
+        if (memberOpt.isPresent()) return memberOpt;
+
+        // username으로 User를 찾아 User.id로 재조회
+        User u = userRepository.findByUsername(userIdOrName).orElse(null);
+        if (u != null && u.getId() != null) {
+            memberOpt = memberRepository.findByRoomIdAndUserId(roomId, u.getId());
+            if (memberOpt.isPresent()) return memberOpt;
+        }
+
+        // userIdOrName이 UUID인 경우 User를 찾아 User.username으로 재조회
+        User uById = userRepository.findById(userIdOrName).orElse(null);
+        if (uById != null && uById.getUsername() != null) {
+            memberOpt = memberRepository.findByRoomIdAndUserId(roomId, uById.getUsername());
+            if (memberOpt.isPresent()) return memberOpt;
+        }
+
+        return Optional.empty();
+    }
+
+    private boolean isSameUser(String memberUserId, String senderId, String senderName) {
+        if (memberUserId == null) return false;
+        if (memberUserId.equals(senderId) || (senderName != null && memberUserId.equals(senderName))) return true;
+
+        User u = userRepository.findById(memberUserId).orElse(null);
+        if (u != null) {
+            if (u.getId() != null && u.getId().equals(senderId)) return true;
+            if (u.getUsername() != null && (u.getUsername().equals(senderId) || u.getUsername().equals(senderName))) return true;
+        }
+
+        User uSender = senderId != null ? userRepository.findById(senderId).orElse(null) : null;
+        if (uSender != null) {
+            if (memberUserId.equals(uSender.getId()) || memberUserId.equals(uSender.getUsername())) return true;
+        }
+
+        return false;
+    }
+
     @Transactional
     public void markRoomAsRead(UUID roomId, String userId) {
         if (roomId == null || userId == null) return;
-        Optional<ChatMessageRoomMember> memberOpt = memberRepository.findByRoomIdAndUserId(roomId, userId);
-        if (memberOpt.isEmpty()) {
-            User u = userRepository.findByUsername(userId).orElse(null);
-            if (u != null) {
-                memberOpt = memberRepository.findByRoomIdAndUserId(roomId, u.getId());
-            }
-        }
+        Optional<ChatMessageRoomMember> memberOpt = findMember(roomId, userId);
 
         if (memberOpt.isPresent()) {
             ChatMessageRoomMember m = memberOpt.get();
             // 시간 오차 방지를 위해 plusSeconds(1)로 lastReadAt 지정
             m.setLastReadAt(LocalDateTime.now().plusSeconds(1));
-            memberRepository.save(m);
+            memberRepository.saveAndFlush(m);
 
             List<ChatMessageRoomMember> allMembers = memberRepository.findByRoomId(roomId);
             Map<String, Object> readEvent = Map.of(
@@ -339,7 +373,7 @@ public class ChatMessageService {
             }
 
             for (ChatMessageRoomMember mem : allMembers) {
-                if (!mem.getUserId().equals(userId) && !mem.getUserId().equals(m.getUserId())) {
+                if (!isSameUser(mem.getUserId(), userId, null)) {
                     if (sseNotificationService != null) {
                         try { sseNotificationService.sendNotification(mem.getUserId(), readEvent); } catch (Exception ignored) {}
                     }
@@ -357,12 +391,12 @@ public class ChatMessageService {
         long totalUnread = 0;
         LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
         for (ChatMessageRoom room : userRooms) {
-            var memberOpt = memberRepository.findByRoomIdAndUserId(room.getId(), userId);
+            var memberOpt = findMember(room.getId(), userId);
             LocalDateTime lastRead = memberOpt.isPresent() && memberOpt.get().getLastReadAt() != null 
                     ? memberOpt.get().getLastReadAt() 
                     : sevenDaysAgo;
             List<ChatMessage> msgs = messageRepository.findByRoomIdAndCreatedAtGreaterThanEqualOrderByCreatedAtAsc(room.getId(), lastRead);
-            totalUnread += msgs.stream().filter(m -> !userId.equals(m.getSenderId())).count();
+            totalUnread += msgs.stream().filter(m -> !isSameUser(m.getSenderId(), userId, null)).count();
         }
         return totalUnread;
     }
@@ -375,7 +409,7 @@ public class ChatMessageService {
         LocalDateTime userJoinedAt = sevenDaysAgo;
         if (userId != null) {
             for (ChatMessageRoomMember m : members) {
-                if (m.getUserId().equals(userId)) {
+                if (isSameUser(m.getUserId(), userId, null)) {
                     userJoinedAt = m.getJoinedAt() != null ? m.getJoinedAt() : sevenDaysAgo;
                     break;
                 }
@@ -403,7 +437,7 @@ public class ChatMessageService {
             // unreadCount 계산 (나 이외의 멤버 중 msg.createdAt > member.lastReadAt 인 사람 수)
             int unread = 0;
             for (ChatMessageRoomMember m : members) {
-                if (m.getUserId().equals(msg.getSenderId()) || m.getUserId().equals(msg.getSenderName())) continue;
+                if (isSameUser(m.getUserId(), msg.getSenderId(), msg.getSenderName())) continue;
                 if (m.getLastReadAt() == null || m.getLastReadAt().isBefore(msg.getCreatedAt().minusSeconds(1))) {
                     unread++;
                 }
@@ -462,7 +496,7 @@ public class ChatMessageService {
         dto.setCreatedAt(saved.getCreatedAt());
         int unread = 0;
         for (ChatMessageRoomMember m : members) {
-            if (m.getUserId().equals(senderId) || m.getUserId().equals(senderName)) continue;
+            if (isSameUser(m.getUserId(), senderId, senderName)) continue;
             if (m.getLastReadAt() == null || m.getLastReadAt().isBefore(saved.getCreatedAt().minusSeconds(1))) {
                 unread++;
             }

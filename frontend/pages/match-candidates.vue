@@ -87,7 +87,7 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
               <div style="display: flex; align-items: center; gap: 0.75rem;">
                 <va-badge
-                  :text="item.status"
+                  :text="codeStore.getCodeName('MATCHING_STATUS', item.status, item.status)"
                   :color="item.status === 'PENDING' ? 'warning' : item.status === 'MERGED' ? 'success' : 'secondary'"
                   style="font-weight: 800;"
                 />
@@ -193,9 +193,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { usePageTitle } from '~/composables/usePageTitle'
 import AppModal from '~/components/common/AppModal.vue'
+import { useCodeStore } from '~/stores/useCodeStore'
 
 const { pageTitle } = usePageTitle('deduplication.title', '중복 후보 검토 큐')
 const { t } = useI18n()
+const codeStore = useCodeStore()
+codeStore.loadGroup('MATCHING_STATUS').catch(console.error)
 
 const loading = ref(false)
 const selectedStatus = ref('PENDING')

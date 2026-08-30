@@ -10,8 +10,7 @@ import pkg from './package.json'
 export default defineNuxtConfig({
   compatibilityDate: '2026-08-11',
   experimental: {
-    scanPageMeta: true,
-    appManifest: false
+    scanPageMeta: true
   },
   devtools: { enabled: false },
   unhead: { legacy: true },

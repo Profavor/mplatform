@@ -16,15 +16,13 @@ export const useMenu = () => {
     try {
       if (!menuPath || menuPath === '/install' || menuPath === '/login') return
 
-      const token = getAuthToken()
-      if (!token) return
-
       const menuInfo = store.getMenuByPath(menuPath)
       const menuId = menuInfo?.raw?.id || null
 
       await customFetch('/api/menus/access', {
         method: 'POST',
-        body: { menuId, menuPath }
+        body: { menuId, menuPath },
+        silent: true
       }).catch(() => null)
     } catch (error) {
       // Ignore menu access logging errors

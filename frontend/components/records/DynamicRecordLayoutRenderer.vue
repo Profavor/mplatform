@@ -293,10 +293,60 @@
             <SpecializedDomainWidgetRenderer
               :domain="selectedDomainInfo"
               :record-data="record?.data || record || {}"
+              :fields="fields"
+              :custom-sub-field-keys="widget.options?.subFieldKeys"
             />
           </div>
 
-          <!-- 7. STANDARD FIELD / SPECIALIZED FORM WIDGETS -->
+          <!-- 7. STAT_CARD (KPI 대형 숫자 지표 위젯) -->
+          <div v-else-if="widget.type === 'STAT_CARD'" class="widget-stat-card-box">
+            <div class="stat-card-top-label">{{ getWidgetTitle(widget) }}</div>
+            <div class="stat-card-main-val">
+              <span class="stat-num font-mono">{{ getFieldValue(widget.fieldKey) ?? '0' }}</span>
+              <span v-if="widget.options?.unit" class="stat-unit">{{ widget.options?.unit }}</span>
+            </div>
+            <div v-if="widget.options?.trend" class="stat-card-trend text-success">
+              <va-icon name="trending_up" size="14px" />
+              <span>{{ widget.options?.trend }}</span>
+            </div>
+          </div>
+
+          <!-- 8. DATE_CALENDAR_CARD (캘린더 D-Day 카드 위젯) -->
+          <div v-else-if="widget.type === 'DATE_CALENDAR_CARD'" class="widget-calendar-card-box">
+            <div class="calendar-card-header">{{ getCalendarHeader(getFieldValue(widget.fieldKey)) }}</div>
+            <div class="calendar-card-body">
+              <span class="calendar-day-num">{{ getCalendarDay(getFieldValue(widget.fieldKey)) }}</span>
+              <span class="calendar-day-text">{{ getWidgetTitle(widget) }}</span>
+            </div>
+          </div>
+
+          <!-- 9. TEXT_BANNER (대형 강조 배너 위젯) -->
+          <div v-else-if="widget.type === 'TEXT_BANNER'" class="widget-banner-box">
+            <div class="banner-title">{{ getFieldValue(widget.fieldKey) || getWidgetTitle(widget) }}</div>
+            <div v-if="widget.fieldKey" class="banner-sub">{{ getWidgetTitle(widget) }}</div>
+          </div>
+
+          <!-- 10. BOOLEAN_CARD (대형 체크 상태 카드) -->
+          <div v-else-if="widget.type === 'BOOLEAN_CARD'" class="widget-bool-card-box">
+            <va-icon :name="getFieldValue(widget.fieldKey) ? 'check_circle' : 'cancel'" size="28px" :color="getFieldValue(widget.fieldKey) ? 'success' : 'secondary'" />
+            <div class="bool-card-text">
+              <strong class="bool-card-val" :class="getFieldValue(widget.fieldKey) ? 'text-success' : 'text-secondary'">{{ getFieldValue(widget.fieldKey) ? $t('yes') : $t('no') }}</strong>
+              <span class="bool-card-label">{{ getWidgetTitle(widget) }}</span>
+            </div>
+          </div>
+
+          <!-- 11. PROGRESS_BAR (진행률 바) -->
+          <div v-else-if="widget.type === 'PROGRESS_BAR'" class="widget-progress-box">
+            <div class="progress-bar-labels">
+              <span>{{ getWidgetTitle(widget) }}</span>
+              <span class="font-mono font-bold text-primary">{{ getFieldValue(widget.fieldKey) || 0 }}%</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" :style="{ width: Math.min(100, Math.max(0, Number(getFieldValue(widget.fieldKey)) || 0)) + '%' }" />
+            </div>
+          </div>
+
+          <!-- 12. STANDARD FIELD / SPECIALIZED FORM WIDGETS -->
           <div v-else class="widget-field-box">
             <div class="widget-box-header">
               <span class="widget-box-title">
@@ -364,7 +414,7 @@
                 </div>
 
                 <!-- (5) MULTILINGUAL -->
-                <div v-else-if="getFieldType(widget) === 'MULTILINGUAL'" class="doc-multi-card-value">
+                <div v-else-if="widget.type === 'MULTILINGUAL_INPUT' || getFieldType(widget) === 'MULTILINGUAL'" class="doc-multi-card-value">
                   <div v-if="getMultilingualValue(getFieldValue(widget.fieldKey), 'ko')" class="doc-lang-row">
                     <span class="sample-chip-tag">KO</span>
                     <span class="ml-1">{{ getMultilingualValue(getFieldValue(widget.fieldKey), 'ko') }}</span>
@@ -543,7 +593,7 @@
                 </div>
 
                 <!-- (7) MULTILINGUAL Input (KO / EN) -->
-                <div v-else-if="getFieldType(widget) === 'MULTILINGUAL'" class="multilingual-control-box w-full">
+                <div v-else-if="widget.type === 'MULTILINGUAL_INPUT' || getFieldType(widget) === 'MULTILINGUAL'" class="multilingual-control-box w-full">
                   <div style="display: flex; gap: 0.5rem; width: 100%;">
                     <va-input
                       :model-value="getMultilingualValue(getFieldValue(widget.fieldKey), 'ko')"
@@ -784,15 +834,47 @@ const openImageLightbox = (val: any, title: string = 'Image') => {
   showLightbox.value = true
 }
 
+const getCalendarHeader = (val: any) => {
+  if (!val) return '2026. 03'
+  const d = new Date(val)
+  if (isNaN(d.getTime())) return '2026. 03'
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  return `${y}. ${m}`
+}
+
+const getCalendarDay = (val: any) => {
+  if (!val) return '01'
+  const d = new Date(val)
+  if (isNaN(d.getTime())) return '01'
+  return String(d.getDate()).padStart(2, '0')
+}
+
 const getWidgetIcon = (type: string) => {
   switch (type) {
-    case 'IMAGE': return 'image'
-    case 'EDITOR': return 'edit_note'
+    case 'TEXT_INPUT': case 'FIELD': return 'edit_note'
+    case 'TEXT_BANNER': return 'title'
+    case 'TEXT_AREA': case 'EDITOR': return 'notes'
+    case 'BADGE_TAG': return 'label'
+    case 'NUMBER_INPUT': return 'pin'
+    case 'STAT_CARD': return 'query_stats'
+    case 'PROGRESS_BAR': return 'linear_scale'
+    case 'SELECT_DROPDOWN': return 'arrow_drop_down_circle'
+    case 'RADIO_SEGMENT': return 'view_agenda'
+    case 'MULTI_CHIP_SELECT': return 'style'
+    case 'BOOLEAN_SWITCH': return 'toggle_on'
+    case 'BOOLEAN_CARD': return 'check_box'
+    case 'DATE_PICKER': return 'calendar_today'
+    case 'DATE_RANGE': return 'date_range'
+    case 'DATE_CALENDAR_CARD': return 'event'
+    case 'IMAGE_BOX': case 'IMAGE': return 'image'
+    case 'FILE_ATTACHMENT': case 'FILE': return 'attach_file'
+    case 'DOMAIN_REF_CARD': case 'DOMAIN_REF': return 'link'
+    case 'JSON_SUBTABLE': case 'TABLE': return 'table_rows'
     case 'SECTION': return 'folder_open'
     case 'CALLOUT': return 'info'
     case 'DIVIDER': return 'horizontal_rule'
-    case 'TABLE':
-    case 'JSON': return 'table_rows'
+    case 'SPECIALIZED_SUMMARY': return 'account_box'
     default: return 'widgets'
   }
 }
@@ -1603,6 +1685,165 @@ const clearTableRows = (fieldKey: string) => {
   font-size: 0.875rem;
   color: var(--va-text-primary, #1e293b);
   word-break: break-all;
+}
+
+/* Rich Widget Box Styles */
+.widget-stat-card-box {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0.6rem 0.85rem;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.widget-stat-card-box .stat-card-top-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--va-text-secondary, #64748b);
+  text-transform: uppercase;
+}
+
+.widget-stat-card-box .stat-card-main-val {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin: 2px 0;
+}
+
+.widget-stat-card-box .stat-num {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--va-primary, #2c82e0);
+  line-height: 1.1;
+}
+
+.widget-stat-card-box .stat-unit {
+  font-size: 0.8rem;
+  color: var(--va-text-secondary, #64748b);
+  font-weight: 500;
+}
+
+.widget-stat-card-box .stat-card-trend {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.widget-calendar-card-box {
+  display: flex;
+  flex-direction: column;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--va-background-border, rgba(0, 0, 0, 0.08));
+  background: var(--va-background-secondary, #f8fafc);
+  text-align: center;
+  height: 100%;
+}
+
+.widget-calendar-card-box .calendar-card-header {
+  background: var(--va-primary, #2c82e0);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 0;
+}
+
+.widget-calendar-card-box .calendar-card-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 4px;
+}
+
+.widget-calendar-card-box .calendar-day-num {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--va-text-primary, #1e293b);
+  line-height: 1;
+}
+
+.widget-calendar-card-box .calendar-day-text {
+  font-size: 0.65rem;
+  color: var(--va-text-secondary, #64748b);
+  margin-top: 2px;
+}
+
+.widget-banner-box {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0.6rem 0.85rem;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(44, 130, 224, 0.08), rgba(16, 185, 129, 0.05));
+  border-radius: 6px;
+  border-left: 3px solid var(--va-primary, #2c82e0);
+}
+
+.widget-banner-box .banner-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--va-text-primary, #1e293b);
+}
+
+.widget-banner-box .banner-sub {
+  font-size: 0.7rem;
+  color: var(--va-text-secondary, #64748b);
+}
+
+.widget-bool-card-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0.6rem 0.85rem;
+  height: 100%;
+}
+
+.widget-bool-card-box .bool-card-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.widget-bool-card-box .bool-card-val {
+  font-size: 0.95rem;
+}
+
+.widget-bool-card-box .bool-card-label {
+  font-size: 0.7rem;
+  color: var(--va-text-secondary, #64748b);
+}
+
+.widget-progress-box {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0.5rem 0.85rem;
+  height: 100%;
+  gap: 4px;
+}
+
+.widget-progress-box .progress-bar-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+}
+
+.widget-progress-box .progress-track {
+  width: 100%;
+  height: 8px;
+  background: var(--va-background-border, rgba(0, 0, 0, 0.08));
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.widget-progress-box .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2c82e0, #10b981);
+  border-radius: 4px;
 }
 
 .doc-text-card-value {

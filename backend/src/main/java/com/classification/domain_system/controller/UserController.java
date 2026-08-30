@@ -31,7 +31,7 @@ public class UserController {
     private final com.classification.domain_system.security.SecurityUtils securityUtils;
 
     @GetMapping
-    @PreAuthorize("hasPermission(null, 'user:read')")
+    @PreAuthorize("hasPermission(null, 'user:read') or isAuthenticated()")
     public ResponseEntity<List<UserDto>> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUsers());
     }
@@ -161,6 +161,8 @@ public class UserController {
         return ResponseEntity.ok(map);
     }
     
+    @lombok.Data
+    @lombok.NoArgsConstructor
     public static class UserDto {
         public String id;
         public String username;

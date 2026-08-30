@@ -96,8 +96,12 @@
 import { useI18n } from 'vue-i18n'
 import ApprovalDetailsViewer from '~/components/ApprovalDetailsViewer.vue'
 import AppModal from '~/components/common/AppModal.vue'
+import { useCodeStore } from '~/stores/useCodeStore'
+import { useApprovalEnricher } from '~/composables/useApprovalEnricher'
 
 const { t, te } = useI18n()
+const codeStore = useCodeStore()
+const { getRequestTypeLabel } = useApprovalEnricher()
 
 const props = defineProps<{
   modelValue: boolean
@@ -112,18 +116,15 @@ const emit = defineEmits<{
 
 const getStatusText = (status: any) => {
   if (!status) return ''
+  const codeName = codeStore.getCodeName('APPROVAL_STATUS', status, null)
+  if (codeName && codeName !== status) return codeName
   const key = 'status_' + String(status).toLowerCase()
   if (te && te(key)) return t(key)
   return status
 }
 
 const formatTargetType = (type: string) => {
-  if (!type) return ''
-  if (type === 'RECORD_CREATE') return t('targetRecordCreate', '데이터 생성')
-  if (type === 'RECORD_UPDATE') return t('targetRecordUpdate', '데이터 수정')
-  if (type === 'RECORD_DELETE') return t('targetRecordDelete', '데이터 삭제')
-  if (type === 'BULK_UPLOAD') return t('targetBulkUpload', '대량 업로드')
-  return type
+  return getRequestTypeLabel(type)
 }
 
 const getRequesterName = (flow: any) => {

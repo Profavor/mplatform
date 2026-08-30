@@ -5,6 +5,7 @@
     :domain="domain"
     :record-data="recordData"
     :fields="fields"
+    :custom-sub-field-keys="customSubFieldKeys"
   />
 </template>
 
@@ -16,6 +17,7 @@ const props = defineProps<{
   domain?: Record<string, any> | null
   recordData: Record<string, any>
   fields: Record<string, any>[]
+  customSubFieldKeys?: string[]
 }>()
 
 /** 4가지 도메인 속성 필드 중 하나라도 설정된 경우 위젯 표시 */

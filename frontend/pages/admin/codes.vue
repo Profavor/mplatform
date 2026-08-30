@@ -66,7 +66,7 @@
             <va-button color="primary" icon="search" @click="onSearch" />
           </div>
 
-        <div style="flex-grow: 1; position: relative;" :class="{ 'ag-theme-quartz-dark': isDark }">
+        <div style="flex-grow: 1; position: relative; min-height: 300px;" :class="{ 'ag-theme-quartz-dark': isDark }">
           <ag-grid-vue
             style="width: 100%; height: 100%;"
             :theme="gridTheme"
@@ -112,7 +112,7 @@
           </div>
           
           <!-- Data Table -->
-          <div v-else style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;" class="code-management-grid" :class="{ 'ag-theme-quartz-dark': isDark }">
+          <div v-else style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; min-height: 300px;" class="code-management-grid" :class="{ 'ag-theme-quartz-dark': isDark }">
             <ag-grid-vue
               style="width: 100%; height: 100%;"
               :theme="gridTheme"

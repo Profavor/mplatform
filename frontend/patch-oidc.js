@@ -58,3 +58,17 @@ if (fs.existsSync(keycloakFile)) {
   }
   console.log('Patched nuxt-oidc-auth keycloak.js successfully (internal openIdConfiguration routing).');
 }
+
+// 5. Patch oidc.js to use internal cluster token endpoint in refreshAccessToken when tokenUrl is relative
+const oidcFile = path.resolve(process.cwd(), 'node_modules/nuxt-oidc-auth/dist/runtime/server/utils/oidc.js');
+if (fs.existsSync(oidcFile)) {
+  let content = fs.readFileSync(oidcFile, 'utf8');
+  if (!content.includes('internalTokenUrl')) {
+    const targetPattern = /tokenResponse = await customFetch\(config\.tokenUrl,/g;
+    const replacement = `const internalTokenUrl = (config.tokenUrl && config.tokenUrl.startsWith('/')) ? (process.env.KEYCLOAK_TOKEN_URI || 'http://keycloak:8080/auth/realms/mplatform/protocol/openid-connect/token') : config.tokenUrl;\n    tokenResponse = await customFetch(internalTokenUrl,`;
+    content = content.replace(targetPattern, replacement);
+    fs.writeFileSync(oidcFile, content);
+  }
+  console.log('Patched nuxt-oidc-auth oidc.js successfully (internal tokenUrl routing for refreshAccessToken).');
+}
+

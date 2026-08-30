@@ -16,7 +16,7 @@
               {{ t('details') }}
             </h3>
             <va-badge :text="getRequestTypeLabel(selectedRequest.targetType)" :color="getRequestTypeColor(selectedRequest.targetType)" />
-            <va-badge :text="selectedRequest.status" :color="selectedRequest.status === 'PENDING' ? 'warning' : (selectedRequest.status === 'APPROVED' ? 'success' : 'danger')" />
+            <va-badge :text="codeStore.getCodeName('APPROVAL_STATUS', selectedRequest.status, selectedRequest.status)" :color="selectedRequest.status === 'PENDING' ? 'warning' : (selectedRequest.status === 'APPROVED' ? 'success' : 'danger')" />
           </div>
 
           <div style="display: flex; align-items: center; gap: 0.75rem; margin-left: auto;">
@@ -103,6 +103,7 @@ import { useI18n } from 'vue-i18n'
 import { useToast } from 'vuestic-ui'
 import { useApprovalEnricher } from '~/composables/useApprovalEnricher'
 import { useUserStore } from '~/stores/useUserStore'
+import { useCodeStore } from '~/stores/useCodeStore'
 import ApprovalDetailsViewer from '~/components/ApprovalDetailsViewer.vue'
 import ModalControls from '~/components/common/ModalControls.vue'
 import AppModal from '~/components/common/AppModal.vue'
@@ -110,6 +111,7 @@ import AppModal from '~/components/common/AppModal.vue'
 const { t } = useI18n()
 const { init } = useToast()
 const { customFetch } = useCustomFetch()
+const codeStore = useCodeStore()
 const { getRequestTypeLabel, getRequestTypeColor, getRequesterName, formatDate, getClassificationName } = useApprovalEnricher()
 
 const { hasPermission } = usePermission()

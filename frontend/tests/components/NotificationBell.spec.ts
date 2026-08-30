@@ -358,4 +358,64 @@ describe('NotificationBell Component', () => {
     // FORCE_LOGOUT should not be added to notifications list
     expect((wrapper.vm as any).notifications.length).toBe(0)
   })
+
+  it('PRESENCE_UPDATE 이벤트(사용자 온/오프라인 접속 상태) 수신 시 알림 목록에 추가하지 않아야 함', async () => {
+    const wrapper = mount(NotificationBell, {
+      global: {
+        mocks: {
+          $t: (key: string) => key
+        },
+        stubs: {
+          'va-dropdown': { template: '<div><slot name="anchor" /><slot /></div>' },
+          'va-dropdown-content': { template: '<div><slot /></div>' },
+          'va-badge': { template: '<div><slot /></div>' },
+          'va-button': { template: '<button><slot /></button>' },
+          'va-icon': { template: '<i><slot /></i>' },
+          'va-divider': { template: '<hr />' },
+          'va-modal': { template: '<div><slot name="header" /><slot /><slot name="footer" /></div>' },
+          'ApprovalDetailsViewer': { template: '<div></div>' }
+        }
+      }
+    })
+
+    const presencePayload = {
+      type: 'PRESENCE_UPDATE',
+      userId: 'test-user-uuid',
+      username: 'testuser',
+      status: 'ONLINE',
+      timestamp: Date.now()
+    }
+
+    ;(wrapper.vm as any).handleIncomingNotification(presencePayload)
+    expect((wrapper.vm as any).notifications.length).toBe(0)
+  })
+
+  it('TYPING, PING, HEARTBEAT 및 내용/식별자가 없는 빈 페이로드 수신 시 알림 목록에 추가하지 않아야 함', async () => {
+    const wrapper = mount(NotificationBell, {
+      global: {
+        mocks: {
+          $t: (key: string) => key
+        },
+        stubs: {
+          'va-dropdown': { template: '<div><slot name="anchor" /><slot /></div>' },
+          'va-dropdown-content': { template: '<div><slot /></div>' },
+          'va-badge': { template: '<div><slot /></div>' },
+          'va-button': { template: '<button><slot /></button>' },
+          'va-icon': { template: '<i><slot /></i>' },
+          'va-divider': { template: '<hr />' },
+          'va-modal': { template: '<div><slot name="header" /><slot /><slot name="footer" /></div>' },
+          'ApprovalDetailsViewer': { template: '<div></div>' }
+        }
+      }
+    })
+
+    // Control events
+    ;(wrapper.vm as any).handleIncomingNotification({ type: 'TYPING', username: 'someone' })
+    ;(wrapper.vm as any).handleIncomingNotification({ eventType: 'HEARTBEAT' })
+    ;(wrapper.vm as any).handleIncomingNotification({ type: 'PING' })
+    ;(wrapper.vm as any).handleIncomingNotification('{}')
+    ;(wrapper.vm as any).handleIncomingNotification('')
+
+    expect((wrapper.vm as any).notifications.length).toBe(0)
+  })
 })

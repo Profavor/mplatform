@@ -372,6 +372,9 @@ public class ApprovalQueryService {
                 }
             } catch (com.fasterxml.jackson.core.JsonProcessingException | IllegalArgumentException ignored) {}
         }
+        if (approval.getClassificationNode() == null && node != null) {
+            approval.setClassificationNode(node);
+        }
         List<FieldDefinition> fields;
         if (node != null && fieldDefinitionService != null) {
             fields = fieldDefinitionService.getEffectiveFields(node.getId());

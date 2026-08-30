@@ -22,28 +22,40 @@
       <div
         class="tree-header"
         @click="showTree = !showTree"
-        style="display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.85rem; border-bottom: 1px solid var(--va-background-border); cursor: pointer; user-select: none; background: var(--va-background-element); border-top-left-radius: 8px; border-top-right-radius: 8px;"
+        :style="showTree 
+          ? 'display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.85rem; border-bottom: 1px solid var(--va-background-border); cursor: pointer; user-select: none; background: var(--va-background-element); border-top-left-radius: 8px; border-top-right-radius: 8px;'
+          : 'display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 0.75rem 0.25rem; cursor: pointer; user-select: none; background: var(--va-background-element); border-radius: 8px; height: 100%; gap: 1rem;'"
       >
-        <div style="display: flex; align-items: center; gap: 0.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-          <va-icon name="account_tree" size="small" color="primary" />
-          <span style="font-size: 0.9rem; font-weight: 700; color: var(--va-text-primary); text-transform: uppercase;">
-            {{ $t('classification_tree') }}
-          </span>
-          <va-badge
-            v-if="!showTree && selectedNode"
-            :text="formatNodeName(selectedNode.name)"
-            color="primary"
+        <template v-if="showTree">
+          <div style="display: flex; align-items: center; gap: 0.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            <va-icon name="account_tree" size="small" color="primary" />
+            <span style="font-size: 0.9rem; font-weight: 700; color: var(--va-text-primary); text-transform: uppercase;">
+              {{ $t('classification_tree') }}
+            </span>
+          </div>
+          <va-button
+            preset="plain"
             size="small"
-            style="margin-left: 0.25rem;"
+            icon="chevron_left"
+            style="padding: 0; min-width: 24px;"
+            :title="$t('collapse') || '접기'"
+            @click.stop="showTree = false"
           />
-        </div>
-        <va-button
-          preset="plain"
-          size="small"
-          :icon="showTree ? 'expand_less' : 'expand_more'"
-          style="padding: 0; min-width: 24px;"
-          :title="showTree ? ($t('collapse') || '접기') : ($t('expand') || '펼치기')"
-        />
+        </template>
+        <template v-else>
+          <va-button
+            preset="plain"
+            size="small"
+            icon="chevron_right"
+            style="padding: 0; min-width: 24px;"
+            :title="$t('expand') || '펼치기'"
+            @click.stop="showTree = true"
+          />
+          <va-icon name="account_tree" size="small" color="primary" style="opacity: 0.7;" />
+          <div style="writing-mode: vertical-rl; text-orientation: mixed; font-size: 0.75rem; font-weight: 700; color: var(--va-text-secondary); letter-spacing: 2px; margin-top: 0.5rem; text-transform: uppercase;">
+            {{ $t('classification_tree') }}
+          </div>
+        </template>
       </div>
 
       <div v-show="showTree" style="flex: 1; overflow-y: auto;">
@@ -399,14 +411,17 @@ import ApprovalViewerModal from '~/components/ApprovalViewerModal.vue'
 import BulkReclassifyModal from '~/components/records/BulkReclassifyModal.vue'
 import CdcStreamModal from '~/components/records/CdcStreamModal.vue'
 import ImageLightboxModal from '~/components/common/ImageLightboxModal.vue'
-import { parseOptions } from '~/utils/optionParser'
+import { parseOptions, formatOptionLabel } from '~/utils/optionParser'
 import { useRecordFilters } from '~/composables/useRecordFilters'
 import { useRecordGrid } from '~/composables/useRecordGrid'
 import { useRecordModals } from '~/composables/useRecordModals'
 import { useRecordBulkActions } from '~/composables/useRecordBulkActions'
+import { useCodeStore } from '~/stores/useCodeStore'
 
 const { pageTitle } = usePageTitle('records_management', '마스터 데이터 레코드 관리')
 const { customFetch } = useCustomFetch()
+const codeStore = useCodeStore()
+codeStore.loadGroup('RECORD_STATUS').catch(console.error)
 const { getAuthenticatedImageUrl } = useAuthenticatedImage()
 const { t } = useI18n()
 const { confirm } = useModal()
@@ -1091,8 +1106,11 @@ const openRecordDetailModal = async (record) => {
     code: record.code,
     node: record.node,
     sourceSystem: record.sourceSystem,
-    createdAt: record.createdAt,
-    updatedAt: record.updatedAt
+    version: record.version,
+    createdBy: record.createdBy || record.created_by,
+    updatedBy: record.updatedBy || record.updated_by,
+    createdAt: record.createdAt || record.created_at,
+    updatedAt: record.updatedAt || record.updated_at
   }
   originalRecordData.value = JSON.parse(JSON.stringify(selectedRecordData.value))
   isEditingRecord.value = false
@@ -1388,22 +1406,26 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
     { 
       field: 'status', 
       colId: 'sys_record_status',
-      headerName: 'Status', 
+      headerName: t('status') || 'Status', 
       sortable: true, 
       width: 150,
       cellRenderer: (params) => {
         if (!params || params.value === undefined || params.value === null || params.value === '') {
           return '';
         }
+        const label = codeStore.getCodeName('RECORD_STATUS', params.value, params.value);
         const color = params.value === 'ACTIVE' ? '#2c82e0' : (params.value === 'PENDING_APPROVAL' ? '#e6a23c' : '#f56c6c')
         const span = document.createElement('span');
+        span.style.display = 'inline-flex';
+        span.style.alignItems = 'center';
+        span.style.justifyContent = 'center';
         span.style.padding = '2px 8px';
         span.style.borderRadius = '4px';
         span.style.background = color;
         span.style.color = 'white';
         span.style.fontSize = '12px';
         span.style.fontWeight = 'bold';
-        span.innerText = params.value;
+        span.innerText = label;
         return span;
       }
     }
@@ -1748,6 +1770,12 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
           if (f.unit) formatted += ` ${f.unit}`;
         }
         return formatted;
+      };
+    }
+    if (['SELECT', 'MULTI_SELECT', 'ENUM', 'CODE'].includes(f.type) || (f.options && !['JSON', 'CALCULATED', 'DATE', 'NUMBER', 'INTEGER', 'DECIMAL', 'IMAGE', 'FILE', 'MULTILINGUAL', 'DOMAIN_REFERENCE'].includes(f.type))) {
+      colDef.valueFormatter = (params) => {
+        if (!params || params.value === undefined || params.value === null || params.value === '') return '';
+        return formatOptionLabel(f.options, params.value, currentLocale.value);
       };
     }
     
@@ -2976,14 +3004,20 @@ const saveRecord = async () => {
 .records-tree-column {
   width: 300px;
   min-width: 300px;
+  max-width: 320px;
   border-right: 1px solid var(--va-background-border);
   display: flex;
   flex-direction: column;
-  transition: all 0.25s ease;
+  transition: width 0.25s ease, min-width 0.25s ease, max-width 0.25s ease;
+  background: var(--va-background-element);
+  border-radius: 8px;
+  overflow: hidden;
 }
 .records-tree-column.tree-collapsed {
-  width: 220px;
-  min-width: 220px;
+  width: 48px;
+  min-width: 48px;
+  max-width: 48px;
+  cursor: pointer;
 }
 .records-detail-column {
   flex: 1;

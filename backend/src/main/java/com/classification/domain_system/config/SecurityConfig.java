@@ -79,6 +79,8 @@ public class SecurityConfig {
                 ).permitAll()
                 // Inbound Webhook: 외부 연계 시스템이 자체 채널 시크릿 토큰으로 호출하므로 JWT 인증 제외
                 .requestMatchers(HttpMethod.POST, "/api/integration/inbound/**").permitAll()
+                // 메뉴 접근 로그 수집 (모든 클라이언트 비차단 비동기 로깅 지원)
+                .requestMatchers(HttpMethod.POST, "/api/menus/access").permitAll()
                 // 파일 다운로드/조회를 포함한 모든 /api/** 엔드포인트는 인증 필수
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().permitAll()
@@ -123,15 +125,17 @@ public class SecurityConfig {
         inboundConfig.setAllowCredentials(false);
         source.registerCorsConfiguration("/api/integration/inbound/**", inboundConfig);
 
-        // 일반 API: 허용된 프론트엔드 Origin만 허용
+        // 일반 API: 모든 Origin 패턴 허용 (Cloudflare 터널, 외부 도메인, 로컬 등 지원)
         CorsConfiguration config = new CorsConfiguration();
-        List<String> originPatterns = Arrays.stream(allowedOrigins.split(","))
-                .map(String::trim)
-                .collect(java.util.stream.Collectors.toList());
-        // allowedOriginPatterns로 통일 (allowedOrigins + allowCredentials 동시 사용 시 충돌 방지)
-        for (String origin : originPatterns) {
-            if (!origin.isBlank()) {
-                config.addAllowedOriginPattern(origin);
+        config.addAllowedOriginPattern("*");
+        if (allowedOrigins != null && !allowedOrigins.isBlank()) {
+            List<String> originPatterns = Arrays.stream(allowedOrigins.split(","))
+                    .map(String::trim)
+                    .collect(java.util.stream.Collectors.toList());
+            for (String origin : originPatterns) {
+                if (!origin.isBlank()) {
+                    config.addAllowedOriginPattern(origin);
+                }
             }
         }
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));

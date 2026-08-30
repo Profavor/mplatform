@@ -1304,20 +1304,20 @@ const removeFile = (fieldKey, index) => {
 }
 
 .custom-modal-header-wrapper {
-  margin-top: -20px !important;
-  margin-left: -20px !important;
+  margin: 0 !important;
+  width: 100%;
 }
 
 .custom-record-modal :deep(.va-modal__header) {
-  padding: 0.35rem 1.25rem 0.15rem 1.25rem !important;
-  margin-top: 0 !important;
+  padding: 0.75rem 1.25rem 0.5rem 1.25rem !important;
+  margin: 0 !important;
   display: flex !important;
   align-items: center !important;
-  min-height: 28px !important;
+  min-height: 38px !important;
 }
 
 .custom-record-modal :deep(.va-modal__close) {
-  top: 0.35rem !important;
+  top: 0.75rem !important;
   right: 1.25rem !important;
   display: flex !important;
   align-items: center !important;
@@ -1325,7 +1325,7 @@ const removeFile = (fieldKey, index) => {
 }
 
 .custom-record-modal :deep(.va-modal__message) {
-  padding-top: 0.15rem !important;
+  padding-top: 0.25rem !important;
 }
 </style>
 

@@ -51,7 +51,7 @@
         </div>
       </va-card-title>
       <va-card-content style="flex: 1; padding: 0;">
-        <div :class="isDark ? 'ag-theme-quartz-dark' : 'ag-theme-quartz'" style="width: 100%; height: 500px;">
+        <div :class="isDark ? 'ag-theme-quartz-dark' : 'ag-theme-quartz'" style="width: 100%; height: 500px; min-height: 300px;">
           <AgGridVue
             class="ag-theme-quartz"
             :style="{ height: '100%', width: '100%' }"

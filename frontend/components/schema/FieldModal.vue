@@ -74,7 +74,7 @@
         <va-button size="small" icon="remove" color="danger" @click="$emit('remove-selected-grid-option')" :outline="isDark">{{ t('remove_selected') }}</va-button>
       </div>
       
-      <div :class="{ 'ag-theme-quartz-dark': isDark }" style="width: 100%; height: 250px;">
+      <div :class="{ 'ag-theme-quartz-dark': isDark }" style="width: 100%; height: 250px; min-height: 200px;">
         <ag-grid-vue
           style="width: 100%; height: 100%;"
           :theme="gridTheme"
@@ -433,7 +433,7 @@ const props = defineProps({
   canEdit: { type: Boolean, default: true }
 })
 
-const isEncryptableType = (type) => ['TEXT', 'EMAIL', 'PHONE', 'HTML_TEXT', 'MULTILINGUAL'].includes(type)
+const isEncryptableType = (type) => ['TEXT', 'TEXTAREA', 'EMAIL', 'PHONE', 'HTML_TEXT', 'MULTILINGUAL'].includes(type)
 
 watch(() => props.newField?.type, (newType) => {
   if (!isEncryptableType(newType) && props.newField) {

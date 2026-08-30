@@ -609,6 +609,7 @@ onMounted(async () => {
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid var(--va-background-border);
+  min-height: 300px;
 }
 
 .empty-state-box {

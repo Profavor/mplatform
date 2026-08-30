@@ -35,14 +35,38 @@
           <va-card-title
             class="schema-tree-card-title"
             @click="showTree = !showTree"
-            style="cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center;"
+            :style="showTree 
+              ? 'cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center;' 
+              : 'cursor: pointer; user-select: none; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 0.75rem 0.25rem; height: 100%; gap: 1rem; border-bottom: none;'"
           >
-            <div style="display: flex; align-items: center; gap: 0.4rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-              <va-icon name="account_tree" size="small" color="primary" />
-              <span>{{ $t('classification_tree') }}</span>
-              <va-badge v-if="!showTree && selectedNode" :text="selectedNode.label || selectedNode.name" color="primary" size="small" style="margin-left: 0.25rem;" />
-            </div>
-            <va-button preset="plain" size="small" :icon="showTree ? 'expand_less' : 'expand_more'" style="padding: 0; min-width: 24px;" />
+            <template v-if="showTree">
+              <div style="display: flex; align-items: center; gap: 0.4rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                <va-icon name="account_tree" size="small" color="primary" />
+                <span>{{ $t('classification_tree') }}</span>
+              </div>
+              <va-button
+                preset="plain"
+                size="small"
+                icon="chevron_left"
+                style="padding: 0; min-width: 24px;"
+                :title="$t('collapse') || '접기'"
+                @click.stop="showTree = false"
+              />
+            </template>
+            <template v-else>
+              <va-button
+                preset="plain"
+                size="small"
+                icon="chevron_right"
+                style="padding: 0; min-width: 24px;"
+                :title="$t('expand') || '펼치기'"
+                @click.stop="showTree = true"
+              />
+              <va-icon name="account_tree" size="small" color="primary" style="opacity: 0.7;" />
+              <div style="writing-mode: vertical-rl; text-orientation: mixed; font-size: 0.75rem; font-weight: 700; color: var(--va-text-secondary); letter-spacing: 2px; margin-top: 0.5rem; text-transform: uppercase;">
+                {{ $t('classification_tree') }}
+              </div>
+            </template>
           </va-card-title>
           <div v-show="showTree" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
           <va-card-content class="schema-tree-card-content">
@@ -2206,6 +2230,13 @@ onUnmounted(() => {
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  transition: width 0.25s ease, min-width 0.25s ease, max-width 0.25s ease;
+}
+.schema-tree-column.tree-collapsed {
+  width: 48px;
+  min-width: 48px;
+  max-width: 48px;
+  cursor: pointer;
 }
 .schema-tree-card {
   flex: 1;
@@ -2257,7 +2288,7 @@ onUnmounted(() => {
 .schema-grid-wrapper {
   flex: 1;
   width: 100%;
-  min-height: 0;
+  min-height: 400px;
 }
 
 /* Custom Scrollbar */
