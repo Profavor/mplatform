@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import SpecializedDomainWidgetRenderer from '../../components/records/specialized/SpecializedDomainWidgetRenderer.vue'
@@ -10,6 +11,12 @@ describe('SpecializedDomainWidgetRenderer', () => {
         if (params && params.count !== undefined) return `${params.count}`
         return key
       }
+    },
+    stubs: {
+      vaCard: { template: '<div class="va-card-stub"><slot/></div>' },
+      vaCardContent: { template: '<div class="va-card-content-stub"><slot/></div>' },
+      vaAvatar: { template: '<div class="va-avatar-stub"><slot/></div>' },
+      vaIcon: { template: '<i class="va-icon-stub"></i>' }
     }
   }
 
@@ -45,5 +52,37 @@ describe('SpecializedDomainWidgetRenderer', () => {
     })
 
     expect(wrapper.findComponent(DomainRecordHeaderWidget).exists()).toBe(true)
+  })
+
+  it('다국어(MULTILINGUAL) 객체 필드가 [object Object]가 아닌 언어별 텍스트로 정상 렌더링되어야 한다', () => {
+    const wrapper = mount(SpecializedDomainWidgetRenderer, {
+      props: {
+        domain: {
+          id: 'dom-customer',
+          name: { ko: '고객 마스터', en: 'Customer Master' },
+          identifierFieldId: 'f-id',
+          displayNameFieldId: 'f-name'
+        },
+        recordData: {
+          CUSTOMER_NO: 'CUST-2026-000001',
+          CUSTOMER_NAME: { ko: '홍길동', en: 'Hong Gil Dong' },
+          status: 'ACTIVE'
+        },
+        fields: [
+          { id: 'f-id', key: 'CUSTOMER_NO', name: { ko: '고객번호', en: 'Customer No' }, type: 'TEXT' },
+          { id: 'f-name', key: 'CUSTOMER_NAME', name: { ko: '고객명', en: 'Customer Name' }, type: 'MULTILINGUAL', options: {} }
+        ],
+        customSubFieldKeys: ['CUSTOMER_NO', 'CUSTOMER_NAME']
+      },
+      global: globalConfig
+    })
+
+    const headerWidget = wrapper.findComponent(DomainRecordHeaderWidget)
+    expect(headerWidget.exists()).toBe(true)
+
+    // [object Object]가 텍스트에 포함되지 않아야 함
+    expect(headerWidget.text()).not.toContain('[object Object]')
+    expect(headerWidget.text()).toContain('홍길동')
+    expect(headerWidget.text()).toContain('CUST-2026-000001')
   })
 })

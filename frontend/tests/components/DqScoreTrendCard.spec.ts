@@ -40,7 +40,7 @@ describe('DqScoreTrendCard.vue (TDD Component Test)', () => {
       global: {
         stubs: {
           'va-card': {
-            template: '<div class="va-card-stub"><slot name="default" /><slot /></div>'
+            template: '<div class="va-card-stub"><slot /></div>'
           },
           'va-card-content': {
             template: '<div class="va-card-content-stub"><slot /></div>'
@@ -68,7 +68,7 @@ describe('DqScoreTrendCard.vue (TDD Component Test)', () => {
       global: {
         stubs: {
           'va-card': {
-            template: '<div class="va-card-stub"><slot name="default" /><slot /></div>'
+            template: '<div class="va-card-stub"><slot /></div>'
           },
           'va-card-content': {
             template: '<div class="va-card-content-stub"><slot /></div>'
@@ -85,5 +85,40 @@ describe('DqScoreTrendCard.vue (TDD Component Test)', () => {
 
     wrapper.vm.onTriggerScan()
     expect(wrapper.emitted('trigger-scan')).toBeTruthy()
+  })
+
+  it('스냅샷 바 컨테이너에 충분한 상단 여백과 높이가 확보되어 점수 퍼센트가 정상 노출되는지 검증', () => {
+    const snapshots = createMockSnapshots()
+    const wrapper = mount(DqScoreTrendCard, {
+      props: {
+        recentSnapshots: snapshots,
+        trendPeriod: 30,
+        scanning: false,
+        avgTrendScore: '92.5',
+        maxTrendScore: '95.0'
+      },
+      global: {
+        stubs: {
+          'va-card': {
+            template: '<div class="va-card-stub"><slot /></div>'
+          },
+          'va-card-content': {
+            template: '<div class="va-card-content-stub"><slot /></div>'
+          },
+          'va-icon': true,
+          'va-button': true,
+          'va-chip': true
+        }
+      }
+    })
+
+    const sparklineContainer = wrapper.find('.dq-sparkline-container')
+    expect(sparklineContainer.exists()).toBe(true)
+    expect(sparklineContainer.attributes('style')).toContain('height: 155px')
+
+    const scoreLabels = wrapper.findAll('.dq-score-label')
+    expect(scoreLabels.length).toBe(2)
+    expect(scoreLabels[0].text()).toBe('95%')
+    expect(scoreLabels[1].text()).toBe('90%')
   })
 })

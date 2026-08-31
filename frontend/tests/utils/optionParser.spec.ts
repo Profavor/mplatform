@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, it, expect } from 'vitest'
 import { parseOptions, formatOptionLabel } from '../../utils/optionParser'
 
@@ -89,6 +90,15 @@ describe('optionParser', () => {
     it('returns raw value if options is missing or empty', () => {
       expect(formatOptionLabel(null, 'ACTIVE', 'ko')).toBe('ACTIVE')
       expect(formatOptionLabel('', 'ACTIVE', 'ko')).toBe('ACTIVE')
+    })
+
+    it('returns formatted multilingual string instead of [object Object] when rawVal is an object', () => {
+      const multilingualVal = { ko: '홍길동', en: 'Hong Gil Dong' }
+      // 빈 옵션 객체 또는 미매칭 시 [object Object]가 아니라 다국어 문자열 반환
+      expect(formatOptionLabel({}, multilingualVal, 'ko')).toBe('홍길동')
+      expect(formatOptionLabel({}, multilingualVal, 'en')).toBe('Hong Gil Dong')
+      expect(formatOptionLabel(null, multilingualVal, 'ko')).toBe('홍길동')
+      expect(formatOptionLabel(optionsObj, multilingualVal, 'ko')).toBe('홍길동')
     })
   })
 })

@@ -83,13 +83,20 @@ export function parseOptions(opts: any, currentLocale: string = 'ko'): SelectOpt
   return []
 }
 
+import { formatMultilingual } from '../composables/useMultilingual'
+
 /**
  * Formats a raw value (single, array, or JSON/comma-separated string) using the parsed option labels for the given locale.
  */
 export function formatOptionLabel(opts: any, rawVal: any, currentLocale: string = 'ko'): string {
   if (rawVal === undefined || rawVal === null || rawVal === '') return ''
   const parsed = parseOptions(opts, currentLocale)
-  if (!parsed || parsed.length === 0) return String(rawVal)
+  if (!parsed || parsed.length === 0) {
+    if (typeof rawVal === 'object' && rawVal !== null) {
+      return formatMultilingual(rawVal, currentLocale)
+    }
+    return String(rawVal)
+  }
 
   let arr: any[] = []
   if (Array.isArray(rawVal)) {
@@ -114,11 +121,19 @@ export function formatOptionLabel(opts: any, rawVal: any, currentLocale: string 
   }
 
   const findLabel = (v: any) => {
+    if (v === undefined || v === null) return ''
+    if (typeof v === 'object') {
+      return formatMultilingual(v, currentLocale)
+    }
     const strV = String(v).trim()
     const matched = parsed.find(
       (opt) => String(opt.value) === strV || String(opt.text) === strV
     )
-    return matched ? matched.text : strV
+    if (matched) return matched.text
+    if (strV === '[object Object]') {
+      return formatMultilingual(v, currentLocale)
+    }
+    return strV
   }
 
   return arr.map(findLabel).join(', ')

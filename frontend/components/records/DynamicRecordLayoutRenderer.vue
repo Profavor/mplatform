@@ -117,6 +117,38 @@
                 <span v-else class="sample-val-text text-secondary">{{ $t('no_file_data') }}</span>
               </div>
 
+              <!-- TEXT_BANNER -->
+              <div v-else-if="widget.type === 'TEXT_BANNER'" class="single-row-banner" :class="['style-' + (widget.options?.bgStyle || 'filled'), 'align-' + (widget.options?.align || 'left')]">
+                <strong class="banner-highlight-text">{{ getFieldValue(widget.fieldKey) || getWidgetTitle(widget) }}</strong>
+              </div>
+
+              <!-- BADGE_TAG -->
+              <div v-else-if="widget.type === 'BADGE_TAG'" class="single-row-badge">
+                <va-badge :text="getFieldValue(widget.fieldKey) || '-'" :color="widget.options?.theme || 'primary'" :outline="widget.options?.outline" size="small" />
+              </div>
+
+              <!-- PROGRESS_BAR -->
+              <div v-else-if="widget.type === 'PROGRESS_BAR'" class="single-row-progress">
+                <div class="mini-progress-track">
+                  <div class="mini-progress-fill" :class="'bg-' + (widget.options?.theme || 'primary')" :style="{ width: Math.min(100, Math.max(0, Number(getFieldValue(widget.fieldKey)) || 0)) + '%' }" />
+                </div>
+                <span class="mini-progress-text font-mono" :class="'text-' + (widget.options?.theme || 'primary')">{{ getFieldValue(widget.fieldKey) || 0 }}%</span>
+              </div>
+
+              <!-- RADIO_SEGMENT -->
+              <div v-else-if="widget.type === 'RADIO_SEGMENT'" class="single-row-segment">
+                <button
+                  v-for="opt in getFieldOptions(getFieldDefinition(widget.fieldKey))"
+                  :key="opt.value"
+                  type="button"
+                  :class="['mini-segment-btn', { active: String(getFieldValue(widget.fieldKey)) === String(opt.value) }]"
+                  :disabled="!isEditing || widget.options?.readOnly"
+                  @click="isEditing && !widget.options?.readOnly && setFieldValue(widget.fieldKey, opt.value)"
+                >
+                  {{ opt.text }}
+                </button>
+              </div>
+
               <!-- SECTION -->
               <div v-else-if="widget.type === 'SECTION'" class="single-row-section">
                 <strong>{{ getWidgetTitle(widget) }}</strong>
@@ -157,7 +189,7 @@
                     <span v-else class="sample-val-text text-secondary">-</span>
                   </div>
                   <div v-else class="sample-val-text">
-                    {{ getFieldValue(widget.fieldKey) ?? '-' }}
+                    {{ formatDisplayValue(getFieldValue(widget.fieldKey)) }}
                   </div>
                   <span v-if="widget.fieldKey" class="doc-cell-edit-icon" :title="$t('click_to_edit')">
                     <va-icon name="edit" size="12px" color="secondary" />
@@ -187,7 +219,7 @@
                     :readonly="widget.options?.readOnly"
                   />
                   <div v-else class="sample-val-text">
-                    {{ getFieldValue(widget.fieldKey) ?? '-' }}
+                    {{ formatDisplayValue(getFieldValue(widget.fieldKey)) }}
                   </div>
                 </template>
               </div>
@@ -299,14 +331,14 @@
           </div>
 
           <!-- 7. STAT_CARD (KPI 대형 숫자 지표 위젯) -->
-          <div v-else-if="widget.type === 'STAT_CARD'" class="widget-stat-card-box">
+          <div v-else-if="widget.type === 'STAT_CARD'" class="widget-stat-card-box" :class="'theme-' + (widget.options?.theme || 'primary')">
             <div class="stat-card-top-label">{{ getWidgetTitle(widget) }}</div>
             <div class="stat-card-main-val">
               <span class="stat-num font-mono">{{ getFieldValue(widget.fieldKey) ?? '0' }}</span>
               <span v-if="widget.options?.unit" class="stat-unit">{{ widget.options?.unit }}</span>
             </div>
-            <div v-if="widget.options?.trend" class="stat-card-trend text-success">
-              <va-icon name="trending_up" size="14px" />
+            <div v-if="widget.options?.trend" class="stat-card-trend" :class="(widget.options?.trend && String(widget.options.trend).startsWith('-')) ? 'text-danger' : 'text-success'">
+              <va-icon :name="(widget.options?.trend && String(widget.options.trend).startsWith('-')) ? 'trending_down' : 'trending_up'" size="14px" />
               <span>{{ widget.options?.trend }}</span>
             </div>
           </div>
@@ -321,13 +353,18 @@
           </div>
 
           <!-- 9. TEXT_BANNER (대형 강조 배너 위젯) -->
-          <div v-else-if="widget.type === 'TEXT_BANNER'" class="widget-banner-box">
+          <div v-else-if="widget.type === 'TEXT_BANNER'" class="widget-banner-box" :class="['style-' + (widget.options?.bgStyle || 'filled'), 'align-' + (widget.options?.align || 'left')]">
             <div class="banner-title">{{ getFieldValue(widget.fieldKey) || getWidgetTitle(widget) }}</div>
             <div v-if="widget.fieldKey" class="banner-sub">{{ getWidgetTitle(widget) }}</div>
           </div>
 
           <!-- 10. BOOLEAN_CARD (대형 체크 상태 카드) -->
-          <div v-else-if="widget.type === 'BOOLEAN_CARD'" class="widget-bool-card-box">
+          <div
+            v-else-if="widget.type === 'BOOLEAN_CARD'"
+            class="widget-bool-card-box"
+            :class="{ 'is-clickable': isEditing && !widget.options?.readOnly }"
+            @click="isEditing && !widget.options?.readOnly && setFieldValue(widget.fieldKey, !getFieldValue(widget.fieldKey))"
+          >
             <va-icon :name="getFieldValue(widget.fieldKey) ? 'check_circle' : 'cancel'" size="28px" :color="getFieldValue(widget.fieldKey) ? 'success' : 'secondary'" />
             <div class="bool-card-text">
               <strong class="bool-card-val" :class="getFieldValue(widget.fieldKey) ? 'text-success' : 'text-secondary'">{{ getFieldValue(widget.fieldKey) ? $t('yes') : $t('no') }}</strong>
@@ -339,14 +376,86 @@
           <div v-else-if="widget.type === 'PROGRESS_BAR'" class="widget-progress-box">
             <div class="progress-bar-labels">
               <span>{{ getWidgetTitle(widget) }}</span>
-              <span class="font-mono font-bold text-primary">{{ getFieldValue(widget.fieldKey) || 0 }}%</span>
+              <span class="font-mono font-bold" :class="'text-' + (widget.options?.theme || 'primary')">
+                {{ getFieldValue(widget.fieldKey) || 0 }}%
+              </span>
             </div>
             <div class="progress-track">
-              <div class="progress-fill" :style="{ width: Math.min(100, Math.max(0, Number(getFieldValue(widget.fieldKey)) || 0)) + '%' }" />
+              <div
+                class="progress-fill"
+                :class="'bg-' + (widget.options?.theme || 'primary')"
+                :style="{ width: Math.min(100, Math.max(0, Number(getFieldValue(widget.fieldKey)) || 0)) + '%' }"
+              />
             </div>
           </div>
 
-          <!-- 12. STANDARD FIELD / SPECIALIZED FORM WIDGETS -->
+          <!-- 12. RADIO_SEGMENT (세그먼트 선택 위젯) -->
+          <div v-else-if="widget.type === 'RADIO_SEGMENT'" class="widget-segment-box">
+            <div class="widget-box-header">
+              <span class="widget-box-title">
+                <va-icon name="view_agenda" size="14px" color="primary" class="mr-1" />
+                {{ getWidgetTitle(widget) }}
+                <span v-if="isFieldRequired(widget)" class="required-star">*</span>
+              </span>
+            </div>
+            <div class="segment-options-wrapper">
+              <button
+                v-for="opt in getFieldOptions(getFieldDefinition(widget.fieldKey))"
+                :key="opt.value"
+                type="button"
+                :class="['segment-opt-btn', { active: String(getFieldValue(widget.fieldKey)) === String(opt.value) }]"
+                :disabled="!isEditing || widget.options?.readOnly"
+                @click="isEditing && !widget.options?.readOnly && setFieldValue(widget.fieldKey, opt.value)"
+              >
+                {{ opt.text }}
+              </button>
+            </div>
+          </div>
+
+          <!-- 13. MULTI_CHIP_SELECT (태그 칩 다중 선택) -->
+          <div v-else-if="widget.type === 'MULTI_CHIP_SELECT'" class="widget-chips-select-box">
+            <div class="widget-box-header">
+              <span class="widget-box-title">
+                <va-icon name="style" size="14px" color="primary" class="mr-1" />
+                {{ getWidgetTitle(widget) }}
+                <span v-if="isFieldRequired(widget)" class="required-star">*</span>
+              </span>
+            </div>
+            <div class="chips-selector-wrapper">
+              <va-chip
+                v-for="opt in getFieldOptions(getFieldDefinition(widget.fieldKey))"
+                :key="opt.value"
+                :outline="!isChipOptionSelected(widget.fieldKey, opt.value)"
+                :color="isChipOptionSelected(widget.fieldKey, opt.value) ? 'primary' : 'secondary'"
+                size="small"
+                class="mr-1 mb-1 cursor-pointer"
+                @click="isEditing && !widget.options?.readOnly && toggleChipOption(widget.fieldKey, opt.value)"
+              >
+                {{ opt.text }}
+              </va-chip>
+            </div>
+          </div>
+
+          <!-- 14. BADGE_TAG (상태 뱃지 위젯) -->
+          <div v-else-if="widget.type === 'BADGE_TAG'" class="widget-badge-tag-box">
+            <div class="widget-box-header">
+              <span class="widget-box-title">
+                <va-icon name="label" size="14px" color="primary" class="mr-1" />
+                {{ getWidgetTitle(widget) }}
+                <span v-if="isFieldRequired(widget)" class="required-star">*</span>
+              </span>
+            </div>
+            <div class="badge-tag-content">
+              <va-badge
+                :text="getFieldValue(widget.fieldKey) || '-'"
+                :color="widget.options?.theme || 'primary'"
+                :outline="widget.options?.outline"
+                size="medium"
+              />
+            </div>
+          </div>
+
+          <!-- 15. STANDARD FIELD / SPECIALIZED FORM WIDGETS -->
           <div v-else class="widget-field-box">
             <div class="widget-box-header">
               <span class="widget-box-title">
@@ -499,7 +608,7 @@
 
                 <!-- (12) NUMBER & DEFAULT TEXT -->
                 <div v-else class="doc-text-card-value">
-                  <span>{{ getFieldValue(widget.fieldKey) ?? '-' }}</span>
+                  <span>{{ formatDisplayValue(getFieldValue(widget.fieldKey)) }}</span>
                 </div>
 
                 <!-- Edit Hover Indicator -->
@@ -742,6 +851,7 @@ import ImageUploader from '~/components/common/ImageUploader.vue'
 import ImageLightboxModal from '~/components/common/ImageLightboxModal.vue'
 import SpecializedDomainWidgetRenderer from './specialized/SpecializedDomainWidgetRenderer.vue'
 import { parseOptions } from '~/utils/optionParser'
+import { formatMultilingual } from '~/composables/useMultilingual'
 
 const props = defineProps({
   layoutConfig: {
@@ -997,6 +1107,18 @@ const formatDateValue = (val: any) => {
   return String(val)
 }
 
+const formatDisplayValue = (val: any) => {
+  if (val === undefined || val === null || val === '') return '-'
+  if (typeof val === 'object') {
+    return formatMultilingual(val, locale.value) || '-'
+  }
+  const str = String(val)
+  if (str === '[object Object]') {
+    return formatMultilingual(val, locale.value) || '-'
+  }
+  return str
+}
+
 const setFieldValue = (fieldKey: string, val: any) => {
   if (!fieldKey || !props.record) return
   if (props.record[fieldKey] !== undefined) {
@@ -1014,6 +1136,37 @@ const setFieldValue = (fieldKey: string, val: any) => {
     return
   }
   props.record[fieldKey] = val
+}
+
+const isChipOptionSelected = (fieldKey: string, optValue: any) => {
+  const currentVal = getFieldValue(fieldKey)
+  if (!currentVal) return false
+  if (Array.isArray(currentVal)) {
+    return currentVal.some(v => String(v) === String(optValue))
+  }
+  if (typeof currentVal === 'string') {
+    const arr = currentVal.split(',').map(s => s.trim())
+    return arr.includes(String(optValue))
+  }
+  return String(currentVal) === String(optValue)
+}
+
+const toggleChipOption = (fieldKey: string, optValue: any) => {
+  const currentVal = getFieldValue(fieldKey)
+  let arr: string[] = []
+  if (Array.isArray(currentVal)) {
+    arr = currentVal.map(v => String(v))
+  } else if (typeof currentVal === 'string' && currentVal.length > 0) {
+    arr = currentVal.split(',').map(s => s.trim())
+  }
+  const strVal = String(optValue)
+  const idx = arr.indexOf(strVal)
+  if (idx >= 0) {
+    arr.splice(idx, 1)
+  } else {
+    arr.push(strVal)
+  }
+  setFieldValue(fieldKey, arr)
 }
 
 const getMultilingualValue = (obj: any, lang: string) => {
@@ -1922,5 +2075,133 @@ const clearTableRows = (fieldKey: string) => {
   color: var(--va-primary, #2563eb);
   text-decoration: underline;
   cursor: pointer;
+}
+
+/* Theme Colors */
+.theme-primary .stat-num { color: var(--va-primary, #2563eb); }
+.theme-success .stat-num { color: var(--va-success, #10b981); }
+.theme-info .stat-num { color: var(--va-info, #06b6d4); }
+.theme-warning .stat-num { color: var(--va-warning, #f59e0b); }
+.theme-danger .stat-num { color: var(--va-danger, #ef4444); }
+.theme-secondary .stat-num { color: var(--va-secondary, #64748b); }
+
+/* Progress bar bg colors */
+.bg-primary { background: var(--va-primary, #2563eb) !important; }
+.bg-success { background: var(--va-success, #10b981) !important; }
+.bg-info { background: var(--va-info, #06b6d4) !important; }
+.bg-warning { background: var(--va-warning, #f59e0b) !important; }
+.bg-danger { background: var(--va-danger, #ef4444) !important; }
+.bg-secondary { background: var(--va-secondary, #64748b) !important; }
+
+/* Banner Styles */
+.widget-banner-box.style-filled {
+  background: var(--va-background-element, #1e293b);
+  border: 1px solid var(--va-background-border, #334155);
+}
+.widget-banner-box.style-gradient {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(16, 185, 129, 0.1));
+}
+.widget-banner-box.style-outlined {
+  background: transparent;
+  border: 2px dashed var(--va-primary, #2563eb);
+}
+
+.widget-banner-box.align-left { text-align: left; align-items: flex-start; }
+.widget-banner-box.align-center { text-align: center; align-items: center; }
+.widget-banner-box.align-right { text-align: right; align-items: flex-end; }
+
+/* Segment Control */
+.widget-segment-box {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.segment-options-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 10px;
+  align-items: center;
+}
+.segment-opt-btn {
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 4px;
+  border: 1px solid var(--va-background-border, #334155);
+  background: var(--va-background-element, #1e293b);
+  color: var(--va-text-secondary, #94a3b8);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.segment-opt-btn.active {
+  background: var(--va-primary, #2563eb);
+  color: #fff;
+  border-color: var(--va-primary, #2563eb);
+}
+.segment-opt-btn:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+/* Single Row Segment & Progress */
+.single-row-segment {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.mini-segment-btn {
+  padding: 2px 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 3px;
+  border: 1px solid var(--va-background-border, #334155);
+  background: var(--va-background-element, #1e293b);
+  color: var(--va-text-secondary, #94a3b8);
+  cursor: pointer;
+}
+.mini-segment-btn.active {
+  background: var(--va-primary, #2563eb);
+  color: #fff;
+  border-color: var(--va-primary, #2563eb);
+}
+.single-row-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+.mini-progress-track {
+  flex: 1;
+  height: 6px;
+  background: var(--va-background-border, #334155);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.mini-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+}
+.mini-progress-text {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* Chips select box & Badge Tag Box */
+.widget-chips-select-box, .widget-badge-tag-box {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.chips-selector-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  gap: 4px;
+}
+.badge-tag-content {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
 }
 </style>

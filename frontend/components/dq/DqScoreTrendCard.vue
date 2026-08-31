@@ -92,7 +92,10 @@
 
 
         <!-- Sparkline Bars -->
-        <div style="display: flex; align-items: flex-end; gap: 0.6rem; height: 130px; padding: 0.75rem 0.5rem 0.5rem 0.5rem; border-bottom: 1px solid var(--va-background-border); overflow-x: auto;">
+        <div 
+          class="dq-sparkline-container"
+          style="display: flex; align-items: flex-end; gap: 0.6rem; height: 155px; padding: 1.25rem 0.75rem 0.5rem 0.75rem; border-bottom: 1px solid var(--va-background-border); overflow-x: auto; box-sizing: border-box;"
+        >
           <div
             v-for="(snap, idx) in recentSnapshots"
             :key="snap.id || idx"
@@ -110,7 +113,10 @@
             </div>
 
             <!-- Score Percent text -->
-            <span style="font-size: 0.75rem; font-weight: 700; color: var(--va-text-secondary);" class="group-hover:text-primary">
+            <span 
+              class="dq-score-label group-hover:text-primary"
+              style="font-size: 0.75rem; font-weight: 700; color: var(--va-text-secondary); line-height: 1.2; padding: 2px 0; margin-bottom: 2px;"
+            >
               {{ Math.round(snap.score) }}%
             </span>
 
@@ -126,7 +132,7 @@
             </div>
 
             <!-- Date Label -->
-            <span style="font-size: 0.7rem; color: var(--va-text-secondary); font-family: monospace; text-align: center; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            <span style="font-size: 0.7rem; color: var(--va-text-secondary); font-family: monospace; text-align: center; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.2;">
               {{ formatDateShort(snap.recordedAt) }}
             </span>
           </div>
