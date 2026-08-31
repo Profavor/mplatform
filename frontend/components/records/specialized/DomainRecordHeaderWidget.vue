@@ -96,6 +96,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { formatOptionLabel } from '~/utils/optionParser'
+import { formatMultilingual } from '~/composables/useMultilingual'
 
 interface FieldDef {
   id: string
@@ -103,6 +104,7 @@ interface FieldDef {
   name: Record<string, string> | string
   type?: string
   options?: any
+  fieldKey?: string
 }
 
 interface DomainInfo {
@@ -125,30 +127,47 @@ const props = defineProps<{
 const localeCookie = useCookie('locale', { default: () => 'ko' })
 const locale = computed(() => localeCookie.value || 'ko')
 
-/** 필드 ID -> 필드 key 변환 헬퍼 */
+/** 필드 ID 또는 Key -> 필드 key 변환 헬퍼 */
 const findFieldKey = (fieldId: string | undefined): string | null => {
-  if (!fieldId || !props.fields?.length) return null
-  const f = props.fields.find((fd) => fd.id === fieldId)
-  return f?.key ?? null
+  if (!fieldId) return null
+  if (!props.fields?.length) return fieldId
+  const f: any = props.fields.find((fd: any) => fd.id === fieldId || fd.key === fieldId || fd.fieldKey === fieldId)
+  return f?.key ?? f?.fieldKey ?? fieldId ?? null
 }
 
 /** 레코드 데이터에서 fieldKey의 값을 다국어 처리하여 반환 */
 const resolveValue = (fieldKey: string | null): string => {
   if (!fieldKey) return ''
-  const raw = props.recordData?.[fieldKey]
+  let raw = props.recordData?.[fieldKey]
+  if (raw === undefined || raw === null) {
+    raw = props.recordData?.[fieldKey.toUpperCase()]
+  }
+  if (raw === undefined || raw === null) {
+    raw = props.recordData?.[fieldKey.toLowerCase()]
+  }
   if (raw === undefined || raw === null || raw === '') return ''
 
-  const f: any = props.fields?.find((fd) => fd.key === fieldKey || fd.id === fieldKey)
+  const f: any = props.fields?.find((fd: any) => 
+    fd.key === fieldKey || 
+    fd.id === fieldKey || 
+    (fd.fieldKey && (fd.fieldKey === fieldKey || fd.fieldKey.toUpperCase() === fieldKey.toUpperCase()))
+  )
 
-  // 1. SELECT, CODE, ENUM, MULTI_SELECT 등 옵션 정의가 있는 경우
-  if (f?.options) {
-    const optLabel = formatOptionLabel(f.options, raw, locale.value)
-    if (optLabel) return optLabel
+  // 1. MULTILINGUAL 타입이거나 객체인 경우 (또는 JSON 형태의 문자열)
+  if (f?.type === 'MULTILINGUAL' || typeof raw === 'object') {
+    return formatMultilingual(raw, locale.value)
+  }
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim()
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      return formatMultilingual(trimmed, locale.value)
+    }
   }
 
-  // 2. 다국어 객체
-  if (typeof raw === 'object') {
-    return raw[locale.value] || raw.ko || raw.en || Object.values(raw)[0] || JSON.stringify(raw)
+  // 2. SELECT, CODE, ENUM, MULTI_SELECT 등 옵션 정의가 있는 경우
+  if (f?.options && (['SELECT', 'MULTI_SELECT', 'CODE', 'ENUM', 'RADIO_SEGMENT', 'MULTI_CHIP_SELECT'].includes(f.type) || (typeof f.options === 'object' && Object.keys(f.options).length > 0))) {
+    const optLabel = formatOptionLabel(f.options, raw, locale.value)
+    if (optLabel && optLabel !== '[object Object]') return optLabel
   }
 
   // 3. 날짜 타입 포맷
@@ -163,7 +182,11 @@ const resolveValue = (fieldKey: string | null): string => {
     return raw ? (locale.value === 'ko' ? '예' : 'Yes') : (locale.value === 'ko' ? '아니오' : 'No')
   }
 
-  return String(raw)
+  const str = String(raw)
+  if (str === '[object Object]') {
+    return formatMultilingual(raw, locale.value)
+  }
+  return str
 }
 
 const idKey = computed(() => findFieldKey(props.domain?.identifierFieldId))
@@ -180,21 +203,27 @@ const imageValue = computed(() => resolveValue(imageKey.value))
 const customSubFields = computed(() => {
   if (!props.customSubFieldKeys?.length || !props.fields?.length) return []
   return props.customSubFieldKeys.map((key) => {
-    const f = props.fields.find((fd) => fd.key === key || fd.id === key)
+    const f: any = props.fields.find((fd: any) => 
+      fd.key === key || 
+      fd.id === key || 
+      fd.fieldKey === key || 
+      (fd.key && fd.key.toUpperCase() === key.toUpperCase()) || 
+      (fd.fieldKey && fd.fieldKey.toUpperCase() === key.toUpperCase())
+    )
     let label = key
     if (f) {
       if (typeof f.name === 'object') {
-        label = (f.name as Record<string, string>)[locale.value] || (f.name as Record<string, string>).ko || (f.name as Record<string, string>).en || key
+        label = formatMultilingual(f.name, locale.value) || key
       } else if (typeof f.name === 'string') {
         try {
           const parsed = JSON.parse(f.name)
-          label = parsed[locale.value] || parsed.ko || parsed.en || f.name
+          label = formatMultilingual(parsed, locale.value) || f.name
         } catch {
           label = f.name
         }
       }
     }
-    const val = resolveValue(key) || '-'
+    const val = resolveValue(key) || (f?.key ? resolveValue(f.key) : '') || (f?.fieldKey ? resolveValue(f.fieldKey) : '') || '-'
     return { key, label, value: val }
   })
 })

@@ -1,6 +1,6 @@
 {
   "name": "classification-front",
-  "version": "1.5.26",
+  "version": "1.5.32",
   "private": true,
   "type": "module",
   "scripts": {

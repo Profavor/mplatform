@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
@@ -311,4 +312,174 @@ describe('DynamicRecordLayoutRenderer - 암호화 필드 보안 마스킹 및 �
       expect(wrapper.text()).toContain('골드회원')
     })
   })
+
+  describe('2D 고도화 위젯 렌더링 (STAT_CARD, PROGRESS_BAR, TEXT_BANNER, RADIO_SEGMENT, MULTI_CHIP_SELECT, BADGE_TAG) (TDD)', () => {
+    const advancedLayout = {
+      id: 'layout_adv_test',
+      cols: 12,
+      rowHeight: 40,
+      widgets: [
+        {
+          id: 'w_stat',
+          type: 'STAT_CARD',
+          fieldKey: 'revenue',
+          w: 4,
+          h: 2,
+          options: { unit: '억원', trend: '+15.2%', theme: 'success' }
+        },
+        {
+          id: 'w_prog',
+          type: 'PROGRESS_BAR',
+          fieldKey: 'achievement_rate',
+          w: 4,
+          h: 2,
+          options: { theme: 'primary' }
+        },
+        {
+          id: 'w_banner',
+          type: 'TEXT_BANNER',
+          fieldKey: 'slogan',
+          w: 4,
+          h: 2,
+          options: { bgStyle: 'gradient', align: 'center' }
+        },
+        {
+          id: 'w_seg',
+          type: 'RADIO_SEGMENT',
+          fieldKey: 'contract_type',
+          w: 6,
+          h: 2
+        },
+        {
+          id: 'w_chips',
+          type: 'MULTI_CHIP_SELECT',
+          fieldKey: 'interests',
+          w: 6,
+          h: 2
+        },
+        {
+          id: 'w_badge',
+          type: 'BADGE_TAG',
+          fieldKey: 'status_badge',
+          w: 3,
+          h: 1,
+          options: { theme: 'warning', outline: true }
+        }
+      ]
+    }
+
+    const advancedFields = [
+      { key: 'revenue', name: { ko: '총 매출' }, type: 'NUMBER' },
+      { key: 'achievement_rate', name: { ko: '목표 달성률' }, type: 'NUMBER' },
+      { key: 'slogan', name: { ko: '슬로건' }, type: 'TEXT' },
+      {
+        key: 'contract_type',
+        name: { ko: '계약 유형' },
+        type: 'SELECT',
+        options: '[{"key":"REGULAR","value":"REGULAR","label":{"ko":"정규 계약"}},{"key":"TEMP","value":"TEMP","label":{"ko":"임시 계약"}}]'
+      },
+      {
+        key: 'interests',
+        name: { ko: '관심 분야' },
+        type: 'SELECT',
+        options: '[{"key":"AI","value":"AI","label":{"ko":"인공지능"}},{"key":"CLOUD","value":"CLOUD","label":{"ko":"클라우드"}}]'
+      },
+      { key: 'status_badge', name: { ko: '진행 상태' }, type: 'TEXT' }
+    ]
+
+    const advancedRecord = {
+      revenue: 125,
+      achievement_rate: 88,
+      slogan: '글로벌 엔터프라이즈 DX 플랫폼',
+      contract_type: 'REGULAR',
+      interests: ['AI', 'CLOUD'],
+      status_badge: '심사중'
+    }
+
+    it('STAT_CARD가 숫자, 단위, 트렌드 및 테마 클래스를 정상 렌더링해야 한다', () => {
+      const wrapper = mount(DynamicRecordLayoutRenderer, {
+        props: {
+          layoutConfig: advancedLayout,
+          fields: advancedFields,
+          record: advancedRecord,
+          isEditing: false
+        },
+        global: {
+          plugins: [i18n],
+          stubs: { vaIcon: true, vaBadge: true, vaChip: true, vaInput: true, vaSelect: true }
+        }
+      })
+
+      const statBox = wrapper.find('.widget-stat-card-box')
+      expect(statBox.exists()).toBe(true)
+      expect(statBox.text()).toContain('125')
+      expect(statBox.text()).toContain('억원')
+      expect(statBox.text()).toContain('+15.2%')
+      expect(statBox.classes()).toContain('theme-success')
+    })
+
+    it('PROGRESS_BAR가 퍼센티지 및 바를 정상 렌더링해야 한다', () => {
+      const wrapper = mount(DynamicRecordLayoutRenderer, {
+        props: {
+          layoutConfig: advancedLayout,
+          fields: advancedFields,
+          record: advancedRecord,
+          isEditing: false
+        },
+        global: {
+          plugins: [i18n],
+          stubs: { vaIcon: true, vaBadge: true, vaChip: true, vaInput: true, vaSelect: true }
+        }
+      })
+
+      const progBox = wrapper.find('.widget-progress-box')
+      expect(progBox.exists()).toBe(true)
+      expect(progBox.text()).toContain('88%')
+    })
+
+    it('TEXT_BANNER가 타이틀과 스타일 클래스(gradient, center)를 정상 적용해야 한다', () => {
+      const wrapper = mount(DynamicRecordLayoutRenderer, {
+        props: {
+          layoutConfig: advancedLayout,
+          fields: advancedFields,
+          record: advancedRecord,
+          isEditing: false
+        },
+        global: {
+          plugins: [i18n],
+          stubs: { vaIcon: true, vaBadge: true, vaChip: true, vaInput: true, vaSelect: true }
+        }
+      })
+
+      const bannerBox = wrapper.find('.widget-banner-box')
+      expect(bannerBox.exists()).toBe(true)
+      expect(bannerBox.text()).toContain('글로벌 엔터프라이즈 DX 플랫폼')
+      expect(bannerBox.classes()).toContain('style-gradient')
+      expect(bannerBox.classes()).toContain('align-center')
+    })
+
+    it('RADIO_SEGMENT가 옵션 목록 버튼 및 선택 상태를 렌더링해야 한다', () => {
+      const wrapper = mount(DynamicRecordLayoutRenderer, {
+        props: {
+          layoutConfig: advancedLayout,
+          fields: advancedFields,
+          record: advancedRecord,
+          isEditing: true
+        },
+        global: {
+          plugins: [i18n],
+          stubs: { vaIcon: true, vaBadge: true, vaChip: true, vaInput: true, vaSelect: true }
+        }
+      })
+
+      const segBox = wrapper.find('.widget-segment-box')
+      expect(segBox.exists()).toBe(true)
+      const buttons = segBox.findAll('button')
+      expect(buttons.length).toBe(2)
+      // REGULAR 버튼이 active 클래스를 가져야 함
+      const activeBtn = buttons.find(b => b.classes().includes('active'))
+      expect(activeBtn?.text()).toBe('정규 계약')
+    })
+  })
 })
+

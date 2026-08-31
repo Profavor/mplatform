@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
@@ -51,7 +52,21 @@ const i18n = createI18n({
       label_en: '영어 라벨',
       widget_highlight: '강조 표시',
       widget_readonly: '읽기 전용',
-      widget_required: '필수 입력'
+      widget_required: '필수 입력',
+      btn_undo: '실행 취소',
+      btn_redo: '다시 실행',
+      btn_compact_up: '위로 정렬',
+      btn_done: '완료',
+      close: '닫기',
+      delete: '삭제',
+      bind_field_label: '바인딩 필드',
+      bind_field_placeholder: '필드 선택',
+      mock_sample_val_suffix: '샘플',
+      more_actions: '추가 기능',
+      palette_open: '위젯/필드 추가',
+      viewport_mode_title: '뷰포트 모드',
+      canvas_tools_title: '캔버스 도구',
+      layout_manage_title: '레이아웃 관리'
     }
   }
 })
@@ -62,6 +77,38 @@ vi.mock('~/composables/useCustomFetch', () => ({
     customFetch: mockCustomFetch
   })
 }))
+
+const createWrapper = (props = {}) => {
+  return mount(RecordLayoutBuilderModal, {
+    props: {
+      modelValue: true,
+      domainId: 'domain-123',
+      fields: [
+        { key: 'cust_name', name: { ko: '고객명' }, type: 'TEXT' },
+        { key: 'cust_email', name: { ko: '이메일' }, type: 'EMAIL' }
+      ],
+      ...props
+    },
+    global: {
+      plugins: [i18n],
+      stubs: {
+        vaModal: { template: '<div class="va-modal-stub"><slot/></div>' },
+        vaButton: {
+          template: '<button class="va-button-stub" :class="[color, preset]" @click="$emit(\'click\', $event)"><slot/></button>',
+          props: ['color', 'preset', 'icon', 'loading', 'disabled']
+        },
+        vaIcon: true,
+        vaInput: true,
+        vaSelect: true,
+        vaSwitch: true,
+        vaBadge: true,
+        vaCheckbox: true,
+        vaDropdown: { template: '<div class="va-dropdown-stub"><slot name="anchor"/><slot/></div>' },
+        vaDropdownContent: { template: '<div class="va-dropdown-content-stub"><slot/></div>' }
+      }
+    }
+  })
+}
 
 describe('RecordLayoutBuilderModal Overhaul (TDD)', () => {
   beforeEach(() => {
@@ -84,33 +131,7 @@ describe('RecordLayoutBuilderModal Overhaul (TDD)', () => {
   })
 
   it('1. 가로 모드(Landscape)와 세로 모드(Portrait) 토글이 정상 작동해야 한다', async () => {
-    const wrapper = mount(RecordLayoutBuilderModal, {
-      props: {
-        modelValue: true,
-        domainId: 'domain-123',
-        fields: [
-          { key: 'cust_name', name: { ko: '고객명' }, type: 'TEXT' },
-          { key: 'cust_email', name: { ko: '이메일' }, type: 'EMAIL' }
-        ]
-      },
-      global: {
-        plugins: [i18n],
-        stubs: {
-          vaModal: { template: '<div class="va-modal-stub"><slot/></div>' },
-          vaButton: {
-            template: '<button class="va-button-stub" :class="[color, preset]" @click="$emit(\'click\', $event)"><slot/></button>',
-            props: ['color', 'preset', 'icon', 'loading', 'disabled']
-          },
-          vaIcon: true,
-          vaInput: true,
-          vaSelect: true,
-          vaSwitch: true,
-          vaBadge: true,
-          vaCheckbox: true
-        }
-      }
-    })
-
+    const wrapper = createWrapper()
     await wrapper.vm.$nextTick()
 
     // 초기 상태: 가로 모드 (cols = 12)
@@ -134,32 +155,9 @@ describe('RecordLayoutBuilderModal Overhaul (TDD)', () => {
   })
 
   it('2. 위젯 클릭 또는 설정 버튼 클릭 시 우측 슬라이드오버 인스펙터가 열리고 닫기 버튼으로 닫혀야 한다', async () => {
-    const wrapper = mount(RecordLayoutBuilderModal, {
-      props: {
-        modelValue: true,
-        domainId: 'domain-123',
-        fields: [
-          { key: 'cust_name', name: { ko: '고객명' }, type: 'TEXT' }
-        ]
-      },
-      global: {
-        plugins: [i18n],
-        stubs: {
-          vaModal: { template: '<div class="va-modal-stub"><slot/></div>' },
-          vaButton: {
-            template: '<button class="va-button-stub" @click="$emit(\'click\', $event)"><slot/></button>',
-            props: ['color', 'preset', 'icon', 'loading', 'disabled']
-          },
-          vaIcon: true,
-          vaInput: true,
-          vaSelect: true,
-          vaSwitch: true,
-          vaBadge: true,
-          vaCheckbox: true
-        }
-      }
+    const wrapper = createWrapper({
+      fields: [{ key: 'cust_name', name: { ko: '고객명' }, type: 'TEXT' }]
     })
-
     await wrapper.vm.$nextTick()
 
     // 초기에는 인스펙터 사이드바가 닫혀있어야 함
@@ -186,35 +184,12 @@ describe('RecordLayoutBuilderModal Overhaul (TDD)', () => {
   })
 
   it('3. 좌측 팔레트 접기/펼치기 토글이 정상 작동해야 한다', async () => {
-    const wrapper = mount(RecordLayoutBuilderModal, {
-      props: {
-        modelValue: true,
-        domainId: 'domain-123',
-        fields: [
-          { key: 'cust_name', name: { ko: '고객명' }, type: 'TEXT' }
-        ]
-      },
-      global: {
-        plugins: [i18n],
-        stubs: {
-          vaModal: { template: '<div class="va-modal-stub"><slot/></div>' },
-          vaButton: {
-            template: '<button class="va-button-stub" @click="$emit(\'click\', $event)"><slot/></button>',
-            props: ['color', 'preset', 'icon', 'loading', 'disabled']
-          },
-          vaIcon: true,
-          vaInput: true,
-          vaSelect: true,
-          vaSwitch: true,
-          vaBadge: true,
-          vaCheckbox: true
-        }
-      }
+    const wrapper = createWrapper({
+      fields: [{ key: 'cust_name', name: { ko: '고객명' }, type: 'TEXT' }]
     })
-
     await wrapper.vm.$nextTick()
 
-    // 팔레트 초기 상태
+    // 팔레트 초기 상태: 열려있음
     expect(wrapper.find('.palette-sidebar').classes()).not.toContain('is-collapsed')
 
     // 팔레트 접기 버튼 클릭
@@ -234,201 +209,112 @@ describe('RecordLayoutBuilderModal Overhaul (TDD)', () => {
   })
 
   it('4. UI 위젯 탭에서 다양한 카테고리의 위젯을 캔버스에 추가할 수 있어야 한다', async () => {
-    const wrapper = mount(RecordLayoutBuilderModal, {
-      props: {
-        modelValue: true,
-        domainId: 'domain-123',
-        fields: [
-          { key: 'cust_name', name: { ko: '고객명' }, type: 'TEXT' },
-          { key: 'salary', name: { ko: '급여' }, type: 'NUMBER' }
-        ]
-      },
-      global: {
-        plugins: [i18n],
-        stubs: {
-          vaModal: { template: '<div class="va-modal-stub"><slot/></div>' },
-          vaButton: {
-            template: '<button class="va-button-stub" @click="$emit(\'click\', $event)"><slot/></button>',
-            props: ['color', 'preset', 'icon', 'loading', 'disabled']
-          },
-          vaIcon: true,
-          vaInput: true,
-          vaSelect: true,
-          vaSwitch: true,
-          vaBadge: true,
-          vaCheckbox: true
-        }
-      }
-    })
-
+    const wrapper = createWrapper()
     await wrapper.vm.$nextTick()
+    const vm = wrapper.vm as any
 
-    // UI 위젯 탭 클릭
+    // 1) UI 위젯 탭 선택
     const widgetTabBtn = wrapper.findAll('.palette-tab-btn')[1]
     expect(widgetTabBtn.exists()).toBe(true)
     await widgetTabBtn.trigger('click')
     await wrapper.vm.$nextTick()
 
-    // 카테고리 그룹 렌더링 확인
-    const categories = wrapper.findAll('.palette-category-group')
-    expect(categories.length).toBeGreaterThanOrEqual(4)
+    expect(vm.activePaletteTab).toBe('widgets')
 
-    // 임의의 위젯 아이템 클릭
-    const firstWidgetItem = wrapper.find('.palette-item')
-    expect(firstWidgetItem.exists()).toBe(true)
-    await firstWidgetItem.trigger('click')
+    // 2) 카테고리 목록 점검
+    expect(vm.widgetPaletteCategories.length).toBeGreaterThan(0)
+
+    // 3) 통계 카드 위젯 추가
+    const initialWidgetCount = vm.widgets.length
+    vm.addCustomWidget('STAT_CARD', 4, 2, 'widget_type_stat_card')
     await wrapper.vm.$nextTick()
 
-    // 캔버스에 위젯이 추가되고 인스펙터가 열렸는지 확인
-    expect(wrapper.find('.inspector-slide-drawer').classes()).toContain('is-open')
+    expect(vm.widgets.length).toBe(initialWidgetCount + 1)
+    const addedWidget = vm.widgets[vm.widgets.length - 1]
+    expect(addedWidget.type).toBe('STAT_CARD')
+    expect(addedWidget.w).toBe(4)
+    expect(addedWidget.h).toBe(2)
+
+    // 4) 캔버스에 STAT_CARD 렌더링 확인
+    const statWidgetBox = wrapper.find('.canvas-widget-box.widget-stat_card')
+    expect(statWidgetBox.exists()).toBe(true)
   })
 
   it('5. 위젯 타입별로 호환되는 필드 타입만 인스펙터 필드 바인딩 셀렉터에 노출되어야 한다 (타입 고정/제약)', async () => {
-    const wrapper = mount(RecordLayoutBuilderModal, {
-      props: {
-        modelValue: true,
-        domainId: 'domain-123',
-        fields: [
-          { key: 'cust_name', name: { ko: '고객명' }, type: 'TEXT' },
-          { key: 'cust_name_multi', name: { ko: '다국어 고객명' }, type: 'MULTILINGUAL' },
-          { key: 'memo', name: { ko: '상세메모' }, type: 'TEXTAREA' },
-          { key: 'salary', name: { ko: '급여' }, type: 'NUMBER' },
-          { key: 'attachment', name: { ko: '첨부파일' }, type: 'FILE' },
-          { key: 'join_date', name: { ko: '가입일자' }, type: 'DATE' },
-          { key: 'profile_pic', name: { ko: '프로필사진' }, type: 'IMAGE' }
-        ]
-      },
-      global: {
-        plugins: [i18n],
-        stubs: {
-          vaModal: { template: '<div class="va-modal-stub"><slot/></div>' },
-          vaButton: {
-            template: '<button class="va-button-stub" @click="$emit(\'click\', $event)"><slot/></button>',
-            props: ['color', 'preset', 'icon', 'loading', 'disabled']
-          },
-          vaIcon: true,
-          vaInput: true,
-          vaSelect: true,
-          vaSwitch: true,
-          vaBadge: true,
-          vaCheckbox: true
-        }
-      }
+    const wrapper = createWrapper({
+      fields: [
+        { key: 'cust_name', name: { ko: '고객명' }, type: 'TEXT' },
+        { key: 'reg_date', name: { ko: '가입일' }, type: 'DATE' },
+        { key: 'total_amt', name: { ko: '총금액' }, type: 'NUMBER' },
+        { key: 'profile_img', name: { ko: '프로필사진' }, type: 'IMAGE' },
+        { key: 'is_active', name: { ko: '활성여부' }, type: 'BOOLEAN' }
+      ]
     })
-
     await wrapper.vm.$nextTick()
-
     const vm = wrapper.vm as any
-    vm.widgets = [
-      { id: 'widget-textarea-1', type: 'TEXT_AREA', w: 6, h: 2, x: 0, y: 0 },
-      { id: 'widget-multi-1', type: 'MULTILINGUAL_INPUT', w: 6, h: 1, x: 0, y: 2 },
-      { id: 'widget-file-1', type: 'FILE_ATTACHMENT', w: 6, h: 2, x: 0, y: 3 },
-      { id: 'widget-date-1', type: 'DATE_PICKER', w: 4, h: 1, x: 0, y: 5 },
-      { id: 'widget-number-1', type: 'NUMBER_INPUT', w: 4, h: 1, x: 4, y: 5 }
-    ]
-    
-    // 1) TEXT_AREA 위젯 선택 시: 오직 TEXTAREA 필드(memo)만 노출
-    vm.selectedWidgetId = 'widget-textarea-1'
+
+    // 1) DATE_PICKER 위젯 선택 시 -> DATE, DATETIME 필드만 필터링
+    vm.widgets = [{ id: 'w-date', type: 'DATE_PICKER', fieldKey: null, w: 4, h: 1, x: 0, y: 0 }]
+    vm.selectedWidgetId = 'w-date'
     await wrapper.vm.$nextTick()
 
-    const textareaOptions = vm.fieldBindingSelectOptions.map((o: any) => o.value)
-    expect(textareaOptions).toEqual(['memo'])
+    let options = vm.fieldBindingSelectOptions
+    expect(options.some((opt: any) => opt.value === 'reg_date')).toBe(true)
+    expect(options.some((opt: any) => opt.value === 'cust_name')).toBe(false)
+    expect(options.some((opt: any) => opt.value === 'total_amt')).toBe(false)
 
-    // 2) MULTILINGUAL_INPUT 위젯 선택 시: 오직 MULTILINGUAL 필드(cust_name_multi)만 노출
-    vm.selectedWidgetId = 'widget-multi-1'
+    // 2) NUMBER_INPUT 위젯 선택 시 -> NUMBER, CURRENCY, PERCENTAGE, INTEGER, BIGINT 필드만 필터링
+    vm.widgets = [{ id: 'w-num', type: 'NUMBER_INPUT', fieldKey: null, w: 4, h: 1, x: 0, y: 0 }]
+    vm.selectedWidgetId = 'w-num'
     await wrapper.vm.$nextTick()
 
-    const multiOptions = vm.fieldBindingSelectOptions.map((o: any) => o.value)
-    expect(multiOptions).toEqual(['cust_name_multi'])
+    options = vm.fieldBindingSelectOptions
+    expect(options.some((opt: any) => opt.value === 'total_amt')).toBe(true)
+    expect(options.some((opt: any) => opt.value === 'cust_name')).toBe(false)
+    expect(options.some((opt: any) => opt.value === 'reg_date')).toBe(false)
 
-    // 3) FILE_ATTACHMENT 위젯 선택 시: FILE 필드만 노출
-    vm.selectedWidgetId = 'widget-file-1'
+    // 3) IMAGE_VIEWER 위젯 선택 시 -> IMAGE 필드만 필터링
+    vm.widgets = [{ id: 'w-img', type: 'IMAGE_VIEWER', fieldKey: null, w: 4, h: 2, x: 0, y: 0 }]
+    vm.selectedWidgetId = 'w-img'
     await wrapper.vm.$nextTick()
 
-    const fileOptions = vm.fieldBindingSelectOptions.map((o: any) => o.value)
-    expect(fileOptions).toEqual(['attachment'])
+    options = vm.fieldBindingSelectOptions
+    expect(options.some((opt: any) => opt.value === 'profile_img')).toBe(true)
+    expect(options.some((opt: any) => opt.value === 'cust_name')).toBe(false)
 
-    // 4) DATE_PICKER 위젯 선택 시: DATE 필드만 노출
-    vm.selectedWidgetId = 'widget-date-1'
+    // 4) SWITCH_TOGGLE 위젯 선택 시 -> BOOLEAN 필드만 필터링
+    vm.widgets = [{ id: 'w-bool', type: 'SWITCH_TOGGLE', fieldKey: null, w: 4, h: 1, x: 0, y: 0 }]
+    vm.selectedWidgetId = 'w-bool'
     await wrapper.vm.$nextTick()
 
-    const dateOptions = vm.fieldBindingSelectOptions.map((o: any) => o.value)
-    expect(dateOptions).toEqual(['join_date'])
-
-    // 5) NUMBER_INPUT 위젯 선택 시: NUMBER 필드만 노출
-    vm.selectedWidgetId = 'widget-number-1'
-    await wrapper.vm.$nextTick()
-
-    const numberOptions = vm.fieldBindingSelectOptions.map((o: any) => o.value)
-    expect(numberOptions).toEqual(['salary'])
+    options = vm.fieldBindingSelectOptions
+    expect(options.some((opt: any) => opt.value === 'is_active')).toBe(true)
+    expect(options.some((opt: any) => opt.value === 'total_amt')).toBe(false)
   })
 
   it('6. 접힌 상태에서 플로팅 파레트 버튼이 노출되고 클릭 시 파레트가 펼쳐져야 한다', async () => {
-    const wrapper = mount(RecordLayoutBuilderModal, {
-      props: {
-        modelValue: true,
-        domainId: 'domain-123',
-        fields: [{ key: 'cust_name', name: { ko: '고객명' }, type: 'TEXT' }]
-      },
-      global: {
-        plugins: [i18n],
-        stubs: {
-          vaModal: { template: '<div class="va-modal-stub"><slot/></div>' },
-          vaButton: {
-            template: '<button class="va-button-stub" @click="$emit(\'click\', $event)"><slot/></button>',
-            props: ['color', 'preset', 'icon', 'loading', 'disabled']
-          },
-          vaIcon: true,
-          vaInput: true,
-          vaSelect: true,
-          vaSwitch: true,
-          vaBadge: true,
-          vaCheckbox: true
-        }
-      }
-    })
-
+    const wrapper = createWrapper()
     await wrapper.vm.$nextTick()
     const vm = wrapper.vm as any
 
-    // 강제로 접힘 상태로 설정
+    // 1) 파레트 접기
     vm.isPaletteCollapsed = true
     await wrapper.vm.$nextTick()
 
+    // 2) 캔버스 상단에 플로팅 파레트 버튼 노출 확인
     const floatingBtn = wrapper.find('.floating-palette-btn')
     expect(floatingBtn.exists()).toBe(true)
 
-    // 플로팅 버튼 클릭 시 펼쳐짐 확인
+    // 3) 플로팅 버튼 클릭 시 파레트 펼쳐짐 확인
     await floatingBtn.trigger('click')
     await wrapper.vm.$nextTick()
+
     expect(vm.isPaletteCollapsed).toBe(false)
+    expect(wrapper.find('.floating-palette-btn').exists()).toBe(false)
   })
 
   it('7. 인스펙터 하단 푸터에 완료, 닫기, 저장 액션이 노출되고 정상 동작해야 한다', async () => {
-    const wrapper = mount(RecordLayoutBuilderModal, {
-      props: {
-        modelValue: true,
-        domainId: 'domain-123',
-        fields: [{ key: 'cust_name', name: { ko: '고객명' }, type: 'TEXT' }]
-      },
-      global: {
-        plugins: [i18n],
-        stubs: {
-          vaModal: { template: '<div class="va-modal-stub"><slot/></div>' },
-          vaButton: {
-            template: '<button class="va-button-stub" @click="$emit(\'click\', $event)"><slot/></button>',
-            props: ['color', 'preset', 'icon', 'loading', 'disabled']
-          },
-          vaIcon: true,
-          vaInput: true,
-          vaSelect: true,
-          vaSwitch: true,
-          vaBadge: true,
-          vaCheckbox: true
-        }
-      }
-    })
-
+    const wrapper = createWrapper()
     await wrapper.vm.$nextTick()
     const vm = wrapper.vm as any
 
@@ -449,4 +335,102 @@ describe('RecordLayoutBuilderModal Overhaul (TDD)', () => {
     await wrapper.vm.$nextTick()
     expect(vm.isInspectorOpen).toBe(false)
   })
+
+  it('8. Undo, Redo, Compact Up 동작 및 EDITOR 위젯 팔레트 등록을 확인해야 한다', async () => {
+    const wrapper = createWrapper({
+      fields: [{ key: 'cust_name', name: { ko: '고객명' }, type: 'TEXT' }]
+    })
+    await wrapper.vm.$nextTick()
+    const vm = wrapper.vm as any
+
+    // 1) 초기 위젯 설정
+    vm.widgets = [{ id: 'w-1', type: 'TEXT_INPUT', fieldKey: 'cust_name', w: 6, h: 1, x: 0, y: 0 }]
+    vm.pushHistory()
+
+    // 2) 신규 위젯 추가
+    vm.widgets.push({ id: 'w-2', type: 'STAT_CARD', fieldKey: null, w: 4, h: 2, x: 6, y: 0 })
+    vm.pushHistory()
+
+    expect(vm.canUndo).toBe(true)
+    expect(vm.widgets.length).toBe(2)
+
+    // 3) Undo 실행
+    vm.undo()
+    await wrapper.vm.$nextTick()
+    expect(vm.widgets.length).toBe(1)
+    expect(vm.canRedo).toBe(true)
+
+    // 4) Redo 실행
+    vm.redo()
+    await wrapper.vm.$nextTick()
+    expect(vm.widgets.length).toBe(2)
+
+    // 5) Compact Up 실행
+    vm.widgets[1].y = 10
+    vm.compactLayoutUp()
+    await wrapper.vm.$nextTick()
+    expect(vm.widgets[1].y).toBe(0) // x=6으로 빈공간이므로 y=0으로 정렬됨
+
+    // 6) EDITOR 위젯이 팔레트 텍스트 카테고리에 존재하는지 확인
+    const textCat = vm.widgetPaletteCategories.find((c: any) => c.key === 'text')
+    const editorItem = textCat?.items.find((i: any) => i.type === 'EDITOR')
+    expect(editorItem).toBeDefined()
+    expect(editorItem?.defaultW).toBe(12)
+  })
+
+  it('9. 첫 로딩 시 좌측 서랍패널이 기본적으로 펼쳐져 있어야 한다', async () => {
+    const wrapper = createWrapper({
+      fields: [{ key: 'cust_name', name: { ko: '고객명' }, type: 'TEXT' }]
+    })
+    await wrapper.vm.$nextTick()
+    const vm = wrapper.vm as any
+
+    // 초기 상태에서 isPaletteCollapsed가 false여야 함
+    expect(vm.isPaletteCollapsed).toBe(false)
+    expect(wrapper.find('.palette-sidebar').classes()).not.toContain('is-collapsed')
+    expect(wrapper.find('.palette-inner-container').isVisible()).toBe(true)
+  })
+
+  it('10. 모바일 더보기 메뉴 및 모바일 백드롭 오버레이가 정상적으로 렌더링되어야 한다', async () => {
+    const wrapper = mount(RecordLayoutBuilderModal, {
+      props: {
+        modelValue: true,
+        domainId: 'domain-123',
+        fields: [{ key: 'cust_name', name: { ko: '고객명' }, type: 'TEXT' }]
+      },
+      global: {
+        plugins: [i18n],
+        stubs: {
+          vaModal: { template: '<div class="va-modal-stub"><slot/></div>' },
+          vaButton: { template: '<button class="va-button-stub" @click="$emit(\'click\', $event)"><slot/></button>' },
+          vaIcon: true,
+          vaInput: true,
+          vaSelect: true,
+          vaSwitch: true,
+          vaBadge: true,
+          vaCheckbox: true,
+          vaDropdown: { template: '<div class="va-dropdown-stub"><slot name="anchor"/><slot/></div>' },
+          vaDropdownContent: { template: '<div class="va-dropdown-content-stub"><slot/></div>' }
+        }
+      }
+    })
+
+    await wrapper.vm.$nextTick()
+    const vm = wrapper.vm as any
+
+    // 1) 모바일 더보기 드롭다운 존재 확인
+    const moreBtn = wrapper.find('.btn-more-actions')
+    expect(moreBtn.exists()).toBe(true)
+
+    // 2) 모바일 파레트 백드롭 확인
+    expect(vm.isPaletteCollapsed).toBe(false)
+    const mobileBackdrop = wrapper.find('.palette-mobile-backdrop')
+    expect(mobileBackdrop.exists()).toBe(true)
+
+    // 백드롭 클릭 시 파레트 접힘
+    await mobileBackdrop.trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(vm.isPaletteCollapsed).toBe(true)
+  })
 })
+

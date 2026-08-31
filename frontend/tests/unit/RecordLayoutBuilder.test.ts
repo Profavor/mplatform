@@ -320,6 +320,192 @@ describe('Record 2D Grid Layout Builder & Renderer Logic', () => {
     expect(resized.newW).toBe(4) // 12 - 8 = 4
     expect(widget.x + resized.newW).toBe(12)
   })
+
+  // Undo / Redo History Stack Management
+  interface HistoryState {
+    widgets: any[]
+  }
+
+  class LayoutHistoryManager {
+    stack: HistoryState[] = []
+    index = -1
+    maxHistory = 30
+
+    constructor(initialWidgets: any[]) {
+      this.push(initialWidgets)
+    }
+
+    push(widgets: any[]) {
+      if (this.index < this.stack.length - 1) {
+        this.stack = this.stack.slice(0, this.index + 1)
+      }
+      this.stack.push({ widgets: JSON.parse(JSON.stringify(widgets)) })
+      if (this.stack.length > this.maxHistory) {
+        this.stack.shift()
+      } else {
+        this.index++
+      }
+    }
+
+    canUndo(): boolean {
+      return this.index > 0
+    }
+
+    canRedo(): boolean {
+      return this.index < this.stack.length - 1
+    }
+
+    undo(): any[] | null {
+      if (!this.canUndo()) return null
+      this.index--
+      return JSON.parse(JSON.stringify(this.stack[this.index].widgets))
+    }
+
+    redo(): any[] | null {
+      if (!this.canRedo()) return null
+      this.index++
+      return JSON.parse(JSON.stringify(this.stack[this.index].widgets))
+    }
+  }
+
+  it('Undo / Redo 스택을 통해 위젯 변경 및 복구가 정확히 동작해야 한다', () => {
+    const initial = [{ id: 'w1', x: 0, y: 0, w: 4, h: 1 }]
+    const history = new LayoutHistoryManager(initial)
+
+    expect(history.canUndo()).toBe(false)
+    expect(history.canRedo()).toBe(false)
+
+    // 상태 1: 위젯 추가
+    const state1 = [{ id: 'w1', x: 0, y: 0, w: 4, h: 1 }, { id: 'w2', x: 4, y: 0, w: 4, h: 1 }]
+    history.push(state1)
+    expect(history.canUndo()).toBe(true)
+    expect(history.canRedo()).toBe(false)
+
+    // 상태 2: 위젯 이동
+    const state2 = [{ id: 'w1', x: 0, y: 1, w: 4, h: 1 }, { id: 'w2', x: 4, y: 1, w: 4, h: 1 }]
+    history.push(state2)
+
+    // Undo 1회 실행 -> state1 복구
+    const undo1 = history.undo()
+    expect(undo1?.length).toBe(2)
+    expect(undo1?.[0].y).toBe(0)
+    expect(history.canRedo()).toBe(true)
+
+    // Undo 2회 실행 -> initial 복구
+    const undo2 = history.undo()
+    expect(undo2?.length).toBe(1)
+    expect(history.canUndo()).toBe(false)
+
+    // Redo 1회 실행 -> state1 복구
+    const redo1 = history.redo()
+    expect(redo1?.length).toBe(2)
+    expect(redo1?.[0].y).toBe(0)
+
+    // Redo 2회 실행 -> state2 복구
+    const redo2 = history.redo()
+    expect(redo2?.[0].y).toBe(1)
+  })
+
+  // Compact Up (자동 상단 정렬) Logic Helper
+  const compactWidgetsUp = (allWidgets: Array<{ id: string; x: number; y: number; w: number; h: number }>) => {
+    const sorted = [...allWidgets].sort((a, b) => a.y - b.y || a.x - b.x)
+    for (const widget of sorted) {
+      let targetY = 0
+      while (targetY < widget.y) {
+        const testPos = { ...widget, y: targetY }
+        const hasCollision = sorted.some(other => other.id !== widget.id && isOverlapping(testPos, other))
+        if (!hasCollision) {
+          widget.y = targetY
+          break
+        }
+        targetY++
+      }
+    }
+    return sorted
+  }
+
+  it('Compact Up 실행 시 하단에 떨어진 위젯들이 상단의 빈 공간으로 밀착 정렬되어야 한다', () => {
+    const w1 = { id: 'w1', x: 0, y: 0, w: 6, h: 2 }
+    const w2 = { id: 'w2', x: 0, y: 8, w: 6, h: 2 } // y=8로 멀리 떨어짐
+    const w3 = { id: 'w3', x: 6, y: 10, w: 6, h: 3 } // 우측 컬럼 y=10으로 멀리 떨어짐
+    const widgets = [w1, w2, w3]
+
+    compactWidgetsUp(widgets)
+
+    expect(w1.y).toBe(0)
+    expect(w2.y).toBe(2) // w1(0+2) 바로 아래 y=2로 밀착
+    expect(w3.y).toBe(0) // 우측 컬럼은 비어있으므로 y=0으로 밀착
+  })
+
+  // Nudge / Arrow Keys Keyboard Move Helper
+  const nudgeWidget = (
+    widget: { x: number; y: number; w: number; h: number },
+    dx: number,
+    dy: number,
+    maxCols = 12
+  ) => {
+    const newX = Math.max(0, Math.min(maxCols - widget.w, widget.x + dx))
+    const newY = Math.max(0, Math.min(50, widget.y + dy))
+    return { ...widget, x: newX, y: newY }
+  }
+
+  it('방향키 미세 이동 시 캔버스 경계를 벗어나지 않고 정확히 이동해야 한다', () => {
+    const widget = { id: 'w1', x: 0, y: 0, w: 4, h: 1 }
+
+    // 우측 1칸
+    const right1 = nudgeWidget(widget, 1, 0, 12)
+    expect(right1.x).toBe(1)
+    expect(right1.y).toBe(0)
+
+    // 좌측 1칸 (0 이하로 가지 않음)
+    const left0 = nudgeWidget(widget, -1, 0, 12)
+    expect(left0.x).toBe(0)
+
+    // 우측 20칸 (최대 12 - 4 = 8을 넘지 않음)
+    const rightMax = nudgeWidget(widget, 20, 0, 12)
+    expect(rightMax.x).toBe(8)
+
+    // 아래 1칸
+    const down1 = nudgeWidget(widget, 0, 1, 12)
+    expect(down1.y).toBe(1)
+
+    // 위 1칸 (0 이하로 가지 않음)
+    const up0 = nudgeWidget(widget, 0, -1, 12)
+    expect(up0.y).toBe(0)
+  })
+
+  // Duplicate Widget Helper
+  const duplicateWidget = (
+    src: { id: string; type: string; fieldKey?: string; title: any; w: number; h: number; x: number; y: number; options?: any },
+    allWidgets: any[],
+    maxCols = 12
+  ) => {
+    const newId = 'w_' + Math.random().toString(36).substring(2, 9)
+    const targetY = src.y + src.h
+    const newWidget = {
+      ...JSON.parse(JSON.stringify(src)),
+      id: newId,
+      y: targetY
+    }
+    const clonedList = [...allWidgets, newWidget]
+    resolveWidgetCollisions(newWidget, clonedList)
+    return { newWidget, allWidgets: clonedList }
+  }
+
+  it('위젯 복제 시 고유 ID가 부여되고 기존 위젯 바로 아래 배치되며 충돌이 해결되어야 한다', () => {
+    const w1 = { id: 'w1', type: 'STAT_CARD', title: { ko: '매출액' }, x: 0, y: 0, w: 4, h: 2, options: { unit: '억원' } }
+    const allWidgets = [w1]
+
+    const { newWidget, allWidgets: updated } = duplicateWidget(w1, allWidgets, 12)
+
+    expect(newWidget.id).not.toBe('w1')
+    expect(newWidget.type).toBe('STAT_CARD')
+    expect(newWidget.w).toBe(4)
+    expect(newWidget.h).toBe(2)
+    expect(newWidget.y).toBe(2) // w1 바로 아래 (y: 0+2 = 2)
+    expect(updated.length).toBe(2)
+  })
 })
+
 
 

@@ -9,205 +9,310 @@
     :zIndex="99999"
     class="record-layout-builder-modal"
   >
-    <!-- Single Unified Compact Fixed Header Toolbar (Height: 46px) -->
-    <div class="builder-unified-header">
-      <!-- Left Section: Close Button + Title / Scope Badge + Preset Selector Group -->
-      <div class="header-left-section">
-        <!-- Close Button (Always First & Accessible) -->
-        <va-button
-          preset="plain"
-          icon="close"
-          color="secondary"
-          size="small"
-          class="btn-close-modal"
-          :title="$t('close')"
-          @click="visible = false"
-        />
+    <div class="builder-modal-container">
+      <!-- Single Unified Compact Fixed Header Toolbar (Height: 46px) -->
+      <div class="builder-unified-header">
+        <!-- Left Section: Close Button + Title / Scope Badge + Preset Selector Group -->
+        <div class="header-left-section">
+          <!-- Close Button (Always First & Accessible) -->
+          <va-button
+            preset="plain"
+            icon="close"
+            color="secondary"
+            size="small"
+            class="btn-close-modal"
+            :title="$t('close')"
+            @click="visible = false"
+          />
 
-        <!-- Title & Scope Badge -->
-        <div class="header-title-wrapper">
-          <va-icon name="dashboard_customize" size="20px" color="primary" class="header-logo-icon" />
-          <span class="builder-title-text">{{ $t('layout_builder_title') }}</span>
-          <span class="target-scope-badge" :class="isDomainTarget ? 'badge-domain' : 'badge-node'">
-            {{ formatTargetName || (isDomainTarget ? $t('layout_scope_domain') : $t('layout_scope_node')) }}
-          </span>
+          <!-- Title & Scope Badge (Desktop & Tablet) -->
+          <div class="header-title-wrapper">
+            <va-icon name="dashboard_customize" size="18px" color="primary" class="header-logo-icon" />
+            <span class="builder-title-text hidden-xs">{{ $t('layout_builder_title') }}</span>
+            <span class="target-scope-badge hidden-xs" :class="isDomainTarget ? 'badge-domain' : 'badge-node'">
+              {{ formatTargetName || (isDomainTarget ? $t('layout_scope_domain') : $t('layout_scope_node')) }}
+            </span>
+          </div>
+
+          <div class="toolbar-divider-v hidden-xs"></div>
+
+          <!-- Presets Selection & Actions -->
+          <div class="preset-selector-group">
+            <!-- Normal Mode: Select Dropdown & Action Buttons -->
+            <template v-if="!showInlineLayoutInput">
+              <va-select
+                v-model="activeLayoutId"
+                :options="layoutSelectOptions"
+                value-by="value"
+                track-by="value"
+                size="small"
+                class="preset-select-control"
+                @update:model-value="onLayoutChange"
+              />
+
+              <!-- New Layout Button (Always Visible) -->
+              <va-button
+                preset="secondary"
+                size="small"
+                icon="add"
+                class="compact-tool-btn"
+                :title="$t('add_new_layout')"
+                @click="openNewLayoutInline"
+              />
+
+              <!-- Desktop-Only Preset Action Buttons -->
+              <div class="desktop-preset-actions">
+                <!-- Duplicate Current Layout -->
+                <va-button
+                  preset="secondary"
+                  size="small"
+                  icon="content_copy"
+                  class="compact-tool-btn"
+                  :title="$t('duplicate_layout')"
+                  @click="duplicateCurrentLayout"
+                />
+
+                <!-- Rename Current Layout -->
+                <va-button
+                  preset="secondary"
+                  size="small"
+                  icon="edit"
+                  class="compact-tool-btn"
+                  :title="$t('rename_layout')"
+                  @click="openRenameLayoutInline"
+                />
+
+                <!-- Set as Default -->
+                <va-button
+                  :preset="currentLayoutIsDefault ? 'primary' : 'secondary'"
+                  :color="currentLayoutIsDefault ? 'warning' : 'secondary'"
+                  size="small"
+                  :icon="currentLayoutIsDefault ? 'star' : 'star_border'"
+                  class="compact-tool-btn"
+                  :title="currentLayoutIsDefault ? $t('default_layout_badge') : $t('set_as_default_layout')"
+                  @click="toggleDefaultLayout"
+                />
+
+                <!-- Delete Layout -->
+                <va-button
+                  preset="plain"
+                  color="danger"
+                  size="small"
+                  icon="delete"
+                  class="compact-tool-btn"
+                  :disabled="layouts.length <= 1"
+                  :title="$t('delete')"
+                  @click="deleteCurrentLayout"
+                />
+              </div>
+            </template>
+
+            <!-- Inline Layout Name Editing Mode (Multilingual KO / EN) -->
+            <template v-else>
+              <div class="inline-name-edit-box">
+                <va-input
+                  v-model="layoutNameKoInput"
+                  size="small"
+                  class="inline-name-input"
+                  :placeholder="$t('layout_name_ko_placeholder')"
+                  autofocus
+                  @keyup.enter="confirmInlineLayout"
+                  @keyup.esc="cancelInlineLayout"
+                >
+                  <template #prependInner><span class="lang-tag">KO</span></template>
+                </va-input>
+                <va-input
+                  v-model="layoutNameEnInput"
+                  size="small"
+                  class="inline-name-input"
+                  :placeholder="$t('layout_name_en_placeholder')"
+                  @keyup.enter="confirmInlineLayout"
+                  @keyup.esc="cancelInlineLayout"
+                >
+                  <template #prependInner><span class="lang-tag">EN</span></template>
+                </va-input>
+                <va-button size="small" color="primary" icon="check" @click="confirmInlineLayout" />
+                <va-button size="small" preset="plain" color="secondary" icon="close" @click="cancelInlineLayout" />
+              </div>
+            </template>
+          </div>
         </div>
 
-        <div class="toolbar-divider-v"></div>
+        <!-- Right Section: Tools + Save Button -->
+        <div class="header-right-section">
+          <!-- Palette Toggle Button (Always Visible) -->
+          <button
+            type="button"
+            class="toolbar-action-btn btn-toggle-palette"
+            :class="{ 'is-active': !isPaletteCollapsed }"
+            :title="isPaletteCollapsed ? $t('palette_toggle_expand') : $t('palette_toggle_collapse')"
+            @click="togglePalette"
+          >
+            <va-icon name="widgets" size="14px" class="mr-1" />
+            <span class="btn-palette-text hidden-xs">{{ $t('palette_title') }}</span>
+          </button>
 
-        <!-- Presets Selection & Actions -->
-        <div class="preset-selector-group">
-          <!-- Normal Mode: Select Dropdown & Action Buttons -->
-          <template v-if="!showInlineLayoutInput">
-            <va-select
-              v-model="activeLayoutId"
-              :options="layoutSelectOptions"
-              value-by="value"
-              track-by="value"
-              size="small"
-              class="preset-select-control"
-              @update:model-value="onLayoutChange"
-            />
+          <!-- Undo Button (Always Visible) -->
+          <va-button
+            preset="secondary"
+            size="small"
+            icon="undo"
+            class="compact-tool-btn"
+            :disabled="!canUndo"
+            :title="$t('btn_undo')"
+            @click="undo"
+          />
 
-            <!-- New Layout Button -->
+          <!-- Redo Button (Always Visible) -->
+          <va-button
+            preset="secondary"
+            size="small"
+            icon="redo"
+            class="compact-tool-btn"
+            :disabled="!canRedo"
+            :title="$t('btn_redo')"
+            @click="redo"
+          />
+
+          <!-- Desktop-Only Quick Tools -->
+          <div class="desktop-quick-tools">
+            <!-- Viewport Orientation Toggle (Landscape 12 cols vs Portrait 6 cols) -->
+            <div class="viewport-mode-switcher">
+              <button
+                type="button"
+                class="mode-switch-btn btn-mode-landscape"
+                :class="{ active: orientationMode === 'landscape' }"
+                @click="setOrientation('landscape')"
+                :title="$t('layout_mode_landscape')"
+              >
+                <va-icon name="desktop_windows" size="14px" />
+              </button>
+              <button
+                type="button"
+                class="mode-switch-btn btn-mode-portrait"
+                :class="{ active: orientationMode === 'portrait' }"
+                @click="setOrientation('portrait')"
+                :title="$t('layout_mode_portrait')"
+              >
+                <va-icon name="smartphone" size="14px" />
+              </button>
+            </div>
+
+            <!-- Compact Up Button -->
             <va-button
               preset="secondary"
               size="small"
-              icon="add"
+              icon="vertical_align_top"
               class="compact-tool-btn"
-              :title="$t('add_new_layout')"
-              @click="openNewLayoutInline"
+              :title="$t('btn_compact_up')"
+              @click="compactLayoutUp"
             />
 
-            <!-- Duplicate Current Layout -->
+            <!-- Auto Generate -->
             <va-button
               preset="secondary"
+              color="info"
               size="small"
-              icon="content_copy"
+              icon="auto_awesome"
               class="compact-tool-btn"
-              :title="$t('duplicate_layout')"
-              @click="duplicateCurrentLayout"
+              :title="$t('btn_auto_generate_layout')"
+              @click="autoGenerateLayout"
             />
 
-            <!-- Rename Current Layout -->
+            <!-- Clear Layout -->
             <va-button
               preset="secondary"
-              size="small"
-              icon="edit"
-              class="compact-tool-btn"
-              :title="$t('rename_layout')"
-              @click="openRenameLayoutInline"
-            />
-
-            <!-- Set as Default -->
-            <va-button
-              :preset="currentLayoutIsDefault ? 'primary' : 'secondary'"
-              :color="currentLayoutIsDefault ? 'warning' : 'secondary'"
-              size="small"
-              :icon="currentLayoutIsDefault ? 'star' : 'star_border'"
-              class="compact-tool-btn"
-              :title="currentLayoutIsDefault ? $t('default_layout_badge') : $t('set_as_default_layout')"
-              @click="toggleDefaultLayout"
-            />
-
-            <!-- Delete Layout -->
-            <va-button
-              preset="plain"
               color="danger"
               size="small"
-              icon="delete"
+              icon="delete_sweep"
               class="compact-tool-btn"
-              :disabled="layouts.length <= 1"
-              :title="$t('delete')"
-              @click="deleteCurrentLayout"
+              :title="$t('btn_clear_layout')"
+              @click="clearLayout"
             />
-          </template>
+          </div>
 
-          <!-- Inline Layout Name Editing Mode (Multilingual KO / EN) -->
-          <template v-else>
-            <div class="inline-name-edit-box">
-              <va-input
-                v-model="layoutNameKoInput"
-                size="small"
-                class="inline-name-input"
-                :placeholder="$t('layout_name_ko_placeholder')"
-                autofocus
-                @keyup.enter="confirmInlineLayout"
-                @keyup.esc="cancelInlineLayout"
-              >
-                <template #prependInner><span class="lang-tag">KO</span></template>
-              </va-input>
-              <va-input
-                v-model="layoutNameEnInput"
-                size="small"
-                class="inline-name-input"
-                :placeholder="$t('layout_name_en_placeholder')"
-                @keyup.enter="confirmInlineLayout"
-                @keyup.esc="cancelInlineLayout"
-              >
-                <template #prependInner><span class="lang-tag">EN</span></template>
-              </va-input>
-              <va-button size="small" color="primary" icon="check" @click="confirmInlineLayout" />
-              <va-button size="small" preset="plain" color="secondary" icon="close" @click="cancelInlineLayout" />
-            </div>
-          </template>
+          <!-- Mobile Overflow 'More Actions' Dropdown -->
+          <div class="mobile-more-dropdown-wrapper">
+            <va-dropdown>
+              <template #anchor>
+                <va-button
+                  preset="secondary"
+                  size="small"
+                  icon="more_vert"
+                  class="compact-tool-btn btn-more-actions"
+                  :title="$t('more_actions')"
+                />
+              </template>
+              <va-dropdown-content class="more-actions-menu">
+                <!-- 1. Viewport Mode -->
+                <div class="menu-group-header">{{ $t('viewport_mode_title') }}</div>
+                <div class="menu-action-item" @click="setOrientation(orientationMode === 'landscape' ? 'portrait' : 'landscape')">
+                  <va-icon :name="orientationMode === 'landscape' ? 'smartphone' : 'desktop_windows'" size="16px" class="mr-2" />
+                  <span>{{ orientationMode === 'landscape' ? $t('layout_mode_portrait') : $t('layout_mode_landscape') }}</span>
+                </div>
+
+                <div class="menu-divider"></div>
+
+                <!-- 2. Grid Optimization & Helpers -->
+                <div class="menu-group-header">{{ $t('canvas_tools_title') }}</div>
+                <div class="menu-action-item" @click="compactLayoutUp">
+                  <va-icon name="vertical_align_top" size="16px" class="mr-2" />
+                  <span>{{ $t('btn_compact_up') }}</span>
+                </div>
+                <div class="menu-action-item" @click="autoGenerateLayout">
+                  <va-icon name="auto_awesome" size="16px" color="info" class="mr-2" />
+                  <span>{{ $t('btn_auto_generate_layout') }}</span>
+                </div>
+                <div class="menu-action-item text-danger" @click="clearLayout">
+                  <va-icon name="delete_sweep" size="16px" color="danger" class="mr-2" />
+                  <span>{{ $t('btn_clear_layout') }}</span>
+                </div>
+
+                <div class="menu-divider"></div>
+
+                <!-- 3. Layout Management -->
+                <div class="menu-group-header">{{ $t('layout_manage_title') }}</div>
+                <div class="menu-action-item" @click="duplicateCurrentLayout">
+                  <va-icon name="content_copy" size="16px" class="mr-2" />
+                  <span>{{ $t('duplicate_layout') }}</span>
+                </div>
+                <div class="menu-action-item" @click="openRenameLayoutInline">
+                  <va-icon name="edit" size="16px" class="mr-2" />
+                  <span>{{ $t('rename_layout') }}</span>
+                </div>
+                <div class="menu-action-item" @click="toggleDefaultLayout">
+                  <va-icon :name="currentLayoutIsDefault ? 'star' : 'star_border'" size="16px" color="warning" class="mr-2" />
+                  <span>{{ currentLayoutIsDefault ? $t('default_layout_badge') : $t('set_as_default_layout') }}</span>
+                </div>
+                <div
+                  v-if="layouts.length > 1"
+                  class="menu-action-item text-danger"
+                  @click="deleteCurrentLayout"
+                >
+                  <va-icon name="delete" size="16px" color="danger" class="mr-2" />
+                  <span>{{ $t('delete') }}</span>
+                </div>
+              </va-dropdown-content>
+            </va-dropdown>
+          </div>
+
+          <!-- Save Button (Always Solid Primary) -->
+          <va-button
+            color="primary"
+            size="small"
+            icon="save"
+            :loading="saving"
+            class="action-btn-save"
+            :title="$t('save')"
+            @click="saveLayout"
+          >
+            <span class="save-btn-text">{{ $t('save') }}</span>
+          </va-button>
         </div>
       </div>
 
-      <!-- Right Section: Tools + Save Button -->
-      <div class="header-right-section">
-        <!-- Viewport Orientation Toggle (Landscape 12 cols vs Portrait 6 cols) -->
-        <div class="viewport-mode-switcher">
-          <button
-            type="button"
-            class="mode-switch-btn btn-mode-landscape"
-            :class="{ active: orientationMode === 'landscape' }"
-            @click="setOrientation('landscape')"
-            :title="$t('layout_mode_landscape')"
-          >
-            <va-icon name="desktop_windows" size="14px" />
-          </button>
-          <button
-            type="button"
-            class="mode-switch-btn btn-mode-portrait"
-            :class="{ active: orientationMode === 'portrait' }"
-            @click="setOrientation('portrait')"
-            :title="$t('layout_mode_portrait')"
-          >
-            <va-icon name="smartphone" size="14px" />
-          </button>
-        </div>
-
-        <!-- Palette Toggle Button -->
-        <button
-          type="button"
-          class="toolbar-action-btn btn-toggle-palette"
-          :class="{ 'is-collapsed': isPaletteCollapsed }"
-          :title="isPaletteCollapsed ? $t('palette_toggle_expand') : $t('palette_toggle_collapse')"
-          @click="togglePalette"
-        >
-          <va-icon :name="isPaletteCollapsed ? 'menu_open' : 'menu'" size="14px" />
-        </button>
-
-        <!-- Auto Generate -->
-        <va-button
-          preset="secondary"
-          color="info"
-          size="small"
-          icon="auto_awesome"
-          class="compact-tool-btn"
-          :title="$t('btn_auto_generate_layout')"
-          @click="autoGenerateLayout"
-        />
-
-        <!-- Clear Layout -->
-        <va-button
-          preset="secondary"
-          color="danger"
-          size="small"
-          icon="delete_sweep"
-          class="compact-tool-btn"
-          :title="$t('btn_clear_layout')"
-          @click="clearLayout"
-        />
-
-        <!-- Save Button (Primary Solid) -->
-        <va-button
-          color="primary"
-          size="small"
-          icon="save"
-          :loading="saving"
-          class="action-btn-save"
-          :title="$t('save')"
-          @click="saveLayout"
-        >
-          <span class="save-btn-text">{{ $t('save') }}</span>
-        </va-button>
-      </div>
-    </div>
-
-    <!-- Main Builder Body (Collapsible Palette + Expansive Canvas + Slide-over Inspector) -->
-    <div class="builder-body-wrapper">
+      <!-- Main Builder Body (Collapsible Palette + Expansive Canvas + Slide-over Inspector) -->
+      <div class="builder-body-wrapper">
       <!-- 1. LEFT PALETTE (COLLAPSIBLE) -->
       <div class="palette-sidebar" :class="{ 'is-collapsed': isPaletteCollapsed }">
         <div v-show="!isPaletteCollapsed" class="palette-inner-container">
@@ -314,6 +419,13 @@
           <span class="collapsed-vertical-text">{{ $t('palette_title') }}</span>
         </div>
       </div>
+
+      <!-- Mobile Palette Backdrop Overlay -->
+      <div
+        v-if="!isPaletteCollapsed"
+        class="palette-mobile-backdrop"
+        @click="isPaletteCollapsed = true"
+      />
 
       <!-- 2. CENTER CANVAS (EXPANSIVE 2D GRID WORKSPACE) -->
       <div
@@ -617,15 +729,15 @@
                 <!-- FIELD PREVIEW -->
                 <div v-else class="inner-field-preview">
                   <!-- STAT_CARD (KPI 대형 숫자 지표) -->
-                  <div v-if="widget.type === 'STAT_CARD'" class="mock-stat-card">
+                  <div v-if="widget.type === 'STAT_CARD'" class="mock-stat-card" :class="'theme-' + (widget.options?.theme || 'primary')">
                     <div class="stat-card-top-label">{{ getWidgetDisplayName(widget) }}</div>
                     <div class="stat-card-main-val">
                       <span class="stat-num font-mono">{{ getSampleValueForWidget(widget) }}</span>
-                      <span class="stat-unit">건</span>
+                      <span class="stat-unit">{{ widget.options?.unit || '건' }}</span>
                     </div>
-                    <div class="stat-card-trend text-success">
-                      <va-icon name="trending_up" size="14px" />
-                      <span>+12.4% vs 지난달</span>
+                    <div v-if="widget.options?.trend !== undefined ? widget.options.trend : true" class="stat-card-trend" :class="(widget.options?.trend && String(widget.options.trend).startsWith('-')) ? 'text-danger' : 'text-success'">
+                      <va-icon :name="(widget.options?.trend && String(widget.options.trend).startsWith('-')) ? 'trending_down' : 'trending_up'" size="14px" />
+                      <span>{{ widget.options?.trend || '+12.4% vs 지난달' }}</span>
                     </div>
                   </div>
 
@@ -639,7 +751,7 @@
                   </div>
 
                   <!-- TEXT_BANNER (대형 강조 배너) -->
-                  <div v-else-if="widget.type === 'TEXT_BANNER'" class="mock-banner-card">
+                  <div v-else-if="widget.type === 'TEXT_BANNER'" class="mock-banner-card" :class="['style-' + (widget.options?.bgStyle || 'filled'), 'align-' + (widget.options?.align || 'left')]">
                     <div class="banner-title">{{ getSampleValueForWidget(widget) }}</div>
                     <div class="banner-sub">{{ getWidgetDisplayName(widget) }}</div>
                   </div>
@@ -670,11 +782,16 @@
                   <div v-else-if="widget.type === 'PROGRESS_BAR'" class="mock-progress-card">
                     <div class="progress-bar-labels">
                       <span>{{ getWidgetDisplayName(widget) }}</span>
-                      <span class="font-mono font-bold text-primary">78%</span>
+                      <span class="font-mono font-bold" :class="'text-' + (widget.options?.theme || 'primary')">78%</span>
                     </div>
                     <div class="progress-track">
-                      <div class="progress-fill" style="width: 78%;" />
+                      <div class="progress-fill" :class="'bg-' + (widget.options?.theme || 'primary')" style="width: 78%;" />
                     </div>
+                  </div>
+
+                  <!-- BADGE_TAG -->
+                  <div v-else-if="widget.type === 'BADGE_TAG'" class="mock-field-card">
+                    <va-badge :text="getSampleValueForWidget(widget)" :color="widget.options?.theme || 'primary'" :outline="widget.options?.outline" size="small" />
                   </div>
 
                   <!-- RADIO_SEGMENT -->
@@ -1045,6 +1162,120 @@
             </div>
           </div>
 
+          <!-- STAT_CARD (KPI 지표 카드) 전용 설정 -->
+          <div v-if="selectedWidget.type === 'STAT_CARD'" class="inspector-section">
+            <span class="inspector-section-title">{{ $t('widget_type_stat_card') }} {{ $t('options') }}</span>
+            <div class="inspector-single-col-form">
+              <div class="inspector-field-item">
+                <span class="inspector-label">{{ $t('widget_stat_unit') }}</span>
+                <va-input
+                  v-model="selectedWidgetOptions.unit"
+                  size="small"
+                  class="w-full"
+                  :placeholder="$t('widget_stat_unit_placeholder')"
+                />
+              </div>
+              <div class="inspector-field-item">
+                <span class="inspector-label">{{ $t('widget_stat_trend') }}</span>
+                <va-input
+                  v-model="selectedWidgetOptions.trend"
+                  size="small"
+                  class="w-full"
+                  :placeholder="$t('widget_stat_trend_placeholder')"
+                />
+              </div>
+              <div class="inspector-field-item">
+                <span class="inspector-label">{{ $t('widget_theme_color') }}</span>
+                <va-select
+                  v-model="selectedWidgetOptions.theme"
+                  :options="themeColorOptions"
+                  value-by="value"
+                  text-by="text"
+                  size="small"
+                  class="w-full"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- PROGRESS_BAR (진행률 바) 전용 설정 -->
+          <div v-if="selectedWidget.type === 'PROGRESS_BAR'" class="inspector-section">
+            <span class="inspector-section-title">{{ $t('widget_type_progress_bar') }} {{ $t('options') }}</span>
+            <div class="inspector-single-col-form">
+              <div class="inspector-field-item">
+                <span class="inspector-label">{{ $t('widget_theme_color') }}</span>
+                <va-select
+                  v-model="selectedWidgetOptions.theme"
+                  :options="themeColorOptions"
+                  value-by="value"
+                  text-by="text"
+                  size="small"
+                  class="w-full"
+                />
+              </div>
+              <div class="inspector-field-item">
+                <span class="inspector-label">{{ $t('widget_max_value') }}</span>
+                <va-input
+                  type="number"
+                  v-model.number="selectedWidgetOptions.maxVal"
+                  size="small"
+                  class="w-full"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- TEXT_BANNER (타이틀 배너) 전용 설정 -->
+          <div v-if="selectedWidget.type === 'TEXT_BANNER'" class="inspector-section">
+            <span class="inspector-section-title">{{ $t('widget_type_text_banner') }} {{ $t('options') }}</span>
+            <div class="inspector-single-col-form">
+              <div class="inspector-field-item">
+                <span class="inspector-label">{{ $t('widget_align') }}</span>
+                <va-select
+                  v-model="selectedWidgetOptions.align"
+                  :options="alignOptions"
+                  value-by="value"
+                  text-by="text"
+                  size="small"
+                  class="w-full"
+                />
+              </div>
+              <div class="inspector-field-item">
+                <span class="inspector-label">{{ $t('widget_bg_style') }}</span>
+                <va-select
+                  v-model="selectedWidgetOptions.bgStyle"
+                  :options="bgStyleOptions"
+                  value-by="value"
+                  text-by="text"
+                  size="small"
+                  class="w-full"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- BADGE_TAG (상태 배지) 전용 설정 -->
+          <div v-if="selectedWidget.type === 'BADGE_TAG'" class="inspector-section">
+            <span class="inspector-section-title">{{ $t('widget_type_badge_tag') }} {{ $t('options') }}</span>
+            <div class="inspector-single-col-form">
+              <div class="inspector-field-item">
+                <span class="inspector-label">{{ $t('widget_theme_color') }}</span>
+                <va-select
+                  v-model="selectedWidgetOptions.theme"
+                  :options="themeColorOptions"
+                  value-by="value"
+                  text-by="text"
+                  size="small"
+                  class="w-full"
+                />
+              </div>
+              <va-checkbox
+                v-model="selectedWidgetOptions.outline"
+                :label="$t('widget_bg_outlined')"
+              />
+            </div>
+          </div>
+
           <!-- Delete Widget -->
           <div class="inspector-section" style="border-bottom: none; margin-bottom: 0;">
             <va-button
@@ -1096,11 +1327,12 @@
         </div>
       </div>
     </div>
+  </div>
   </va-modal>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vuestic-ui'
 import { useCustomFetch } from '~/composables/useCustomFetch'
@@ -1153,6 +1385,48 @@ const activePaletteTab = ref('fields')
 const fieldSearchQuery = ref('')
 const selectedWidgetId = ref<string | null>(null)
 const saving = ref(false)
+
+// Undo / Redo History Stack Management
+const historyStack = ref<string[]>([])
+const historyIndex = ref<number>(-1)
+const maxHistory = 30
+const isApplyingHistory = ref(false)
+
+const pushHistory = () => {
+  if (isApplyingHistory.value) return
+  const currentSnapshot = JSON.stringify(widgets.value)
+  if (historyIndex.value >= 0 && historyStack.value[historyIndex.value] === currentSnapshot) {
+    return
+  }
+  if (historyIndex.value < historyStack.value.length - 1) {
+    historyStack.value = historyStack.value.slice(0, historyIndex.value + 1)
+  }
+  historyStack.value.push(currentSnapshot)
+  if (historyStack.value.length > maxHistory) {
+    historyStack.value.shift()
+  } else {
+    historyIndex.value++
+  }
+}
+
+const canUndo = computed(() => historyIndex.value > 0)
+const canRedo = computed(() => historyIndex.value < historyStack.value.length - 1)
+
+const undo = () => {
+  if (!canUndo.value) return
+  historyIndex.value--
+  isApplyingHistory.value = true
+  widgets.value = JSON.parse(historyStack.value[historyIndex.value])
+  isApplyingHistory.value = false
+}
+
+const redo = () => {
+  if (!canRedo.value) return
+  historyIndex.value++
+  isApplyingHistory.value = true
+  widgets.value = JSON.parse(historyStack.value[historyIndex.value])
+  isApplyingHistory.value = false
+}
 
 // Multi-Layout Presets State
 const layouts = ref<any[]>([
@@ -1528,6 +1802,7 @@ const widgetPaletteCategories = [
       { type: 'MULTILINGUAL_INPUT', nameKey: 'widget_type_multilingual_input', icon: 'translate', defaultW: 6, defaultH: 1, desc: '6x1 · 다국어 텍스트' },
       { type: 'TEXT_BANNER', nameKey: 'widget_type_text_banner', icon: 'title', defaultW: 6, defaultH: 1, desc: '6x1 · 강조 타이틀' },
       { type: 'TEXT_AREA', nameKey: 'widget_type_text_area', icon: 'notes', defaultW: 6, defaultH: 2, desc: '6x2 · 메모/설명' },
+      { type: 'EDITOR', nameKey: 'widget_type_editor', icon: 'html', defaultW: 12, defaultH: 3, desc: '12x3 · 리치 텍스트 에디터' },
       { type: 'BADGE_TAG', nameKey: 'widget_type_badge_tag', icon: 'label', defaultW: 3, defaultH: 1, desc: '3x1 · 상태 뱃지' }
     ]
   },
@@ -1587,6 +1862,27 @@ const widgetPaletteCategories = [
   }
 ]
 
+const themeColorOptions = computed(() => [
+  { value: 'primary', text: t('widget_theme_primary') },
+  { value: 'success', text: t('widget_theme_success') },
+  { value: 'info', text: t('widget_theme_info') },
+  { value: 'warning', text: t('widget_theme_warning') },
+  { value: 'danger', text: t('widget_theme_danger') },
+  { value: 'secondary', text: t('widget_theme_secondary') }
+])
+
+const alignOptions = computed(() => [
+  { value: 'left', text: t('widget_align_left') },
+  { value: 'center', text: t('widget_align_center') },
+  { value: 'right', text: t('widget_align_right') }
+])
+
+const bgStyleOptions = computed(() => [
+  { value: 'filled', text: t('widget_bg_filled') },
+  { value: 'gradient', text: t('widget_bg_gradient') },
+  { value: 'outlined', text: t('widget_bg_outlined') }
+])
+
 // 100% DB 공통코드(FIELD_TYPE) 표준 기반 위젯 호환 필드 매핑 정의
 const WIDGET_COMPATIBLE_FIELD_TYPES: Record<string, string[]> = {
   // 1. 텍스트 & 타이포그래피
@@ -1608,6 +1904,7 @@ const WIDGET_COMPATIBLE_FIELD_TYPES: Record<string, string[]> = {
   MULTI_CHIP_SELECT: ['SELECT'],
   BADGE_TAG: ['SELECT', 'TEXT'],
   BOOLEAN_SWITCH: ['BOOLEAN'],
+  SWITCH_TOGGLE: ['BOOLEAN'],
   BOOLEAN_CARD: ['BOOLEAN'],
 
   // 4. 날짜 & 시간
@@ -1618,6 +1915,7 @@ const WIDGET_COMPATIBLE_FIELD_TYPES: Record<string, string[]> = {
   // 5. 미디어, 참조 & 서브테이블
   FILE_ATTACHMENT: ['FILE'],
   IMAGE_BOX: ['IMAGE'],
+  IMAGE_VIEWER: ['IMAGE'],
   DOMAIN_REF_CARD: ['DOMAIN_REFERENCE'],
   JSON_SUBTABLE: ['JSON']
 }
@@ -1837,6 +2135,7 @@ const addPredefinedFieldWidget = (field: any) => {
   selectedWidgetId.value = newWidget.id
   isInspectorOpen.value = true
   resolveWidgetCollisions(newWidget)
+  pushHistory()
 }
 
 const addCustomWidget = (type: string, defaultW: number, defaultH: number, nameKey = '') => {
@@ -1859,6 +2158,7 @@ const addCustomWidget = (type: string, defaultW: number, defaultH: number, nameK
   selectedWidgetId.value = newWidget.id
   isInspectorOpen.value = true
   resolveWidgetCollisions(newWidget)
+  pushHistory()
 }
 
 const findNextAvailablePosition = (w: number, h: number) => {
@@ -1878,7 +2178,132 @@ const deleteWidget = (widgetId: string) => {
     selectedWidgetId.value = null
     isInspectorOpen.value = false
   }
+  pushHistory()
 }
+
+// Compact Up: 위젯들을 위쪽 빈 공간으로 촘촘히 밀착 정렬
+const compactLayoutUp = () => {
+  const sorted = [...widgets.value].sort((a, b) => a.y - b.y || a.x - b.x)
+  for (const widget of sorted) {
+    let targetY = 0
+    while (targetY < widget.y) {
+      const testPos = { ...widget, y: targetY }
+      const hasCollision = sorted.some(other => other.id !== widget.id && isOverlapping(testPos, other))
+      if (!hasCollision) {
+        widget.y = targetY
+        break
+      }
+      targetY++
+    }
+  }
+  pushHistory()
+}
+
+// Duplicate Selected Widget
+const duplicateSelectedWidget = () => {
+  if (!selectedWidget.value) return
+  const src = selectedWidget.value
+  const newId = 'widget_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4)
+  const targetY = src.y + src.h
+  const newWidget = {
+    ...JSON.parse(JSON.stringify(src)),
+    id: newId,
+    y: targetY
+  }
+  widgets.value.push(newWidget)
+  selectedWidgetId.value = newId
+  resolveWidgetCollisions(newWidget)
+  pushHistory()
+}
+
+// Nudge Selected Widget (Arrow Keys)
+const nudgeSelectedWidget = (dx: number, dy: number) => {
+  if (!selectedWidget.value) return
+  const w = selectedWidget.value
+  const newX = Math.max(0, Math.min(cols.value - w.w, w.x + dx))
+  const newY = Math.max(0, Math.min(50, w.y + dy))
+  if (w.x !== newX || w.y !== newY) {
+    w.x = newX
+    w.y = newY
+    resolveWidgetCollisions(w)
+    pushHistory()
+  }
+}
+
+// Keyboard shortcuts
+const handleKeyDown = (event: KeyboardEvent) => {
+  if (!visible.value) return
+
+  const activeEl = document.activeElement
+  const isInputFocused = activeEl && (
+    activeEl.tagName === 'INPUT' ||
+    activeEl.tagName === 'TEXTAREA' ||
+    activeEl.getAttribute('contenteditable') === 'true'
+  )
+
+  const isCtrlOrCmd = event.ctrlKey || event.metaKey
+
+  // 1. Undo: Ctrl+Z (or Cmd+Z)
+  if (isCtrlOrCmd && !event.shiftKey && event.key.toLowerCase() === 'z') {
+    if (!isInputFocused) {
+      event.preventDefault()
+      undo()
+    }
+    return
+  }
+
+  // 2. Redo: Ctrl+Y or Ctrl+Shift+Z
+  if ((isCtrlOrCmd && event.key.toLowerCase() === 'y') || (isCtrlOrCmd && event.shiftKey && event.key.toLowerCase() === 'z')) {
+    if (!isInputFocused) {
+      event.preventDefault()
+      redo()
+    }
+    return
+  }
+
+  // 3. Duplicate: Ctrl+D
+  if (isCtrlOrCmd && event.key.toLowerCase() === 'd' && selectedWidget.value) {
+    event.preventDefault()
+    duplicateSelectedWidget()
+    return
+  }
+
+  // 4. Delete: Delete or Backspace
+  if ((event.key === 'Delete' || event.key === 'Backspace') && selectedWidget.value && !isInputFocused) {
+    event.preventDefault()
+    deleteSelectedWidget()
+    return
+  }
+
+  // 5. Arrow Keys Nudge
+  if (!isInputFocused && selectedWidget.value) {
+    if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      nudgeSelectedWidget(0, -1)
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      nudgeSelectedWidget(0, 1)
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault()
+      nudgeSelectedWidget(-1, 0)
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault()
+      nudgeSelectedWidget(1, 0)
+    }
+  }
+}
+
+onMounted(() => {
+  if (typeof window !== 'undefined') {
+    window.addEventListener('keydown', handleKeyDown)
+  }
+})
+
+onUnmounted(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('keydown', handleKeyDown)
+  }
+})
 
 // 2D Collision Push-down Algorithm Logic
 const isOverlapping = (
@@ -1972,6 +2397,7 @@ const startResize = (widget: any, event: MouseEvent, direction: 'e' | 's' | 'se'
     window.removeEventListener('mousemove', onMouseMove)
     window.removeEventListener('mouseup', onMouseUp)
     resolveWidgetCollisions(widget)
+    pushHistory()
   }
 
   window.addEventListener('mousemove', onMouseMove)
@@ -2010,6 +2436,7 @@ const startDragMove = (widget: any, event: MouseEvent) => {
     window.removeEventListener('mousemove', onMouseMove)
     window.removeEventListener('mouseup', onMouseUp)
     resolveWidgetCollisions(widget)
+    pushHistory()
   }
 
   window.addEventListener('mousemove', onMouseMove)
@@ -2056,12 +2483,14 @@ const autoGenerateLayout = () => {
 
     currentX += w
   })
+  pushHistory()
 }
 
 const clearLayout = () => {
   widgets.value = []
   selectedWidgetId.value = null
   isInspectorOpen.value = false
+  pushHistory()
 }
 
 const syncCurrentLayoutToMemory = () => {
@@ -2098,6 +2527,7 @@ const loadLayoutToCanvas = (targetLayout: any) => {
   })
   selectedWidgetId.value = null
   isInspectorOpen.value = false
+  pushHistory()
 }
 
 const onLayoutChange = (newLayoutId: string) => {
@@ -2308,10 +2738,10 @@ const saveLayout = async () => {
 
 watch(() => props.modelValue, (newVal) => {
   if (newVal) {
+    // 모달 오픈 시 항상 좌측 서랍 패널을 펼쳐진 상태로 초기화
+    isPaletteCollapsed.value = false
+
     if (typeof window !== 'undefined') {
-      if (window.innerWidth < 1024) {
-        isPaletteCollapsed.value = true
-      }
       if (window.innerWidth < 768 && orientationMode.value === 'landscape') {
         setOrientation('portrait')
       }
@@ -2322,30 +2752,42 @@ watch(() => props.modelValue, (newVal) => {
 </script>
 
 <style scoped>
-/* Unified Single Header Bar (Height: 46px, FIXED on screen top) */
-.builder-unified-header {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
+/* Fullscreen Modal Flex Container */
+.builder-modal-container {
   display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  background: var(--va-background-secondary, #0f172a);
+  box-sizing: border-box;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* Unified Single Header Bar */
+.builder-unified-header {
+  position: relative !important;
+  width: 100% !important;
+  flex: 0 0 46px !important;
+  min-height: 46px !important;
+  max-height: 46px !important;
+  height: 46px !important;
+  display: flex !important;
   justify-content: space-between;
   align-items: center;
-  width: 100vw !important;
-  height: 46px;
-  min-height: 46px;
-  max-height: 46px;
-  flex-shrink: 0;
   padding: 0 0.5rem;
-  padding-top: env(safe-area-inset-top, 0px);
   background: var(--va-background-element, #141b2d);
   border-bottom: 2px solid var(--va-primary, #154ec1);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   box-sizing: border-box;
-  overflow-x: auto;
-  overflow-y: hidden;
   gap: 6px;
-  z-index: 999999 !important;
+  z-index: 100 !important;
 }
 
 .header-left-section {
@@ -2354,8 +2796,6 @@ watch(() => props.modelValue, (newVal) => {
   gap: 6px;
   min-width: 0;
   flex: 1 1 auto;
-  overflow-x: auto;
-  overflow-y: hidden;
 }
 
 .header-right-section {
@@ -2425,13 +2865,33 @@ watch(() => props.modelValue, (newVal) => {
 }
 
 .preset-select-control {
-  width: 170px;
-  min-width: 120px;
+  width: 160px;
+  min-width: 110px;
   flex-shrink: 0;
 }
 
 .compact-tool-btn {
   flex-shrink: 0;
+}
+
+.desktop-preset-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.desktop-quick-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mobile-more-dropdown-wrapper {
+  display: none;
+}
+
+.hidden-xs {
+  display: inline;
 }
 
 .inline-name-edit-box {
@@ -2489,17 +2949,19 @@ watch(() => props.modelValue, (newVal) => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 6px;
+  padding: 4px 8px;
   border: 1px solid var(--va-background-border, #334155);
   background: rgba(255, 255, 255, 0.05);
   border-radius: 4px;
   color: var(--va-text-secondary, #94a3b8);
   cursor: pointer;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
-.toolbar-action-btn:hover {
+.toolbar-action-btn:hover, .toolbar-action-btn.is-active {
   color: var(--va-text-primary, #ffffff);
+  background: rgba(21, 78, 193, 0.2);
   border-color: var(--va-primary, #154ec1);
 }
 
@@ -2512,6 +2974,50 @@ watch(() => props.modelValue, (newVal) => {
   white-space: nowrap;
 }
 
+/* More Actions Dropdown Menu Styling */
+.more-actions-menu {
+  background: var(--va-background-element, #1e2640);
+  border: 1px solid var(--va-background-border, #334155);
+  border-radius: 8px;
+  padding: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  min-width: 180px;
+}
+
+.menu-group-header {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--va-text-secondary, #94a3b8);
+  padding: 4px 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.menu-action-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  color: var(--va-text-primary, #f8fafc);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.menu-action-item:hover {
+  background: var(--va-background-secondary, #141b2d);
+}
+
+.menu-action-item.text-danger {
+  color: #ef4444;
+}
+
+.menu-divider {
+  height: 1px;
+  background: var(--va-background-border, #334155);
+  margin: 4px 0;
+}
+
 /* Builder Main Body (Palette + Canvas Workspace + Slide-over Inspector) */
 .builder-body-wrapper {
   display: flex;
@@ -2519,8 +3025,9 @@ watch(() => props.modelValue, (newVal) => {
   width: 100%;
   flex: 1 1 0% !important;
   min-height: 0 !important;
-  padding-top: 46px !important;
-  height: 100% !important;
+  height: calc(100% - 46px) !important;
+  max-height: calc(100% - 46px) !important;
+  padding-top: 0 !important;
   overflow: hidden !important;
   background: var(--va-background-secondary, #0f172a);
   box-sizing: border-box;
@@ -2537,9 +3044,10 @@ watch(() => props.modelValue, (newVal) => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  transition: width 0.25s ease, min-width 0.25s ease, max-width 0.25s ease, flex 0.25s ease;
+  transition: width 0.25s ease, min-width 0.25s ease, max-width 0.25s ease, flex 0.25s ease, transform 0.25s ease;
   overflow: hidden;
-  z-index: 10;
+  z-index: 30;
+  position: relative;
 }
 
 .palette-sidebar.is-collapsed {
@@ -2556,6 +3064,10 @@ watch(() => props.modelValue, (newVal) => {
   flex-direction: column;
   width: 260px;
   height: 100%;
+}
+
+.palette-mobile-backdrop {
+  display: none;
 }
 
 .palette-collapsed-strip {
@@ -2629,7 +3141,8 @@ watch(() => props.modelValue, (newVal) => {
 .palette-content-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 0.65rem;
+  padding: 0.65rem 0.65rem max(100px, env(safe-area-inset-bottom, 20px) + 80px) 0.65rem;
+  box-sizing: border-box;
 }
 
 .palette-item {
@@ -2694,7 +3207,7 @@ watch(() => props.modelValue, (newVal) => {
   height: 100%;
   overflow-y: auto;
   overflow-x: auto;
-  padding: 1rem;
+  padding: 1rem 1rem max(100px, env(safe-area-inset-bottom, 20px) + 80px) 1rem;
   box-sizing: border-box;
   background-color: var(--va-background-secondary, #0f172a);
   background-image: radial-gradient(var(--va-background-border, #334155) 1.5px, transparent 1.5px);
@@ -3213,11 +3726,12 @@ watch(() => props.modelValue, (newVal) => {
 /* 3. Slide-over Inspector Drawer */
 .inspector-slide-drawer {
   position: absolute;
-  top: 46px;
+  top: 0;
+  bottom: 0;
   right: 0;
   width: 340px;
   max-width: 85vw;
-  height: calc(100% - 46px);
+  height: 100%;
   background: var(--va-background-primary, #1e2640);
   border-left: 1px solid var(--va-background-border, #334155);
   box-shadow: -4px 0 20px rgba(0, 0, 0, 0.4);
@@ -3281,7 +3795,7 @@ watch(() => props.modelValue, (newVal) => {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 0.85rem;
+  padding: 0.85rem 0.85rem max(100px, env(safe-area-inset-bottom, 20px) + 80px) 0.85rem;
   box-sizing: border-box;
 }
 
@@ -4000,72 +4514,137 @@ watch(() => props.modelValue, (newVal) => {
 
 @media (max-width: 768px) {
   .builder-unified-header {
-    padding: 0 0.25rem;
-    height: 40px;
-    min-height: 40px;
-    max-height: 40px;
-    gap: 3px;
-  }
-  .header-title-wrapper {
-    display: none;
-  }
-  .toolbar-divider-v {
-    display: none;
-  }
-  .preset-select-control {
-    width: 120px;
-    min-width: 90px;
-    max-width: 150px;
-  }
-  .compact-tool-btn {
-    min-width: 26px;
-    padding: 0 3px !important;
-  }
-  .save-btn-text {
-    display: none;
-  }
-  .canvas-workspace-area {
-    padding: 0.35rem;
+    padding: 0 0.35rem !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    height: 44px !important;
+    flex: 0 0 44px !important;
+    gap: 4px !important;
+    z-index: 100 !important;
+    display: flex !important;
   }
   .builder-body-wrapper {
-    padding-top: 40px !important;
+    height: calc(100% - 44px) !important;
+    max-height: calc(100% - 44px) !important;
+  }
+  .header-title-wrapper {
+    display: none !important;
+  }
+  .toolbar-divider-v {
+    display: none !important;
+  }
+  .desktop-preset-actions {
+    display: none !important;
+  }
+  .desktop-quick-tools {
+    display: none !important;
+  }
+  .mobile-more-dropdown-wrapper {
+    display: flex !important;
+    align-items: center;
+  }
+  .hidden-xs {
+    display: none !important;
+  }
+  .preset-select-control {
+    width: 110px !important;
+    min-width: 80px !important;
+    max-width: 130px !important;
+  }
+  .compact-tool-btn {
+    min-width: 28px;
+    padding: 0 4px !important;
+  }
+  .save-btn-text {
+    display: none !important;
+  }
+  .canvas-workspace-area {
+    padding: 0.5rem 0.35rem max(100px, env(safe-area-inset-bottom, 20px) + 80px) 0.35rem !important;
+  }
+  .builder-body-wrapper {
+    padding-top: 0 !important;
   }
 
-  /* Mobile: Palette becomes floating overlay, does NOT push canvas */
+  /* Mobile: Palette becomes floating overlay off-canvas drawer with backdrop */
   .palette-sidebar {
     position: absolute !important;
     top: 0 !important;
     left: 0 !important;
     bottom: 0 !important;
-    width: 260px !important;
-    min-width: 260px !important;
-    max-width: 260px !important;
+    width: 300px !important;
+    min-width: 280px !important;
+    max-width: 85vw !important;
     flex: none !important;
-    z-index: 50 !important;
-    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.5) !important;
-    transition: transform 0.25s ease !important;
-    transform: translateX(0);
+    z-index: 60 !important;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.6) !important;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    transform: translateX(0) !important;
   }
   .palette-sidebar.is-collapsed {
-    width: 0px !important;
-    min-width: 0px !important;
-    max-width: 0px !important;
+    width: 300px !important;
+    min-width: 280px !important;
+    max-width: 85vw !important;
     flex: none !important;
     box-shadow: none !important;
-    transform: translateX(-100%);
-    overflow: hidden !important;
+    transform: translateX(-100%) !important;
+    pointer-events: none !important;
   }
   .palette-inner-container {
-    width: 260px;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .palette-collapsed-strip {
+    display: none !important;
+  }
+  .palette-content-scroll {
+    padding-bottom: max(100px, env(safe-area-inset-bottom, 20px) + 80px) !important;
   }
 
-  /* Mobile: Inspector drawer with non-blocking width and correct top offset */
+  .palette-mobile-backdrop {
+    display: block !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: rgba(0, 0, 0, 0.5) !important;
+    z-index: 55 !important;
+    backdrop-filter: blur(2px);
+  }
+
+  /* Mobile: Inspector drawer as floating overlay off-canvas drawer with 320px/85vw width (right sidebar) */
   .inspector-slide-drawer {
-    top: 40px !important;
-    height: calc(100% - 40px) !important;
-    width: min(340px, 85vw) !important;
+    position: absolute !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    right: 0 !important;
+    left: auto !important;
+    height: 100% !important;
+    width: 320px !important;
+    min-width: 280px !important;
     max-width: 85vw !important;
-    z-index: 60 !important;
+    flex: none !important;
+    z-index: 70 !important;
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.6) !important;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+  .drawer-content {
+    padding-bottom: max(100px, env(safe-area-inset-bottom, 20px) + 80px) !important;
+  }
+  .inspector-backdrop {
+    display: block !important;
+    z-index: 65 !important;
+    background: rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: blur(2px);
+  }
+
+  /* Mobile Canvas Optimization */
+  .grid-canvas-container.is-portrait {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    border-width: 2px !important;
+    border-radius: 8px !important;
+    margin: 0 !important;
   }
 }
 </style>
