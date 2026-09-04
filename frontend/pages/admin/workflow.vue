@@ -539,11 +539,27 @@ const openEditModal = (row: any) => {
     }
   })
 
+  let parsedDesc = ''
+  if (row.description) {
+    if (typeof row.description === 'object') {
+      parsedDesc = row.description.ko || row.description.en || ''
+    } else if (typeof row.description === 'string' && row.description.startsWith('{')) {
+      try {
+        const p = JSON.parse(row.description)
+        parsedDesc = p.ko || p.en || row.description
+      } catch {
+        parsedDesc = row.description
+      }
+    } else {
+      parsedDesc = String(row.description)
+    }
+  }
+
   modalData.value = {
     id: row.id,
     nameKo: parsedName.ko,
     nameEn: parsedName.en,
-    description: row.description || '',
+    description: parsedDesc,
     actionType: row.actionType || 'CREATE',
     scopeLevel: row.nodeId ? 'NODE' : 'DOMAIN',
     domainId: row.domainId,
@@ -691,13 +707,23 @@ const saveWorkflowModal = async () => {
     steps: approvalLine
   })
 
+  const descText = modalData.value.description ? String(modalData.value.description).trim() : ''
+  let descJson: string | null = null
+  if (descText) {
+    if (descText.startsWith('{') || descText.startsWith('[')) {
+      descJson = descText
+    } else {
+      descJson = JSON.stringify({ ko: descText, en: descText })
+    }
+  }
+
   const payload = {
     id: modalData.value.id,
     name: JSON.stringify({
       ko: modalData.value.nameKo?.trim() || modalData.value.nameEn?.trim(),
       en: modalData.value.nameEn?.trim() || modalData.value.nameKo?.trim()
     }),
-    description: modalData.value.description,
+    description: descJson,
     actionType: modalData.value.actionType,
     domainId: modalData.value.domainId,
     nodeId: modalData.value.scopeLevel === 'NODE' ? modalData.value.nodeId : null,

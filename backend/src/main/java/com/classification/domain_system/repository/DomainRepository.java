@@ -22,5 +22,12 @@ public interface DomainRepository extends JpaRepository<Domain, UUID> {
     @Query("SELECT d FROM Domain d WHERE d.id = :id")
     java.util.Optional<Domain> findWithLockById(@Param("id") UUID id);
 
+    @org.springframework.data.jpa.repository.Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query(value = "UPDATE domain SET current_sequence = COALESCE(current_sequence, 0) + 1 WHERE id = :domainId", nativeQuery = true)
+    int incrementSequenceNative(@Param("domainId") UUID domainId);
+
+    @Query(value = "SELECT current_sequence FROM domain WHERE id = :domainId", nativeQuery = true)
+    Long getCurrentSequenceNative(@Param("domainId") UUID domainId);
+
     java.util.Optional<Domain> findBySpecializedCategory(String specializedCategory);
 }

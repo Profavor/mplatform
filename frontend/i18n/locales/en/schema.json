@@ -1,4 +1,8 @@
 {
+  "create_new_domain": "Create Domain",
+  "edit_domain": "Edit Domain",
+  "sectors": "Sectors",
+  "groups": "Groups",
   "classification_axes": "Classification Axes",
   "domain_name": "Domain Name",
   "classification_name": "Classification Name",

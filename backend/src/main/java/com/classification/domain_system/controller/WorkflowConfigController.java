@@ -17,6 +17,12 @@ public class WorkflowConfigController {
 
     private final WorkflowConfigService workflowConfigService;
 
+    @GetMapping
+    @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'workflow:read')")
+    public ResponseEntity<List<WorkflowConfig>> getAll() {
+        return ResponseEntity.ok(workflowConfigService.getAll());
+    }
+
     @GetMapping("/domain/{domainId}")
     @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'workflow:read')")
     public ResponseEntity<List<WorkflowConfig>> getByDomain(@PathVariable UUID domainId) {

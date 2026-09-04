@@ -80,6 +80,10 @@ public class MatchingService {
                                 duplicates.add(r);
                             }
                         } catch (Exception e) {
+                            log.debug("ES identifier search error: {}", e.getMessage());
+                        }
+
+                        if (duplicates.isEmpty()) {
                             try {
                                 List<Record> dbRecords = recordRepository.findActiveRecordsByDomainAndFieldValue(node.getDomain().getId(), idDef.getKey(), val.toString());
                                 if (dbRecords != null && !dbRecords.isEmpty()) {
@@ -134,6 +138,10 @@ public class MatchingService {
                                     duplicates.add(r);
                                 }
                             } catch (Exception e) {
+                                log.debug("ES candidate key search error: {}", e.getMessage());
+                            }
+
+                            if (duplicates.isEmpty()) {
                                 try {
                                     List<Record> dbRecords = recordRepository.findActiveRecordsByDomainAndFieldValue(node.getDomain().getId(), k, val.toString());
                                     if (dbRecords != null && !dbRecords.isEmpty()) {
@@ -212,7 +220,27 @@ public class MatchingService {
                                 duplicates.add(r);
                             }
                         } catch (Exception e) {
-                            duplicates = recordRepository.findDynamicRecords(List.of(nodeId), null, searchParams, Pageable.unpaged()).getContent();
+                            log.debug("ES exact match error: {}", e.getMessage());
+                        }
+
+                        if (duplicates.isEmpty()) {
+                            try {
+                                if (fields.length == 1) {
+                                    List<Record> dbRecords = recordRepository.findActiveRecordsByDomainAndFieldValue(node.getDomain().getId(), fields[0], data.get(fields[0]).toString());
+                                    if (dbRecords != null && !dbRecords.isEmpty()) {
+                                        duplicates = dbRecords;
+                                    }
+                                }
+                            } catch (Exception ignored) {}
+                            if (duplicates.isEmpty()) {
+                                try {
+                                    duplicates = recordRepository.findDynamicRecords(List.of(nodeId), null, searchParams, Pageable.unpaged()).getContent();
+                                } catch (Exception ex) {
+                                    try {
+                                        duplicates = recordRepository.findDynamicRecordsByDomain(node.getDomain().getId(), searchParams, Pageable.unpaged()).getContent();
+                                    } catch (Exception ignored) {}
+                                }
+                            }
                         }
                         
                         if (!duplicates.isEmpty()) {
@@ -226,6 +254,7 @@ public class MatchingService {
                         }
                     }
                 } else {
+                    boolean esFuzzyFound = false;
                     try {
                         StringBuilder shoulds = new StringBuilder();
                         for (String field : fields) {
@@ -250,6 +279,10 @@ public class MatchingService {
                             return result;
                         }
                     } catch (Exception fallbackE) {
+                        log.debug("ES fuzzy match error: {}", fallbackE.getMessage());
+                    }
+
+                    if (!esFuzzyFound) {
                         // FUZZY matching (JPA Fallback with JaroWinkler)
                         int pageSize = (mdmProperties != null && mdmProperties.getMatching() != null && mdmProperties.getMatching().getFuzzyMaxCandidates() > 0)
                                 ? mdmProperties.getMatching().getFuzzyMaxCandidates() : 500;

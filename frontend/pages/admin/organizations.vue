@@ -1213,6 +1213,33 @@ const saveNewOrg = async () => {
 
 const saveOrgInfo = async (editOrgFormData) => {
   if (!selectedOrg.value) return
+
+  // Check if any fields actually changed
+  const origDn = parseMultilingualField(selectedOrg.value.displayName || selectedOrg.value.name)
+  const origDesc = parseMultilingualField(selectedOrg.value.description)
+  const origEmailDomain = selectedOrg.value.emailDomain ? selectedOrg.value.emailDomain.trim() : ''
+  const newEmailDomain = editOrgFormData.emailDomain ? editOrgFormData.emailDomain.trim() : ''
+  const origIcon = selectedOrg.value.icon || 'corporate_fare'
+  const newIcon = editOrgFormData.icon || 'corporate_fare'
+
+  const hasChanged = 
+    (origDn.ko || '') !== (editOrgFormData.displayNameKo || '') ||
+    (origDn.en || '') !== (editOrgFormData.displayNameEn || '') ||
+    (origDesc.ko || '') !== (editOrgFormData.descriptionKo || '') ||
+    (origDesc.en || '') !== (editOrgFormData.descriptionEn || '') ||
+    origEmailDomain !== newEmailDomain ||
+    origIcon !== newIcon
+
+  if (!hasChanged) {
+    showCustomAlert(
+      getLabel('no_changes_to_save', '변경된 내용이 없습니다.'),
+      getLabel('notification', '알림'),
+      getLabel('notification', '알림'),
+      'info'
+    )
+    return
+  }
+
   try {
     const updated = await customFetch(`/api/organizations/${selectedOrg.value.id}`, {
       method: 'PUT',

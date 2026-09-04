@@ -29,8 +29,36 @@ public class WorkflowConfigService {
     private final WorkflowConfigRepository repository;
     private final ObjectMapper mapper = new ObjectMapper();
 
+    public void sanitizeJsonFields(WorkflowConfig config) {
+        if (config == null) return;
+
+        if (config.getName() != null && !config.getName().isBlank()) {
+            String trimmed = config.getName().trim();
+            if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+                try {
+                    java.util.Map<String, String> map = java.util.Map.of("ko", trimmed, "en", trimmed);
+                    config.setName(mapper.writeValueAsString(map));
+                } catch (Exception ignored) {}
+            }
+        }
+
+        if (config.getDescription() != null) {
+            String trimmed = config.getDescription().trim();
+            if (trimmed.isBlank()) {
+                config.setDescription(null);
+            } else if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+                try {
+                    java.util.Map<String, String> map = java.util.Map.of("ko", trimmed, "en", trimmed);
+                    config.setDescription(mapper.writeValueAsString(map));
+                } catch (Exception ignored) {}
+            }
+        }
+    }
+
     public void validateWorkflowConfig(WorkflowConfig config) {
-        if (config == null || config.getStepsConfig() == null || config.getStepsConfig().isBlank()) {
+        if (config == null) return;
+        sanitizeJsonFields(config);
+        if (config.getStepsConfig() == null || config.getStepsConfig().isBlank()) {
             return;
         }
         try {
@@ -63,6 +91,11 @@ public class WorkflowConfigService {
                     ErrorCode.INVALID_WORKFLOW_CONFIG,
                     "Invalid stepsConfig JSON format");
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<WorkflowConfig> getAll() {
+        return repository.findAll();
     }
 
     @Transactional(readOnly = true)
