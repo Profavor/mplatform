@@ -53,7 +53,11 @@
               required
             />
             <div style="padding-bottom: 0.5rem;">
-              <va-checkbox v-model="formData.isActive" :label="t('integration.channels.is_active', '활성화')" />
+              <va-checkbox
+                :model-value="formData.active !== undefined ? Boolean(formData.active) : Boolean(formData.isActive)"
+                :label="t('integration.channels.is_active')"
+                @update:model-value="val => { formData.active = Boolean(val); formData.isActive = Boolean(val); }"
+              />
             </div>
           </div>
 

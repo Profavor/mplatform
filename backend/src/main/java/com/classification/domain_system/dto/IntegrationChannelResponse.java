@@ -17,7 +17,13 @@ public class IntegrationChannelResponse {
     private UUID nodeId;
     private String configJson;
     private String mappingConfigJson;
+    @com.fasterxml.jackson.annotation.JsonProperty("active")
     private boolean isActive;
+
+    @com.fasterxml.jackson.annotation.JsonProperty("isActive")
+    public boolean getIsActive() {
+        return this.isActive;
+    }
     private boolean requiresApproval;
     private int maxRetries;
     private long retryBackoffMs;

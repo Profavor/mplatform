@@ -48,6 +48,7 @@ public class IntegrationChannel {
     private String mappingConfigJson; // SpEL mapping rules: { mappings: [{targetField: "...", sourceExpression: "..."}] }
 
     @com.fasterxml.jackson.annotation.JsonProperty("isActive")
+    @com.fasterxml.jackson.annotation.JsonAlias({"active"})
     @Column(nullable = false)
     private boolean isActive = true;
 
