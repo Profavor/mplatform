@@ -149,6 +149,7 @@
           :has-create-workflow="hasCreateWorkflow"
           @create="openCreateModal"
           @upload-excel="showExcelUploader = true"
+          @reset-domain-records="handleResetDomainRecords"
           @open-lineage="showLineageModal = true"
           @open-compare="showCompareModal = true"
           @open-bulk-reclassify="showBulkReclassifyModal = true"
@@ -1281,6 +1282,30 @@ const refreshRecords = () => {
   }
 }
 
+const handleResetDomainRecords = async () => {
+  if (!selectedNode.value || !selectedNode.value.isDomain) return
+  const target = selectedNode.value
+  const domainId = target.id
+  const domainName = formatNodeName(target.name) || t('domain')
+  const confirmMsg = t('reset_domain_records_confirm_desc', { name: domainName })
+  if (!confirm(confirmMsg)) return
+
+  try {
+    await customFetch(`/api/domains/${domainId}/records`, {
+      method: 'DELETE'
+    })
+    try {
+      initToast({
+        message: t('reset_domain_records_success'),
+        color: 'success'
+      })
+    } catch (ignored) {}
+    refreshRecords()
+  } catch (e) {
+    showCustomAlert(parseErrorMessage(e) || t('reset_domain_records_failed'), t('error'), t('error'), 'error')
+  }
+}
+
 onUnmounted(() => {
   if (process.client) {
     window.removeEventListener('approval-updated', refreshRecords)
@@ -2123,6 +2148,40 @@ const viewIntegrationHistory = async (row) => {
   selectedApprovalRequest.value = null
   selectedReflectionTime.value = row.changedAt
   showApprovalHistoryModal.value = true
+
+  const isMergeOrUpdate = Boolean(row.previousData) || ['UPDATE', 'RECORD_UPDATE', 'INBOUND_MERGE', 'BATCH_MERGE', 'MERGED_INTO', 'RECORD_MERGE', 'MERGE'].includes(row.changeType);
+  const targetType = row.changeType || (isMergeOrUpdate ? 'RECORD_UPDATE' : (row.changeType === 'DELETE' || row.changeType === 'RECORD_DELETE' ? 'RECORD_DELETE' : 'RECORD_CREATE'));
+
+  let formattedChanges = null;
+  if (isMergeOrUpdate && row.previousData) {
+    let beforeObj = row.previousData;
+    let afterObj = row.newData;
+    if (typeof beforeObj === 'string') {
+      try { beforeObj = JSON.parse(beforeObj); } catch(e) {}
+    }
+    if (typeof afterObj === 'string') {
+      try { afterObj = JSON.parse(afterObj); } catch(e) {}
+    }
+    formattedChanges = {
+      before: beforeObj || {},
+      after: afterObj || {},
+      changedFields: row.changedFields || []
+    };
+  } else {
+    formattedChanges = row.newData;
+  }
+
+  const requesterName = row.changedByName || row.changedBy || (row.sourceSystem ? `시스템 연계 [${row.sourceSystem}]` : 'INBOUND');
+
+  let cleanChanges = null;
+  if (formattedChanges) {
+    try {
+      cleanChanges = JSON.parse(JSON.stringify(formattedChanges));
+    } catch(e) {
+      cleanChanges = formattedChanges;
+    }
+  }
+
   try {
     const logs = await customFetch(`/api/admin/integration/logs/by-record/${row.recordId}`)
     const log = logs && logs.length > 0 ? logs[0] : null
@@ -2130,10 +2189,11 @@ const viewIntegrationHistory = async (row) => {
       isIntegration: true,
       sourceSystem: row.sourceSystem || (log ? 'INBOUND' : 'SYSTEM'),
       createdAt: row.changedAt,
-      changes: row.newData,
-      targetType: 'RECORD_CREATE',
+      changes: cleanChanges,
+      targetType: targetType,
       targetId: row.recordId,
       nodeId: selectedNode.value?.id,
+      requesterName: requesterName,
       integrationLog: log
     }
   } catch (e) {
@@ -2142,10 +2202,11 @@ const viewIntegrationHistory = async (row) => {
       isIntegration: true,
       sourceSystem: row.sourceSystem || 'INBOUND',
       createdAt: row.changedAt,
-      changes: row.newData,
-      targetType: 'RECORD_CREATE',
+      changes: cleanChanges,
+      targetType: targetType,
       targetId: row.recordId,
       nodeId: selectedNode.value?.id,
+      requesterName: requesterName,
       integrationLog: null
     }
   }
@@ -2175,39 +2236,53 @@ const viewSnapshot = (dataString, logId) => {
 }
 
 
+const isRecordUuid = (val) => typeof val === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(val.trim());
+
 const getParsedDiffs = (prev, next) => {
   let p = {};
   let n = {};
-  
-  if (typeof prev === 'string') {
-    try {
-      const parsed = JSON.parse(prev);
-      if (parsed && typeof parsed === 'object' && ('before' in parsed || 'after' in parsed)) {
-        p = parsed.before || {};
-        n = parsed.after || {};
-      } else if (next === 'RECORD_UPDATE') {
-        p = parsed.before || {};
-        n = parsed.after || {};
-      } else {
-        n = parsed || {};
-        // p는 현재 레코드 데이터에서 복사
-        p = { ...(selectedRecordData.value || {}) };
+
+  const safeParseObj = (val) => {
+    if (!val) return {};
+    if (typeof val === 'object') return val;
+    if (typeof val === 'string') {
+      try {
+        const parsed = JSON.parse(val);
+        return (parsed && typeof parsed === 'object') ? parsed : {};
+      } catch (e) {
+        return {};
       }
-    } catch (e) {
-      p = { ...(selectedRecordData.value || {}) };
-      n = {};
     }
-  } else if (prev && typeof prev === 'object') {
-    if ('before' in prev || 'after' in prev) {
-      p = prev.before || {};
-      n = prev.after || {};
+    return {};
+  };
+
+  if (prev && typeof prev === 'object' && ('before' in prev || 'after' in prev)) {
+    p = safeParseObj(prev.before);
+    n = safeParseObj(prev.after);
+  } else if (typeof prev === 'string' && (prev.includes('"before"') || prev.includes('"after"'))) {
+    const parsed = safeParseObj(prev);
+    if (parsed && ('before' in parsed || 'after' in parsed)) {
+      p = safeParseObj(parsed.before);
+      n = safeParseObj(parsed.after);
     } else {
-      n = prev;
+      p = parsed;
+      n = safeParseObj(next);
+    }
+  } else if (prev !== undefined && prev !== null && next !== undefined && next !== null && next !== 'RECORD_UPDATE' && typeof next !== 'boolean') {
+    p = safeParseObj(prev);
+    n = safeParseObj(next);
+  } else if (prev) {
+    const parsed = safeParseObj(prev);
+    if (next === 'RECORD_UPDATE') {
+      p = safeParseObj(parsed.before || selectedRecordData.value || {});
+      n = safeParseObj(parsed.after || parsed);
+    } else {
       p = { ...(selectedRecordData.value || {}) };
+      n = parsed;
     }
   } else {
     p = selectedRecordData.value || {};
-    n = typeof next === 'object' ? (next || {}) : {};
+    n = safeParseObj(next);
   }
 
   const diffs = [];
@@ -2232,11 +2307,11 @@ const getParsedDiffs = (prev, next) => {
     if (field && field.type === 'DOMAIN_REFERENCE') {
       let tDomainId = null;
       try { tDomainId = JSON.parse(field.options || '{}').targetDomainId; } catch(e){}
-      if (valBefore && typeof valBefore === 'string' && valBefore.length === 36) {
+      if (valBefore && isRecordUuid(valBefore)) {
         if (!domainRefDisplayMap.value[valBefore]) fetchDomainRefName(valBefore, tDomainId);
         valBefore = domainRefDisplayMap.value[valBefore] || valBefore;
       }
-      if (valAfter && typeof valAfter === 'string' && valAfter.length === 36) {
+      if (valAfter && isRecordUuid(valAfter)) {
         if (!domainRefDisplayMap.value[valAfter]) fetchDomainRefName(valAfter, tDomainId);
         valAfter = domainRefDisplayMap.value[valAfter] || valAfter;
       }

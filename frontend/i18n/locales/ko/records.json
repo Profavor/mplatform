@@ -308,5 +308,10 @@
   "delete_domain_confirm_title": "도메인 영구 삭제",
   "delete_domain_confirm_desc": "정말로 [{name}] 도메인을 삭제하시겠습니까? 연결된 하위 분류 노드, 필드 정의 및 마스터 데이터 레코드가 모두 영구 삭제됩니다.",
   "delete_domain_success": "도메인이 성공적으로 삭제되었습니다.",
-  "delete_domain_failed": "도메인 삭제 중 오류가 발생했습니다."
+  "delete_domain_failed": "도메인 삭제 중 오류가 발생했습니다.",
+  "reset_domain_records_btn": "도메인 레코드 초기화",
+  "reset_domain_records_confirm_title": "도메인 레코드 전체 초기화",
+  "reset_domain_records_confirm_desc": "정말로 [{name}] 도메인의 모든 마스터 데이터 레코드를 초기화하시겠습니까? 도메인 분류 및 필드 정의는 유지되며, 등록된 모든 레코드 데이터만 영구 삭제됩니다.",
+  "reset_domain_records_success": "도메인의 마스터 데이터 레코드가 성공적으로 초기화되었습니다.",
+  "reset_domain_records_failed": "도메인 레코드 초기화 중 오류가 발생했습니다."
 }

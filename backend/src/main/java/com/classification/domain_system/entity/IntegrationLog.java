@@ -62,4 +62,12 @@ public class IntegrationLog {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
     }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("direction")
+    public String getDirection() {
+        if (this.channel != null) {
+            return this.channel.getDirection();
+        }
+        return null;
+    }
 }

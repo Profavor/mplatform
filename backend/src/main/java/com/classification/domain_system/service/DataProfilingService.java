@@ -138,12 +138,14 @@ public class DataProfilingService {
                             double val = Double.parseDouble(String.valueOf(data.get(key)).replaceAll("[^0-9.-]", ""));
                             if (val < lowerBound || val > upperBound) {
                                 outlierCount++;
-                                outliers.add(DataProfilingReportDto.OutlierRecord.builder()
-                                        .recordId(r.getId())
-                                        .fieldKey(key)
-                                        .value(val)
-                                        .reason(String.format("IQR 통계 이상치 (범위: %.1f ~ %.1f, 입력값: %.1f)", lowerBound, upperBound, val))
-                                        .build());
+                                if (outliers.size() < 100) {
+                                    outliers.add(DataProfilingReportDto.OutlierRecord.builder()
+                                            .recordId(r.getId())
+                                            .fieldKey(key)
+                                            .value(val)
+                                            .reason(String.format("IQR 통계 이상치 (범위: %.1f ~ %.1f, 입력값: %.1f)", lowerBound, upperBound, val))
+                                            .build());
+                                }
                             }
                         } catch (Exception ignored) {}
                     }

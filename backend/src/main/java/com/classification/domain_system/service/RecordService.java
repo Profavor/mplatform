@@ -13,7 +13,6 @@ import org.springframework.stereotype.Service;
 import java.util.*;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class RecordService {
 
@@ -26,9 +25,69 @@ public class RecordService {
     private final DataMaskingService dataMaskingService;
     private final FieldDefinitionService fieldDefinitionService;
     private final AuthContext authContext;
+    private com.classification.domain_system.repository.DomainRepository domainRepository;
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+    private RecordIndexService recordIndexService;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private static final java.util.regex.Pattern EMAIL_PATTERN =
             java.util.regex.Pattern.compile("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+
+    public RecordService(
+            com.classification.domain_system.repository.RecordRepository recordRepository,
+            com.classification.domain_system.repository.RecordHistoryRepository recordHistoryRepository,
+            com.classification.domain_system.repository.ClassificationNodeRepository nodeRepository,
+            ApprovalService approvalService,
+            FieldEncryptionService fieldEncryptionService,
+            DataMaskingService dataMaskingService,
+            FieldDefinitionService fieldDefinitionService,
+            AuthContext authContext) {
+        this.recordRepository = recordRepository;
+        this.recordHistoryRepository = recordHistoryRepository;
+        this.nodeRepository = nodeRepository;
+        this.approvalService = approvalService;
+        this.fieldEncryptionService = fieldEncryptionService;
+        this.dataMaskingService = dataMaskingService;
+        this.fieldDefinitionService = fieldDefinitionService;
+        this.authContext = authContext;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public RecordService(
+            com.classification.domain_system.repository.RecordRepository recordRepository,
+            com.classification.domain_system.repository.RecordHistoryRepository recordHistoryRepository,
+            com.classification.domain_system.repository.ClassificationNodeRepository nodeRepository,
+            @org.springframework.context.annotation.Lazy ApprovalService approvalService,
+            FieldEncryptionService fieldEncryptionService,
+            DataMaskingService dataMaskingService,
+            FieldDefinitionService fieldDefinitionService,
+            AuthContext authContext,
+            com.classification.domain_system.repository.DomainRepository domainRepository,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) org.springframework.jdbc.core.JdbcTemplate jdbcTemplate,
+            @org.springframework.context.annotation.Lazy RecordIndexService recordIndexService) {
+        this.recordRepository = recordRepository;
+        this.recordHistoryRepository = recordHistoryRepository;
+        this.nodeRepository = nodeRepository;
+        this.approvalService = approvalService;
+        this.fieldEncryptionService = fieldEncryptionService;
+        this.dataMaskingService = dataMaskingService;
+        this.fieldDefinitionService = fieldDefinitionService;
+        this.authContext = authContext;
+        this.domainRepository = domainRepository;
+        this.jdbcTemplate = jdbcTemplate;
+        this.recordIndexService = recordIndexService;
+    }
+
+    public void setDomainRepository(com.classification.domain_system.repository.DomainRepository domainRepository) {
+        this.domainRepository = domainRepository;
+    }
+
+    public void setJdbcTemplate(org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
+    public void setRecordIndexService(RecordIndexService recordIndexService) {
+        this.recordIndexService = recordIndexService;
+    }
 
     @org.springframework.transaction.annotation.Transactional
     public com.classification.domain_system.dto.RecordBulkReclassifyResult bulkReclassifyRecords(
@@ -241,11 +300,22 @@ public class RecordService {
         }
     }
 
+    public List<FieldDefinition> getEffectiveFields(UUID nodeId) {
+        if (nodeId == null || fieldDefinitionService == null) {
+            return Collections.emptyList();
+        }
+        return fieldDefinitionService.getEffectiveFields(nodeId);
+    }
+
     public String processDataForRead(UUID nodeId, String dataJson) {
-        if (dataJson == null || dataJson.isBlank() || nodeId == null) {
+        return processDataForRead(nodeId, dataJson, null);
+    }
+
+    public String processDataForRead(UUID nodeId, String dataJson, List<FieldDefinition> preloadedFields) {
+        if (dataJson == null || dataJson.isBlank()) {
             return dataJson;
         }
-        List<FieldDefinition> fields = fieldDefinitionService.getEffectiveFields(nodeId);
+        List<FieldDefinition> fields = preloadedFields != null ? preloadedFields : (nodeId != null ? getEffectiveFields(nodeId) : Collections.emptyList());
         boolean canUnmask = authContext != null && authContext.hasPermission("record:unmask");
         return dataMaskingService.maskJsonData(dataJson, fields, canUnmask);
     }
@@ -269,7 +339,17 @@ public class RecordService {
 
     public Page<Record> prepareRecordsForRead(Page<Record> records) {
         if (records == null) return null;
-        records.getContent().forEach(this::prepareRecordForRead);
+        Map<UUID, List<FieldDefinition>> fieldsCache = new HashMap<>();
+        boolean canUnmask = authContext != null && authContext.hasPermission("record:unmask");
+        for (Record record : records.getContent()) {
+            if (record == null || record.getData() == null || record.getNode() == null) {
+                continue;
+            }
+            UUID nodeId = record.getNode().getId();
+            List<FieldDefinition> fields = fieldsCache.computeIfAbsent(nodeId, fieldDefinitionService::getEffectiveFields);
+            String maskedData = dataMaskingService.maskJsonData(record.getData(), fields, canUnmask);
+            record.setData(maskedData);
+        }
         return records;
     }
 
@@ -374,6 +454,65 @@ public class RecordService {
         Page<Record> records = recordRepository.findDynamicRecords(
                 targetNodeIds, status, searchParams, org.springframework.data.domain.PageRequest.of(page, size, sort));
         return prepareRecordsForRead(records);
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public int resetDomainRecords(UUID domainId) {
+        if (domainId == null) {
+            throw new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.INVALID_INPUT, "Domain ID is required.");
+        }
+        if (domainRepository != null) {
+            domainRepository.findById(domainId)
+                    .orElseThrow(() -> new com.classification.domain_system.exception.ResourceNotFoundException("Domain not found: " + domainId));
+        }
+
+        int deletedCount = 0;
+        if (jdbcTemplate != null) {
+            // 1. 연관 데이터 순서대로 명시적 개별 삭제 (TRUNCATE 금지 지침 엄격 준수)
+            try {
+                jdbcTemplate.update("DELETE FROM dq_violation WHERE record_id IN (SELECT r.id FROM record r JOIN classification_node n ON r.node_id = n.id WHERE n.domain_id = ?)", domainId);
+            } catch (Exception ignored) {}
+            try {
+                jdbcTemplate.update("DELETE FROM record_secondary_node WHERE record_id IN (SELECT r.id FROM record r JOIN classification_node n ON r.node_id = n.id WHERE n.domain_id = ?)", domainId);
+            } catch (Exception ignored) {}
+            try {
+                jdbcTemplate.update("DELETE FROM record_field_source WHERE record_id IN (SELECT r.id FROM record r JOIN classification_node n ON r.node_id = n.id WHERE n.domain_id = ?)", domainId);
+            } catch (Exception ignored) {}
+            try {
+                jdbcTemplate.update("DELETE FROM match_candidate WHERE domain_id = ? OR existing_record_id IN (SELECT r.id FROM record r JOIN classification_node n ON r.node_id = n.id WHERE n.domain_id = ?)", domainId, domainId);
+            } catch (Exception ignored) {}
+            try {
+                jdbcTemplate.update("DELETE FROM record_history WHERE record_id IN (SELECT r.id FROM record r JOIN classification_node n ON r.node_id = n.id WHERE n.domain_id = ?)", domainId);
+            } catch (Exception ignored) {}
+
+            // 2. Self-referencing FK 해제 (merged_into_record_id) 및 approval_request_id 해제
+            try {
+                jdbcTemplate.update("UPDATE record SET merged_into_record_id = NULL, approval_request_id = NULL WHERE node_id IN (SELECT n.id FROM classification_node n WHERE n.domain_id = ?)", domainId);
+            } catch (Exception ignored) {}
+
+            // 3. 도메인 레코드 개별 삭제
+            deletedCount = jdbcTemplate.update("DELETE FROM record WHERE node_id IN (SELECT n.id FROM classification_node n WHERE n.domain_id = ?)", domainId);
+        } else {
+            List<Record> records = recordRepository.findAllByDomainId(domainId);
+            for (Record r : records) {
+                recordHistoryRepository.deleteByRecordId(r.getId());
+            }
+            recordRepository.deleteAll(records);
+            deletedCount = records.size();
+        }
+
+        // 4. OpenSearch 인덱스 도메인 레코드 비동기 삭제
+        if (recordIndexService != null) {
+            try {
+                recordIndexService.deleteByDomainId(domainId.toString());
+            } catch (Exception e) {
+                log.warn("Failed to delete records from OpenSearch for domain {}: {}", domainId, e.getMessage());
+            }
+        }
+
+        log.info("Successfully reset {} records for domain {}", deletedCount, domainId);
+        return deletedCount;
     }
 }
 

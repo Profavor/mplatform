@@ -88,6 +88,7 @@
                 <va-button v-if="hasPermission('domain:write') || hasPermission('domain:*')" style="flex: 1; min-width: 80px; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="create_new_folder" size="small" @click="openDomainModal()" color="primary">{{ $t('domain') }}</va-button>
                 <va-button v-if="hasPermission('node:write') || hasPermission('node:*')" style="flex: 1; min-width: 80px; border-radius: 8px; box-shadow: 0 2px 6px rgba(21,78,193,0.15);" icon="note_add" size="small" @click="openNodeModal()" :disabled="!selectedNode" color="primary" :preset="selectedNode ? 'primary' : 'secondary'">{{ $t('node') }}</va-button>
                 <va-button v-if="(hasPermission('domain:write') || hasPermission('domain:*')) && selectedNode && selectedNode.isDomain" style="flex: 1; min-width: 100%; border-radius: 8px; margin-top: 0.15rem;" icon="delete_outline" size="small" @click="handleDomainDelete(selectedNode)" color="danger" preset="outline">{{ $t('delete_domain_btn') }}</va-button>
+                <va-button v-if="(hasPermission('domain:write') || hasPermission('domain:*') || hasPermission('record:delete') || hasPermission('record:*')) && selectedNode && selectedNode.isDomain" style="flex: 1; min-width: 100%; border-radius: 8px; margin-top: 0.15rem;" icon="restart_alt" size="small" @click="handleDomainRecordsReset(selectedNode)" color="warning" preset="outline">{{ $t('reset_domain_records_btn') }}</va-button>
               </div>
               <div style="display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.5rem;">
                 <va-button preset="secondary" size="small" style="width: 100%; font-size: 0.8rem;" @click="showRequestAccessModal = true">{{ $t('request_domain_access') }}</va-button>
@@ -187,17 +188,17 @@
             </div>
 
             <!-- Schema History Tab -->
-            <div v-show="activeTab === 1" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 1rem; overflow-y: auto;">
+            <div v-if="activeTab === 1" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 1rem; overflow-y: auto;">
               <SchemaHistoryTab :domain-id="selectedNode?.domainId || selectedNode?.id || (selectedNode?.type === 'domain' ? selectedNode?.id : null)" />
             </div>
 
             <!-- Classification Axes Tab (Domain Only) -->
-            <div v-if="isDomainSelected" v-show="activeTab === 2" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 1rem;">
+            <div v-if="isDomainSelected && activeTab === 2" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 1rem;">
               <ClassificationAxisTab :domain-id="selectedNode.domainId || selectedNode.id" />
             </div>
 
             <!-- Data Profiling Tab (Domain Only) -->
-            <div v-if="isDomainSelected" v-show="activeTab === 3" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+            <div v-if="isDomainSelected && activeTab === 3" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
               <DataProfilingTab :domain-id="selectedNode.domainId || selectedNode.id" />
             </div>
           </va-card-content>
@@ -610,7 +611,8 @@ const createFieldsDatasource = () => {
           });
           list = Array.from(uMap.values());
         }
-        params.successCallback(list, pageData.totalElements);
+        const total = typeof pageData?.totalElements === 'number' ? pageData.totalElements : list.length;
+        params.successCallback(list, total);
       } catch (e) {
         console.error('Failed to load fields page:', e);
         params.failCallback();
@@ -629,9 +631,11 @@ const currentUser = computed(() => {
 
 
 const fetchFields = () => {
-  if (fieldsGridApi.value) {
-    fieldsGridApi.value.setGridOption('datasource', createFieldsDatasource());
-  }
+  nextTick(() => {
+    if (fieldsGridApi.value) {
+      fieldsGridApi.value.setGridOption('datasource', createFieldsDatasource());
+    }
+  })
 }
 
 const fieldsGridApi = ref(null)
@@ -1012,6 +1016,12 @@ const isDomainSelected = computed(() => {
   return selectedNode.value.isDomain === true || selectedNode.value.type === 'domain' || (selectedNode.value.id && selectedNode.value.domainId === selectedNode.value.id)
 })
 
+watch(isDomainSelected, (val) => {
+  if (!val && activeTab.value > 1) {
+    activeTab.value = 0
+  }
+})
+
 const fieldTypes = computed(() => {
   const options = codeStore.getDropdownOptions('FIELD_TYPE') || []
   return options.filter(opt => !['ENUM', 'MULTI_SELECT', 'DECIMAL', 'FLOAT', 'INTEGER', 'CHECKBOX'].includes(opt.value))
@@ -1218,7 +1228,7 @@ const columnDefs = computed(() => [
           }
         });
         container.appendChild(lockBtn);
-      } else if (params.data.domainId && !selectedNode.value.isDomain) {
+      } else if (params.data.domainId && !selectedNode.value?.isDomain) {
         const span = document.createElement('span');
         span.style.color = '#666';
         span.style.fontStyle = 'italic';
@@ -1287,7 +1297,7 @@ const columnDefs = computed(() => [
 ])
 
 const onRowDoubleClicked = (params) => {
-  if (params.data.domainId && !selectedNode.value.isDomain) return;
+  if (params.data.domainId && !selectedNode.value?.isDomain) return;
   
   const isPending = pendingFieldIds.value.includes(params.data.id) || params.data.approvalStatus === 'PENDING_APPROVAL' || params.data.isPendingApproval;
   if (isPending) return;
@@ -1463,18 +1473,18 @@ const onNodeSelected = async (nodes) => {
     return
   }
   
-  const dId = node.domainId
+  const dId = node.domainId || node.id
   try {
     const wfUrl = node.isDomain ? `/api/workflow-configs/domain/${node.id}` : `/api/workflow-configs/node/${node.id}`
     const fieldUrl = node.isDomain ? `/api/domains/${node.id}/fields` : `/api/nodes/${node.id}/fields/effective`
     const [sData, gData, wfData, fData] = await Promise.all([
-      customFetch(`/api/domains/${dId}/sectors`),
-      customFetch(`/api/domains/${dId}/groups`),
+      customFetch(`/api/domains/${dId}/sectors`).catch(() => []),
+      customFetch(`/api/domains/${dId}/groups`).catch(() => []),
       customFetch(wfUrl).catch(() => []),
       customFetch(fieldUrl).catch(() => [])
     ])
-    domainSectors.value = sData
-    domainGroups.value = gData
+    domainSectors.value = sData || []
+    domainGroups.value = gData || []
     const uniqueFieldsMap = new Map()
     if (Array.isArray(fData)) {
       fData.forEach(f => {
@@ -1867,6 +1877,35 @@ const handleDomainDelete = async (node) => {
     await loadTree()
   } catch (e) {
     showCustomAlert(e.message || t('delete_domain_failed'), t('delete_error_title'), t('error'), 'error')
+  }
+}
+
+const handleDomainRecordsReset = async (node) => {
+  const target = node || selectedNode.value
+  if (!target) return
+
+  const domainId = target.isDomain ? target.id : (target.domainId || selectedDomainId.value)
+  if (!domainId) return
+
+  const domainName = target.label || (target.originalNameMap ? (target.originalNameMap[currentLocale.value] || target.originalNameMap.ko || target.originalNameMap.en) : (selectedDomainName.value || t('domain')))
+  const confirmMsg = t('reset_domain_records_confirm_desc', { name: domainName })
+  if (!confirm(confirmMsg)) return
+
+  try {
+    await customFetch(`/api/domains/${domainId}/records`, {
+      method: 'DELETE'
+    })
+    try {
+      toast.init({
+        message: t('reset_domain_records_success'),
+        color: 'success'
+      })
+    } catch (ignored) {}
+    if (selectedNode.value) {
+      await onNodeSelected(selectedNode.value)
+    }
+  } catch (e) {
+    showCustomAlert(parseErrorMessage(e) || t('reset_domain_records_failed'), t('error'), t('error'), 'error')
   }
 }
 

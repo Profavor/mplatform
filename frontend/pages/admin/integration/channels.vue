@@ -89,6 +89,7 @@
 
     <!-- Create/Edit Modal (Decoupled Component) -->
     <ChannelConfigModal
+      ref="form"
       v-model="showModal"
       :is-edit="isEdit"
       :form-data="formData"
@@ -126,6 +127,7 @@
       @add-mapping="addMapping"
       @mapping-grid-ready="onMappingGridReady"
       @mapping-cell-changed="onMappingCellValueChanged"
+      @trigger-batch="() => triggerBatch({ id: editingId, ...formData })"
       @submit="submitForm"
     />
 
@@ -460,7 +462,12 @@ const uiConfig = ref({
   wsUrl: '', wsMethod: 'POST', wsHeaders: [],
   jdbcUrl: '', jdbcUser: '', jdbcPassword: '', jdbcTable: '',
   mqBroker: '', mqTopic: '',
-  inboundAuthType: 'BEARER_TOKEN', inboundSecretToken: ''
+  inboundAuthType: 'BEARER_TOKEN', inboundSecretToken: '',
+  batchJobName: 'stockMarketIngestionJob',
+  batchBeanClass: 'com.classification.domain_system.batch.stock.config.StockBatchConfig',
+  batchCron: '0 0 16 * * MON-FRI',
+  batchParams: '{\n  "markets": "KOSPI,KOSDAQ,KONEX,NASDAQ,NYSE",\n  "chunkSize": 100\n}',
+  clearExisting: false
 })
 const uiMappings = ref([])
 const uiMappingRootPath = ref('')
@@ -481,10 +488,8 @@ const removeWsHeader = (index) => {
   uiConfig.value.wsHeaders.splice(index, 1)
 }
 
-const onDirectionChanged = (newDir) => {
-  if (newDir === 'INBOUND') {
-    formData.value.type = 'WEB_SERVICE'
-  }
+const onDirectionChanged = (_newDir) => {
+  // Allow user to select any integration type from common codes
 }
 
 const testConnection = async () => {
@@ -570,6 +575,7 @@ const fetchNodesAndFields = async (domainId) => {
 }
 
 const onDomainSelected = (domainId) => {
+  selectedDomainId.value = domainId
   formData.value.nodeId = null
   fetchNodesAndFields(domainId)
 }
@@ -728,9 +734,17 @@ const serializeUiData = () => {
     config = { url: uiConfig.value.jdbcUrl, user: uiConfig.value.jdbcUser, password: uiConfig.value.jdbcPassword, table: uiConfig.value.jdbcTable }
   } else if (formData.value.type === 'MESSAGE_QUEUE') {
     config = { broker: uiConfig.value.mqBroker, topic: uiConfig.value.mqTopic }
+  } else if (formData.value.type === 'SPRING_BATCH') {
+    config = {
+      batchJobName: uiConfig.value.batchJobName || 'stockMarketIngestionJob',
+      batchBeanClass: uiConfig.value.batchBeanClass || '',
+      cron: uiConfig.value.batchCron || '0 0 16 * * MON-FRI',
+      batchParams: uiConfig.value.batchParams || '',
+      clearExisting: Boolean(uiConfig.value.clearExisting)
+    }
   }
   
-  if (formData.value.direction === 'INBOUND') {
+  if (formData.value.direction === 'INBOUND' && formData.value.type !== 'SPRING_BATCH') {
     config.authType = uiConfig.value.inboundAuthType || 'BEARER_TOKEN'
     config.secretToken = uiConfig.value.inboundSecretToken || ''
   }
@@ -769,7 +783,12 @@ const deserializeUiData = (row) => {
     wsUrl: '', wsMethod: 'POST', wsHeaders: [],
     jdbcUrl: '', jdbcUser: '', jdbcPassword: '', jdbcTable: '',
     mqBroker: '', mqTopic: '',
-    inboundAuthType: 'BEARER_TOKEN', inboundSecretToken: ''
+    inboundAuthType: 'BEARER_TOKEN', inboundSecretToken: '',
+    batchJobName: 'stockMarketIngestionJob',
+    batchBeanClass: 'com.classification.domain_system.batch.stock.config.StockBatchConfig',
+    batchCron: '0 0 16 * * MON-FRI',
+    batchParams: '{\n  "markets": "KOSPI,KOSDAQ,KONEX,NASDAQ,NYSE",\n  "chunkSize": 100\n}',
+    clearExisting: false
   }
   uiMappings.value = []
   uiMappingRootPath.value = ''
@@ -784,9 +803,23 @@ const deserializeUiData = (row) => {
     if (config.domainId) {
       selectedDomainId.value = config.domainId
       fetchNodesAndFields(config.domainId)
+    } else if (row.nodeId) {
+      for (const d of rawDomains.value) {
+        $fetch(`/api/domains/${d.id}/nodes/tree`, { headers: { Authorization: `Bearer ${token.value}` } })
+          .then(tree => {
+            const hasNode = (nodes: any[]): boolean => (nodes || []).some(n => n.id === row.nodeId || (n.children && hasNode(n.children)))
+            if (tree && hasNode(tree)) {
+              selectedDomainId.value = d.id
+              rawNodes.value = tree
+              $fetch(`/api/domains/${d.id}/fields`, { headers: { Authorization: `Bearer ${token.value}` } })
+                .then(fieldsRes => { rawFields.value = fieldsRes || [] })
+            }
+          })
+          .catch(() => {})
+      }
     }
 
-    if (row.direction === 'INBOUND') {
+    if (row.direction === 'INBOUND' && row.type !== 'SPRING_BATCH') {
       uiConfig.value.inboundAuthType = config.authType || 'BEARER_TOKEN'
       uiConfig.value.inboundSecretToken = config.secretToken || ''
     }
@@ -803,6 +836,12 @@ const deserializeUiData = (row) => {
     } else if (row.type === 'MESSAGE_QUEUE') {
       uiConfig.value.mqBroker = config.broker || ''
       uiConfig.value.mqTopic = config.topic || ''
+    } else if (row.type === 'SPRING_BATCH') {
+      uiConfig.value.batchJobName = config.batchJobName || 'stockMarketIngestionJob'
+      uiConfig.value.batchBeanClass = config.batchBeanClass || ''
+      uiConfig.value.batchCron = config.cron || '0 0 16 * * MON-FRI'
+      uiConfig.value.batchParams = config.batchParams || (config.markets ? JSON.stringify({ markets: config.markets, chunkSize: config.chunkSize || 100 }, null, 2) : '')
+      uiConfig.value.clearExisting = Boolean(config.clearExisting)
     }
   } catch (e) { console.error('Failed to parse configJson', e) }
 
@@ -849,6 +888,25 @@ const getChannelNameById = (id) => {
   return id
 }
 
+const triggerBatch = async (channel) => {
+  try {
+    await customFetch(`/api/admin/integration/channels/${channel.id}/trigger-batch`, {
+      method: 'POST',
+      body: { clearExisting: false }
+    })
+    init({
+      message: t('integration.channels.batch_triggered'),
+      color: 'success'
+    })
+    setTimeout(fetchRecentLogs, 2500)
+  } catch (err) {
+    init({
+      message: t('integration.channels.batch_trigger_failed'),
+      color: 'danger'
+    })
+  }
+}
+
 // AG-Grid Column Definitions for Channels
 const channelColumnDefs = computed(() => [
   {
@@ -873,6 +931,46 @@ const channelColumnDefs = computed(() => [
       chip.style.cssText = 'padding: 2px 8px; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 4px; font-family: monospace; font-size: 0.8rem; font-weight: 600;'
       chip.textContent = params.value || '-'
       div.appendChild(chip)
+      return div
+    }
+  },
+  {
+    field: 'type',
+    headerName: t('integration.channels.type', '연동 방식'),
+    width: 170,
+    cellRenderer: (params) => {
+      const div = document.createElement('div')
+      div.style.cssText = 'display: flex; flex-direction: column; justify-content: center; height: 100%; gap: 2px;'
+      
+      const typeCode = params.value || 'WEB_SERVICE'
+      const label = codeStore.getCodeName('INTEGRATION_TYPE', typeCode) || typeCode
+      
+      const pill = document.createElement('span')
+      pill.style.cssText = `padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 0.75rem; width: fit-content; ${
+        typeCode === 'SPRING_BATCH'
+          ? 'background: rgba(156, 39, 176, 0.12); color: #9c27b0; border: 1px solid rgba(156, 39, 176, 0.3);'
+          : typeCode === 'JDBC'
+          ? 'background: rgba(0, 150, 136, 0.12); color: #009688; border: 1px solid rgba(0, 150, 136, 0.3);'
+          : typeCode === 'MESSAGE_QUEUE'
+          ? 'background: rgba(255, 152, 0, 0.12); color: #ff9800; border: 1px solid rgba(255, 152, 0, 0.3);'
+          : 'background: rgba(33, 150, 243, 0.12); color: #2196f3; border: 1px solid rgba(33, 150, 243, 0.3);'
+      }`
+      pill.textContent = label
+      div.appendChild(pill)
+
+      // If Spring Batch has cron schedule in configJson, show cron chip
+      if (typeCode === 'SPRING_BATCH' && params.data?.configJson) {
+        try {
+          const cfg = JSON.parse(params.data.configJson)
+          if (cfg.cron) {
+            const cronSpan = document.createElement('span')
+            cronSpan.style.cssText = 'font-size: 0.7rem; color: var(--va-text-secondary); font-family: monospace; padding-left: 2px;'
+            cronSpan.textContent = `⏱️ ${cfg.cron}`
+            div.appendChild(cronSpan)
+          }
+        } catch (e) {}
+      }
+
       return div
     }
   },
@@ -928,11 +1026,17 @@ const channelColumnDefs = computed(() => [
   {
     field: 'actions',
     headerName: t('actions'),
-    width: 140,
+    width: 175,
     sortable: false,
     cellRenderer: (params) => {
       const div = document.createElement('div')
       div.style.cssText = 'display: flex; align-items: center; justify-content: center; gap: 0.35rem; height: 100%;'
+
+      const batchBtn = document.createElement('button')
+      batchBtn.style.cssText = 'border: none; background: rgba(156, 39, 176, 0.12); color: #9c27b0; border-radius: 6px; padding: 4px 8px; cursor: pointer; display: flex; align-items: center; font-weight: 600; font-size: 0.78rem;'
+      batchBtn.title = t('integration.channels.run_batch')
+      batchBtn.innerHTML = `<span class="material-icons" style="font-size: 16px;">rocket_launch</span>`
+      batchBtn.addEventListener('click', () => triggerBatch(params.data))
 
       const metricsBtn = document.createElement('button')
       metricsBtn.style.cssText = 'border: none; background: rgba(76, 175, 80, 0.12); color: var(--va-success); border-radius: 6px; padding: 4px 8px; cursor: pointer; display: flex; align-items: center; font-weight: 600; font-size: 0.78rem;'
@@ -950,6 +1054,7 @@ const channelColumnDefs = computed(() => [
       deleteBtn.innerHTML = `<span class="material-icons" style="font-size: 16px;">delete</span>`
       deleteBtn.addEventListener('click', () => confirmDelete(params.data.id))
 
+      div.appendChild(batchBtn)
       div.appendChild(metricsBtn)
       div.appendChild(editBtn)
       div.appendChild(deleteBtn)
@@ -972,9 +1077,14 @@ const recentLogColumnDefs = computed(() => [
     }
   },
   {
-    field: 'direction',
     headerName: t('integration.channels.direction'),
-    width: 130,
+    width: 140,
+    valueGetter: (params) => {
+      if (params.data?.direction) return params.data.direction
+      if (params.data?.channel?.direction) return params.data.channel.direction
+      const ch = channels.value.find(c => c.id === params.data?.channelId)
+      return ch?.direction || 'OUTBOUND'
+    },
     cellRenderer: (params) => {
       const div = document.createElement('div')
       div.style.cssText = 'display: flex; align-items: center; height: 100%;'
@@ -985,7 +1095,7 @@ const recentLogColumnDefs = computed(() => [
           ? 'background: rgba(237, 108, 2, 0.12); color: var(--va-warning); border: 1px solid rgba(237, 108, 2, 0.3);'
           : 'background: rgba(25, 118, 210, 0.12); color: var(--va-primary); border: 1px solid rgba(25, 118, 210, 0.3);'
       }`
-      pill.textContent = isInbound ? 'Inbound' : 'Outbound'
+      pill.textContent = isInbound ? t('integration.channels.inbound') : t('integration.channels.outbound')
       div.appendChild(pill)
       return div
     }
@@ -1049,7 +1159,8 @@ const fetchChannels = async () => {
   }
 }
 
-const openCreateModal = () => {
+const openCreateModal = async () => {
+  await fetchDomains()
   isEdit.value = false
   editingId = null
   formData.value = { ...initialForm }
@@ -1060,7 +1171,8 @@ const openCreateModal = () => {
   showModal.value = true
 }
 
-const openEditModal = (row) => {
+const openEditModal = async (row) => {
+  await fetchDomains()
   isEdit.value = true
   editingId = row.id
   formData.value = { ...row }
@@ -1078,7 +1190,7 @@ const openEditModal = (row) => {
 
 const submitForm = async () => {
   if (!channelNameKo.value && !channelNameEn.value) {
-    init({ message: '채널명을 입력해 주세요.', color: 'warning' })
+    init({ message: t('integration.channels.err_name_required'), color: 'warning' })
     return
   }
 
@@ -1087,7 +1199,9 @@ const submitForm = async () => {
     en: channelNameEn.value || channelNameKo.value
   })
 
-  if (!form.value.validate()) return
+  if (form.value && typeof form.value.validate === 'function') {
+    if (!form.value.validate()) return
+  }
 
   if (formData.value.direction === 'INBOUND') {
     if (!selectedDomainId.value) {

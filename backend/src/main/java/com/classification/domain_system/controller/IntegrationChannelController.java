@@ -23,6 +23,7 @@ public class IntegrationChannelController {
 
     private final IntegrationChannelService service;
     private final IntegrationTestService testService;
+    private final com.classification.domain_system.batch.stock.scheduler.StockBatchJobScheduler stockBatchJobScheduler;
 
     @PostMapping("/test-connection")
     @PreAuthorize("hasPermission(null, 'integration:write')")
@@ -79,5 +80,29 @@ public class IntegrationChannelController {
         UUID domainId = UUID.fromString(String.valueOf(requestBody.get("domainId")));
         String samplePayload = String.valueOf(requestBody.get("samplePayload"));
         return ResponseEntity.ok(smartMappingService.recommendMappings(domainId, samplePayload));
+    }
+
+    @PostMapping("/{id}/trigger-batch")
+    @PreAuthorize("hasPermission(null, 'integration:write')")
+    public ResponseEntity<Map<String, Object>> triggerBatchJob(
+            @PathVariable UUID id,
+            @RequestBody(required = false) Map<String, Object> requestParams,
+            java.security.Principal principal) {
+        String username = principal != null ? principal.getName() : "ADMIN";
+        Boolean clearExisting = requestParams != null && Boolean.TRUE.equals(requestParams.get("clearExisting"));
+        String markets = requestParams != null && requestParams.get("markets") != null ? String.valueOf(requestParams.get("markets")) : null;
+
+        try {
+            var execution = stockBatchJobScheduler.runBatchJob(clearExisting, markets, username);
+            return ResponseEntity.ok(Map.of(
+                    "jobExecutionId", execution.getId(),
+                    "status", execution.getStatus().name(),
+                    "message", "Spring Batch Job has been successfully triggered."
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of(
+                    "error", e.getMessage()
+            ));
+        }
     }
 }

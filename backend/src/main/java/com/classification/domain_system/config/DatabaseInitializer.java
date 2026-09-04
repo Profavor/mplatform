@@ -64,6 +64,20 @@ public class DatabaseInitializer implements ApplicationRunner {
             } catch (Exception ex) {
                 log.warn("Could not ensure record FK cascade constraints: {}", ex.getMessage());
             }
+
+            // Ensure indexes on record foreign key columns for ultra-fast deletes and lookups
+            try {
+                String ensureIndexesSql = 
+                    "CREATE INDEX IF NOT EXISTS idx_record_history_record_id ON record_history (record_id);"
+                    + "CREATE INDEX IF NOT EXISTS idx_dq_violation_record_id ON dq_violation (record_id);"
+                    + "CREATE INDEX IF NOT EXISTS idx_record_field_source_record_id ON record_field_source (record_id);"
+                    + "CREATE INDEX IF NOT EXISTS idx_match_candidate_record_id ON match_candidate (existing_record_id);"
+                    + "CREATE INDEX IF NOT EXISTS idx_match_candidate_domain_id ON match_candidate (domain_id);";
+                entityManager.createNativeQuery(ensureIndexesSql).executeUpdate();
+                log.info("Successfully ensured indexes on record foreign key columns.");
+            } catch (Exception ex) {
+                log.warn("Could not ensure record foreign key indexes: {}", ex.getMessage());
+            }
         } catch (Exception e) {
             log.warn("Failed to create GIN index on record.data. It may already exist or DB is not PostgreSQL: {}", e.getMessage());
         }

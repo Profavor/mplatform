@@ -19,7 +19,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.data.domain.Pageable;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
@@ -70,7 +73,7 @@ public class CdcStreamingServiceTest {
         history.setSourceSystem("postgres-wal-cdc");
         history.setChangedAt(LocalDateTime.now());
 
-        given(recordHistoryRepository.findTop50ByDomainIdOrderByChangedAtDesc(eq(domainId)))
+        given(recordHistoryRepository.findRecentByDomainId(eq(domainId), any(Pageable.class)))
                 .willReturn(List.of(history));
 
         CdcStreamDto.CdcStreamResponse res = cdcStreamingService.getLiveCdcEvents(domainId, null);
@@ -90,7 +93,7 @@ public class CdcStreamingServiceTest {
     @Test
     @DisplayName("getLiveCdcEvents: 변경 이력이 없을 때 빈 응답 반환")
     void testGetLiveCdcEventsEmpty() {
-        given(recordHistoryRepository.findTop50ByDomainIdOrderByChangedAtDesc(eq(domainId)))
+        given(recordHistoryRepository.findRecentByDomainId(eq(domainId), any(Pageable.class)))
                 .willReturn(List.of());
 
         CdcStreamDto.CdcStreamResponse res = cdcStreamingService.getLiveCdcEvents(domainId, null);
@@ -115,7 +118,7 @@ public class CdcStreamingServiceTest {
         history.setNewData("{\"EP_NO\": \"0000001\", \"EP_NAME\": \"인치국\"}");
         history.setChangedAt(LocalDateTime.now());
 
-        given(recordHistoryRepository.findByRecordIdOrderByChangedAtDesc(eq(recordId)))
+        given(recordHistoryRepository.findRecentByRecordId(eq(recordId), any(Pageable.class)))
                 .willReturn(List.of(history));
 
         CdcStreamDto.CdcStreamResponse res = cdcStreamingService.getLiveCdcEvents(domainId, recordId);

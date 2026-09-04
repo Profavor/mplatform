@@ -142,4 +142,59 @@ describe('ChannelConfigModal.vue (TDD Component Test)', () => {
     wrapper.vm.onSubmit()
     expect(wrapper.emitted('submit')).toBeTruthy()
   })
+
+  it('validate 메서드가 정상 노출되고 호출 가능한지 검증', async () => {
+    const formData = createMockFormData()
+    const uiConfig = createMockUiConfig()
+
+    const wrapper = mount(ChannelConfigModal, {
+      props: {
+        modelValue: true,
+        isEdit: false,
+        formData: formData,
+        uiConfig: uiConfig,
+        channelNameKo: 'SAP ERP 인바운드',
+        channelNameEn: 'SAP ERP Inbound',
+        directionOptions: [],
+        typeOptions: [],
+        authTypeOptions: [],
+        methodOptions: [],
+        domains: [],
+        nodes: [],
+        selectedDomainId: 'domain-1',
+        rawFields: [],
+        uiMappingRootPath: 'data',
+        uiMappings: [],
+        mappingColumnDefs: [],
+        isTesting: false
+      },
+      global: {
+        stubs: {
+          'va-modal': {
+            template: '<div class="va-modal-stub"><slot /><slot name="footer" /></div>'
+          },
+          'va-tabs': true,
+          'va-tab': true,
+          'va-form': {
+            template: '<form @submit.prevent="$emit(\'submit\')"><slot /></form>',
+            methods: {
+              validate: () => true
+            }
+          },
+          'va-input': true,
+          'va-select': true,
+          'va-checkbox': true,
+          'va-chip': true,
+          'va-icon': true,
+          MultilingualInput: true,
+          AgGridVue: true,
+          'va-button': true
+        }
+      }
+    })
+
+    expect(typeof (wrapper.vm as any).validate).toBe('function')
+    const isValid = (wrapper.vm as any).validate()
+    expect(isValid).toBe(true)
+  })
 })

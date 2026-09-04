@@ -12,8 +12,8 @@
         <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
           <div style="display: flex; align-items: center; gap: 0.65rem;">
             <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-              <va-icon name="rate_review" color="primary" />
-              {{ t('approval_history', '결재 내역') }}
+              <va-icon :name="request?.isIntegration ? 'sync' : 'rate_review'" color="primary" />
+              {{ request?.isIntegration ? (t('integration_history', '연계 이력')) : (t('approval_history', '결재 내역')) }}
             </h3>
             <va-badge 
               v-if="request?.targetType"
@@ -25,8 +25,8 @@
           <div style="display: flex; align-items: center; gap: 0.75rem; margin-left: auto;">
             <div style="font-size: 0.85rem; color: var(--va-text-secondary); display: flex; align-items: center; gap: 0.75rem;">
               <span>
-                <va-icon name="person" size="small" style="margin-right: 2px;" />
-                {{ t('requester', '기안자') }}: <strong>{{ request?.requesterName || request?.requesterId || 'Unknown' }}</strong>
+                <va-icon :name="request?.isIntegration ? 'settings' : 'person'" size="small" style="margin-right: 2px;" />
+                {{ request?.isIntegration ? (t('source_system', '연계 주체') || '연계 주체') : (t('requester', '기안자')) }}: <strong>{{ request?.requesterName || request?.requesterId || (request?.isIntegration ? (request?.sourceSystem || 'SYSTEM') : 'Unknown') }}</strong>
               </span>
               <span>
                 <va-icon name="schedule" size="small" style="margin-right: 2px;" />

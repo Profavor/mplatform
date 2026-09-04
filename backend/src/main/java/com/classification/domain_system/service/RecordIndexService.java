@@ -68,6 +68,22 @@ public class RecordIndexService {
         }
     }
 
+    @Async
+    public void deleteByDomainId(String domainId) {
+        try {
+            org.springframework.data.elasticsearch.core.query.Criteria criteria =
+                    new org.springframework.data.elasticsearch.core.query.Criteria("domainId").is(domainId);
+            org.springframework.data.elasticsearch.core.query.CriteriaQuery query =
+                    new org.springframework.data.elasticsearch.core.query.CriteriaQuery(criteria);
+            org.springframework.data.elasticsearch.core.query.DeleteQuery deleteQuery =
+                    org.springframework.data.elasticsearch.core.query.DeleteQuery.builder(query).build();
+            elasticsearchOperations.delete(deleteQuery, RecordDocument.class);
+            log.debug("Successfully deleted records for domain {} from OpenSearch", domainId);
+        } catch (Exception e) {
+            log.warn("Failed to delete records for domain {} from OpenSearch index. Error: {}", domainId, e.getMessage());
+        }
+    }
+
     @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
     @Async
     public void syncAllRecordsToOpenSearch() {

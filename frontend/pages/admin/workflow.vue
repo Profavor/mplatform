@@ -115,12 +115,14 @@ import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { useRoleStore } from '~/stores/useRoleStore'
 import { useCodeStore } from '~/stores/useCodeStore'
+import { useToast } from 'vuestic-ui'
 import WorkflowConfigModal from '~/components/admin/WorkflowConfigModal.vue'
 
 const { pageTitle } = usePageTitle('workflow_center_title', '워크플로우 관리')
 const { customFetch } = useCustomFetch()
 const { gridTheme, autoSizeStrategy, isDark } = useAgGridTheme()
 const { t, locale } = useI18n()
+const { init } = useToast()
 const codeStore = useCodeStore()
 
 // Multilingual helper to resolve name objects / JSON / fallback strings according to active locale
@@ -649,8 +651,24 @@ const addModalApprovalStep = () => {
 }
 
 const saveWorkflowModal = async () => {
-  if (!modalData.value.domainId && modalData.value.scopeLevel === 'DOMAIN') {
-    alert(t('select_target_domain_alert'))
+  const hasName = Boolean((modalData.value.nameKo && modalData.value.nameKo.trim()) || (modalData.value.nameEn && modalData.value.nameEn.trim()))
+  if (!hasName) {
+    init({ message: t('workflow_name_required'), color: 'warning' })
+    return
+  }
+
+  if (!modalData.value.actionType) {
+    init({ message: t('action_type_required'), color: 'warning' })
+    return
+  }
+
+  if (!modalData.value.domainId) {
+    init({ message: t('select_target_domain_alert'), color: 'warning' })
+    return
+  }
+
+  if (modalData.value.scopeLevel === 'NODE' && !modalData.value.nodeId) {
+    init({ message: t('select_target_node_alert'), color: 'warning' })
     return
   }
 
@@ -675,7 +693,10 @@ const saveWorkflowModal = async () => {
 
   const payload = {
     id: modalData.value.id,
-    name: JSON.stringify({ ko: modalData.value.nameKo || '기본 서식', en: modalData.value.nameEn || '' }),
+    name: JSON.stringify({
+      ko: modalData.value.nameKo?.trim() || modalData.value.nameEn?.trim(),
+      en: modalData.value.nameEn?.trim() || modalData.value.nameKo?.trim()
+    }),
     description: modalData.value.description,
     actionType: modalData.value.actionType,
     domainId: modalData.value.domainId,

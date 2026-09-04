@@ -119,4 +119,47 @@ public class DataProfilingServiceTest {
         assertThat(responses.get(0).getFieldName()).isEqualTo("성명");
         assertThat(responses.get(0).getTotalCount()).isEqualTo(1);
     }
+
+    @Test
+    @DisplayName("getProfilingReport: 이상치가 100건을 초과할 때 DTO의 outliers 리스트는 최대 100건으로 캡핑되되 outlierCount 통계는 전체 건수 보존")
+    void testGetProfilingReportCapsOutliersListAt100() {
+        when(domainRepository.findById(domainId)).thenReturn(Optional.of(domain));
+        when(nodeRepository.findByDomain_Id(domainId)).thenReturn(Collections.emptyList());
+
+        FieldDefinition priceField = new FieldDefinition();
+        priceField.setKey("price");
+        priceField.setName(Map.of("ko", "가격"));
+        priceField.setType("NUMBER");
+        when(fieldDefinitionRepository.findDomainFieldsWithSort(domainId)).thenReturn(List.of(priceField));
+
+        // 정상 데이터 1000개 (100)
+        List<Record> records = new ArrayList<>();
+        for (int i = 0; i < 1000; i++) {
+            Record r = new Record();
+            r.setId(UUID.randomUUID());
+            r.setData("{\"price\":100}");
+            records.add(r);
+        }
+
+        // 극단적 이상치 250개 (999999)
+        for (int i = 0; i < 250; i++) {
+            Record r = new Record();
+            r.setId(UUID.randomUUID());
+            r.setData("{\"price\":999999}");
+            records.add(r);
+        }
+        when(recordRepository.findAllByDomainId(domainId)).thenReturn(records);
+
+        DataProfilingReportDto report = profilingService.getProfilingReport(domainId);
+
+        assertThat(report).isNotNull();
+        assertThat(report.getTotalRecords()).isEqualTo(1250);
+
+        DataProfilingReportDto.FieldProfile fp = report.getFieldProfiles().get(0);
+        assertThat(fp.getOutlierCount()).isEqualTo(250); // 전체 이상치 개수는 250개 보존
+
+        // 브라우저 렌더링 폭탄 및 Broken pipe 방지를 위해 DTO의 샘플 리스트는 최대 100건으로 캡핑되어야 함
+        assertThat(report.getOutliers().size()).isEqualTo(100);
+    }
 }
+

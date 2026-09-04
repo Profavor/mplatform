@@ -12,7 +12,11 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 @Entity
-@Table(name = "classification_node")
+@Table(name = "classification_node", indexes = {
+        @Index(name = "idx_node_domain", columnList = "domain_id"),
+        @Index(name = "idx_node_parent", columnList = "parent_id"),
+        @Index(name = "idx_node_is_deleted", columnList = "is_deleted")
+})
 @Getter
 @Setter
 @NoArgsConstructor

@@ -36,6 +36,21 @@ class RecordServiceTest {
     @Mock
     private AuthContext authContext;
 
+    @Mock
+    private com.classification.domain_system.repository.DomainRepository domainRepository;
+
+    @Mock
+    private com.classification.domain_system.repository.RecordRepository recordRepository;
+
+    @Mock
+    private com.classification.domain_system.repository.RecordHistoryRepository recordHistoryRepository;
+
+    @Mock
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    @Mock
+    private RecordIndexService recordIndexService;
+
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
 
@@ -94,5 +109,85 @@ class RecordServiceTest {
 
         assertThat(processed.getData()).isEqualTo("{\"email\":\"u***@example.com\"}");
         verify(dataMaskingService).maskJsonData(anyString(), anyList(), eq(false));
+    }
+
+    @Test
+    @DisplayName("testPrepareRecordsForRead: Caches effectiveFields per nodeId to prevent N+1 queries")
+    void testPrepareRecordsForRead_CachesEffectiveFieldsPerNodeId() {
+        ClassificationNode node = new ClassificationNode();
+        node.setId(nodeId);
+
+        Record r1 = new Record();
+        r1.setId(UUID.randomUUID());
+        r1.setNode(node);
+        r1.setData("{\"email\":\"ENC_1\"}");
+
+        Record r2 = new Record();
+        r2.setId(UUID.randomUUID());
+        r2.setNode(node);
+        r2.setData("{\"email\":\"ENC_2\"}");
+
+        Record r3 = new Record();
+        r3.setId(UUID.randomUUID());
+        r3.setNode(node);
+        r3.setData("{\"email\":\"ENC_3\"}");
+
+        FieldDefinition field = new FieldDefinition();
+        field.setKey("email");
+        field.setIsEncrypted(true);
+
+        when(fieldDefinitionService.getEffectiveFields(nodeId)).thenReturn(List.of(field));
+        when(authContext.hasPermission("record:unmask")).thenReturn(false);
+        when(dataMaskingService.maskJsonData(anyString(), anyList(), eq(false)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        org.springframework.data.domain.Page<Record> page = new org.springframework.data.domain.PageImpl<>(List.of(r1, r2, r3));
+        recordService.prepareRecordsForRead(page);
+
+        // 3개의 레코드이지만 동일한 nodeId이므로 getEffectiveFields는 단 1회만 호출되어야 함 (N+1 방지)
+        verify(fieldDefinitionService, times(1)).getEffectiveFields(nodeId);
+        verify(dataMaskingService, times(3)).maskJsonData(anyString(), anyList(), eq(false));
+    }
+
+    @Test
+    @DisplayName("resetDomainRecords: JdbcTemplate이 존재할 때 명시적 개별 삭제 및 OpenSearch 인덱스 정리 수행")
+    void testResetDomainRecords_WithJdbcTemplate() {
+        UUID domainId = UUID.randomUUID();
+        com.classification.domain_system.entity.Domain domain = new com.classification.domain_system.entity.Domain();
+        domain.setId(domainId);
+
+        when(domainRepository.findById(domainId)).thenReturn(java.util.Optional.of(domain));
+        when(jdbcTemplate.update(contains("DELETE FROM record WHERE"), eq(domainId))).thenReturn(42);
+
+        int deleted = recordService.resetDomainRecords(domainId);
+
+        assertThat(deleted).isEqualTo(42);
+        verify(jdbcTemplate).update(contains("DELETE FROM dq_violation"), eq(domainId));
+        verify(jdbcTemplate).update(contains("DELETE FROM record_secondary_node"), eq(domainId));
+        verify(jdbcTemplate).update(contains("DELETE FROM record_field_source"), eq(domainId));
+        verify(jdbcTemplate).update(contains("DELETE FROM match_candidate"), eq(domainId), eq(domainId));
+        verify(jdbcTemplate).update(contains("DELETE FROM record_history"), eq(domainId));
+        verify(jdbcTemplate).update(contains("UPDATE record SET merged_into_record_id = NULL"), eq(domainId));
+        verify(jdbcTemplate).update(contains("DELETE FROM record WHERE"), eq(domainId));
+        verify(recordIndexService).deleteByDomainId(domainId.toString());
+    }
+
+    @Test
+    @DisplayName("resetDomainRecords: 도메인이 존재하지 않으면 ResourceNotFoundException 발생")
+    void testResetDomainRecords_DomainNotFound() {
+        UUID domainId = UUID.randomUUID();
+        when(domainRepository.findById(domainId)).thenReturn(java.util.Optional.empty());
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> recordService.resetDomainRecords(domainId))
+                .isInstanceOf(com.classification.domain_system.exception.ResourceNotFoundException.class)
+                .hasMessageContaining("Domain not found");
+    }
+
+    @Test
+    @DisplayName("resetDomainRecords: domainId가 null이면 BusinessException 발생")
+    void testResetDomainRecords_NullDomainId() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> recordService.resetDomainRecords(null))
+                .isInstanceOf(com.classification.domain_system.exception.BusinessException.class)
+                .hasMessageContaining("Domain ID is required");
     }
 }

@@ -1,4 +1,11 @@
 {
+  "workflow_name_required": "워크플로우명을 입력해주세요.",
+  "action_type_required": "수행 액션을 선택해주세요.",
+  "select_target_node_alert": "적용 대상 분류 노드를 선택해주세요.",
+  "menu_name_required": "메뉴명을 입력해주세요.",
+  "group_code_required": "그룹 코드를 입력해주세요.",
+  "code_name_required": "코드명을 입력해주세요.",
+  "detail_code_required": "상세 코드를 입력해주세요.",
   "font_size_setting": "글자 크기 설정",
   "font_size_small": "작게",
   "font_size_medium": "보통",

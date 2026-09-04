@@ -118,6 +118,60 @@
         },
         "sortOrder": 12,
         "isActive": true
+      },
+      {
+        "detailCode": "INBOUND_MERGE",
+        "name": {
+          "ko": "🔀 연계 머지",
+          "en": "🔀 Inbound Merge"
+        },
+        "sortOrder": 13,
+        "isActive": true
+      },
+      {
+        "detailCode": "BATCH_MERGE",
+        "name": {
+          "ko": "🔄 배치 머지",
+          "en": "🔄 Batch Merge"
+        },
+        "sortOrder": 14,
+        "isActive": true
+      },
+      {
+        "detailCode": "INBOUND_INGEST",
+        "name": {
+          "ko": "📥 연계 신규 생성",
+          "en": "📥 Inbound Ingest"
+        },
+        "sortOrder": 15,
+        "isActive": true
+      },
+      {
+        "detailCode": "BATCH_INGEST",
+        "name": {
+          "ko": "📦 배치 신규 생성",
+          "en": "📦 Batch Ingest"
+        },
+        "sortOrder": 16,
+        "isActive": true
+      },
+      {
+        "detailCode": "RECORD_MERGE",
+        "name": {
+          "ko": "🔀 레코드 병합",
+          "en": "🔀 Record Merge"
+        },
+        "sortOrder": 17,
+        "isActive": true
+      },
+      {
+        "detailCode": "MERGED_INTO",
+        "name": {
+          "ko": "🔗 병합 수렴",
+          "en": "🔗 Merged Into"
+        },
+        "sortOrder": 18,
+        "isActive": true
       }
     ]
   },
@@ -634,6 +688,15 @@
           "en": "📬 Message Queue"
         },
         "sortOrder": 3,
+        "isActive": true
+      },
+      {
+        "detailCode": "SPRING_BATCH",
+        "name": {
+          "ko": "🚀 스프링 배치 (Spring Batch)",
+          "en": "🚀 Spring Batch"
+        },
+        "sortOrder": 4,
         "isActive": true
       }
     ]

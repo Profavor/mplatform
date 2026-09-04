@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.classification</groupId>
 	<artifactId>domain-system</artifactId>
-	<version>1.2.6</version>
+	<version>1.2.16</version>
 	<name>domain_system</name>
 	<description/>
 	<url/>
@@ -271,6 +271,16 @@
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
 			<version>2.5.0</version>
+		</dependency>
+		<!-- Spring Batch for High-throughput Master Data Processing -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-batch</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.batch</groupId>
+			<artifactId>spring-batch-test</artifactId>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 

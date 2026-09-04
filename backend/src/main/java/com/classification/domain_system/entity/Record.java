@@ -11,7 +11,12 @@ import org.hibernate.type.SqlTypes;
 import com.classification.domain_system.service.opensearch.RecordSyncListener;
 
 @Entity
-@Table(name = "record")
+@Table(name = "record", indexes = {
+        @Index(name = "idx_record_node_id", columnList = "node_id"),
+        @Index(name = "idx_record_status", columnList = "status"),
+        @Index(name = "idx_record_created_at", columnList = "created_at DESC"),
+        @Index(name = "idx_record_node_status", columnList = "node_id, status")
+})
 @Getter
 @Setter
 @NoArgsConstructor
