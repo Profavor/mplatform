@@ -87,6 +87,13 @@ public class GlobalRecordController {
         return ResponseEntity.ok(PageResponse.of(records));
     }
 
+    @DeleteMapping("/domain/{domainId}")
+    @PreAuthorize("hasPermission(null, 'domain:write') or hasPermission(null, 'record:delete') or hasPermission(null, 'domain:*') or hasPermission(null, 'record:*')")
+    public ResponseEntity<java.util.Map<String, Object>> resetDomainRecords(@PathVariable UUID domainId) {
+        int deletedCount = recordService.resetDomainRecords(domainId);
+        return ResponseEntity.ok(java.util.Map.of("success", true, "deletedCount", deletedCount));
+    }
+
     @GetMapping("/{id}/secondary-nodes")
     @PreAuthorize("hasPermission(null, 'record:read')")
     public ResponseEntity<java.util.List<com.classification.domain_system.dto.RecordSecondaryNodeResponse>> getSecondaryNodes(@PathVariable UUID id) {

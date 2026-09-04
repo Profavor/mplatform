@@ -134,4 +134,66 @@ describe('CdcStreamModal.vue', () => {
     expect(wrapper.text()).toContain('홍길동')
     expect(wrapper.text()).toContain('홍길동2')
   })
+
+  it('does not re-fetch domain records if domainReferences prop is already provided', async () => {
+    mockCustomFetch.mockClear()
+    mockCustomFetch.mockImplementation((url: string) => {
+      if (url.includes('/cdc/stream')) {
+        return Promise.resolve({
+          data: {
+            value: {
+              activeOffset: 10,
+              eventsPerSecond: 1.0,
+              events: []
+            }
+          }
+        })
+      }
+      if (url.includes('/fields')) {
+        return Promise.resolve({
+          data: {
+            value: [
+              {
+                id: 'f1',
+                key: 'refField',
+                type: 'DOMAIN_REFERENCE',
+                options: JSON.stringify({ targetDomainId: 'target-dom-1' })
+              }
+            ]
+          }
+        })
+      }
+      return Promise.resolve({ data: { value: [] } })
+    })
+
+    const wrapper = mount(CdcStreamModal, {
+      props: {
+        modelValue: true,
+        domainId: 'd-123',
+        domainReferences: {
+          refField: {
+            targetDomainId: 'target-dom-1',
+            domainInfo: { id: 'target-dom-1' },
+            fields: [],
+            records: [{ id: 'rec-1', code: 'REC-1' }]
+          }
+        }
+      },
+      global: {
+        mocks: {
+          $t: (k: string) => k
+        },
+        stubs: {
+          'va-modal': { template: '<div><slot /></div>' },
+          'va-alert': true,
+          'va-inner-loading': { template: '<div><slot /></div>' },
+          'va-badge': true,
+          'va-button': true
+        }
+      }
+    })
+
+    await wrapper.vm.$nextTick()
+    expect(mockCustomFetch).not.toHaveBeenCalledWith(expect.stringContaining('/records/domain/target-dom-1'))
+  })
 })

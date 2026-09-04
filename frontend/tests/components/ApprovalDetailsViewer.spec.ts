@@ -233,5 +233,77 @@ describe('ApprovalDetailsViewer Component - RECORD_UPDATE Filtering Test', () =>
     expect(text).not.toContain('니가 나를 모르는데')
     expect(text).toContain('새로운 제목')
   })
+
+  it('INBOUND_MERGE 시 이전 데이터(before)와 신규 데이터(after)의 변경 속성 Diff가 정상 표출되어야 함', () => {
+    const mockMergeRequest = {
+      id: 'req-inbound-merge-1',
+      targetType: 'INBOUND_MERGE',
+      isIntegration: true,
+      sourceSystem: 'SPRING_BATCH',
+      changes: JSON.stringify({
+        before: {
+          ticker_code: '034220',
+          stock_name: 'LG디스플레이',
+          current_price: '10000',
+          market: 'KOSPI'
+        },
+        after: {
+          ticker_code: '034220',
+          stock_name: 'LG디스플레이',
+          current_price: '12500',
+          market: 'KOSPI'
+        }
+      }),
+      steps: []
+    }
+
+    const wrapper = mount(ApprovalDetailsViewer, {
+      props: { request: mockMergeRequest },
+      global: {
+        mocks: { $t: (key: string) => key },
+        stubs: { VaIcon: true, VaBadge: true, VaButton: true, VaChip: true, ApprovalSteps: true, VaModal: true, VaInput: true, 'va-modal': true, 'va-input': true }
+      }
+    })
+
+    const text = wrapper.text()
+    // 1. 변경된 필드(current_price)의 이전 값과 이후 값이 모두 포함되어야 함
+    expect(text).toContain('10000')
+    expect(text).toContain('12500')
+    // 2. 변경되지 않은 ticker_code는 필터링되어 diff에 나타나지 않음
+    expect(text).not.toContain('034220')
+  })
+
+  it('request.changes가 reactive 객체로 전달되어도 원본 객체를 변이시키지 않고 정상 렌더링되어야 함', () => {
+    const rawBefore = { ticker_code: '034220', current_price: '10000' }
+    const rawAfter = { ticker_code: '034220', current_price: '12500' }
+    const changesObj = {
+      before: rawBefore,
+      after: rawAfter,
+      changedFields: ['current_price']
+    }
+
+    const mockReactiveRequest = {
+      id: 'req-reactive-1',
+      targetType: 'INBOUND_MERGE',
+      isIntegration: true,
+      changes: changesObj,
+      steps: []
+    }
+
+    const wrapper = mount(ApprovalDetailsViewer, {
+      props: { request: mockReactiveRequest },
+      global: {
+        mocks: { $t: (key: string) => key },
+        stubs: { VaIcon: true, VaBadge: true, VaButton: true, VaChip: true, ApprovalSteps: true, VaModal: true, VaInput: true, 'va-modal': true, 'va-input': true }
+      }
+    })
+
+    const text = wrapper.text()
+    expect(text).toContain('10000')
+    expect(text).toContain('12500')
+    // 원본 changesObj.before가 그대로 보존되어야 함
+    expect(changesObj.before).toBe(rawBefore)
+  })
 })
+
 

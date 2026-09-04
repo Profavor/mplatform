@@ -35,12 +35,15 @@
         outline
         style="margin-bottom: 1.25rem;"
       >
-        <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
           <span style="font-weight: 700; font-size: 0.9rem;">
             ⚠️ {{ $t('outliers_found', { count: report.outliers.length }) }}
           </span>
+          <span v-if="report.outliers.length > 50" style="font-size: 0.8rem; color: var(--va-text-secondary);">
+            (상위 50건 미리보기)
+          </span>
         </div>
-        <div style="margin-top: 0.5rem; max-height: 140px; overflow-y: auto;">
+        <div style="margin-top: 0.5rem; max-height: 180px; overflow-y: auto;">
           <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
             <thead>
               <tr style="text-align: left; border-bottom: 1px solid var(--va-background-border);">
@@ -50,7 +53,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(out, idx) in report.outliers" :key="idx" style="border-bottom: 1px solid var(--va-background-border);">
+              <tr v-for="(out, idx) in previewOutliers" :key="idx" style="border-bottom: 1px solid var(--va-background-border);">
                 <td style="padding: 0.3rem 0.5rem; font-weight: 600;">{{ out.fieldKey }}</td>
                 <td style="padding: 0.3rem 0.5rem; color: var(--va-danger); font-weight: bold;">{{ out.value }}</td>
                 <td style="padding: 0.3rem 0.5rem;">{{ out.reason }}</td>
@@ -122,7 +125,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vuestic-ui'
 import { useCustomFetch } from '~/composables/useCustomFetch'
@@ -138,13 +141,19 @@ const toast = useToast()
 const report = ref<any>(null)
 const loading = ref(false)
 
+const previewOutliers = computed(() => {
+  if (!report.value?.outliers || !Array.isArray(report.value.outliers)) return []
+  return report.value.outliers.slice(0, 50)
+})
+
 const fetchProfiling = async () => {
   if (!props.domainId) return
   loading.value = true
   try {
-    const res = await useCustomFetch(`/domains/${props.domainId}/profiling/report`)
-    if (res.data?.value) {
-      report.value = res.data.value
+    const res: any = await useCustomFetch(`/domains/${props.domainId}/profiling/report`)
+    const rawData = res?.data?.value ?? res
+    if (rawData) {
+      report.value = rawData
     }
   } catch (e: any) {
     console.error('Failed to fetch profiling data', e)
@@ -180,6 +189,12 @@ const runScan = async () => {
 watch(() => props.domainId, (val) => {
   if (val) fetchProfiling()
 }, { immediate: true })
+
+defineExpose({
+  previewOutliers,
+  report,
+  fetchProfiling
+})
 </script>
 
 <style scoped>

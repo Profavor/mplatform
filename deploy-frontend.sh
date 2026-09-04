@@ -26,7 +26,7 @@ echo " Tag: $TAG"
 echo "================================================================"
 
 echo "==> 1. Building Nuxt on host (Fast)..."
-(cd "$SCRIPT_DIR/frontend" && npm run build)
+(cd "$SCRIPT_DIR/frontend" && NODE_OPTIONS="--max-old-space-size=4096" npm run build)
 
 echo "==> 2. Packaging Docker image..."
 (cd "$SCRIPT_DIR/frontend" && docker build -t "profavor2/mplatform-frontend:$TAG" .)

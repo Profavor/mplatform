@@ -38,6 +38,14 @@ public class DomainController {
     private final FieldGroupService fieldGroupService;
     private final com.classification.domain_system.service.DomainPackageService domainPackageService;
     private final com.classification.domain_system.service.SpecializedDomainTemplateService specializedDomainTemplateService;
+    private final com.classification.domain_system.service.StockDataIngestionService stockDataIngestionService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    @org.springframework.context.annotation.Lazy
+    private com.classification.domain_system.service.RecordService recordService;
+
+    public void setRecordService(com.classification.domain_system.service.RecordService recordService) {
+        this.recordService = recordService;
+    }
     
     @PostMapping
     @PreAuthorize("hasPermission(null, 'domain:write')")
@@ -70,6 +78,13 @@ public class DomainController {
     public ResponseEntity<Void> deleteDomain(@PathVariable UUID id) {
         domainService.deleteDomain(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{domainId}/records")
+    @PreAuthorize("hasPermission(null, 'domain:write') or hasPermission(null, 'record:delete') or hasPermission(null, 'domain:*') or hasPermission(null, 'record:*')")
+    public ResponseEntity<java.util.Map<String, Object>> resetDomainRecords(@PathVariable UUID domainId) {
+        int deletedCount = recordService.resetDomainRecords(domainId);
+        return ResponseEntity.ok(java.util.Map.of("success", true, "deletedCount", deletedCount));
     }
 
     @GetMapping("/{id}")
@@ -315,6 +330,15 @@ public class DomainController {
     public ResponseEntity<com.classification.domain_system.dto.DomainResponse> provisionSpecializedDomain(
             @RequestBody com.classification.domain_system.dto.SpecializedDomainProvisionRequest request) {
         return ResponseEntity.ok(specializedDomainTemplateService.provisionDomain(request));
+    }
+
+    @PostMapping("/specialized-stock/seed-real-data")
+    @PreAuthorize("hasPermission(null, 'domain:write')")
+    public ResponseEntity<com.classification.domain_system.dto.StockSeedResponse> seedRealStockData(
+            @RequestBody(required = false) com.classification.domain_system.dto.StockSeedRequest request,
+            java.security.Principal principal) {
+        String username = principal != null ? principal.getName() : "admin";
+        return ResponseEntity.ok(stockDataIngestionService.seedRealStockData(request, username));
     }
 }
 

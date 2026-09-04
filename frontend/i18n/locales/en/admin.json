@@ -1,4 +1,11 @@
 {
+  "workflow_name_required": "Workflow name is required.",
+  "action_type_required": "Action type is required.",
+  "select_target_node_alert": "Please select a target classification node.",
+  "menu_name_required": "Menu name is required.",
+  "group_code_required": "Group code is required.",
+  "code_name_required": "Code name is required.",
+  "detail_code_required": "Detail code is required.",
   "font_size_setting": "Font Size",
   "font_size_small": "Small",
   "font_size_medium": "Medium",

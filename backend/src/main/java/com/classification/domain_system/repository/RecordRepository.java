@@ -59,6 +59,11 @@ public interface RecordRepository extends JpaRepository<Record, UUID>, CustomRec
     @org.springframework.data.jpa.repository.Query("SELECT r FROM Record r JOIN FETCH r.node WHERE r.node.domain.id = :domainId AND r.status NOT IN ('REJECTED', 'MISMATCHED') ORDER BY r.createdAt DESC")
     List<Record> findAllByDomainId(@org.springframework.data.repository.query.Param("domainId") UUID domainId);
 
+    @org.springframework.data.jpa.repository.Query("SELECT COUNT(r) FROM Record r WHERE r.node.domain.id = :domainId")
+    long countByDomainId(@org.springframework.data.repository.query.Param("domainId") UUID domainId);
+
+    List<Record> findByNode_Domain_Id(UUID domainId);
+
     @org.springframework.data.jpa.repository.Query("SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END FROM Record r WHERE r.node.domain.id = :domainId AND cast(r.data as String) LIKE %:searchText%")
     boolean existsByNodeDomainIdAndDataContaining(@org.springframework.data.repository.query.Param("domainId") UUID domainId, @org.springframework.data.repository.query.Param("searchText") String searchText);
 
@@ -71,4 +76,16 @@ public interface RecordRepository extends JpaRepository<Record, UUID>, CustomRec
             @org.springframework.data.repository.query.Param("domainId") UUID domainId,
             @org.springframework.data.repository.query.Param("fieldKey") String fieldKey,
             @org.springframework.data.repository.query.Param("recordId") String recordId);
+
+    @org.springframework.data.jpa.repository.Query(value = "SELECT r.* FROM record r " +
+            "JOIN classification_node n ON r.node_id = n.id " +
+            "WHERE n.domain_id = :domainId " +
+            "AND (CAST(r.data AS jsonb) ->> CAST(:fieldKey AS text) = :fieldValue " +
+            "     OR CAST(r.data AS jsonb) ->> LOWER(CAST(:fieldKey AS text)) = :fieldValue) " +
+            "AND r.status NOT IN ('REJECTED', 'MERGED') " +
+            "ORDER BY r.created_at ASC", nativeQuery = true)
+    List<Record> findActiveRecordsByDomainAndFieldValue(
+            @org.springframework.data.repository.query.Param("domainId") UUID domainId,
+            @org.springframework.data.repository.query.Param("fieldKey") String fieldKey,
+            @org.springframework.data.repository.query.Param("fieldValue") String fieldValue);
 }

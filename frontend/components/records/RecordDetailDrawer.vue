@@ -694,7 +694,7 @@
       </div>
 
       <!-- History Tab Content (AG-Grid with Pagination) -->
-      <div v-show="activeMainTab === 'history'" style="height: 100%; width: 100%; display: flex; flex-direction: column; flex: 1; overflow-y: auto; padding-right: 8px;">
+      <div v-if="activeMainTab === 'history'" style="height: 100%; width: 100%; display: flex; flex-direction: column; flex: 1; overflow-y: auto; padding-right: 8px;">
         <div v-if="!history || history.length === 0" style="text-align: center; color: #777; padding: 2rem;">
           {{ t('audit_no_history') }}
         </div>
@@ -725,7 +725,7 @@
                 <va-card outlined style="margin-bottom: 1.5rem; width: 100%;">
                   <va-card-title style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border-bottom: 1px solid var(--va-background-border);">
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
-                      <va-badge :color="getHistoryTimelineColor(log.changeType)" :text="log.changeType === 'PENDING_APPROVAL' ? (t('pending_approval')) : log.changeType" />
+                      <va-badge :color="getHistoryTimelineColor(log.changeType)" :text="getHistoryChangeTypeLabel(log.changeType)" />
                     </div>
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
                       <va-button
@@ -757,7 +757,7 @@
                       </va-button>
                     </div>
                   </va-card-title>
-                  <va-card-content v-if="log.changeType === 'UPDATE' && log.previousData && log.newData" style="padding: 1rem; background: var(--va-background-secondary);">
+                  <va-card-content v-if="(log.changeType === 'UPDATE' || log.changeType === 'RECORD_UPDATE' || log.changeType === 'INBOUND_MERGE' || log.changeType === 'BATCH_MERGE' || log.changeType === 'MERGED_INTO' || log.changeType === 'RECORD_MERGE' || (log.previousData && log.newData)) && log.previousData && log.newData" style="padding: 1rem; background: var(--va-background-secondary);">
                     <!-- Inline Diff Rendering -->
                     <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                       <div v-for="fieldKey in getChangedKeys(log.previousData, log.newData, log)" :key="fieldKey" style="display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.85rem;">
@@ -1085,9 +1085,19 @@ const openUserProfileModal = (log) => {
 
 const getHistoryTimelineColor = (type) => {
   if (type === 'PENDING_APPROVAL') return 'warning';
-  if (type === 'CREATE') return 'success';
-  if (type === 'DELETE') return 'danger';
+  if (type === 'CREATE' || type === 'RECORD_CREATE' || type === 'INBOUND_INGEST' || type === 'BATCH_INGEST' || type === 'RECORD') return 'success';
+  if (type === 'DELETE' || type === 'RECORD_DELETE') return 'danger';
+  if (type === 'INBOUND_MERGE' || type === 'BATCH_MERGE' || type === 'RECORD_MERGE' || type === 'MERGED_INTO' || type === 'MERGE') return 'info';
   return 'primary';
+};
+
+const getHistoryChangeTypeLabel = (val) => {
+  if (!val) return '';
+  if (val === 'PENDING_APPROVAL') return t('pending_approval');
+  const codeName = codeStore.getCodeName('TARGET_TYPE', val, null);
+  const i18nKey = `target_type_${val}`;
+  const translated = t(i18nKey);
+  return (codeName && codeName !== val) ? codeName : ((translated && translated !== i18nKey) ? translated : (t(val.toLowerCase()) || val));
 };
 
 const safeParseJson = (val) => {
@@ -1396,12 +1406,14 @@ const historyGridColumnDefs = computed(() => {
 
         if (val === 'PENDING_APPROVAL') {
           span.style.background = '#e6a23c';
-        } else if (val === 'CREATE' || val === 'RECORD_CREATE' || val === 'RECORD') {
+        } else if (val === 'CREATE' || val === 'RECORD_CREATE' || val === 'RECORD' || val === 'INBOUND_INGEST' || val === 'BATCH_INGEST') {
           span.style.background = '#10b981';
         } else if (val === 'UPDATE' || val === 'RECORD_UPDATE') {
           span.style.background = '#f59e0b';
         } else if (val === 'DELETE' || val === 'RECORD_DELETE') {
           span.style.background = '#ef4444';
+        } else if (val === 'INBOUND_MERGE' || val === 'BATCH_MERGE' || val === 'RECORD_MERGE' || val === 'MERGED_INTO' || val === 'MERGE') {
+          span.style.background = '#0284c7';
         } else {
           span.style.background = '#2c82e0';
         }
@@ -1419,15 +1431,19 @@ const historyGridColumnDefs = computed(() => {
         const div = document.createElement('div');
         div.style.cssText = 'display: flex; align-items: center; height: 100%; gap: 0.35rem;';
 
+        const isUpdateType = ['UPDATE', 'RECORD_UPDATE', 'INBOUND_MERGE', 'BATCH_MERGE', 'MERGED_INTO', 'RECORD_MERGE', 'MERGE'].includes(row.changeType) || (Boolean(row.previousData) && Boolean(row.newData));
+        const isDeleteType = ['DELETE', 'RECORD_DELETE'].includes(row.changeType);
+        const isCreateType = ['CREATE', 'RECORD_CREATE', 'INBOUND_INGEST', 'BATCH_INGEST', 'RECORD'].includes(row.changeType);
+
         if (row.changeType === 'PENDING_APPROVAL' && row.rawRequest) {
           const btn = createUnifiedBtn(t('view_changes'), '#2c82e0', () => emit('viewDiffDetails', row.rawRequest.changes, row.rawRequest.targetType, true));
           div.appendChild(btn);
-        } else if (row.changeType === 'UPDATE') {
+        } else if (isUpdateType) {
           const btn = createUnifiedBtn(t('view_changes'), '#2c82e0', () => emit('viewDiffDetails', row.previousData, row.newData, false));
           div.appendChild(btn);
-        } else if (row.changeType === 'CREATE') {
+        } else if (isCreateType) {
           div.innerHTML = `<span style="display: inline-flex; align-items: center; justify-content: center; height: 22px; background: #1ebc72; color: white; padding: 0 5px; border-radius: 4px; font-size: 11px; font-weight: 700;">CREATE</span> <span style="font-size: 11px; font-weight: 700; color: #15803d; margin-left: 4px; display: inline-flex; align-items: center; height: 100%;">${t('initial_created')}</span>`;
-        } else if (row.changeType === 'DELETE') {
+        } else if (isDeleteType) {
           div.innerHTML = `<span style="display: inline-flex; align-items: center; justify-content: center; height: 22px; background: #e53935; color: white; padding: 0 5px; border-radius: 4px; font-size: 11px; font-weight: 700;">DELETE</span> <span style="font-size: 11px; font-weight: 700; color: #b91c1c; margin-left: 4px; display: inline-flex; align-items: center; height: 100%;">${t('deleted_status')}</span>`;
         }
         return div;
@@ -1444,21 +1460,26 @@ const historyGridColumnDefs = computed(() => {
         const container = document.createElement('div');
         container.style.cssText = 'display: flex; align-items: center; height: 100%; gap: 0.35rem;';
 
-        if (row.changeType === 'CREATE') {
+        const isUpdateType = ['UPDATE', 'RECORD_UPDATE', 'INBOUND_MERGE', 'BATCH_MERGE', 'MERGED_INTO', 'RECORD_MERGE', 'MERGE'].includes(row.changeType) || (Boolean(row.previousData) && Boolean(row.newData));
+        const isDeleteType = ['DELETE', 'RECORD_DELETE'].includes(row.changeType);
+        const isPendingType = row.changeType === 'PENDING_APPROVAL';
+        const isCreateType = !isUpdateType && !isDeleteType && !isPendingType;
+
+        if (isCreateType) {
           container.appendChild(createUnifiedBtn(t('view_snapshot'), '#0284c7', () => emit('viewSnapshot', row.newData, row.id)));
           if (row.approvalRequestId) {
             container.appendChild(createUnifiedBtn(t('approval_history_btn'), '#6b7280', () => emit('viewApprovalHistory', row)));
           } else if (row.sourceSystem) {
             container.appendChild(createUnifiedBtn(t('integration_history_btn'), '#0284c7', () => emit('viewIntegrationHistory', row)));
           }
-        } else if (row.changeType === 'DELETE') {
+        } else if (isDeleteType) {
           container.appendChild(createUnifiedBtn(t('last_snapshot'), '#d97706', () => emit('viewSnapshot', row.previousData, row.id)));
           if (row.approvalRequestId) {
             container.appendChild(createUnifiedBtn(t('approval_history_btn'), '#6b7280', () => emit('viewApprovalHistory', row)));
           } else if (row.sourceSystem) {
             container.appendChild(createUnifiedBtn(t('integration_history_btn'), '#0284c7', () => emit('viewIntegrationHistory', row)));
           }
-        } else if (row.changeType === 'UPDATE') {
+        } else if (isUpdateType) {
           container.appendChild(createUnifiedBtn(t('prev_snapshot'), '#d97706', () => emit('viewSnapshot', row.previousData, row.id)));
           container.appendChild(createUnifiedBtn(t('next_snapshot'), '#0284c7', () => emit('viewSnapshot', row.newData, row.id)));
           if (row.approvalRequestId) {
@@ -1466,7 +1487,7 @@ const historyGridColumnDefs = computed(() => {
           } else if (row.sourceSystem) {
             container.appendChild(createUnifiedBtn(t('integration_history_btn'), '#0284c7', () => emit('viewIntegrationHistory', row)));
           }
-        } else if (row.changeType === 'PENDING_APPROVAL') {
+        } else if (isPendingType) {
           container.appendChild(createUnifiedBtn(t('approval_monitoring'), '#d97706', () => emit('viewApprovalHistory', row)));
         }
         return container;
@@ -2421,8 +2442,11 @@ const resolveDomainRefAsync = async (fieldKey, recordId) => {
       else res = recordId
 
       domainRefResolvedCache.value[recordId] = res
+    } else {
+      domainRefResolvedCache.value[recordId] = recordId
     }
   } catch (e) {
+    domainRefResolvedCache.value[recordId] = recordId
     console.error('Failed to resolve domain reference display name:', e)
   }
 }
@@ -2465,7 +2489,7 @@ const getDomainRefDisplayName = (fieldKey, recordId) => {
     return res
   }
 
-  if (typeof recordId === 'string' && (recordId.length >= 32 || recordId.includes('-'))) {
+  if (isUuid(recordId)) {
     resolveDomainRefAsync(fieldKey, recordId)
   }
 

@@ -12,6 +12,9 @@ export function prepareFetchOptions(options: any = {}, token?: string | null, ti
   }
 
   return {
+    retry: options.retry !== undefined ? options.retry : 2,
+    retryDelay: options.retryDelay || 300,
+    retryStatusCodes: [408, 409, 425, 429, 500, 502, 503, 504],
     ...options,
     headers,
     credentials: 'include' // Allow sending cookies in cross-origin or proxy environments

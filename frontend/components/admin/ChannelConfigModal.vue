@@ -50,7 +50,6 @@
               value-by="value"
               text-by="text"
               :label="t('integration.channels.type', '연동 방식')"
-              :disabled="formData.direction === 'INBOUND'"
               required
             />
             <div style="padding-bottom: 0.5rem;">
@@ -58,8 +57,75 @@
             </div>
           </div>
 
-          <!-- INBOUND Auth & Webhook Info -->
-          <template v-if="formData.direction === 'INBOUND'">
+          <!-- SPRING_BATCH Dedicated Config Card (Inbound & Outbound) -->
+          <template v-if="formData.type === 'SPRING_BATCH'">
+            <div style="background: var(--va-background-element); border-radius: 12px; padding: 1.25rem; border: 1px solid var(--va-background-border); display: flex; flex-direction: column; gap: 1rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-weight: 700; font-size: 0.95rem; color: var(--va-primary); display: flex; align-items: center; gap: 0.4rem;">
+                  <va-icon name="rocket_launch" size="small" color="primary" />
+                  {{ t('integration.channels.batch_config_title') }}
+                </div>
+                <va-button v-if="isEdit" size="small" preset="secondary" color="primary" icon="play_arrow" @click="emit('trigger-batch')">
+                  {{ t('integration.channels.run_batch') }}
+                </va-button>
+              </div>
+
+              <!-- Batch Job Name & Bean Class -->
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <va-input 
+                  v-model="uiConfig.batchJobName" 
+                  :label="t('integration.channels.batch_job_name')" 
+                  :placeholder="t('integration.channels.batch_job_placeholder')" 
+                  required 
+                />
+                <va-input 
+                  v-model="uiConfig.batchBeanClass" 
+                  :label="t('integration.channels.batch_bean_class')" 
+                  :placeholder="t('integration.channels.batch_bean_placeholder')" 
+                />
+              </div>
+
+              <!-- Cron Schedule & Presets -->
+              <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <va-input 
+                  v-model="uiConfig.batchCron" 
+                  :label="t('integration.channels.batch_cron')" 
+                  placeholder="0 0 16 * * MON-FRI" 
+                  :messages="[t('integration.channels.batch_cron_hint')]" 
+                />
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.25rem;">
+                  <va-chip size="small" outline color="primary" style="cursor: pointer;" @click="uiConfig.batchCron = '0 0 16 * * MON-FRI'">
+                    {{ t('integration.channels.preset_weekday_close') }} (0 0 16 * * MON-FRI)
+                  </va-chip>
+                  <va-chip size="small" outline color="secondary" style="cursor: pointer;" @click="uiConfig.batchCron = '0 0 9 * * *'">
+                    {{ t('integration.channels.preset_daily_morning') }} (0 0 9 * * *)
+                  </va-chip>
+                  <va-chip size="small" outline color="secondary" style="cursor: pointer;" @click="uiConfig.batchCron = '0 0 * * * *'">
+                    {{ t('integration.channels.preset_hourly') }} (0 0 * * * *)
+                  </va-chip>
+                </div>
+              </div>
+
+              <!-- Batch Parameters JSON -->
+              <va-textarea 
+                v-model="uiConfig.batchParams" 
+                :label="t('integration.channels.batch_params')" 
+                :placeholder="t('integration.channels.batch_params_placeholder')" 
+                :min-rows="2" 
+                :max-rows="4" 
+                style="font-family: monospace; font-size: 0.85rem;" 
+              />
+
+              <!-- Clean Load Checkbox & Approval Checkbox -->
+              <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+                <va-checkbox v-model="uiConfig.clearExisting" :label="t('integration.channels.clear_existing_records')" />
+                <va-checkbox v-model="formData.requiresApproval" :label="t('integration.channels.requires_approval')" />
+              </div>
+            </div>
+          </template>
+
+          <!-- INBOUND Webhook & Auth Info (When type != SPRING_BATCH) -->
+          <template v-else-if="formData.direction === 'INBOUND'">
             <div style="background: var(--va-background-element); border-radius: 12px; padding: 1.25rem; border: 1px solid var(--va-background-border); display: flex; flex-direction: column; gap: 1rem;">
               <div style="font-weight: 700; font-size: 0.95rem; color: var(--va-primary); display: flex; align-items: center; gap: 0.4rem;">
                 <va-icon name="security" size="small" color="primary" />
@@ -143,7 +209,7 @@
             </div>
           </template>
 
-          <!-- OUTBOUND Detailed Config -->
+          <!-- OUTBOUND Detailed Config (When type != SPRING_BATCH) -->
           <template v-else-if="formData.direction === 'OUTBOUND'">
             <div style="background: var(--va-background-element); border-radius: 12px; padding: 1.25rem; border: 1px solid var(--va-background-border); display: flex; flex-direction: column; gap: 1rem;">
               <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -358,10 +424,19 @@ const emit = defineEmits<{
   (e: 'add-mapping'): void
   (e: 'mapping-grid-ready', params: any): void
   (e: 'mapping-cell-changed', params: any): void
+  (e: 'trigger-batch'): void
   (e: 'submit'): void
 }>()
 
+const form = ref<any>(null)
 const activeModalTab = ref('basic')
+
+const validate = () => {
+  if (form.value && typeof form.value.validate === 'function') {
+    return form.value.validate()
+  }
+  return true
+}
 
 const onSubmit = () => {
   emit('submit')
@@ -369,6 +444,8 @@ const onSubmit = () => {
 
 defineExpose({
   activeModalTab,
-  onSubmit
+  onSubmit,
+  validate,
+  form
 })
 </script>

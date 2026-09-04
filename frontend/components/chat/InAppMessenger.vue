@@ -1662,7 +1662,9 @@ const postMessage = async (type: string, content: string, fileUrl?: string, file
         fileUrl,
         fileName,
         fileSize
-      }
+      },
+      retry: 3,
+      retryDelay: 500
     })
     if (res) {
       appendOrUpdateMessage(res)

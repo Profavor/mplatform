@@ -54,7 +54,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, h } from 'vue'
+import { ref, onMounted, onUnmounted, computed, h } from 'vue'
 import { useCookie } from '#app'
 import { AgGridVue } from 'ag-grid-vue3'
 import { useI18n } from 'vue-i18n'
@@ -63,128 +63,40 @@ import ApprovalMonitorDetailModal from '~/components/admin/ApprovalMonitorDetail
 import { usePageTitle } from '~/composables/usePageTitle'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'
 import { useApprovalEnricher } from '~/composables/useApprovalEnricher'
+import { useMultilingual } from '~/composables/useMultilingual'
 import { useUserStore } from '~/stores/useUserStore'
 import { useRoleStore } from '~/stores/useRoleStore'
+import { useCodeStore } from '~/stores/useCodeStore'
 
+const { t, te, locale } = useI18n()
 const { pageTitle } = usePageTitle('approval_monitor_title', '결재 진행 모니터링')
-
-const messages = {
-  ko: {
-    title: '관리자 결재 모니터링',
-    subtitle: '전체 결재 진행 현황',
-    refresh: '새로고침',
-    workflowDetails: '결재 상세 정보',
-    requestType: '요청 종류',
-    requester: '기안자',
-    createdAt: '상신일시',
-    draft: '기안',
-    consensus: '합의',
-    approval: '승인',
-    proxyApprove: '관리자 대리 승인',
-    proxyReject: '관리자 대리 반려',
-    proxyApproveConfirm: '이 단계를 대리 승인하시겠습니까?',
-    proxyRejectConfirm: '이 단계를 대리 반려하시겠습니까?',
-    proxyApproveFail: '대리 승인 실패: ',
-    proxyRejectFail: '대리 반려 실패: ',
-    viewDataChanges: '데이터 변경 상세 내역 (Diff)',
-    colTargetType: '대상 타입',
-    colRequester: '기안자',
-    colCreatedAt: '상신일시',
-    colStatus: '상태',
-    colAction: '액션',
-    btnDetails: '상세보기',
-    colDomain: '도메인',
-    colClassification: '분류',
-    colIdAttr: 'ID 속성',
-    colNameAttr: '이름 속성',
-    colSummary: '요약',
-    targetRecordCreate: '데이터 생성',
-    targetRecordUpdate: '데이터 수정',
-    targetRecordDelete: '데이터 삭제',
-    targetBulkUpload: '대량 업로드',
-    status_submitted: '상신',
-    status_pending: '진행중',
-    status_approved: '승인',
-    status_rejected: '반려',
-    status_cancelled: '상신취소',
-    status_waiting: '대기',
-    status_draft: '임시저장',
-    label_role: '역할',
-    label_drafter: '기안자',
-    unassigned: '승인자 미지정'
-  },
-  en: {
-    title: 'Admin Process Monitor',
-    subtitle: 'All Ongoing Workflows',
-    refresh: 'Refresh',
-    workflowDetails: 'Workflow Details',
-    requestType: 'Request',
-    requester: 'Requester',
-    createdAt: 'Created At',
-    draft: 'Draft',
-    consensus: 'Consensus',
-    approval: 'Approval',
-    proxyApprove: 'Proxy Approve',
-    proxyReject: 'Proxy Reject',
-    proxyApproveConfirm: 'Are you sure you want to proxy approve this step?',
-    proxyRejectConfirm: 'Are you sure you want to proxy reject this step?',
-    proxyApproveFail: 'Failed to proxy approve: ',
-    proxyRejectFail: 'Failed to proxy reject: ',
-    viewDataChanges: 'View Data Changes (Details)',
-    colTargetType: 'Target Type',
-    colRequester: 'Requester',
-    colCreatedAt: 'Created At',
-    colStatus: 'Status',
-    colAction: 'Action',
-    btnDetails: 'Details',
-    colDomain: 'Domain',
-    colClassification: 'Classification',
-    colIdAttr: 'ID Value',
-    colNameAttr: 'Name Value',
-    colSummary: 'Summary',
-    targetRecordCreate: 'Record Creation',
-    targetRecordUpdate: 'Record Update',
-    targetRecordDelete: 'Record Deletion',
-    targetBulkUpload: 'Bulk Upload',
-    status_submitted: 'SUBMITTED',
-    status_pending: 'PENDING',
-    status_approved: 'APPROVED',
-    status_rejected: 'REJECTED',
-    status_cancelled: 'CANCELLED',
-    status_waiting: 'WAITING',
-    status_draft: 'DRAFT',
-    label_role: 'Role',
-    label_drafter: 'Drafter',
-    unassigned: 'Unassigned'
-  }
-}
 
 const codeStore = useCodeStore()
 codeStore.preloadGroups(['TARGET_TYPE', 'APPROVAL_STATUS']).catch(console.error)
 
 const getStatusText = (status) => {
-  if (!status) return '';
+  if (!status) return ''
   const codeName = codeStore.getCodeName('APPROVAL_STATUS', status, null)
-  if (codeName && codeName !== status) return codeName;
-  const key = 'status_' + String(status).toLowerCase();
-  if (te(key)) return t(key);
-  return status;
+  if (codeName && codeName !== status) return codeName
+  const key = 'status_' + String(status).toLowerCase()
+  if (te(key)) return t(key)
+  return status
 }
 
 const { confirm } = useModal()
 
 const vaAlert = (message) => {
   confirm({
-    title: 'Notification',
+    title: t('notification', '알림'),
     message: message,
-    okText: 'OK',
+    okText: t('confirm', '확인'),
     cancelText: ''
   })
 }
 
 const { gridTheme, autoSizeStrategy, isDark } = useAgGridTheme()
-
-const { loadMetadata, enrichRequest, domains, nodes } = useApprovalEnricher()
+const { formatMultilingual } = useMultilingual()
+const { loadMetadata, enrichRequest, domains, nodes, getRequestTypeLabel, createTargetTypeBadgeElement, formatTargetInfo } = useApprovalEnricher()
 
 const domainFilterValues = computed(() => {
   if (!domains || !domains.value) return [];
@@ -497,8 +409,8 @@ const proxyApprove = async (stepId) => {
   const isConfirmed = await confirm({
     title: t('proxyApprove'),
     message: t('proxyApproveConfirm'),
-    cancelText: 'Cancel',
-    okText: 'OK'
+    cancelText: t('cancel'),
+    okText: t('confirm')
   })
   if (!isConfirmed) return
   
@@ -530,8 +442,8 @@ const proxyReject = async (stepId) => {
   const isConfirmed = await confirm({
     title: t('proxyReject'),
     message: t('proxyRejectConfirm'),
-    cancelText: 'Cancel',
-    okText: 'OK'
+    cancelText: t('cancel'),
+    okText: t('confirm')
   })
   if (!isConfirmed) return
   

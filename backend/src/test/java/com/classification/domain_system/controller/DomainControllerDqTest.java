@@ -38,13 +38,14 @@ class DomainControllerDqTest {
         fieldGroupService = mock(FieldGroupService.class);
         DomainPackageService domainPackageService = mock(DomainPackageService.class);
         com.classification.domain_system.service.SpecializedDomainTemplateService specializedDomainTemplateService = mock(com.classification.domain_system.service.SpecializedDomainTemplateService.class);
+        com.classification.domain_system.service.StockDataIngestionService stockDataIngestionService = mock(com.classification.domain_system.service.StockDataIngestionService.class);
         dqRuleEngine = mock(DqRuleEngine.class);
         dqRuleRepository = mock(DqRuleRepository.class);
         dqScoreSnapshotService = mock(DqScoreSnapshotService.class);
 
         controller = new DomainController(
                 domainService, fieldService, sectorService, fieldGroupService,
-                domainPackageService, specializedDomainTemplateService, dqRuleEngine, dqRuleRepository, dqScoreSnapshotService
+                domainPackageService, specializedDomainTemplateService, stockDataIngestionService, dqRuleEngine, dqRuleRepository, dqScoreSnapshotService
         );
     }
 

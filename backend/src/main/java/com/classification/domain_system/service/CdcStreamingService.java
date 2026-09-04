@@ -7,6 +7,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,13 +36,15 @@ public class CdcStreamingService {
                     .build();
         }
 
+        Pageable pageable = PageRequest.of(0, 50);
         List<RecordHistory> histories;
         if (recordId != null) {
-            histories = recordHistoryRepository.findByRecordIdOrderByChangedAtDesc(recordId);
+            histories = recordHistoryRepository.findRecentByRecordId(recordId, pageable);
         } else {
-            histories = recordHistoryRepository.findTop50ByDomainIdOrderByChangedAtDesc(domainId);
+            histories = recordHistoryRepository.findRecentByDomainId(domainId, pageable);
         }
         List<CdcStreamDto.CdcEventItem> events = new ArrayList<>();
+        Map<UUID, List<com.classification.domain_system.entity.FieldDefinition>> nodeFieldsCache = new HashMap<>();
 
         for (RecordHistory h : histories) {
             String op = "u";
@@ -65,8 +69,12 @@ public class CdcStreamingService {
 
             List<String> changedFields = (recordService != null) ? recordService.computeChangedFieldKeys(rawPrev, rawNew) : Collections.emptyList();
 
-            String maskedPrev = (nodeId != null && recordService != null) ? recordService.processDataForRead(nodeId, rawPrev) : rawPrev;
-            String maskedNew = (nodeId != null && recordService != null) ? recordService.processDataForRead(nodeId, rawNew) : rawNew;
+            List<com.classification.domain_system.entity.FieldDefinition> fields = (nodeId != null && recordService != null)
+                    ? nodeFieldsCache.computeIfAbsent(nodeId, id -> recordService.getEffectiveFields(id))
+                    : null;
+
+            String maskedPrev = (nodeId != null && recordService != null) ? recordService.processDataForRead(nodeId, rawPrev, fields) : rawPrev;
+            String maskedNew = (nodeId != null && recordService != null) ? recordService.processDataForRead(nodeId, rawNew, fields) : rawNew;
 
             events.add(CdcStreamDto.CdcEventItem.builder()
                     .eventId(eventId)

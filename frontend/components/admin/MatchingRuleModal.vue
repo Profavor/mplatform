@@ -70,10 +70,10 @@
     <template #footer>
       <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
         <va-button preset="secondary" @click="emit('update:modelValue', false)">
-          {{ t('common.cancel') }}
+          {{ t('cancel') }}
         </va-button>
         <va-button :loading="isSaving" @click="emit('save')">
-          {{ t('common.save') }}
+          {{ t('save') }}
         </va-button>
       </div>
     </template>

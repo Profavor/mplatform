@@ -354,10 +354,23 @@ const openGroupModal = (group = null) => {
 }
 
 const saveGroup = async () => {
+  if (!groupForm.value.groupCode?.trim()) {
+    init({ message: t('group_code_required'), color: 'warning' })
+    return
+  }
+  const hasName = Boolean((groupForm.value.nameKo && groupForm.value.nameKo.trim()) || (groupForm.value.nameEn && groupForm.value.nameEn.trim()))
+  if (!hasName) {
+    init({ message: t('code_name_required'), color: 'warning' })
+    return
+  }
+
   const payload = {
-    groupCode: groupForm.value.groupCode,
-    name: { ko: groupForm.value.nameKo, en: groupForm.value.nameEn },
-    description: { ko: groupForm.value.descKo, en: groupForm.value.descEn },
+    groupCode: groupForm.value.groupCode.trim(),
+    name: {
+      ko: groupForm.value.nameKo?.trim() || groupForm.value.nameEn?.trim(),
+      en: groupForm.value.nameEn?.trim() || groupForm.value.nameKo?.trim()
+    },
+    description: { ko: groupForm.value.descKo?.trim() || '', en: groupForm.value.descEn?.trim() || '' },
     isActive: groupForm.value.isActive
   }
 
@@ -428,9 +441,22 @@ const openDetailModal = (detail = null) => {
 
 const saveDetail = async () => {
   if (!selectedGroup.value) return
+  if (!detailForm.value.detailCode?.trim()) {
+    init({ message: t('detail_code_required'), color: 'warning' })
+    return
+  }
+  const hasName = Boolean((detailForm.value.nameKo && detailForm.value.nameKo.trim()) || (detailForm.value.nameEn && detailForm.value.nameEn.trim()))
+  if (!hasName) {
+    init({ message: t('code_name_required'), color: 'warning' })
+    return
+  }
+
   const payload = {
-    detailCode: detailForm.value.detailCode,
-    name: { ko: detailForm.value.nameKo, en: detailForm.value.nameEn },
+    detailCode: detailForm.value.detailCode.trim(),
+    name: {
+      ko: detailForm.value.nameKo?.trim() || detailForm.value.nameEn?.trim(),
+      en: detailForm.value.nameEn?.trim() || detailForm.value.nameKo?.trim()
+    },
     sortOrder: detailForm.value.sortOrder,
     isActive: detailForm.value.isActive
   }

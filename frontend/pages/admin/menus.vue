@@ -281,12 +281,18 @@ const openAddModal = (parentId) => {
 }
 
 const addMenu = async () => {
+  const hasName = Boolean((newMenuNameKo.value && newMenuNameKo.value.trim()) || (newMenuNameEn.value && newMenuNameEn.value.trim()))
+  if (!hasName) {
+    init({ message: t('menu_name_required'), color: 'warning' })
+    return
+  }
+
   try {
     const payload = {
       ...newMenu.value,
       name: JSON.stringify({
-        ko: newMenuNameKo.value || newMenuNameEn.value,
-        en: newMenuNameEn.value || newMenuNameKo.value
+        ko: newMenuNameKo.value?.trim() || newMenuNameEn.value?.trim(),
+        en: newMenuNameEn.value?.trim() || newMenuNameKo.value?.trim()
       })
     }
     await $fetch('/api/menus', {
@@ -295,21 +301,28 @@ const addMenu = async () => {
       body: payload
     })
     init({ message: t('creation_success'), color: 'success' })
+    showAddModal.value = false
     await refreshMenus()
     await loadAdminMenus()
   } catch (error) {
-    init({ message: 'Failed to add menu', color: 'danger' })
+    init({ message: t('save_failed'), color: 'danger' })
   }
 }
 
 const saveMenu = async () => {
   if (!selectedMenu.value) return
+  const hasName = Boolean((selectedMenuNameKo.value && selectedMenuNameKo.value.trim()) || (selectedMenuNameEn.value && selectedMenuNameEn.value.trim()))
+  if (!hasName) {
+    init({ message: t('menu_name_required'), color: 'warning' })
+    return
+  }
+
   try {
     const payload = {
       ...selectedMenu.value,
       name: JSON.stringify({
-        ko: selectedMenuNameKo.value || selectedMenuNameEn.value,
-        en: selectedMenuNameEn.value || selectedMenuNameKo.value
+        ko: selectedMenuNameKo.value?.trim() || selectedMenuNameEn.value?.trim(),
+        en: selectedMenuNameEn.value?.trim() || selectedMenuNameKo.value?.trim()
       })
     }
     await $fetch(`/api/menus/${selectedMenu.value.id}`, {
@@ -323,7 +336,7 @@ const saveMenu = async () => {
     
     selectedMenu.value.name = payload.name
   } catch (error) {
-    init({ message: 'Failed to update menu', color: 'danger' })
+    init({ message: t('save_failed'), color: 'danger' })
   }
 }
 

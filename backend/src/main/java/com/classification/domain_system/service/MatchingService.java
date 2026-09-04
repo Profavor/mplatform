@@ -80,7 +80,23 @@ public class MatchingService {
                                 duplicates.add(r);
                             }
                         } catch (Exception e) {
-                            duplicates = recordRepository.findDynamicRecords(List.of(nodeId), null, searchParams, Pageable.unpaged()).getContent();
+                            try {
+                                List<Record> dbRecords = recordRepository.findActiveRecordsByDomainAndFieldValue(node.getDomain().getId(), idDef.getKey(), val.toString());
+                                if (dbRecords != null && !dbRecords.isEmpty()) {
+                                    duplicates = dbRecords;
+                                }
+                            } catch (Exception ex) {
+                                // fallback to dynamic search
+                            }
+                            if (duplicates.isEmpty()) {
+                                try {
+                                    duplicates = recordRepository.findDynamicRecords(List.of(nodeId), null, searchParams, Pageable.unpaged()).getContent();
+                                } catch (Exception ex) {
+                                    try {
+                                        duplicates = recordRepository.findDynamicRecordsByDomain(node.getDomain().getId(), searchParams, Pageable.unpaged()).getContent();
+                                    } catch (Exception ignored) {}
+                                }
+                            }
                         }
 
                         if (!duplicates.isEmpty()) {
@@ -118,7 +134,23 @@ public class MatchingService {
                                     duplicates.add(r);
                                 }
                             } catch (Exception e) {
-                                duplicates = recordRepository.findDynamicRecords(List.of(nodeId), null, searchParams, Pageable.unpaged()).getContent();
+                                try {
+                                    List<Record> dbRecords = recordRepository.findActiveRecordsByDomainAndFieldValue(node.getDomain().getId(), k, val.toString());
+                                    if (dbRecords != null && !dbRecords.isEmpty()) {
+                                        duplicates = dbRecords;
+                                    }
+                                } catch (Exception ex) {
+                                    // fallback to dynamic search
+                                }
+                                if (duplicates.isEmpty()) {
+                                    try {
+                                        duplicates = recordRepository.findDynamicRecords(List.of(nodeId), null, searchParams, Pageable.unpaged()).getContent();
+                                    } catch (Exception ex) {
+                                        try {
+                                            duplicates = recordRepository.findDynamicRecordsByDomain(node.getDomain().getId(), searchParams, Pageable.unpaged()).getContent();
+                                        } catch (Exception ignored) {}
+                                    }
+                                }
                             }
                             
                             if (!duplicates.isEmpty()) {

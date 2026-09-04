@@ -35,6 +35,17 @@
           <va-icon name="upload" class="mr-1" /> {{ t('bulk_upload') }}
         </va-button>
       </template>
+      <template v-else-if="selectedNode && selectedNode.isDomain">
+        <va-button
+          v-if="hasPermission('record:delete') || hasPermission('domain:write') || hasPermission('record:*') || hasPermission('domain:*')"
+          size="small"
+          color="danger"
+          outline
+          @click="$emit('resetDomainRecords')"
+        >
+          <va-icon name="restart_alt" class="mr-1" /> {{ t('reset_domain_records_btn') }}
+        </va-button>
+      </template>
 
       <va-button
         size="small"
@@ -109,6 +120,7 @@ const props = defineProps<{
 defineEmits<{
   (e: 'create'): void
   (e: 'uploadExcel'): void
+  (e: 'resetDomainRecords'): void
   (e: 'openLineage'): void
   (e: 'openCompare'): void
   (e: 'openBulkReclassify'): void

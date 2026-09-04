@@ -186,10 +186,11 @@
 
               <!-- Standard Record Approval Section -->
               <div v-else class="custom-scrollbar">
-                <div v-for="sector in getGroupedChangesList(request.changes, request.targetType)" :key="sector.key" style="margin-bottom: 1rem;">
-                  <div style="font-weight: bold; padding: 0.5rem; background: var(--va-background-secondary); border-radius: 4px; font-size: 0.95rem; color: var(--va-primary); display: flex; align-items: center; gap: 0.5rem;">
-                    <va-icon name="folder" size="small" /> {{ sector.label }}
-                  </div>
+                <template v-if="groupedChangesList.length > 0">
+                  <div v-for="sector in groupedChangesList" :key="sector.key" style="margin-bottom: 1rem;">
+                    <div style="font-weight: bold; padding: 0.5rem; background: var(--va-background-secondary); border-radius: 4px; font-size: 0.95rem; color: var(--va-primary); display: flex; align-items: center; gap: 0.5rem;">
+                      <va-icon name="folder" size="small" /> {{ sector.label }}
+                    </div>
                   
                   <div style="width: 100%; margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
                     <div v-for="group in sector.groups" :key="group.key" style="border: 1px solid var(--va-background-border); border-radius: 4px; overflow: hidden; background: var(--va-background-element);">
@@ -220,7 +221,7 @@
 
                               <!-- Column 2: 변경 전 (Previous Value) -->
                               <td style="padding: 0.6rem 0.8rem; color: #b91c1c; background: rgba(239, 68, 68, 0.04); vertical-align: top; width: 37.5%; word-break: break-word;">
-                                <template v-if="request.targetType === 'RECORD_CREATE'">
+                                <template v-if="request.targetType === 'RECORD_CREATE' || request.targetType === 'RECORD' || request.targetType === 'INBOUND_INGEST' || request.targetType === 'BATCH_INGEST'">
                                   <span>{{ t('none') || '(없음)' }}</span>
                                 </template>
                                 <template v-else>
@@ -373,6 +374,11 @@
                     </div>
                   </div>
                 </div>
+                </template>
+                <div v-else style="text-align: center; padding: 2.5rem 1rem; color: var(--va-text-secondary); font-style: italic; background: var(--va-background-secondary); border-radius: 6px; border: 1px dashed var(--va-background-border);">
+                  <va-icon name="info" color="info" size="large" style="margin-bottom: 0.5rem;" />
+                  <div>{{ t('no_changed_fields_or_same_data') || '변경된 속성이 없거나 이전 데이터와 동일합니다.' }}</div>
+                </div>
               </div>
             </template>
             <div v-else style="color: var(--va-text-secondary); font-style: italic; font-size: 0.9rem;">
@@ -515,7 +521,13 @@ const handleHtmlImageClick = (e) => {
 
 const getParsedChanges = (changesString) => {
   if (!changesString) return null
-  if (typeof changesString === 'object') return changesString
+  if (typeof changesString === 'object') {
+    try {
+      return JSON.parse(JSON.stringify(changesString))
+    } catch (e) {
+      return { ...changesString }
+    }
+  }
   try {
     let parsed = JSON.parse(changesString)
     if (typeof parsed === 'string') parsed = JSON.parse(parsed)
@@ -1106,8 +1118,22 @@ const getStepStatusLabel = (s) => {
   return s.stepType === 'DRAFT' ? t('stepDraft') : s.status
 }
 
+const isUuid = (val) => typeof val === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(val.trim());
+
+const pendingDomainRefFetches = new Set();
+
+const requestDomainRefResolution = (uuid, targetDomainId) => {
+  if (!uuid || !isUuid(uuid) || domainRefDisplayMap.value[uuid] || pendingDomainRefFetches.has(uuid)) return;
+  pendingDomainRefFetches.add(uuid);
+  setTimeout(() => {
+    fetchDomainRefName(uuid, targetDomainId).finally(() => {
+      pendingDomainRefFetches.delete(uuid);
+    });
+  }, 0);
+};
+
 const fetchDomainRefName = async (uuid, targetDomainId) => {
-  if (!uuid || domainRefDisplayMap.value[uuid]) return;
+  if (!uuid || !isUuid(uuid) || (domainRefDisplayMap.value[uuid] && domainRefDisplayMap.value[uuid] !== 'Loading...')) return;
   if (props.request?.targetType === 'MEMO' || isSchemaApproval.value || (props.request?.targetType && props.request.targetType.startsWith('SCHEMA_'))) {
     domainRefDisplayMap.value[uuid] = uuid;
     return;
@@ -1346,11 +1372,13 @@ const getGroupedChangesList = (changesString, targetType) => {
     return normalized;
   };
 
-  if (targetType === 'RECORD_UPDATE') {
+  const isUpdate = ['RECORD_UPDATE', 'UPDATE', 'INBOUND_MERGE', 'BATCH_MERGE', 'RECORD_MERGE', 'MERGED_INTO', 'MERGE'].includes(targetType) || Boolean(parsed?.before !== undefined || parsed?.after !== undefined);
+
+  if (isUpdate) {
     parsed.before = normalizeData(parsed.before || {})
     parsed.after = normalizeData(parsed.after || {})
   } else {
-    if (targetType === 'RECORD_CREATE' || targetType === 'RECORD' || targetType === 'CREATE') {
+    if (targetType === 'RECORD_CREATE' || targetType === 'RECORD' || targetType === 'CREATE' || targetType === 'INBOUND_INGEST' || targetType === 'BATCH_INGEST') {
        if (parsed.after) parsed = parsed.after;
     }
     parsed = normalizeData(parsed || {})
@@ -1360,7 +1388,7 @@ const getGroupedChangesList = (changesString, targetType) => {
   let keysToProcess = []
   const changedFieldsList = Array.isArray(parsed.changedFields) ? parsed.changedFields : []
 
-  if (targetType === 'RECORD_UPDATE') {
+  if (isUpdate) {
     const beforeKeys = Object.keys(parsed.before || {})
     const afterKeys = Object.keys(parsed.after || {})
     keysToProcess = [...new Set([...changedFieldsList.map(k => k.toUpperCase()), ...beforeKeys, ...afterKeys])]
@@ -1374,7 +1402,7 @@ const getGroupedChangesList = (changesString, targetType) => {
   keysToProcess.forEach(key => {
     let valBefore = null
     let valAfter = null
-    if (targetType === 'RECORD_UPDATE') {
+    if (isUpdate) {
       valBefore = (parsed.before || {})[key]
       valAfter = (parsed.after || {})[key]
     } else {
@@ -1462,13 +1490,13 @@ const getGroupedChangesList = (changesString, targetType) => {
     if (f.type === 'DOMAIN_REFERENCE') {
       let tDomainId = null
       try { tDomainId = JSON.parse(f.options || '{}').targetDomainId } catch(e){}
-      if (targetType === 'RECORD_UPDATE') {
-        if (valBefore && !domainRefDisplayMap.value[valBefore]) fetchDomainRefName(valBefore, tDomainId);
-        if (valAfter && !domainRefDisplayMap.value[valAfter]) fetchDomainRefName(valAfter, tDomainId);
+      if (isUpdate) {
+        if (valBefore && !domainRefDisplayMap.value[valBefore]) requestDomainRefResolution(valBefore, tDomainId);
+        if (valAfter && !domainRefDisplayMap.value[valAfter]) requestDomainRefResolution(valAfter, tDomainId);
         displayValBefore = domainRefDisplayMap.value[valBefore] || valBefore;
         displayValAfter = domainRefDisplayMap.value[valAfter] || valAfter;
       } else {
-        if (valAfter && !domainRefDisplayMap.value[valAfter]) fetchDomainRefName(valAfter, tDomainId);
+        if (valAfter && !domainRefDisplayMap.value[valAfter]) requestDomainRefResolution(valAfter, tDomainId);
         displayValAfter = domainRefDisplayMap.value[valAfter] || valAfter;
       }
     } else if (f.type === 'FILE') {
@@ -1476,7 +1504,7 @@ const getGroupedChangesList = (changesString, targetType) => {
       displayValAfter = valAfter;
     } else if (f.type === 'MULTILINGUAL' || (typeof valAfter === 'object' && valAfter !== null) || (typeof valBefore === 'object' && valBefore !== null)) {
       try {
-        if (targetType === 'RECORD_UPDATE') {
+        if (isUpdate) {
           displayValBefore = parseMultilingual(valBefore);
           displayValAfter = parseMultilingual(valAfter);
         } else {
@@ -1492,7 +1520,7 @@ const getGroupedChangesList = (changesString, targetType) => {
           return found ? found.text : v;
         };
         
-        if (targetType === 'RECORD_UPDATE') {
+        if (isUpdate) {
           if (Array.isArray(valBefore)) displayValBefore = valBefore.map(mapVal).join(', ');
           else displayValBefore = mapVal(valBefore);
           
@@ -1532,7 +1560,7 @@ const getGroupedChangesList = (changesString, targetType) => {
     }
 
     let finalVal = null;
-    if (targetType === 'RECORD_UPDATE') {
+    if (isUpdate) {
       const vBefore = displayValBefore !== undefined && displayValBefore !== null ? displayValBefore : '-';
       const vAfter = displayValAfter !== undefined && displayValAfter !== null ? displayValAfter : '-';
 
@@ -1575,7 +1603,7 @@ const getGroupedChangesList = (changesString, targetType) => {
   const sectorsArray = Array.from(map.values())
   let sectors = sectorsArray
   
-  if (targetType === 'RECORD_UPDATE') {
+  if (isUpdate) {
     sectors.forEach(s => {
       s.groups.forEach(g => {
         g.fields = g.fields.filter(f => f.val && f.val.isChanged)
@@ -1604,6 +1632,10 @@ const getGroupedChangesList = (changesString, targetType) => {
     }
   })
 }
+
+const groupedChangesList = computed(() => {
+  return getGroupedChangesList(props.request?.changes, props.request?.targetType)
+})
 
 const getGroupedSteps = (request) => {
   if (!request) return []

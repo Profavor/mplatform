@@ -588,34 +588,36 @@ const diffItems = computed(() => {
 })
 
 const loadDomainReferences = async (fields: any[]) => {
-  for (const f of fields) {
-    if (f.type === 'DOMAIN_REFERENCE') {
-      try {
-        const opts = typeof f.options === 'string' ? JSON.parse(f.options || '{}') : (f.options || {})
-        const tDomainId = opts.targetDomainId
-        if (!tDomainId) continue
+  const existingRefs = props.domainReferences || {}
+  const targetFields = fields.filter(f => f.type === 'DOMAIN_REFERENCE' && !existingRefs[f.key])
+  if (targetFields.length === 0) return
 
-        const [domainsRes, tFieldsRes, tRecordsRes] = await Promise.all([
-          useCustomFetch('/domains'),
-          useCustomFetch(`/domains/${tDomainId}/fields`),
-          useCustomFetch(`/records/domain/${tDomainId}?page=0&size=500`)
-        ])
+  for (const f of targetFields) {
+    try {
+      const opts = typeof f.options === 'string' ? JSON.parse(f.options || '{}') : (f.options || {})
+      const tDomainId = opts.targetDomainId
+      if (!tDomainId) continue
 
-        const domains = domainsRes.data?.value || domainsRes || []
-        const tDomain = Array.isArray(domains) ? domains.find((d: any) => d.id === tDomainId) : null
-        const tFields = tFieldsRes.data?.value || tFieldsRes || []
-        const tRecData = tRecordsRes.data?.value || tRecordsRes || []
-        const tRecords = Array.isArray(tRecData) ? tRecData : (tRecData?.content || [])
+      const [domainsRes, tFieldsRes, tRecordsRes] = await Promise.all([
+        useCustomFetch('/domains'),
+        useCustomFetch(`/domains/${tDomainId}/fields`),
+        useCustomFetch(`/records/domain/${tDomainId}?page=0&size=100`)
+      ])
 
-        internalDomainReferences.value[f.key] = {
-          targetDomainId: tDomainId,
-          domainInfo: tDomain,
-          fields: Array.isArray(tFields) ? tFields : [],
-          records: tRecords
-        }
-      } catch (e) {
-        console.error('Failed to load internal domain references for CDC modal', f.key, e)
+      const domains = domainsRes.data?.value || domainsRes || []
+      const tDomain = Array.isArray(domains) ? domains.find((d: any) => d.id === tDomainId) : null
+      const tFields = tFieldsRes.data?.value || tFieldsRes || []
+      const tRecData = tRecordsRes.data?.value || tRecordsRes || []
+      const tRecords = Array.isArray(tRecData) ? tRecData : (tRecData?.content || [])
+
+      internalDomainReferences.value[f.key] = {
+        targetDomainId: tDomainId,
+        domainInfo: tDomain,
+        fields: Array.isArray(tFields) ? tFields : [],
+        records: tRecords
       }
+    } catch (e) {
+      console.error('Failed to load internal domain references for CDC modal', f.key, e)
     }
   }
 }
@@ -659,8 +661,8 @@ const loadStream = async () => {
 watch(() => props.modelValue, (val) => {
   if (val) {
     selectedEvent.value = null
-    loadFields()
     loadStream()
+    loadFields()
   }
 }, { immediate: true })
 </script>

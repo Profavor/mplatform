@@ -26,6 +26,10 @@ export function parseErrorMessage(error: any): string {
     return '서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
   }
 
+  if (error?.message && (error.message.includes('Failed to fetch') || error.message.includes('NetworkError') || error.message.includes('<no response>'))) {
+    return '네트워크 통신 오류가 발생했거나 서버 응답이 지연되었습니다. 새로고침 후 상태를 확인해주세요.'
+  }
+
   return backendMsg || '요청 처리 중 오류가 발생했습니다.'
 }
 

@@ -249,9 +249,10 @@ export const useApprovalEnricher = () => {
   }
 
   const getRequestTypeColor = (type: string): string => {
-    if (type === 'RECORD_CREATE' || type === 'RECORD' || type === 'DOMAIN_RECORD_CREATE') return 'success'
-    if (type === 'RECORD_UPDATE') return 'warning'
-    if (type === 'RECORD_DELETE') return 'danger'
+    if (type === 'RECORD_CREATE' || type === 'RECORD' || type === 'DOMAIN_RECORD_CREATE' || type === 'INBOUND_INGEST' || type === 'BATCH_INGEST') return 'success'
+    if (type === 'RECORD_UPDATE' || type === 'UPDATE') return 'warning'
+    if (type === 'RECORD_DELETE' || type === 'DELETE') return 'danger'
+    if (type === 'INBOUND_MERGE' || type === 'BATCH_MERGE' || type === 'RECORD_MERGE' || type === 'MERGED_INTO' || type === 'MERGE') return 'info'
     if (type?.startsWith('SCHEMA')) return 'info'
     if (type === 'MEMO') return 'primary'
     return 'secondary'

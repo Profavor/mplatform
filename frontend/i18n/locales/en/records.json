@@ -308,5 +308,10 @@
   "delete_domain_confirm_title": "Delete Domain Permanently",
   "delete_domain_confirm_desc": "Are you sure you want to permanently delete domain [{name}]? All associated classification nodes, field definitions, and master records will be permanently removed.",
   "delete_domain_success": "Domain deleted successfully.",
-  "delete_domain_failed": "Failed to delete domain."
+  "delete_domain_failed": "Failed to delete domain.",
+  "reset_domain_records_btn": "Reset Domain Records",
+  "reset_domain_records_confirm_title": "Reset All Domain Records",
+  "reset_domain_records_confirm_desc": "Are you sure you want to reset all master data records for domain [{name}]? Domain nodes and field definitions will be preserved, but all record data will be permanently cleared.",
+  "reset_domain_records_success": "Domain master data records have been reset successfully.",
+  "reset_domain_records_failed": "Failed to reset domain records."
 }

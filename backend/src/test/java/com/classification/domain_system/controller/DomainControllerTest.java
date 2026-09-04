@@ -62,6 +62,12 @@ class DomainControllerTest {
     private com.classification.domain_system.service.SpecializedDomainTemplateService specializedDomainTemplateService;
 
     @MockitoBean
+    private com.classification.domain_system.service.StockDataIngestionService stockDataIngestionService;
+
+    @MockitoBean
+    private com.classification.domain_system.service.RecordService recordService;
+
+    @MockitoBean
     private com.classification.domain_system.service.dq.DqRuleEngine dqRuleEngine;
 
     @MockitoBean
@@ -270,6 +276,37 @@ class DomainControllerTest {
     }
 
     @Test
+    @DisplayName("POST /api/domains/specialized-stock/seed-real-data - 실제 주식 데이터 시딩 성공")
+    void seedRealStockData() throws Exception {
+        UUID domainId = UUID.randomUUID();
+        com.classification.domain_system.dto.StockSeedResponse response =
+                com.classification.domain_system.dto.StockSeedResponse.builder()
+                        .domainId(domainId)
+                        .domainName("주식 종목 마스터")
+                        .totalSeeded(30)
+                        .totalDeleted(0)
+                        .seededByMarket(Map.of("KOSPI", 10, "KOSDAQ", 10, "US_MARKET", 10))
+                        .message("성공")
+                        .build();
+
+        given(stockDataIngestionService.seedRealStockData(any(), any())).willReturn(response);
+
+        com.classification.domain_system.dto.StockSeedRequest request =
+                com.classification.domain_system.dto.StockSeedRequest.builder()
+                        .clearExisting(false)
+                        .build();
+
+        mockMvc.perform(post("/api/domains/specialized-stock/seed-real-data")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.domainId").value(domainId.toString()))
+                .andExpect(jsonPath("$.totalSeeded").value(30))
+                .andExpect(jsonPath("$.seededByMarket.KOSPI").value(10));
+    }
+
+    @Test
     @DisplayName("DELETE /api/domains/{id} - 도메인 삭제 성공")
     void deleteDomain() throws Exception {
         UUID domainId = UUID.randomUUID();
@@ -280,5 +317,20 @@ class DomainControllerTest {
                 .andExpect(status().isNoContent());
 
         org.mockito.Mockito.verify(domainService).deleteDomain(domainId);
+    }
+
+    @Test
+    @DisplayName("DELETE /api/domains/{domainId}/records - 도메인 레코드 초기화 성공")
+    void resetDomainRecords() throws Exception {
+        UUID domainId = UUID.randomUUID();
+        org.mockito.Mockito.when(recordService.resetDomainRecords(domainId)).thenReturn(25);
+
+        mockMvc.perform(delete("/api/domains/{domainId}/records", domainId))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.deletedCount").value(25));
+
+        org.mockito.Mockito.verify(recordService).resetDomainRecords(domainId);
     }
 }
