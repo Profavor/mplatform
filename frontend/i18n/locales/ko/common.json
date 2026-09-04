@@ -511,6 +511,8 @@
       "source_expr": "소스 추출 표현식",
       "source_field_inbound": "외부 수신(소스) 필드명 (Source Field)",
       "status": "상태",
+      "status_active": "활성",
+      "status_inactive": "비활성",
       "target_field": "타겟 필드명 (Target Field)",
       "target_field_inbound": "내부 도메인 필드 (Target Field)",
       "test_connection": "연결 테스트",

@@ -263,7 +263,7 @@ const columns = computed(() => [
   { key: 'name', label: t('integration.channels.name'), sortable: true },
   { key: 'direction', label: t('integration.channels.direction'), sortable: true },
   { key: 'type', label: t('integration.channels.type'), sortable: true },
-  { key: 'isActive', label: t('integration.channels.status'), sortable: true },
+  { key: 'active', label: t('integration.channels.status'), sortable: true },
   { key: 'createdAt', label: t('integration.channels.created_at'), sortable: true },
   { key: 'actions', label: t('integration.channels.management'), width: '100px' }
 ])
@@ -276,6 +276,7 @@ const initialForm = {
   nodeId: null,
   configJson: '{}',
   mappingConfigJson: '{}',
+  active: true,
   isActive: true,
   requiresApproval: false
 }
@@ -994,9 +995,14 @@ const channelColumnDefs = computed(() => [
     }
   },
   {
-    field: 'isActive',
+    field: 'active',
     headerName: t('integration.channels.status'),
     width: 120,
+    valueGetter: (params) => {
+      if (params.data?.active !== undefined) return params.data.active
+      if (params.data?.isActive !== undefined) return params.data.isActive
+      return false
+    },
     cellRenderer: (params) => {
       const div = document.createElement('div')
       div.style.cssText = 'display: flex; align-items: center; height: 100%;'
@@ -1007,7 +1013,7 @@ const channelColumnDefs = computed(() => [
           ? 'background: rgba(46, 125, 50, 0.12); color: var(--va-success); border: 1px solid rgba(46, 125, 50, 0.3);'
           : 'background: rgba(229, 57, 53, 0.12); color: var(--va-danger); border: 1px solid rgba(229, 57, 53, 0.3);'
       }`
-      pill.textContent = isActive ? 'Active' : 'Inactive'
+      pill.textContent = isActive ? t('integration.channels.status_active') : t('integration.channels.status_inactive')
       div.appendChild(pill)
       return div
     }
@@ -1163,7 +1169,7 @@ const openCreateModal = async () => {
   await fetchDomains()
   isEdit.value = false
   editingId = null
-  formData.value = { ...initialForm }
+  formData.value = { ...initialForm, active: true, isActive: true }
   channelNameKo.value = ''
   channelNameEn.value = ''
   activeModalTab.value = 'basic'
@@ -1175,7 +1181,12 @@ const openEditModal = async (row) => {
   await fetchDomains()
   isEdit.value = true
   editingId = row.id
-  formData.value = { ...row }
+  const activeStatus = row.active !== undefined ? Boolean(row.active) : Boolean(row.isActive)
+  formData.value = {
+    ...row,
+    active: activeStatus,
+    isActive: activeStatus
+  }
   const parts = extractNameParts(row.name)
   channelNameKo.value = parts.ko
   channelNameEn.value = parts.en
@@ -1184,7 +1195,7 @@ const openEditModal = async (row) => {
   if (!formData.value.direction) {
     formData.value.direction = 'OUTBOUND'
   }
-  deserializeUiData(row)
+  deserializeUiData(formData.value)
   showModal.value = true
 }
 
@@ -1198,6 +1209,10 @@ const submitForm = async () => {
     ko: channelNameKo.value || channelNameEn.value,
     en: channelNameEn.value || channelNameKo.value
   })
+
+  const activeStatus = formData.value.active !== undefined ? Boolean(formData.value.active) : Boolean(formData.value.isActive)
+  formData.value.active = activeStatus
+  formData.value.isActive = activeStatus
 
   if (form.value && typeof form.value.validate === 'function') {
     if (!form.value.validate()) return

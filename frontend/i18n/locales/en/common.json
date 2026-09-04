@@ -512,6 +512,8 @@
       "source_expr": "Source Expression",
       "source_field_inbound": "External Source Field",
       "status": "Status",
+      "status_active": "Active",
+      "status_inactive": "Inactive",
       "system_notification": "System Notification",
       "target_field": "Target Field",
       "target_field_inbound": "Internal Domain Field (Target)",
