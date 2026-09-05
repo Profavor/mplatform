@@ -12,8 +12,18 @@ export function prepareFetchOptions(options: any = {}, token?: string | null, ti
   }
 
   return {
-    retry: options.retry !== undefined ? options.retry : 2,
-    retryDelay: options.retryDelay || 300,
+    retry: options.retry !== undefined ? options.retry : 3,
+    retryDelay: options.retryDelay || ((context: any) => {
+      try {
+        const retryAfter = context?.response?.headers?.get ? context.response.headers.get('retry-after') : null
+        if (retryAfter) {
+          const sec = parseInt(retryAfter, 10)
+          if (!isNaN(sec) && sec > 0) return sec * 1000
+        }
+      } catch (e) {}
+      const attempt = context?.attempt || 1
+      return Math.min(1000 * Math.pow(2, attempt - 1), 3000)
+    }),
     retryStatusCodes: [408, 409, 425, 429, 500, 502, 503, 504],
     ...options,
     headers,

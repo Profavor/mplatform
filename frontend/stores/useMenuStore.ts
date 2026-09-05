@@ -75,6 +75,23 @@ export const useMenuStore = defineStore('menu', () => {
       return await fetchPromise
     }
 
+    // Check sessionStorage cache for hard navigation deduplication (#94)
+    if (!forceRefresh && import.meta.client && typeof sessionStorage !== 'undefined') {
+      try {
+        const cached = sessionStorage.getItem('mdm_menu_tree_cache')
+        const cachedTime = sessionStorage.getItem('mdm_menu_tree_time')
+        if (cached && cachedTime && (Date.now() - Number(cachedTime) < 120000)) {
+          const parsed = JSON.parse(cached)
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            menuTree.value = parsed
+            flatMenuList.value = flattenTree(menuTree.value)
+            isInitialized.value = true
+            return menuTree.value
+          }
+        }
+      } catch (e) {}
+    }
+
     isLoading.value = true
     fetchPromise = (async () => {
       try {
@@ -83,6 +100,12 @@ export const useMenuStore = defineStore('menu', () => {
         menuTree.value = res || []
         flatMenuList.value = flattenTree(menuTree.value)
         isInitialized.value = true
+        if (import.meta.client && typeof sessionStorage !== 'undefined') {
+          try {
+            sessionStorage.setItem('mdm_menu_tree_cache', JSON.stringify(menuTree.value))
+            sessionStorage.setItem('mdm_menu_tree_time', String(Date.now()))
+          } catch (e) {}
+        }
       } catch (e) {
         console.error('Failed to fetch menu tree in useMenuStore:', e)
       } finally {
@@ -115,6 +138,12 @@ export const useMenuStore = defineStore('menu', () => {
   }
 
   const refreshMenus = async (): Promise<MenuItem[]> => {
+    if (import.meta.client && typeof sessionStorage !== 'undefined') {
+      try {
+        sessionStorage.removeItem('mdm_menu_tree_cache')
+        sessionStorage.removeItem('mdm_menu_tree_time')
+      } catch (e) {}
+    }
     return await fetchMenuTree(true)
   }
 

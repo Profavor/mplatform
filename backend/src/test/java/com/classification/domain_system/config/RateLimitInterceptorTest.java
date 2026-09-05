@@ -56,16 +56,18 @@ class RateLimitInterceptorTest {
         PrintWriter printWriter = new PrintWriter(stringWriter);
         when(response.getWriter()).thenReturn(printWriter);
 
-        // Exhaust the bucket (default max capacity is 120)
-        for (int i = 0; i < 120; i++) {
-            assertTrue(rateLimitInterceptor.preHandle(request, response, null));
+        // Exhaust the bucket with constructor-configured capacity (e.g. 5 requests for fast test)
+        RateLimitInterceptor customInterceptor = new RateLimitInterceptor(authContext, 5, 5);
+        for (int i = 0; i < 5; i++) {
+            assertTrue(customInterceptor.preHandle(request, response, null));
         }
 
-        // 121st request should be blocked
-        boolean result = rateLimitInterceptor.preHandle(request, response, null);
+        // 6th request should be blocked with 429 and Retry-After header
+        boolean result = customInterceptor.preHandle(request, response, null);
         assertFalse(result);
         
         verify(response, times(1)).setStatus(429);
+        verify(response, times(1)).setHeader("Retry-After", "1");
     }
 
     @Test

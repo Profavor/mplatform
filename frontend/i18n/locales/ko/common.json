@@ -10,6 +10,7 @@
     "edit": "수정"
   },
   "no_changes_to_save": "변경된 내용이 없습니다.",
+  "too_many_requests": "단시간 내 너무 많은 요청이 발생했습니다. 잠시 후 자동으로 다시 시도됩니다.",
   "bind_field_label": "바인딩 데이터 필드",
   "bind_field_placeholder": "연동할 도메인 필드 선택...",
   "unbind_field": "바인딩 해제",
