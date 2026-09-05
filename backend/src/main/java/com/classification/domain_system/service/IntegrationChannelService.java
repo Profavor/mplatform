@@ -6,6 +6,7 @@ import com.classification.domain_system.integration.JdbcDynamicExecutionService;
 import com.classification.domain_system.repository.IntegrationChannelRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +46,9 @@ public class IntegrationChannelService {
         if (channel.getDirection() == null || channel.getDirection().isBlank()) {
             channel.setDirection("OUTBOUND");
         }
+        if (channel.getChannelCode() == null || channel.getChannelCode().isBlank()) {
+            channel.setChannelCode("CH-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        }
         
         channel.setConfigJson(encryptConfigJson(channel.getConfigJson(), null));
         IntegrationChannel saved = repository.save(channel);
@@ -56,6 +60,9 @@ public class IntegrationChannelService {
             String oldConfig = existing.getConfigJson();
             
             existing.setName(updated.getName());
+            if (updated.getChannelCode() != null && !updated.getChannelCode().isBlank()) {
+                existing.setChannelCode(updated.getChannelCode());
+            }
             existing.setType(updated.getType());
             if (updated.getDirection() != null && !updated.getDirection().isBlank()) {
                 existing.setDirection(updated.getDirection());
@@ -102,6 +109,17 @@ public class IntegrationChannelService {
         }
     }
 
+    private String maskValue(String val) {
+        if (val == null || val.isBlank()) return val;
+        if (val.length() <= 4) return MASKED_PLACEHOLDER;
+        return val.substring(0, 4) + "********";
+    }
+
+    private boolean isMasked(String val) {
+        if (val == null) return false;
+        return MASKED_PLACEHOLDER.equals(val) || val.endsWith("********") || val.contains("****");
+    }
+
     private String encryptConfigJson(String newConfigJson, String oldConfigJson) {
         if (newConfigJson == null || newConfigJson.isBlank()) {
             return newConfigJson;
@@ -113,7 +131,7 @@ public class IntegrationChannelService {
                 for (String sensitiveKey : SENSITIVE_KEYS) {
                     if (objNode.has(sensitiveKey)) {
                         String value = objNode.get(sensitiveKey).asText();
-                        if (MASKED_PLACEHOLDER.equals(value)) {
+                        if (isMasked(value)) {
                             // Restore old value
                             if (oldConfigJson != null && !oldConfigJson.isBlank()) {
                                 JsonNode oldNode = objectMapper.readTree(oldConfigJson);
@@ -130,12 +148,54 @@ public class IntegrationChannelService {
                         }
                     }
                 }
+
+                // Process headers array for sensitive tokens
+                if (objNode.has("headers") && objNode.get("headers").isArray()) {
+                    JsonNode oldHeadersNode = null;
+                    if (oldConfigJson != null && !oldConfigJson.isBlank()) {
+                        try {
+                            JsonNode oldRoot = objectMapper.readTree(oldConfigJson);
+                            if (oldRoot.has("headers") && oldRoot.get("headers").isArray()) {
+                                oldHeadersNode = oldRoot.get("headers");
+                            }
+                        } catch (Exception ignored) {}
+                    }
+
+                    for (JsonNode hNode : objNode.get("headers")) {
+                        if (hNode.isObject()) {
+                            ObjectNode hObj = (ObjectNode) hNode;
+                            String key = hObj.has("key") ? hObj.get("key").asText() : "";
+                            String val = hObj.has("value") ? hObj.get("value").asText() : "";
+                            if (!key.isBlank()) {
+                                if (isMasked(val)) {
+                                    String oldVal = findHeaderValueByKey(oldHeadersNode, key);
+                                    if (oldVal != null) {
+                                        hObj.put("value", oldVal);
+                                    }
+                                } else if (!val.isBlank() && !encryptionService.isEncrypted(val)) {
+                                    hObj.put("value", encryptionService.encrypt(val));
+                                }
+                            }
+                        }
+                    }
+                }
+
                 return objectMapper.writeValueAsString(objNode);
             }
         } catch (Exception e) {
             log.warn("Failed to process configJson for encryption", e);
         }
         return newConfigJson;
+    }
+
+    private String findHeaderValueByKey(JsonNode headersNode, String key) {
+        if (headersNode == null || !headersNode.isArray()) return null;
+        for (JsonNode h : headersNode) {
+            if (h.has("key") && key.equalsIgnoreCase(h.get("key").asText())) {
+                return h.has("value") ? h.get("value").asText() : null;
+            }
+        }
+        return null;
     }
 
     private IntegrationChannelResponse toMaskedResponse(IntegrationChannel channel) {
@@ -154,6 +214,20 @@ public class IntegrationChannelService {
                 for (String sensitiveKey : SENSITIVE_KEYS) {
                     if (objNode.has(sensitiveKey)) {
                         objNode.put(sensitiveKey, MASKED_PLACEHOLDER);
+                    }
+                }
+                if (objNode.has("headers") && objNode.get("headers").isArray()) {
+                    for (JsonNode headerNode : objNode.get("headers")) {
+                        if (headerNode.isObject()) {
+                            ObjectNode headerObj = (ObjectNode) headerNode;
+                            if (headerObj.has("value")) {
+                                String val = headerObj.get("value").asText();
+                                if (encryptionService != null && encryptionService.isEncrypted(val)) {
+                                    val = encryptionService.decrypt(val);
+                                }
+                                headerObj.put("value", maskValue(val));
+                            }
+                        }
                     }
                 }
                 return objectMapper.writeValueAsString(objNode);
@@ -231,5 +305,60 @@ public class IntegrationChannelService {
         metrics.setLastPingAt(java.time.LocalDateTime.now());
         metrics.setLastPingMessage("Ping check successful (" + latency + "ms)");
         return metrics;
+    }
+
+    public List<com.classification.domain_system.dto.IntegrationChannelStatsDto> getAllChannelStats() {
+        return repository.findAll().stream()
+                .map(this::calculateChannelStats)
+                .collect(Collectors.toList());
+    }
+
+    public com.classification.domain_system.dto.IntegrationChannelStatsDto getChannelStats(UUID channelId) {
+        return repository.findById(channelId)
+                .map(this::calculateChannelStats)
+                .orElse(null);
+    }
+
+    private com.classification.domain_system.dto.IntegrationChannelStatsDto calculateChannelStats(IntegrationChannel channel) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 50, org.springframework.data.domain.Sort.by("createdAt").descending());
+        org.springframework.data.domain.Page<com.classification.domain_system.entity.IntegrationLog> logPage = logRepository.findByChannelId(channel.getId(), pageable);
+        List<com.classification.domain_system.entity.IntegrationLog> logs = logPage != null && logPage.getContent() != null ? logPage.getContent() : java.util.Collections.emptyList();
+
+        long totalCount = logs.size();
+        long successCount = logs.stream().filter(l -> "SUCCESS".equalsIgnoreCase(l.getStatus())).count();
+        long failCount = logs.stream().filter(l -> "FAIL".equalsIgnoreCase(l.getStatus()) || "DEAD_LETTER".equalsIgnoreCase(l.getStatus())).count();
+
+        double successRate = 100.0;
+        if (totalCount > 0) {
+            successRate = Math.round(((double) successCount / totalCount) * 1000.0) / 10.0;
+        }
+
+        java.time.LocalDateTime lastExecutedAt = logs.isEmpty() ? null : logs.get(0).getCreatedAt();
+        String lastStatus = logs.isEmpty() ? "IDLE" : logs.get(0).getStatus();
+
+        String healthStatus = "IDLE";
+        if (totalCount > 0) {
+            if ("FAIL".equalsIgnoreCase(lastStatus) || "DEAD_LETTER".equalsIgnoreCase(lastStatus) || successRate < 80.0) {
+                healthStatus = "CRITICAL";
+            } else if (successRate < 95.0) {
+                healthStatus = "WARNING";
+            } else {
+                healthStatus = "HEALTHY";
+            }
+        }
+
+        return com.classification.domain_system.dto.IntegrationChannelStatsDto.builder()
+                .channelId(channel.getId())
+                .channelName(channel.getName())
+                .channelCode(channel.getChannelCode())
+                .type(channel.getType())
+                .totalCount(totalCount)
+                .successCount(successCount)
+                .failCount(failCount)
+                .successRate(successRate)
+                .lastExecutedAt(lastExecutedAt)
+                .lastStatus(lastStatus)
+                .healthStatus(healthStatus)
+                .build();
     }
 }

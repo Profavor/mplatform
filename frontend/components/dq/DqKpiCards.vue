@@ -103,10 +103,10 @@ const getScoreClass = (score: number) => {
 }
 
 const getGradeLabel = (score: number) => {
-  if (score >= 90) return 'Grade A (우수)'
-  if (score >= 80) return 'Grade B (양호)'
-  if (score >= 70) return 'Grade C (보통)'
-  return 'Grade D (주의)'
+  if (score >= 90) return t('grade_a_excellent', 'Grade A (우수)')
+  if (score >= 80) return t('grade_b_good', 'Grade B (양호)')
+  if (score >= 70) return t('grade_c_normal', 'Grade C (보통)')
+  return t('grade_d_warning', 'Grade D (주의)')
 }
 
 defineExpose({

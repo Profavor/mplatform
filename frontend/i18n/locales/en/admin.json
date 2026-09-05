@@ -203,6 +203,8 @@
     "edit_detail": "Edit Detail Code",
     "add_detail": "Add Detail Code",
     "select_group_msg": "Please select a code group from the left panel.",
+    "no_group_selected": "No Group Selected",
+    "search_placeholder": "Search by Code or Name...",
     "confirm_delete_group": "Are you sure you want to delete group {code}?",
     "confirm_delete_detail": "Are you sure you want to delete detail {code}?",
     "export_failed": "Failed to export JSON.",

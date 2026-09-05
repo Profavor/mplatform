@@ -181,6 +181,21 @@ public class RecordService {
         return prepareRecordsForRead(records);
     }
 
+    public String mergeJsonData(String baseJson, String patchJson) {
+        if (baseJson == null || baseJson.isBlank()) return patchJson;
+        if (patchJson == null || patchJson.isBlank()) return baseJson;
+        try {
+            Map<String, Object> baseMap = objectMapper.readValue(baseJson, new TypeReference<Map<String, Object>>() {});
+            Map<String, Object> patchMap = objectMapper.readValue(patchJson, new TypeReference<Map<String, Object>>() {});
+            Map<String, Object> merged = new LinkedHashMap<>(baseMap);
+            merged.putAll(patchMap);
+            return objectMapper.writeValueAsString(merged);
+        } catch (Exception e) {
+            log.warn("Failed to merge json data: {}", e.getMessage());
+            return patchJson != null ? patchJson : baseJson;
+        }
+    }
+
     public String processDataForSave(UUID nodeId, String dataJson) {
         return processDataForSave(nodeId, dataJson, null);
     }
@@ -195,14 +210,20 @@ public class RecordService {
                 return dataJson;
             }
 
-            Map<String, Object> dataMap = objectMapper.readValue(dataJson, new TypeReference<Map<String, Object>>() {});
+            Map<String, Object> incomingMap = objectMapper.readValue(dataJson, new TypeReference<Map<String, Object>>() {});
+            Map<String, Object> dataMap;
             Map<String, Object> existingMap = null;
             if (existingDataJson != null && !existingDataJson.isBlank()) {
                 try {
                     existingMap = objectMapper.readValue(existingDataJson, new TypeReference<Map<String, Object>>() {});
+                    dataMap = new LinkedHashMap<>(existingMap);
+                    dataMap.putAll(incomingMap);
                 } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
                     log.warn("Could not parse existing data json: {}", e.getMessage());
+                    dataMap = incomingMap;
                 }
+            } else {
+                dataMap = incomingMap;
             }
             boolean modified = false;
 
@@ -420,8 +441,7 @@ public class RecordService {
         targetNodeIds.add(nodeId);
 
         if (includeChildren) {
-            List<com.classification.domain_system.entity.ClassificationNode> children = nodeRepository.findByParentIdAndIsDeletedFalseOrderByOrderAsc(nodeId);
-            targetNodeIds.addAll(children.stream().map(com.classification.domain_system.entity.ClassificationNode::getId).toList());
+            collectDescendantNodeIds(nodeId, targetNodeIds);
         }
 
         Map<String, String> searchParams = new HashMap<>();
@@ -454,6 +474,19 @@ public class RecordService {
         Page<Record> records = recordRepository.findDynamicRecords(
                 targetNodeIds, status, searchParams, org.springframework.data.domain.PageRequest.of(page, size, sort));
         return prepareRecordsForRead(records);
+    }
+
+    private void collectDescendantNodeIds(UUID parentId, List<UUID> accumulator) {
+        if (parentId == null) return;
+        List<com.classification.domain_system.entity.ClassificationNode> children = nodeRepository.findByParentIdAndIsDeletedFalseOrderByOrderAsc(parentId);
+        if (children != null && !children.isEmpty()) {
+            for (com.classification.domain_system.entity.ClassificationNode child : children) {
+                if (child.getId() != null && !accumulator.contains(child.getId())) {
+                    accumulator.add(child.getId());
+                    collectDescendantNodeIds(child.getId(), accumulator);
+                }
+            }
+        }
     }
 
     @org.springframework.transaction.annotation.Transactional

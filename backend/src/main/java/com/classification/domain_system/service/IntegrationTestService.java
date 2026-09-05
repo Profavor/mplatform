@@ -52,6 +52,9 @@ public class IntegrationTestService {
         }
         
         try {
+            // SSRF Check (blocks metadata, localhost, private network addresses)
+            com.classification.domain_system.security.UrlSecurityValidator.validateExternalUrl(url);
+
             // For simple ping, we'll try an OPTIONS or HEAD request. But some endpoints block them.
             // Let's just do a simple try block. If it throws an exception (like UnknownHost), it fails.
             URI uri = new URI(url);
@@ -124,6 +127,10 @@ public class IntegrationTestService {
             if (host == null || host.isBlank()) {
                 return new ConnectionTestResponse(false, "브로커 호스트를 파싱할 수 없습니다.");
             }
+
+            // SSRF Check on broker host
+            com.classification.domain_system.security.UrlSecurityValidator.validateHost(host);
+
             if (port <= 0) {
                 // 기본 포트 할당
                 port = "kafka".equals(scheme) ? 9092 : 5672;

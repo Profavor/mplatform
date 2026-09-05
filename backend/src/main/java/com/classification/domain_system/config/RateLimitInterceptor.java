@@ -61,11 +61,8 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     }
 
     private String getClientIp(HttpServletRequest request) {
-        String xfHeader = request.getHeader("X-Forwarded-For");
-        if (xfHeader != null && !xfHeader.isEmpty()) {
-            return xfHeader.split(",")[0];
-        }
-        return request.getRemoteAddr();
+        String ip = com.classification.domain_system.utils.ClientIpUtil.getClientIp(request);
+        return ip != null ? ip : request.getRemoteAddr();
     }
 
     private static class TokenBucket {

@@ -32,14 +32,14 @@ echo "==> 2. Packaging Docker image..."
 (cd "$SCRIPT_DIR/backend" && docker build -t "profavor2/mplatform-backend:$TAG" .)
 
 echo "==> 3. Loading image into Minikube..."
-minikube image load "profavor2/mplatform-backend:$TAG"
+minikube image load --overwrite=true "profavor2/mplatform-backend:$TAG"
 
 echo "==> 4. Applying K8s backend manifest..."
 kubectl apply -f "$SCRIPT_DIR/k8s/30-backend.yaml"
 
 echo "==> 5. Restarting backend deployment..."
 kubectl rollout restart deployment backend -n mdm-system
-kubectl rollout status deployment backend -n mdm-system --timeout=60s
+kubectl rollout status deployment backend -n mdm-system --timeout=120s
 
 echo "==> 6. Current Cluster Pod Status:"
 kubectl get pods -n mdm-system

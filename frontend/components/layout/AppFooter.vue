@@ -9,6 +9,7 @@
           </div>
           <div class="brand-text">
             <span class="brand-name font-bold">{{ $t('footer.system_name') }}</span>
+            <span class="brand-separator">•</span>
             <span class="brand-desc text-secondary">{{ $t('footer.system_desc') }}</span>
           </div>
         </div>
@@ -80,77 +81,92 @@
       </div>
     </div>
 
-    <!-- Modals for Policies and Support -->
-    <AppModal
-      v-model="showPrivacyModal"
-      :title="$t('footer.privacy_modal_title')"
-      icon="security"
-      hide-default-actions
-    >
-      <div class="footer-modal-body">
-        <div class="modal-intro-card">
-          <va-icon name="lock" color="primary" size="large" class="mr-3" />
-          <div>
-            <div class="font-bold text-base">{{ $t('footer.privacy_policy') }}</div>
-            <div class="text-secondary text-sm">{{ $t('footer.system_name') }} Data Protection Standard</div>
+    <!-- Modals for Policies and Support (Teleported to body to escape footer stacking context) -->
+    <Teleport to="body">
+      <AppModal
+        v-model="showPrivacyModal"
+        :title="$t('footer.privacy_modal_title')"
+        icon="security"
+        hide-default-actions
+      >
+        <div class="footer-modal-body">
+          <div class="modal-intro-card">
+            <va-icon name="lock" color="primary" size="large" class="mr-3" />
+            <div>
+              <div class="font-bold text-base">{{ $t('footer.privacy_policy') }}</div>
+              <div class="text-secondary text-sm">{{ $t('footer.system_name') }} Data Protection Standard</div>
+            </div>
+          </div>
+          <p class="modal-desc-content">
+            {{ $t('footer.privacy_modal_content') }}
+          </p>
+          <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
+            <va-button color="primary" preset="outline" size="small" @click="activeModal = null">
+              {{ $t('common.close', '닫기') }}
+            </va-button>
           </div>
         </div>
-        <p class="modal-desc-content">
-          {{ $t('footer.privacy_modal_content') }}
-        </p>
-      </div>
-    </AppModal>
+      </AppModal>
 
-    <AppModal
-      v-model="showTermsModal"
-      :title="$t('footer.terms_modal_title')"
-      icon="gavel"
-      hide-default-actions
-    >
-      <div class="footer-modal-body">
-        <div class="modal-intro-card">
-          <va-icon name="policy" color="warning" size="large" class="mr-3" />
-          <div>
-            <div class="font-bold text-base">{{ $t('footer.terms_of_service') }}</div>
-            <div class="text-secondary text-sm">Enterprise Governance & Compliance Rules</div>
+      <AppModal
+        v-model="showTermsModal"
+        :title="$t('footer.terms_modal_title')"
+        icon="gavel"
+        hide-default-actions
+      >
+        <div class="footer-modal-body">
+          <div class="modal-intro-card">
+            <va-icon name="policy" color="warning" size="large" class="mr-3" />
+            <div>
+              <div class="font-bold text-base">{{ $t('footer.terms_of_service') }}</div>
+              <div class="text-secondary text-sm">Enterprise Governance & Compliance Rules</div>
+            </div>
+          </div>
+          <p class="modal-desc-content">
+            {{ $t('footer.terms_modal_content') }}
+          </p>
+          <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
+            <va-button color="primary" preset="outline" size="small" @click="activeModal = null">
+              {{ $t('common.close', '닫기') }}
+            </va-button>
           </div>
         </div>
-        <p class="modal-desc-content">
-          {{ $t('footer.terms_modal_content') }}
-        </p>
-      </div>
-    </AppModal>
+      </AppModal>
 
-    <AppModal
-      v-model="showSupportModal"
-      :title="$t('footer.support_modal_title')"
-      icon="support_agent"
-      hide-default-actions
-    >
-      <div class="footer-modal-body">
-        <div class="modal-intro-card">
-          <va-icon name="help_outline" color="success" size="large" class="mr-3" />
-          <div>
-            <div class="font-bold text-base">{{ $t('footer.support') }}</div>
-            <div class="text-secondary text-sm">24/7 Enterprise Tech Support & Issue Tracking</div>
+      <AppModal
+        v-model="showSupportModal"
+        :title="$t('footer.support_modal_title')"
+        icon="support_agent"
+        hide-default-actions
+      >
+        <div class="footer-modal-body">
+          <div class="modal-intro-card">
+            <va-icon name="help_outline" color="success" size="large" class="mr-3" />
+            <div>
+              <div class="font-bold text-base">{{ $t('footer.support') }}</div>
+              <div class="text-secondary text-sm">24/7 Enterprise Tech Support & Issue Tracking</div>
+            </div>
+          </div>
+          <p class="modal-desc-content">
+            {{ $t('footer.support_modal_content') }}
+          </p>
+          <div class="modal-action-row mt-4" style="display: flex; justify-content: space-between; align-items: center;">
+            <a
+              :href="repositoryUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="git-button-link"
+            >
+              <va-icon name="bug_report" size="small" class="mr-1" />
+              <span>GitHub Issue Tracker</span>
+            </a>
+            <va-button color="primary" preset="outline" size="small" @click="activeModal = null">
+              {{ $t('common.close', '닫기') }}
+            </va-button>
           </div>
         </div>
-        <p class="modal-desc-content">
-          {{ $t('footer.support_modal_content') }}
-        </p>
-        <div class="modal-action-row mt-4">
-          <a
-            :href="repositoryUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="git-button-link"
-          >
-            <va-icon name="bug_report" size="small" class="mr-1" />
-            <span>GitHub Issue Tracker</span>
-          </a>
-        </div>
-      </div>
-    </AppModal>
+      </AppModal>
+    </Teleport>
   </footer>
 </template>
 
@@ -245,15 +261,26 @@ const showSupportModal = computed({
   background: var(--va-background-secondary, #f0f4f8);
 }
 
+.brand-text {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .brand-name {
   font-size: 0.95rem;
   color: var(--va-text-primary, #111827);
   letter-spacing: -0.01em;
 }
 
+.brand-separator {
+  font-size: 0.75rem;
+  opacity: 0.5;
+}
+
 .brand-desc {
   font-size: 0.75rem;
-  margin-left: 0.4rem;
   opacity: 0.75;
 }
 

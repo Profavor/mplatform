@@ -6,7 +6,7 @@
         <div class="logo-container">
           <va-icon name="hub" size="32px" color="primary" />
         </div>
-        <h1 class="title">Domain System</h1>
+        <h1 class="title">{{ $t('footer.system_name') }}</h1>
         <p class="subtitle">{{ $t('login_title_sub') }}</p>
       </div>
 
@@ -30,7 +30,7 @@
       </va-card>
 
       <div class="auth-footer">
-        &copy; 2026 Domain System. All rights reserved.
+        {{ $t('footer.copyright', { year: new Date().getFullYear() }) }}
       </div>
     </div>
   </div>
@@ -70,24 +70,54 @@ const buttonLabel = computed(() => {
   return t('btn_login')
 })
 
+const getSafeRedirectUrl = () => {
+  const queryRedirect = typeof route.query.redirect === 'string' ? route.query.redirect : ''
+  if (queryRedirect && queryRedirect.startsWith('/') && !queryRedirect.startsWith('//') && !queryRedirect.startsWith('/login')) {
+    if (process.client) {
+      try {
+        sessionStorage.setItem('post_login_redirect', queryRedirect)
+      } catch (e) {}
+    }
+    return queryRedirect
+  }
+  if (process.client) {
+    try {
+      const saved = sessionStorage.getItem('post_login_redirect')
+      if (saved && saved.startsWith('/') && !saved.startsWith('//') && !saved.startsWith('/login')) {
+        return saved
+      }
+    } catch (e) {}
+  }
+  return '/'
+}
+
 const redirectToDashboard = () => {
   if (isRedirecting.value) return
   isRedirecting.value = true
-  navigateTo('/', { replace: true })
+  const target = getSafeRedirectUrl()
+  if (process.client) {
+    try {
+      sessionStorage.removeItem('post_login_redirect')
+    } catch (e) {}
+  }
+  navigateTo(target, { replace: true })
 }
 
 const checkAuthentication = async () => {
   const token = authToken.value
-  if (route.query.error || route.query.expired) {
+  const isExpired = route.query.expired === '1' || route.query.expired === 'true' || route.query.reason === 'expired'
+  const isError = Boolean(route.query.error)
+
+  if (isError || isExpired) {
     if (loggedIn.value) {
       try {
         await logout('keycloak')
       } catch (e) {}
     }
     initToast({
-      message: t('auth_login_error_message'),
-      color: 'danger',
-      duration: 5000,
+      message: isExpired ? t('auth_session_expired') : t('auth_login_error_message'),
+      color: isExpired ? 'warning' : 'danger',
+      duration: 6000,
       position: 'top-right'
     })
     isCheckingAuth.value = false
@@ -103,7 +133,8 @@ const checkAuthentication = async () => {
 
 // Keycloak 콜백 복귀 시 비동기로 세션 및 토큰이 채워지는 즉시 감지하여 대시보드로 이동
 watch([loggedIn, () => authToken.value], ([isLoggedIn, currentToken]) => {
-  if (isLoggedIn && currentToken && !route.query.error && !route.query.expired) {
+  const isExpired = route.query.expired === '1' || route.query.expired === 'true' || route.query.reason === 'expired'
+  if (isLoggedIn && currentToken && !route.query.error && !isExpired) {
     redirectToDashboard()
   }
 }, { immediate: true })
@@ -115,6 +146,16 @@ onMounted(async () => {
 const handleLogin = async () => {
   if (isButtonDisabled.value) return
   isLoggingIn.value = true
+
+  // Save redirect URL in sessionStorage before redirecting to SSO
+  if (process.client) {
+    const queryRedirect = typeof route.query.redirect === 'string' ? route.query.redirect : ''
+    if (queryRedirect && queryRedirect.startsWith('/') && !queryRedirect.startsWith('//') && !queryRedirect.startsWith('/login')) {
+      try {
+        sessionStorage.setItem('post_login_redirect', queryRedirect)
+      } catch (e) {}
+    }
+  }
 
   try {
     const loginPromise = login('keycloak')

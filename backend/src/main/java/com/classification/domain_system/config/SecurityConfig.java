@@ -59,23 +59,20 @@ public class SecurityConfig {
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                // 인증 및 계정 관련 공개 API
-                .requestMatchers("/api/auth/**").permitAll()
+                // 인증 및 계정 관련 공개 API (로그인, 토큰 갱신, 아이디 중복확인만 공개, 등록/조회는 보안 인증 필수)
+                .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/check-username").permitAll()
+                .requestMatchers("/api/auth/me").authenticated()
                 // 시스템 최초 설치 엔드포인트 (최초 환경 구성 및 설치 상태 조회용)
                 .requestMatchers("/api/system/install", "/api/system/install-status").permitAll()
                 // 브라우저 SSE EventSource 알림 구독 (커스텀 헤더 미지원 대응 및 익명/토큰 연결 지원)
                 .requestMatchers("/api/notifications/subscribe").permitAll()
                 // 이메일 수신 확인용 투명 1x1 픽셀 이미지 트래킹 (외부 메일 클라이언트 요청)
                 .requestMatchers("/api/inbox/track/open/**").permitAll()
-                // 시스템 모니터링 및 API 문서화 공개 엔드포인트
-                .requestMatchers("/actuator/**", "/api/actuator/**").permitAll()
+                // 시스템 모니터링 공개 엔드포인트: 헬스체크 및 기본 정보만 노출 (프로메테우스 등 민감 지표 제외)
                 .requestMatchers(
-                    "/v3/api-docs/**",
-                    "/swagger-ui/**",
-                    "/swagger-ui.html",
-                    "/api/v3/api-docs/**",
-                    "/api/swagger-ui/**",
-                    "/api/swagger-ui.html"
+                    "/actuator/health", "/actuator/health/**",
+                    "/api/actuator/health", "/api/actuator/health/**",
+                    "/actuator/info", "/api/actuator/info"
                 ).permitAll()
                 // Inbound Webhook: 외부 연계 시스템이 자체 채널 시크릿 토큰으로 호출하므로 JWT 인증 제외
                 .requestMatchers(HttpMethod.POST, "/api/integration/inbound/**").permitAll()
@@ -125,9 +122,8 @@ public class SecurityConfig {
         inboundConfig.setAllowCredentials(false);
         source.registerCorsConfiguration("/api/integration/inbound/**", inboundConfig);
 
-        // 일반 API: 모든 Origin 패턴 허용 (Cloudflare 터널, 외부 도메인, 로컬 등 지원)
+        // 일반 API: 신뢰할 수 있는 Origin 패턴만 허용 (설정 파일 기반 화이트리스트)
         CorsConfiguration config = new CorsConfiguration();
-        config.addAllowedOriginPattern("*");
         if (allowedOrigins != null && !allowedOrigins.isBlank()) {
             List<String> originPatterns = Arrays.stream(allowedOrigins.split(","))
                     .map(String::trim)
@@ -137,6 +133,9 @@ public class SecurityConfig {
                     config.addAllowedOriginPattern(origin);
                 }
             }
+        } else {
+            config.addAllowedOriginPattern("http://localhost:3000");
+            config.addAllowedOriginPattern("http://localhost:8080");
         }
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("*"));

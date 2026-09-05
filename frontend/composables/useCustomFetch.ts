@@ -1,9 +1,27 @@
 import { useOidcAuth, useCookie } from '#imports'
 
-export function prepareFetchOptions(options: any = {}, token?: string | null, timezone?: string | null): any {
+export function isInternalOrSameOrigin(url?: string): boolean {
+  if (!url) return true
+  if (url.startsWith('/') && !url.startsWith('//')) return true
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    try {
+      const parsed = new URL(url, window.location.origin)
+      return parsed.origin === window.location.origin
+    } catch {
+      return false
+    }
+  }
+  // Localhost test/SSR environment
+  if (url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1') || url.startsWith('https://localhost')) {
+    return true
+  }
+  return false
+}
+
+export function prepareFetchOptions(options: any = {}, token?: string | null, timezone?: string | null, targetUrl?: string): any {
   const headers = { ...(options.headers || {}) }
 
-  if (token) {
+  if (token && (!targetUrl || isInternalOrSameOrigin(targetUrl))) {
     headers.Authorization = `Bearer ${token}`
   }
 
@@ -107,7 +125,7 @@ export function useCustomFetch(urlOrOptions?: any, options?: any): any {
 
   const customFetch = async <T = any>(url: string, opts: any = {}): Promise<T> => {
     const token = getAuthToken()
-    const prepared = prepareFetchOptions(opts, token, timezone)
+    const prepared = prepareFetchOptions(opts, token, timezone, url)
     const normalizedUrl = url.startsWith('/api') || url.startsWith('http') ? url : `/api${url.startsWith('/') ? '' : '/'}${url}`
     try {
       const rawRes = await $fetch<any>(normalizedUrl, prepared)

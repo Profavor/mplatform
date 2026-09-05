@@ -399,7 +399,9 @@ const handleIncomingNotification = (rawPayload) => {
       document.cookie = 'user_data=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
       setTimeout(() => {
         if (window.location.pathname !== '/login') {
-          window.location.href = '/login?expired=1'
+          const currentPath = window.location.pathname + window.location.search
+          const redirectParam = (currentPath && currentPath !== '/') ? `&redirect=${encodeURIComponent(currentPath)}` : ''
+          window.location.href = `/login?expired=1${redirectParam}`
         }
       }, 500)
     }
@@ -497,7 +499,7 @@ const connectSSE = () => {
     return
   }
 
-  const sseUrl = `/api/notifications/subscribe?token=${encodeURIComponent(token)}`
+  const sseUrl = '/api/notifications/subscribe'
 
   try {
     eventSource = new EventSource(sseUrl, { withCredentials: true })

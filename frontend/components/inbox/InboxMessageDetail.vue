@@ -222,7 +222,7 @@
       <va-divider class="body-divider" />
       
       <!-- Rich Text Body Container (Cleaned of bottom attachment links) -->
-      <div class="message-body" v-html="cleanedBody"></div>
+      <div class="message-body" v-html="sanitizeHtml(cleanedBody)"></div>
     </div>
 
     <!-- 발송 취소 확인 모달 -->
@@ -351,6 +351,7 @@ import { useTimezoneDate } from '~/composables/useTimezoneDate'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useToast } from 'vuestic-ui'
 import { useCookie } from '#app'
+import { sanitizeHtml } from '~/utils/sanitizeHtml'
 
 const props = defineProps<{
   message: InboxMessage | null

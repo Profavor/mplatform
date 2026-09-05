@@ -333,4 +333,27 @@ class DomainControllerTest {
 
         org.mockito.Mockito.verify(recordService).resetDomainRecords(domainId);
     }
+
+    @Test
+    @DisplayName("GET /api/domains/{domainId}/records - 도메인 레코드 조회 성공")
+    void getDomainRecords() throws Exception {
+        UUID domainId = UUID.randomUUID();
+        com.classification.domain_system.entity.Record record = new com.classification.domain_system.entity.Record();
+        record.setId(UUID.randomUUID());
+        record.setStatus("ACTIVE");
+
+        org.springframework.data.domain.Page<com.classification.domain_system.entity.Record> page =
+                new org.springframework.data.domain.PageImpl<>(List.of(record), org.springframework.data.domain.PageRequest.of(0, 10), 1);
+        org.mockito.Mockito.when(recordService.findDynamicRecordsByDomain(org.mockito.ArgumentMatchers.eq(domainId), any(), any()))
+                .thenReturn(page);
+
+        mockMvc.perform(get("/api/domains/{domainId}/records", domainId)
+                .param("page", "0")
+                .param("size", "10")
+                .param("keyword", "코멧"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].status").value("ACTIVE"));
+    }
 }

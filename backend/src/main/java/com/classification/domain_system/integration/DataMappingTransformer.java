@@ -4,9 +4,19 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.convert.TypeDescriptor;
+import org.springframework.expression.AccessException;
+import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.Expression;
 import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.MethodExecutor;
+import org.springframework.expression.MethodResolver;
+import org.springframework.expression.spel.SpelEvaluationException;
+import org.springframework.expression.spel.SpelMessage;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
+import org.springframework.expression.spel.support.MapAccessor;
+import org.springframework.expression.spel.support.ReflectiveMethodResolver;
+import org.springframework.expression.spel.support.ReflectivePropertyAccessor;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
@@ -55,11 +65,10 @@ public class DataMappingTransformer {
                 throw new IllegalArgumentException("The received payload is not a valid JSON format: " + parseEx.getMessage(), parseEx);
             }
             
-            // Setup SpEL context
+            // Setup SpEL context (Sandboxed)
             Map<String, Object> rootContext = new HashMap<>();
             rootContext.put("payload", payload);
-            StandardEvaluationContext context = new StandardEvaluationContext(rootContext);
-            context.addPropertyAccessor(new org.springframework.expression.spel.support.MapAccessor());
+            StandardEvaluationContext context = createSandboxedContext(rootContext);
 
             // Read mapping config
             JsonNode mappingConfig = mapper.readTree(mappingConfigStr);
@@ -83,8 +92,7 @@ public class DataMappingTransformer {
                     if (rootObj instanceof Iterable) {
                         java.util.List<Map<String, Object>> resultList = new java.util.ArrayList<>();
                         for (Object item : (Iterable<?>) rootObj) {
-                            StandardEvaluationContext itemContext = new StandardEvaluationContext(item);
-                            itemContext.addPropertyAccessor(new org.springframework.expression.spel.support.MapAccessor());
+                            StandardEvaluationContext itemContext = createSandboxedContext(item);
                             itemContext.setVariable("payload", payload);
 
                             Map<String, Object> targetPayload = new HashMap<>();
@@ -107,8 +115,7 @@ public class DataMappingTransformer {
                     }
 
                     if (rootObj instanceof Map) {
-                        StandardEvaluationContext itemContext = new StandardEvaluationContext(rootObj);
-                        itemContext.addPropertyAccessor(new org.springframework.expression.spel.support.MapAccessor());
+                        StandardEvaluationContext itemContext = createSandboxedContext(rootObj);
                         itemContext.setVariable("payload", payload);
 
                         Map<String, Object> targetPayload = new HashMap<>();
@@ -159,6 +166,60 @@ public class DataMappingTransformer {
         } catch (Exception e) {
             log.error("[Mapping] Unexpected error during mapping processing: {}", e.getMessage(), e);
             throw new RuntimeException("An error occurred during mapping processing: " + e.getMessage(), e);
+        }
+    }
+
+    public StandardEvaluationContext createSandboxedContext(Object rootObject) {
+        StandardEvaluationContext context = new StandardEvaluationContext(rootObject);
+        // T(...) 차단: 임의 클래스 로딩 및 정적 메소드(Runtime, System 등) 호출 원천 차단
+        context.setTypeLocator(typeName -> {
+            throw new SpelEvaluationException(SpelMessage.TYPE_NOT_FOUND, typeName);
+        });
+        context.setPropertyAccessors(java.util.List.of(new MapAccessor(), new SafePropertyAccessor()));
+        context.setMethodResolvers(java.util.List.of(new SafeMappingMethodResolver()));
+        return context;
+    }
+
+    public static class SafePropertyAccessor extends ReflectivePropertyAccessor {
+        @Override
+        public boolean canRead(EvaluationContext context, Object target, String name) throws AccessException {
+            if ("class".equalsIgnoreCase(name) || "declaringClass".equalsIgnoreCase(name)) {
+                return false;
+            }
+            return super.canRead(context, target, name);
+        }
+    }
+
+    public static class SafeMappingMethodResolver implements MethodResolver {
+        private final ReflectiveMethodResolver delegate = new ReflectiveMethodResolver();
+
+        private static final java.util.Set<String> BLOCKED_METHODS = java.util.Set.of(
+                "getClass", "wait", "notify", "notifyAll", "clone", "finalize"
+        );
+
+        private static final java.util.Set<Class<?>> ALLOWED_CLASSES = java.util.Set.of(
+                String.class, Number.class, Integer.class, Long.class, Double.class,
+                Float.class, Boolean.class, Map.class, java.util.List.class, java.util.Collection.class,
+                Object[].class, Math.class
+        );
+
+        @Override
+        public MethodExecutor resolve(
+                EvaluationContext context,
+                Object targetObject,
+                String name,
+                java.util.List<TypeDescriptor> argumentTypes) throws AccessException {
+            if (targetObject == null) {
+                return null;
+            }
+            if (BLOCKED_METHODS.contains(name)) {
+                throw new AccessException("Method execution blocked: " + name);
+            }
+            boolean allowed = ALLOWED_CLASSES.stream().anyMatch(c -> c.isAssignableFrom(targetObject.getClass()));
+            if (!allowed) {
+                throw new AccessException("Method execution not allowed on class: " + targetObject.getClass().getName());
+            }
+            return delegate.resolve(context, targetObject, name, argumentTypes);
         }
     }
 }

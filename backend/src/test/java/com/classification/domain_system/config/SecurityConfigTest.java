@@ -90,4 +90,22 @@ class SecurityConfigTest {
         assertThat(config.checkOrigin("http://localhost:5000")).isEqualTo("http://localhost:5000");
         assertThat(config.getAllowCredentials()).isTrue();
     }
+
+    @Test
+    @DisplayName("CORS 보안 검증: 허용 목록에 없는 임의의 출처(https://security-audit.invalid)는 거부되어야 한다.")
+    void corsConfigurationShouldRejectUnauthorizedOrigin() {
+        ReflectionTestUtils.setField(securityConfig, "allowedOrigins", "https://mdm.mplat.store, https://cartbom.com");
+
+        CorsConfigurationSource source = securityConfig.corsConfigurationSource();
+        MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/api/domains");
+        request.addHeader("Origin", "https://security-audit.invalid");
+        request.addHeader("Access-Control-Request-Method", "GET");
+
+        CorsConfiguration config = source.getCorsConfiguration(request);
+
+        assertThat(config).isNotNull();
+        assertThat(config.checkOrigin("https://security-audit.invalid")).isNull();
+        assertThat(config.checkOrigin("https://cartbom.com")).isEqualTo("https://cartbom.com");
+        assertThat(config.checkOrigin("https://mdm.mplat.store")).isEqualTo("https://mdm.mplat.store");
+    }
 }

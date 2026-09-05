@@ -36,6 +36,8 @@ public class ApprovalRequestCreationService {
     private final FieldDefinitionRepository fieldDefinitionRepository;
     private final CalculatedFieldEvaluator calculatedFieldEvaluator;
     private final ApprovalFieldPermissionService permissionService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private MatchCandidateService matchCandidateService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private String recomputeCalculatedFields(UUID nodeId, String dataJson) {
@@ -64,12 +66,27 @@ public class ApprovalRequestCreationService {
             throw new BusinessException(ErrorCode.DATA_QUALITY_CHECK_FAILED, "Data Quality Check Failed: " + String.join(", ", dq.errors));
         }
 
-        // 1.5. Duplicate Check (Golden Record) -> UPSERT Behavior
+        // 1.5. Duplicate Check (Golden Record) -> UPSERT Behavior only when explicitly requested
         MatchingService.DuplicateResult dup = matchingService.checkDuplicates(nodeId, request.getData());
         if (dup.hasDuplicates) {
-            if (dup.duplicateRecordIds != null && dup.duplicateRecordIds.size() == 1) {
+            if (request != null && Boolean.TRUE.equals(request.isUpsert()) && dup.duplicateRecordIds != null && dup.duplicateRecordIds.size() == 1) {
                 return requestRecordUpdate(dup.duplicateRecordIds.get(0), request);
             } else {
+                if (matchCandidateService != null && dup.duplicateRecordIds != null && !dup.duplicateRecordIds.isEmpty()) {
+                    try {
+                        matchCandidateService.createAndNotifyCandidate(
+                                nodeId,
+                                dup.duplicateRecordIds.get(0),
+                                request.getData(),
+                                dup.score,
+                                dup.message,
+                                dup.matchedRuleId,
+                                "MANUAL"
+                        );
+                    } catch (Exception e) {
+                        log.warn("[ApprovalRequest] Failed to register match candidate: {}", e.getMessage());
+                    }
+                }
                 throw new BusinessException(ErrorCode.DEDUPLICATION_FAILED, "Deduplication Failed: " + dup.message);
             }
         }
@@ -184,8 +201,30 @@ public class ApprovalRequestCreationService {
         }
         
         UUID nodeId = record.getNode().getId();
+
+        // Merge incoming data with existing record data so unchanged fields are preserved
+        String mergedData = record.getData();
+        if (request != null && request.getData() != null && !request.getData().isBlank()) {
+            try {
+                Map<String, Object> baseMap = (record.getData() != null && !record.getData().isBlank())
+                        ? objectMapper.readValue(record.getData(), new TypeReference<Map<String, Object>>() {})
+                        : new HashMap<>();
+                Map<String, Object> patchMap = objectMapper.readValue(request.getData(), new TypeReference<Map<String, Object>>() {});
+                Map<String, Object> combined = new LinkedHashMap<>(baseMap);
+                combined.putAll(patchMap);
+                mergedData = objectMapper.writeValueAsString(combined);
+                request.setData(mergedData);
+            } catch (Exception e) {
+                log.warn("Failed to merge partial record data during update request: {}", e.getMessage());
+            }
+        }
         
-        WorkflowConfig workflowConfig = workflowResolver.resolveWorkflow(nodeId, "UPDATE");
+        WorkflowConfig workflowConfig = (request != null && request.getWorkflowConfigId() != null)
+                ? workflowResolver.resolveWorkflowById(request.getWorkflowConfigId())
+                : workflowResolver.resolveWorkflow(nodeId, "UPDATE");
+        if (workflowConfig == null) {
+            workflowConfig = workflowResolver.resolveWorkflow(nodeId, "UPDATE");
+        }
         permissionService.validateUserActionPermission(workflowConfig, request.getRequesterId(), null, "UPDATE");
         List<String> editableFields = permissionService.extractEditableFields(workflowConfig, request.getRequesterId(), null);
 
@@ -225,7 +264,12 @@ public class ApprovalRequestCreationService {
         approval.setCurrentStepOrder(1);
         
         // 4. Create Steps based on dynamic request
-        WorkflowConfig config = workflowResolver.resolveWorkflow(record.getNode().getId(), "UPDATE");
+        WorkflowConfig config = (request != null && request.getWorkflowConfigId() != null)
+                ? workflowResolver.resolveWorkflowById(request.getWorkflowConfigId())
+                : workflowResolver.resolveWorkflow(record.getNode().getId(), "UPDATE");
+        if (config == null) {
+            config = workflowResolver.resolveWorkflow(record.getNode().getId(), "UPDATE");
+        }
         workflowResolver.buildDynamicSteps(approval, config);
         
         // 5. Add Requester's DRAFT Step (stepOrder = 0)

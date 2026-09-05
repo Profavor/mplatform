@@ -19,4 +19,4 @@ backend/uploads/
 docker-data/dms/
 frontend/test_*.js
 frontend/scratch_*.js
-
+k8s/03-tls-secret.yaml

@@ -72,9 +72,10 @@ public class DatabaseInitializer implements ApplicationRunner {
                     + "CREATE INDEX IF NOT EXISTS idx_dq_violation_record_id ON dq_violation (record_id);"
                     + "CREATE INDEX IF NOT EXISTS idx_record_field_source_record_id ON record_field_source (record_id);"
                     + "CREATE INDEX IF NOT EXISTS idx_match_candidate_record_id ON match_candidate (existing_record_id);"
-                    + "CREATE INDEX IF NOT EXISTS idx_match_candidate_domain_id ON match_candidate (domain_id);";
+                    + "CREATE INDEX IF NOT EXISTS idx_match_candidate_domain_id ON match_candidate (domain_id);"
+                    + "CREATE UNIQUE INDEX IF NOT EXISTS idx_survivorship_domain_field_strategy ON survivorship_rule (domain_id, field_key, strategy);";
                 entityManager.createNativeQuery(ensureIndexesSql).executeUpdate();
-                log.info("Successfully ensured indexes on record foreign key columns.");
+                log.info("Successfully ensured indexes on record foreign key columns and survivorship rules.");
             } catch (Exception ex) {
                 log.warn("Could not ensure record foreign key indexes: {}", ex.getMessage());
             }

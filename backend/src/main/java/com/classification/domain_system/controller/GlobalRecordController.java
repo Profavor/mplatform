@@ -53,6 +53,7 @@ public class GlobalRecordController {
     }
 
     @GetMapping("/domain/{domainId}")
+    @PreAuthorize("hasPermission(null, 'record:read') or hasPermission(null, 'domain:read')")
     public ResponseEntity<PageResponse<Record>> getRecordsByDomain(
             @PathVariable UUID domainId,
             @RequestParam(defaultValue = "0") int page,
@@ -64,6 +65,53 @@ public class GlobalRecordController {
             if (entry.getKey().startsWith("search_")) {
                 searchParams.put(entry.getKey().substring(7), entry.getValue());
             }
+        }
+        if (allParams.containsKey("keyword")) {
+            searchParams.put("keyword", allParams.get("keyword"));
+        } else if (allParams.containsKey("q")) {
+            searchParams.put("keyword", allParams.get("q"));
+        }
+
+        org.springframework.data.domain.Sort sort = org.springframework.data.domain.Sort.unsorted();
+        String sortField = allParams.get("sortField");
+        String sortOrder = allParams.get("sortOrder");
+        if (sortField == null && allParams.containsKey("sort")) {
+            String sortParam = allParams.get("sort");
+            String[] parts = sortParam.split(",");
+            sortField = parts[0];
+            if (parts.length > 1) sortOrder = parts[1];
+        }
+        if (sortField != null && !sortField.isEmpty()) {
+            org.springframework.data.domain.Sort.Direction dir = "DESC".equalsIgnoreCase(sortOrder)
+                    ? org.springframework.data.domain.Sort.Direction.DESC
+                    : org.springframework.data.domain.Sort.Direction.ASC;
+            sort = org.springframework.data.domain.Sort.by(dir, sortField);
+        }
+
+        Page<Record> records = recordService.findDynamicRecordsByDomain(
+                domainId, searchParams, PageRequest.of(page, size, sort));
+        return ResponseEntity.ok(PageResponse.of(records));
+    }
+
+    @GetMapping("/domain/{domainId}/search")
+    @PreAuthorize("hasPermission(null, 'record:read') or hasPermission(null, 'domain:read')")
+    public ResponseEntity<PageResponse<Record>> searchRecordsByDomain(
+            @PathVariable UUID domainId,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size,
+            @RequestParam java.util.Map<String, String> allParams) {
+        
+        java.util.Map<String, String> searchParams = new java.util.HashMap<>();
+        for (java.util.Map.Entry<String, String> entry : allParams.entrySet()) {
+            if (entry.getKey().startsWith("search_")) {
+                searchParams.put(entry.getKey().substring(7), entry.getValue());
+            }
+        }
+        String searchKeyword = keyword != null && !keyword.isBlank() ? keyword : q;
+        if (searchKeyword != null && !searchKeyword.isBlank()) {
+            searchParams.put("keyword", searchKeyword);
         }
 
         org.springframework.data.domain.Sort sort = org.springframework.data.domain.Sort.unsorted();

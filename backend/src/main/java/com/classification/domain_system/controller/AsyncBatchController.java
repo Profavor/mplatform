@@ -19,7 +19,7 @@ public class AsyncBatchController {
     }
 
     @PostMapping("/export/async")
-    @PreAuthorize("hasPermission(null, 'record:read') or hasPermission(null, 'domain:read') or isAuthenticated()")
+    @PreAuthorize("hasPermission(null, 'record:read') or hasPermission(null, 'domain:read')")
     public ResponseEntity<AsyncBatchDto.BatchTaskResponse> startAsyncExport(
             @RequestParam(required = false) UUID domainId,
             @RequestParam(defaultValue = "EXCEL") String format,
@@ -29,14 +29,14 @@ public class AsyncBatchController {
     }
 
     @GetMapping("/tasks/{taskId}")
-    @PreAuthorize("hasPermission(null, 'record:read') or hasPermission(null, 'domain:read') or isAuthenticated()")
+    @PreAuthorize("hasPermission(null, 'record:read') or hasPermission(null, 'domain:read')")
     public ResponseEntity<AsyncBatchDto.BatchTaskResponse> getTaskStatus(@PathVariable String taskId) {
         AsyncBatchDto.BatchTaskResponse task = asyncBatchExportService.getTaskStatus(taskId);
         return ResponseEntity.ok(task);
     }
 
     @GetMapping("/download/{taskId}")
-    @PreAuthorize("hasPermission(null, 'record:read') or hasPermission(null, 'domain:read') or isAuthenticated()")
+    @PreAuthorize("hasPermission(null, 'record:read') or hasPermission(null, 'domain:read')")
     public ResponseEntity<byte[]> downloadExportFile(@PathVariable String taskId) {
         byte[] fileBytes = asyncBatchExportService.downloadTaskFile(taskId);
         String safeId = (taskId != null && taskId.length() >= 8) ? taskId.substring(0, 8) : (taskId != null ? taskId : "export");

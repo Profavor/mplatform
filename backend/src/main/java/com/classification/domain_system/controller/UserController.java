@@ -31,7 +31,7 @@ public class UserController {
     private final com.classification.domain_system.security.SecurityUtils securityUtils;
 
     @GetMapping
-    @PreAuthorize("hasPermission(null, 'user:read') or isAuthenticated()")
+    @PreAuthorize("hasPermission(null, 'user:read')")
     public ResponseEntity<List<UserDto>> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUsers());
     }

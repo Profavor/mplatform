@@ -52,7 +52,7 @@
         <div style="padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--va-background-border); background: var(--va-background-primary); display: flex; gap: 0.5rem; align-items: center;">
             <va-input 
               v-model="searchKeyword" 
-              placeholder="Search by Code or Name..." 
+              :placeholder="t('code_management.search_placeholder')" 
               class="w-full" 
               clearable 
               @clear="onSearch" 
@@ -105,7 +105,7 @@
             <div style="width: 80px; height: 80px; border-radius: 50%; background: var(--va-background-element); display: flex; justify-content: center; align-items: center; margin-bottom: 1.5rem; box-shadow: 0 8px 24px rgba(0,0,0,0.05);">
               <va-icon name="touch_app" size="36px" color="secondary" style="opacity: 0.7;" />
             </div>
-            <h4 style="font-size: 1.2rem; font-weight: 700; color: var(--va-text-primary); margin: 0 0 0.5rem 0;">No Group Selected</h4>
+            <h4 style="font-size: 1.2rem; font-weight: 700; color: var(--va-text-primary); margin: 0 0 0.5rem 0;">{{ t('code_management.no_group_selected') }}</h4>
             <p style="color: var(--va-text-secondary); font-size: 0.95rem; text-align: center; max-width: 300px; line-height: 1.5;">
               {{ t('code_management.select_group_msg') }}
             </p>

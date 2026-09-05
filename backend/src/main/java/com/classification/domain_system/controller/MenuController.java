@@ -44,6 +44,13 @@ public class MenuController {
         return ResponseEntity.ok().build();
     }
 
+    @GetMapping
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<Menu>> getAllMenus(
+            @RequestParam(required = false, defaultValue = "false") boolean includeInactive) {
+        return ResponseEntity.ok(menuService.getAllMenus(includeInactive));
+    }
+
     @GetMapping("/tree")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Map<String, Object>>> getMenuTree(
@@ -68,6 +75,14 @@ public class MenuController {
     public ResponseEntity<Void> deleteMenu(@PathVariable Long id) {
         menuService.deleteMenu(id);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/access")
+    public ResponseEntity<List<MenuAccessLog>> getMyRecentAccess(Authentication authentication) {
+        String userId = (authentication != null && authentication.isAuthenticated() && !"anonymousUser".equals(authentication.getName())) 
+                ? authentication.getName() 
+                : "anonymous";
+        return ResponseEntity.ok(menuService.getMyRecentAccessLogs(userId));
     }
 
     @PostMapping("/access")

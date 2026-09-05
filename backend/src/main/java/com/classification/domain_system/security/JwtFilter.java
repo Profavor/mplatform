@@ -115,8 +115,6 @@ public class JwtFilter extends OncePerRequestFilter {
 
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             jwt = authorizationHeader.substring(7);
-        } else if (request.getParameter("token") != null && !request.getParameter("token").isBlank()) {
-            jwt = request.getParameter("token");
         } else if (request.getCookies() != null) {
             for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
                 if ("access_token".equals(cookie.getName()) || "auth_token".equals(cookie.getName()) || "jwt".equals(cookie.getName())) {
@@ -147,6 +145,12 @@ public class JwtFilter extends OncePerRequestFilter {
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             if (jwtUtil.isTokenValid(jwt)) {
                 Claims claims = jwtUtil.extractAllClaims(jwt);
+                String tokenType = claims.get("tokenType", String.class);
+                if ("REFRESH".equalsIgnoreCase(tokenType)) {
+                    log.warn("Attempt to authenticate with REFRESH token for user: {}", username);
+                    chain.doFilter(request, response);
+                    return;
+                }
                 String roleStr = claims.get("role", String.class);
                 String userId = claims.get("userId", String.class);
                 if (userId == null) {
@@ -200,8 +204,20 @@ public class JwtFilter extends OncePerRequestFilter {
         try {
             Jwt jwt = decoder.decode(token);
             String preferredUsername = jwt.getClaimAsString("preferred_username");
+            if (preferredUsername == null || preferredUsername.isBlank()) {
+                preferredUsername = jwt.getClaimAsString("clientId");
+            }
+            if (preferredUsername == null || preferredUsername.isBlank()) {
+                preferredUsername = jwt.getClaimAsString("client_id");
+            }
+            if (preferredUsername == null || preferredUsername.isBlank()) {
+                preferredUsername = jwt.getClaimAsString("azp");
+            }
             String sub = jwt.getSubject();
-            if (preferredUsername == null) return false;
+            if ((preferredUsername == null || preferredUsername.isBlank()) && sub != null && !sub.isBlank()) {
+                preferredUsername = sub;
+            }
+            if (preferredUsername == null || preferredUsername.isBlank()) return false;
 
             UserRepository repo = userRepositoryProvider != null ? userRepositoryProvider.getIfAvailable() : null;
             String effectiveUserId = sub;

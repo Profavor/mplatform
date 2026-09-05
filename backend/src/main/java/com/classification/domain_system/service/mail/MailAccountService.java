@@ -110,10 +110,14 @@ public class MailAccountService {
                     .email(email)
                     .isActive(true);
 
-            userRepository.findByEmail(email).or(() -> userRepository.findByUsername(username)).ifPresent(u -> {
+            Optional<User> userOpt = userRepository.findByEmail(email).or(() -> userRepository.findByUsername(username));
+            if (userOpt.isPresent()) {
+                User u = userOpt.get();
                 builder.userId(u.getId());
                 builder.userName(u.getUsername());
-            });
+            } else {
+                builder.userName(username);
+            }
 
             result.add(builder.build());
         }

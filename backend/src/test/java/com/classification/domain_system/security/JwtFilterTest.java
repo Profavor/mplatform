@@ -81,12 +81,12 @@ class JwtFilterTest {
     }
 
     @Test
-    @DisplayName("SSE 요청 등 URL query string token (?token=...) 으로 인증 성공")
-    void doFilterInternal_QueryTokenSuccess() throws Exception {
+    @DisplayName("SSE 요청 등 쿠키(auth_token) 기반 인증 성공")
+    void doFilterInternal_CookieTokenSuccess() throws Exception {
         String token = jwtUtil.generateToken("user1", "ADMIN", "uuid-1");
 
         when(request.getHeader("Authorization")).thenReturn(null);
-        when(request.getParameter("token")).thenReturn(token);
+        when(request.getCookies()).thenReturn(new jakarta.servlet.http.Cookie[]{new jakarta.servlet.http.Cookie("auth_token", token)});
         when(request.getServletPath()).thenReturn("/api/notifications/subscribe");
 
         jwtFilter.doFilterInternal(request, response, filterChain);
@@ -121,6 +121,30 @@ class JwtFilterTest {
         assertNotNull(SecurityContextHolder.getContext().getAuthentication());
         assertEquals("superadmin", SecurityContextHolder.getContext().getAuthentication().getName());
         assertEquals("local-db-user-id-9999", authContext.getUserId());
+        verify(filterChain, times(1)).doFilter(request, response);
+    }
+
+    @Test
+    @DisplayName("Keycloak Service Account 토큰(preferred_username 누락 시 clientId 또는 sub로 인증) 정상 처리")
+    void tryKeycloakAuth_ServiceAccountToken() throws Exception {
+        org.springframework.security.oauth2.jwt.JwtDecoder jwtDecoder = mock(org.springframework.security.oauth2.jwt.JwtDecoder.class);
+        jwtFilter = JwtFilter.createForTest(jwtUtil, permissionService, authContext, userRepository, jwtDecoder);
+
+        org.springframework.security.oauth2.jwt.Jwt mockJwt = mock(org.springframework.security.oauth2.jwt.Jwt.class);
+        when(mockJwt.getClaimAsString("preferred_username")).thenReturn(null);
+        when(mockJwt.getClaimAsString("clientId")).thenReturn("cartbom-sync");
+        when(mockJwt.getSubject()).thenReturn("service-account-uuid");
+        when(mockJwt.getClaimAsMap("realm_access")).thenReturn(java.util.Map.of("roles", List.of("SYSTEM_ADMIN")));
+        when(jwtDecoder.decode("mock-sa-token")).thenReturn(mockJwt);
+
+        when(userRepository.findByUsername("cartbom-sync")).thenReturn(java.util.Optional.empty());
+        when(request.getHeader("Authorization")).thenReturn("Bearer mock-sa-token");
+
+        jwtFilter.doFilterInternal(request, response, filterChain);
+
+        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+        assertEquals("cartbom-sync", SecurityContextHolder.getContext().getAuthentication().getName());
+        assertEquals("service-account-uuid", authContext.getUserId());
         verify(filterChain, times(1)).doFilter(request, response);
     }
 }

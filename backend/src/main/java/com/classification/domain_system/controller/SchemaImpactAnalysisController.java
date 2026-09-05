@@ -19,7 +19,7 @@ public class SchemaImpactAnalysisController {
     }
 
     @PostMapping("/{domainId}/impact-analysis")
-    @PreAuthorize("hasPermission(null, 'domain:write') or hasPermission(null, 'schema:write') or isAuthenticated()")
+    @PreAuthorize("hasPermission(null, 'domain:write') or hasPermission(null, 'schema:write')")
     public ResponseEntity<SchemaImpactAnalysisDto.ImpactAnalysisResponse> analyzeImpact(
             @PathVariable UUID domainId,
             @RequestBody SchemaImpactAnalysisDto.ImpactAnalysisRequest request) {

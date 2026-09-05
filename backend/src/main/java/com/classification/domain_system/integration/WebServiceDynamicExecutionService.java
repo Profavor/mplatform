@@ -37,6 +37,17 @@ public class WebServiceDynamicExecutionService {
         this.restTemplate = new RestTemplate(factory);
     }
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.classification.domain_system.service.FieldEncryptionService encryptionService;
+
+    public void setEncryptionService(com.classification.domain_system.service.FieldEncryptionService encryptionService) {
+        this.encryptionService = encryptionService;
+    }
+
+    public void setRestTemplate(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
+    }
+
     public void executeWebService(String configJson, String payloadJson) throws Exception {
         JsonNode config = objectMapper.readTree(configJson);
         String url = config.has("url") ? config.get("url").asText() : "";
@@ -47,6 +58,9 @@ public class WebServiceDynamicExecutionService {
             return;
         }
 
+        // Validate URL against SSRF (blocks cloud metadata, loopback, private IPs)
+        com.classification.domain_system.security.UrlSecurityValidator.validateExternalUrl(url);
+
         HttpMethod method = HttpMethod.valueOf(methodStr.toUpperCase());
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -54,12 +68,27 @@ public class WebServiceDynamicExecutionService {
         // Parse custom headers
         if (config.has("headers") && config.get("headers").isArray()) {
             for (JsonNode headerNode : config.get("headers")) {
-                String key = headerNode.get("key").asText();
-                String value = headerNode.get("value").asText();
+                String key = headerNode.has("key") ? headerNode.get("key").asText() : "";
+                String value = headerNode.has("value") ? headerNode.get("value").asText() : "";
                 if (!key.isBlank()) {
+                    if (encryptionService != null && encryptionService.isEncrypted(value)) {
+                        value = encryptionService.decrypt(value);
+                    }
                     headers.add(key, value);
                 }
             }
+        }
+
+        // Auto-detect and inject Idempotency-Key if provided in payload and not already specified in custom headers (#154)
+        if (headers.getFirst("Idempotency-Key") == null && payloadJson != null && !payloadJson.isBlank()) {
+            try {
+                JsonNode payloadNode = objectMapper.readTree(payloadJson);
+                if (payloadNode.has("idempotencyKey") && !payloadNode.get("idempotencyKey").isNull() && !payloadNode.get("idempotencyKey").asText().isBlank()) {
+                    headers.set("Idempotency-Key", payloadNode.get("idempotencyKey").asText());
+                } else if (payloadNode.has("externalId") && !payloadNode.get("externalId").isNull() && !payloadNode.get("externalId").asText().isBlank()) {
+                    headers.set("Idempotency-Key", payloadNode.get("externalId").asText());
+                }
+            } catch (Exception ignored) {}
         }
 
         HttpEntity<String> requestEntity = new HttpEntity<>(payloadJson, headers);

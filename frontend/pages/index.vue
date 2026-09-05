@@ -14,7 +14,29 @@
           </span>
         </div>
       </div>
+
+      <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <va-button preset="outline" color="primary" icon="refresh" size="small" :loading="isLoading" @click="fetchDashboardData">
+          {{ $t('refresh') }}
+        </va-button>
+      </div>
     </div>
+
+    <!-- Error Alert Banner (#114) -->
+    <va-alert
+      v-if="fetchError"
+      color="danger"
+      outline
+      closeable
+      @close="fetchError = null"
+    >
+      <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+        <span>{{ fetchError }}</span>
+        <va-button size="small" color="danger" preset="outline" @click="fetchDashboardData">
+          {{ $t('common.retry') || '다시 시도' }}
+        </va-button>
+      </div>
+    </va-alert>
 
     <!-- 4 Core KPI Metric Cards (Decoupled Component) -->
     <DashboardKpiCards :stats="stats" />
@@ -58,9 +80,11 @@ import DashboardGovernanceCard from '~/components/dashboard/DashboardGovernanceC
 import DashboardTodoList from '~/components/dashboard/DashboardTodoList.vue'
 import DashboardApprovalCharts from '~/components/dashboard/DashboardApprovalCharts.vue'
 import DashboardDqCharts from '~/components/dashboard/DashboardDqCharts.vue'
+import { useCustomFetch } from '~/composables/useCustomFetch'
 
 const { t } = useI18n()
 const { pageTitle } = usePageTitle('dashboard', '홈')
+const { customFetch } = useCustomFetch()
 
 const router = useRouter()
 const stats = ref(null)
@@ -71,6 +95,8 @@ const rawTrends = ref([])
 const rawDistribution = ref([])
 const rawDqTrends = ref([])
 const rawDqSeverity = ref([])
+const isLoading = ref(false)
+const fetchError = ref(null)
 
 const tokenCookie = useCookie('auth_token')
 const userCookie = useCookie('user_data')
@@ -89,55 +115,17 @@ const currentUser = computed(() => {
 })
 
 const loadDashboardTodos = async () => {
-  const headers = { Authorization: `Bearer ${tokenCookie.value}` }
   const myUuid = currentUser.value?.uuid
   if (myUuid) {
     try {
-      const todoRes = await $fetch(`/api/approval-requests/todos?assigneeId=${myUuid}`, { headers })
-      todos.value = Array.isArray(todoRes) ? todoRes : (todoRes?.content || [])
-    } catch(e) {}
-  }
-}
-
-onMounted(async () => {
-  if (process.client) {
-    window.addEventListener('approval-updated', loadDashboardTodos)
-  }
-  try {
-    const headers = { Authorization: `Bearer ${tokenCookie.value}` }
-    const myUuid = currentUser.value?.uuid
-
-    try {
-      domainList.value = await $fetch('/api/domains', { headers })
-    } catch(e) {}
-
-    stats.value = await $fetch('/api/dashboard/stats', { headers })
-
-    try {
-      rawTrends.value = await $fetch('/api/dashboard/trends', { headers })
-    } catch(e) {}
-
-    try {
-      rawDistribution.value = await $fetch('/api/dashboard/domain-distribution', { headers })
-    } catch(e) {}
-
-    try {
-      rawDqTrends.value = await $fetch('/api/dashboard/dq-trends', { headers })
-    } catch(e) {}
-
-    try {
-      rawDqSeverity.value = await $fetch('/api/dashboard/dq-severity', { headers })
-    } catch(e) {}
-
-    if (myUuid) {
-      const todoRes = await $fetch(`/api/approval-requests/todos?assigneeId=${myUuid}`, { headers })
+      const todoRes = await customFetch(`/api/approval-requests/todos?assigneeId=${myUuid}`)
       todos.value = Array.isArray(todoRes) ? todoRes : (todoRes?.content || [])
       
       const nodeFieldCache = {}
       const fetchFieldsForNode = async (nodeId) => {
         if (nodeFieldCache[nodeId]) return nodeFieldCache[nodeId]
         try {
-          const fields = await $fetch(`/api/nodes/${nodeId}/fields/effective`, { headers })
+          const fields = await customFetch(`/api/nodes/${nodeId}/fields/effective`)
           nodeFieldCache[nodeId] = fields
           return fields
         } catch(e) {
@@ -176,10 +164,50 @@ onMounted(async () => {
           }
         }
       }
-    }
+    } catch(e) {}
+  }
+}
+
+const fetchDashboardData = async () => {
+  isLoading.value = true
+  fetchError.value = null
+  try {
+    try {
+      domainList.value = await customFetch('/api/domains')
+    } catch(e) {}
+
+    stats.value = await customFetch('/api/dashboard/stats')
+
+    try {
+      rawTrends.value = await customFetch('/api/dashboard/trends')
+    } catch(e) {}
+
+    try {
+      rawDistribution.value = await customFetch('/api/dashboard/domain-distribution')
+    } catch(e) {}
+
+    try {
+      rawDqTrends.value = await customFetch('/api/dashboard/dq-trends')
+    } catch(e) {}
+
+    try {
+      rawDqSeverity.value = await customFetch('/api/dashboard/dq-severity')
+    } catch(e) {}
+
+    await loadDashboardTodos()
   } catch (e) {
     console.error('Error fetching dashboard data:', e)
+    fetchError.value = e?.message || t('common.error_fetch', '대시보드 데이터를 불러오는 중 오류가 발생했습니다.')
+  } finally {
+    isLoading.value = false
   }
+}
+
+onMounted(async () => {
+  if (process.client) {
+    window.addEventListener('approval-updated', loadDashboardTodos)
+  }
+  await fetchDashboardData()
 })
 
 const getApprovalRate = () => {

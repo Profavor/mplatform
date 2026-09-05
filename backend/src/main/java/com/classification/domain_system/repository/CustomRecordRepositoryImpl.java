@@ -229,6 +229,13 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                 if (key.startsWith("op_") || key.endsWith("_max")) continue;
                 
                 if (key.equals("multi_keys")) continue;
+                if (key.equals("keyword")) {
+                    String cond = " AND (CAST(COALESCE(r.searchable_data, r.data) AS text) ILIKE :searchValLike" + paramIndex + ") ";
+                    sql.append(cond);
+                    countSql.append(cond);
+                    paramIndex++;
+                    continue;
+                }
                 if (key.equals("multi_val")) {
                     String fieldsStr = searchParams.get("multi_keys");
                     if (fieldsStr == null || fieldsStr.isEmpty()) continue;
@@ -321,6 +328,14 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                 if (key.startsWith("op_") || key.endsWith("_max")) continue;
                 
                 if (key.equals("multi_keys")) continue;
+                if (key.equals("keyword")) {
+                    String val = searchParams.get(key);
+                    String likeVal = "%" + val + "%";
+                    query.setParameter("searchValLike" + paramIndex, likeVal);
+                    countQuery.setParameter("searchValLike" + paramIndex, likeVal);
+                    paramIndex++;
+                    continue;
+                }
                 if (key.equals("multi_val")) {
                     String val = searchParams.get(key);
                     String likeVal = "%" + val + "%";
@@ -402,11 +417,15 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
         if (pageable != null && pageable.getSort().isSorted()) {
             sql.append(" ORDER BY ");
             boolean first = true;
+            boolean hasIdSort = false;
             for (org.springframework.data.domain.Sort.Order order : pageable.getSort()) {
                 if (!first) sql.append(", ");
                 String prop = order.getProperty();
                 if (prop.startsWith("data.")) {
                     prop = prop.substring(5);
+                }
+                if ("id".equalsIgnoreCase(prop)) {
+                    hasIdSort = true;
                 }
                 String dir = order.getDirection().name();
                 if ("id".equalsIgnoreCase(prop)) {
@@ -432,8 +451,12 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                 }
                 first = false;
             }
+            // Deterministic pagination tie-breaker: guarantees consistent order across pages
+            if (!hasIdSort) {
+                sql.append(", r.id ASC");
+            }
         } else {
-            sql.append(" ORDER BY r.created_at DESC");
+            sql.append(" ORDER BY r.created_at DESC, r.id ASC");
         }
     }
 }

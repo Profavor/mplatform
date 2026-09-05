@@ -88,4 +88,14 @@ public interface RecordRepository extends JpaRepository<Record, UUID>, CustomRec
             @org.springframework.data.repository.query.Param("domainId") UUID domainId,
             @org.springframework.data.repository.query.Param("fieldKey") String fieldKey,
             @org.springframework.data.repository.query.Param("fieldValue") String fieldValue);
+
+    @org.springframework.data.jpa.repository.Query(value = "SELECT r.* FROM record r " +
+            "WHERE r.node_id = :nodeId " +
+            "AND (CAST(r.data AS jsonb) ->> CAST(:fieldKey AS text) IN (:fieldValues) " +
+            "     OR CAST(r.data AS jsonb) ->> LOWER(CAST(:fieldKey AS text)) IN (:fieldValues)) " +
+            "AND r.status NOT IN ('REJECTED', 'MERGED')", nativeQuery = true)
+    List<Record> findActiveRecordsByNodeAndFieldValues(
+            @org.springframework.data.repository.query.Param("nodeId") UUID nodeId,
+            @org.springframework.data.repository.query.Param("fieldKey") String fieldKey,
+            @org.springframework.data.repository.query.Param("fieldValues") List<String> fieldValues);
 }

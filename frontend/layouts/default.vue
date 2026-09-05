@@ -29,14 +29,15 @@
                   preset="plain"
                   class="mr-2"
                   style="color: white !important;"
-                  title="🎵 DJ 방송 제어판"
+                  :title="$t('radio_dj_panel')"
+                  :aria-label="$t('radio_dj_panel')"
                   @click="showRadioDjModal = true"
                 >
                   <va-icon name="radio" size="large" />
                 </va-button>
 
                 <!-- Theme Toggle for Desktop -->
-                <va-button preset="plain" class="mr-2 hide-mobile theme-btn" @click="toggleTheme" style="color: white !important;">
+                <va-button preset="plain" class="mr-2 hide-mobile theme-btn" @click="toggleTheme" style="color: white !important;" :aria-label="isDark ? $t('switch_to_light_mode') : $t('switch_to_dark_mode')" :aria-pressed="isDark">
                   <va-icon :name="isDark ? 'light_mode' : 'dark_mode'" size="large" />
                 </va-button>
 
@@ -113,7 +114,7 @@
                             </div>
                           </va-list-item-section>
                           <va-list-item-section style="font-weight: 600; font-size: 0.9rem;">
-                            {{ currentLocale === 'ko' ? 'Switch to English' : 'Switch to Korean' }}
+                            {{ currentLocale === 'ko' ? $t('switch_to_english') : $t('switch_to_korean') }}
                           </va-list-item-section>
                         </va-list-item>
 
@@ -205,8 +206,8 @@
               />
             </div>
             <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
-              <va-button preset="secondary" color="secondary" @click="showSettingsModal = false">Cancel</va-button>
-              <va-button :loading="isSavingTimezone" @click="handleSaveTimezone">Save</va-button>
+              <va-button preset="secondary" color="secondary" @click="showSettingsModal = false">{{ $t('cancel') }}</va-button>
+              <va-button :loading="isSavingTimezone" @click="handleSaveTimezone">{{ $t('save') }}</va-button>
             </div>
             
             <va-divider style="margin: 1.5rem 0;" />
@@ -225,6 +226,8 @@
           :title="$t('force_password_change')"
           icon="lock_reset"
           hide-default-actions
+          :no-outside-dismiss="true"
+          :show-close="false"
         >
           <div style="padding: 0.5rem 0; min-width: 400px;">
             <ChangePasswordForm :force-mode="true" @success="handleForcePasswordChanged" />
@@ -289,7 +292,6 @@ const tokenCookie = useCookie('auth_token')
 const userCookie = useCookie('user_data')
 const currentLocale = useCookie('locale', { default: () => 'ko' })
 const savedTheme = useCookie('theme', { default: () => 'light' })
-const userPermissionsCookie = useCookie('user_permissions')
 const authUserStore = useAuthUser()
 
 const currentUser = computed(() => {
@@ -512,7 +514,7 @@ const handleSaveTimezone = async () => {
   }
 }
 
-const isDark = computed(() => currentPresetName?.value === 'dark')
+const isDark = computed(() => savedTheme.value === 'dark')
 
 if (setLocale) setLocale(currentLocale.value || 'ko')
 else locale.value = currentLocale.value || 'ko'
@@ -524,8 +526,11 @@ watch(currentLocale, (newVal) => {
 
 const toggleTheme = () => {
   const newTheme = isDark.value ? 'light' : 'dark'
-  applyPreset(newTheme)
   savedTheme.value = newTheme
+  applyPreset(newTheme)
+  if (typeof document !== 'undefined') {
+    document.documentElement.classList.toggle('dark', newTheme === 'dark')
+  }
 }
 
 const toggleLang = () => {
@@ -543,8 +548,8 @@ watch(currentLocale, (newLang) => {
     document.documentElement.lang = newLang === 'en' ? 'en-US' : 'ko-KR'
   }
 }, { immediate: true })
-const showSidebar = ref(true)
-const isMobile = ref(false)
+const isMobile = ref(typeof window !== 'undefined' ? window.innerWidth < 768 : false)
+const showSidebar = ref(typeof window !== 'undefined' ? window.innerWidth >= 768 : false)
 
 const route = useRoute()
 
@@ -571,15 +576,17 @@ onMounted(async () => {
   }
 
   updateNavbarHeight()
-  if (window.innerWidth < 768) {
-    isMobile.value = true
-    showSidebar.value = false
-  }
+  const isInitialMobile = window.innerWidth < 768
+  isMobile.value = isInitialMobile
+  showSidebar.value = !isInitialMobile
+
   window.addEventListener('resize', () => {
     updateNavbarHeight()
     const isNowMobile = window.innerWidth < 768
     if (isMobile.value && !isNowMobile) {
       showSidebar.value = true // Restore on PC
+    } else if (!isMobile.value && isNowMobile) {
+      showSidebar.value = false // Auto close on mobile
     }
     isMobile.value = isNowMobile
   })

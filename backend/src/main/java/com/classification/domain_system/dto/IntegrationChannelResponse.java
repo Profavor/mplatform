@@ -12,6 +12,7 @@ import java.util.UUID;
 public class IntegrationChannelResponse {
     private UUID id;
     private String name;
+    private String channelCode;
     private String type;
     private String direction;
     private UUID nodeId;
@@ -35,6 +36,7 @@ public class IntegrationChannelResponse {
         IntegrationChannelResponse dto = new IntegrationChannelResponse();
         dto.setId(channel.getId());
         dto.setName(channel.getName());
+        dto.setChannelCode(channel.getChannelCode());
         dto.setType(channel.getType());
         dto.setDirection(channel.getDirection());
         dto.setNodeId(channel.getNodeId());

@@ -63,6 +63,9 @@ public class FileController {
         try {
             String cleanFileName = UriUtils.decode(fileName, StandardCharsets.UTF_8);
             cleanFileName = cleanFileName.replaceAll("^[\\[\"\\s']+|[\\]\"\\s']+$", "");
+            if (cleanFileName.contains("..") || cleanFileName.contains("/") || cleanFileName.contains("\\")) {
+                return ResponseEntity.badRequest().build();
+            }
             Resource resource = fileStorageService.loadFileAsResource(cleanFileName);
             if (resource != null && resource.exists()) {
                 Map<String, Object> info = new HashMap<>();
@@ -88,6 +91,9 @@ public class FileController {
         try {
             String cleanFileName = UriUtils.decode(fileName, StandardCharsets.UTF_8);
             cleanFileName = cleanFileName.replaceAll("^[\\[\"\\s']+|[\\]\"\\s']+$", "");
+            if (cleanFileName.contains("..") || cleanFileName.contains("/") || cleanFileName.contains("\\")) {
+                return ResponseEntity.badRequest().build();
+            }
 
             Resource resource = fileStorageService.loadFileAsResource(cleanFileName);
             if (resource != null && resource.exists()) {

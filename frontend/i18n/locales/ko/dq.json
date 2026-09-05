@@ -1,8 +1,8 @@
 {
-  "warning_dq_rules": "해당 필드에 매핑된 {count}건의 데이터 품질(DQ) 검칙이 영향받습니다.",
-  "no_affected_dq_rules": "연결된 DQ 검칙 없음",
+  "warning_dq_rules": "해당 필드에 매핑된 {count}건의 데이터 품질(DQ) 규칙이 영향받습니다.",
+  "no_affected_dq_rules": "연결된 DQ 규칙 없음",
   "expected_dq_violations": "예상 DQ 위반 건수",
-  "affected_dq_rules": "연관 품질(DQ) 검칙",
+  "affected_dq_rules": "연관 품질(DQ) 규칙",
   "add_dq_rule": "규칙 추가",
   "add_rule": "+ 규칙 추가",
   "dq_dashboard": {
@@ -14,7 +14,7 @@
     "total_violations": "총 품질 위반 건수",
     "action_required": "⚠️ 즉시 조치 필요",
     "all_passed": "✅ 전체 검증 통과",
-    "active_dq_rules": "활성 품질 검칙",
+    "active_dq_rules": "활성 품질 규칙",
     "active_rules_sub": "자동 실행 검증 규칙",
     "score_trend_title": "DQ 품질 점수 트렌드 히스토리",
     "snapshot_count": "{count}개 스냅샷",
@@ -49,7 +49,7 @@
     "details": "상세보기",
     "pagination_summary": "총 {total}건 중 {start} - {end}건 표시"
   },
-  "dq_dashboard_desc": "도메인별 데이터 품질 검칙 이행률, 오류 건수 및 필드별 품질 진단 상태를 실시간 모니터링합니다.",
+  "dq_dashboard_desc": "도메인별 데이터 품질 규칙 이행률, 오류 건수 및 필드별 품질 진단 상태를 실시간 모니터링합니다.",
   "dq_dashboard_subtitle": "실시간 마스터 데이터 거버넌스 및 데이터 정합성 모니터링",
   "dq_dashboard_title": "데이터 품질 진단 대시보드",
   "dq_error_message": "오류 메시지",
@@ -57,7 +57,7 @@
   "dq_perm_group_title": "데이터 품질 권한",
   "dq_rule_type": "규칙 유형",
   "dq_rules_desc": "도메인 필드별 데이터 품질 검증 규칙 및 검사 파라미터를 설정합니다.",
-  "dq_rules_management": "데이터 품질 검칙 관리",
+  "dq_rules_management": "데이터 품질 규칙 관리",
   "dq_score_title": "데이터 품질 종합 점수",
   "dq_severity": "중요도",
   "dq_sort_order": "적용 순서",

@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -147,6 +148,29 @@ class RecordMergeServiceTest {
 
         recordMergeService.updateSurvivorshipRules(domainId, List.of(rule));
         verify(survivorshipRuleRepository).save(any(SurvivorshipRule.class));
+    }
+
+    @Test
+    @DisplayName("서바이버쉽 규칙 중복 등록 시 (동일 필드, 전략) 자동 중복 제거 검증")
+    void updateSurvivorshipRules_DeduplicatesDuplicateRules() {
+        SurvivorshipRule rule1 = new SurvivorshipRule();
+        rule1.setFieldKey("CUSTOMER_NO");
+        rule1.setStrategy("SOURCE_PRIORITY");
+        rule1.setPriority(1);
+
+        SurvivorshipRule rule2 = new SurvivorshipRule();
+        rule2.setFieldKey("CUSTOMER_NO");
+        rule2.setStrategy("SOURCE_PRIORITY");
+        rule2.setPriority(2);
+
+        recordMergeService.updateSurvivorshipRules(domainId, List.of(rule1, rule2));
+
+        // Exactly one rule should be saved with priority 1
+        org.mockito.ArgumentCaptor<SurvivorshipRule> captor = org.mockito.ArgumentCaptor.forClass(SurvivorshipRule.class);
+        verify(survivorshipRuleRepository, times(1)).save(captor.capture());
+        assertThat(captor.getValue().getFieldKey()).isEqualTo("CUSTOMER_NO");
+        assertThat(captor.getValue().getStrategy()).isEqualTo("SOURCE_PRIORITY");
+        assertThat(captor.getValue().getPriority()).isEqualTo(1);
     }
 
     @Test

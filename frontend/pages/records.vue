@@ -162,6 +162,10 @@
 
         <va-card v-if="selectedNode" style="width: 100%; flex: 1; display: flex; flex-direction: column; min-height: 480px; border-top-left-radius: 0; border-top-right-radius: 0; border-top: none;">
           <va-card-content style="padding: 0; flex: 1; display: flex; flex-direction: column; min-height: 480px;">
+            <div style="display: flex; justify-content: flex-end; align-items: center; padding: 0.35rem 0.75rem; background: var(--va-background-element, #fafafa); font-size: 0.75rem; color: var(--va-text-secondary); border-bottom: 1px solid var(--va-background-border);">
+              <va-icon name="touch_app" size="14px" class="mr-1" />
+              <span>{{ $t('row_double_click_hint') }}</span>
+            </div>
             <div class="records-grid-wrapper" :class="{ 'ag-theme-quartz-dark': isDark }">
               <ag-grid-vue
                 style="width: 100%; height: 100%; min-height: 450px;"
@@ -171,16 +175,19 @@
                 :defaultColDef="defaultColDef"
                 rowModelType="infinite"
                 :cacheBlockSize="20"
-                :rowSelection="{ mode: 'multiRow', enableClickSelection: false, headerCheckbox: false }"
+                :rowSelection="{ mode: 'multiRow', enableClickSelection: true, headerCheckbox: false }"
                 :pagination="true"
                 :paginationPageSize="20"
                 :paginationPageSizeSelector="[10, 20, 50]"
+                :localeText="gridLocaleText"
                 @grid-ready="onGridReady"
                 @selection-changed="onSelectionChanged"
+                @row-clicked="onRowClicked"
                 @row-double-clicked="onRowDoubleClicked"
                 @cell-double-clicked="onCellDoubleClicked"
                 @rowDoubleClicked="onRowDoubleClicked"
                 @cellDoubleClicked="onCellDoubleClicked"
+                @cell-key-down="onCellKeyDown"
               />
 
             </div>
@@ -225,7 +232,7 @@
 
     <!-- Modularized Record Detail & History Drawer -->
     <RecordDetailDrawer
-      v-model:show="showDetailModal"
+      v-if="showDetailModal"
       :show="showDetailModal"
       :record="selectedRecordData"
       :fields="nodeFields"
@@ -256,7 +263,7 @@
 
     <!-- Dedicated Snapshot Modal -->
     <RecordDetailDrawer
-      v-model:show="showSnapshotModal"
+      v-if="showSnapshotModal"
       :show="showSnapshotModal"
       :record="snapshotRecordData"
       :snapshot-id="snapshotHistoryId"
@@ -413,6 +420,8 @@ import BulkReclassifyModal from '~/components/records/BulkReclassifyModal.vue'
 import CdcStreamModal from '~/components/records/CdcStreamModal.vue'
 import ImageLightboxModal from '~/components/common/ImageLightboxModal.vue'
 import { parseOptions, formatOptionLabel } from '~/utils/optionParser'
+import { getAgGridLocaleText } from '~/utils/agGridLocale'
+import { safeEvaluateCondition, safeEvaluateFormula } from '~/utils/safeEvaluator'
 import { useRecordFilters } from '~/composables/useRecordFilters'
 import { useRecordGrid } from '~/composables/useRecordGrid'
 import { useRecordModals } from '~/composables/useRecordModals'
@@ -424,7 +433,8 @@ const { customFetch } = useCustomFetch()
 const codeStore = useCodeStore()
 codeStore.loadGroup('RECORD_STATUS').catch(console.error)
 const { getAuthenticatedImageUrl } = useAuthenticatedImage()
-const { t } = useI18n()
+const { t, locale } = useI18n()
+const gridLocaleText = computed(() => getAgGridLocaleText(locale.value))
 const { confirm } = useModal()
 const { init: initToast } = useToast()
 const { gridTheme, autoSizeStrategy } = useAgGridTheme()
@@ -1397,6 +1407,26 @@ const parseDate = (dateString) => {
   return isNaN(d.getTime()) ? new Date(dateString) : d
 }
 
+const getLocalizedDefaultValue = (defVal, locale = 'ko') => {
+  if (defVal === null || defVal === undefined || defVal === '') return ''
+  if (typeof defVal === 'object') {
+    return defVal[locale] || defVal.ko || defVal.en || ''
+  }
+  if (typeof defVal === 'string') {
+    const trimmed = defVal.trim()
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        if (typeof parsed === 'object' && parsed !== null) {
+          return parsed[locale] || parsed.ko || parsed.en || trimmed
+        }
+      } catch (e) {}
+    }
+    return trimmed
+  }
+  return String(defVal)
+}
+
 const formatDate = (dateString) => {
   if (!dateString) return ''
   const date = parseDate(dateString)
@@ -1407,7 +1437,7 @@ const formatDate = (dateString) => {
 }
 
 const buildColumnDefs = (fields, showNodeColumn = false) => {
-  const defs = [
+  const systemCols = [
     { 
       field: 'id', 
       colId: 'sys_record_id',
@@ -1456,6 +1486,7 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
     }
   ]
   
+  const rawDefs = []
   const groupMap = {}
   const seenColIds = new Set(['sys_record_id', 'sys_node_name', 'sys_record_status'])
 
@@ -1466,6 +1497,8 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
       uniqueColId = `${rawColId}_${f.id || idx}`
     }
     seenColIds.add(uniqueColId)
+
+    const defaultValText = getLocalizedDefaultValue(f.defaultValue || f.default_value, currentLocale.value)
 
     const colDef = {
       headerName: getTranslatedName(f.name),
@@ -1761,9 +1794,9 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
     }
     if (f.type === 'DATE') {
       colDef.valueFormatter = (params) => {
-        if (!params.value) return '';
+        if (!params.value) return defaultValText;
         const date = parseDate(params.value);
-        if (!date || isNaN(date.getTime())) return params.value;
+        if (!date || isNaN(date.getTime())) return params.value || defaultValText;
         
         let formatStr = 'YYYY-MM-DD';
         try {
@@ -1787,7 +1820,7 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
     }
     if (['NUMBER', 'INTEGER', 'DECIMAL'].includes(f.type)) {
       colDef.valueFormatter = (params) => {
-        if (params.value === null || params.value === undefined || params.value === '') return '';
+        if (params.value === null || params.value === undefined || params.value === '') return defaultValText;
         const num = Number(params.value);
         let formatted = String(params.value);
         if (!isNaN(num)) {
@@ -1799,7 +1832,7 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
     }
     if (['SELECT', 'MULTI_SELECT', 'ENUM', 'CODE'].includes(f.type) || (f.options && !['JSON', 'CALCULATED', 'DATE', 'NUMBER', 'INTEGER', 'DECIMAL', 'IMAGE', 'FILE', 'MULTILINGUAL', 'DOMAIN_REFERENCE'].includes(f.type))) {
       colDef.valueFormatter = (params) => {
-        if (!params || params.value === undefined || params.value === null || params.value === '') return '';
+        if (!params || params.value === undefined || params.value === null || params.value === '') return defaultValText;
         return formatOptionLabel(f.options, params.value, currentLocale.value);
       };
     }
@@ -1849,7 +1882,7 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
       };
 
       colDef.valueFormatter = (params) => {
-        if (!params || params.value === undefined || params.value === null) return '';
+        if (!params || params.value === undefined || params.value === null || params.value === '') return defaultValText;
         const str = String(params.value).trim();
         if ((str.startsWith('[') && str.endsWith(']')) || (str.startsWith('{') && str.endsWith('}'))) {
           try {
@@ -1911,16 +1944,28 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
       
       groupMap[gName].children.push(colDef)
     } else {
-      defs.push(colDef)
+      rawDefs.push(colDef)
     }
   })
   
-  Object.values(groupMap)
-    .sort((a, b) => a._sortOrder - b._sortOrder)
-    .forEach(g => {
-      delete g._sortOrder
-      defs.push(g)
+  const hasFieldGroups = Object.keys(groupMap).length > 0
+  const defs = []
+
+  if (hasFieldGroups) {
+    defs.push({
+      headerName: t('basic_system_info', '시스템 기본 정보'),
+      children: systemCols
     })
+    defs.push(...rawDefs)
+    Object.values(groupMap)
+      .sort((a, b) => a._sortOrder - b._sortOrder)
+      .forEach(g => {
+        delete g._sortOrder
+        defs.push(g)
+      })
+  } else {
+    defs.push(...systemCols, ...rawDefs)
+  }
   
   defs.push({
     field: 'updatedAt',
@@ -2433,6 +2478,24 @@ const onRowDoubleClicked = (params) => {
   if (record) openRecordDetailModal(record)
 }
 
+const onRowClicked = (params) => {
+  const record = params?.data || params?.node?.data
+  if (record && params?.node) {
+    // 단일 클릭 시 행 하이라이트 및 선택 동기화
+    selectedRecordData.value = record
+  }
+}
+
+const onCellKeyDown = (params) => {
+  const event = params?.event
+  if (event && (event.key === 'Enter' || event.keyCode === 13)) {
+    const record = params?.data || params?.node?.data
+    if (record) {
+      openRecordDetailModal(record)
+    }
+  }
+}
+
 const formatDataForSave = (dataObj) => {
   // 메타 필드는 data 페이로드에서 제외
   const META_FIELDS = new Set(['id', 'domainId', 'status', 'code', 'node', 'sourceSystem', 'createdAt', 'updatedAt'])
@@ -2467,20 +2530,7 @@ const formatDataForSave = (dataObj) => {
 }
 
 const evaluateConditionExpression = (expr, formData) => {
-  if (!expr || !expr.trim() || !formData) return false
-  try {
-    const replaced = expr.replace(/#{([a-zA-Z0-9_]+)}/g, (_, key) => {
-      const val = formData[key]
-      if (val === undefined || val === null) return 'null'
-      if (typeof val === 'number' || typeof val === 'boolean') return String(val)
-      if (typeof val === 'object') return JSON.stringify(JSON.stringify(val))
-      return JSON.stringify(String(val))
-    })
-    const fn = new Function(`return Boolean(${replaced});`)
-    return fn()
-  } catch (e) {
-    return false
-  }
+  return safeEvaluateCondition(expr, formData)
 }
 
 const evalConditionRule = (field, formData) => {
@@ -2644,22 +2694,12 @@ const requestDeleteRecord = async () => {
 const defaultColDef = {
   minWidth: 100,
   resizable: true,
-  cellDataType: false
+  cellDataType: false,
+  tooltipValueGetter: (params) => params.valueFormatted || params.value
 }
 
 const evaluateFormula = (formula, data) => {
-  try {
-    const replaced = formula.replace(/\${([^}]+)}/g, (_, key) => {
-      const val = data[key]
-      return val != null && val !== '' ? val : '0'
-    })
-    const ROUND = (val, dec=0) => Number(Math.round(val+'e'+dec)+'e-'+dec);
-    const fn = new Function('ROUND', 'ABS', 'CEIL', 'FLOOR', `return ${replaced};`)
-    return fn(ROUND, Math.abs, Math.ceil, Math.floor)
-  } catch (e) {
-    console.warn('Formula evaluation failed', e)
-    return null
-  }
+  return safeEvaluateFormula(formula, data)
 }
 
 let isCalculating = false;
@@ -3107,6 +3147,9 @@ const saveRecord = async () => {
   width: 100%;
   min-height: 480px;
   height: 100%;
+}
+.records-grid-wrapper :deep(.ag-row) {
+  cursor: pointer;
 }
 
 @media (max-width: 768px) {

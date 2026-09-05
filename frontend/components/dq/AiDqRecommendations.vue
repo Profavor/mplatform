@@ -44,7 +44,7 @@
         
         <div v-else-if="!loading" class="empty-state">
           <va-icon name="check_circle_outline" size="large" color="success" />
-          <p class="mt-2 text-secondary">현재 추천할 새로운 규칙이 없습니다.</p>
+          <p class="mt-2 text-secondary">{{ $t('no_new_rules_recommended') }}</p>
         </div>
       </va-inner-loading>
     </va-card-content>

@@ -26,6 +26,21 @@ public class MenuService {
     private final MenuAccessLogRepository menuAccessLogRepository;
 
     @Transactional(readOnly = true)
+    public List<Menu> getAllMenus(boolean includeInactive) {
+        return includeInactive
+                ? menuRepository.findAllByOrderBySortOrderAsc()
+                : menuRepository.findAllByIsActiveTrueOrderBySortOrderAsc();
+    }
+
+    @Transactional(readOnly = true)
+    public List<MenuAccessLog> getMyRecentAccessLogs(String userId) {
+        if (userId == null || userId.isBlank() || "anonymous".equals(userId)) {
+            return Collections.emptyList();
+        }
+        return menuAccessLogRepository.findTop20ByUserIdOrderByAccessedAtDesc(userId);
+    }
+
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> getMenuTree() {
         return getMenuTree(false);
     }

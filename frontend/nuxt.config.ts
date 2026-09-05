@@ -36,6 +36,12 @@ export default defineNuxtConfig({
         VaModal: {
           closeButton: false,
           noOutsideDismiss: true
+        },
+        VaInput: {
+          inputAriaLabel: ''
+        },
+        VaInputWrapper: {
+          inputAriaLabel: ''
         }
       }
     }
@@ -84,13 +90,13 @@ export default defineNuxtConfig({
         baseUrl: process.env.OAUTH2_ISSUER_URI || '/auth/realms/mplatform',
         clientId: 'mdm-frontend',
         exposeAccessToken: true,
-        validateAccessToken: false,
-        validateIdToken: false,
+        validateAccessToken: true,
+        validateIdToken: true,
         scope: ['openid', 'profile', 'email'],
-        clientSecret: 'secret',
-        authenticationScheme: 'body',
-        pkce: false,
-        nonce: false,
+        clientSecret: process.env.KEYCLOAK_CLIENT_SECRET || '',
+        authenticationScheme: 'none',
+        pkce: true,
+        nonce: true,
         redirectUri: process.env.KEYCLOAK_REDIRECT_URI || '/auth/keycloak/callback',
         logoutRedirectUri: process.env.KEYCLOAK_LOGOUT_REDIRECT_URI || '/login'
       }
@@ -99,7 +105,7 @@ export default defineNuxtConfig({
       expirationCheck: true,
       automaticRefresh: true,
       cookie: {
-        secure: false
+        secure: process.env.NODE_ENV === 'production' || process.env.COOKIE_SECURE === 'true'
       }
     },
     middleware: {
@@ -113,6 +119,16 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
+      title: 'Domain Governance System',
+      titleTemplate: '%s | Domain Governance System',
+      charset: 'utf-8',
+      viewport: 'width=device-width, initial-scale=1',
+      meta: [
+        { name: 'description', content: 'Enterprise Master Data & Domain Governance Platform' },
+        { property: 'og:type', content: 'website' },
+        { property: 'og:title', content: 'Domain Governance System' },
+        { property: 'og:description', content: 'Enterprise Master Data & Domain Governance Platform' }
+      ],
       link: [
         { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Source+Sans+Pro:ital,wght@0,400;1,700&display=swap' },
         { rel: 'stylesheet', href: 'https://fonts.googleapis.com/icon?family=Material+Icons' }
@@ -120,12 +136,12 @@ export default defineNuxtConfig({
     }
   },
   runtimeConfig: {
+    agGridLicense: process.env.AG_GRID_LICENSE || '',
     public: {
       appVersion: process.env.APP_VERSION || (pkg?.version ? `v${pkg.version}` : ''),
       buildTime: new Date().toISOString(),
       repositoryUrl: process.env.REPOSITORY_URL || 'https://github.com/Profavor/mplatform',
       apiBaseUrl: process.env.API_BASE_URL || process.env.NUXT_PUBLIC_API_BASE_URL || process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8080',
-      agGridLicense: process.env.AG_GRID_LICENSE,
       accessTokenExpirationSec: Number(process.env.JWT_ACCESS_EXPIRATION_SEC || 1800),
       refreshTokenExpirationSec: Number(process.env.JWT_REFRESH_EXPIRATION_SEC || 86400)
     }
@@ -137,6 +153,15 @@ export default defineNuxtConfig({
     }
     const targetUrl = rawUrl.replace(/\/$/, '')
     return {
+      '/**': {
+        headers: {
+          'X-Frame-Options': 'SAMEORIGIN',
+          'X-Content-Type-Options': 'nosniff',
+          'Referrer-Policy': 'strict-origin-when-cross-origin',
+          'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+          'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
+        }
+      },
       '/ws-stomp/**': { proxy: `${targetUrl}/ws-stomp/**` }
     }
   })(),
@@ -153,6 +178,7 @@ export default defineNuxtConfig({
     }
   },
   nitro: {
+    hidePoweredBy: true,
     externals: {
       inline: [
         'undio',

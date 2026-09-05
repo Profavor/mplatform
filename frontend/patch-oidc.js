@@ -121,3 +121,21 @@ if (fs.existsSync(oidcAuthFile)) {
     console.log('Patched nuxt-oidc-auth oidcAuth.js successfully (graceful fallback without forced redirect).');
   }
 }
+
+// 7. Patch vuestic-ui useInputFieldAria to prevent $t:inputField aria-label leak (#117)
+const vuesticAriaPaths = [
+  'node_modules/vuestic-ui/dist/es/src/components/va-input-wrapper/hooks/useInputFieldAria.js',
+  'node_modules/vuestic-ui/dist/esm-node/src/components/va-input-wrapper/hooks/useInputFieldAria.mjs',
+  'node_modules/vuestic-ui/dist/web-components/src/components/va-input-wrapper/hooks/useInputFieldAria.js'
+];
+vuesticAriaPaths.forEach((rel) => {
+  const fPath = path.resolve(process.cwd(), rel);
+  if (fs.existsSync(fPath)) {
+    let content = fs.readFileSync(fPath, 'utf8');
+    if (content.includes("useTranslationProp('$t:inputField')") || content.includes('useTranslationProp("$t:inputField")')) {
+      content = content.replace(/useTranslationProp\(["']\$t:inputField["']\)/g, "useTranslationProp('')");
+      fs.writeFileSync(fPath, content);
+      console.log(`Patched vuestic-ui ${rel} successfully (prevent $t:inputField leak).`);
+    }
+  }
+});

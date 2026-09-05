@@ -37,6 +37,12 @@ public class IntegrationChannelController {
         return service.getAllChannels();
     }
 
+    @GetMapping("/stats")
+    @PreAuthorize("hasPermission(null, 'integration:read')")
+    public List<com.classification.domain_system.dto.IntegrationChannelStatsDto> getStats() {
+        return service.getAllChannelStats();
+    }
+
     @PostMapping
     @PreAuthorize("hasPermission(null, 'integration:write')")
     public IntegrationChannelResponse create(@RequestBody IntegrationChannel channel) {

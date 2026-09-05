@@ -22,6 +22,8 @@ public class User {
     
     private String username;
     private String email;
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String password;
     private String role;
     private String timezone;
@@ -52,6 +54,7 @@ public class User {
 
     private Boolean isActive = true;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @Column(name = "active_session_id")
     private String activeSessionId;
 
@@ -61,12 +64,15 @@ public class User {
     @Column(name = "must_change_password")
     private Boolean mustChangePassword = false;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @Column(name = "encrypted_temp_password")
     private String encryptedTempPassword;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @Column(name = "failed_login_count")
     private Integer failedLoginCount = 0;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @Column(name = "locked_until")
     private java.time.LocalDateTime lockedUntil;
 }

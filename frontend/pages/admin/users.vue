@@ -34,7 +34,7 @@
             <span>{{ $t('user_management') }}</span>
             <va-badge :text="String(users.length)" color="primary" size="small" />
           </div>
-          <va-input v-model="searchQuery" :placeholder="$t('search')" @keydown="onSearchKeydown" clearable @clear="fetchUsers" style="max-width: 140px;" dense />
+          <va-input v-model="searchQuery" :placeholder="$t('search')" :aria-label="$t('users.search_user', $t('search'))" @keydown="onSearchKeydown" clearable @clear="fetchUsers" style="max-width: 140px;" dense />
         </va-card-title>
         <va-card-content style="flex: 1; display: flex; flex-direction: column; padding: 0.75rem;">
           <va-list style="flex: 1; display: flex; flex-direction: column; gap: 0.35rem;">

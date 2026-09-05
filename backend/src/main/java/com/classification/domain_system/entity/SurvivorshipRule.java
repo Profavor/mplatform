@@ -7,7 +7,9 @@ import lombok.Setter;
 import java.util.UUID;
 
 @Entity
-@Table(name = "survivorship_rule")
+@Table(name = "survivorship_rule", uniqueConstraints = {
+    @UniqueConstraint(name = "uk_survivorship_domain_field_strategy", columnNames = {"domain_id", "field_key", "strategy"})
+})
 @Getter
 @Setter
 @NoArgsConstructor

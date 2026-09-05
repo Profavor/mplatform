@@ -21,6 +21,7 @@
             :options="parseOptions(field.options)"
             value-by="value"
             :placeholder="t('op.select_option')"
+            :aria-label="formatFieldName(field.name)"
             clearable
             class="w-full"
             @update:model-value="updateDraftFilter(field.key, $event)"
@@ -30,6 +31,7 @@
             :model-value="draftFilters[field.key]"
             :options="['true', 'false']"
             :placeholder="t('op.select_option')"
+            :aria-label="formatFieldName(field.name)"
             clearable
             class="w-full"
             @update:model-value="updateDraftFilter(field.key, $event)"
@@ -39,6 +41,7 @@
               :model-value="draftFilters[field.key]"
               type="number"
               :placeholder="t('op.enter_number')"
+              :aria-label="formatFieldName(field.name)"
               clearable
               class="w-full"
               @update:model-value="updateDraftFilter(field.key, $event)"
@@ -66,6 +69,7 @@
               :model-value="draftFiltersMax[field.key]"
               type="number"
               :placeholder="t('op.max_value')"
+              :aria-label="formatFieldName(field.name)"
               clearable
               class="w-full"
               @update:model-value="updateDraftFilterMax(field.key, $event)"
@@ -80,6 +84,7 @@
             v-else
             :model-value="draftFilters[field.key]"
             :placeholder="t('op.enter_keyword')"
+            :aria-label="formatFieldName(field.name)"
             clearable
             class="w-full"
             @update:model-value="updateDraftFilter(field.key, $event)"

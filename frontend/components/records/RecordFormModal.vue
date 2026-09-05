@@ -416,9 +416,9 @@
         :disabled="!hasWorkflow"
         @click="handleSave"
       >
-        {{ isEdit ? 'Save' : 'Create & Submit for Approval' }}
+        {{ isEdit ? $t('save') : $t('records.create_and_submit_approval') }}
       </va-button>
-      <va-button preset="secondary" @click="handleClose">Cancel</va-button>
+      <va-button preset="secondary" @click="handleClose">{{ $t('cancel') }}</va-button>
     </div>
   </AppModal>
 </template>
@@ -433,8 +433,12 @@ import HtmlEditor from '~/components/common/HtmlEditor.vue'
 import ImageUploader from '~/components/common/ImageUploader.vue'
 import AppModal from '~/components/common/AppModal.vue'
 import { parseOptions } from '~/utils/optionParser'
+import { safeEvaluateCondition } from '~/utils/safeEvaluator'
+const { t, te } = useI18n()
 
-const { t } = useI18n()
+const safeTranslate = (key, fallback) => {
+  return te && te(key) ? t(key) : fallback
+}
 const { init: notifyToast } = useToast()
 const { customFetch } = useCustomFetch()
 
@@ -541,9 +545,9 @@ const onWorkflowSelected = (wfId) => {
 
 const modalTitle = computed(() => {
   if (props.isEdit) {
-    return props.nodeLabel ? `Edit Record - ${props.nodeLabel}` : 'Edit Record'
+    return props.nodeLabel ? t('records.edit_record_in', { node: props.nodeLabel }) : t('records.edit_record')
   }
-  return props.nodeLabel ? `Create Record in ${props.nodeLabel}` : 'Create Record'
+  return props.nodeLabel ? t('records.create_record_in', { node: props.nodeLabel }) : t('records.create_record')
 })
 
 const activeSectorTab = ref('')
@@ -808,11 +812,11 @@ const groupedFieldsArray = computed(() => {
     const sObj = f.fieldGroup?.sector || f.sector || null
     const gObj = f.fieldGroup || f.group || null
 
-    const sName = getTranslatedName(sObj?.name) || (typeof sObj === 'string' ? sObj : '') || t('common.general') || (locale.value === 'ko' ? '일반' : 'General')
+    const sName = getTranslatedName(sObj?.name) || (typeof sObj === 'string' ? sObj : '') || safeTranslate('common.general', locale.value === 'ko' ? '일반' : 'General')
     const sKey = sObj?.id || sObj?.key || (sObj?.name ? (typeof sObj.name === 'string' ? sObj.name : sObj.name.ko || sObj.name.en) : 'default')
     const sOrder = sObj?.sortOrder ?? sObj?.order ?? 0
 
-    const gName = getTranslatedName(gObj?.name) || (typeof gObj === 'string' ? gObj : '') || t('common.fields') || (locale.value === 'ko' ? '기본 필드' : 'Fields')
+    const gName = getTranslatedName(gObj?.name) || (typeof gObj === 'string' ? gObj : '') || safeTranslate('common.fields', locale.value === 'ko' ? '기본 필드' : 'Fields')
     const gKey = gObj?.id || gObj?.key || (gObj?.name ? (typeof gObj.name === 'string' ? gObj.name : gObj.name.ko || gObj.name.en) : 'default')
     const gOrder = gObj?.sortOrder ?? gObj?.order ?? 0
 
@@ -951,20 +955,7 @@ const getDomainRefDisplayName = (fieldKey, recordId) => {
 }
 
 function evaluateConditionExpression(expr, formData) {
-  if (!expr || !expr.trim() || !formData) return false
-  try {
-    const replaced = expr.replace(/#{([a-zA-Z0-9_]+)}/g, (_, key) => {
-      const val = formData[key]
-      if (val === undefined || val === null) return 'null'
-      if (typeof val === 'number' || typeof val === 'boolean') return String(val)
-      if (typeof val === 'object') return JSON.stringify(JSON.stringify(val))
-      return JSON.stringify(String(val))
-    })
-    const fn = new Function(`return Boolean(${replaced});`)
-    return fn()
-  } catch (e) {
-    return false
-  }
+  return safeEvaluateCondition(expr, formData)
 }
 
 // Fetch Axes and Nodes (Per-axis independent trees)

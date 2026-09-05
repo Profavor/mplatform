@@ -111,6 +111,11 @@ public class DataMaskingService {
                 String key = entry.getKey();
                 Object val = entry.getValue();
 
+                // #171: Do not expose internal ciphertext / blind index to client response
+                if (key.startsWith("_idx_")) {
+                    continue;
+                }
+
                 FieldDefinition fd = fieldMap.get(key.toLowerCase());
                 if (fd == null) {
                     result.put(key, val);

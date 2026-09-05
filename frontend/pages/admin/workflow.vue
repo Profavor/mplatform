@@ -391,7 +391,8 @@ const columnDefs = computed<any[]>(() => [
 const defaultColDef = {
   sortable: true,
   resizable: true,
-  filter: true
+  filter: true,
+  tooltipValueGetter: (params) => params.valueFormatted || params.value
 }
 
 const domainStore = useDomain()

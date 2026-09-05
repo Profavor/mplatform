@@ -15,6 +15,23 @@ export interface EnrichedApprovalRequest {
   summary?: string
 }
 
+export const formatSummaryVal = (v: any, fallbackNone = '-'): string => {
+  if (!v) return fallbackNone
+  if (typeof v === 'string' && (v.startsWith('http://') || v.startsWith('https://'))) {
+    try {
+      const url = new URL(v)
+      const pathname = url.pathname
+      const lastPart = pathname.split('/').filter(Boolean).pop() || ''
+      if (v.length > 40) {
+        return `${url.hostname}/...${lastPart ? '/' + (lastPart.length > 20 ? lastPart.substring(0, 17) + '...' : lastPart) : ''}`
+      }
+    } catch (e) {
+      if (v.length > 40) return v.substring(0, 37) + '...'
+    }
+  }
+  return String(v)
+}
+
 export const useApprovalEnricher = () => {
   const { t } = useI18n()
   const userStore = useUserStore()
@@ -173,7 +190,6 @@ export const useApprovalEnricher = () => {
           enriched.nameAttribute = formatMultilingual(recordData[nameField.key])
         }
         
-        // Summary logic
         if (req.targetType === 'RECORD_CREATE' || req.targetType === 'RECORD') {
           const parts: string[] = []
           for (const key in recordData) {
@@ -181,7 +197,7 @@ export const useApprovalEnricher = () => {
             const fName = field ? getTranslatedName(field.name) : key
             let val = recordData[key]
             if (typeof val === 'object' && val !== null) val = getTranslatedName(val)
-            parts.push(`${fName}: ${val}`)
+            parts.push(`${fName}: ${formatSummaryVal(val, t('none'))}`)
           }
           enriched.summary = parts.join(', ')
         } else if (req.targetType === 'RECORD_UPDATE') {
@@ -194,8 +210,7 @@ export const useApprovalEnricher = () => {
               let newVal = recordData[key]
               if (typeof oldVal === 'object' && oldVal !== null) oldVal = getTranslatedName(oldVal)
               if (typeof newVal === 'object' && newVal !== null) newVal = getTranslatedName(newVal)
-              const noneLabel = t('none')
-              parts.push(`${fName}: ${oldVal || noneLabel} -> ${newVal || noneLabel}`)
+              parts.push(`${fName}: ${formatSummaryVal(oldVal, t('none'))} -> ${formatSummaryVal(newVal, t('none'))}`)
             }
           }
           enriched.summary = parts.join(', ')

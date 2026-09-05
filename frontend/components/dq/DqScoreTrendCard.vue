@@ -11,8 +11,8 @@
         </va-chip>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-        <div style="display: flex; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 8px; padding: 2px;">
+      <div class="dq-trend-controls" style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+        <div class="dq-period-group" style="display: flex; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 8px; padding: 2px; overflow-x: auto; max-width: 100%;">
           <button
             v-for="opt in [
               { label: t('dq_dashboard.recent_7_days'), value: 7 },
@@ -32,7 +32,8 @@
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               background: trendPeriod === opt.value ? 'var(--va-primary)' : 'transparent',
-              color: trendPeriod === opt.value ? '#ffffff' : 'var(--va-text-secondary)'
+              color: trendPeriod === opt.value ? '#ffffff' : 'var(--va-text-secondary)',
+              flexShrink: 0
             }"
           >
             {{ opt.label }}
@@ -53,12 +54,11 @@
     <va-card-content style="padding: 1.25rem; background: var(--va-background-primary);">
       <!-- Empty State -->
       <div v-if="recentSnapshots.length === 0" style="padding: 2.5rem 1rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; text-align: center;">
-        <div style="width: 54px; height: 54px; border-radius: 16px; background: rgba(25, 118, 210, 0.12); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(25, 118, 210, 0.2);">
+        <div style="width: 54px; height: 54px; border-radius: 16px; background: rgba(25, 118, 210, 0.12); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.2);">
           <va-icon name="insights" size="large" color="primary" />
         </div>
         <div style="font-size: 1.05rem; font-weight: 700; color: var(--va-text-primary); font-family: 'Pretendard', 'Inter', sans-serif;">
           {{ t('dq_dashboard.no_snapshots') }}
-
         </div>
         <div style="font-size: 0.85rem; color: var(--va-text-secondary); max-width: 440px; line-height: 1.5;">
           {{ t('dq_dashboard.no_snapshots_desc') }}
@@ -85,26 +85,27 @@
           <div style="display: flex; align-items: center; gap: 0.5rem;">
             <span style="font-size: 0.8rem; color: var(--va-text-secondary); font-weight: 600;">{{ t('dq_dashboard.latest_snapshot') }}</span>
             <span style="font-size: 0.85rem; font-weight: 700; color: var(--va-text-primary); font-family: monospace;">
-              {{ formatDateTime(recentSnapshots[0]?.recordedAt) }}
+              {{ formatDateTime(latestSnapshotDate) }}
             </span>
           </div>
         </div>
 
-
         <!-- Sparkline Bars -->
         <div 
           class="dq-sparkline-container"
-          style="display: flex; align-items: flex-end; gap: 0.6rem; height: 155px; padding: 1.25rem 0.75rem 0.5rem 0.75rem; border-bottom: 1px solid var(--va-background-border); overflow-x: auto; box-sizing: border-box;"
+          style="display: flex; align-items: flex-end; gap: 0.6rem; height: 160px; padding: 1.25rem 0.75rem 0.5rem 0.75rem; border-bottom: 1px solid var(--va-background-border); overflow-x: auto; box-sizing: border-box; -webkit-overflow-scrolling: touch;"
         >
           <div
             v-for="(snap, idx) in recentSnapshots"
             :key="snap.id || idx"
-            style="flex: 1; min-width: 42px; display: flex; flex-direction: column; align-items: center; gap: 0.35rem; position: relative;"
-            class="group cursor-pointer"
+            style="flex: 1; min-width: 56px; display: flex; flex-direction: column; align-items: center; gap: 0.35rem; position: relative;"
+            class="dq-sparkline-item cursor-pointer"
+            :title="`${formatDateTime(snap.recordedAt)} (${Math.round(snap.score)}점)`"
+            :aria-label="`${formatDateTime(snap.recordedAt)}: ${Math.round(snap.score)}%`"
           >
             <!-- Modern Glassmorphism Tooltip -->
             <div 
-              class="hidden group-hover:flex" 
+              class="dq-sparkline-tooltip" 
               style="position: absolute; bottom: 100%; margin-bottom: 8px; flex-direction: column; align-items: center; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.15); color: #ffffff; padding: 6px 10px; border-radius: 8px; z-index: 30; white-space: nowrap; box-shadow: 0 10px 25px rgba(0,0,0,0.5);"
             >
               <span style="font-weight: 800; font-size: 0.85rem; color: var(--va-primary);">{{ snap.score }}점</span>
@@ -132,7 +133,11 @@
             </div>
 
             <!-- Date Label -->
-            <span style="font-size: 0.7rem; color: var(--va-text-secondary); font-family: monospace; text-align: center; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.2;">
+            <span 
+              class="dq-date-label"
+              :title="formatDateTime(snap.recordedAt)"
+              style="font-size: 0.7rem; color: var(--va-text-secondary); font-family: monospace; text-align: center; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.2;"
+            >
               {{ formatDateShort(snap.recordedAt) }}
             </span>
           </div>
@@ -143,6 +148,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatWithTimezone } from '~/composables/useTimezoneDate'
 
@@ -155,6 +161,16 @@ const props = defineProps<{
   avgTrendScore: string | number
   maxTrendScore: string | number
 }>()
+
+const latestSnapshotDate = computed(() => {
+  if (!props.recentSnapshots || props.recentSnapshots.length === 0) return ''
+  const sorted = [...props.recentSnapshots].sort((a, b) => {
+    const timeA = new Date(a.recordedAt || 0).getTime()
+    const timeB = new Date(b.recordedAt || 0).getTime()
+    return timeB - timeA
+  })
+  return sorted[0]?.recordedAt || ''
+})
 
 const emit = defineEmits<{
   (e: 'update:trendPeriod', val: number): void
@@ -188,3 +204,37 @@ defineExpose({
   onTriggerScan
 })
 </script>
+
+<style scoped>
+.dq-sparkline-container {
+  scrollbar-width: thin;
+  scrollbar-color: var(--va-background-border) transparent;
+}
+.dq-sparkline-container::-webkit-scrollbar {
+  height: 6px;
+}
+.dq-sparkline-container::-webkit-scrollbar-thumb {
+  background-color: var(--va-background-border);
+  border-radius: 3px;
+}
+.dq-sparkline-tooltip {
+  display: none;
+}
+.dq-sparkline-item:hover .dq-sparkline-tooltip {
+  display: flex;
+}
+@media (max-width: 640px) {
+  .dq-trend-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .dq-period-group {
+    flex: 1;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .dq-period-group::-webkit-scrollbar {
+    display: none;
+  }
+}
+</style>
