@@ -44,6 +44,43 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   }
 
   if (!token) {
-    return navigateTo('/login')
+    const isExpired = !!refreshToken || Boolean(from && from.path && from.path !== '/login' && from.path !== '/')
+    const redirectPath = (to.fullPath && to.fullPath !== '/' && to.fullPath !== '/login') ? to.fullPath : undefined
+    return navigateTo({
+      path: '/login',
+      query: {
+        ...(redirectPath ? { redirect: redirectPath } : {}),
+        ...(isExpired ? { expired: '1' } : {})
+      }
+    })
+  }
+
+  // 관리자 전용 라우트 (/admin/**) 접근 제어 (일반 사용자의 관리자 페이지 직접 접근 차단)
+  if (to.path.startsWith('/admin')) {
+    let userRole = ''
+    try {
+      const authUserStore = useAuthUser()
+      userRole = authUserStore?.currentUser?.role || ''
+    } catch (e) {}
+
+    if (!userRole) {
+      const userCookie = useCookie<any>('user_data')
+      try {
+        const raw = userCookie.value
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+        userRole = parsed?.role || ''
+      } catch (e) {}
+    }
+
+    const roles = Array.isArray(userRole)
+      ? userRole
+      : String(userRole).split(',').map(r => r.trim())
+    const hasAdminAccess = roles.some(r =>
+      r === 'ROLE_ADMIN' || r === 'ADMIN' || r === 'ORG_ADMIN' || r === 'ROLE_ORG_ADMIN' || r === 'DATA_STEWARD'
+    )
+
+    if (!hasAdminAccess) {
+      return navigateTo('/')
+    }
   }
 })

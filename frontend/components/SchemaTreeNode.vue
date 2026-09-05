@@ -19,7 +19,7 @@
       />
 
       <!-- Label -->
-      <span class="node-label">
+      <span class="node-label" :title="node.label" :aria-label="node.label">
         {{ node.label }}
       </span>
 

@@ -4,6 +4,7 @@ import com.classification.domain_system.entity.User;
 import com.classification.domain_system.entity.ChatMessage;
 import com.classification.domain_system.entity.ChatMessageRoom;
 import com.classification.domain_system.entity.ChatMessageRoomMember;
+import com.classification.domain_system.exception.CustomAccessDeniedException;
 import com.classification.domain_system.repository.ChatMessageRepository;
 import com.classification.domain_system.repository.ChatMessageRoomMemberRepository;
 import com.classification.domain_system.repository.ChatMessageRoomRepository;
@@ -450,6 +451,12 @@ public class ChatMessageService {
 
     @Transactional
     public ChatMessageDto sendMessage(UUID roomId, String senderId, String messageType, String content, String fileUrl, String fileName, Long fileSize) {
+        if (!"SYSTEM".equalsIgnoreCase(senderId)) {
+            if (findMember(roomId, senderId).isEmpty()) {
+                throw new CustomAccessDeniedException("User is not a member of chat room: " + roomId);
+            }
+        }
+
         ChatMessageRoom room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new IllegalArgumentException("Chat room not found: " + roomId));
 

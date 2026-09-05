@@ -107,12 +107,24 @@ public class LocalStorageService implements FileStorageService {
     @Override
     public Resource loadFileAsResource(String filename) {
         try {
+            if (filename == null || filename.isBlank()) {
+                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "File not found: " + filename);
+            }
             String cleanName = StringUtils.cleanPath(filename);
-            if (cleanName.contains("..")) {
+            if (cleanName.contains("..") || cleanName.startsWith("/") || cleanName.startsWith("\\") || cleanName.contains(":")) {
                 throw new BusinessException(ErrorCode.UPLOAD_FILE_FAIL, "Filename contains invalid path sequence: " + filename);
             }
 
-            Path filePath = this.fileStorageLocation.resolve(cleanName).normalize();
+            Path targetFileName = Paths.get(cleanName).getFileName();
+            if (targetFileName == null) {
+                throw new BusinessException(ErrorCode.UPLOAD_FILE_FAIL, "Invalid filename: " + filename);
+            }
+
+            Path filePath = this.fileStorageLocation.resolve(targetFileName).normalize();
+            if (!filePath.startsWith(this.fileStorageLocation) || filePath.equals(this.fileStorageLocation)) {
+                throw new BusinessException(ErrorCode.UPLOAD_FILE_FAIL, "Path traversal attempt detected: " + filename);
+            }
+
             Resource resource = new UrlResource(filePath.toUri());
             if (resource.exists() && resource.isReadable()) {
                 return resource;
@@ -127,11 +139,24 @@ public class LocalStorageService implements FileStorageService {
     @Override
     public void deleteFile(String filename) {
         try {
+            if (filename == null || filename.isBlank()) {
+                return;
+            }
             String cleanName = StringUtils.cleanPath(filename);
-            if (cleanName.contains("..")) {
+            if (cleanName.contains("..") || cleanName.startsWith("/") || cleanName.startsWith("\\") || cleanName.contains(":")) {
                 throw new BusinessException(ErrorCode.UPLOAD_FILE_FAIL, "Filename contains invalid path sequence: " + filename);
             }
-            Path filePath = this.fileStorageLocation.resolve(cleanName).normalize();
+
+            Path targetFileName = Paths.get(cleanName).getFileName();
+            if (targetFileName == null) {
+                throw new BusinessException(ErrorCode.UPLOAD_FILE_FAIL, "Invalid filename: " + filename);
+            }
+
+            Path filePath = this.fileStorageLocation.resolve(targetFileName).normalize();
+            if (!filePath.startsWith(this.fileStorageLocation) || filePath.equals(this.fileStorageLocation)) {
+                throw new BusinessException(ErrorCode.UPLOAD_FILE_FAIL, "Path traversal attempt detected: " + filename);
+            }
+
             Files.deleteIfExists(filePath);
         } catch (IOException ex) {
             throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "Could not delete file: " + filename);

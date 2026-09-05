@@ -94,6 +94,7 @@ public class AuthController {
     }
 
     @PostMapping("/register")
+    @PreAuthorize("hasPermission(null, 'user:write') or hasRole('ADMIN')")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
         authService.register(request.getUsername(), request.getPassword(), request.getRole(), request.getTimezone());
         return ResponseEntity.ok("User registered successfully");

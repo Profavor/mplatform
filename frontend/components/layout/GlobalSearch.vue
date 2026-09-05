@@ -3,6 +3,7 @@
     <va-input
       v-model="searchQuery"
       :placeholder="t('global_search_placeholder')"
+      :aria-label="t('global_search_placeholder')"
       class="global-search-input"
       :style="{ width: isFocused ? '360px' : '220px', transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }"
       @focus="isFocused = true"

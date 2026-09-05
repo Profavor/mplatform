@@ -20,6 +20,9 @@ public class IntegrationChannel {
     @Column(nullable = false, length = 100)
     private String name;
 
+    @Column(name = "channel_code", length = 50)
+    private String channelCode;
+
     @Column(nullable = false, length = 50)
     private String type; // WEB_SERVICE, JDBC, MESSAGE_QUEUE
 

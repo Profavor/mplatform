@@ -1,6 +1,6 @@
 {
   "name": "classification-front",
-  "version": "1.5.47",
+  "version": "1.5.58",
   "private": true,
   "type": "module",
   "scripts": {
@@ -39,6 +39,7 @@
     "@vuestic/nuxt": "^1.0.21",
     "ag-grid-enterprise": "^34.3.1",
     "ag-grid-vue3": "^34.3.1",
+    "dompurify": "^3.4.14",
     "echarts": "^5.6.0",
     "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
@@ -56,6 +57,7 @@
   "devDependencies": {
     "@nuxt/test-utils": "^3.15.4",
     "@playwright/test": "^1.62.1",
+    "@types/dompurify": "^3.0.5",
     "@vue/test-utils": "^2.4.11",
     "happy-dom": "^17.6.3",
     "typescript": "^5.9.3",

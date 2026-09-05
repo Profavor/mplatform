@@ -49,21 +49,30 @@ export function hasPermission(
 }
 
 export function usePermission() {
-  const userPermissionsCookie = useCookie<any>('user_permissions')
-  const userDataCookie = useCookie<any>('user_data')
-  const userCookie = useCookie<any>('user')
+  let permissions: any[] = []
 
-  let userData: any = {}
   try {
-    const rawData = userDataCookie.value || userCookie.value
-    if (rawData) {
-      userData = typeof rawData === 'string' ? JSON.parse(rawData) : rawData
+    const authStore = useAuthUser()
+    if (authStore?.currentUser?.permissions && Array.isArray(authStore.currentUser.permissions)) {
+      permissions = authStore.currentUser.permissions
     }
-  } catch (e) {
-    userData = {}
+  } catch (e) {}
+
+  if (!permissions || permissions.length === 0) {
+    const userDataCookie = useCookie<any>('user_data')
+    const userCookie = useCookie<any>('user')
+    let userData: any = {}
+    try {
+      const rawData = userDataCookie.value || userCookie.value
+      if (rawData) {
+        userData = typeof rawData === 'string' ? JSON.parse(rawData) : rawData
+      }
+    } catch (e) {
+      userData = {}
+    }
+    permissions = userData.permissions || []
   }
 
-  let permissions = userPermissionsCookie.value || userData.permissions || []
   if (typeof permissions === 'string') {
     try {
       permissions = JSON.parse(permissions)

@@ -4,7 +4,7 @@ import DqKpiCards from '../../components/dq/DqKpiCards.vue'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
-    t: (key: string) => key
+    t: (key: string, fallback?: string) => fallback || key
   })
 }))
 

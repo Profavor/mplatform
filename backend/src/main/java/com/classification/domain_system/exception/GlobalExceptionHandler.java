@@ -47,6 +47,14 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(ErrorCode.RESOURCE_NOT_FOUND, "요청한 리소스를 찾을 수 없습니다."));
     }
 
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleHttpRequestMethodNotSupportedException(org.springframework.web.HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
+        log.warn("HTTP method not supported at URI: {}. Method: {}", request.getRequestURI(), ex.getMethod());
+        return ResponseEntity
+                .status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(ErrorResponse.of(ErrorCode.INVALID_INPUT, "지원하지 않는 HTTP 메소드입니다: " + ex.getMethod()));
+    }
+
     @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleHttpMessageNotReadableException(org.springframework.http.converter.HttpMessageNotReadableException ex, HttpServletRequest request) {
         log.error("JSON parse error at URI: {}. Message: {}", request.getRequestURI(), ex.getMessage(), ex);

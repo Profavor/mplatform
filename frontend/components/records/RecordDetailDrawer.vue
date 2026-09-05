@@ -276,7 +276,7 @@
 
                           <!-- 4. HTML_TEXT / HTML / RICHTEXT / EDITOR -->
                           <div v-else-if="['HTML_TEXT', 'HTML', 'RICHTEXT', 'EDITOR'].includes(field.type)" class="doc-field-value doc-html">
-                            <div v-if="hasFieldValue(field)" v-html="getFieldDisplayValue(field)"></div>
+                            <div v-if="hasFieldValue(field)" v-html="sanitizeHtml(getFieldDisplayValue(field))"></div>
                             <span v-else class="doc-empty">-</span>
                           </div>
 
@@ -1010,6 +1010,8 @@ import RecordLayoutBuilderModal from './RecordLayoutBuilderModal.vue'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { parseOptions } from '~/utils/optionParser'
 import { useCodeStore } from '~/stores/useCodeStore'
+import { safeEvaluateCondition } from '~/utils/safeEvaluator'
+import { sanitizeHtml } from '~/utils/sanitizeHtml'
 
 const { customFetch } = useCustomFetch()
 const { downloadFileWithAuth } = useFileDownloader()
@@ -1059,8 +1061,11 @@ const createUnifiedBtn = (label, colorHex, onClick) => {
   return btn;
 };
 
+const { t, te, locale: i18nLocale } = useI18n()
 
-const { t, locale: i18nLocale } = useI18n()
+const safeTranslate = (key, fallback) => {
+  return te && te(key) ? t(key) : fallback
+}
 
 const showUserProfileModal = ref(false)
 const selectedUserProfile = ref(null)
@@ -2353,11 +2358,11 @@ const groupedFieldsArray = computed(() => {
     const sObj = f.fieldGroup?.sector || f.sector || null
     const gObj = f.fieldGroup || f.group || null
 
-    const sName = getTranslatedName(sObj?.name) || (typeof sObj === 'string' ? sObj : '') || t('common.general') || (locale.value === 'ko' ? '일반' : 'General')
+    const sName = getTranslatedName(sObj?.name) || (typeof sObj === 'string' ? sObj : '') || safeTranslate('common.general', locale.value === 'ko' ? '일반' : 'General')
     const sKey = sObj?.id || sObj?.key || (sObj?.name ? (typeof sObj.name === 'string' ? sObj.name : sObj.name.ko || sObj.name.en) : 'default')
     const sOrder = sObj?.sortOrder ?? sObj?.order ?? 0
 
-    const gName = getTranslatedName(gObj?.name) || (typeof gObj === 'string' ? gObj : '') || t('common.fields') || (locale.value === 'ko' ? '기본 필드' : 'Fields')
+    const gName = getTranslatedName(gObj?.name) || (typeof gObj === 'string' ? gObj : '') || safeTranslate('common.fields', locale.value === 'ko' ? '기본 필드' : 'Fields')
     const gKey = gObj?.id || gObj?.key || (gObj?.name ? (typeof gObj.name === 'string' ? gObj.name : gObj.name.ko || gObj.name.en) : 'default')
     const gOrder = gObj?.sortOrder ?? gObj?.order ?? 0
 
@@ -2497,20 +2502,7 @@ const getDomainRefDisplayName = (fieldKey, recordId) => {
 }
 
 const evaluateConditionExpression = (expr, formData) => {
-  if (!expr || !expr.trim() || !formData) return false
-  try {
-    const replaced = expr.replace(/#{([a-zA-Z0-9_]+)}/g, (_, key) => {
-      const val = formData[key]
-      if (val === undefined || val === null) return 'null'
-      if (typeof val === 'number' || typeof val === 'boolean') return String(val)
-      if (typeof val === 'object') return JSON.stringify(JSON.stringify(val))
-      return JSON.stringify(String(val))
-    })
-    const fn = new Function(`return Boolean(${replaced});`)
-    return fn()
-  } catch (e) {
-    return false
-  }
+  return safeEvaluateCondition(expr, formData)
 }
 
 const evalConditionRule = (field, formData) => {

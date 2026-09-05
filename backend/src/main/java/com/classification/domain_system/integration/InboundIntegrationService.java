@@ -99,12 +99,16 @@ public class InboundIntegrationService {
         } catch (IllegalArgumentException e) {
             // payload 파싱 오류 등 클라이언트 측 문제 → 400으로 전파 (로그만 남기고 re-throw)
             String stackTrace = getStackTraceAsString(e);
-            logService.logError(channelId, null, "INBOUND_RECEIVE", rawPayload, null, e.getMessage(), stackTrace, 1);
+            if (logService != null) {
+                logService.logError(channelId, null, "INBOUND_RECEIVE", rawPayload, null, e.getMessage(), stackTrace, 1);
+            }
             log.warn("Inbound data rejected for channel [{}]: {}", channelId, e.getMessage());
             throw e; // Controller에서 400 BadRequest로 처리됨
         } catch (Exception e) {
             String stackTrace = getStackTraceAsString(e);
-            logService.logError(channelId, null, "INBOUND_RECEIVE", rawPayload, null, e.getMessage(), stackTrace, 1);
+            if (logService != null) {
+                logService.logError(channelId, null, "INBOUND_RECEIVE", rawPayload, null, e.getMessage(), stackTrace, 1);
+            }
             log.error("Failed to process inbound data for channel [{}]: {}", channelId, e.getMessage(), e);
 
             if (notificationService != null) {
@@ -318,6 +322,12 @@ public class InboundIntegrationService {
             JsonNode config = objectMapper.readTree(configJson);
             String authType = config.has("authType") ? config.get("authType").asText() : "NONE";
             String secretToken = config.has("secretToken") ? config.get("secretToken").asText() : "";
+            if (secretToken.isBlank() && config.has("apiKeyValue")) {
+                secretToken = config.get("apiKeyValue").asText();
+            }
+            if (secretToken.isBlank() && config.has("apiKey")) {
+                secretToken = config.get("apiKey").asText();
+            }
 
             if ("NONE".equalsIgnoreCase(authType) || secretToken.isBlank()) {
                 return; // 인증 미설정 채널
@@ -337,20 +347,27 @@ public class InboundIntegrationService {
                     }
                 }
             } else if ("API_KEY".equalsIgnoreCase(authType)) {
-                if (constantTimeEquals(secretToken, xApiKeyHeader) || constantTimeEquals(secretToken, apiKeyParam)) {
+                if (constantTimeEquals(secretToken, xApiKeyHeader)) {
                     isAuthenticated = true;
                 }
             }
 
             if (!isAuthenticated) {
                 String errorMsg = "Inbound 인증 실패: 유효하지 않은 인증 토큰입니다. (AuthType: " + authType + ")";
-                logService.logError(channel.getId(), null, "INBOUND_RECEIVE", rawPayload, null, errorMsg, "SecurityException", 1);
+                if (logService != null) {
+                    logService.logError(channel.getId(), null, "INBOUND_RECEIVE", rawPayload, null, errorMsg, "SecurityException", 1);
+                }
                 throw new SecurityException(errorMsg);
             }
         } catch (SecurityException se) {
             throw se;
         } catch (Exception e) {
             log.error("Authentication check exception for channel [{}]: {}", channel.getName(), e.getMessage());
+            String errorMsg = "Inbound 인증 검증 중 오류가 발생하여 요청을 거부합니다: " + e.getMessage();
+            if (logService != null) {
+                logService.logError(channel.getId(), null, "INBOUND_RECEIVE", rawPayload, null, errorMsg, "SecurityException", 1);
+            }
+            throw new SecurityException(errorMsg, e);
         }
     }
 

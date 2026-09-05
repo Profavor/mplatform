@@ -203,6 +203,8 @@
     "edit_detail": "상세 코드 수정",
     "add_detail": "상세 코드 추가",
     "select_group_msg": "좌측에서 코드 그룹을 선택하세요.",
+    "no_group_selected": "선택된 그룹 없음",
+    "search_placeholder": "코드 또는 이름으로 검색...",
     "confirm_delete_group": "{code} 그룹을 삭제하시겠습니까?",
     "confirm_delete_detail": "{code} 상세 코드를 삭제하시겠습니까?",
     "export_failed": "JSON 엑스포트에 실패했습니다.",

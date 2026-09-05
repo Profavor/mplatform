@@ -19,7 +19,7 @@
 }, {
   "displayName" : "{\"ko\":\"\uD83D\uDC64 일반 사용자\",\"en\":\"\uD83D\uDC64 General User\"}",
   "isSystemRole" : null,
-  "permissions" : [ "domain:read", "field:read", "integration:read", "workflow:request", "record:read", "role:read", "match:read", "dq:read", "workflow:approve", "node:read", "user:read", "workflow:read", "org:read" ],
+  "permissions" : [ "domain:read", "field:read", "integration:read", "workflow:request", "record:read", "match:read", "dq:read", "workflow:approve", "node:read", "workflow:read", "org:read" ],
   "NAME" : "ROLE_USER",
   "DESCRIPTION" : "{\"ko\":\"기본 사용자 접근 권한\",\"en\":\"Basic user access\"}"
 }, {

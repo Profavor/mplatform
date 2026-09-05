@@ -7,4 +7,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface MenuAccessLogRepository extends JpaRepository<MenuAccessLog, Long>, JpaSpecificationExecutor<MenuAccessLog> {
+    java.util.List<MenuAccessLog> findTop20ByUserIdOrderByAccessedAtDesc(String userId);
 }
+

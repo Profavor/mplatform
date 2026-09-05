@@ -25,6 +25,22 @@
       </div>
     </div>
 
+    <!-- Error Alert Banner (#114) -->
+    <va-alert
+      v-if="fetchError"
+      color="danger"
+      outline
+      closeable
+      @close="fetchError = null"
+    >
+      <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+        <span>{{ fetchError }}</span>
+        <va-button size="small" color="danger" preset="outline" @click="fetchChannels">
+          {{ $t('common.retry') || '다시 시도' }}
+        </va-button>
+      </div>
+    </va-alert>
+
     <!-- Channels Table Card -->
     <va-card style="flex: 1; display: flex; flex-direction: column; overflow: hidden; border-radius: 12px; border: 1px solid var(--va-background-border); margin-bottom: 1.25rem;">
       <va-card-title class="flex justify-between items-center" style="padding: 1rem 1.25rem;">
@@ -42,7 +58,7 @@
             :theme="gridTheme"
             :column-defs="channelColumnDefs"
             :row-data="channels"
-            :default-col-def="{ sortable: true, resizable: true }"
+            :default-col-def="{ sortable: true, resizable: true, tooltipValueGetter: (params) => params.valueFormatted || params.value }"
             :animate-rows="true"
             :pagination="true"
             :pagination-page-size="10"
@@ -74,7 +90,7 @@
             :theme="gridTheme"
             :column-defs="recentLogColumnDefs"
             :row-data="recentLogs"
-            :default-col-def="{ sortable: true, resizable: true }"
+            :default-col-def="{ sortable: true, resizable: true, tooltipValueGetter: (params) => params.valueFormatted || params.value }"
             :animate-rows="true"
             :pagination="true"
             :pagination-page-size="10"
@@ -271,6 +287,7 @@ const columns = computed(() => [
 // Base Entity Model
 const initialForm = {
   name: '',
+  channelCode: '',
   direction: 'OUTBOUND',
   type: 'WEB_SERVICE',
   nodeId: null,
@@ -1151,15 +1168,17 @@ const fetchRecentLogs = async () => {
   }
 }
 
+const fetchError = ref(null)
+
 const fetchChannels = async () => {
   isLoading.value = true
+  fetchError.value = null
   try {
-    const data = await $fetch('/api/admin/integration/channels', {
-      headers: { Authorization: `Bearer ${token.value}` }
-    })
-    channels.value = data
-  } catch (e) {
+    const data = await customFetch('/api/admin/integration/channels')
+    channels.value = Array.isArray(data) ? data : []
+  } catch (e: any) {
     console.error('Failed to fetch channels:', e)
+    fetchError.value = e?.message || t('common.error_fetch', '연동 채널 데이터를 불러오는 중 오류가 발생했습니다.')
   } finally {
     isLoading.value = false
   }

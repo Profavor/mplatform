@@ -37,6 +37,7 @@ export const useDomainStore = defineStore('domain', () => {
   const domainMap = ref<Record<string, DomainInfo>>({})
   const isInitialized = ref(false)
   const isLoading = ref(false)
+  const fetchError = ref<string | null>(null)
   let domainsPromise: Promise<DomainInfo[]> | null = null
 
   const token = useCookie('auth_token')
@@ -51,6 +52,7 @@ export const useDomainStore = defineStore('domain', () => {
     }
 
     isLoading.value = true
+    fetchError.value = null
     domainsPromise = (async () => {
       try {
         const { customFetch } = useCustomFetch()
@@ -69,8 +71,9 @@ export const useDomainStore = defineStore('domain', () => {
           isInitialized.value = true
           return list
         }
-      } catch (e) {
+      } catch (e: any) {
         console.error('Failed to fetch domains:', e)
+        fetchError.value = e?.message || 'Failed to fetch domains'
       } finally {
         isLoading.value = false
         domainsPromise = null
@@ -132,6 +135,7 @@ export const useDomainStore = defineStore('domain', () => {
     domainOptions,
     isInitialized,
     isLoading,
+    fetchError,
     fetchDomains,
     getDomainById,
     getDomainName,

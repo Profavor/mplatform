@@ -48,7 +48,7 @@
     </va-card>
 
     <!-- Create/Edit Modal -->
-    <va-modal v-model="showModal" :title="isEditing ? $t('inbox.edit_mailing_list') : $t('inbox.create_mailing_list')" size="medium">
+    <va-modal v-model="showModal" :title="isEditing ? $t('inbox.edit_mailing_list') : $t('inbox.create_mailing_list')" size="medium" hide-default-actions>
       <div style="display: flex; flex-direction: column; gap: 1.25rem; padding: 1rem 0;">
         <va-input v-model="formData.groupName" :label="$t('inbox.group_name')" :placeholder="$t('inbox.group_name_placeholder')" required />
         <va-input v-model="formData.email" :label="$t('inbox.group_email')" :placeholder="$t('inbox.group_email_placeholder')" required>
@@ -174,7 +174,7 @@ const columnDefs = computed(() => [
   },
   {
     field: 'active',
-    headerName: t('common.status'),
+    headerName: t('status'),
     width: 120,
     cellRenderer: (params: any) => {
       const isActive = params.data?.active ?? params.data?.isActive ?? (params.value !== false)

@@ -1,7 +1,7 @@
 <template>
-  <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.85rem; margin-bottom: 0; background: var(--va-background-element, #f4f6f9); border: 1px solid var(--va-background-border); border-bottom: none; border-top-left-radius: 8px; border-top-right-radius: 8px; gap: 0.5rem; flex-wrap: wrap;">
+  <div class="record-toolbar-container">
     <!-- Left: Selected State / Records Sub Info -->
-    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+    <div class="record-toolbar-left">
       <va-icon name="list_alt" color="primary" size="1.1rem" />
       <span style="font-weight: 600; font-size: 0.88rem; color: var(--va-text-primary);">
         {{ selectedNode ? formatNodeName(selectedNode.name) : t('master_data_record_list') }}
@@ -15,7 +15,7 @@
     </div>
 
     <!-- Right Action Buttons directly above AG-Grid -->
-    <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+    <div class="record-toolbar-actions">
       <template v-if="selectedNode && !selectedNode.isDomain">
         <va-button
           v-if="hasPermission('record:write') || hasPermission('workflow:request')"
@@ -41,9 +41,10 @@
           size="small"
           color="danger"
           outline
+          :title="t('reset_domain_records_btn')"
           @click="$emit('resetDomainRecords')"
         >
-          <va-icon name="restart_alt" class="mr-1" /> {{ t('reset_domain_records_btn') }}
+          <va-icon name="delete_sweep" class="mr-1" /> {{ t('reset_domain_records_btn') }}
         </va-button>
       </template>
 
@@ -62,6 +63,7 @@
         color="warning"
         outline
         :disabled="(selectedRecordRows?.length || 0) < 2"
+        :title="(selectedRecordRows?.length || 0) < 2 ? t('compare_min_selection_hint') : t('compare_records')"
         @click="$emit('openCompare')"
       >
         <va-icon name="scale" class="mr-1" /> {{ t('compare_records') }} ({{ selectedRecordRows?.length || 0 }})
@@ -95,8 +97,10 @@
         <va-icon name="sensors" class="mr-1" /> {{ t('cdc_stream') }}
       </va-button>
 
-      <va-button preset="plain" color="secondary" size="small" icon="restart_alt" @click="$emit('resetFilters')">
-        {{ t('reset') }}
+      <va-divider vertical class="mx-1" />
+
+      <va-button preset="plain" color="secondary" size="small" icon="filter_alt_off" @click="$emit('resetFilters')">
+        {{ t('reset_filters') }}
       </va-button>
 
       <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="$emit('refresh')">
@@ -139,3 +143,59 @@ const formatNodeName = (nameObj: any) => {
   return formatMultilingual(nameObj)
 }
 </script>
+
+<style scoped>
+.record-toolbar-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.85rem;
+  margin-bottom: 0;
+  background: var(--va-background-element, #f4f6f9);
+  border: 1px solid var(--va-background-border);
+  border-bottom: none;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  box-sizing: border-box;
+}
+
+.record-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.record-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  max-width: 100%;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
+}
+
+.record-toolbar-actions :deep(.va-button),
+.record-toolbar-actions .va-button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .record-toolbar-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    padding: 0.5rem 0.6rem;
+  }
+  .record-toolbar-actions {
+    width: 100%;
+  }
+}
+</style>

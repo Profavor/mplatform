@@ -8,6 +8,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
@@ -78,6 +80,46 @@ public class DomainController {
     public ResponseEntity<Void> deleteDomain(@PathVariable UUID id) {
         domainService.deleteDomain(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{domainId}/records")
+    public ResponseEntity<com.classification.domain_system.dto.PageResponse<com.classification.domain_system.entity.Record>> getDomainRecords(
+            @PathVariable UUID domainId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size,
+            @RequestParam Map<String, String> allParams) {
+        if (recordService == null) {
+            return ResponseEntity.notFound().build();
+        }
+        Map<String, String> searchParams = new HashMap<>();
+        for (Map.Entry<String, String> entry : allParams.entrySet()) {
+            if (entry.getKey().startsWith("search_")) {
+                searchParams.put(entry.getKey().substring(7), entry.getValue());
+            }
+        }
+        if (allParams.containsKey("keyword")) {
+            searchParams.put("keyword", allParams.get("keyword"));
+        } else if (allParams.containsKey("q")) {
+            searchParams.put("keyword", allParams.get("q"));
+        }
+        org.springframework.data.domain.Sort sort = org.springframework.data.domain.Sort.unsorted();
+        String sortField = allParams.get("sortField");
+        String sortOrder = allParams.get("sortOrder");
+        if (sortField == null && allParams.containsKey("sort")) {
+            String sortParam = allParams.get("sort");
+            String[] parts = sortParam.split(",");
+            sortField = parts[0];
+            if (parts.length > 1) sortOrder = parts[1];
+        }
+        if (sortField != null && !sortField.isEmpty()) {
+            org.springframework.data.domain.Sort.Direction dir = "DESC".equalsIgnoreCase(sortOrder)
+                    ? org.springframework.data.domain.Sort.Direction.DESC
+                    : org.springframework.data.domain.Sort.Direction.ASC;
+            sort = org.springframework.data.domain.Sort.by(dir, sortField);
+        }
+        Page<com.classification.domain_system.entity.Record> records = recordService.findDynamicRecordsByDomain(
+                domainId, searchParams, PageRequest.of(page, size, sort));
+        return ResponseEntity.ok(com.classification.domain_system.dto.PageResponse.of(records));
     }
 
     @DeleteMapping("/{domainId}/records")

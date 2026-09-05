@@ -10,7 +10,7 @@
             <va-badge text="Workflow" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
-            {{ t('subtitle') }}
+            {{ t('approval_monitor_desc') }}
           </span>
         </div>
       </div>

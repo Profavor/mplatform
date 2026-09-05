@@ -71,12 +71,12 @@
       <va-card-content style="padding: 1.25rem;">
         <div v-if="loading" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3.5rem 1rem;">
           <va-progress-circle indeterminate color="primary" size="3.5rem" />
-          <span style="margin-top: 1rem; color: var(--va-text-secondary); font-size: 0.9rem;">매칭 후보 데이터를 불러오는 중입니다...</span>
+          <span style="margin-top: 1rem; color: var(--va-text-secondary); font-size: 0.9rem;">{{ $t('loading') }}</span>
         </div>
         <div v-else-if="!candidates.length" style="padding: 3.5rem 1rem; text-align: center; background: var(--va-background-element); border: 1px dashed var(--va-background-border); border-radius: 12px; color: var(--va-text-secondary);">
           <va-icon name="task_alt" color="success" size="4rem" style="margin-bottom: 0.75rem; display: block;" />
           <div style="font-size: 1.15rem; font-weight: 800; color: var(--va-text-primary); margin-bottom: 0.35rem;">{{ $t('deduplication.no_candidates') }}</div>
-          <div style="font-size: 0.85rem; color: var(--va-text-secondary);">현재 상태 조건에 해당하는 중복 레코드 검토 후보가 없습니다.</div>
+          <div style="font-size: 0.85rem; color: var(--va-text-secondary);">{{ $t('no_match_candidates_found') }}</div>
         </div>
         <div v-else style="display: flex; flex-direction: column; gap: 1rem;">
           <div

@@ -2,7 +2,7 @@
 <template>
   <div class="in-app-messenger-container">
     <!-- Floating Toggle Button (hidden on mobile when panel is open) -->
-    <div v-show="!isMobileView || !isOpen" style="position: fixed; bottom: 24px; right: 24px; z-index: 999; display: inline-flex;">
+    <div v-show="!isMobileView || !isOpen" style="position: fixed; bottom: 80px; right: 24px; z-index: 999; display: inline-flex;">
       <va-button
         preset="primary"
         :class="['messenger-toggle-btn', { 'has-unread-pulse': totalUnreadCount > 0 && !isOpen }]"
@@ -1269,9 +1269,7 @@ const isVideoFile = (fileName?: string) => {
 
 const getVideoUrlWithToken = (url: string) => {
   if (!url) return ''
-  const separator = url.includes('?') ? '&' : '?'
-  if (url.startsWith('http')) return `${url}${separator}token=${tokenCookie.value}`
-  return `${url}${separator}token=${tokenCookie.value}` // assumes relative path is handled by proxy or already includes /api
+  return url
 }
 
 const openExcelViewer = (msg: any) => {

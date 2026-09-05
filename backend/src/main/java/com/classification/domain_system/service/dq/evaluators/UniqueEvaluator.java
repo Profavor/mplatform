@@ -42,7 +42,10 @@ public class UniqueEvaluator implements RuleEvaluator {
         }
 
         String textValue = value.asText();
-        String fieldKey = field.getKey();
+        String fieldKey = field != null ? field.getKey() : null;
+        if (fieldKey == null || !fieldKey.matches("^[A-Za-z][A-Za-z0-9_]{0,63}$")) {
+            throw new IllegalArgumentException("Invalid field key format for uniqueness check: " + fieldKey);
+        }
         
         String sql;
         Integer count;

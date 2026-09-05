@@ -70,7 +70,7 @@
     </va-card>
 
     <!-- Create Modal -->
-    <va-modal v-model="showCreateModal" :title="$t('inbox.create_account')" size="small">
+    <va-modal v-model="showCreateModal" :title="$t('inbox.create_account')" size="small" hide-default-actions>
       <div style="display: flex; flex-direction: column; gap: 1rem; padding: 1rem 0;">
         <va-input v-model="newAccount.email" :label="$t('inbox.group_email')" :placeholder="$t('inbox.group_email_placeholder')" required>
           <template #appendInner>
@@ -86,7 +86,7 @@
     </va-modal>
 
     <!-- Change Password Modal -->
-    <va-modal v-model="showPasswordModal" :title="$t('inbox.change_password')" size="small">
+    <va-modal v-model="showPasswordModal" :title="$t('inbox.change_password')" size="small" hide-default-actions>
       <div style="display: flex; flex-direction: column; gap: 1rem; padding: 1rem 0;">
         <div style="font-weight: 600; margin-bottom: 0.5rem;">{{ selectedEmail }}</div>
         <va-input v-model="newPassword" type="password" :label="$t('inbox.new_password')" required />
@@ -179,12 +179,19 @@ const columnDefs = computed(() => [
     valueGetter: (params: any) => {
       if (params.data?.userName) return params.data.userName
       const id = params.data?.userId
-      return id ? userStore.getUserName(id) : '-'
+      if (id) {
+        const name = userStore.getUserName(id)
+        if (name && name !== id) return name
+      }
+      if (params.data?.email) {
+        return params.data.email.split('@')[0]
+      }
+      return '-'
     }
   },
   {
     field: 'active',
-    headerName: t('common.status'),
+    headerName: t('status'),
     width: 120,
     cellRenderer: (params: any) => {
       const isActive = params.data?.isActive ?? params.value ?? true
@@ -203,7 +210,12 @@ const columnDefs = computed(() => [
     field: 'quotaLimit',
     headerName: t('inbox.quota_limit'),
     width: 150,
-    valueFormatter: (params: any) => formatBytes(params.value)
+    valueFormatter: (params: any) => {
+      if (!params.value || params.value === '0' || params.value === 0 || params.value === 'UNLIMITED') {
+        return t('inbox.quota_unlimited', '제한 없음')
+      }
+      return formatBytes(params.value)
+    }
   },
   {
     headerName: t('inbox.actions'),

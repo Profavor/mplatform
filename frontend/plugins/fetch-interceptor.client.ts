@@ -88,14 +88,20 @@ export default defineNuxtPlugin((nuxtApp) => {
 
         console.error('Fetch Interceptor: 401 Unauthorized caught. Refreshing token...');
 
+  const redirectToLoginExpired = () => {
+    if (process.client && window.location.pathname !== '/login') {
+      const currentPath = window.location.pathname + window.location.search
+      const redirectParam = (currentPath && currentPath !== '/') ? `&redirect=${encodeURIComponent(currentPath)}` : ''
+      window.location.href = `/login?expired=1${redirectParam}`
+    }
+  }
+
         // 세션 만료 / 다른 기기 로그인 메시지 체크
         const body = JSON.stringify(err?.response?._data || err?.data || '')
         if (body.includes('another device') || body.includes('Session expired') || body.includes('SESSION_EXPIRED')) {
           console.warn('Fetch Interceptor: Session expired from backend');
           clearAuthCookies()
-          if (process.client && window.location.pathname !== '/login') {
-            window.location.href = '/login?expired=1'
-          }
+          redirectToLoginExpired()
           throw err
         }
 
@@ -110,9 +116,7 @@ export default defineNuxtPlugin((nuxtApp) => {
               logout('keycloak').catch(() => {})
             }
           } catch (e) {}
-          if (process.client && window.location.pathname !== '/login') {
-            window.location.href = '/login?expired=1'
-          }
+          redirectToLoginExpired()
           throw err
         }
 
@@ -126,9 +130,7 @@ export default defineNuxtPlugin((nuxtApp) => {
           if (retryStatus === 401) {
             console.warn('Fetch Interceptor: Retried request failed with 401. Logging out.');
             clearAuthCookies()
-            if (process.client && window.location.pathname !== '/login') {
-              window.location.href = '/login?expired=1'
-            }
+            redirectToLoginExpired()
           }
           throw retryErr
         }

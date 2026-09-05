@@ -399,6 +399,7 @@ import WorkflowConfigTab from '~/components/schema/WorkflowConfigTab.vue'
 import ClassificationAxisTab from '~/components/schema/ClassificationAxisTab.vue'
 import DataProfilingTab from '~/components/schema/DataProfilingTab.vue'
 import RecordLayoutBuilderModal from '~/components/records/RecordLayoutBuilderModal.vue'
+import { validateFormulaSyntax } from '~/utils/safeEvaluator'
 
 const toast = useToast()
 const { customFetch } = useCustomFetch()
@@ -1968,10 +1969,7 @@ const saveField = async () => {
       return
     }
     try {
-      const testFormula = newField.value.formula.replace(/\${[^}]+}/g, '1')
-      const ROUND = (val, dec=0) => Number(Math.round(val+'e'+dec)+'e-'+dec);
-      const fn = new Function('ROUND', 'ABS', 'CEIL', 'FLOOR', `return ${testFormula};`)
-      fn(ROUND, Math.abs, Math.ceil, Math.floor)
+      validateFormulaSyntax(newField.value.formula)
     } catch (e) {
       showCustomAlert(t('syntax_error_in_formula_e_message'), 'Formula Syntax Error', 'Error', 'error')
       return

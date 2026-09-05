@@ -339,9 +339,26 @@ const onDomainChange = () => {
 
 const addRule = () => {
   if (!selectedDomainId.value) return
+
+  // 중복되지 않은 필드/전략 조합 우선 탐색
+  const existingCombos = new Set(rules.value.map(r => `${r.fieldKey}__${r.strategy}`))
+  let chosenField = domainFields.value[0]?.key || ''
+  let chosenStrategy = strategyOptions.value[0]?.value || 'SOURCE_PRIORITY'
+
+  for (const f of domainFields.value) {
+    for (const s of strategyOptions.value) {
+      if (!existingCombos.has(`${f.key}__${s.value}`)) {
+        chosenField = f.key
+        chosenStrategy = s.value
+        break
+      }
+    }
+    if (!existingCombos.has(`${chosenField}__${chosenStrategy}`)) break
+  }
+
   const newRule = {
-    fieldKey: domainFields.value[0]?.key || '',
-    strategy: strategyOptions.value[0]?.value || 'SOURCE_PRIORITY',
+    fieldKey: chosenField,
+    strategy: chosenStrategy,
     priority: rules.value.length + 1
   }
   rules.value = [...rules.value, newRule]
@@ -353,6 +370,18 @@ const removeRule = (index: number) => {
 
 const saveRules = async () => {
   if (!selectedDomainId.value) return
+
+  // 중복 검사: 동일 (fieldKey, strategy) 조합이 존재하는지 검증
+  const seenCombos = new Set<string>()
+  for (const r of rules.value) {
+    const key = `${r.fieldKey}__${r.strategy}`
+    if (seenCombos.has(key)) {
+      init({ message: t('duplicate_rule_warning'), color: 'warning' })
+      return
+    }
+    seenCombos.add(key)
+  }
+
   isSaving.value = true
   try {
     const payload = rules.value.map(r => ({

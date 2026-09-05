@@ -420,8 +420,7 @@ public class RecordService {
         targetNodeIds.add(nodeId);
 
         if (includeChildren) {
-            List<com.classification.domain_system.entity.ClassificationNode> children = nodeRepository.findByParentIdAndIsDeletedFalseOrderByOrderAsc(nodeId);
-            targetNodeIds.addAll(children.stream().map(com.classification.domain_system.entity.ClassificationNode::getId).toList());
+            collectDescendantNodeIds(nodeId, targetNodeIds);
         }
 
         Map<String, String> searchParams = new HashMap<>();
@@ -454,6 +453,19 @@ public class RecordService {
         Page<Record> records = recordRepository.findDynamicRecords(
                 targetNodeIds, status, searchParams, org.springframework.data.domain.PageRequest.of(page, size, sort));
         return prepareRecordsForRead(records);
+    }
+
+    private void collectDescendantNodeIds(UUID parentId, List<UUID> accumulator) {
+        if (parentId == null) return;
+        List<com.classification.domain_system.entity.ClassificationNode> children = nodeRepository.findByParentIdAndIsDeletedFalseOrderByOrderAsc(parentId);
+        if (children != null && !children.isEmpty()) {
+            for (com.classification.domain_system.entity.ClassificationNode child : children) {
+                if (child.getId() != null && !accumulator.contains(child.getId())) {
+                    accumulator.add(child.getId());
+                    collectDescendantNodeIds(child.getId(), accumulator);
+                }
+            }
+        }
     }
 
     @org.springframework.transaction.annotation.Transactional

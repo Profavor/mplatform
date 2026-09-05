@@ -10,7 +10,7 @@
             <va-badge :text="t('approval_inbox')" color="primary" size="small" />
           </h2>
           <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
-            {{ t('subtitle') }}
+            {{ t('approval_inbox_desc') }}
           </span>
         </div>
       </div>
@@ -30,7 +30,10 @@
           <span style="font-size: 1.05rem; font-weight: 700; color: var(--va-text-primary); font-family: 'Pretendard', 'Inter', sans-serif;">
             {{ t('pending_approvals') }}
           </span>
-          <va-chip size="small" color="warning" style="font-weight: 600;">{{ t('pending_count', { count: pendingSteps.length }) }}</va-chip>
+          <va-chip v-if="isLoadingPendingRequests" size="small" color="secondary" style="font-weight: 600;">
+            <va-icon name="loop" spin size="small" class="mr-1" />{{ t('loading', '불러오는 중...') }}
+          </va-chip>
+          <va-chip v-else size="small" color="warning" style="font-weight: 600;">{{ t('pending_count', { count: pendingTotalCount }) }}</va-chip>
         </div>
         <div style="display: flex; gap: 0.5rem; align-items: center;">
           <va-button size="small" preset="primary" icon="check_circle" @click="bulkApprove" :disabled="!pendingSelectedRows.length">
@@ -74,7 +77,10 @@
           <span style="font-size: 1.05rem; font-weight: 700; color: var(--va-text-primary); font-family: 'Pretendard', 'Inter', sans-serif;">
             {{ t('mySubmitted') }}
           </span>
-          <va-chip size="small" color="primary" style="font-weight: 600;">{{ t('item_count', { count: myRequests.length }) }}</va-chip>
+          <va-chip v-if="isLoadingMyRequests" size="small" color="secondary" style="font-weight: 600;">
+            <va-icon name="loop" spin size="small" class="mr-1" />{{ t('loading', '불러오는 중...') }}
+          </va-chip>
+          <va-chip v-else size="small" color="primary" style="font-weight: 600;">{{ t('item_count', { count: myRequestsTotalCount }) }}</va-chip>
         </div>
         <div style="display: flex; gap: 0.5rem; align-items: center;">
           <va-button preset="plain" color="secondary" size="small" icon="refresh" @click="refreshMyRequests">{{ t('refresh') }}</va-button>
@@ -152,6 +158,10 @@ const pendingSteps = ref([])
 const showActionModal = ref(false)
 const selectedPendingStep = ref(null)
 const pendingSelectedRows = ref([])
+const isLoadingPendingRequests = ref(true)
+const pendingTotalCount = ref(0)
+const isLoadingMyRequests = ref(true)
+const myRequestsTotalCount = ref(0)
 
 const getPendingColumnDefs = () => [
   { colId: 'p_checkbox', headerName: '', field: 'checkbox', width: 50, suppressSizeToFit: true },
@@ -162,7 +172,7 @@ const getPendingColumnDefs = () => [
     width: 140, 
     minWidth: 120,
     cellRenderer: params => {
-      if (!params || !params.value) return ''
+      if (!params || !params.data?.id || !params.value) return ''
       return createTargetTypeBadgeElement(params.value, isDark.value)
     }
   },
@@ -171,15 +181,15 @@ const getPendingColumnDefs = () => [
     headerName: t('colDomain') || '도메인 / 대상', 
     width: 180, 
     minWidth: 140, 
-    valueGetter: params => formatTargetInfo(params.data?.approvalRequest) 
+    valueGetter: params => (params.data?.id ? formatTargetInfo(params.data?.approvalRequest) : '') 
   },
-  { colId: 'p_summary', field: 'approvalRequest.summary', headerName: t('colSummary'), flex: 1, minWidth: 220, tooltipField: 'approvalRequest.summary' },
+  { colId: 'p_summary', field: 'approvalRequest.summary', headerName: t('colSummary'), flex: 1, minWidth: 220, tooltipField: 'approvalRequest.summary', valueGetter: params => (params.data?.id ? (params.data?.approvalRequest?.summary || '') : '') },
   { 
     colId: 'p_requester', 
     headerName: t('requester') || '기안자', 
     width: 130, 
     minWidth: 110, 
-    valueGetter: params => params.data?.approvalRequest?.requesterName || params.data?.approvalRequest?.requesterUsername || '-' 
+    valueGetter: params => (params.data?.id ? (params.data?.approvalRequest?.requesterName || params.data?.approvalRequest?.requesterUsername || '-') : '') 
   },
   { 
     colId: 'p_steps',
@@ -187,9 +197,9 @@ const getPendingColumnDefs = () => [
     headerName: t('approval_line'), 
     flex: 2, 
     minWidth: 240,
-    valueFormatter: params => getApprovalLineString(params.value)
+    valueFormatter: params => (params.data?.id ? getApprovalLineString(params.value) : '')
   },
-  { colId: 'p_createdAt', field: 'createdAt', headerName: t('created'), width: 160, minWidth: 140, valueFormatter: params => params.value ? formatDate(params.value) : '' },
+  { colId: 'p_createdAt', field: 'createdAt', headerName: t('created'), width: 160, minWidth: 140, valueFormatter: params => (params.data?.id && params.value ? formatDate(params.value) : '') },
   { 
     colId: 'p_stepType', 
     field: 'stepType', 
@@ -197,7 +207,7 @@ const getPendingColumnDefs = () => [
     width: 110, 
     minWidth: 90,
     cellRenderer: params => {
-      if (!params || !params.value) return ''
+      if (!params || !params.data?.id || !params.value) return ''
       const codeName = codeStore.getCodeName('STEP_TYPE', params.value, null)
       const i18nKey = `step_type_${params.value?.toLowerCase()}`
       const translated = t(i18nKey)
@@ -224,6 +234,7 @@ const getPendingColumnDefs = () => [
     minWidth: 90,
     suppressSizeToFit: true,
     cellRenderer: (params) => {
+      if (!params || !params.data?.id) return document.createElement('div')
       const eDiv = document.createElement('div')
       const eButton = document.createElement('button')
       eButton.innerHTML = t('review')
@@ -328,6 +339,10 @@ const pendingGridOptions = ref({
   rowModelType: 'infinite',
   cacheBlockSize: 100,
   columnDefs: getPendingColumnDefs(),
+  defaultColDef: {
+    resizable: true,
+    tooltipValueGetter: (params) => params.valueFormatted || params.value
+  },
   rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: false },
   enableCellTextSelection: true,
   ensureDomOrder: true,
@@ -398,7 +413,7 @@ const showDetailsModal = ref(false)
 const selectedRequest = ref(null)
 
 const getMyRequestsColumnDefs = () => [
-  { colId: 'm_id', field: 'id', headerName: t('id'), width: 110, minWidth: 90, valueFormatter: params => formatApprovalCode(params.value) },
+  { colId: 'm_id', field: 'id', headerName: t('id'), width: 110, minWidth: 90, valueFormatter: params => (params.data?.id ? formatApprovalCode(params.value) : '') },
   { 
     colId: 'm_targetType', 
     field: 'targetType', 
@@ -406,7 +421,7 @@ const getMyRequestsColumnDefs = () => [
     width: 140, 
     minWidth: 120,
     cellRenderer: params => {
-      if (!params || !params.value) return ''
+      if (!params || !params.data?.id || !params.value) return ''
       return createTargetTypeBadgeElement(params.value, isDark.value)
     }
   },
@@ -415,21 +430,21 @@ const getMyRequestsColumnDefs = () => [
     headerName: t('colDomain') || '도메인 / 대상', 
     width: 180, 
     minWidth: 140, 
-    valueGetter: params => formatTargetInfo(params.data) 
+    valueGetter: params => (params.data?.id ? formatTargetInfo(params.data) : '') 
   },
-  { colId: 'm_summary', field: 'summary', headerName: t('colSummary'), flex: 1, minWidth: 220, tooltipField: 'summary' },
+  { colId: 'm_summary', field: 'summary', headerName: t('colSummary'), flex: 1, minWidth: 220, tooltipField: 'summary', valueGetter: params => (params.data?.id ? (params.data.summary || '') : '') },
   { 
     colId: 'm_steps',
     field: 'steps', 
     headerName: t('approval_line'), 
     flex: 2, 
     minWidth: 240,
-    valueFormatter: params => getApprovalLineString(params.value)
+    valueFormatter: params => (params.data?.id ? getApprovalLineString(params.value) : '')
   },
-  { colId: 'm_createdAt', field: 'createdAt', headerName: t('created'), width: 160, minWidth: 140, valueFormatter: params => params.value ? formatDate(params.value) : '' },
+  { colId: 'm_createdAt', field: 'createdAt', headerName: t('created'), width: 160, minWidth: 140, valueFormatter: params => (params.data?.id && params.value ? formatDate(params.value) : '') },
   { colId: 'm_status', field: 'status', headerName: t('status'), width: 130, minWidth: 100, 
     cellRenderer: params => {
-      if (!params || !params.value) return '';
+      if (!params || !params.data?.id || !params.value) return '';
       const label = codeStore.getCodeName('APPROVAL_STATUS', params.value, params.value);
       const isApproved = params.value === 'APPROVED';
       const isPending = params.value === 'PENDING';
@@ -474,6 +489,7 @@ const getMyRequestsColumnDefs = () => [
     minWidth: 110,
     suppressSizeToFit: true,
     cellRenderer: (params) => {
+      if (!params || !params.data?.id) return document.createElement('div')
       const eDiv = document.createElement('div')
       const eButton = document.createElement('button')
       eButton.innerHTML = t('view_approval_history')
@@ -520,6 +536,10 @@ const myRequestsGridOptions = ref({
   rowModelType: 'infinite',
   cacheBlockSize: 100,
   columnDefs: getMyRequestsColumnDefs(),
+  defaultColDef: {
+    resizable: true,
+    tooltipValueGetter: (params) => params.valueFormatted || params.value
+  },
   rowSelection: { mode: 'singleRow' },
   enableCellTextSelection: true,
   ensureDomOrder: true
@@ -1118,6 +1138,7 @@ const getCurrentStepIndex = (req) => {
 const createPendingDatasource = () => {
   return {
     getRows: async (params) => {
+      isLoadingPendingRequests.value = true;
       const size = params.endRow - params.startRow;
       const page = Math.floor(params.startRow / size);
       
@@ -1127,8 +1148,10 @@ const createPendingDatasource = () => {
           headers: { Authorization: `Bearer ${token.value}` }
         });
         
+        let validContent = [];
         if (pageData && pageData.content) {
-          for (const step of pageData.content) {
+          validContent = pageData.content.filter(step => step && step.id);
+          for (const step of validContent) {
             if (step.approvalRequest && !step.approvalRequest.steps) {
               try {
                 const fullReq = await $fetch(`/api/approval-requests/${step.approvalRequest.id}`, { headers: { Authorization: `Bearer ${token.value}` } });
@@ -1138,12 +1161,12 @@ const createPendingDatasource = () => {
             }
           }
           
-          pendingSteps.value = pageData.content;
-          for (const step of pageData.content) {
+          pendingSteps.value = validContent;
+          pendingTotalCount.value = pageData.totalElements || 0;
+          for (const step of validContent) {
              if (step.approvalRequest) {
                step.approvalRequest = await enrichRequest(step.approvalRequest)
              }
-             // Load field names if necessary for DetailsViewer, even though we enrich rows
              if (['RECORD', 'RECORD_UPDATE', 'RECORD_DELETE'].includes(step.approvalRequest?.targetType) && step.approvalRequest.targetId) {
                  const tId = step.approvalRequest.targetId;
                  const nId = step.approvalRequest.classificationNode?.id || step.approvalRequest.classificationNodeId;
@@ -1152,10 +1175,12 @@ const createPendingDatasource = () => {
           }
         }
         
-        params.successCallback(pageData?.content || [], pageData?.totalElements || 0);
+        params.successCallback(validContent, pageData?.totalElements || 0);
       } catch (e) {
         console.error('Error fetching pending steps:', e);
         params.failCallback();
+      } finally {
+        isLoadingPendingRequests.value = false;
       }
     }
   };
@@ -1164,6 +1189,7 @@ const createPendingDatasource = () => {
 const createMyRequestsDatasource = () => {
   return {
     getRows: async (params) => {
+      isLoadingMyRequests.value = true;
       const size = params.endRow - params.startRow;
       const page = Math.floor(params.startRow / size);
       
@@ -1173,10 +1199,13 @@ const createMyRequestsDatasource = () => {
           headers: { Authorization: `Bearer ${token.value}` }
         });
         
+        let validContent = [];
         if (pageData && pageData.content) {
-          myRequests.value = pageData.content;
-          pageData.content = await Promise.all(pageData.content.map(req => enrichRequest(req)));
-          for (const req of pageData.content) {
+          validContent = pageData.content.filter(req => req && req.id);
+          myRequests.value = validContent;
+          myRequestsTotalCount.value = pageData.totalElements || 0;
+          validContent = await Promise.all(validContent.map(req => enrichRequest(req)));
+          for (const req of validContent) {
             if (['RECORD', 'RECORD_UPDATE', 'RECORD_DELETE'].includes(req.targetType) && req.targetId) {
               const nId = req.classificationNode?.id || req.classificationNodeId;
               await loadFieldNamesForRecord(req.targetId, nId);
@@ -1184,10 +1213,12 @@ const createMyRequestsDatasource = () => {
           }
         }
         
-        params.successCallback(pageData?.content || [], pageData?.totalElements || 0);
+        params.successCallback(validContent, pageData?.totalElements || 0);
       } catch (e) {
         console.error('Failed to load my requests:', e);
         params.failCallback();
+      } finally {
+        isLoadingMyRequests.value = false;
       }
     }
   };

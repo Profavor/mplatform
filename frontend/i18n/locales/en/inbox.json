@@ -180,6 +180,7 @@
     "password_updated": "Password updated successfully.",
     "quota_used": "Quota Used",
     "quota_limit": "Quota Limit",
+    "quota_unlimited": "Unlimited",
     "mailing_lists": "Mailing Lists",
     "create_mailing_list": "Create Mailing List",
     "edit_mailing_list": "Edit Mailing List",

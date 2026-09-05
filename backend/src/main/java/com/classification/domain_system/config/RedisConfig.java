@@ -27,7 +27,10 @@ public class RedisConfig {
         
         com.fasterxml.jackson.databind.jsontype.PolymorphicTypeValidator ptv = 
             com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator.builder()
-                .allowIfBaseType(Object.class)
+                .allowIfBaseType("com.classification.domain_system.")
+                .allowIfBaseType("java.util.")
+                .allowIfBaseType("java.lang.")
+                .allowIfBaseType("java.time.")
                 .build();
         mapper.activateDefaultTyping(ptv, com.fasterxml.jackson.databind.ObjectMapper.DefaultTyping.NON_FINAL, com.fasterxml.jackson.annotation.JsonTypeInfo.As.PROPERTY);
         return mapper;

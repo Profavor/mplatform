@@ -303,6 +303,11 @@ public class StockMarketApiItemReader implements ItemReader<StockApiRawItem> {
                                 .foreignCumulativeNetBuy20d(r.get("foreign_cumulative_net_buy_20d") != null ? ((Number) r.get("foreign_cumulative_net_buy_20d")).longValue() : 0L)
                                 .instCumulativeNetBuy20d(r.get("inst_cumulative_net_buy_20d") != null ? ((Number) r.get("inst_cumulative_net_buy_20d")).longValue() : 0L)
                                 .retailCumulativeNetBuy20d(r.get("retail_cumulative_net_buy_20d") != null ? ((Number) r.get("retail_cumulative_net_buy_20d")).longValue() : 0L)
+                                .marginBalanceShares(r.get("margin_balance_shares") != null ? ((Number) r.get("margin_balance_shares")).longValue() : null)
+                                .marginBalanceRatio(r.get("margin_balance_ratio") != null ? ((Number) r.get("margin_balance_ratio")).doubleValue() : null)
+                                .shortSellingBalanceShares(r.get("short_selling_balance_shares") != null ? ((Number) r.get("short_selling_balance_shares")).longValue() : null)
+                                .shortSellingRatio(r.get("short_selling_ratio") != null ? ((Number) r.get("short_selling_ratio")).doubleValue() : null)
+                                .isShortSellingOverheated(r.get("is_short_selling_overheated") != null ? (Boolean) r.get("is_short_selling_overheated") : false)
                                 .investorRelationsUrl((String) r.get("investor_relations_url"))
                                 .businessSummary((String) r.get("business_summary"))
                                 .build());

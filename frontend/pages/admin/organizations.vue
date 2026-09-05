@@ -288,10 +288,10 @@
             {{ getLabel('group_name_label', 'GROUP NAME') }} <span style="color: var(--va-danger);">*</span>
           </div>
           <div style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
-            <va-input v-model="newGroupForm.titleKo" style="flex: 1; min-width: 0;" required>
+            <va-input v-model="newGroupForm.titleKo" :aria-label="getLabel('group_name_ko_label', '권한 그룹명 (한국어)')" style="flex: 1; min-width: 0;" required>
               <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">Korean</span></template>
             </va-input>
-            <va-input v-model="newGroupForm.titleEn" style="flex: 1; min-width: 0;" required>
+            <va-input v-model="newGroupForm.titleEn" :aria-label="getLabel('group_name_en_label', '권한 그룹명 (영어)')" style="flex: 1; min-width: 0;" required>
               <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">English</span></template>
             </va-input>
           </div>
@@ -338,10 +338,10 @@
             {{ getLabel('perm_name_label', 'NAME') }} <span style="color: var(--va-danger);">*</span>
           </div>
           <div style="display: flex; gap: 0.5rem; flex-direction: row; min-width: 0;">
-            <va-input v-model="newPermToGroupForm.labelKo" style="flex: 1; min-width: 0;" required>
+            <va-input v-model="newPermToGroupForm.labelKo" :aria-label="getLabel('perm_name_ko_label', '권한명 (한국어)')" style="flex: 1; min-width: 0;" required>
               <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">Korean</span></template>
             </va-input>
-            <va-input v-model="newPermToGroupForm.labelEn" style="flex: 1; min-width: 0;" required>
+            <va-input v-model="newPermToGroupForm.labelEn" :aria-label="getLabel('perm_name_en_label', '권한명 (영어)')" style="flex: 1; min-width: 0;" required>
               <template #prependInner><span style="font-size: 0.75rem; color: #888; font-weight: 600; margin-right: 0.5rem; border-right: 1px solid #ddd; padding-right: 0.5rem; white-space: nowrap;">English</span></template>
             </va-input>
           </div>

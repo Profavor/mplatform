@@ -63,6 +63,9 @@ class RecordControllerTest {
     @MockitoBean
     private com.classification.domain_system.service.BatchValidationService batchValidationService;
 
+    @MockitoBean
+    private com.classification.domain_system.service.RecordBatchUpsertService batchUpsertService;
+
     private UUID nodeId;
 
     @BeforeEach
@@ -124,5 +127,102 @@ class RecordControllerTest {
                 .param("size", "100"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
+    @DisplayName("POST /api/nodes/{nodeId}/records/batch-upsert - 대량 레코드 배치 업서트 성공")
+    void batchUpsertRecords_Success() throws Exception {
+        com.classification.domain_system.dto.RecordBatchUpsertResponse mockResponse =
+                com.classification.domain_system.dto.RecordBatchUpsertResponse.builder()
+                        .totalCount(2)
+                        .createdCount(1)
+                        .updatedCount(1)
+                        .failedCount(0)
+                        .executionTimeMs(15)
+                        .items(List.of(
+                                com.classification.domain_system.dto.RecordBatchUpsertItemResult.builder()
+                                        .index(0)
+                                        .businessKey("PRODUCT_ID")
+                                        .businessKeyValue("PID-1")
+                                        .action("CREATED")
+                                        .status("ACTIVE")
+                                        .build(),
+                                com.classification.domain_system.dto.RecordBatchUpsertItemResult.builder()
+                                        .index(1)
+                                        .businessKey("PRODUCT_ID")
+                                        .businessKeyValue("PID-2")
+                                        .action("UPDATED")
+                                        .status("ACTIVE")
+                                        .build()
+                        ))
+                        .build();
+
+        when(batchUpsertService.batchUpsertRecords(eq(nodeId), any(), any()))
+                .thenReturn(mockResponse);
+
+        com.classification.domain_system.dto.RecordBatchUpsertRequest req =
+                com.classification.domain_system.dto.RecordBatchUpsertRequest.builder()
+                        .businessKey("PRODUCT_ID")
+                        .autoApprove(true)
+                        .records(List.of())
+                        .build();
+
+        mockMvc.perform(post("/api/nodes/{nodeId}/records/batch-upsert", nodeId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalCount").value(2))
+                .andExpect(jsonPath("$.createdCount").value(1))
+                .andExpect(jsonPath("$.updatedCount").value(1))
+                .andExpect(jsonPath("$.items[0].action").value("CREATED"))
+                .andExpect(jsonPath("$.items[1].action").value("UPDATED"));
+    }
+
+    @Test
+    @DisplayName("POST /api/nodes/{nodeId}/records/batch-upsert - JSON Object 형태의 data 페이로드 역직렬화 및 처리 성공")
+    void batchUpsertRecords_JsonObjectData_Success() throws Exception {
+        com.classification.domain_system.dto.RecordBatchUpsertResponse mockResponse =
+                com.classification.domain_system.dto.RecordBatchUpsertResponse.builder()
+                        .totalCount(1)
+                        .createdCount(1)
+                        .updatedCount(0)
+                        .failedCount(0)
+                        .executionTimeMs(10)
+                        .items(List.of(
+                                com.classification.domain_system.dto.RecordBatchUpsertItemResult.builder()
+                                        .index(0)
+                                        .businessKey("PRODUCT_ID")
+                                        .businessKeyValue("PID-999")
+                                        .action("CREATED")
+                                        .status("ACTIVE")
+                                        .build()
+                        ))
+                        .build();
+
+        when(batchUpsertService.batchUpsertRecords(eq(nodeId), any(), any()))
+                .thenReturn(mockResponse);
+
+        String jsonPayload = """
+                {
+                    "businessKey": "PRODUCT_ID",
+                    "autoApprove": true,
+                    "records": [
+                        {
+                            "data": {
+                                "PRODUCT_ID": "PID-999",
+                                "PRODUCT_NAME": "곤약밥",
+                                "PRODUCT_PRICE": 15000
+                            }
+                        }
+                    ]
+                }
+                """;
+
+        mockMvc.perform(post("/api/nodes/{nodeId}/records/batch-upsert", nodeId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonPayload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalCount").value(1))
+                .andExpect(jsonPath("$.createdCount").value(1));
     }
 }

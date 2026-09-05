@@ -19,7 +19,7 @@ public class RecordLineageController {
     }
 
     @GetMapping("/{recordId}/lineage")
-    @PreAuthorize("hasPermission(null, 'record:read') or hasPermission(null, 'domain:read') or isAuthenticated()")
+    @PreAuthorize("hasPermission(null, 'record:read') or hasPermission(null, 'domain:read')")
     public ResponseEntity<RecordLineageDto.RecordLineageResponse> getRecordLineage(@PathVariable UUID recordId) {
         RecordLineageDto.RecordLineageResponse lineage = recordLineageService.getRecordLineage(recordId);
         return ResponseEntity.ok(lineage);

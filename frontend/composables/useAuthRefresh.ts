@@ -31,20 +31,23 @@ export function useAuthRefresh(options?: { oidcAuth?: any }) {
         maxAge = remaining
       }
     }
+    const isSecure = (typeof window !== 'undefined' && window.location.protocol === 'https:') || process.env.NODE_ENV === 'production'
+    const secureFlag = isSecure ? '; Secure' : ''
+
     if (typeof document !== 'undefined') {
-      document.cookie = `auth_token=${authToken}; max-age=${maxAge}; path=/; SameSite=Lax`
+      document.cookie = `auth_token=${authToken}; max-age=${maxAge}; path=/; SameSite=Lax${secureFlag}`
       if (refreshToken) {
-        document.cookie = `refresh_token=${refreshToken}; max-age=${refreshMaxAge}; path=/; SameSite=Lax`
+        document.cookie = `refresh_token=${refreshToken}; max-age=${refreshMaxAge}; path=/; SameSite=Lax${secureFlag}`
       }
     }
     try {
-      const cookieRef = useCookie('auth_token', { maxAge, path: '/' })
+      const cookieRef = useCookie('auth_token', { maxAge, path: '/', sameSite: 'lax', secure: isSecure })
       cookieRef.value = authToken
     } catch {}
 
     if (refreshToken) {
       try {
-        const refCookie = useCookie('refresh_token', { maxAge: refreshMaxAge, path: '/' })
+        const refCookie = useCookie('refresh_token', { maxAge: refreshMaxAge, path: '/', sameSite: 'lax', secure: isSecure })
         refCookie.value = refreshToken
       } catch {}
     }

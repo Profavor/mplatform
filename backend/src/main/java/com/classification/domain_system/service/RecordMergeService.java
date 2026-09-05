@@ -501,12 +501,27 @@ public class RecordMergeService {
             survivorshipRuleRepository.deleteAll(existing);
             survivorshipRuleRepository.flush();
         }
-        if (rules != null) {
-            rules.forEach(r -> {
+        if (rules != null && !rules.isEmpty()) {
+            // Sort by priority first to keep higher priority rule when deduplicating (#134)
+            List<SurvivorshipRule> sorted = new ArrayList<>(rules);
+            sorted.sort(Comparator.comparingInt(r -> r.getPriority() != null ? r.getPriority() : Integer.MAX_VALUE));
+
+            // Deduplicate by (fieldKey, strategy)
+            Map<String, SurvivorshipRule> uniqueMap = new LinkedHashMap<>();
+            for (SurvivorshipRule r : sorted) {
+                if (r.getFieldKey() == null || r.getStrategy() == null) continue;
+                String key = r.getFieldKey().trim().toUpperCase() + "::" + r.getStrategy().trim().toUpperCase();
+                uniqueMap.putIfAbsent(key, r);
+            }
+
+            // Save deduplicated rules with normalized sequential priorities
+            int currentPriority = 1;
+            for (SurvivorshipRule r : uniqueMap.values()) {
                 r.setId(null);
                 r.setDomainId(domainId);
+                r.setPriority(currentPriority++);
                 survivorshipRuleRepository.save(r);
-            });
+            }
         }
     }
 }

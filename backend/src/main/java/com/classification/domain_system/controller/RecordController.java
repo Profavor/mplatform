@@ -28,6 +28,7 @@ public class RecordController {
     private final ApprovalService approvalService;
     private final RecordService recordService;
     private final BatchValidationService batchValidationService;
+    private final com.classification.domain_system.service.RecordBatchUpsertService batchUpsertService;
     
     @PostMapping
     @PreAuthorize("hasPermission(null, 'record:write') or hasPermission(null, 'workflow:request')")
@@ -38,6 +39,16 @@ public class RecordController {
             request.setData(recordService.processDataForSave(nodeId, request.getData()));
         }
         return ResponseEntity.ok(approvalService.requestRecordCreation(nodeId, request));
+    }
+
+    @PostMapping("/batch-upsert")
+    @PreAuthorize("hasPermission(null, 'record:write') or hasPermission(null, 'workflow:request')")
+    public ResponseEntity<com.classification.domain_system.dto.RecordBatchUpsertResponse> batchUpsertRecords(
+            @PathVariable UUID nodeId,
+            @RequestBody com.classification.domain_system.dto.RecordBatchUpsertRequest request,
+            java.security.Principal principal) {
+        String requestedBy = principal != null ? principal.getName() : "system-sync";
+        return ResponseEntity.ok(batchUpsertService.batchUpsertRecords(nodeId, request, requestedBy));
     }
 
     @PostMapping("/batch")

@@ -173,7 +173,7 @@
                     <span v-else class="sample-val-text text-secondary">-</span>
                   </div>
                   <div v-else-if="['HTML', 'HTML_TEXT', 'RICHTEXT', 'EDITOR'].includes(getFieldType(widget))" class="doc-text-value">
-                    <div v-if="getFieldValue(widget.fieldKey)" v-html="getFieldValue(widget.fieldKey)"></div>
+                    <div v-if="getFieldValue(widget.fieldKey)" v-html="sanitizeHtml(getFieldValue(widget.fieldKey))"></div>
                     <span v-else class="sample-val-text text-secondary">-</span>
                   </div>
                   <div v-else-if="getFieldType(widget) === 'EMAIL'" class="doc-text-value">
@@ -288,7 +288,7 @@
                 :class="{ 'doc-interactive': widget.fieldKey }"
                 @click="onCellClick(widget)"
               >
-                <div v-if="getFieldValue(widget.fieldKey)" v-html="getFieldValue(widget.fieldKey)" class="doc-html-inner"></div>
+                <div v-if="getFieldValue(widget.fieldKey)" v-html="sanitizeHtml(getFieldValue(widget.fieldKey))" class="doc-html-inner"></div>
                 <span v-else class="text-secondary">-</span>
               </div>
               <HtmlEditor
@@ -852,6 +852,7 @@ import ImageLightboxModal from '~/components/common/ImageLightboxModal.vue'
 import SpecializedDomainWidgetRenderer from './specialized/SpecializedDomainWidgetRenderer.vue'
 import { parseOptions } from '~/utils/optionParser'
 import { formatMultilingual } from '~/composables/useMultilingual'
+import { sanitizeHtml } from '~/utils/sanitizeHtml'
 
 const props = defineProps({
   layoutConfig: {

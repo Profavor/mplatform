@@ -30,8 +30,7 @@
       "clientId": "mdm-frontend",
       "name": "MDM Frontend Application",
       "enabled": true,
-      "publicClient": false,
-      "secret": "secret",
+      "publicClient": true,
       "directAccessGrantsEnabled": true,
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
@@ -41,8 +40,8 @@
         "http://localhost:8080/*",
         "http://mplatform.local/*",
         "https://mplatform.local/*",
-        "https://*.trycloudflare.com/*",
-        "*"
+        "http://mdm.mplat.store/*",
+        "https://mdm.mplat.store/*"
       ],
       "webOrigins": [
         "http://localhost:3000",
@@ -50,8 +49,9 @@
         "http://localhost:8080",
         "http://mplatform.local",
         "https://mplatform.local",
-        "+",
-        "*"
+        "http://mdm.mplat.store",
+        "https://mdm.mplat.store",
+        "+"
       ],
       "protocol": "openid-connect",
       "defaultClientScopes": ["openid", "profile", "email", "roles"]

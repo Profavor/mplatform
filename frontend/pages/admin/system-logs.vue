@@ -34,10 +34,10 @@
       <!-- Tab Navigation -->
       <va-tabs v-model="activeTab" class="mb-4" style="border-bottom: 1px solid var(--va-background-border);">
       <template #tabs>
-        <va-tab name="access">Menu Access Logs</va-tab>
-        <va-tab name="login">Login Logs</va-tab>
-        <va-tab name="error">Error Logs</va-tab>
-        <va-tab name="integration">Integration Logs</va-tab>
+        <va-tab name="access">{{ $t('menu_access_logs') }}</va-tab>
+        <va-tab name="login">{{ $t('login_logs') }}</va-tab>
+        <va-tab name="error">{{ $t('error_logs') }}</va-tab>
+        <va-tab name="integration">{{ $t('integration_logs') }}</va-tab>
         <va-tab name="sensitive">{{ $t('sensitive_access_logs') }}</va-tab>
       </template>
     </va-tabs>

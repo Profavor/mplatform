@@ -77,4 +77,42 @@ class MenuControllerTest {
                 eq("203.0.113.195")
         );
     }
+
+    @Test
+    @DisplayName("GET /api/menus 호출 시 전체 메뉴 목록을 200 OK로 반환한다")
+    void testGetAllMenus() {
+        com.classification.domain_system.entity.Menu menu = new com.classification.domain_system.entity.Menu();
+        menu.setId(1L);
+        menu.setName("대시보드");
+        when(menuService.getAllMenus(false)).thenReturn(java.util.List.of(menu));
+
+        var response = menuController.getAllMenus(false);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(1, response.getBody().size());
+        assertEquals("대시보드", response.getBody().get(0).getName());
+        verify(menuService).getAllMenus(false);
+    }
+
+    @Test
+    @DisplayName("GET /api/menus/access 호출 시 로그인한 사용자의 최근 접근 기록을 200 OK로 반환한다")
+    void testGetMyRecentAccess() {
+        org.springframework.security.core.Authentication auth = org.mockito.Mockito.mock(org.springframework.security.core.Authentication.class);
+        when(auth.isAuthenticated()).thenReturn(true);
+        when(auth.getName()).thenReturn("superadmin");
+
+        com.classification.domain_system.entity.MenuAccessLog log = com.classification.domain_system.entity.MenuAccessLog.builder()
+                .id(1L)
+                .userId("superadmin")
+                .menuPath("/dashboard")
+                .build();
+        when(menuService.getMyRecentAccessLogs("superadmin")).thenReturn(java.util.List.of(log));
+
+        var response = menuController.getMyRecentAccess(auth);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(1, response.getBody().size());
+        assertEquals("/dashboard", response.getBody().get(0).getMenuPath());
+        verify(menuService).getMyRecentAccessLogs("superadmin");
+    }
 }

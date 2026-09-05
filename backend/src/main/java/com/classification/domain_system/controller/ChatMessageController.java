@@ -254,17 +254,29 @@ public class ChatMessageController {
     }
 
     @MessageMapping("/chat.send")
-    public void sendMessageSTOMP(@Payload SendMessageRequest req) {
-        if (req != null && req.getRoomId() != null && req.getSenderId() != null) {
-            chatMessageService.sendMessage(
-                    req.getRoomId(),
-                    req.getSenderId(),
-                    req.getMessageType(),
-                    req.getContent(),
-                    req.getFileUrl(),
-                    req.getFileName(),
-                    req.getFileSize()
-            );
+    public void sendMessageSTOMP(@Payload SendMessageRequest req, java.security.Principal principal) {
+        if (req == null || req.getRoomId() == null) {
+            return;
         }
+        String authenticatedUserId = principal != null ? principal.getName() : null;
+        if (authenticatedUserId == null || authenticatedUserId.isBlank()) {
+            log.warn("[STOMP] Unauthenticated message attempt rejected");
+            return;
+        }
+        if (userRepository != null) {
+            var uOpt = userRepository.findByUsername(authenticatedUserId);
+            if (uOpt.isPresent() && uOpt.get().getId() != null) {
+                authenticatedUserId = uOpt.get().getId();
+            }
+        }
+        chatMessageService.sendMessage(
+                req.getRoomId(),
+                authenticatedUserId,
+                req.getMessageType(),
+                req.getContent(),
+                req.getFileUrl(),
+                req.getFileName(),
+                req.getFileSize()
+        );
     }
 }

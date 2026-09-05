@@ -33,6 +33,13 @@
             required
           />
 
+          <!-- Channel Code -->
+          <va-input
+            v-model="formData.channelCode"
+            :label="t('integration.channels.channel_code', '채널 코드')"
+            :placeholder="t('integration.channels.channel_code_placeholder', '미입력 시 고유 식별 코드가 자동 생성됩니다 (예: CH-CARTBOM-001)')"
+          />
+
           <!-- Direction & Type & Active -->
           <div style="display: grid; grid-template-columns: 1fr 1fr 130px; gap: 1rem; align-items: flex-end;">
             <va-select
