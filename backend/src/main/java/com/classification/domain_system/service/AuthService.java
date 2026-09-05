@@ -29,6 +29,12 @@ public class AuthService {
     @org.springframework.beans.factory.annotation.Value("${keycloak.client-id:}")
     private String keycloakClientId;
 
+    @org.springframework.beans.factory.annotation.Value("${keycloak.client-secret:secret}")
+    private String keycloakClientSecret;
+
+    @lombok.Setter
+    private org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+
     public void register(String username, String password, String role) {
         register(username, password, role, "Asia/Seoul");
     }
@@ -204,17 +210,45 @@ public class AuthService {
         // 1. Keycloak OIDC refresh 시도
         if (keycloakTokenUri != null && !keycloakTokenUri.trim().isEmpty()) {
             try {
-                org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+                org.springframework.web.client.RestTemplate rt = this.restTemplate != null ? this.restTemplate : new org.springframework.web.client.RestTemplate();
                 org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
                 headers.setContentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED);
 
+                // Extract issuer host & proto from refreshToken if available to prevent Invalid token issuer
+                String forwardedHost = "mplatform.local";
+                String forwardedProto = "http";
+                try {
+                    String[] parts = refreshToken.split("\\.");
+                    if (parts.length > 1) {
+                        String payloadJson = new String(java.util.Base64.getUrlDecoder().decode(parts[1]), java.nio.charset.StandardCharsets.UTF_8);
+                        com.fasterxml.jackson.databind.JsonNode node = new com.fasterxml.jackson.databind.ObjectMapper().readTree(payloadJson);
+                        if (node.has("iss")) {
+                            java.net.URI issUri = java.net.URI.create(node.get("iss").asText());
+                            if (issUri.getHost() != null) {
+                                String host = issUri.getHost();
+                                if (issUri.getPort() > 0 && issUri.getPort() != 80 && issUri.getPort() != 443) {
+                                    host += ":" + issUri.getPort();
+                                }
+                                forwardedHost = host;
+                                forwardedProto = issUri.getScheme() != null ? issUri.getScheme() : "http";
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {}
+
+                headers.set("X-Forwarded-Host", forwardedHost);
+                headers.set("X-Forwarded-Proto", forwardedProto);
+
                 org.springframework.util.MultiValueMap<String, String> mapConfig = new org.springframework.util.LinkedMultiValueMap<>();
-                mapConfig.add("client_id", keycloakClientId != null ? keycloakClientId : "mdm-frontend");
+                mapConfig.add("client_id", keycloakClientId != null && !keycloakClientId.trim().isEmpty() ? keycloakClientId : "mdm-frontend");
+                if (keycloakClientSecret != null && !keycloakClientSecret.trim().isEmpty()) {
+                    mapConfig.add("client_secret", keycloakClientSecret);
+                }
                 mapConfig.add("grant_type", "refresh_token");
                 mapConfig.add("refresh_token", refreshToken);
 
                 org.springframework.http.HttpEntity<org.springframework.util.MultiValueMap<String, String>> kcRequest = new org.springframework.http.HttpEntity<>(mapConfig, headers);
-                org.springframework.http.ResponseEntity<Map> kcResponse = restTemplate.postForEntity(keycloakTokenUri, kcRequest, Map.class);
+                org.springframework.http.ResponseEntity<Map> kcResponse = rt.postForEntity(keycloakTokenUri, kcRequest, Map.class);
                 Map body = kcResponse.getBody();
                 if (body != null && body.containsKey("access_token")) {
                     String refreshedAccessToken = (String) body.get("access_token");

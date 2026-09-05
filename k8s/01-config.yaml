@@ -28,6 +28,9 @@ data:
   KEYCLOAK_ADMIN_CLIENT_ID: "admin-cli"
   KEYCLOAK_TOKEN_URI: "http://keycloak:8080/auth/realms/mplatform/protocol/openid-connect/token"
   KEYCLOAK_CLIENT_ID: "mdm-frontend"
+  KEYCLOAK_CLIENT_SECRET: "secret"
+  KEYCLOAK_PUBLIC_HOST: "mplatform.local"
+  KEYCLOAK_PUBLIC_PROTO: "http"
   
   # Backend Settings
   JWT_ACCESS_EXPIRATION_SEC: "1800"
