@@ -3,7 +3,7 @@ import { AllCommunityModule } from 'ag-grid-community'
 
 export default defineNuxtPlugin(() => {
   const config = useRuntimeConfig()
-  const licenseKey = config?.public?.agGridLicense
+  const licenseKey = config?.agGridLicense || config?.public?.agGridLicense
 
   if (licenseKey && typeof licenseKey === 'string' && licenseKey.trim().length > 0) {
     try {

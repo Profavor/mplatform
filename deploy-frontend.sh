@@ -32,7 +32,7 @@ echo "==> 2. Packaging Docker image..."
 (cd "$SCRIPT_DIR/frontend" && docker build -t "profavor2/mplatform-frontend:$TAG" .)
 
 echo "==> 3. Loading image into Minikube..."
-minikube image load "profavor2/mplatform-frontend:$TAG"
+minikube image load --overwrite=true "profavor2/mplatform-frontend:$TAG"
 
 # .env 파일에 AG_GRID_LICENSE가 정의되어 있는 경우 Secret에 자동 패치 (Git 커밋 방지)
 if [ -f "$SCRIPT_DIR/.env" ]; then

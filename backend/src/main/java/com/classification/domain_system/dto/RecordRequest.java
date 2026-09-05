@@ -9,4 +9,9 @@ public class RecordRequest {
     private String requesterId; 
     private String comment; // Draft comment
     private UUID workflowConfigId;
+    private Boolean upsert = false;
+
+    public boolean isUpsert() {
+        return Boolean.TRUE.equals(upsert);
+    }
 }

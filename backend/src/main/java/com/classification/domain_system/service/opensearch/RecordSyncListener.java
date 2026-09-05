@@ -44,22 +44,43 @@ public class RecordSyncListener {
         
         try {
             if (record.getData() != null) {
-                // Ensure data is properly structured
-                Map<String, Object> dataMap = new HashMap<>();
+                // Ensure data is properly structured and empty date/numeric strings are sanitized
                 com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-                dataMap = mapper.readValue(record.getData(), Map.class);
-                doc.setData(dataMap);
+                Map<String, Object> rawDataMap = mapper.readValue(record.getData(), Map.class);
+                Map<String, Object> sanitizedMap = new HashMap<>();
+                if (rawDataMap != null) {
+                    for (Map.Entry<String, Object> entry : rawDataMap.entrySet()) {
+                        Object val = entry.getValue();
+                        if (val instanceof String str && str.trim().isEmpty()) {
+                            // Convert empty strings to null to avoid OpenSearch date/numeric parse errors (e.g. SURVEY_DATE: "")
+                            sanitizedMap.put(entry.getKey(), null);
+                        } else {
+                            sanitizedMap.put(entry.getKey(), val);
+                        }
+                    }
+                }
+                doc.setData(sanitizedMap);
             }
         } catch (Exception e) {
             // Ignore parsing errors
         }
 
-        searchRepository.save(doc);
+        try {
+            searchRepository.save(doc);
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(RecordSyncListener.class)
+                .warn("Failed to sync record {} to OpenSearch index (will not abort DB transaction): {}", record.getId(), e.getMessage());
+        }
     }
 
     @PostRemove
     public void onPostRemove(Record record) {
         if (searchRepository == null) return;
-        searchRepository.deleteById(record.getId().toString());
+        try {
+            searchRepository.deleteById(record.getId().toString());
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(RecordSyncListener.class)
+                .warn("Failed to delete record {} from OpenSearch index: {}", record.getId(), e.getMessage());
+        }
     }
 }

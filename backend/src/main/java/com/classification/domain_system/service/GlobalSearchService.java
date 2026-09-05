@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -31,15 +32,27 @@ public class GlobalSearchService {
     private final RecordRepository recordRepository;
     private final ClassificationNodeRepository nodeRepository;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.classification.domain_system.repository.DomainPermissionRepository domainPermissionRepository;
+
     @Transactional(readOnly = true)
     public Page<Record> searchGlobal(String keyword, Pageable pageable) {
         if (keyword == null || keyword.trim().isEmpty()) {
             return Page.empty(pageable);
         }
 
+        List<String> allowedDomainIds = resolveAllowedDomainIds();
+        if (allowedDomainIds != null && allowedDomainIds.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
         try {
             Criteria criteria = new Criteria("searchableData").contains(keyword)
                                 .or(new Criteria("id").is(keyword));
+
+            if (allowedDomainIds != null) {
+                criteria = criteria.and(new Criteria("domainId").in(allowedDomainIds));
+            }
                                 
             CriteriaQuery query = new CriteriaQuery(criteria);
             query.setPageable(pageable);
@@ -54,16 +67,16 @@ public class GlobalSearchService {
                         
                 return new PageImpl<>(results, pageable, searchHits.getTotalHits());
             } else {
-                return searchWithJpaFallback(keyword, pageable);
+                return searchWithJpaFallback(keyword, pageable, allowedDomainIds);
             }
 
         } catch (Exception e) {
             log.warn("OpenSearch search failed. Falling back to JPA full-text search. Error: {}", e.getMessage());
-            return searchWithJpaFallback(keyword, pageable);
+            return searchWithJpaFallback(keyword, pageable, allowedDomainIds);
         }
     }
 
-    private Page<Record> searchWithJpaFallback(String keyword, Pageable pageable) {
+    private Page<Record> searchWithJpaFallback(String keyword, Pageable pageable, List<String> allowedDomainIds) {
         Page<Record> page = recordRepository.searchGlobalRecords(keyword.trim(), pageable);
         // Force initialize LAZY node and domain for Jackson serialization
         for (Record r : page.getContent()) {
@@ -74,7 +87,37 @@ public class GlobalSearchService {
                 }
             }
         }
+        if (allowedDomainIds != null) {
+            Set<UUID> allowedUuids = allowedDomainIds.stream().map(UUID::fromString).collect(Collectors.toSet());
+            List<Record> filtered = page.getContent().stream()
+                    .filter(r -> r.getNode() != null && r.getNode().getDomain() != null && allowedUuids.contains(r.getNode().getDomain().getId()))
+                    .collect(Collectors.toList());
+            return new PageImpl<>(filtered, pageable, filtered.size());
+        }
         return page;
+    }
+
+    private List<String> resolveAllowedDomainIds() {
+        org.springframework.security.core.Authentication auth = 
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getName())) {
+            return null;
+        }
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+        if (isAdmin) {
+            return null;
+        }
+        if (domainPermissionRepository != null) {
+            List<com.classification.domain_system.entity.DomainPermission> perms = 
+                    domainPermissionRepository.findByUserId(auth.getName());
+            if (perms != null && !perms.isEmpty()) {
+                return perms.stream()
+                        .map(p -> p.getDomain().getId().toString())
+                        .collect(Collectors.toList());
+            }
+        }
+        return null;
     }
     
     private Record mapToResponse(RecordDocument doc) {

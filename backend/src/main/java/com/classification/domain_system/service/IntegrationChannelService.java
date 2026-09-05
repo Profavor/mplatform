@@ -306,4 +306,59 @@ public class IntegrationChannelService {
         metrics.setLastPingMessage("Ping check successful (" + latency + "ms)");
         return metrics;
     }
+
+    public List<com.classification.domain_system.dto.IntegrationChannelStatsDto> getAllChannelStats() {
+        return repository.findAll().stream()
+                .map(this::calculateChannelStats)
+                .collect(Collectors.toList());
+    }
+
+    public com.classification.domain_system.dto.IntegrationChannelStatsDto getChannelStats(UUID channelId) {
+        return repository.findById(channelId)
+                .map(this::calculateChannelStats)
+                .orElse(null);
+    }
+
+    private com.classification.domain_system.dto.IntegrationChannelStatsDto calculateChannelStats(IntegrationChannel channel) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 50, org.springframework.data.domain.Sort.by("createdAt").descending());
+        org.springframework.data.domain.Page<com.classification.domain_system.entity.IntegrationLog> logPage = logRepository.findByChannelId(channel.getId(), pageable);
+        List<com.classification.domain_system.entity.IntegrationLog> logs = logPage != null && logPage.getContent() != null ? logPage.getContent() : java.util.Collections.emptyList();
+
+        long totalCount = logs.size();
+        long successCount = logs.stream().filter(l -> "SUCCESS".equalsIgnoreCase(l.getStatus())).count();
+        long failCount = logs.stream().filter(l -> "FAIL".equalsIgnoreCase(l.getStatus()) || "DEAD_LETTER".equalsIgnoreCase(l.getStatus())).count();
+
+        double successRate = 100.0;
+        if (totalCount > 0) {
+            successRate = Math.round(((double) successCount / totalCount) * 1000.0) / 10.0;
+        }
+
+        java.time.LocalDateTime lastExecutedAt = logs.isEmpty() ? null : logs.get(0).getCreatedAt();
+        String lastStatus = logs.isEmpty() ? "IDLE" : logs.get(0).getStatus();
+
+        String healthStatus = "IDLE";
+        if (totalCount > 0) {
+            if ("FAIL".equalsIgnoreCase(lastStatus) || "DEAD_LETTER".equalsIgnoreCase(lastStatus) || successRate < 80.0) {
+                healthStatus = "CRITICAL";
+            } else if (successRate < 95.0) {
+                healthStatus = "WARNING";
+            } else {
+                healthStatus = "HEALTHY";
+            }
+        }
+
+        return com.classification.domain_system.dto.IntegrationChannelStatsDto.builder()
+                .channelId(channel.getId())
+                .channelName(channel.getName())
+                .channelCode(channel.getChannelCode())
+                .type(channel.getType())
+                .totalCount(totalCount)
+                .successCount(successCount)
+                .failCount(failCount)
+                .successRate(successRate)
+                .lastExecutedAt(lastExecutedAt)
+                .lastStatus(lastStatus)
+                .healthStatus(healthStatus)
+                .build();
+    }
 }

@@ -31,9 +31,15 @@ public class MatchingService {
     private final RecordRepository recordRepository;
     private final ClassificationNodeRepository nodeRepository;
     private final FieldDefinitionRepository fieldDefinitionRepository;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.classification.domain_system.repository.DqRuleRepository dqRuleRepository;
     private final MdmProperties mdmProperties;
     private final ElasticsearchOperations elasticsearchOperations;
     private final ObjectMapper mapper = new ObjectMapper();
+
+    private static final Set<String> EXCLUDED_CANDIDATE_KEYS = Set.of(
+            "ITEM_ID", "VENDOR_ITEM_ID", "UNIT_LABEL", "CATEGORY_CODE", "STATUS", "REASON", "NOTE", "DESCRIPTION"
+    );
 
     public static class DuplicateResult {
         public boolean hasDuplicates;
@@ -70,14 +76,21 @@ public class MatchingService {
                         
                         List<Record> duplicates = new ArrayList<>();
                         try {
-                            String json = String.format("{\"bool\": {\"must\": [{\"term\": {\"domainId\": \"%s\"}}, {\"match\": {\"dataMap.%s\": \"%s\"}}]}}",
-                                    node.getDomain().getId().toString(), idDef.getKey(), val.toString().replace("\"", "\\\""));
+                            String escapedVal = val.toString().replace("\"", "\\\"");
+                            String json = String.format("{\"bool\": {\"must\": [{\"term\": {\"domainId\": \"%s\"}}, {\"bool\": {\"should\": [{\"term\": {\"data.%s.keyword\": \"%s\"}}, {\"term\": {\"dataMap.%s.keyword\": \"%s\"}}, {\"term\": {\"data.%s\": \"%s\"}}, {\"term\": {\"dataMap.%s\": \"%s\"}}], \"minimum_should_match\": 1}}]}}",
+                                    node.getDomain().getId().toString(),
+                                    idDef.getKey(), escapedVal,
+                                    idDef.getKey(), escapedVal,
+                                    idDef.getKey(), escapedVal,
+                                    idDef.getKey(), escapedVal);
                             StringQuery sq = new StringQuery(json);
-                            SearchHits<RecordDocument> hits = elasticsearchOperations.search(sq, RecordDocument.class);
-                            for (SearchHit<RecordDocument> hit : hits) {
-                                Record r = new Record();
-                                r.setId(UUID.fromString(hit.getContent().getId()));
-                                duplicates.add(r);
+                            if (elasticsearchOperations != null) {
+                                SearchHits<RecordDocument> hits = elasticsearchOperations.search(sq, RecordDocument.class);
+                                for (SearchHit<RecordDocument> hit : hits) {
+                                    Record r = new Record();
+                                    r.setId(UUID.fromString(hit.getContent().getId()));
+                                    duplicates.add(r);
+                                }
                             }
                         } catch (Exception e) {
                             log.debug("ES identifier search error: {}", e.getMessage());
@@ -113,59 +126,89 @@ public class MatchingService {
                 }
             }
 
-            // 1-1. Candidate Key Check (emp_id, id, code, required fields) if no explicit identifier field matched
+            // 1-1. Candidate Key Check (e.g. PRODUCT_ID, or active UNIQUE DQ rule fields) if no explicit identifier field matched (#196, #164)
             if (!result.hasDuplicates) {
-                List<com.classification.domain_system.entity.FieldDefinition> domainFields = fieldDefinitionRepository.findDomainFieldsWithSort(node.getDomain().getId());
-                for (com.classification.domain_system.entity.FieldDefinition fd : domainFields) {
-                    String k = fd.getKey();
-                    if (data.containsKey(k) && data.get(k) != null && !data.get(k).toString().isBlank()) {
-                        String lowerK = k.toLowerCase();
-                        if (lowerK.endsWith("_id") || lowerK.endsWith("id") || lowerK.endsWith("_code") || lowerK.endsWith("code") || lowerK.endsWith("_no") || lowerK.endsWith("no") || Boolean.TRUE.equals(fd.getRequired())) {
-                            Object val = data.get(k);
-                            Map<String, String> searchParams = new HashMap<>();
-                            searchParams.put(k, val.toString());
-                            searchParams.put("op_" + k, "EQ");
-                            
-                            List<Record> duplicates = new ArrayList<>();
-                            try {
-                                String json = String.format("{\"bool\": {\"must\": [{\"term\": {\"domainId\": \"%s\"}}, {\"match\": {\"dataMap.%s\": \"%s\"}}]}}",
-                                        node.getDomain().getId().toString(), k, val.toString().replace("\"", "\\\""));
-                                StringQuery sq = new StringQuery(json);
-                                SearchHits<RecordDocument> hits = elasticsearchOperations.search(sq, RecordDocument.class);
-                                for (SearchHit<RecordDocument> hit : hits) {
-                                    Record r = new Record();
-                                    r.setId(UUID.fromString(hit.getContent().getId()));
-                                    duplicates.add(r);
+                Set<String> uniqueFieldKeys = new HashSet<>();
+                uniqueFieldKeys.add("PRODUCT_ID");
+                if (dqRuleRepository != null) {
+                    try {
+                        List<com.classification.domain_system.entity.DqRule> dqRules =
+                                dqRuleRepository.findByDomainIdAndIsActiveTrueOrderBySortOrderAsc(node.getDomain().getId());
+                        if (dqRules != null) {
+                            for (com.classification.domain_system.entity.DqRule r : dqRules) {
+                                if (r.getRuleType() == com.classification.domain_system.entity.DqRuleType.UNIQUE
+                                        && r.getFieldDefinition() != null && r.getFieldDefinition().getKey() != null) {
+                                    uniqueFieldKeys.add(r.getFieldDefinition().getKey());
                                 }
-                            } catch (Exception e) {
-                                log.debug("ES candidate key search error: {}", e.getMessage());
                             }
+                        }
+                    } catch (Exception ex) {
+                        log.debug("Could not query DQ unique rules for domain: {}", ex.getMessage());
+                    }
+                }
 
-                            if (duplicates.isEmpty()) {
+                List<com.classification.domain_system.entity.FieldDefinition> domainFields = fieldDefinitionRepository.findDomainFieldsWithSort(node.getDomain().getId());
+                if (domainFields != null) {
+                    for (com.classification.domain_system.entity.FieldDefinition fd : domainFields) {
+                        String k = fd.getKey();
+                        if (k == null || EXCLUDED_CANDIDATE_KEYS.contains(k.toUpperCase())) {
+                            continue;
+                        }
+                        if (uniqueFieldKeys.contains(k) || uniqueFieldKeys.contains(k.toUpperCase())) {
+                            if (data.containsKey(k) && data.get(k) != null && !data.get(k).toString().isBlank()) {
+                                Object val = data.get(k);
+                                Map<String, String> searchParams = new HashMap<>();
+                                searchParams.put(k, val.toString());
+                                searchParams.put("op_" + k, "EQ");
+                                
+                                List<Record> duplicates = new ArrayList<>();
                                 try {
-                                    List<Record> dbRecords = recordRepository.findActiveRecordsByDomainAndFieldValue(node.getDomain().getId(), k, val.toString());
-                                    if (dbRecords != null && !dbRecords.isEmpty()) {
-                                        duplicates = dbRecords;
+                                    String escapedVal = val.toString().replace("\"", "\\\"");
+                                    String json = String.format("{\"bool\": {\"must\": [{\"term\": {\"domainId\": \"%s\"}}, {\"bool\": {\"should\": [{\"term\": {\"data.%s.keyword\": \"%s\"}}, {\"term\": {\"dataMap.%s.keyword\": \"%s\"}}, {\"term\": {\"data.%s\": \"%s\"}}, {\"term\": {\"dataMap.%s\": \"%s\"}}], \"minimum_should_match\": 1}}]}}",
+                                            node.getDomain().getId().toString(),
+                                            k, escapedVal,
+                                            k, escapedVal,
+                                            k, escapedVal,
+                                            k, escapedVal);
+                                    StringQuery sq = new StringQuery(json);
+                                    if (elasticsearchOperations != null) {
+                                        SearchHits<RecordDocument> hits = elasticsearchOperations.search(sq, RecordDocument.class);
+                                        for (SearchHit<RecordDocument> hit : hits) {
+                                            Record r = new Record();
+                                            r.setId(UUID.fromString(hit.getContent().getId()));
+                                            duplicates.add(r);
+                                        }
                                     }
-                                } catch (Exception ex) {
-                                    // fallback to dynamic search
+                                } catch (Exception e) {
+                                    log.debug("ES candidate key search error: {}", e.getMessage());
                                 }
+
                                 if (duplicates.isEmpty()) {
                                     try {
-                                        duplicates = recordRepository.findDynamicRecords(List.of(nodeId), null, searchParams, Pageable.unpaged()).getContent();
+                                        List<Record> dbRecords = recordRepository.findActiveRecordsByDomainAndFieldValue(node.getDomain().getId(), k, val.toString());
+                                        if (dbRecords != null && !dbRecords.isEmpty()) {
+                                            duplicates = dbRecords;
+                                        }
                                     } catch (Exception ex) {
+                                        // fallback to dynamic search
+                                    }
+                                    if (duplicates.isEmpty()) {
                                         try {
-                                            duplicates = recordRepository.findDynamicRecordsByDomain(node.getDomain().getId(), searchParams, Pageable.unpaged()).getContent();
-                                        } catch (Exception ignored) {}
+                                            duplicates = recordRepository.findDynamicRecords(List.of(nodeId), null, searchParams, Pageable.unpaged()).getContent();
+                                        } catch (Exception ex) {
+                                            try {
+                                                duplicates = recordRepository.findDynamicRecordsByDomain(node.getDomain().getId(), searchParams, Pageable.unpaged()).getContent();
+                                            } catch (Exception ignored) {}
+                                        }
                                     }
                                 }
-                            }
-                            
-                            if (!duplicates.isEmpty()) {
-                                result.hasDuplicates = true;
-                                duplicates.forEach(d -> result.duplicateRecordIds.add(d.getId()));
-                                result.message = "Duplicate found based on candidate key field (" + k + ")";
-                                return result;
+                                
+                                if (!duplicates.isEmpty()) {
+                                    result.hasDuplicates = true;
+                                    duplicates.forEach(d -> result.duplicateRecordIds.add(d.getId()));
+                                    result.message = "Duplicate found based on candidate key field (" + k + ")";
+                                    return result;
+                                }
                             }
                         }
                     }
@@ -209,15 +252,19 @@ public class MatchingService {
                             StringBuilder musts = new StringBuilder();
                             musts.append(String.format("{\"term\": {\"domainId\": \"%s\"}}", node.getDomain().getId().toString()));
                             for (String field : fields) {
-                                musts.append(String.format(",{\"match\": {\"dataMap.%s\": \"%s\"}}", field, data.get(field).toString().replace("\"", "\\\"")));
+                                String esc = data.get(field).toString().replace("\"", "\\\"");
+                                musts.append(String.format(",{\"bool\": {\"should\": [{\"term\": {\"data.%s.keyword\": \"%s\"}}, {\"term\": {\"dataMap.%s.keyword\": \"%s\"}}, {\"term\": {\"data.%s\": \"%s\"}}, {\"term\": {\"dataMap.%s\": \"%s\"}}], \"minimum_should_match\": 1}}",
+                                        field, esc, field, esc, field, esc, field, esc));
                             }
                             String json = String.format("{\"bool\": {\"must\": [%s]}}", musts.toString());
                             StringQuery sq = new StringQuery(json);
-                            SearchHits<RecordDocument> hits = elasticsearchOperations.search(sq, RecordDocument.class);
-                            for (SearchHit<RecordDocument> hit : hits) {
-                                Record r = new Record();
-                                r.setId(UUID.fromString(hit.getContent().getId()));
-                                duplicates.add(r);
+                            if (elasticsearchOperations != null) {
+                                SearchHits<RecordDocument> hits = elasticsearchOperations.search(sq, RecordDocument.class);
+                                for (SearchHit<RecordDocument> hit : hits) {
+                                    Record r = new Record();
+                                    r.setId(UUID.fromString(hit.getContent().getId()));
+                                    duplicates.add(r);
+                                }
                             }
                         } catch (Exception e) {
                             log.debug("ES exact match error: {}", e.getMessage());

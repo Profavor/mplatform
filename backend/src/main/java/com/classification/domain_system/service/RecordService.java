@@ -181,6 +181,21 @@ public class RecordService {
         return prepareRecordsForRead(records);
     }
 
+    public String mergeJsonData(String baseJson, String patchJson) {
+        if (baseJson == null || baseJson.isBlank()) return patchJson;
+        if (patchJson == null || patchJson.isBlank()) return baseJson;
+        try {
+            Map<String, Object> baseMap = objectMapper.readValue(baseJson, new TypeReference<Map<String, Object>>() {});
+            Map<String, Object> patchMap = objectMapper.readValue(patchJson, new TypeReference<Map<String, Object>>() {});
+            Map<String, Object> merged = new LinkedHashMap<>(baseMap);
+            merged.putAll(patchMap);
+            return objectMapper.writeValueAsString(merged);
+        } catch (Exception e) {
+            log.warn("Failed to merge json data: {}", e.getMessage());
+            return patchJson != null ? patchJson : baseJson;
+        }
+    }
+
     public String processDataForSave(UUID nodeId, String dataJson) {
         return processDataForSave(nodeId, dataJson, null);
     }
@@ -195,14 +210,20 @@ public class RecordService {
                 return dataJson;
             }
 
-            Map<String, Object> dataMap = objectMapper.readValue(dataJson, new TypeReference<Map<String, Object>>() {});
+            Map<String, Object> incomingMap = objectMapper.readValue(dataJson, new TypeReference<Map<String, Object>>() {});
+            Map<String, Object> dataMap;
             Map<String, Object> existingMap = null;
             if (existingDataJson != null && !existingDataJson.isBlank()) {
                 try {
                     existingMap = objectMapper.readValue(existingDataJson, new TypeReference<Map<String, Object>>() {});
+                    dataMap = new LinkedHashMap<>(existingMap);
+                    dataMap.putAll(incomingMap);
                 } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
                     log.warn("Could not parse existing data json: {}", e.getMessage());
+                    dataMap = incomingMap;
                 }
+            } else {
+                dataMap = incomingMap;
             }
             boolean modified = false;
 

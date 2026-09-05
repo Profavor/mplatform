@@ -19,7 +19,7 @@
         <va-button color="primary" icon="add" size="small" @click="openCreateModal">
           {{ $t('integration.channels.add') }}
         </va-button>
-        <va-button preset="outline" color="primary" icon="refresh" size="small" @click="fetchChannels">
+        <va-button preset="outline" color="primary" icon="refresh" size="small" @click="refreshAll">
           {{ $t('refresh') }}
         </va-button>
       </div>
@@ -35,11 +35,55 @@
     >
       <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
         <span>{{ fetchError }}</span>
-        <va-button size="small" color="danger" preset="outline" @click="fetchChannels">
+        <va-button size="small" color="danger" preset="outline" @click="refreshAll">
           {{ $t('common.retry') || '다시 시도' }}
         </va-button>
       </div>
     </va-alert>
+
+    <!-- SLA Monitoring KPI Cards (#147) -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
+      <va-card style="border-radius: 12px; border: 1px solid var(--va-background-border); padding: 1rem;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <span style="font-size: 0.85rem; color: var(--va-text-secondary); font-weight: 600;">{{ $t('integration.sla.total_channels') }}</span>
+          <va-icon name="hub" color="primary" size="20px" />
+        </div>
+        <div style="font-size: 1.6rem; font-weight: 800; margin-top: 0.5rem; color: var(--va-text-primary);">
+          {{ slaSummary.totalChannels }}
+        </div>
+      </va-card>
+
+      <va-card style="border-radius: 12px; border: 1px solid var(--va-background-border); padding: 1rem;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <span style="font-size: 0.85rem; color: var(--va-text-secondary); font-weight: 600;">{{ $t('integration.sla.healthy_channels') }}</span>
+          <va-icon name="check_circle" color="success" size="20px" />
+        </div>
+        <div style="display: flex; align-items: baseline; gap: 0.5rem; margin-top: 0.5rem;">
+          <span style="font-size: 1.6rem; font-weight: 800; color: var(--va-success);">{{ slaSummary.healthyCount }}</span>
+          <span style="font-size: 0.85rem; color: var(--va-text-secondary);">/ {{ slaSummary.totalChannels }}</span>
+        </div>
+      </va-card>
+
+      <va-card style="border-radius: 12px; border: 1px solid var(--va-background-border); padding: 1rem;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <span style="font-size: 0.85rem; color: var(--va-text-secondary); font-weight: 600;">{{ $t('integration.sla.success_rate') }}</span>
+          <va-icon name="trending_up" color="info" size="20px" />
+        </div>
+        <div style="font-size: 1.6rem; font-weight: 800; margin-top: 0.5rem; color: var(--va-primary);">
+          {{ slaSummary.overallSuccessRate }}%
+        </div>
+      </va-card>
+
+      <va-card style="border-radius: 12px; border: 1px solid var(--va-background-border); padding: 1rem;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <span style="font-size: 0.85rem; color: var(--va-text-secondary); font-weight: 600;">{{ $t('integration.sla.total_executions') }}</span>
+          <va-icon name="sync" color="warning" size="20px" />
+        </div>
+        <div style="font-size: 1.6rem; font-weight: 800; margin-top: 0.5rem; color: var(--va-text-primary);">
+          {{ slaSummary.totalExecutions.toLocaleString() }}
+        </div>
+      </va-card>
+    </div>
 
     <!-- Channels Table Card -->
     <va-card style="flex: 1; display: flex; flex-direction: column; overflow: hidden; border-radius: 12px; border: 1px solid var(--va-background-border); margin-bottom: 1.25rem;">
@@ -192,6 +236,33 @@ const extractNameParts = (rawName) => {
   return { ko: str, en: str }
 }
 const channels = ref([])
+const channelStats = ref<any[]>([])
+const isStatsLoading = ref(false)
+
+const slaSummary = computed(() => {
+  const stats = channelStats.value || []
+  const totalChannels = channels.value.length || stats.length
+  const healthyCount = stats.filter(s => s.healthStatus === 'HEALTHY').length
+  const warningCount = stats.filter(s => s.healthStatus === 'WARNING').length
+  const criticalCount = stats.filter(s => s.healthStatus === 'CRITICAL').length
+  const idleCount = stats.filter(s => s.healthStatus === 'IDLE').length
+
+  const totalExecutions = stats.reduce((acc, s) => acc + (s.totalCount || 0), 0)
+  const totalSuccesses = stats.reduce((acc, s) => acc + (s.successCount || 0), 0)
+  const overallSuccessRate = totalExecutions > 0
+    ? Math.round((totalSuccesses / totalExecutions) * 1000) / 10
+    : 100.0
+
+  return {
+    totalChannels,
+    healthyCount,
+    warningCount,
+    criticalCount,
+    idleCount,
+    totalExecutions,
+    overallSuccessRate
+  }
+})
 const rawDomains = ref([])
 const rawNodes = ref([])
 const rawFields = ref([])
@@ -1012,6 +1083,47 @@ const channelColumnDefs = computed(() => [
     }
   },
   {
+    field: 'slaStatus',
+    headerName: t('integration.channels.sla_status'),
+    width: 170,
+    valueGetter: (params) => {
+      const stats = channelStats.value.find(s => s.channelId === params.data?.id)
+      return stats || null
+    },
+    cellRenderer: (params) => {
+      const div = document.createElement('div')
+      div.style.cssText = 'display: flex; flex-direction: column; justify-content: center; height: 100%; gap: 2px;'
+      const stats = params.value
+      if (!stats || stats.healthStatus === 'IDLE' || stats.totalCount === 0) {
+        const span = document.createElement('span')
+        span.style.cssText = 'padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 0.75rem; background: rgba(158, 158, 158, 0.12); color: #757575; border: 1px solid rgba(158, 158, 158, 0.3); width: fit-content;'
+        span.textContent = 'IDLE (0회)'
+        div.appendChild(span)
+        return div
+      }
+
+      const isHealthy = stats.healthStatus === 'HEALTHY'
+      const isCritical = stats.healthStatus === 'CRITICAL'
+      const colorStyle = isHealthy
+        ? 'background: rgba(46, 125, 50, 0.12); color: var(--va-success); border: 1px solid rgba(46, 125, 50, 0.3);'
+        : isCritical
+        ? 'background: rgba(229, 57, 53, 0.12); color: var(--va-danger); border: 1px solid rgba(229, 57, 53, 0.3);'
+        : 'background: rgba(237, 108, 2, 0.12); color: var(--va-warning); border: 1px solid rgba(237, 108, 2, 0.3);'
+
+      const pill = document.createElement('span')
+      pill.style.cssText = `padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 0.75rem; width: fit-content; ${colorStyle}`
+      pill.textContent = `${stats.healthStatus} (${stats.successRate}%)`
+      div.appendChild(pill)
+
+      const subSpan = document.createElement('span')
+      subSpan.style.cssText = 'font-size: 0.7rem; color: var(--va-text-secondary); padding-left: 2px;'
+      subSpan.textContent = `${stats.successCount}/${stats.totalCount} ${t('common.success', '성공')}`
+      div.appendChild(subSpan)
+
+      return div
+    }
+  },
+  {
     field: 'active',
     headerName: t('integration.channels.status'),
     width: 120,
@@ -1170,12 +1282,31 @@ const fetchRecentLogs = async () => {
 
 const fetchError = ref(null)
 
+const fetchChannelStats = async () => {
+  isStatsLoading.value = true
+  try {
+    const data = await customFetch('/api/admin/integration/channels/stats')
+    channelStats.value = Array.isArray(data) ? data : []
+  } catch (e) {
+    console.error('Failed to fetch channel stats:', e)
+  } finally {
+    isStatsLoading.value = false
+  }
+}
+
+const refreshAll = () => {
+  fetchChannels()
+  fetchChannelStats()
+  fetchRecentLogs()
+}
+
 const fetchChannels = async () => {
   isLoading.value = true
   fetchError.value = null
   try {
     const data = await customFetch('/api/admin/integration/channels')
     channels.value = Array.isArray(data) ? data : []
+    fetchChannelStats()
   } catch (e: any) {
     console.error('Failed to fetch channels:', e)
     fetchError.value = e?.message || t('common.error_fetch', '연동 채널 데이터를 불러오는 중 오류가 발생했습니다.')
@@ -1286,6 +1417,7 @@ const confirmDelete = async (id) => {
 onMounted(async () => {
   await codeStore.preloadGroups(['INTEGRATION_DIRECTION', 'INTEGRATION_TYPE', 'HTTP_METHOD'])
   fetchChannels()
+  fetchChannelStats()
   fetchRecentLogs()
   fetchDomains()
 })

@@ -8,7 +8,9 @@
       :style="{ width: isFocused ? '360px' : '220px', transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }"
       @focus="isFocused = true"
       @blur="handleBlur"
-      @keyup.enter="performSearch"
+      @keydown.down.prevent="navigateDown"
+      @keydown.up.prevent="navigateUp"
+      @keydown.enter.prevent="handleEnterKey"
       @keydown.esc="closeDropdown"
     >
       <template #prependInner>
@@ -24,10 +26,12 @@
       <va-inner-loading :loading="isSearching">
         <div v-if="results.length > 0" class="search-results-list">
           <div
-            v-for="res in results"
+            v-for="(res, rIdx) in results"
             :key="res.id"
             class="search-card-item"
+            :class="{ 'is-keyboard-selected': selectedIndex === rIdx }"
             @click="goToRecord(res)"
+            @mouseenter="selectedIndex = rIdx"
           >
             <!-- Card Header: Domain & Classification Node Badges + Status -->
             <div class="card-header-row">
@@ -164,6 +168,25 @@ const isFocused = ref(false)
 const isSearching = ref(false)
 const results = ref([])
 const searchContainer = ref(null)
+const selectedIndex = ref(-1)
+
+const navigateDown = () => {
+  if (!results.value || results.value.length === 0) return
+  selectedIndex.value = (selectedIndex.value + 1) % results.value.length
+}
+
+const navigateUp = () => {
+  if (!results.value || results.value.length === 0) return
+  selectedIndex.value = selectedIndex.value <= 0 ? results.value.length - 1 : selectedIndex.value - 1
+}
+
+const handleEnterKey = () => {
+  if (selectedIndex.value >= 0 && selectedIndex.value < results.value.length) {
+    goToRecord(results.value[selectedIndex.value])
+  } else {
+    performSearch()
+  }
+}
 
 // Lightbox Viewer Modal State
 const isViewerModalOpen = ref(false)
@@ -210,6 +233,7 @@ const fetchNodeFieldDefinitions = async (nodeId) => {
 }
 
 const performSearch = async () => {
+  selectedIndex.value = -1
   if (!searchQuery.value || searchQuery.value.trim().length < 2) {
     results.value = []
     return
@@ -604,14 +628,16 @@ const goToRecord = (record) => {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.search-card-item:hover {
+.search-card-item:hover,
+.search-card-item.is-keyboard-selected {
   background: rgba(37, 99, 235, 0.12);
   border-color: var(--va-primary, #2563eb);
   transform: translateY(-1px);
   box-shadow: 0 4px 14px rgba(37, 99, 235, 0.18);
 }
 
-.search-card-item:hover .card-action-hint {
+.search-card-item:hover .card-action-hint,
+.search-card-item.is-keyboard-selected .card-action-hint {
   transform: translateX(3px);
   color: var(--va-primary, #2563eb);
 }

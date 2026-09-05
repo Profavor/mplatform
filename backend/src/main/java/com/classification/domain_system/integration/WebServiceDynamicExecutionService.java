@@ -58,6 +58,9 @@ public class WebServiceDynamicExecutionService {
             return;
         }
 
+        // Validate URL against SSRF (blocks cloud metadata, loopback, private IPs)
+        com.classification.domain_system.security.UrlSecurityValidator.validateExternalUrl(url);
+
         HttpMethod method = HttpMethod.valueOf(methodStr.toUpperCase());
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

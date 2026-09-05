@@ -136,12 +136,12 @@ export default defineNuxtConfig({
     }
   },
   runtimeConfig: {
+    agGridLicense: process.env.AG_GRID_LICENSE || '',
     public: {
       appVersion: process.env.APP_VERSION || (pkg?.version ? `v${pkg.version}` : ''),
       buildTime: new Date().toISOString(),
       repositoryUrl: process.env.REPOSITORY_URL || 'https://github.com/Profavor/mplatform',
       apiBaseUrl: process.env.API_BASE_URL || process.env.NUXT_PUBLIC_API_BASE_URL || process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8080',
-      agGridLicense: process.env.AG_GRID_LICENSE,
       accessTokenExpirationSec: Number(process.env.JWT_ACCESS_EXPIRATION_SEC || 1800),
       refreshTokenExpirationSec: Number(process.env.JWT_REFRESH_EXPIRATION_SEC || 86400)
     }

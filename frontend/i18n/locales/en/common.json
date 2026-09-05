@@ -181,6 +181,14 @@
   "audit_no_history": "No history found.",
   "audit_previous_data": "Previous Data",
   "audit_trail": "Audit Trail",
+  "history_filter_placeholder": "Select action type",
+  "history_search_field_placeholder": "Search changed attribute/field...",
+  "history_total_count": "{count} total",
+  "history_filter_all": "All Actions",
+  "history_filter_create": "Create (CREATE)",
+  "history_filter_update": "Update (UPDATE)",
+  "history_filter_merge": "Merge (MERGE)",
+  "history_filter_delete": "Delete (DELETE)",
   "axis": {
     "actions": "Tree / Actions",
     "add_axis": "Add Axis",
@@ -549,7 +557,22 @@
       "webhook_copy": "Copy URL",
       "webhook_url": "Webhook URL",
       "ws_method": "HTTP Method",
-      "ws_url": "Endpoint URL"
+      "ws_url": "Endpoint URL",
+      "sla_status": "SLA Health & Rate",
+      "total_runs": "Total Runs",
+      "success_rate_label": "Success Rate"
+    },
+    "sla": {
+      "title": "Integration Channel Status & SLA Monitoring",
+      "total_channels": "Total Channels",
+      "healthy_channels": "Healthy Channels",
+      "warning_channels": "Warning Channels",
+      "critical_channels": "Critical Channels",
+      "idle_channels": "Idle Channels",
+      "success_rate": "Success Rate (SLA)",
+      "total_executions": "Total Executions",
+      "recent_status": "Recent Status",
+      "channel_health": "Channel Health"
     }
   },
   "integration_channels": "Integration Channels",

@@ -693,15 +693,48 @@
         </div>
       </div>
 
-      <!-- History Tab Content (AG-Grid with Pagination) -->
+      <!-- History Tab Content (Filtered Timeline & Search) -->
       <div v-if="activeMainTab === 'history'" style="height: 100%; width: 100%; display: flex; flex-direction: column; flex: 1; overflow-y: auto; padding-right: 8px;">
-        <div v-if="!history || history.length === 0" style="text-align: center; color: #777; padding: 2rem;">
+        <!-- History Filter & Search Toolbar -->
+        <div style="display: flex; gap: 0.75rem; align-items: center; margin-bottom: 0.75rem; padding: 0.5rem; background: var(--va-background-secondary); border-radius: 8px; border: 1px solid var(--va-background-border); flex-wrap: wrap;">
+          <div style="min-width: 150px; flex: 1;">
+            <va-select
+              v-model="historyChangeTypeFilter"
+              :options="historyChangeTypeOptions"
+              value-by="value"
+              text-by="text"
+              size="small"
+              :placeholder="$t('history_filter_placeholder')"
+            >
+              <template #prependInner>
+                <va-icon name="filter_list" size="small" color="primary" />
+              </template>
+            </va-select>
+          </div>
+          <div style="min-width: 220px; flex: 2;">
+            <va-input
+              v-model="historyFieldSearchQuery"
+              size="small"
+              clearable
+              :placeholder="$t('history_search_field_placeholder')"
+            >
+              <template #prependInner>
+                <va-icon name="search" size="small" color="primary" />
+              </template>
+            </va-input>
+          </div>
+          <div style="font-size: 0.85rem; color: var(--va-secondary); font-weight: 600; white-space: nowrap;">
+            {{ $t('history_total_count', { count: filteredHistory.length }) }}
+          </div>
+        </div>
+
+        <div v-if="!filteredHistory || filteredHistory.length === 0" style="text-align: center; color: #777; padding: 2rem;">
           {{ t('audit_no_history') }}
         </div>
-        <div v-else style="padding: 1rem 0.5rem;">
+        <div v-else style="padding: 0.5rem;">
           <va-timeline vertical>
             <va-timeline-item
-              v-for="(log, idx) in history"
+              v-for="(log, idx) in filteredHistory"
               :key="log.id || idx"
               :color="getHistoryTimelineColor(log.changeType)"
               active
@@ -724,8 +757,12 @@
               <template #after>
                 <va-card outlined style="margin-bottom: 1.5rem; width: 100%;">
                   <va-card-title style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border-bottom: 1px solid var(--va-background-border);">
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                       <va-badge :color="getHistoryTimelineColor(log.changeType)" :text="getHistoryChangeTypeLabel(log.changeType)" />
+                      <va-badge v-if="log.version" color="info" :text="'v' + log.version" outline />
+                      <span v-if="log.approvalRequestId" style="font-size: 0.75rem; color: var(--va-secondary); font-family: monospace; background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px;">
+                        {{ formatIdentifier(log.approvalRequestId, 'REQ') }}
+                      </span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
                       <va-button
@@ -1210,6 +1247,61 @@ const getChangedKeys = (prev, curr, log) => {
   }
   return changed;
 };
+
+// #143: Raw UUID를 식별 코드(REQ-xxxxxxxx 등)로 치환
+const formatIdentifier = (rawId, prefix = 'REC') => {
+  if (!rawId) return '';
+  const str = String(rawId);
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str)) {
+    return `${prefix}-${str.substring(0, 8)}`;
+  }
+  return str;
+};
+
+// #143: 변경 이력 필터링 및 검색
+const historyChangeTypeFilter = ref('ALL');
+const historyFieldSearchQuery = ref('');
+
+const historyChangeTypeOptions = computed(() => [
+  { value: 'ALL', text: t('history_filter_all') },
+  { value: 'CREATE', text: t('history_filter_create') },
+  { value: 'UPDATE', text: t('history_filter_update') },
+  { value: 'RECORD_MERGE', text: t('history_filter_merge') },
+  { value: 'DELETE', text: t('history_filter_delete') }
+]);
+
+const filteredHistory = computed(() => {
+  if (!props.history || !Array.isArray(props.history)) return [];
+  return props.history.filter((log) => {
+    if (historyChangeTypeFilter.value !== 'ALL') {
+      const targetType = historyChangeTypeFilter.value;
+      const logType = log.changeType || '';
+      if (targetType === 'UPDATE' && !['UPDATE', 'RECORD_UPDATE', 'BATCH_UPDATE'].includes(logType)) {
+        return false;
+      } else if (targetType === 'CREATE' && !['CREATE', 'RECORD_CREATE', 'STAGING_APPROVE'].includes(logType)) {
+        return false;
+      } else if (targetType === 'RECORD_MERGE' && !['MERGE', 'RECORD_MERGE', 'INBOUND_MERGE', 'BATCH_MERGE', 'MERGED_INTO'].includes(logType)) {
+        return false;
+      } else if (targetType === 'DELETE' && !['DELETE', 'RECORD_DELETE'].includes(logType)) {
+        return false;
+      } else if (!['UPDATE', 'CREATE', 'RECORD_MERGE', 'DELETE'].includes(targetType) && logType !== targetType) {
+        return false;
+      }
+    }
+
+    if (historyFieldSearchQuery.value && historyFieldSearchQuery.value.trim()) {
+      const q = historyFieldSearchQuery.value.trim().toLowerCase();
+      const changedKeys = getChangedKeys(log.previousData, log.newData, log);
+      const matchesField = changedKeys.some((k) => {
+        const label = getFieldLabelByKey(k) || '';
+        return k.toLowerCase().includes(q) || label.toLowerCase().includes(q);
+      });
+      if (!matchesField) return false;
+    }
+
+    return true;
+  });
+});
 
 const getSelectDisplayLabels = (field) => {
   if (!field) return [];

@@ -43,7 +43,18 @@ public class IntegrationFlowConfig {
 
     @Bean
     public MessageChannel masterDataChangedChannel() {
-        return new DirectChannel();
+        return new org.springframework.integration.channel.ExecutorChannel(integrationTaskExecutor());
+    }
+
+    @Bean
+    public java.util.concurrent.Executor integrationTaskExecutor() {
+        org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor executor = new org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(4);
+        executor.setMaxPoolSize(16);
+        executor.setQueueCapacity(500);
+        executor.setThreadNamePrefix("mdm-integration-");
+        executor.initialize();
+        return executor;
     }
 
     @Bean

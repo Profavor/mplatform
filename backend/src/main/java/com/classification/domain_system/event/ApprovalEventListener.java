@@ -58,6 +58,9 @@ public class ApprovalEventListener {
     @org.springframework.context.annotation.Lazy
     private com.classification.domain_system.service.InboxApprovalIntegrationService inboxApprovalIntegrationService;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.classification.domain_system.service.CartbomOutboundWebhookService cartbomOutboundWebhookService;
+
     @jakarta.persistence.PersistenceContext
     private jakarta.persistence.EntityManager entityManager;
 
@@ -310,20 +313,44 @@ public class ApprovalEventListener {
             record.setData(finalData);
             logHistory(record, "CREATE", approval.getRequesterId(), null, finalData, approval.getId());
             applicationEventPublisher.publishEvent(new MasterDataChangedEvent(this, record.getId(), record.getNode().getId(), "CREATE", finalData));
+            if (cartbomOutboundWebhookService != null) {
+                try {
+                    cartbomOutboundWebhookService.dispatchAsync(record, finalData);
+                } catch (Exception e) {
+                    log.warn("Cartbom webhook dispatch failed on CREATE: {}", e.getMessage());
+                }
+            }
         } else if (ApprovalTargetType.RECORD_UPDATE.name().equals(approval.getTargetType())) {
             Record record = recordRepository.findById(approval.getTargetId())
                     .orElseThrow(() -> new RuntimeException("Record not found"));
             try {
+                String prevData = record.getData();
                 ObjectMapper mapper = new ObjectMapper();
                 JsonNode root = mapper.readTree(approval.getChanges());
-                String prevData = record.getData();
                 if (root.has("after")) {
-                    String afterData = recomputeCalculatedFields(record.getNode().getId(), root.get("after").toString());
+                    String afterDataStr = root.get("after").isTextual() ? root.get("after").asText() : root.get("after").toString();
+                    if (prevData != null && !prevData.isBlank()) {
+                        try {
+                            Map<String, Object> baseMap = mapper.readValue(prevData, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+                            Map<String, Object> patchMap = mapper.readValue(afterDataStr, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+                            Map<String, Object> merged = new java.util.LinkedHashMap<>(baseMap);
+                            merged.putAll(patchMap);
+                            afterDataStr = mapper.writeValueAsString(merged);
+                        } catch (Exception ignored) {}
+                    }
+                    String afterData = recomputeCalculatedFields(record.getNode().getId(), afterDataStr);
                     record.setData(afterData);
                 }
                 record.setStatus(RecordStatus.ACTIVE.name());
                 logHistory(record, "UPDATE", approval.getRequesterId(), prevData, record.getData(), approval.getId());
                 applicationEventPublisher.publishEvent(new MasterDataChangedEvent(this, record.getId(), record.getNode().getId(), "UPDATE", record.getData()));
+                if (cartbomOutboundWebhookService != null) {
+                    try {
+                        cartbomOutboundWebhookService.dispatchAsync(record, record.getData());
+                    } catch (Exception e) {
+                        log.warn("Cartbom webhook dispatch failed on UPDATE: {}", e.getMessage());
+                    }
+                }
             } catch (Exception e) {
                 log.error("Error applying final approval for RECORD_UPDATE", e);
             }

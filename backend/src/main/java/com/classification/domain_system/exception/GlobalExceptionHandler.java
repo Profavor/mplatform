@@ -139,10 +139,10 @@ public class GlobalExceptionHandler {
     }
 
     private String getStackTraceAsString(Throwable throwable) {
-        StringBuilder sb = new StringBuilder();
-        for (StackTraceElement element : throwable.getStackTrace()) {
-            sb.append(element.toString()).append("\n");
-        }
-        return sb.toString();
+        if (throwable == null) return "";
+        StringWriter sw = new StringWriter();
+        PrintWriter pw = new PrintWriter(sw);
+        throwable.printStackTrace(pw);
+        return sw.toString();
     }
 }

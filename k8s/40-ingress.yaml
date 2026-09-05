@@ -4,7 +4,7 @@ metadata:
   name: mdm-ingress
   namespace: mdm-system
   annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-buffering: "off"
@@ -64,13 +64,7 @@ spec:
             name: keycloak
             port:
               number: 8080
-      - path: /grafana
-        pathType: Prefix
-        backend:
-          service:
-            name: grafana
-            port:
-              number: 3000
+
       - path: /api/_auth
         pathType: Prefix
         backend:
@@ -223,13 +217,7 @@ spec:
             name: keycloak
             port:
               number: 8080
-      - path: /grafana
-        pathType: Prefix
-        backend:
-          service:
-            name: grafana
-            port:
-              number: 3000
+
       - path: /api/_auth
         pathType: Prefix
         backend:

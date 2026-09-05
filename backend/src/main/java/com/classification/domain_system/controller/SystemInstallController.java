@@ -26,6 +26,8 @@ public class SystemInstallController {
     private final AuthService authService;
     private final PermissionService permissionService;
 
+    private static final Object INSTALL_LOCK = new Object();
+
     /**
      * 시스템 최초 설치 상태 확인 (설치 여부 및 초기 관리자 계정 생성 여부)
      * 최초 배포 시 비인증 상태의 클라이언트가 시스템 설치 필요 여부를 확인해야 하므로 permitAll로 허용됨
@@ -37,32 +39,38 @@ public class SystemInstallController {
 
     /**
      * 시스템 최초 설치 및 초기 최고 관리자 계정 구성
-     * 시스템 최초 구동 시 비인증 상태에서 관리자 계정을 설정해야 하므로 permitAll로 허용되며,
-     * SystemInstallService 내부에서 1회 설치 완료 후 재설치 시도를 방어함
+     * 동시성 제어(INSTALL_LOCK)를 적용하여 race condition을 방어하고,
+     * 이미 설치된 경우 403 Forbidden을 반환하여 재설치 시도를 원천 차단함
      */
     @PostMapping("/install")
     public ResponseEntity<?> installSystem(@RequestBody SystemInstallRequest request) {
-        User adminUser = installService.installSystem(request);
+        synchronized (INSTALL_LOCK) {
+            if (installService.getInstallStatus().isInstalled()) {
+                return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "The system is already installed. Installation endpoint is disabled."));
+            }
 
-        Map<String, String> tokens = authService.loginWithTokens(adminUser.getUsername(), request.getAdminPassword(), "127.0.0.1", "System Install Setup");
+            User adminUser = installService.installSystem(request);
 
-        var perms = permissionService.getAuthoritiesForUser(adminUser.getUsername(), adminUser.getRole()).stream()
-                .map(a -> a.getAuthority())
-                .toList();
+            Map<String, String> tokens = authService.loginWithTokens(adminUser.getUsername(), request.getAdminPassword(), "127.0.0.1", "System Install Setup");
 
-        String serverOffset = OffsetDateTime.now().getOffset().getId();
+            var perms = permissionService.getAuthoritiesForUser(adminUser.getUsername(), adminUser.getRole()).stream()
+                    .map(a -> a.getAuthority())
+                    .toList();
 
-        Map<String, Object> response = Map.of(
-                "token", tokens.get("token"),
-                "refreshToken", tokens.get("refreshToken"),
-                "username", adminUser.getUsername(),
-                "role", adminUser.getRole(),
-                "id", adminUser.getId(),
-                "organizationId", adminUser.getOrganizationId() != null ? adminUser.getOrganizationId().toString() : "",
-                "permissions", perms,
-                "serverOffset", serverOffset
-        );
+            String serverOffset = OffsetDateTime.now().getOffset().getId();
 
-        return ResponseEntity.ok(response);
+            Map<String, Object> response = Map.of(
+                    "token", tokens.get("token"),
+                    "username", adminUser.getUsername(),
+                    "role", adminUser.getRole(),
+                    "id", adminUser.getId(),
+                    "organizationId", adminUser.getOrganizationId() != null ? adminUser.getOrganizationId().toString() : "",
+                    "permissions", perms,
+                    "serverOffset", serverOffset
+            );
+
+            return ResponseEntity.ok(response);
+        }
     }
 }
