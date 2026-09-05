@@ -23,10 +23,10 @@ start() {
   echo "  - Alt HTTP      : 0.0.0.0:8080 -> $MINIKUBE_IP:80"
   echo "================================================================"
 
-  docker run -d --name mdm-proxy-443  --network minikube -p 443:443   --restart always alpine/socat:latest TCP-LISTEN:443,fork,reuseaddr TCP:"$MINIKUBE_IP":443 >/dev/null 2>&1
-  docker run -d --name mdm-proxy-80   --network minikube -p 80:80     --restart always alpine/socat:latest TCP-LISTEN:80,fork,reuseaddr TCP:"$MINIKUBE_IP":80 >/dev/null 2>&1
-  docker run -d --name mdm-proxy-8443 --network minikube -p 8443:8443 --restart always alpine/socat:latest TCP-LISTEN:8443,fork,reuseaddr TCP:"$MINIKUBE_IP":443 >/dev/null 2>&1
-  docker run -d --name mdm-proxy-8080 --network minikube -p 8080:8080 --restart always alpine/socat:latest TCP-LISTEN:8080,fork,reuseaddr TCP:"$MINIKUBE_IP":80 >/dev/null 2>&1
+  docker run -d --name mdm-proxy-443  --network host --restart always alpine/socat:latest -d -d TCP-LISTEN:443,fork,reuseaddr TCP:"$MINIKUBE_IP":443 >/dev/null 2>&1
+  docker run -d --name mdm-proxy-80   --network host --restart always alpine/socat:latest -d -d TCP-LISTEN:80,fork,reuseaddr TCP:"$MINIKUBE_IP":80 >/dev/null 2>&1
+  docker run -d --name mdm-proxy-8443 --network host --restart always alpine/socat:latest -d -d TCP-LISTEN:8443,fork,reuseaddr TCP:"$MINIKUBE_IP":443 >/dev/null 2>&1
+  docker run -d --name mdm-proxy-8080 --network host --restart always alpine/socat:latest -d -d TCP-LISTEN:8080,fork,reuseaddr TCP:"$MINIKUBE_IP":80 >/dev/null 2>&1
 
   echo "✅ All port forwards are active and listening!"
   echo "   Router Port Forwarding Guide (LG U+ 192.168.219.1):"
