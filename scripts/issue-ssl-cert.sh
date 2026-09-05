@@ -8,19 +8,28 @@ mkdir -p "$CERT_DIR"
 echo "================================================================"
 echo "  🔒 Let's Encrypt Public SSL Certificate Issuer for $DOMAIN"
 echo "================================================================"
-echo " Mode: DNS-01 Challenge (Gabia DNS TXT Record)"
-echo " No HTTP/80 port required. Works behind ISP/NAT/Routers."
+echo " Mode: Standalone HTTP-01 Challenge (Port 80)"
+echo " Automated: Zero DNS configuration required."
 echo "================================================================"
 
-echo "==> Running Certbot via Docker..."
-docker run -it --rm \
+echo "==> Temporarily pausing mdm-proxy-80..."
+docker stop mdm-proxy-80 >/dev/null 2>&1 || true
+
+echo "==> Running Certbot standalone..."
+docker run --rm \
   -v "$CERT_DIR:/etc/letsencrypt" \
+  --network host \
   certbot/certbot certonly \
-  --manual \
-  --preferred-challenges dns \
+  --standalone \
   --agree-tos \
-  --manual-public-ip-logging-ok \
+  -m profavor@naver.com \
+  --no-eff-email \
   -d "$DOMAIN"
+
+echo "==> Resuming mdm-proxy-80..."
+docker start mdm-proxy-80 >/dev/null 2>&1 || true
+
+docker run --rm -v "$CERT_DIR:/etc/letsencrypt" alpine chmod -R 755 /etc/letsencrypt >/dev/null 2>&1 || true
 
 CERT_PATH="$CERT_DIR/live/$DOMAIN/fullchain.pem"
 KEY_PATH="$CERT_DIR/live/$DOMAIN/privkey.pem"
