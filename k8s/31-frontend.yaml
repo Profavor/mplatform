@@ -6,8 +6,8 @@ metadata:
   labels:
     app: frontend
     app.kubernetes.io/name: frontend
-    app.kubernetes.io/version: "1.5.46"
-    version: "1.5.46"
+    app.kubernetes.io/version: "1.5.47"
+    version: "1.5.47"
 spec:
   replicas: 1
   selector:
@@ -18,8 +18,8 @@ spec:
       labels:
         app: frontend
         app.kubernetes.io/name: frontend
-        app.kubernetes.io/version: "1.5.46"
-        version: "1.5.46"
+        app.kubernetes.io/version: "1.5.47"
+        version: "1.5.47"
     spec:
       hostAliases:
       - ip: "10.100.179.117"
@@ -27,7 +27,7 @@ spec:
         - "mplatform.local"
       containers:
       - name: frontend
-        image: profavor2/mplatform-frontend:1.5.46
+        image: profavor2/mplatform-frontend:1.5.47
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3000

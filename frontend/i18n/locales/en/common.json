@@ -10,6 +10,7 @@
     "edit": "Edit"
   },
   "no_changes_to_save": "No changes to save.",
+  "too_many_requests": "Too many requests in a short period. Please try again shortly.",
   "bind_field_label": "Bound Data Field",
   "bind_field_placeholder": "Select domain field to bind...",
   "unbind_field": "Unbind Field",

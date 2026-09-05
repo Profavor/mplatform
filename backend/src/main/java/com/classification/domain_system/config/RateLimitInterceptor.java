@@ -18,12 +18,25 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     private final AuthContext authContext;
     private final ConcurrentHashMap<String, TokenBucket> buckets = new ConcurrentHashMap<>();
     
-    // Limits
-    private static final int REFILL_RATE = 120; // tokens per minute
-    private static final int MAX_CAPACITY = 120; // burst capacity
+    // Limits (defaults to 300 requests per minute to support burst UI smoke tests and hard navigations)
+    private final int refillRate;
+    private final int maxCapacity;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public RateLimitInterceptor(AuthContext authContext,
+                                @org.springframework.beans.factory.annotation.Value("${rate-limit.capacity:300}") int maxCapacity,
+                                @org.springframework.beans.factory.annotation.Value("${rate-limit.refill-rate:300}") int refillRate) {
+        this.authContext = authContext;
+        this.maxCapacity = maxCapacity;
+        this.refillRate = refillRate;
+    }
 
     public RateLimitInterceptor(AuthContext authContext) {
-        this.authContext = authContext;
+        this(authContext, 300, 300);
+    }
+
+    public RateLimitInterceptor() {
+        this(null, 300, 300);
     }
 
     @Override
@@ -33,13 +46,14 @@ public class RateLimitInterceptor implements HandlerInterceptor {
         
         String key = userId.equals("anonymous") ? clientIp : userId;
         
-        TokenBucket bucket = buckets.computeIfAbsent(key, k -> new TokenBucket(MAX_CAPACITY, REFILL_RATE));
+        TokenBucket bucket = buckets.computeIfAbsent(key, k -> new TokenBucket(maxCapacity, refillRate));
         
         if (bucket.tryConsume()) {
             return true;
         } else {
             log.warn("Rate limit exceeded for key: {}", key);
             response.setStatus(429);
+            response.setHeader("Retry-After", "1");
             response.setContentType("application/json");
             response.getWriter().write("{\"error\": \"Too Many Requests\", \"message\": \"Rate limit exceeded. Please try again later.\"}");
             return false;
