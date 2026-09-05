@@ -46,8 +46,19 @@ public class MatchingRule {
     @Column(name = "similarity_threshold")
     private Double similarityThreshold = 0.85;
 
+    @com.fasterxml.jackson.annotation.JsonProperty("active")
+    @com.fasterxml.jackson.annotation.JsonAlias({"active", "isActive"})
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
+
+    @com.fasterxml.jackson.annotation.JsonProperty("isActive")
+    public boolean getIsActive() {
+        return this.isActive;
+    }
+
+    public boolean isActive() {
+        return this.isActive;
+    }
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

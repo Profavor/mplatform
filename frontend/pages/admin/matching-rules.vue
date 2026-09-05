@@ -255,7 +255,8 @@ const IsActiveCellRenderer = (params: any) => {
   const div = document.createElement('div')
   div.style.cssText = 'display: flex; align-items: center; height: 100%;'
 
-  const isActive = Boolean(params.value)
+  const rawActive = params.value !== undefined && params.value !== null ? params.value : (params.data?.active ?? params.data?.isActive)
+  const isActive = Boolean(rawActive)
   const pill = document.createElement('span')
   pill.style.cssText = `padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 0.75rem; font-family: inherit; ${
     isActive
@@ -321,6 +322,7 @@ const columnDefs = computed(() => [
     field: 'isActive',
     headerName: t('matchingRules.is_active'),
     width: 140,
+    valueGetter: (params: any) => params.data?.active ?? params.data?.isActive,
     cellRenderer: IsActiveCellRenderer
   },
   {
@@ -426,7 +428,7 @@ const openEditModal = (rule: any) => {
     selectedFields: fieldsArr,
     targetFieldKeysInput: fieldsArr.join(', '),
     similarityThreshold: rule.similarityThreshold != null ? rule.similarityThreshold : 0.85,
-    isActive: rule.isActive
+    isActive: rule.active !== undefined ? Boolean(rule.active) : Boolean(rule.isActive)
   }
   showModal.value = true
 }

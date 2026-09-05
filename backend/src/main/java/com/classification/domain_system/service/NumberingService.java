@@ -50,8 +50,9 @@ public class NumberingService {
 
     /**
      * Safely increments sequence by 1, saves to DB, and returns the newly generated code.
+     * Uses atomic DB increment with REQUIRES_NEW transaction for strict concurrency safety.
      */
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public String issueNextCode(UUID domainId) {
         Domain domain = domainRepository.findWithLockById(domainId)
                 .orElseThrow(() -> new RuntimeException("Domain not found: " + domainId));
@@ -60,9 +61,9 @@ public class NumberingService {
             return "";
         }
 
-        long nextSeq = (domain.getCurrentSequence() != null ? domain.getCurrentSequence() : 0L) + 1;
-        domain.setCurrentSequence(nextSeq);
-        domainRepository.save(domain);
+        domainRepository.incrementSequenceNative(domainId);
+        Long nextSeq = domainRepository.getCurrentSequenceNative(domainId);
+        domain.setCurrentSequence(nextSeq != null ? nextSeq : 1L);
 
         return generateCode(domain);
     }

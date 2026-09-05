@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.classification</groupId>
 	<artifactId>domain-system</artifactId>
-	<version>1.2.17</version>
+	<version>1.2.19</version>
 	<name>domain_system</name>
 	<description/>
 	<url/>

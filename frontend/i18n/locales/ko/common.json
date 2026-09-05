@@ -1,4 +1,15 @@
 {
+  "common": {
+    "description": "설명",
+    "cancel": "취소",
+    "save": "저장",
+    "add": "추가",
+    "delete": "삭제",
+    "confirm": "확인",
+    "close": "닫기",
+    "edit": "수정"
+  },
+  "no_changes_to_save": "변경된 내용이 없습니다.",
   "bind_field_label": "바인딩 데이터 필드",
   "bind_field_placeholder": "연동할 도메인 필드 선택...",
   "unbind_field": "바인딩 해제",

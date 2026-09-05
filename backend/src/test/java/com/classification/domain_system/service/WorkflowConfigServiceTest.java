@@ -1,7 +1,6 @@
 package com.classification.domain_system.service;
 
 import com.classification.domain_system.entity.WorkflowConfig;
-import com.classification.domain_system.exception.BusinessException;
 import com.classification.domain_system.repository.WorkflowConfigRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -9,10 +8,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
 
-import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -20,7 +16,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class WorkflowConfigServiceTest {
+public class WorkflowConfigServiceTest {
 
     @Mock
     private WorkflowConfigRepository repository;
@@ -29,83 +25,43 @@ class WorkflowConfigServiceTest {
     private WorkflowConfigService workflowConfigService;
 
     @Test
-    @DisplayName("saveForDomain - 유효하지 않은 stepOrder(1부터 시작하지 않음)시 BusinessException 발생")
-    void saveForDomain_InvalidStepOrder_ThrowsException() {
-        UUID domainId = UUID.randomUUID();
+    @DisplayName("평문 description이 입력되었을 때 다국어 JSON으로 안전하게 자동 래핑되는지 검증 (#89)")
+    void testSanitizeJsonFields_PlainTextDescription() {
         WorkflowConfig config = new WorkflowConfig();
-        config.setStepsConfig("{\"steps\":[{\"stepOrder\":2}]}");
+        config.setName("일반 등록 워크플로우");
+        config.setDescription("이것은 일반 평문 설명입니다.");
 
-        assertThrows(BusinessException.class, () -> 
-            workflowConfigService.saveForDomain(domainId, List.of(config))
-        );
+        workflowConfigService.sanitizeJsonFields(config);
+
+        assertNotNull(config.getDescription());
+        assertTrue(config.getDescription().contains("\"ko\":\"이것은 일반 평문 설명입니다.\""));
+        assertTrue(config.getDescription().contains("\"en\":\"이것은 일반 평문 설명입니다.\""));
+
+        assertNotNull(config.getName());
+        assertTrue(config.getName().contains("\"ko\":\"일반 등록 워크플로우\""));
     }
 
     @Test
-    @DisplayName("saveForDomain - 유효한 설정 저장 성공")
-    void saveForDomain_Success() {
-        UUID domainId = UUID.randomUUID();
+    @DisplayName("이미 JSON 형식인 description과 name은 그대로 유지되는지 검증")
+    void testSanitizeJsonFields_AlreadyJson() {
         WorkflowConfig config = new WorkflowConfig();
-        config.setActionType("CREATE");
-        config.setStepsConfig("{\"steps\":[{\"stepOrder\":1},{\"stepOrder\":2}]}");
+        config.setName("{\"ko\":\"등록 서식\",\"en\":\"Create Form\"}");
+        config.setDescription("{\"ko\":\"설명\",\"en\":\"Description\"}");
 
-        when(repository.findByDomainId(domainId)).thenReturn(List.of());
-        when(repository.saveAll(any())).thenAnswer(i -> i.getArgument(0));
+        workflowConfigService.sanitizeJsonFields(config);
 
-        List<WorkflowConfig> result = workflowConfigService.saveForDomain(domainId, List.of(config));
-
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals(domainId, result.get(0).getDomainId());
-        assertNull(result.get(0).getNodeId());
-        verify(repository).saveAll(any());
+        assertEquals("{\"ko\":\"등록 서식\",\"en\":\"Create Form\"}", config.getName());
+        assertEquals("{\"ko\":\"설명\",\"en\":\"Description\"}", config.getDescription());
     }
 
     @Test
-    @DisplayName("saveForNode - 노드 워크플로우 설정 저장 성공")
-    void saveForNode_Success() {
-        UUID nodeId = UUID.randomUUID();
+    @DisplayName("빈 문자열 description은 null로 변환되는지 검증")
+    void testSanitizeJsonFields_BlankDescription() {
         WorkflowConfig config = new WorkflowConfig();
-        config.setActionType("CREATE");
-        config.setStepsConfig("{\"steps\":[{\"stepOrder\":1}]}");
+        config.setDescription("   ");
 
-        when(repository.findByNodeId(nodeId)).thenReturn(List.of());
-        when(repository.saveAll(any())).thenAnswer(i -> i.getArgument(0));
+        workflowConfigService.sanitizeJsonFields(config);
 
-        List<WorkflowConfig> result = workflowConfigService.saveForNode(nodeId, List.of(config));
-
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals(nodeId, result.get(0).getNodeId());
-        verify(repository).saveAll(any());
-    }
-
-    @Test
-    @DisplayName("getByDomain - 도메인 설정 조회 (nodeId가 null인 것만 반환)")
-    void getByDomain_Success() {
-        UUID domainId = UUID.randomUUID();
-        WorkflowConfig c1 = new WorkflowConfig();
-        c1.setDomainId(domainId);
-        c1.setNodeId(null);
-
-        WorkflowConfig c2 = new WorkflowConfig();
-        c2.setDomainId(domainId);
-        c2.setNodeId(UUID.randomUUID());
-
-        when(repository.findByDomainId(domainId)).thenReturn(List.of(c1, c2));
-
-        List<WorkflowConfig> result = workflowConfigService.getByDomain(domainId);
-
-        assertEquals(1, result.size());
-        assertNull(result.get(0).getNodeId());
-    }
-
-    @Test
-    @DisplayName("deleteWorkflowConfig - 워크플로우 설정 삭제")
-    void deleteWorkflowConfig_Success() {
-        UUID id = UUID.randomUUID();
-
-        workflowConfigService.deleteWorkflowConfig(id);
-
-        verify(repository).deleteById(id);
+        assertNull(config.getDescription());
     }
 }

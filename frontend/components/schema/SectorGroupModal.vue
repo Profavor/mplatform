@@ -2,7 +2,7 @@
   <AppModal
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
-    title="Manage Sectors & Groups"
+    :title="t('manage_sectors_groups')"
     icon="view_compact"
     hide-default-actions
     size="large"
@@ -10,8 +10,8 @@
     <div style="padding: 0.5rem 0;">
       <va-tabs :model-value="sgActiveTab" @update:model-value="$emit('update:sgActiveTab', $event)" style="width: 100%; margin-bottom: 1.5rem;">
       <template #tabs>
-        <va-tab>Sectors</va-tab>
-        <va-tab>Groups</va-tab>
+        <va-tab>{{ t('sectors') }}</va-tab>
+        <va-tab>{{ t('groups') }}</va-tab>
       </template>
     </va-tabs>
 
@@ -19,7 +19,7 @@
       <!-- Sectors Tab Content -->
       <div v-show="sgActiveTab === 0" style="height: 100%; display: flex; flex-direction: column;">
         <div style="display:flex; justify-content:space-between; margin-bottom: 1rem; align-items: center;">
-          <h3 style="font-weight:bold; margin: 0;">Sectors</h3>
+          <h3 style="font-weight:bold; margin: 0;">{{ t('sectors') }}</h3>
           <div style="display:flex; gap: 0.5rem;">
             <va-button size="small" icon="add" @click="$emit('add-sector-row')">{{ t('add_row') }}</va-button>
             <va-button size="small" color="primary" icon="save" @click="$emit('save-all-sectors')">{{ t('save') }}</va-button>
@@ -44,7 +44,7 @@
       <!-- Groups Tab Content -->
       <div v-show="sgActiveTab === 1" style="height: 100%; display: flex; flex-direction: column;">
         <div style="display:flex; justify-content:space-between; margin-bottom: 1rem; align-items: center;">
-          <h3 style="font-weight:bold; margin: 0;">Groups</h3>
+          <h3 style="font-weight:bold; margin: 0;">{{ t('groups') }}</h3>
           <div style="display:flex; gap: 0.5rem;">
             <va-button size="small" icon="add" @click="$emit('add-group-row')">{{ t('add_row') }}</va-button>
             <va-button size="small" color="primary" icon="save" @click="$emit('save-all-groups')">{{ t('save') }}</va-button>

@@ -4,19 +4,25 @@ let isRefreshing = false
 let refreshPromise: Promise<string | null> | null = null
 let silentRefreshTimer: ReturnType<typeof setTimeout> | null = null
 
-export function useAuthRefresh() {
+export function useAuthRefresh(options?: { oidcAuth?: any }) {
   const config = useRuntimeConfig()
+  const oidc = options?.oidcAuth || useOidcAuth()
   const accessMaxAge = Number(config?.public?.accessTokenExpirationSec || 1800)
   const refreshMaxAge = Number(config?.public?.refreshTokenExpirationSec || 86400)
 
   const getCookieValue = (name: string): string | null => {
-    if (!process.client || typeof document === 'undefined') return null
-    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'))
-    return match ? decodeURIComponent(match[2]) : null
+    if (typeof document !== 'undefined' && document.cookie) {
+      const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'))
+      if (match) return decodeURIComponent(match[2])
+    }
+    try {
+      const cv = useCookie(name).value
+      if (cv) return cv
+    } catch {}
+    return null
   }
 
   const setAuthCookies = (authToken: string, refreshToken?: string, expSec?: number) => {
-    if (!process.client || typeof document === 'undefined') return
     let maxAge = accessMaxAge
     if (expSec && expSec > 0) {
       const nowSec = Math.floor(Date.now() / 1000)
@@ -25,14 +31,18 @@ export function useAuthRefresh() {
         maxAge = remaining
       }
     }
-    document.cookie = `auth_token=${authToken}; max-age=${maxAge}; path=/; SameSite=Lax`
+    if (typeof document !== 'undefined') {
+      document.cookie = `auth_token=${authToken}; max-age=${maxAge}; path=/; SameSite=Lax`
+      if (refreshToken) {
+        document.cookie = `refresh_token=${refreshToken}; max-age=${refreshMaxAge}; path=/; SameSite=Lax`
+      }
+    }
     try {
       const cookieRef = useCookie('auth_token', { maxAge, path: '/' })
       cookieRef.value = authToken
     } catch {}
 
     if (refreshToken) {
-      document.cookie = `refresh_token=${refreshToken}; max-age=${refreshMaxAge}; path=/; SameSite=Lax`
       try {
         const refCookie = useCookie('refresh_token', { maxAge: refreshMaxAge, path: '/' })
         refCookie.value = refreshToken
@@ -41,12 +51,12 @@ export function useAuthRefresh() {
   }
 
   const clearAuthCookies = () => {
-    if (process.client && typeof document !== 'undefined') {
-      if (silentRefreshTimer) {
-        clearTimeout(silentRefreshTimer)
-        silentRefreshTimer = null
-      }
-      const cookies = ['auth_token', 'token', 'refresh_token', 'user_data']
+    if (silentRefreshTimer) {
+      clearTimeout(silentRefreshTimer)
+      silentRefreshTimer = null
+    }
+    const cookies = ['auth_token', 'token', 'refresh_token', 'user_data']
+    if (typeof document !== 'undefined') {
       cookies.forEach((c) => {
         document.cookie = `${c}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`
         try {
@@ -55,19 +65,32 @@ export function useAuthRefresh() {
           }
         } catch {}
       })
-      try {
-        useCookie('auth_token').value = null
-        useCookie('refresh_token').value = null
-        useCookie('token').value = null
-      } catch {}
     }
+    cookies.forEach((c) => {
+      try {
+        useCookie(c).value = null
+      } catch {}
+    })
   }
 
   const parseJwtExp = (token: string): number | null => {
     try {
+      if (!token || typeof token !== 'string') return null
       const parts = token.split('.')
       if (parts.length < 2) return null
-      const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
+      let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+      while (base64.length % 4 !== 0) {
+        base64 += '='
+      }
+      let jsonStr = ''
+      if (typeof atob === 'function') {
+        jsonStr = atob(base64)
+      } else if (typeof Buffer !== 'undefined') {
+        jsonStr = Buffer.from(base64, 'base64').toString('utf-8')
+      } else {
+        return null
+      }
+      const payload = JSON.parse(jsonStr)
       return typeof payload.exp === 'number' ? payload.exp : null
     } catch {
       return null
@@ -75,7 +98,6 @@ export function useAuthRefresh() {
   }
 
   const scheduleSilentRefresh = (token: string) => {
-    if (!process.client || typeof document === 'undefined') return
     if (silentRefreshTimer) {
       clearTimeout(silentRefreshTimer)
       silentRefreshTimer = null
@@ -109,6 +131,15 @@ export function useAuthRefresh() {
     }, delayMs)
   }
 
+  const resetRefreshState = () => {
+    isRefreshing = false
+    refreshPromise = null
+    if (silentRefreshTimer) {
+      clearTimeout(silentRefreshTimer)
+      silentRefreshTimer = null
+    }
+  }
+
   const performTokenRefresh = async (): Promise<string | null> => {
     if (isRefreshing && refreshPromise) {
       return await refreshPromise
@@ -119,10 +150,10 @@ export function useAuthRefresh() {
       try {
         // 1. OIDC (Keycloak SSO) 방식 갱신 우선 시도
         try {
-          const { refresh, user, loggedIn } = useOidcAuth()
-          if (loggedIn.value) {
+          const { refresh, user, loggedIn } = oidc
+          if (loggedIn?.value) {
             await refresh()
-            if (loggedIn.value && user.value?.accessToken) {
+            if (loggedIn?.value && user?.value?.accessToken) {
               const newAccessToken = user.value.accessToken
               const newRefreshToken = user.value.refreshToken || (user.value as any)?.providerInfo?.refreshToken
               const exp = parseJwtExp(newAccessToken)
@@ -184,6 +215,7 @@ export function useAuthRefresh() {
     clearAuthCookies,
     scheduleSilentRefresh,
     parseJwtExp,
-    getCookieValue
+    getCookieValue,
+    resetRefreshState
   }
 }

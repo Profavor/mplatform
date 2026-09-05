@@ -1,4 +1,8 @@
 {
+  "create_new_domain": "도메인 등록",
+  "edit_domain": "도메인 수정",
+  "sectors": "섹터",
+  "groups": "그룹",
   "classification_axes": "CLASSIFICATION AXES (다중 축)",
   "domain_name": "도메인명",
   "classification_name": "분류명",

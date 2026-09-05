@@ -338,15 +338,17 @@ const onDomainChange = () => {
 }
 
 const addRule = () => {
-  rules.value.push({
+  if (!selectedDomainId.value) return
+  const newRule = {
     fieldKey: domainFields.value[0]?.key || '',
     strategy: strategyOptions.value[0]?.value || 'SOURCE_PRIORITY',
     priority: rules.value.length + 1
-  })
+  }
+  rules.value = [...rules.value, newRule]
 }
 
 const removeRule = (index: number) => {
-  rules.value.splice(index, 1)
+  rules.value = rules.value.filter((_, idx) => idx !== index)
 }
 
 const saveRules = async () => {

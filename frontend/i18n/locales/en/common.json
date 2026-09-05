@@ -1,4 +1,15 @@
 {
+  "common": {
+    "description": "Description",
+    "cancel": "Cancel",
+    "save": "Save",
+    "add": "Add",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "close": "Close",
+    "edit": "Edit"
+  },
+  "no_changes_to_save": "No changes to save.",
   "bind_field_label": "Bound Data Field",
   "bind_field_placeholder": "Select domain field to bind...",
   "unbind_field": "Unbind Field",
