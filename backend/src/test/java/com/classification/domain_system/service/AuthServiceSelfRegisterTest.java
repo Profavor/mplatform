@@ -122,6 +122,65 @@ class AuthServiceSelfRegisterTest {
     }
 
     @Test
+    @DisplayName("성공: 맞춤 템플릿(LEASE_CONTRACT 등) 지정 시 요청된 카테고리로 체험 도메인이 프로비저닝된다")
+    void selfRegister_withCustomTemplate_provisionsRequestedTemplate() {
+        // given
+        SelfRegisterRequest request = SelfRegisterRequest.builder()
+                .username("re_master")
+                .email("owner@estate.com")
+                .password("Password123!")
+                .companyName("(주)리얼티임대")
+                .templateCategory("LEASE_CONTRACT")
+                .termsAgreed(true)
+                .timezone("Asia/Seoul")
+                .build();
+
+        given(userRepository.findByUsername("re_master")).willReturn(Optional.empty());
+        given(passwordEncoder.encode("Password123!")).willReturn("encodedPassword");
+
+        UUID orgId = UUID.randomUUID();
+        Organization savedOrg = new Organization();
+        savedOrg.setId(orgId);
+        savedOrg.setName("(주)리얼티임대");
+        given(organizationRepository.save(any(Organization.class))).willReturn(savedOrg);
+
+        String userId = UUID.randomUUID().toString();
+        User savedUser = new User();
+        savedUser.setId(userId);
+        savedUser.setUsername("re_master");
+        savedUser.setEmail("owner@estate.com");
+        savedUser.setOrganizationId(orgId);
+        savedUser.setRole("ROLE_USER,ORG_ADMIN");
+        given(userRepository.save(any(User.class))).willReturn(savedUser);
+
+        UUID domainId = UUID.randomUUID();
+        DomainResponse mockDomainResponse = DomainResponse.builder()
+                .id(domainId)
+                .name(Map.of("ko", "(주)리얼티임대 부동산 임대차 마스터"))
+                .build();
+        given(specializedDomainTemplateService.provisionDomainForOrganization(any(SpecializedDomainProvisionRequest.class), eq(orgId)))
+                .willReturn(mockDomainResponse);
+
+        given(jwtUtil.generateToken(eq("re_master"), eq("ROLE_USER,ORG_ADMIN"), eq(userId), any()))
+                .willReturn("mock-access-token");
+        given(jwtUtil.generateRefreshToken(eq("re_master"), eq("ROLE_USER,ORG_ADMIN"), eq(userId), any()))
+                .willReturn("mock-refresh-token");
+
+        // when
+        Map<String, String> tokens = authService.selfRegister(request, "127.0.0.1", "TestAgent");
+
+        // then
+        assertThat(tokens).isNotNull();
+        org.mockito.ArgumentCaptor<SpecializedDomainProvisionRequest> provReqCaptor =
+                org.mockito.ArgumentCaptor.forClass(SpecializedDomainProvisionRequest.class);
+        verify(specializedDomainTemplateService).provisionDomainForOrganization(provReqCaptor.capture(), eq(orgId));
+
+        SpecializedDomainProvisionRequest capturedReq = provReqCaptor.getValue();
+        assertThat(capturedReq.getCategory()).isEqualTo("LEASE_CONTRACT");
+        assertThat(capturedReq.getName().get("ko")).contains("(주)리얼티임대");
+    }
+
+    @Test
     @DisplayName("실패: 이미 존재하는 아이디인 경우 USERNAME_ALREADY_EXISTS 예외가 발생한다")
     void selfRegister_fail_duplicateUsername() {
         // given

@@ -16,4 +16,5 @@ public class SelfRegisterRequest {
     private String companyName;
     private Boolean termsAgreed;
     private String timezone;
+    private String templateCategory;
 }

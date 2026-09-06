@@ -181,4 +181,49 @@ describe('Register Page (B2B Self-Service Funnel Tests)', () => {
     expect(mockRefreshToken).toBe('jwt-refresh-token-xyz')
     expect(navigateToMock).toHaveBeenCalledWith('/dashboard')
   })
+
+  it('사용자가 체험 템플릿(LEASE_CONTRACT 등)을 선택하면 회원가입 요청 body에 templateCategory가 포함되어야 한다', async () => {
+    let capturedBody: any = null
+    vi.spyOn(global, 'fetch').mockImplementation(async (url: any, options: any) => {
+      if (typeof url === 'string' && url.includes('/api/auth/self-register')) {
+        capturedBody = JSON.parse(options.body)
+        return {
+          ok: true,
+          json: async () => ({ token: 'mock-token', refreshToken: 'mock-refresh' })
+        } as any
+      }
+      return { ok: true, json: async () => ({}) } as any
+    })
+
+    const wrapper = mount(RegisterPage, {
+      global: {
+        mocks: { $t: (k: string) => k },
+        stubs: {
+          'va-icon': true,
+          'va-card': { template: '<div><slot /></div>' },
+          'va-card-content': { template: '<div><slot /></div>' },
+          'va-input': true,
+          'va-checkbox': true,
+          'va-button': true,
+          'NuxtLink': true
+        }
+      }
+    })
+
+    const vm = wrapper.vm as any
+    vm.form.companyName = '(주)부동산임대'
+    vm.form.username = 'estate_master'
+    vm.form.email = 'owner@estate.com'
+    vm.form.password = 'Pass1234!'
+    vm.form.confirmPassword = 'Pass1234!'
+    vm.form.termsAgreed = true
+    vm.form.templateCategory = 'LEASE_CONTRACT'
+
+    await vm.handleSubmit()
+    await flushPromises()
+
+    expect(capturedBody).not.toBeNull()
+    expect(capturedBody.templateCategory).toBe('LEASE_CONTRACT')
+    expect(capturedBody.companyName).toBe('(주)부동산임대')
+  })
 })

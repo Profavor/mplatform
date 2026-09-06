@@ -28,6 +28,25 @@
               </va-input>
             </div>
 
+            <!-- Business Type / Trial Template Selection -->
+            <div class="form-group">
+              <label class="form-label">{{ $t('select_business_type') }}</label>
+              <div class="template-selector-grid">
+                <div
+                  v-for="tpl in availableTemplates"
+                  :key="tpl.category"
+                  :class="['template-card', { active: form.templateCategory === tpl.category }]"
+                  @click="form.templateCategory = tpl.category"
+                >
+                  <div class="template-card-header">
+                    <va-icon :name="tpl.icon" size="small" :color="form.templateCategory === tpl.category ? 'primary' : 'secondary'" />
+                    <span class="template-card-title">{{ $t(tpl.nameKey) }}</span>
+                  </div>
+                  <p class="template-card-desc">{{ $t(tpl.descKey) }}</p>
+                </div>
+              </div>
+            </div>
+
             <!-- Username with duplicate check -->
             <div class="form-group">
               <label class="form-label">{{ $t('label_username') }} *</label>
@@ -164,12 +183,19 @@ useHead({
 const authToken = useCookie('auth_token')
 const refreshToken = useCookie('refresh_token')
 
+const availableTemplates = [
+  { category: 'LEASE_CONTRACT', nameKey: 'template_lease', descKey: 'template_lease_desc', icon: 'apartment' },
+  { category: 'CUSTOMER', nameKey: 'template_customer', descKey: 'template_customer_desc', icon: 'person_pin' },
+  { category: 'PRODUCT', nameKey: 'template_product', descKey: 'template_product_desc', icon: 'inventory_2' }
+]
+
 const form = reactive({
   companyName: '',
   username: '',
   email: '',
   password: '',
   confirmPassword: '',
+  templateCategory: 'LEASE_CONTRACT',
   termsAgreed: false
 })
 
@@ -256,6 +282,7 @@ const handleSubmit = async () => {
         username: form.username.trim(),
         email: form.email.trim(),
         password: form.password,
+        templateCategory: form.templateCategory,
         termsAgreed: true,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul'
       })
@@ -374,6 +401,61 @@ const handleSubmit = async () => {
   font-size: 0.82rem;
   font-weight: 600;
   color: var(--va-text-primary);
+}
+
+.template-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.template-card {
+  padding: 0.65rem 0.5rem;
+  border-radius: 0.75rem;
+  border: 1.5px solid var(--va-background-element);
+  background: var(--va-background-card);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.template-card:hover {
+  border-color: rgba(var(--va-primary-rgb), 0.5);
+  transform: translateY(-1px);
+}
+
+.template-card.active {
+  border-color: var(--va-primary);
+  background: rgba(var(--va-primary-rgb), 0.06);
+  box-shadow: 0 0 0 1px var(--va-primary);
+}
+
+.template-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.template-card-title {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--va-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.template-card-desc {
+  font-size: 0.68rem;
+  color: var(--va-text-secondary);
+  line-height: 1.3;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .terms-group {

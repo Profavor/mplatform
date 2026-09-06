@@ -121,13 +121,31 @@ public class AuthService {
         user.setIsActive(true);
         user = userRepository.save(user);
 
-        // 3. Provision Trial Domain (CUSTOMER template)
+        // 3. Provision Trial Domain (Custom template if requested, otherwise default to CUSTOMER)
         try {
             if (specializedDomainTemplateService != null) {
+                String requestedCategory = request.getTemplateCategory() != null && !request.getTemplateCategory().trim().isEmpty()
+                        ? request.getTemplateCategory().trim().toUpperCase()
+                        : "CUSTOMER";
+
+                String koSuffix = "CUSTOMER".equals(requestedCategory) ? " 고객 마스터" : " 마스터";
+                String enSuffix = "CUSTOMER".equals(requestedCategory) ? " Customer Master" : " Master";
+                try {
+                    var templateDto = specializedDomainTemplateService.getTemplate(requestedCategory);
+                    if (templateDto != null && templateDto.getName() != null) {
+                        if (templateDto.getName().get("ko") != null) koSuffix = " " + templateDto.getName().get("ko");
+                        if (templateDto.getName().get("en") != null) enSuffix = " " + templateDto.getName().get("en");
+                    }
+                } catch (Exception ignored) {
+                }
+
                 com.classification.domain_system.dto.SpecializedDomainProvisionRequest provReq =
                         com.classification.domain_system.dto.SpecializedDomainProvisionRequest.builder()
-                                .category("CUSTOMER")
-                                .name(Map.of("ko", companyName + " 고객 마스터", "en", companyName + " Customer Master"))
+                                .category(requestedCategory)
+                                .name(Map.of(
+                                        "ko", companyName + koSuffix,
+                                        "en", companyName + enSuffix
+                                ))
                                 .build();
                 var domainResp = specializedDomainTemplateService.provisionDomainForOrganization(provReq, org.getId());
                 if (domainResp != null && domainResp.getId() != null && domainPermissionRepository != null) {

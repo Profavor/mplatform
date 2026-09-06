@@ -18,13 +18,13 @@ spec:
       labels:
         app: backend
         app.kubernetes.io/name: backend
-        app.kubernetes.io/version: "1.2.46"
-        version: "1.2.46"
+        app.kubernetes.io/version: "1.2.47"
+        version: "1.2.47"
     spec:
       terminationGracePeriodSeconds: 60
       containers:
       - name: backend
-        image: profavor2/mplatform-backend:1.2.46
+        image: profavor2/mplatform-backend:1.2.47
         imagePullPolicy: IfNotPresent
         resources:
           requests:
