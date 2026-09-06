@@ -9,6 +9,14 @@ vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string, fallback?: string) => fallback || key })
 }))
 
+const { mockCurrentUser } = vi.hoisted(() => ({
+  mockCurrentUser: {
+    id: 'user-requester-id',
+    username: 'requesterUser',
+    role: 'ROLE_USER'
+  }
+}))
+
 vi.mock('#app', () => ({
   useCookie: (key: string) => {
     if (key === 'user_data' || key === 'user') {
@@ -16,6 +24,12 @@ vi.mock('#app', () => ({
     }
     return { value: 'Asia/Seoul' }
   }
+}))
+
+vi.mock('~/composables/useAuthUser', () => ({
+  useAuthUser: () => ({
+    currentUser: mockCurrentUser
+  })
 }))
 
 vi.mock('~/composables/usePermission', () => ({
@@ -50,11 +64,6 @@ vi.mock('~/composables/useInbox', () => ({
   })
 }))
 
-const mockCurrentUser = {
-  id: 'user-requester-id',
-  username: 'requesterUser',
-  role: 'ROLE_USER'
-}
 
 vi.mock('~/stores/useUserStore', () => ({
   useUserStore: () => ({

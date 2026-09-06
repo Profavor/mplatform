@@ -67,6 +67,7 @@ class SystemInstallControllerTest {
         adminUser.setUsername("admin");
         adminUser.setRole("ROLE_ADMIN");
 
+        when(installService.getInstallStatus()).thenReturn(new SystemInstallStatusResponse(false, false));
         when(installService.installSystem(any(SystemInstallRequest.class))).thenReturn(adminUser);
         when(authService.loginWithTokens(eq("admin"), eq("admin1234!"), eq("127.0.0.1"), anyString()))
                 .thenReturn(Map.of("token", "jwt-token-123", "refreshToken", "refresh-token-123"));

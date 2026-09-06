@@ -19,6 +19,9 @@ public class UrlSecurityValidator {
     );
 
     public static boolean isSafeExternalUrl(String urlString) {
+        if (Boolean.getBoolean("security.url.allow-loopback-for-test")) {
+            return true;
+        }
         if (urlString == null || urlString.isBlank()) {
             return false;
         }

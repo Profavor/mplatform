@@ -70,6 +70,7 @@ class DqRuleEngineEncryptionDqTest {
         String ciphertext = "vault:v1:sampleEncryptedEmailCiphertext";
         String decryptedPlaintext = "hong@mplatform.com";
 
+        given(fieldEncryptionService.isEncrypted(ciphertext)).willReturn(true);
         given(fieldEncryptionService.decrypt(ciphertext)).willReturn(decryptedPlaintext);
 
         String json = "{\"contact_email\":\"" + ciphertext + "\",\"_mask_contact_email\":\"h***@mplatform.com\"}";
@@ -96,6 +97,7 @@ class DqRuleEngineEncryptionDqTest {
         String ciphertext = "vault:v1:sampleInvalidEmailCiphertext";
         String decryptedPlaintext = "invalid-email-not-valid";
 
+        given(fieldEncryptionService.isEncrypted(ciphertext)).willReturn(true);
         given(fieldEncryptionService.decrypt(ciphertext)).willReturn(decryptedPlaintext);
 
         String json = "{\"contact_email\":\"" + ciphertext + "\",\"_mask_contact_email\":\"inva***@mplatform.com\"}";

@@ -82,7 +82,7 @@ class NumberingServiceTest extends BaseServiceTest {
             domain.setCurrentSequence(10L);
 
             given(domainRepository.findWithLockById(domainId)).willReturn(Optional.of(domain));
-            given(domainRepository.save(any(Domain.class))).willAnswer(invocation -> invocation.getArgument(0));
+            given(domainRepository.getCurrentSequenceNative(domainId)).willReturn(11L);
 
             // when
             String code = numberingService.issueNextCode(domainId);
@@ -90,7 +90,7 @@ class NumberingServiceTest extends BaseServiceTest {
             // then
             assertThat(code).isEqualTo("PRD-00011");
             assertThat(domain.getCurrentSequence()).isEqualTo(11L);
-            verify(domainRepository).save(domain);
+            verify(domainRepository).incrementSequenceNative(domainId);
         }
     }
 }

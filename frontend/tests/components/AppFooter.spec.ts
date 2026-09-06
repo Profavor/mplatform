@@ -43,6 +43,7 @@ describe('AppFooter.vue', () => {
   const defaultGlobal = {
     plugins: [i18n],
     stubs: {
+      teleport: true,
       VaIcon: {
         template: '<span class="va-icon-stub"><slot /></span>'
       },
@@ -104,6 +105,7 @@ describe('AppFooter.vue', () => {
     const privacyBtn = wrapper.find('.footer-link-privacy')
     expect(privacyBtn.exists()).toBe(true)
     await privacyBtn.trigger('click')
+    await wrapper.vm.$nextTick()
 
     // Modal should now be visible with correct title
     const modal = wrapper.find('.app-modal-stub')
