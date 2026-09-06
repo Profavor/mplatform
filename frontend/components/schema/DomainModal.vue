@@ -269,7 +269,8 @@ const getCategoryLabel = (category) => {
     PRODUCT: 'category_product',
     MATERIAL: 'category_material',
     EMPLOYEE: 'category_employee',
-    STOCK: 'category_stock'
+    STOCK: 'category_stock',
+    LEASE_CONTRACT: 'category_lease_contract'
   }
   const key = map[category] || category
   return t(key)

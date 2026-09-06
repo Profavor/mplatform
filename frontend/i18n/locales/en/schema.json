@@ -424,6 +424,7 @@
   "category_material": "Material",
   "category_employee": "Employee",
   "category_stock": "Stock",
+  "category_lease_contract": "Real Estate Lease",
   "fields_count": "{count} Standard Fields",
   "dq_rules_count": "{count} DQ Rules",
   "select_template": "Select Template",

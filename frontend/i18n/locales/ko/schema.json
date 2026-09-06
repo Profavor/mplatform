@@ -424,6 +424,7 @@
   "category_material": "자재",
   "category_employee": "임직원",
   "category_stock": "주식",
+  "category_lease_contract": "부동산 임대차",
   "fields_count": "{count}개 표준 필드",
   "dq_rules_count": "{count}개 DQ 규칙",
   "select_template": "템플릿 선택",

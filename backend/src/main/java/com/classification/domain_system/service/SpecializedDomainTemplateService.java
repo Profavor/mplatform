@@ -563,6 +563,89 @@ public class SpecializedDomainTemplateService {
                         DqRuleTemplateDto.builder().fieldKey("listed_shares").ruleType("RANGE").severity("WARNING").params("{\"min\":1}").message(Map.of("ko", "상장주식수는 1주 이상이어야 합니다.", "en", "Listed shares must be at least 1.")).build()
                 ))
                 .build());
+
+        // =========================================================================
+        // 7. LEASE_CONTRACT (부동산 임대차 마스터)
+        // =========================================================================
+        TEMPLATES.put("LEASE_CONTRACT", SpecializedDomainTemplateDto.builder()
+                .category("LEASE_CONTRACT")
+                .name(Map.of("ko", "부동산 임대차 마스터", "en", "Real Estate Lease Master"))
+                .description(Map.of("ko", "건물·층·호실별 임대차 계약 정보, 보증금 및 월세 관리, 만기일자 및 권리관계 리스크 상시 감시", "en", "Real Estate Lease & Risk Management Master Data"))
+                .icon("apartment")
+                .numberingPattern("LEASE-{YYYY}-{SEQ:6}")
+                .axisName(Map.of("ko", "부동산 용도 분류", "en", "Property Classification"))
+                .axisCode("LEASE_PROPERTY_TYPE")
+                .rootNodeName(Map.of("ko", "전체 부동산", "en", "All Properties"))
+                .identifierFieldKey("contract_no")
+                .displayNameFieldKey("tenant_name")
+                .nodes(List.of(
+                        ClassificationNodeTemplateDto.builder().code("RESIDENTIAL").name(Map.of("ko", "주거용", "en", "Residential")).icon("home").order(1).build(),
+                        ClassificationNodeTemplateDto.builder().code("APT").parentCode("RESIDENTIAL").name(Map.of("ko", "아파트/주상복합", "en", "Apartment")).icon("apartment").order(1).build(),
+                        ClassificationNodeTemplateDto.builder().code("MULTI_UNIT").parentCode("RESIDENTIAL").name(Map.of("ko", "다가구/원룸/다세대", "en", "Multi-Unit / Studio")).icon("holiday_village").order(2).build(),
+                        ClassificationNodeTemplateDto.builder().code("OFFICETEL_RES").parentCode("RESIDENTIAL").name(Map.of("ko", "주거용 오피스텔", "en", "Studio / Officetel")).icon("business_center").order(3).build(),
+                        ClassificationNodeTemplateDto.builder().code("COMMERCIAL").name(Map.of("ko", "상업/업무용", "en", "Commercial")).icon("domain").order(2).build(),
+                        ClassificationNodeTemplateDto.builder().code("RETAIL").parentCode("COMMERCIAL").name(Map.of("ko", "근린생활시설/상가", "en", "Retail Store")).icon("storefront").order(1).build(),
+                        ClassificationNodeTemplateDto.builder().code("OFFICE").parentCode("COMMERCIAL").name(Map.of("ko", "사무실/오피스", "en", "Office Space")).icon("corporate_fare").order(2).build(),
+                        ClassificationNodeTemplateDto.builder().code("WAREHOUSE").parentCode("COMMERCIAL").name(Map.of("ko", "창고/물류시설", "en", "Warehouse / Logistics")).icon("warehouse").order(3).build()
+                ))
+                .sectors(List.of(
+                        SectorTemplateDto.builder().code("PROPERTY_INFO").name(Map.of("ko", "물건 및 호실 정보", "en", "Property & Unit Info")).order(1)
+                                .groups(List.of(
+                                        FieldGroupTemplateDto.builder().code("LOCATION_GROUP").name(Map.of("ko", "소재지 및 단지 정보", "en", "Location & Complex")).order(1).isDefaultOpen(true).build(),
+                                        FieldGroupTemplateDto.builder().code("UNIT_GROUP").name(Map.of("ko", "호실 및 면적 정보", "en", "Unit & Area")).order(2).isDefaultOpen(true).build()
+                                )).build(),
+                        SectorTemplateDto.builder().code("CONTRACT_TERMS").name(Map.of("ko", "계약 조건", "en", "Contract Terms")).order(2)
+                                .groups(List.of(
+                                        FieldGroupTemplateDto.builder().code("PARTY_GROUP").name(Map.of("ko", "임차인/계약자 정보", "en", "Tenant & Party")).order(1).isDefaultOpen(true).build(),
+                                        FieldGroupTemplateDto.builder().code("PERIOD_GROUP").name(Map.of("ko", "계약 기간 및 유형", "en", "Contract Period & Type")).order(2).isDefaultOpen(true).build()
+                                )).build(),
+                        SectorTemplateDto.builder().code("FINANCE_TERMS").name(Map.of("ko", "금융 및 임대료 조건", "en", "Financial & Rent Terms")).order(3)
+                                .groups(List.of(
+                                        FieldGroupTemplateDto.builder().code("PAYMENT_GROUP").name(Map.of("ko", "보증금 및 월세 조건", "en", "Deposit & Rent Payment")).order(1).isDefaultOpen(true).build()
+                                )).build(),
+                        SectorTemplateDto.builder().code("RISK_GOVERNANCE").name(Map.of("ko", "권리관계 및 리스크 관리", "en", "Risk & Governance")).order(4)
+                                .groups(List.of(
+                                        FieldGroupTemplateDto.builder().code("MORTGAGE_GROUP").name(Map.of("ko", "선순위 채권 및 담보", "en", "Mortgage & Collateral")).order(1).isDefaultOpen(true).build(),
+                                        FieldGroupTemplateDto.builder().code("SPECIAL_TERMS_GROUP").name(Map.of("ko", "특약 및 계약 상태", "en", "Special Terms & Status")).order(2).isDefaultOpen(true).build()
+                                )).build()
+                ))
+                .fields(List.of(
+                        FieldTemplateDto.builder().key("contract_no").groupCode("PARTY_GROUP").name(Map.of("ko", "계약번호", "en", "Contract No")).type("TEXT").required(true).isSearchable(true).isGridVisible(true).gridWidth(3).tableColumnWidth(140).order(1).build(),
+                        FieldTemplateDto.builder().key("building_name").groupCode("LOCATION_GROUP").name(Map.of("ko", "건물명/단지명", "en", "Building / Complex")).type("TEXT").required(true).isSearchable(true).isGridVisible(true).gridWidth(4).tableColumnWidth(180).order(2).build(),
+                        FieldTemplateDto.builder().key("address_primary").groupCode("LOCATION_GROUP").name(Map.of("ko", "소재지 주소", "en", "Property Address")).type("TEXT").required(true).isSearchable(true).isGridVisible(true).gridWidth(6).tableColumnWidth(240).order(3).build(),
+                        FieldTemplateDto.builder().key("unit_number").groupCode("UNIT_GROUP").name(Map.of("ko", "동/층/호수", "en", "Unit / Room No")).type("TEXT").required(true).isSearchable(true).isGridVisible(true).gridWidth(3).tableColumnWidth(130).order(4).build(),
+                        FieldTemplateDto.builder().key("exclusive_area").groupCode("UNIT_GROUP").name(Map.of("ko", "전용면적", "en", "Exclusive Area")).type("NUMBER").unit("㎡").required(false).isGridVisible(true).gridWidth(3).tableColumnWidth(120).order(5).build(),
+
+                        FieldTemplateDto.builder().key("tenant_name").groupCode("PARTY_GROUP").name(Map.of("ko", "임차인명/상호", "en", "Tenant Name")).type("TEXT").required(true).isSearchable(true).isGridVisible(true).gridWidth(3).tableColumnWidth(150).order(6).build(),
+                        FieldTemplateDto.builder().key("tenant_contact").groupCode("PARTY_GROUP").name(Map.of("ko", "임차인 연락처", "en", "Tenant Contact")).type("TEXT").required(true).isSearchable(true).isGridVisible(true).gridWidth(3).tableColumnWidth(140).order(7).build(),
+                        FieldTemplateDto.builder().key("tenant_email").groupCode("PARTY_GROUP").name(Map.of("ko", "임차인 이메일", "en", "Tenant Email")).type("EMAIL").required(false).isGridVisible(false).gridWidth(4).tableColumnWidth(180).order(8).build(),
+
+                        FieldTemplateDto.builder().key("lease_type").groupCode("PERIOD_GROUP").name(Map.of("ko", "임대 유형", "en", "Lease Type")).type("SELECT").required(true).isFilterable(true).isGridVisible(true).gridWidth(3).tableColumnWidth(120).order(9)
+                                .options("[{\"key\":\"JEONSE\",\"value\":\"JEONSE\",\"label\":{\"ko\":\"전세\",\"en\":\"Jeonse\"}},{\"key\":\"MONTHLY\",\"value\":\"MONTHLY\",\"label\":{\"ko\":\"월세\",\"en\":\"Monthly Rent\"}},{\"key\":\"HALF_JEONSE\",\"value\":\"HALF_JEONSE\",\"label\":{\"ko\":\"반전세\",\"en\":\"Half-Jeonse\"}},{\"key\":\"RETAIL\",\"value\":\"RETAIL\",\"label\":{\"ko\":\"상가임대\",\"en\":\"Commercial Lease\"}}]").build(),
+                        FieldTemplateDto.builder().key("contract_start_date").groupCode("PERIOD_GROUP").name(Map.of("ko", "계약 시작일", "en", "Start Date")).type("DATE").required(true).isGridVisible(true).gridWidth(3).tableColumnWidth(130).order(10).build(),
+                        FieldTemplateDto.builder().key("contract_end_date").groupCode("PERIOD_GROUP").name(Map.of("ko", "계약 만료일", "en", "End Date")).type("DATE").required(true).isGridVisible(true).gridWidth(3).tableColumnWidth(130).order(11).build(),
+
+                        FieldTemplateDto.builder().key("deposit_amount").groupCode("PAYMENT_GROUP").name(Map.of("ko", "임대 보증금", "en", "Deposit Amount")).type("NUMBER").unit("KRW").required(true).isGridVisible(true).gridWidth(3).tableColumnWidth(150).order(12).build(),
+                        FieldTemplateDto.builder().key("monthly_rent").groupCode("PAYMENT_GROUP").name(Map.of("ko", "월 임대료", "en", "Monthly Rent")).type("NUMBER").unit("KRW").required(true).isGridVisible(true).gridWidth(3).tableColumnWidth(140).order(13).build(),
+                        FieldTemplateDto.builder().key("maintenance_fee").groupCode("PAYMENT_GROUP").name(Map.of("ko", "관리비", "en", "Maintenance Fee")).type("NUMBER").unit("KRW").required(false).isGridVisible(true).gridWidth(3).tableColumnWidth(130).order(14).build(),
+                        FieldTemplateDto.builder().key("rent_payment_day").groupCode("PAYMENT_GROUP").name(Map.of("ko", "월세 납부일", "en", "Payment Day")).type("NUMBER").required(false).isGridVisible(true).gridWidth(2).tableColumnWidth(110).order(15).build(),
+
+                        FieldTemplateDto.builder().key("prior_mortgage_amount").groupCode("MORTGAGE_GROUP").name(Map.of("ko", "선순위 채권최고액", "en", "Prior Mortgage Amount")).type("NUMBER").unit("KRW").required(false).isGridVisible(true).gridWidth(3).tableColumnWidth(160).order(16).build(),
+                        FieldTemplateDto.builder().key("market_price_estimate").groupCode("MORTGAGE_GROUP").name(Map.of("ko", "시세 추정액", "en", "Market Price Estimate")).type("NUMBER").unit("KRW").required(false).isGridVisible(false).gridWidth(3).tableColumnWidth(150).order(17).build(),
+                        FieldTemplateDto.builder().key("debt_ratio").groupCode("MORTGAGE_GROUP").name(Map.of("ko", "부채비율", "en", "Debt Ratio")).type("NUMBER").unit("%").required(false).isGridVisible(true).gridWidth(3).tableColumnWidth(120).order(18).build(),
+
+                        FieldTemplateDto.builder().key("contract_status").groupCode("SPECIAL_TERMS_GROUP").name(Map.of("ko", "계약 상태", "en", "Contract Status")).type("SELECT").required(true).isFilterable(true).isGridVisible(true).gridWidth(3).tableColumnWidth(130).order(19)
+                                .options("[{\"key\":\"ACTIVE\",\"value\":\"ACTIVE\",\"label\":{\"ko\":\"정상 진행\",\"en\":\"Active\"}},{\"key\":\"EXPIRING\",\"value\":\"EXPIRING\",\"label\":{\"ko\":\"만기 임박\",\"en\":\"Expiring Soon\"}},{\"key\":\"EXPIRED\",\"value\":\"EXPIRED\",\"label\":{\"ko\":\"만기 종료\",\"en\":\"Expired\"}},{\"key\":\"OVERDUE\",\"value\":\"OVERDUE\",\"label\":{\"ko\":\"임대료 연체\",\"en\":\"Overdue\"}}]").build(),
+                        FieldTemplateDto.builder().key("special_agreement").groupCode("SPECIAL_TERMS_GROUP").name(Map.of("ko", "특약사항 및 비고", "en", "Special Agreement & Remarks")).type("HTML_TEXT").required(false).isGridVisible(false).gridWidth(8).tableColumnWidth(250).order(20).build()
+                ))
+                .dqRules(List.of(
+                        DqRuleTemplateDto.builder().fieldKey("deposit_amount").ruleType("RANGE").severity("WARNING").params("{\"min\":0,\"max\":10000000000}").message(Map.of("ko", "보증금은 0원 이상 100억원 이하여야 합니다.", "en", "Deposit must be between 0 and 10,000,000,000 KRW.")).build(),
+                        DqRuleTemplateDto.builder().fieldKey("monthly_rent").ruleType("RANGE").severity("WARNING").params("{\"min\":0,\"max\":100000000}").message(Map.of("ko", "월세는 0원 이상 1억원 이하여야 합니다.", "en", "Monthly rent must be between 0 and 100,000,000 KRW.")).build(),
+                        DqRuleTemplateDto.builder().fieldKey("rent_payment_day").ruleType("RANGE").severity("WARNING").params("{\"min\":1,\"max\":31}").message(Map.of("ko", "월세 납부일은 1일에서 31일 사이여야 합니다.", "en", "Rent payment day must be between 1 and 31.")).build(),
+                        DqRuleTemplateDto.builder().fieldKey("tenant_contact").ruleType("REGEX").severity("WARNING").params("{\"pattern\":\"^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$\"}").message(Map.of("ko", "유효한 휴대전화번호 형식이 아닙니다.", "en", "Invalid mobile phone number format.")).build(),
+                        DqRuleTemplateDto.builder().fieldKey("contract_end_date").ruleType("DATE_RANGE").severity("ERROR").params("{\"afterField\":\"contract_start_date\"}").message(Map.of("ko", "계약 만료일은 계약 시작일 이후여야 합니다.", "en", "Contract end date must be after contract start date.")).build()
+                ))
+                .build());
     }
 
     @Transactional(readOnly = true)
