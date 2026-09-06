@@ -10,6 +10,7 @@
     "preview": "nuxt preview",
     "postinstall": "node patch-oidc.js && nuxt prepare",
     "test": "vitest run",
+    "test:unit": "vitest run tests/unit tests/utils tests/timezone.spec.ts",
     "test:watch": "vitest",
     "test:e2e": "playwright test"
   },

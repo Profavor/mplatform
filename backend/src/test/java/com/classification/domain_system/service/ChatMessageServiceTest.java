@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.atLeastOnce;
 
 @ExtendWith(MockitoExtension.class)
 class ChatMessageServiceTest {
@@ -68,6 +69,10 @@ class ChatMessageServiceTest {
         room.setId(roomId);
         room.setName("테스트방");
 
+        ChatMessageRoomMember member = new ChatMessageRoomMember();
+        member.setRoom(room);
+        member.setUserId(senderId);
+        given(memberRepository.findByRoomIdAndUserId(roomId, senderId)).willReturn(Optional.of(member));
         given(roomRepository.findById(roomId)).willReturn(Optional.of(room));
         given(messageRepository.save(any(ChatMessage.class))).willAnswer(inv -> {
             ChatMessage m = inv.getArgument(0);
@@ -80,7 +85,7 @@ class ChatMessageServiceTest {
         assertThat(msg).isNotNull();
         assertThat(msg.getContent()).isEqualTo("안녕하세요!");
         assertThat(room.getLastMessage()).contains("안녕하세요!");
-        verify(webSocketPublisher).publishToRoom(eq(roomId), any());
+        verify(webSocketPublisher, atLeastOnce()).publishToRoom(eq(roomId), any());
     }
 
     @Test

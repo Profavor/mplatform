@@ -25,22 +25,27 @@ class WebServiceDynamicExecutionServiceTest {
 
     @Test
     void executeWebService_WithUnresponsiveServer_ThrowsTimeoutException() throws Exception {
-        // Dummy server that accepts connection but never responds
-        try (ServerSocket serverSocket = new ServerSocket(0)) {
-            int port = serverSocket.getLocalPort();
-            String configJson = String.format("{\"url\":\"http://localhost:%d/dummy\",\"method\":\"POST\"}", port);
-            
-            long startTime = System.currentTimeMillis();
-            
-            Exception exception = assertThrows(RuntimeException.class, () -> {
-                service.executeWebService(configJson, "{}");
-            });
-            
-            long duration = System.currentTimeMillis() - startTime;
-            
-            // Should fail due to timeout, usually within 1000ms given our 100ms timeout
-            assertTrue(duration < 2000, "Should timeout quickly, took " + duration + "ms");
-            assertTrue(exception.getMessage().contains("WEB_SERVICE execution failed"));
+        System.setProperty("security.url.allow-loopback-for-test", "true");
+        try {
+            // Dummy server that accepts connection but never responds
+            try (ServerSocket serverSocket = new ServerSocket(0)) {
+                int port = serverSocket.getLocalPort();
+                String configJson = String.format("{\"url\":\"http://localhost:%d/dummy\",\"method\":\"POST\"}", port);
+                
+                long startTime = System.currentTimeMillis();
+                
+                Exception exception = assertThrows(RuntimeException.class, () -> {
+                    service.executeWebService(configJson, "{}");
+                });
+                
+                long duration = System.currentTimeMillis() - startTime;
+                
+                // Should fail due to timeout, usually within 1000ms given our 100ms timeout
+                assertTrue(duration < 2000, "Should timeout quickly, took " + duration + "ms");
+                assertTrue(exception.getMessage().contains("WEB_SERVICE execution failed"));
+            }
+        } finally {
+            System.clearProperty("security.url.allow-loopback-for-test");
         }
     }
 
