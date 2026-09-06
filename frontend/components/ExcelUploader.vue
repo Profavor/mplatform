@@ -1,7 +1,7 @@
 <template>
   <AppModal
     :model-value="true"
-    :title="t('excel_uploader.title') || '엑셀 / CSV 대량 업로드 (Bulk Import)'"
+    :title="t('records.excel_uploader.title')"
     icon="upload_file"
     size="large"
     hide-default-actions
@@ -43,45 +43,84 @@
       <!-- Step 1: File Upload & Template Download -->
       <div v-if="step === 1" style="display: flex; flex-direction: column; gap: 1.25rem; flex: 1;">
         <!-- Template Download Banner -->
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; background: rgba(37, 99, 235, 0.04); border: 1px solid rgba(37, 99, 235, 0.18); border-radius: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; background: rgba(37, 99, 235, 0.04); border: 1px solid rgba(37, 99, 235, 0.18); border-radius: 10px; gap: 1rem; flex-wrap: wrap;">
           <div style="display: flex; align-items: center; gap: 0.75rem;">
             <div style="width: 40px; height: 40px; border-radius: 8px; background: rgba(37, 99, 235, 0.1); display: flex; align-items: center; justify-content: center;">
               <va-icon name="description" color="primary" size="1.4rem" />
             </div>
             <div>
-              <div style="font-weight: 700; font-size: 0.95rem; color: var(--va-text-primary);">표준 엑셀 템플릿 제공</div>
+              <div style="font-weight: 700; font-size: 0.95rem; color: var(--va-text-primary);">{{ t('records.excel_uploader.standard_template_title') }}</div>
               <div style="font-size: 0.8rem; color: var(--va-text-secondary); margin-top: 2px;">
-                현재 스키마에 정의된 필드 구조(코드, 유효성 검칙 목록)가 포함된 표준 서식입니다.
+                {{ t('records.excel_uploader.standard_template_desc') }}
               </div>
             </div>
           </div>
-          <va-button color="primary" outline size="small" icon="download" @click="downloadTemplate">
-            {{ t('excel_uploader.download_template') || '템플릿 다운로드 (.xlsx)' }}
-          </va-button>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <va-button color="primary" outline size="small" icon="download" @click="downloadTemplate">
+              {{ t('records.excel_uploader.download_template_xlsx') }}
+            </va-button>
+            <va-button color="info" outline size="small" icon="download" @click="downloadCsvTemplate">
+              {{ t('records.excel_uploader.download_template_csv') }}
+            </va-button>
+          </div>
+        </div>
+
+        <!-- Mode & Options Panel -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 0.85rem 1rem; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 8px;">
+          <div>
+            <label style="font-size: 0.78rem; font-weight: 700; color: var(--va-text-secondary); display: block; margin-bottom: 0.35rem;">
+              {{ t('records.excel_uploader.upload_mode_label') }}
+            </label>
+            <div style="display: flex; gap: 0.75rem; font-size: 0.83rem;">
+              <label style="display: flex; align-items: center; gap: 0.3rem; cursor: pointer;">
+                <input type="radio" value="UPSERT" v-model="uploadMode" />
+                <span>{{ t('records.excel_uploader.mode_upsert') }}</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.3rem; cursor: pointer;">
+                <input type="radio" value="INSERT" v-model="uploadMode" />
+                <span>{{ t('records.excel_uploader.mode_insert_only') }}</span>
+              </label>
+            </div>
+          </div>
+          <div>
+            <label style="font-size: 0.78rem; font-weight: 700; color: var(--va-text-secondary); display: block; margin-bottom: 0.35rem;">
+              {{ t('records.excel_uploader.approval_mode_label') }}
+            </label>
+            <div style="display: flex; gap: 0.75rem; font-size: 0.83rem;">
+              <label style="display: flex; align-items: center; gap: 0.3rem; cursor: pointer;">
+                <input type="radio" value="ACTIVE" v-model="approvalMode" />
+                <span>{{ t('records.excel_uploader.approval_active') }}</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.3rem; cursor: pointer;">
+                <input type="radio" value="PENDING" v-model="approvalMode" />
+                <span>{{ t('records.excel_uploader.approval_pending') }}</span>
+              </label>
+            </div>
+          </div>
         </div>
 
         <!-- Drag & Drop Zone -->
         <div
-          style="flex: 1; min-height: 240px; border: 2px dashed var(--va-primary); border-radius: 12px; background: var(--va-background-element); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; text-align: center; cursor: pointer; transition: all 0.2s;"
+          style="flex: 1; min-height: 200px; border: 2px dashed var(--va-primary); border-radius: 12px; background: var(--va-background-element); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; text-align: center; cursor: pointer; transition: all 0.2s;"
           @click="$refs.fileInput?.click()"
           @dragover.prevent
           @drop.prevent="handleDrop"
         >
           <input ref="fileInput" type="file" accept=".xlsx, .xls, .csv" style="display: none;" @change="handleFileUpload" />
           
-          <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(37, 99, 235, 0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
-            <va-icon name="cloud_upload" color="primary" size="2.5rem" />
+          <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(37, 99, 235, 0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 0.75rem;">
+            <va-icon name="cloud_upload" color="primary" size="2.2rem" />
           </div>
           
-          <h4 style="font-size: 1.05rem; font-weight: 700; color: var(--va-text-primary); margin-bottom: 0.35rem;">
-            {{ t('excel_uploader.drag_drop_file') || '파일을 드래그하여 놓거나 클릭하여 선택하세요' }}
+          <h4 style="font-size: 1rem; font-weight: 700; color: var(--va-text-primary); margin-bottom: 0.3rem;">
+            {{ t('records.excel_uploader.drag_drop_file') }}
           </h4>
-          <p style="font-size: 0.82rem; color: var(--va-text-secondary); margin-bottom: 1rem;">
-            {{ t('excel_uploader.supported_formats') || '지원 형식: .xlsx, .xls, .csv (최대 50MB, 10,000행)' }}
+          <p style="font-size: 0.8rem; color: var(--va-text-secondary); margin-bottom: 0.85rem;">
+            {{ t('records.excel_uploader.supported_formats') }}
           </p>
 
           <va-button color="primary" size="small" icon="folder_open">
-            {{ t('excel_uploader.selected_file') || '파일 찾아보기' }}
+            {{ t('records.excel_uploader.selected_file') }}
           </va-button>
         </div>
       </div>
@@ -91,21 +130,21 @@
         <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: var(--va-background-element); border-radius: 8px; border: 1px solid var(--va-background-border);">
           <div>
             <span style="font-weight: 700; font-size: 0.95rem; color: var(--va-text-primary);">
-              총 <b>{{ parsedData.length.toLocaleString() }}</b>개의 데이터 행(Row)이 감지되었습니다.
+              {{ t('records.excel_uploader.detected_rows', { count: parsedData.length.toLocaleString() }) }}
             </span>
             <div style="font-size: 0.8rem; color: var(--va-text-secondary); margin-top: 2px;">
-              업로드할 파일의 엑셀 열(헤더)과 시스템 마스터 필드를 매핑해주세요. (자동 매핑 완료)
+              {{ t('records.excel_uploader.detected_rows_desc') }}
             </div>
           </div>
-          <va-badge :text="`${nodeFields.length}개 대상 필드`" color="info" />
+          <va-badge :text="t('records.excel_uploader.target_field_count', { count: nodeFields.length })" color="info" />
         </div>
 
         <div style="flex: 1; overflow-y: auto; border: 1px solid var(--va-background-border); border-radius: 8px; background: var(--va-background-card);">
           <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left;">
             <thead>
               <tr style="position: sticky; top: 0; z-index: 2; background: var(--va-background-secondary); border-bottom: 2px solid var(--va-background-border);">
-                <th style="padding: 0.6rem 0.8rem; width: 45%; font-weight: 700; color: var(--va-text-primary);">{{ t('excel_uploader.target_field') || '시스템 마스터 필드' }}</th>
-                <th style="padding: 0.6rem 0.8rem; width: 55%; font-weight: 700; color: var(--va-text-primary);">{{ t('excel_uploader.source_column') || '엑셀 파일 열 (Source Column)' }}</th>
+                <th style="padding: 0.6rem 0.8rem; width: 45%; font-weight: 700; color: var(--va-text-primary);">{{ t('records.excel_uploader.target_field') }}</th>
+                <th style="padding: 0.6rem 0.8rem; width: 55%; font-weight: 700; color: var(--va-text-primary);">{{ t('records.excel_uploader.source_column') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -129,14 +168,14 @@
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
                       <va-badge text="KO" color="primary" size="small" />
                       <select v-model="mapping[field.key + '_ko']" class="mapping-select">
-                        <option :value="null">{{ t('excel_uploader.ignore_column') || '(열 매핑 제외)' }}</option>
+                        <option :value="null">{{ t('records.excel_uploader.ignore_column') }}</option>
                         <option v-for="header in excelHeaders" :key="header" :value="header">{{ header }}</option>
                       </select>
                     </div>
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
                       <va-badge text="EN" color="secondary" size="small" />
                       <select v-model="mapping[field.key + '_en']" class="mapping-select">
-                        <option :value="null">{{ t('excel_uploader.ignore_column') || '(열 매핑 제외)' }}</option>
+                        <option :value="null">{{ t('records.excel_uploader.ignore_column') }}</option>
                         <option v-for="header in excelHeaders" :key="header" :value="header">{{ header }}</option>
                       </select>
                     </div>
@@ -144,7 +183,7 @@
                   <!-- Normal Fields -->
                   <div v-else>
                     <select v-model="mapping[field.key]" class="mapping-select">
-                      <option :value="null">{{ t('excel_uploader.ignore_column') || '(열 매핑 제외)' }}</option>
+                      <option :value="null">{{ t('records.excel_uploader.ignore_column') }}</option>
                       <option v-for="header in excelHeaders" :key="header" :value="header">{{ header }}</option>
                     </select>
                   </div>
@@ -155,16 +194,16 @@
         </div>
       </div>
 
-      <!-- Step 3: Data Quality (DQ) Validation Report -->
+      <!-- Step 3: Data Quality (DQ) & Schema Validation Report -->
       <div v-else-if="step === 3" style="display: flex; flex-direction: column; gap: 1rem; flex: 1; overflow: hidden;">
         <!-- Loading State -->
         <div v-if="validating" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem; gap: 1rem;">
           <va-progress-circle indeterminate color="primary" size="large" />
           <div style="font-weight: 700; font-size: 1rem; color: var(--va-text-primary);">
-            데이터 품질 검칙(DQ) 및 무결성 검증 중...
+            {{ t('records.excel_uploader.validating_title') }}
           </div>
           <div style="font-size: 0.85rem; color: var(--va-text-secondary);">
-            필수값, 정규식 포맷, 도메인 참조 무결성 등을 전수 검사하고 있습니다.
+            {{ t('records.excel_uploader.validating_desc') }}
           </div>
         </div>
 
@@ -173,37 +212,47 @@
           <!-- Summary Metric Cards -->
           <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem;">
             <div style="padding: 0.75rem 1rem; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 8px;">
-              <div style="font-size: 0.75rem; color: var(--va-text-secondary); font-weight: 600;">총 검사 행수</div>
+              <div style="font-size: 0.75rem; color: var(--va-text-secondary); font-weight: 600;">{{ t('records.excel_uploader.metric_total_rows') }}</div>
               <div style="font-size: 1.25rem; font-weight: 800; color: var(--va-text-primary); margin-top: 2px;">
                 {{ validationResult.totalRows.toLocaleString() }}
               </div>
             </div>
             <div style="padding: 0.75rem 1rem; background: rgba(34, 197, 94, 0.06); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: 8px;">
-              <div style="font-size: 0.75rem; color: #15803d; font-weight: 600;">정상 통과</div>
+              <div style="font-size: 0.75rem; color: #15803d; font-weight: 600;">{{ t('records.excel_uploader.metric_valid_rows') }}</div>
               <div style="font-size: 1.25rem; font-weight: 800; color: #15803d; margin-top: 2px;">
                 {{ validationResult.validRows.toLocaleString() }}
               </div>
             </div>
             <div style="padding: 0.75rem 1rem; background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px;">
-              <div style="font-size: 0.75rem; color: #b91c1c; font-weight: 600;">오류 및 위반</div>
+              <div style="font-size: 0.75rem; color: #b91c1c; font-weight: 600;">{{ t('records.excel_uploader.metric_invalid_rows') }}</div>
               <div style="font-size: 1.25rem; font-weight: 800; color: #b91c1c; margin-top: 2px;">
                 {{ validationResult.invalidRows.toLocaleString() }}
               </div>
             </div>
             <div style="padding: 0.75rem 1rem; background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 8px;">
-              <div style="font-size: 0.75rem; color: var(--va-text-secondary); font-weight: 600;">적합률</div>
+              <div style="font-size: 0.75rem; color: var(--va-text-secondary); font-weight: 600;">{{ t('records.excel_uploader.metric_pass_rate') }}</div>
               <div style="font-size: 1.25rem; font-weight: 800; color: var(--va-primary); margin-top: 2px;">
                 {{ Math.round((validationResult.validRows / (validationResult.totalRows || 1)) * 100) }}%
               </div>
             </div>
           </div>
 
-          <!-- Filter & Toggle Bar -->
-          <div v-if="validationResult.invalidRows > 0" style="display: flex; justify-content: space-between; align-items: center;">
-            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--va-text-primary);">
-              <input type="checkbox" v-model="showOnlyErrors" style="cursor: pointer;" />
-              <span>오류 발생 행만 모아보기 ({{ validationResult.invalidRows }}건)</span>
-            </label>
+          <!-- Filter & Toggle Bar + Error Re-download -->
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <div>
+              <label v-if="validationResult.invalidRows > 0" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--va-text-primary);">
+                <input type="checkbox" v-model="showOnlyErrors" style="cursor: pointer;" />
+                <span>{{ t('records.excel_uploader.toggle_errors_only', { count: validationResult.invalidRows }) }}</span>
+              </label>
+            </div>
+            <div v-if="validationResult.invalidRows > 0" style="display: flex; gap: 0.5rem; align-items: center;">
+              <va-button color="danger" outline size="small" icon="download" @click="downloadErrorRowsXlsx">
+                {{ t('records.excel_uploader.download_error_rows_xlsx') }}
+              </va-button>
+              <va-button color="warning" outline size="small" icon="download" @click="downloadErrorRowsCsv">
+                {{ t('records.excel_uploader.download_error_rows_csv') }}
+              </va-button>
+            </div>
           </div>
 
           <!-- DQ Violation Table -->
@@ -211,12 +260,12 @@
             <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem; text-align: left;">
               <thead>
                 <tr style="position: sticky; top: 0; z-index: 2; background: var(--va-background-secondary); border-bottom: 2px solid var(--va-background-border);">
-                  <th style="padding: 0.5rem 0.6rem; width: 60px; text-align: center;">행 번호</th>
-                  <th style="padding: 0.5rem 0.6rem; width: 80px; text-align: center;">검증 결과</th>
-                  <th style="padding: 0.5rem 0.6rem; width: 140px;">대상 필드</th>
-                  <th style="padding: 0.5rem 0.6rem; width: 90px; text-align: center;">심각도</th>
-                  <th style="padding: 0.5rem 0.6rem;">위반 사유 및 검칙</th>
-                  <th style="padding: 0.5rem 0.6rem; width: 150px;">입력된 값</th>
+                  <th style="padding: 0.5rem 0.6rem; width: 60px; text-align: center;">{{ t('records.excel_uploader.col_row_number') }}</th>
+                  <th style="padding: 0.5rem 0.6rem; width: 80px; text-align: center;">{{ t('records.excel_uploader.col_result') }}</th>
+                  <th style="padding: 0.5rem 0.6rem; width: 140px;">{{ t('records.excel_uploader.col_violated_field') }}</th>
+                  <th style="padding: 0.5rem 0.6rem; width: 90px; text-align: center;">{{ t('records.excel_uploader.col_severity') }}</th>
+                  <th style="padding: 0.5rem 0.6rem;">{{ t('records.excel_uploader.col_violation_reason') }}</th>
+                  <th style="padding: 0.5rem 0.6rem; width: 150px;">{{ t('records.excel_uploader.col_input_value') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -225,10 +274,10 @@
                   <tr v-if="row.violations.length === 0" style="border-bottom: 1px solid var(--va-background-border);">
                     <td style="padding: 0.45rem 0.6rem; text-align: center; font-weight: bold; font-family: monospace;">{{ row.rowNumber + 1 }}</td>
                     <td style="padding: 0.45rem 0.6rem; text-align: center;">
-                      <va-badge text="통과" color="success" size="small" />
+                      <va-badge :text="t('records.excel_uploader.status_pass')" color="success" size="small" />
                     </td>
                     <td colspan="4" style="padding: 0.45rem 0.6rem; color: var(--va-text-secondary); font-style: italic;">
-                      검칙 위반 없음 (정상 데이터)
+                      {{ t('records.excel_uploader.msg_no_violations') }}
                     </td>
                   </tr>
                   <!-- Invalid Row with Violations -->
@@ -237,7 +286,7 @@
                       {{ row.rowNumber + 1 }}
                     </td>
                     <td v-if="vIdx === 0" :rowspan="row.violations.length" style="padding: 0.45rem 0.6rem; text-align: center; border-right: 1px solid var(--va-background-border); vertical-align: top;">
-                      <va-badge text="오류" color="danger" size="small" />
+                      <va-badge :text="t('records.excel_uploader.status_fail')" color="danger" size="small" />
                     </td>
                     <td style="padding: 0.45rem 0.6rem; font-weight: 600;">
                       <code>{{ v.fieldKey }}</code>
@@ -249,7 +298,7 @@
                       {{ getValidationMessage(v.message) }}
                     </td>
                     <td style="padding: 0.45rem 0.6rem; font-family: monospace; color: var(--va-text-secondary); word-break: break-all;">
-                      {{ v.actualValue || '(빈 값)' }}
+                      {{ v.actualValue || t('records.excel_uploader.msg_empty_val') }}
                     </td>
                   </tr>
                 </template>
@@ -264,7 +313,7 @@
         <div style="width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 0.75rem;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <span style="font-weight: 700; font-size: 1rem; color: var(--va-text-primary);">
-              {{ progress === 100 ? '업로드 완료!' : '데이터 일괄 반영 중...' }}
+              {{ progress === 100 ? t('records.excel_uploader.upload_complete') : t('records.excel_uploader.uploading_title') }}
             </span>
             <span style="font-weight: 800; color: var(--va-primary); font-size: 1.1rem;">
               {{ Math.round(progress) }}%
@@ -293,7 +342,7 @@
             icon="arrow_back"
             @click="step--"
           >
-            이전 단계
+            {{ t('records.excel_uploader.btn_prev_step') }}
           </va-button>
         </div>
 
@@ -303,7 +352,7 @@
             preset="secondary"
             @click="$emit('close')"
           >
-            {{ t('excel_uploader.btn_cancel') || '취소' }}
+            {{ t('records.excel_uploader.btn_cancel') }}
           </va-button>
 
           <!-- Step 2 -> Step 3 -->
@@ -313,7 +362,7 @@
             icon-right="arrow_forward"
             @click="runValidation"
           >
-            {{ t('excel_uploader.btn_validate_upload') || '데이터 품질 검증 시작' }}
+            {{ t('records.excel_uploader.btn_validate_upload') }}
           </va-button>
 
           <!-- Step 3 Upload Action -->
@@ -323,7 +372,7 @@
             icon="cloud_upload"
             @click="proceedUpload"
           >
-            {{ validationResult.invalidRows === 0 ? (t('excel_uploader.btn_start_upload') || '전체 일괄 업로드 실행') : (t('excel_uploader.btn_upload_valid_only', { count: validationResult.validRows }) || `정상 데이터(${validationResult.validRows}건)만 업로드`) }}
+            {{ validationResult.invalidRows === 0 ? t('records.excel_uploader.btn_start_upload') : t('records.excel_uploader.btn_upload_valid_only', { count: validationResult.validRows }) }}
           </va-button>
 
           <!-- Step 4 Finish Action -->
@@ -333,7 +382,7 @@
             icon="check"
             @click="$emit('close')"
           >
-            {{ t('excel_uploader.btn_done') || '완료' }}
+            {{ t('records.excel_uploader.btn_done') }}
           </va-button>
         </div>
       </div>
@@ -371,12 +420,11 @@ const currentUser = computed(() => {
   return null;
 });
 
-
 const stepsMeta = computed(() => [
-  { step: 1, label: t('excel_uploader.step1_title') || '파일 선택', desc: t('excel_uploader.step1_desc') || '템플릿 및 파일 등록' },
-  { step: 2, label: t('excel_uploader.step2_title') || '필드 매핑', desc: t('excel_uploader.step2_desc') || '엑셀 열과 스키마 연결' },
-  { step: 3, label: t('excel_uploader.step3_title') || '품질 검증', desc: t('excel_uploader.step3_desc') || 'DQ 검칙 무결성 검사' },
-  { step: 4, label: t('excel_uploader.step4_title') || '일괄 업로드', desc: t('excel_uploader.step4_desc') || '마스터 레코드 반영' }
+  { step: 1, label: t('records.excel_uploader.step1_title'), desc: t('records.excel_uploader.step1_desc') },
+  { step: 2, label: t('records.excel_uploader.step2_title'), desc: t('records.excel_uploader.step2_desc') },
+  { step: 3, label: t('records.excel_uploader.step3_title'), desc: t('records.excel_uploader.step3_desc') },
+  { step: 4, label: t('records.excel_uploader.step4_title'), desc: t('records.excel_uploader.step4_desc') }
 ]);
 
 const step = ref(1);
@@ -386,6 +434,10 @@ const excelHeaders = ref([]);
 const mapping = ref({}); // { fieldKey: excelHeaderName }
 const progress = ref(0);
 const uploadError = ref(null);
+
+// Import mode options
+const uploadMode = ref('UPSERT'); // 'UPSERT' | 'INSERT'
+const approvalMode = ref('ACTIVE'); // 'ACTIVE' | 'PENDING'
 
 // Validation state
 const validating = ref(false);
@@ -400,10 +452,49 @@ const handleDrop = (e) => {
 };
 
 const getTranslatedName = (nameObj) => {
-
   if (!nameObj) return '';
   if (typeof nameObj === 'string') return nameObj;
   return nameObj[locale.value] || nameObj.ko || nameObj.en || '';
+};
+
+const downloadCsvTemplate = async () => {
+  const headers = [];
+  const sampleValues = [];
+
+  props.nodeFields.forEach(f => {
+    if (f.type === 'CALCULATED') return;
+    const fieldName = getTranslatedName(f.name);
+    const isReq = Boolean(f.required);
+    const label = isReq ? `${fieldName}*` : fieldName;
+
+    if (f.type === 'MULTILINGUAL') {
+      headers.push(`"${label} (ko)"`);
+      headers.push(`"${label} (en)"`);
+      sampleValues.push(`"샘플 ${fieldName}"`);
+      sampleValues.push(`"Sample ${fieldName}"`);
+    } else {
+      headers.push(`"${label}"`);
+      if (f.type === 'NUMBER') {
+        sampleValues.push('"1000"');
+      } else if (f.type === 'DATE') {
+        sampleValues.push('"2026-09-06"');
+      } else if (['SELECT', 'MULTI_SELECT'].includes(f.type) && f.options) {
+        try {
+          const arr = JSON.parse(f.options);
+          const first = arr[0]?.value || arr[0]?.key || (typeof arr[0] === 'string' ? arr[0] : 'OPTION_A');
+          sampleValues.push(`"${first}"`);
+        } catch (e) {
+          sampleValues.push('""');
+        }
+      } else {
+        sampleValues.push('"샘플 값"');
+      }
+    }
+  });
+
+  const csvContent = '\uFEFF' + headers.join(',') + '\r\n' + sampleValues.join(',') + '\r\n';
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  saveAs(blob, 'Upload_Template.csv');
 };
 
 const downloadTemplate = async () => {
@@ -411,6 +502,7 @@ const downloadTemplate = async () => {
   const sheet = workbook.addWorksheet('Template');
 
   const headers = [];
+  const sampleValues = [];
   const validations = []; // { colIndex: 1, type: 'SELECT', options: ['A','B'] }
   const colWidths = [];
 
@@ -443,10 +535,21 @@ const downloadTemplate = async () => {
     if (f.type === 'MULTILINGUAL') {
       headers.push(`${fieldName} (ko)`);
       headers.push(`${fieldName} (en)`);
+      sampleValues.push(`샘플 ${fieldName}`);
+      sampleValues.push(`Sample ${fieldName}`);
       colWidths.push(excelWidth, excelWidth);
       colIndex += 2;
     } else {
       headers.push(fieldName);
+      if (f.type === 'NUMBER') {
+        sampleValues.push(1000);
+      } else if (f.type === 'DATE') {
+        sampleValues.push('2026-09-06');
+      } else if (parsedOpts.length > 0) {
+        sampleValues.push(parsedOpts[0]);
+      } else {
+        sampleValues.push('샘플 값');
+      }
       colWidths.push(excelWidth);
       if (parsedOpts.length > 0) {
         validations.push({ colIndex, options: parsedOpts });
@@ -459,6 +562,10 @@ const downloadTemplate = async () => {
   sheet.addRow(headers);
   sheet.getRow(1).font = { bold: true };
   sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEEEEE' } };
+
+  // Set sample guide row
+  sheet.addRow(sampleValues);
+  sheet.getRow(2).font = { italic: true, color: { argb: 'FF888888' } };
 
   // Convert column index (1-based) to letter (A, B, C...)
   const getColLetter = (idx) => {
@@ -474,7 +581,6 @@ const downloadTemplate = async () => {
   // Apply Data Validations for up to 500 rows
   validations.forEach(val => {
     const colLetter = getColLetter(val.colIndex);
-    // formula1 requires double quotes around comma separated string
     const formulaStr = '"' + val.options.join(',').replace(/"/g, '') + '"'; 
     sheet.dataValidations.add(`${colLetter}2:${colLetter}500`, {
       type: 'list',
@@ -487,7 +593,7 @@ const downloadTemplate = async () => {
     });
   });
 
-  // Adjust column widths according to schema (gridWidth)
+  // Adjust column widths
   sheet.columns.forEach((column, idx) => {
     column.width = colWidths[idx] || 25;
   });
@@ -510,7 +616,7 @@ const handleFileUpload = (e) => {
       const ws = wb.worksheets[0];
       
       if (!ws || ws.rowCount < 2) {
-        uploadErrorMsg.value = "The Excel file does not contain enough data.";
+        uploadErrorMsg.value = "The file does not contain enough data.";
         return;
       }
       
@@ -564,7 +670,7 @@ const handleFileUpload = (e) => {
       step.value = 2;
     } catch (err) {
       console.error(err);
-      uploadErrorMsg.value = "Error parsing Excel file.";
+      uploadErrorMsg.value = "Error parsing file.";
     }
   };
   reader.readAsArrayBuffer(file);
@@ -622,7 +728,7 @@ const transformRowToRequest = (row) => {
   return {
     data: JSON.stringify(dataObj),
     requesterId: currentUser.value?.uuid || '123e4567-e89b-12d3-a456-426614174000',
-    comment: 'Bulk upload via Excel'
+    comment: 'Bulk upload via Excel/CSV'
   };
 };
 
@@ -665,8 +771,75 @@ const runValidation = async () => {
   }
 };
 
+const getErrorRowsWithReasons = () => {
+  if (!validationResult.value?.details) return [];
+  const errorDetails = validationResult.value.details.filter(d => !d.valid);
+  return errorDetails.map(d => {
+    const originalRow = parsedData.value[d.rowNumber - 1] || {};
+    const reasonStr = d.violations.map(v => {
+      const msg = getValidationMessage(v.message);
+      return `[${v.fieldKey}] ${msg} (${v.actualValue || '빈 값'})`;
+    }).join('; ');
+    return {
+      row: originalRow,
+      reason: reasonStr,
+      rowNumber: d.rowNumber
+    };
+  });
+};
+
+const downloadErrorRowsCsv = async () => {
+  const errorRows = getErrorRowsWithReasons();
+  if (errorRows.length === 0) return;
+
+  const reasonHeader = t('records.excel_uploader.error_reason_column');
+  const headers = [...excelHeaders.value, reasonHeader];
+  const lines = [headers.map(h => `"${String(h).replace(/"/g, '""')}"`).join(',')];
+
+  errorRows.forEach(item => {
+    const rowCells = excelHeaders.value.map(h => {
+      const val = item.row[h] !== undefined && item.row[h] !== null ? String(item.row[h]) : '';
+      return `"${val.replace(/"/g, '""')}"`;
+    });
+    rowCells.push(`"${item.reason.replace(/"/g, '""')}"`);
+    lines.push(rowCells.join(','));
+  });
+
+  const csvContent = '\uFEFF' + lines.join('\r\n') + '\r\n';
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  saveAs(blob, 'error_rows.csv');
+};
+
+const downloadErrorRowsXlsx = async () => {
+  const errorRows = getErrorRowsWithReasons();
+  if (errorRows.length === 0) return;
+
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('Error_Rows');
+
+  const reasonHeader = t('records.excel_uploader.error_reason_column');
+  const headers = [...excelHeaders.value, reasonHeader];
+  sheet.addRow(headers);
+  sheet.getRow(1).font = { bold: true };
+  sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFEAEA' } };
+
+  errorRows.forEach(item => {
+    const rowValues = excelHeaders.value.map(h => item.row[h] !== undefined && item.row[h] !== null ? item.row[h] : '');
+    rowValues.push(item.reason);
+    sheet.addRow(rowValues);
+  });
+
+  sheet.columns.forEach((col, idx) => {
+    col.width = idx === headers.length - 1 ? 40 : 20;
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  saveAs(blob, 'error_rows.xlsx');
+};
+
 /**
- * 검증 통과한 행만 실제 업로드를 수행합니다.
+ * 검증 통과한 행만 실제 업로드를 수행합니다 (batch-upsert 고성능 연동).
  */
 const proceedUpload = async () => {
   step.value = 4;
@@ -682,28 +855,37 @@ const proceedUpload = async () => {
       }
     }
   } else {
-    // 검증 결과 없으면 전체 업로드
     parsedData.value.forEach((_, idx) => validRowNumbers.add(idx));
   }
 
   const validRows = parsedData.value.filter((_, idx) => validRowNumbers.has(idx));
 
   if (validRows.length === 0) {
-    uploadError.value = '업로드 가능한 유효한 행이 없습니다.';
+    uploadError.value = t('records.excel_uploader.no_valid_rows');
     return;
   }
 
   try {
-    const batchSize = 100;
+    const batchSize = 200;
     let uploadedCount = 0;
 
     for (let i = 0; i < validRows.length; i += batchSize) {
       const chunk = validRows.slice(i, i + batchSize);
-      const requests = chunk.map(row => transformRowToRequest(row));
+      const items = chunk.map(row => {
+        const reqObj = transformRowToRequest(row);
+        return {
+          effectiveData: reqObj.data,
+          comment: 'Bulk import via Excel/CSV'
+        };
+      });
 
-      await customFetch(`/api/nodes/${props.nodeId}/records/batch`, {
+      await customFetch(`/api/nodes/${props.nodeId}/records/batch-upsert`, {
         method: 'POST',
-        body: requests
+        body: {
+          records: items,
+          autoApprove: approvalMode.value === 'ACTIVE',
+          sourceSystem: 'bulk-import'
+        }
       });
 
       uploadedCount += chunk.length;
@@ -732,6 +914,20 @@ const getValidationMessage = (msgMap) => {
   if (typeof msgMap === 'string') return msgMap;
   return msgMap[locale.value] || msgMap.ko || msgMap.en || Object.values(msgMap)[0] || '검증 규칙 위반';
 };
+
+defineExpose({
+  downloadCsvTemplate,
+  downloadTemplate,
+  downloadErrorRowsCsv,
+  downloadErrorRowsXlsx,
+  proceedUpload,
+  parsedData,
+  excelHeaders,
+  mapping,
+  validationResult,
+  uploadMode,
+  approvalMode
+});
 </script>
 
 <style scoped>

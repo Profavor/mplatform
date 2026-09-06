@@ -25,6 +25,12 @@ class BatchValidationServiceTest {
     @Mock
     private DqRuleEngine dqRuleEngine;
 
+    @Mock
+    private com.classification.domain_system.repository.FieldDefinitionRepository fieldDefinitionRepository;
+
+    @Mock
+    private com.classification.domain_system.repository.ClassificationNodeRepository classificationNodeRepository;
+
     @InjectMocks
     private BatchValidationService batchValidationService;
 
@@ -118,5 +124,106 @@ class BatchValidationServiceTest {
 
         assertThat(result.getTotalRows()).isEqualTo(0);
         assertThat(result.getDetails()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("스키마 필수 필드가 누락된 경우 NOT_NULL ERROR 위반을 발생시킨다")
+    void validateBatch_SchemaRequiredFieldMissing_FailsWithNotNullViolation() {
+        com.classification.domain_system.entity.FieldDefinition reqField = createField("itemCode", "TEXT", true);
+        when(fieldDefinitionRepository.findNodeFieldsWithSort(eq(nodeId))).thenReturn(List.of(reqField));
+
+        String dataMissingKey = "{\"description\":\"only description\"}";
+        RecordRequest req = new RecordRequest();
+        req.setData(dataMissingKey);
+
+        when(dqRuleEngine.evaluate(eq(nodeId), eq(dataMissingKey))).thenReturn(new DqEvaluationResult());
+
+        BatchValidationResult result = batchValidationService.validateBatch(nodeId, List.of(req));
+
+        assertThat(result.getInvalidRows()).isEqualTo(1);
+        assertThat(result.getValidRows()).isEqualTo(0);
+        assertThat(result.getDetails().get(0).isValid()).isFalse();
+        assertThat(result.getDetails().get(0).getViolations()).anyMatch(v -> 
+            "itemCode".equals(v.getFieldKey()) && "NOT_NULL".equals(v.getRuleType()) && "ERROR".equals(v.getSeverity())
+        );
+    }
+
+    @Test
+    @DisplayName("숫자 타입 필드에 비숫자 문자열이 들어온 경우 TYPE_MISMATCH ERROR 위반을 발생시킨다")
+    void validateBatch_SchemaNumberTypeInvalid_FailsWithTypeMismatch() {
+        com.classification.domain_system.entity.FieldDefinition numField = createField("price", "NUMBER", false);
+        when(fieldDefinitionRepository.findNodeFieldsWithSort(eq(nodeId))).thenReturn(List.of(numField));
+
+        String dataInvalidNumber = "{\"price\":\"not_a_number\"}";
+        RecordRequest req = new RecordRequest();
+        req.setData(dataInvalidNumber);
+
+        when(dqRuleEngine.evaluate(eq(nodeId), eq(dataInvalidNumber))).thenReturn(new DqEvaluationResult());
+
+        BatchValidationResult result = batchValidationService.validateBatch(nodeId, List.of(req));
+
+        assertThat(result.getInvalidRows()).isEqualTo(1);
+        assertThat(result.getDetails().get(0).isValid()).isFalse();
+        assertThat(result.getDetails().get(0).getViolations()).anyMatch(v -> 
+            "price".equals(v.getFieldKey()) && "TYPE_MISMATCH".equals(v.getRuleType())
+        );
+    }
+
+    @Test
+    @DisplayName("날짜 타입 필드에 잘못된 형식의 값이 들어온 경우 TYPE_MISMATCH ERROR 위반을 발생시킨다")
+    void validateBatch_SchemaDateFormatInvalid_FailsWithTypeMismatch() {
+        com.classification.domain_system.entity.FieldDefinition dateField = createField("startDate", "DATE", false);
+        when(fieldDefinitionRepository.findNodeFieldsWithSort(eq(nodeId))).thenReturn(List.of(dateField));
+
+        String dataInvalidDate = "{\"startDate\":\"2026/99/99\"}";
+        RecordRequest req = new RecordRequest();
+        req.setData(dataInvalidDate);
+
+        when(dqRuleEngine.evaluate(eq(nodeId), eq(dataInvalidDate))).thenReturn(new DqEvaluationResult());
+
+        BatchValidationResult result = batchValidationService.validateBatch(nodeId, List.of(req));
+
+        assertThat(result.getInvalidRows()).isEqualTo(1);
+        assertThat(result.getDetails().get(0).isValid()).isFalse();
+        assertThat(result.getDetails().get(0).getViolations()).anyMatch(v -> 
+            "startDate".equals(v.getFieldKey()) && "TYPE_MISMATCH".equals(v.getRuleType())
+        );
+    }
+
+    @Test
+    @DisplayName("배치 파일 내 식별자(Business Key)가 중복 등장할 경우 DUPLICATE ERROR 위반을 발생시킨다")
+    void validateBatch_DuplicateBusinessKeysInBatch_FailsWithDuplicateKeyViolation() {
+        com.classification.domain_system.entity.FieldDefinition keyField = createField("PRODUCT_ID", "TEXT", true);
+        when(fieldDefinitionRepository.findNodeFieldsWithSort(eq(nodeId))).thenReturn(List.of(keyField));
+
+        String row1Data = "{\"PRODUCT_ID\":\"P1001\",\"name\":\"Product 1\"}";
+        String row2Data = "{\"PRODUCT_ID\":\"P1001\",\"name\":\"Product 2 (Dup)\"}";
+
+        RecordRequest req1 = new RecordRequest();
+        req1.setData(row1Data);
+        RecordRequest req2 = new RecordRequest();
+        req2.setData(row2Data);
+
+        when(dqRuleEngine.evaluate(eq(nodeId), eq(row1Data))).thenReturn(new DqEvaluationResult());
+        when(dqRuleEngine.evaluate(eq(nodeId), eq(row2Data))).thenReturn(new DqEvaluationResult());
+
+        BatchValidationResult result = batchValidationService.validateBatch(nodeId, List.of(req1, req2));
+
+        assertThat(result.getTotalRows()).isEqualTo(2);
+        // 첫 번째 행은 정상 혹은 두 번째 행에서 중복 검출되어 invalid
+        assertThat(result.getInvalidRows()).isGreaterThanOrEqualTo(1);
+        assertThat(result.getDetails().get(1).getViolations()).anyMatch(v -> 
+            "PRODUCT_ID".equals(v.getFieldKey()) && "DUPLICATE".equals(v.getRuleType())
+        );
+    }
+
+    private com.classification.domain_system.entity.FieldDefinition createField(String key, String type, boolean required) {
+        com.classification.domain_system.entity.FieldDefinition f = new com.classification.domain_system.entity.FieldDefinition();
+        f.setId(UUID.randomUUID());
+        f.setKey(key);
+        f.setType(type);
+        f.setRequired(required);
+        f.setName(Map.of("ko", key, "en", key));
+        return f;
     }
 }
