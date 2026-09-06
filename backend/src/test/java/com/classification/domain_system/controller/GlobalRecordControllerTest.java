@@ -175,4 +175,34 @@ class GlobalRecordControllerTest {
                 .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"))
                 .andExpect(jsonPath("$.message").value("Deletion prohibited"));
     }
+
+    @Test
+    @DisplayName("도메인 레코드 조회 시 다중 정렬(sort=col1,asc;col2,desc) 파라미터 매핑 성공")
+    void getRecordsByDomain_WithMultiSortParams() throws Exception {
+        Record record = new Record();
+        record.setId(recordId);
+        record.setData("{\"ticker\":\"005930\"}");
+        record.setStatus("ACTIVE");
+
+        Page<Record> page = new PageImpl<>(List.of(record), PageRequest.of(0, 50), 1);
+
+        when(recordService.findDynamicRecordsByDomain(
+                eq(domainId),
+                any(Map.class),
+                org.mockito.ArgumentMatchers.argThat(pageable -> {
+                    org.springframework.data.domain.Sort sort = pageable.getSort();
+                    org.springframework.data.domain.Sort.Order order1 = sort.getOrderFor("ticker");
+                    org.springframework.data.domain.Sort.Order order2 = sort.getOrderFor("createdAt");
+                    return order1 != null && order1.isAscending() && order2 != null && order2.isDescending();
+                })
+        )).thenReturn(page);
+
+        mockMvc.perform(get("/api/records/domain/{domainId}", domainId)
+                .param("page", "0")
+                .param("size", "50")
+                .param("sort", "ticker,asc;createdAt,desc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1));
+    }
 }
+
