@@ -70,15 +70,16 @@ graph TD
 
 | 영역 | 기술 / 프레임워크 | 세부 설명 및 버전 |
 |---|---|---|
-| **Backend** | **Spring Boot 4.1.0 (Java 17)** | Spring Data JPA, Spring Data Envers, Spring Integration, Spring Kafka, Spring AMQP, Spring Retry |
-| **Security & Enc** | **Keycloak 24 + Vault 1.15** | OIDC/RBAC, 32바이트 AES 하이브리드 암호화, SHA-256 HMAC Blind Indexing, Vault Transit HSM |
-| **Frontend** | **Nuxt 3 (^3.21.11) + Vue 3** | TypeScript (^5.9.3), Vuestic UI, AG-Grid Vue3 (^34.3.1 Enterprise 서버사이드 페이징), ECharts, STOMP, Tiptap 에디터 |
-| **Mobile** | **Flutter 3.x (Dart)** | Riverpod (상태관리), GoRouter, Dio (타임존/보안 인터셉터), STOMP 실시간 채팅, Web/iOS/Android |
+| **Backend** | **Spring Boot 4.1.0 (Java 17)** | Maven Artifact `1.2.47`, Spring Data JPA, Spring Data Envers, Spring Integration, Spring Kafka, Spring AMQP, Spring Retry |
+| **Security & Enc** | **Keycloak 24 + Vault 1.15** | OIDC/RBAC, 2FA/OTP (TOTP/Email OTP/Backup Codes), 32바이트 AES 하이브리드 암호화, SHA-256 HMAC Blind Indexing, Vault Transit HSM |
+| **Frontend** | **Nuxt 3 (^3.21.11) + Vue 3** | 버전 `1.5.76`, TypeScript (^5.9.3), Vuestic UI, AG-Grid Vue3 (^34.3.1 Enterprise 가상스크롤 & 서버사이드 페이징), ECharts, STOMP, Tiptap 에디터 |
+| **Mobile** | **Flutter 3.x (Dart)** | Riverpod (상태관리), GoRouter, Dio (타임존/보안 인터셉터), STOMP 실시간 채팅, 2FA 모바일 로그인, Web/iOS/Android |
 | **Database & Cache** | **PostgreSQL 15 + Redis** | PostGIS 공간 지원, JSONB 메타데이터, 분산 캐시 & Local In-Memory Fallback |
 | **Storage & Search** | **MinIO + OpenSearch 2.11** | S3 호환 오브젝트 스토리지, 다차원 형태소 분석 및 전역 전문 검색 엔진 |
 | **Messaging** | **Kafka + RabbitMQ** | 실시간 CDC 변경 스트리밍, 비동기 배치, 아웃바운드 연계 큐 |
 | **Monitoring** | **Prometheus + Grafana** | Micrometer 기반 JVM/HTTP/DB 커넥션풀 메트릭 수집 및 시각화 대시보드 |
-| **DevOps & Infra** | **Docker & Kubernetes** | 19종 k8s 매니페스트 완비, GitHub Actions CI/CD 파이프라인 |
+| **DevOps & Infra** | **Kubernetes & Docker** | 19종 k8s 매니페스트 (Replicas: 2 무중단 롤링 업데이트), Let's Encrypt SSL 자동 갱신, 공인 도메인(`mdm.mplat.store`), 초고속 단독 배포 파이프라인 |
+| **Public Domain** | **`https://mdm.mplat.store`** | 가비아 DNS + Let's Encrypt 자동 갱신 TLS Ingress 라우팅 완비 |
 
 ---
 
@@ -138,9 +139,44 @@ graph TD
 - **거버넌스 AI 코파일럿 (`GovernanceCopilotService`)**: 거버넌스 정책 및 스키마 질의응답.
 
 ### 9. 🌐 고성능 협업 워크스페이스 & 크로스플랫폼 모바일
-- **Nuxt 3 반응형 웹 콘솔**: AG-Grid Vue3 (v34+ Enterprise 서버사이드 페이징), ECharts, Zero-Fallback `@nuxtjs/i18n`, 개인화 타임존 지원.
+- **Nuxt 3 반응형 웹 콘솔**: AG-Grid Vue3 (v34+ Enterprise 가상스크롤 & 서버사이드 페이징), ECharts, Zero-Fallback `@nuxtjs/i18n`, 개인화 타임존 지원.
 - **8방향 리사이즈 인앱 메신저**: 실시간 웹소켓 채팅, 원클릭 다국어 번역, 대화형 엑셀/테이블 뷰어, 시스템 라디오.
-- **Flutter 모바일 앱**: 결재 승인/반려, 대시보드, 레코드 탐색, 인앱 채팅, 실시간 푸시 알림.
+- **Flutter 모바일 앱**: 결재 승인/반려, 대시보드, 레코드 탐색, 2FA 다중인증, 인앱 채팅, 실시간 푸시 알림.
+
+### 10. 🔐 로그인 이중화 (2FA / OTP 다중인증)
+- **RFC 6238 TOTP**: Google Authenticator 등 OTP 앱 연동 및 시간 윈도우 오차 보정.
+- **이메일 OTP & 긴급 백업코드**: 메일 서버 연동 일회용 인증코드(TTL 5분) 및 비상 복구용 8자리 SHA-256 일회용 백업코드 8회분 발급.
+- **프론트엔드 통합 모달**: 로그인 시 2FA 활성화 계정에 대해 즉시 2단계 검증 모달 트리거.
+
+### 11. 🚀 B2B 셀프 온보딩 & 맞춤 템플릿 프로비저닝
+- **소개 랜딩 페이지 & 라우팅 분기**: 비로그인 방문자 대상 인터랙티브 소개 페이지(`pages/index.vue`) 제공 및 로그인 상태별 자동 대시보드 이동.
+- **B2B 셀프서비스 가입 퍼널 (`pages/register.vue`)**: 회사 정보 입력 및 업종별 맞춤 도메인 템플릿(부동산 임대차, 고객, 상품 등) 선택.
+- **원클릭 자동 프로비저닝**: 트랜잭션 단위로 기본 도메인, 노드 트리, 필드 정의 및 초기 샘플 데이터 일괄 생성.
+- **MDM ROI 계산기 (`pages/roi-calculator.vue`)**: 데이터 오류 비용 및 인건비 절감 시뮬레이션 리드마그넷.
+
+### 12. 🏢 부동산 임대차 (`LEASE_CONTRACT`) 리스크 대시보드 위젯
+- **임대차 마스터 도메인 템플릿**: 보증금, 월세, 임대인/임차인, 계약만기일, 납부상태 등 전문 필드 메타데이터 완비.
+- **만기 & 연체 리스크 위젯**: 만기 임박(D-30, D-7) 계약 및 월세 연체 상태를 실시간 스캔하여 대시보드 리스크 패널에 시각화.
+
+### 13. 🗺️ 레코드 데이터 계보 (Data Lineage) 5단계 파이프라인 시각화
+- **전 구간 5단계 계보 추적**: Source Ingestion → DQ Validation → Data Cleansing → Golden Record Merge → Target Egress.
+- **대화형 파이프라인 그래프**: 노드 클릭 시 단계별 적용 룰, 변경 전후 데이터 Diff, 변환 시간 및 이상 노드 경고 실시간 표출.
+
+### 14. 🛡️ RBAC 세분화 & 컬럼 수준 동적 마스킹 정책
+- **도메인 및 노드별 데이터 스코프**: 사용자의 부서/역할에 따라 특정 도메인 및 분류 노드 하위 레코드만 접근 허용.
+- **컬럼 수준 동적 마스킹**: 비인가 역할에 대해 민감 컬럼(주민등록번호, 계좌번호, 급여 등)을 `***`로 런타임 동적 마스킹.
+
+### 15. 📐 스키마 변경 히스토리 및 하위호환성 사전 시뮬레이션
+- **Breaking Change 가드**: 필수 필드 추가, 기존 타입 축소, Enum 값 삭제 등 하위호환성 파괴 시 사전 경고.
+- **시뮬레이션 엔진**: 기존 레코드에 변경 스키마를 사전 검증하여 비호환 레코드 건수 및 영향도 리포트 제공.
+
+### 16. 📈 DQ 크로스도메인 벤치마크 & 메트릭 비교
+- **전사 도메인 품질 비교**: 도메인별 DQ 종합 점수를 레이더 차트 및 랭킹 테이블로 제공.
+- **공통 규칙 통계**: NOT_NULL, UNIQUE 등 주요 규칙별 준수율을 크로스 분석하여 취약 도메인 조기 식별.
+
+### 17. 📥 마스터 레코드 대량 임포트 동적 템플릿 & 오류 리포트
+- **동적 엑셀/CSV 템플릿**: 도메인 필드 메타데이터(타입, 필수여부, Enum 목록)가 주석/드롭다운으로 포함된 템플릿 즉시 생성.
+- **행/열 단위 사전 검증 리포트**: 업로드 시 위반 행 번호, 필드명, 위반 사유를 정밀 리포트하고 오류 행만 분리 재다운로드 지원.
 
 ---
 
@@ -207,56 +243,57 @@ flutter run
 
 | 번호 | 문서 파일 | 주요 내용 |
 |:---:|---|---|
-| **1** | [`1_overview.md`](./spac/1_overview.md) | MDM 플랫폼 아키텍처 개요, 12대 핵심 개념 및 도메인 모델 원칙 |
-| **2** | [`2_data_model.md`](./spac/2_data_model.md) | PostgreSQL 67개 엔티티 스키마, 인덱스, JSONB 및 관계 구조 명세 |
-| **3** | [`3_business_logic.md`](./spac/3_business_logic.md) | 동적 상속, DQ 룰 엔진, 자율 정제, 결재 위임/에스컬레이션, 해시체인, 암호화 로직 |
-| **4** | [`4_api_spec.md`](./spac/4_api_spec.md) | 94개 컨트롤러의 REST API & WebSocket 엔드포인트 전수 명세 |
-| **5** | [`5_scenarios_and_erd.md`](./spac/5_scenarios_and_erd.md) | 통합 Mermaid ERD 다이어그램 및 15대 엔드투엔드 실무 운영 시나리오 |
-| **6** | [`6_governance.md`](./spac/6_governance.md) | 해시체인 원장, 컴플라이언스, 용어사전, 성숙도, UI 표출 거버넌스 규약 |
-| **7** | [`7_integration_feature_spec.md`](./spac/7_integration_feature_spec.md) | Inbound/Outbound, DLQ 백오프, CDC 스트리밍, 파이프라인 자가 치유 명세 |
-| **8** | [`8_platform_features.md`](./spac/8_platform_features.md) | Vault 암호화, 이상 탐지 레이더, 신선도 히트맵, SLA 계약, 모니터링 명세 |
-| **9** | [`9_mobile_architecture.md`](./spac/9_mobile_architecture.md) | Flutter 크로스플랫폼 모바일 앱 아키텍처, Riverpod 상태 관리, 화면 명세 |
-| **10** | [`10_infrastructure_and_deployment.md`](./spac/10_infrastructure_and_deployment.md) | K8s 19종 매니페스트 배포, Vault Transit 설정, Grafana 대시보드, CI/CD 가이드 |
+| **1** | [`1_overview.md`](./spac/1_overview.md) | MDM 플랫폼 아키텍처 개요, 12대 핵심 개념, 최신 실측 메트릭 및 도메인 모델 원칙 |
+| **2** | [`2_data_model.md`](./spac/2_data_model.md) | PostgreSQL 77개 엔티티 스키마, 2FA/온보딩/계보/RBAC 마스킹 데이터 모델 명세 |
+| **3** | [`3_business_logic.md`](./spac/3_business_logic.md) | 2FA/OTP 알고리즘, 온보딩 프로비저닝, ROI 수식, 임대차 리스크, 5단계 계보 그래프 로직 |
+| **4** | [`4_api_spec.md`](./spac/4_api_spec.md) | 97개 컨트롤러의 REST API & WebSocket 엔드포인트 전수 명세 |
+| **5** | [`5_scenarios_and_erd.md`](./spac/5_scenarios_and_erd.md) | 통합 Mermaid ERD 다이어그램 및 20대 엔드투엔드 실무 운영 시나리오 |
+| **6** | [`6_governance.md`](./spac/6_governance.md) | 5단계 계보 거버넌스, 컬럼 수준 마스킹, 스키마 호환성 사전 시뮬레이션 규약 |
+| **7** | [`7_integration_feature_spec.md`](./spac/7_integration_feature_spec.md) | Inbound/Outbound, DLQ 백오프, CDC 스트리밍, 대량 임포트 템플릿/검증 리포트 명세 |
+| **8** | [`8_platform_features.md`](./spac/8_platform_features.md) | AG-Grid 대용량 가상스크롤/서버사이드 페이징, Vault 암호화, 이상 탐지, SLA 계약 명세 |
+| **9** | [`9_mobile_architecture.md`](./spac/9_mobile_architecture.md) | Flutter 모바일 앱 아키텍처, 2FA 로그인, 임대차 리스크 알림, Nginx 웹 배포 명세 |
+| **10** | [`10_infrastructure_and_deployment.md`](./spac/10_infrastructure_and_deployment.md) | K8s 19종 매니페스트, Replicas: 2 무중단 롤링, 공인 도메인, SSL 자동 갱신, 초고속 배포 |
 
 ---
 
 ## 🐳 Docker Build & Publish Pipeline (도커 배포 파이프라인)
 
-백엔드, 프론트엔드, 모바일 3개 서비스를 원클릭으로 빌드하고 Docker Registry(Docker Hub, GHCR, 사내 Private Registry 등)에 퍼블리시할 수 있는 도구가 제공됩니다.
+백엔드, 프론트엔드, 모바일 3개 서비스를 원클릭으로 빌드하고 Docker Registry에 배포할 수 있는 초고속 독립 배포 파이프라인이 구축되어 있습니다.
 
-### 1. 도커 이미지 빌드 및 퍼블리시 (Bash)
+### 1. 모듈별 초고속 단독 배포 (Standard Deployment)
+변경사항이 있는 모듈만 개별적으로 버전을 올리고 호스트 사전 빌드 산출물을 복사하여 초고속으로 배포합니다.
+```bash
+# ① 프론트엔드 단독 배포 (~20초 파이프라인)
+./deploy-frontend.sh
+
+# ② 백엔드 단독 배포 (~15초 파이프라인)
+./deploy-backend.sh
+```
+
+### 2. 전체 시스템 통합 배포 (Bash)
+```bash
+# 전체 인프라 및 서비스 일괄 배포
+./deploy.sh
+
+# 레지스트리 및 태그 지정 배포
+./deploy.sh ghcr.io/myorg v1.2.47
+```
+
+### 3. 도커 이미지 빌드 및 퍼블리시 (Multi-Service Publish)
 ```bash
 # 전체 서비스 빌드 및 푸시
-./publish-docker.sh ghcr.io/myorg v1.1.0 all
+./publish-docker.sh ghcr.io/myorg v1.2.47 all
 
 # 특정 서비스만 빌드 및 푸시
-./publish-docker.sh ghcr.io/myorg v1.1.0 frontend
+./publish-docker.sh ghcr.io/myorg v1.5.76 frontend
 
 # 푸시 없이 로컬 도커 이미지로만 빌드
 ./publish-docker.sh mplatform local-test all --no-push
 ```
 
-### 2. Kubernetes 배포 (Bash)
-```bash
-# 전체 서비스 배포
-./deploy.sh
-
-# 레지스트리 및 태그 지정 배포
-./deploy.sh ghcr.io/myorg v1.1.0
-```
-
-### 3. GitHub Actions 자동 퍼블리시 (`.github/workflows/docker-publish.yml`)
+### 4. GitHub Actions 자동 퍼블리시 (`.github/workflows/docker-publish.yml`)
 - **릴리즈 배포**: GitHub Release가 게시되거나 `v*.*.*` 태그 푸시 시 3개 서비스가 자동으로 GitHub Container Registry(GHCR)에 빌드 & 푸시됩니다.
 - **수동 배포**: GitHub Actions 탭에서 `Build & Publish Docker Images` 워크플로우를 선택 후 버전 태그 및 빌드 대상(all / backend / frontend / mobile)을 지정하여 즉시 배포할 수 있습니다.
-
-### 4. 운영 환경 배포 (Docker Compose Production)
-```bash
-# 환경변수 설정 후 프로덕션 환경 일괄 구동
-export DOCKER_REGISTRY="ghcr.io/myorg"
-export IMAGE_TAG="v1.1.0"
-docker-compose -f docker-compose.prod.yml up -d
-```
-
 
 ---
 
@@ -265,15 +302,15 @@ docker-compose -f docker-compose.prod.yml up -d
 본 프로젝트는 사이드 이펙트 방지 및 런타임 무결성을 위해 **프론트엔드와 백엔드 모두 TDD 기반 검증 체계**를 운영합니다.
 
 - **Backend (JUnit 5 & Golden Sample)**:
-  - 228개 이상의 단위/통합 테스트 클래스 운영.
+  - **253개**의 단위/통합 테스트 스펙 운영.
   - `FieldEncryptionServiceTest`의 고정 암호문(Golden Sample) 회귀 검증을 통해 암호화 역방향 호환성 100% 보장.
   ```bash
   cd backend
   ./mvnw test
   ```
 - **Frontend (Vitest & Nuxt AST Static Compile)**:
-  - 173개 이상의 단위/컴포넌트 테스트 스펙.
-  - `npm test` 구동 시 유닛 테스트와 `npm run build`(Nuxt 정적 컴파일 검증)를 결합하여 Vue AST 및 SSR 호환성 사전 검증.
+  - **243개**의 단위/컴포넌트 테스트 스펙 운영.
+  - `npm test` 구동 시 Vitest 유닛 테스트와 `npm run build`(Nuxt 정적 컴파일 검증)를 결합하여 Vue AST 및 SSR 호환성 사전 검증.
   ```bash
   cd frontend
   npm test
@@ -289,7 +326,17 @@ docker-compose -f docker-compose.prod.yml up -d
 | **도메인/스키마** | `/domains/{id}` | `GET, PUT, DELETE` | 도메인 상세 조회, 수정, Cascade 삭제 |
 | **다축 분류** | `/domains/{domainId}/axes` | `GET, POST` | 다축 분류체계 CRUD 및 노드 매핑 |
 | **레코드/다축** | `/records/{id}/secondary-nodes` | `GET, POST` | 레코드 서브 분류축 노드 등록/조회 |
-| **Excel 사전검증** | `/nodes/{nodeId}/records/batch-validate` | `POST` | 대량 업로드 행 단위 DQ 사전 검증 |
+| **Excel 대량 임포트** | `/records/bulk-import/template` | `GET` | 도메인 맞춤형 대량 임포트 엑셀 템플릿 다운로드 |
+| **Excel 사전검증** | `/nodes/{nodeId}/records/batch-validate` | `POST` | 대량 업로드 행 단위 DQ 사전 검증 및 오류 리포트 |
+| **2FA / OTP 인증** | `/auth/2fa/setup`, `/auth/2fa/verify` | `POST` | TOTP 시크릿 발급, QR 검증 및 2FA 활성화 |
+| **2FA 이메일/백업** | `/auth/2fa/email-otp/send`, `/auth/2fa/backup-codes` | `POST` | 이메일 OTP 발송 및 일회용 긴급 백업코드 관리 |
+| **B2B 온보딩** | `/auth/signup`, `/onboarding/provision` | `POST` | B2B 회원가입 및 업종별 맞춤 도메인 자동 프로비저닝 |
+| **MDM ROI 계산** | `/lead-magnet/roi-calculate`, `/lead-magnet/submit` | `POST` | 데이터 오류 비용 절감 계산 및 리드 수집 |
+| **임대차 리스크** | `/dashboard/lease-contract/risks` | `GET` | 부동산 임대차 만기(D-30/D-7) 및 월세 연체 리스크 위젯 |
+| **데이터 계보** | `/records/{id}/pipeline-lineage` | `GET` | Ingestion부터 Golden Record까지 5단계 계보 파이프라인 그래프 |
+| **RBAC 스코프** | `/permissions/scopes`, `/permissions/column-masking` | `GET, PUT` | 도메인/노드 접근 스코프 및 컬럼 마스킹 규칙 관리 |
+| **스키마 호환성** | `/domains/{id}/schema-history/simulate` | `POST` | 스키마 변경 시 하위호환성 사전 시뮬레이션 |
+| **DQ 벤치마크** | `/dq/benchmarks/cross-domain` | `GET` | 전사 도메인 간 종합 품질 점수 벤치마크 및 비교 |
 | **결재 워크플로우** | `/approval-requests/todos` | `GET` | 내 결재 대기 목록 조회 |
 | **결재 위임/에스컬레이션** | `/approvals/delegations`, `/approvals/escalate` | `GET, POST` | 결재 위임 설정 및 SLA 에스컬레이션 |
 | **결재 샌드박스** | `/approvals/{requestId}/sandbox-preview` | `POST` | 결재 승인 전 사전 영향 시뮬레이션 |
@@ -310,12 +357,12 @@ docker-compose -f docker-compose.prod.yml up -d
 
 ## 📖 시스템 운영 가이드 및 OpenAPI (Swagger UI)
 - **공식 엔터프라이즈 운영 매뉴얼**: [`docs/OPERATION_GUIDE.md`](./docs/OPERATION_GUIDE.md) (13대 미들웨어 운영, 백업/DR, 키 로테이션, 장애 대응 SOP)
-- **대화형 Swagger UI**: [`https://mplatform.local/api/swagger-ui.html`](https://mplatform.local/api/swagger-ui.html) (`http://localhost:8080/api/swagger-ui.html`)
-- **OpenAPI v3 JSON 명세**: [`https://mplatform.local/api/v3/api-docs`](https://mplatform.local/api/v3/api-docs)
+- **공인 도메인 Swagger UI**: [`https://mdm.mplat.store/api/swagger-ui.html`](https://mdm.mplat.store/api/swagger-ui.html) (로컬: `http://localhost:8080/api/swagger-ui.html`)
+- **OpenAPI v3 JSON 명세**: [`https://mdm.mplat.store/api/v3/api-docs`](https://mdm.mplat.store/api/v3/api-docs)
 
 ---
 
 ## 🤝 Contributing & License
-- 프로젝트 기여 가이드 및 커밋 컨벤션: [`CONTRIBUTING.md`](./CONTRIBUTING.md)
+- 프로젝트 기여 가이드 및 개발 표준 규약: [`CONTRIBUTING.md`](./CONTRIBUTING.md)
 - 라이선스: [MIT License](./LICENSE)
 

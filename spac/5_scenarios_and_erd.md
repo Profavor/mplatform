@@ -32,6 +32,7 @@ erDiagram
     classification_node ||--o{ record_secondary_node : "mapped to"
     record ||--o{ record_history : "tracks version snapshots"
     record ||--o{ record_field_source : "tracks field lineage"
+    record ||--o{ record_pipeline_lineage : "5-stage pipeline trace"
     record ||--o{ approval_request : "triggers request"
     record ||--o{ dq_violation : "has violations"
 
@@ -51,13 +52,17 @@ erDiagram
     integration_channel ||--o{ webhook_subscription : "emits events"
     batch_job ||--o{ staging_record : "processes bulk data"
 
-    %% Security & Users
+    %% Security, Users & RBAC
     user ||--o{ user_role : "assigned"
     role ||--o{ user_role : "contains"
+    user ||--o{ two_factor_backup_code : "has backup codes"
     user ||--o{ user_org_history : "org movement history"
     department ||--o{ user : "belongs to"
     organization ||--o{ department : "parent org"
     department ||--o{ team : "sub teams"
+    role ||--o{ domain_node_permission : "scoped permission"
+    role ||--o{ column_masking_rule : "dynamic masking"
+    domain ||--o{ domain_node_permission : "scoped domain"
     user ||--o{ sensitive_data_access_log : "audit logs"
     user ||--o{ domain_access_request : "requests access"
     user ||--o{ domain_permission : "granted"
@@ -233,3 +238,32 @@ erDiagram
 1. 한국 본사 스튜어드와 해외 지사 담당자가 동일 레코드에 대해 인앱 메신저로 실시간 소통한다.
 2. 메시지 수신 시 '원클릭 번역' 기능을 통해 한국어/영어가 실시간 상호 번역된다.
 3. 관리자는 시스템 라디오 위젯을 통해 전사 공지 배경음악을 방송하며 협업 효율을 극대화한다.
+
+### 시나리오 16: 로그인 이중화 (2FA / OTP) 및 비상 백업코드 복구
+1. 보안 관리자가 전사 보안 정책에 따라 임직원 계정에 2FA를 활성화한다.
+2. 사용자가 로그인 화면에서 ID/PW를 입력하면 프론트엔드 `TwoFactorVerifyModal`이 트리거된다.
+3. 사용자가 스마트폰의 Google Authenticator 앱 6자리 코드를 입력하여 2단계 인증을 완료한다.
+4. 만약 스마트폰을 분실한 경우, 최초 등록 시 안전하게 다운로드해 둔 8자리 일회용 긴급 백업코드(예: `A8B9-C1D2`)를 입력하여 정상 로그인하고 사용된 코드는 자동 파기된다.
+
+### 시나리오 17: B2B 셀프 온보딩, ROI 시뮬레이션 및 업종별 템플릿 프로비저닝
+1. 잠재 기업 고객이 소개 랜딩 페이지(`https://mdm.mplat.store`)에 접속하여 핵심 아키텍처를 확인한다.
+2. ROI 계산기(`/roi-calculator`)에서 자사의 마스터 레코드 수(50만 건)를 입력하고 연간 1억 2천만 원의 데이터 정제 비용 절감 시뮬레이션 결과를 확인한다.
+3. '무료 체험 시작' 버튼을 눌러 회원가입 퍼널(`/register`)로 이동하고, 업종으로 '부동산 임대차/자산관리' 템플릿을 선택한다.
+4. 백엔드 프로비저닝 엔진이 단일 트랜잭션으로 임대차 계약 도메인, 기본 노드 트리, 15종 필수 필드 및 샘플 계약 데이터를 원클릭으로 자동 생성하여 즉시 업무를 시작할 수 있게 지원한다.
+
+### 시나리오 18: 부동산 임대차 (`LEASE_CONTRACT`) 만기 & 연체 리스크 관제
+1. 자산관리 담당자가 MDM 대시보드에 접속한다.
+2. '부동산 임대차 리스크 관제 위젯'에서 만기 30일 이내 도래 계약 5건과 7일 이내 만기 임박 1건이 경고 뱃지로 강조 표시된다.
+3. 월세 연체 상태(`UNPAID`)로 보증금 차감 리스크가 50%를 초과한 위험 계약을 즉시 클릭하여 상세 내역을 열람하고, 담당 임차인에게 안내장을 발송한다.
+
+### 시나리오 19: 레코드 데이터 계보 (Data Lineage) 전 구간 5단계 감사 추적
+1. 특정 제품의 골든 레코드 가격 정보가 예기치 않게 변경되어 데이터 스튜어드가 조사를 시작한다.
+2. 레코드 상세 화면에서 '데이터 계보(Data Lineage)' 버튼을 클릭한다.
+3. 5단계 파이프라인 그래프(Source Ingestion → DQ Validation → Data Cleansing → Golden Record → Target Egress)가 화면에 렌더링된다.
+4. 3단계(Cleansing) 노드를 클릭하여 외부 ERP에서 수신된 원본 값(`1,000,000`)이 어떤 AI 규칙에 의해 정제되었는지 전후 Diff와 처리 시간을 정밀 추적하여 원인을 규명한다.
+
+### 시나리오 20: 도메인/노드 스코프 통제 및 컬럼 수준 동적 마스킹 거버넌스
+1. 영남지사 영업 담당자가 시스템에 로그인하여 고객 마스터 레코드 목록을 조회한다.
+2. `DomainNodePermission`에 의해 영업본부 하위의 '영남영업팀' 노드에 소속된 고객 레코드만 그리드에 노출되고 타 지사 레코드는 원천 필터링된다.
+3. 또한 담당자 역할(`ROLE_SALES`)에 부여된 `ColumnMaskingRule`에 따라 주민등록번호 뒷자리는 `******`, 고객 연소득 컬럼은 `***`로 실시간 동적 마스킹되어 개인정보 유출을 방지한다.
+

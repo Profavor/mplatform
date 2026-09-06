@@ -70,6 +70,15 @@ mobile/lib/
 - **보안 토큰 관리**: `FlutterSecureStorage`에 Access/Refresh 토큰을 암호화 보관하고 만료 시 자동 재발급(Silent Refresh).
 - **타임존 자동 보정**: 디바이스 로컬 타임존 오프셋을 HTTP 헤더로 전송하여 일시 데이터 왜곡 방지.
 
+### 6. 2FA / OTP 모바일 다중인증 (`features/auth`)
+- **다중 인증 흐름**: 로그인 성공 시 2FA 활성화 사용자에게 6자리 TOTP/이메일 OTP 또는 일회용 긴급 백업코드 입력 화면을 연속 노출하여 2단계 검증 수행.
+
+### 7. 부동산 임대차 (`LEASE_CONTRACT`) 리스크 모바일 위젯 (`features/dashboard`)
+- **만기 & 연체 관제**: 만기 30일/7일 이내 도래 계약 및 월세 연체 상태를 모바일 대시보드 상단 배너/카드로 표출하여 자산 회수 즉각 대응 지원.
+
+### 8. 모바일 데이터 계보 요약 뷰 (`features/records`)
+- **5단계 파이프라인 모바일 카드**: Ingestion부터 Golden Record까지의 변환 단계를 모바일 세로형 스텝 카드로 간결하게 시각화.
+
 ---
 
 ## 9.4 모바일 앱 빌드 및 구동
@@ -87,5 +96,14 @@ flutter run
 flutter build apk --release       # Android APK
 flutter build appbundle --release # Android App Bundle
 flutter build ipa --release       # iOS IPA
-flutter build web --release       # Web 정적 번들
+flutter build web --release --base-href /mobile/ # Web 프로덕션 빌드
 ```
+
+---
+
+## 9.5 Kubernetes Nginx 웹 배포 및 공인 도메인 서빙
+- Flutter Web 빌드 산출물은 경량 Nginx 컨테이너로 패키징되어 K8s 클러스터(`k8s/32-mobile.yaml`)에 배포된다.
+- Ingress 라우팅에 의해 공인 도메인 및 로컬에서 서비스된다:
+  - **공인 도메인**: [`https://mdm.mplat.store/mobile/`](https://mdm.mplat.store/mobile/)
+  - **로컬 서비스**: `http://localhost:8082`
+

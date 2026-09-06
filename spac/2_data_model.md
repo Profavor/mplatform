@@ -1,6 +1,6 @@
 # 2. 데이터 모델 (PostgreSQL 스키마 명세)
 
-본 문서는 PostgreSQL 15 및 Spring Data JPA 기반으로 구축된 MDM 플랫폼의 전체 67개 엔티티 및 7개 enum 및 테이블 스키마에 대한 상세 명세서이다.
+본 문서는 PostgreSQL 15 및 Spring Data JPA 기반으로 구축된 MDM 플랫폼의 전체 77개 엔티티 및 9개 enum 및 테이블 스키마에 대한 상세 명세서이다.
 
 ---
 
@@ -323,3 +323,57 @@
 - `chat_message_room`, `chat_message_room_member`, `chat_message`: STOMP 실시간 협업 메신저.
 - `notification`: SSE 및 웹소켓 실시간 알림.
 - `system_config`, `system_feature`, `user_youtube_config`, `login_log`, `error_log`: 플랫폼 시스템 설정 및 진단 로그.
+
+---
+
+## 2.9 신규 확장 엔티티 (2FA, 온보딩, 데이터 계보, 세분화 RBAC)
+
+### 2.9.1 로그인 이중화 (2FA / OTP) 엔티티
+- **`user` 확장 컬럼**:
+  - `two_factor_enabled`: 2FA 활성화 여부 (BOOLEAN, 기본값 false)
+  - `two_factor_type`: 선호 인증 방식 (`TOTP`, `EMAIL_OTP`)
+  - `two_factor_secret`: RFC 6238 TOTP 비밀키 (AES-256 암호화 저장)
+- **`two_factor_backup_code` (일회용 비상 백업코드)**:
+  - `id`: UUID (PK)
+  - `user_id`: UUID (FK `user`), `code_hash`: VARCHAR(64) (SHA-256 해시 저장)
+  - `is_used`: BOOLEAN (기본값 false), `used_at`: TIMESTAMP
+- **`email_otp_token` (이메일 일회용 인증코드)**:
+  - `id`: UUID (PK), `username`: VARCHAR(100), `otp_code`: VARCHAR(6)
+  - `expires_at`: TIMESTAMP (발급 후 5분), `is_verified`: BOOLEAN
+
+### 2.9.2 B2B 셀프 온보딩 & 리드마그넷 엔티티
+- **`onboarding_request` (B2B 가입 신청 및 프로비저닝 이력)**:
+  - `id`: UUID (PK), `company_name`: VARCHAR(200), `admin_email`: VARCHAR(200)
+  - `selected_template`: VARCHAR(50) (`LEASE_CONTRACT`, `PRODUCT`, `CUSTOMER`)
+  - `provisioning_status`: VARCHAR(20) (`PENDING`, `IN_PROGRESS`, `COMPLETED`, `FAILED`)
+  - `provisioned_domain_id`: UUID (FK `domain`, NULLABLE)
+- **`roi_lead` (MDM ROI 계산기 리드 수집)**:
+  - `id`: UUID (PK), `company_name`: VARCHAR(200), `contact_name`: VARCHAR(100)
+  - `email`: VARCHAR(200), `estimated_savings`: NUMERIC(15,2), `raw_metrics_json`: JSONB
+
+### 2.9.3 레코드 데이터 계보 (Data Lineage) 5단계 엔티티
+- **`record_pipeline_lineage` (5단계 계보 파이프라인)**:
+  - `id`: UUID (PK), `record_id`: UUID (FK `record`, INDEX)
+  - `stage`: VARCHAR(30) (`INGESTION`, `DQ_VALIDATION`, `CLEANSING`, `GOLDEN_RECORD`, `TARGET_EGRESS`)
+  - `source_system`: VARCHAR(100), `applied_rule_id`: UUID (NULLABLE)
+  - `before_payload`: JSONB, `after_payload`: JSONB
+  - `status`: VARCHAR(20) (`SUCCESS`, `VIOLATED`, `CLEANSED`, `ROUTED`)
+  - `execution_millis`: BIGINT, `created_at`: TIMESTAMP
+
+### 2.9.4 세분화 RBAC & 컬럼 수준 마스킹 엔티티
+- **`domain_node_permission` (도메인/노드별 데이터 접근 스코프)**:
+  - `id`: UUID (PK), `role_id`: UUID (FK `role`), `domain_id`: UUID (FK `domain`)
+  - `node_id`: UUID (FK `classification_node`, NULLABLE - null이면 도메인 전체)
+  - `access_level`: VARCHAR(20) (`READ_ONLY`, `READ_WRITE`, `ADMIN`)
+- **`column_masking_rule` (역할별 컬럼 동적 마스킹 규칙)**:
+  - `id`: UUID (PK), `role_id`: UUID (FK `role`), `field_definition_id`: UUID (FK `field_definition`)
+  - `masking_type`: VARCHAR(30) (`FULL`, `PARTIAL_RRN`, `PARTIAL_ACCOUNT`, `PARTIAL_NAME`)
+  - `custom_mask_pattern`: VARCHAR(100) (NULLABLE)
+
+### 2.9.5 스키마 하위호환성 시뮬레이션 및 DQ 벤치마크 모델
+- **`schema_simulation_result` (브레이킹 체인지 사전 시뮬레이션)**:
+  - `id`: UUID (PK), `domain_id`: UUID, `breaking_change_type`: VARCHAR(50)
+  - `affected_record_count`: INT, `violation_summary_json`: JSONB
+- **`cross_domain_dq_benchmark` (전사 크로스도메인 품질 벤치마크)**:
+  - `id`: UUID (PK), `snapshot_date`: DATE, `benchmark_metrics_json`: JSONB
+

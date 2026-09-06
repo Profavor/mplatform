@@ -14,7 +14,7 @@ export const useMenu = () => {
 
   const logAccess = async (menuPath: string) => {
     try {
-      if (!menuPath || menuPath === '/install' || menuPath === '/login') return
+      if (!menuPath || menuPath === '/install' || menuPath === '/login' || menuPath === '/' || menuPath === '/register' || menuPath === '/roi-calculator') return
 
       const menuInfo = store.getMenuByPath(menuPath)
       const menuId = menuInfo?.raw?.id || null

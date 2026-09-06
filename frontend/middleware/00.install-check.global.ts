@@ -41,11 +41,9 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
             } catch (e) {}
           }
 
-          if (isAuthenticated) {
-            return navigateTo('/')
-          } else {
-            return navigateTo('/login')
-          }
+          // 설치 완료 후 /install 접근 시: 인증 여부와 무관하게 랜딩 페이지(/)로 이동
+          // 비인증 방문자도 소개 홈페이지를 먼저 볼 수 있어야 함
+          return navigateTo('/')
         }
       }
     }

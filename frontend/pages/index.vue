@@ -331,10 +331,24 @@ definePageMeta({
 const router = useRouter()
 const tokenCookie = useCookie('auth_token')
 
-// 혹시 클라이언트 측에서 로그인된 상태로 인덱스 진입 시 즉시 대시보드로 전환
+// 클라이언트 측에서 로그인된 상태로 인덱스 진입 시 대시보드로 전환
+// 단, 만료된 토큰이 잔존하는 경우 쿠키를 정리하고 랜딩에 머무름
 onMounted(() => {
   if (tokenCookie.value) {
-    router.replace('/dashboard')
+    try {
+      const payload = JSON.parse(atob(tokenCookie.value.split('.')[1]))
+      const nowSec = Math.floor(Date.now() / 1000)
+      if (payload.exp && payload.exp > nowSec) {
+        router.replace('/dashboard')
+        return
+      }
+    } catch (e) {
+      // 토큰 파싱 실패 — 유효하지 않은 토큰
+    }
+    // 만료되었거나 파싱 실패한 토큰 쿠키 정리
+    tokenCookie.value = null
+    const refreshCookie = useCookie('refresh_token')
+    refreshCookie.value = null
   }
 })
 </script>

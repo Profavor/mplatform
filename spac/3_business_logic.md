@@ -118,3 +118,82 @@
 - **Zero-Fallback 다국어 & 타임존 거버넌스**:
   - 모든 프론트엔드 라벨은 `ko.json` 및 `en.json` 사전을 통해서만 렌더링되며 소스 내 하드코딩된 폴백 텍스트는 원천 차단된다.
   - 일시 표출 시 개인화 타임존 쿠키(`useTimezoneDate()`)와 `parseDate` 방어 함수를 필수 적용하여 GMT 시차 왜곡을 완벽 방지한다.
+
+---
+
+## 3.10 로그인 이중화 (2FA / OTP) 알고리즘
+- **RFC 6238 TOTP 검증 알고리즘**:
+  - 공유 비밀키 $K$와 현재 유닉스 타임스탬프 $T$, 시간 스텝 $X=30$초를 기반으로 시간 카운터 $C = \lfloor T / X \rfloor$를 계산한다.
+  - HMAC-SHA1 연산 결과의 하위 4비트를 오프셋으로 추출하여 동적 6자리 OTP 코드를 생성:
+    $$\text{Code} = (\text{HMAC-SHA1}(K, C) \bmod 10^6)$$
+  - 클라이언트-서버 간 시간차를 수용하기 위해 전후 1스텝($\pm 30$초) 윈도우 오차를 자동 보정한다.
+- **일회용 비상 백업코드 관리**:
+  - 8자리 무작위 영숫자 코드 8개를 생성하고, DB에는 `SHA-256(Code + Salt)` 해시값만 저장한다.
+  - 인증 성공 시 해당 코드는 즉시 `is_used = true`로 마킹되어 재사용이 원천 차단된다.
+- **이메일 OTP 제한 및 TTL**:
+  - 6자리 숫자 코드를 발급하여 Redis에 TTL 300초(5분)로 적재한다.
+  - 브루트포스 방지를 위해 5회 이상 불일치 시 코드를 즉시 폐기하고 재발급을 요구한다.
+
+---
+
+## 3.11 B2B 셀프 온보딩 & 원클릭 프로비저닝 엔진
+- **단일 트랜잭션 도메인 프로비저닝**:
+  - 고객이 가입 시 선택한 템플릿(`LEASE_CONTRACT`, `PRODUCT`, `CUSTOMER`)에 따라 아래 리소스를 단일 `@Transactional` 단위로 자동 프로비저닝한다:
+    1. 기본 `Domain` 엔티티 생성 및 표준 식별자/표시명 필드 지정.
+    2. 기본 `ClassificationAxis` 및 업종별 표준 루트/자식 `ClassificationNode` 트리 계층 구성.
+    3. 업종 필수 `FieldDefinition`(타입, 필수여부, 단위, 유효성 정규식) 일괄 생성 및 노드 매핑.
+    4. 업종 표준 `DqRule`(필수값, 범위, 포맷 규칙) 및 `MatchingRule` 자동 등록.
+    5. 초기 체험용 샘플 레코드 3~5건 인서트 및 OpenSearch 인덱스 동기화.
+
+---
+
+## 3.12 MDM ROI 계산 수식 & 리드마그넷
+- **마스터 데이터 오류 비용 절감액 산출 수식**:
+  $$\text{Savings} = (\text{RecordCount} \times \text{ErrorRate} \times \text{CostPerError}) + (\text{ManualHours} \times \text{HourlyRate} \times \text{AutomationEfficiency})$$
+  - `RecordCount`: 기업 보유 총 마스터 레코드 수
+  - `ErrorRate`: 업계 평균 마스터 데이터 결함률 (기본값: 15%)
+  - `CostPerError`: 데이터 결함당 발생하는 배송/청구/클레임 처리 비용 (기본값: ₩25,000)
+  - `AutomationEfficiency`: MDM 자율 정제 도입을 통한 수작업 공수 절감율 (기본값: 70%)
+
+---
+
+## 3.13 부동산 임대차 (`LEASE_CONTRACT`) 리스크 산출 알고리즘
+- **만기 D-Day 및 리스크 지수**:
+  - 계약 만기일 $T_{\text{expire}}$과 현재 일자 $T_{\text{now}}$의 일수 차이 $\Delta D = T_{\text{expire}} - T_{\text{now}}$ 계산:
+    - $\Delta D \le 0$: **만기 경과 (EXPIRED)**
+    - $0 < \Delta D \le 7$: **초고위험 (CRITICAL, D-7)**
+    - $7 < \Delta D \le 30$: **고위험 (WARNING, D-30)**
+- **월세 연체 리스크 복합 산출**:
+  - 납부 상태(`UNPAID`) 및 연체 개월 수 $M_{\text{unpaid}}$에 따라 대시보드 리스크 점수 가산:
+    $$\text{RiskScore} = (\text{Deposit} - \text{MonthlyRent} \times M_{\text{unpaid}}) / \text{Deposit} \times 100$$
+  - 보증금 잔존율이 50% 미만으로 하락 시 대시보드 긴급 회수 경보 트리거.
+
+---
+
+## 3.14 데이터 계보 (Data Lineage) 5단계 파이프라인 그래프
+- **전 구간 5단계 변환 체인 빌드**:
+  1. `INGESTION`: 원천 시스템(Webhook, Direct DB, CSV)에서 로우 데이터 인입 시각 및 원본 페이로드 기록.
+  2. `DQ_VALIDATION`: 10종 룰 엔진 통과 여부, 위반 필드 및 결함 스코어 측정.
+  3. `CLEANSING`: AI 추천 룰 및 표준화 함수를 거친 데이터 전후 Diff 생성.
+  4. `GOLDEN_RECORD`: 다중 소스 병합 규칙(Survivorship)에 의해 최종 선택된 필드 출처 매핑.
+  5. `TARGET_EGRESS`: ERP, CRM, 데이터레이크 등 다운스트림으로의 아웃바운드 전송 완료 상태 기록.
+- **이상 노드 감지**: 각 단계의 실행 소요 시간 및 상태를 분석하여 병목 노드(빨간색 경고 뱃지) 실시간 시각화.
+
+---
+
+## 3.15 세분화 RBAC 스코프 검증 & 컬럼 수준 동적 마스킹
+- **도메인 및 노드 스코프 인터셉터**:
+  - 사용자가 특정 레코드 조회 시 `DomainNodePermission`을 평가하여 소속 부서 노드의 상속 경로 상에 포함되지 않은 비인가 노드의 레코드는 조회 결과에서 제외(`403 Forbidden` 또는 목록 필터링).
+- **런타임 컬럼 동적 마스킹**:
+  - Jackson 직렬화 시점 또는 DTO 매핑 시점에 사용자의 역할을 확인하여 `ColumnMaskingRule`에 따라 주민번호 뒷자리(`******`), 계좌번호 중간자리, 급여/보증금(`***`)으로 자동 치환.
+
+---
+
+## 3.16 스키마 변경 하위호환성 사전 시뮬레이션
+- **Breaking Change 판정 규칙**:
+  1. 필수(`isRequired = true`) 필드를 신규 추가하면서 기본값(`defaultValue`)이 지정되지 않은 경우.
+  2. 기존 필드의 데이터 타입을 축소하는 경우 (예: `VARCHAR(100)` → `VARCHAR(20)`).
+  3. 열거형(`ENUM`) 필드에서 기존에 사용 중인 허용 코드를 삭제하는 경우.
+- **영향도 시뮬레이션**:
+  - 실제 스키마를 즉시 변경하지 않고 기존 레코드 전체에 대해 새 룰을 가상 적용하여 부적합 레코드 건수 및 위반 목록을 사전 보고서로 출력.
+

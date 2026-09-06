@@ -110,6 +110,23 @@ graph LR
 
 ---
 
-## 7.9 대용량 비동기 데이터 처리 (`AsyncBatchExportService`, `BulkImportService`)
-- 수십만 건의 대용량 레코드 엑셀 다운로드 요청 시 `AsyncBatchExportService`가 백그라운드에서 청크 단위로 스트리밍 처리 후 MinIO에 업로드하고 다운로드 링크를 알림으로 푸시한다.
-- 대용량 임포트 시 `BulkImportService`가 스테이징 테이블(`staging_record`)에 임시 적재 후 유효성 검증을 거쳐 배치 저장한다.
+## 7.9 대용량 비동기 데이터 처리 & 동적 임포트 템플릿 (`BulkImportService`, `AsyncBatchExportService`)
+- **동적 엑셀/CSV 템플릿 생성 (`GET /api/records/bulk-import/template`)**:
+  - 도메인 필드 메타데이터(타입, 필수여부, 단위, Enum 허용값 드롭다운, 정규식 안내)가 헤더 주석 및 데이터 유효성 검사 규칙으로 포함된 맞춤형 엑셀 템플릿을 런타임에 동적 생성한다.
+- **행/열 단위 사전 검증 리포트 (`POST /api/records/bulk-import/validate`)**:
+  - 업로드된 파일의 수만 건 데이터를 메모리 상에서 파싱하고 10종 DQ 룰을 사전 검증하여, 정상 행 건수, 오류 행 건수, 행/열별 위반 사유가 포함된 정밀 리포트를 출력한다.
+  - 오류가 발생한 행들만 별도 추출하여 수정용 엑셀로 재다운로드할 수 있는 기능을 제공한다.
+- **비동기 대용량 익스포트 (`AsyncBatchExportService`)**:
+  - 수십만 건의 대용량 레코드 엑셀 다운로드 요청 시 백그라운드 청크 스트리밍 처리 후 MinIO에 압축 업로드하고 다운로드 링크를 시스템 알림으로 푸시한다.
+
+---
+
+## 7.10 데이터 계보 (Data Lineage) 연계 & 공인 도메인 보안 명세
+- **5단계 파이프라인 연동**:
+  - 외부 인바운드 연계를 통해 수신된 데이터는 5단계 Data Lineage의 1단계(`INGESTION`) 노드로 자동 등록되며, 원천 시스템명, 인입 시각, 원본 페이로드가 영구 보존된다.
+  - 아웃바운드 연계를 통해 ERP/CRM으로 전송 완료된 데이터는 5단계(`TARGET_EGRESS`) 노드로 최종 기록되어 데이터 유입부터 반출까지의 전 과정을 추적한다.
+- **공인 도메인 Webhook 엔드포인트 보안**:
+  - 외부 시스템과의 실시간 Webhook 통신은 가비아 공인 도메인 및 TLS 암호화 채널을 통해 수신된다:
+    `https://mdm.mplat.store/api/integration/inbound/{channelId}`
+  - 수신 시 `X-Integration-Secret` 및 IP 화이트리스트 검증을 통과한 요청만 내부 파이프라인으로 안전하게 인입된다.
+
