@@ -5,6 +5,7 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   if (
     to.path === '/login' ||
     to.path === '/install' ||
+    to.path === '/roi-calculator' ||
     to.path.startsWith('/auth') ||
     to.path.startsWith('/api')
   ) {
@@ -41,6 +42,25 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   // OIDC 세션에서 토큰이 확인되는 경우 쿠키가 채워질 때까지 동기화 허용
   if (!token && loggedIn.value && user.value?.accessToken) {
     token = user.value.accessToken
+  }
+
+  // 루트 경로('/') 접근 시 로그인 상태에 따라 분기:
+  // 1) 로그인된 사용자는 내부 업무 대시보드(/dashboard)로 자동 리다이렉트
+  // 2) 비로그인 방문자는 소개 홈페이지(랜딩 페이지) 자유 열람 허용
+  if (to.path === '/') {
+    if (token) {
+      return navigateTo('/dashboard')
+    }
+    return
+  }
+
+  // 회원가입 경로('/register') 접근 시:
+  // 이미 로그인된 사용자는 대시보드로 리다이렉트, 비로그인 방문자는 회원가입 허용
+  if (to.path === '/register') {
+    if (token) {
+      return navigateTo('/dashboard')
+    }
+    return
   }
 
   if (!token) {

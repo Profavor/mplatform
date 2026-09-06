@@ -10,17 +10,25 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/domains/{domainId}/schema/compatibility-check")
+@RequestMapping("/api/domains/{domainId}/schema")
 @RequiredArgsConstructor
 public class SchemaCompatibilityController {
 
     private final SchemaCompatibilityService schemaCompatibilityService;
 
-    @PostMapping
+    @PostMapping("/compatibility-check")
     @PreAuthorize("hasPermission(null, 'domain:write') or hasPermission(null, 'schema:write')")
     public ResponseEntity<SchemaCompatibilityDto.SchemaCompatibilityReport> checkCompatibility(
             @PathVariable UUID domainId,
             @RequestBody SchemaCompatibilityDto.SchemaChangeSimulationRequest request) {
         return ResponseEntity.ok(schemaCompatibilityService.analyzeCompatibility(domainId, request.getProposedChanges()));
+    }
+
+    @PostMapping("/simulate-field-impact")
+    @PreAuthorize("hasPermission(null, 'domain:write') or hasPermission(null, 'schema:write')")
+    public ResponseEntity<SchemaCompatibilityDto.FieldImpactReport> simulateFieldImpact(
+            @PathVariable UUID domainId,
+            @RequestBody SchemaCompatibilityDto.FieldImpactSimulationRequest request) {
+        return ResponseEntity.ok(schemaCompatibilityService.analyzeFieldImpact(domainId, request));
     }
 }

@@ -180,6 +180,7 @@ public class UserServiceTest {
         user.setUsername("testuser");
         user.setEmail("old@example.com");
         user.setIsActive(true);
+        user.setOrganizationId(java.util.UUID.randomUUID());
 
         when(userRepository.findById(userId)).thenReturn(java.util.Optional.of(user));
         when(userRepository.findByEmail("new@example.com")).thenReturn(java.util.Optional.empty());
@@ -244,5 +245,52 @@ public class UserServiceTest {
         assertThat(updated.getTimezone()).isEqualTo("Asia/Tokyo");
         verify(userRepository).save(user);
         verify(keycloakAdminService).updateUser(eq(username), eq("new_self@example.com"), eq(username), eq(true));
+    }
+
+    @Test
+    void testCreateAdminUser_WithoutOrgOrDept_ThrowsIllegalStateException() {
+        String username = "unassigned_admin";
+        when(userRepository.findByUsername(username)).thenReturn(java.util.Optional.empty());
+
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> {
+            userService.createAdminUser(username, "test@test.com", "ROLE_ADMIN", null, null);
+        });
+    }
+
+    @Test
+    void testUpdateAdminUserInfo_HighPrivilegeRoleWithoutOrg_ThrowsIllegalStateException() {
+        String userId = "user-no-org";
+        User user = new User();
+        user.setId(userId);
+        user.setUsername("noorguser");
+        user.setOrganizationId(null);
+        user.setDepartmentId(null);
+        user.setRole("ROLE_USER");
+
+        when(userRepository.findById(userId)).thenReturn(java.util.Optional.of(user));
+
+        com.classification.domain_system.dto.AdminUserUpdateDto dto = new com.classification.domain_system.dto.AdminUserUpdateDto();
+        dto.setRole("ROLE_ADMIN");
+
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> {
+            userService.updateAdminUserInfo(userId, dto);
+        });
+    }
+
+    @Test
+    void testUpdateUserRole_HighPrivilegeRoleWithoutOrg_ThrowsIllegalStateException() {
+        String userId = "user-no-org-2";
+        User user = new User();
+        user.setId(userId);
+        user.setUsername("noorguser2");
+        user.setOrganizationId(null);
+        user.setDepartmentId(null);
+        user.setRole("ROLE_USER");
+
+        when(userRepository.findById(userId)).thenReturn(java.util.Optional.of(user));
+
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> {
+            userService.updateUserRole(userId, "ROLE_ADMIN");
+        });
     }
 }

@@ -1,0 +1,117 @@
+{
+  "landing": {
+    "nav": {
+      "brand": "MDM Platform",
+      "why_mdm": "Why MDM",
+      "features": "Capabilities",
+      "cases": "Case Studies",
+      "roi_calculator": "ROI Calculator",
+      "trust": "Security & Trust",
+      "faq": "FAQ",
+      "login": "Sign In",
+      "start_trial": "Free Trial",
+      "dashboard_link": "Go to Dashboard"
+    },
+    "hero": {
+      "badge": "Next-Gen Enterprise Master Data Governance",
+      "title": "Unify Dispersed Data into a Single Source of Truth",
+      "subtitle": "Eliminate data silos across ERP, CRM, and spreadsheets with real-time 11 DQ rule validation and 5-stage end-to-end data lineage to create the Golden Record.",
+      "cta_start": "Get Started Free",
+      "cta_demo": "Explore Capabilities",
+      "cta_roi": "ROI Calculator",
+      "badge_dq": "11 Real-Time DQ Rules",
+      "badge_lineage": "5-Stage End-to-End Lineage",
+      "badge_security": "Enterprise-Grade Encryption"
+    },
+    "stats": {
+      "integration_rate": "99.8%",
+      "integration_rate_label": "Data Consistency Rate",
+      "dedup_saving": "75%",
+      "dedup_saving_label": "Manual Reconciliation Reduced",
+      "audit_coverage": "100%",
+      "audit_coverage_label": "Audit Trail Integrity",
+      "active_connectors": "20+",
+      "active_connectors_label": "Integration Connectors"
+    },
+    "why_mdm": {
+      "badge": "Why Master Data Management?",
+      "title": "Data Fragmentation Exponentially Increases Cost and Risk",
+      "subtitle": "Stop discrepancies across department silos, inconsistent Excel copies, and time-consuming manual reconciliation.",
+      "problem1_title": "Departmental Data Silos & Duplication",
+      "problem1_desc": "Sales, Accounting, and Logistics hold conflicting vendor data, leading to order mistakes and delayed invoices.",
+      "problem2_title": "Manual Spreadsheet Compilation Without Quality Checks",
+      "problem2_desc": "Inconsistent formats and missing required fields degrade analytical reliability across the organization.",
+      "problem3_title": "Lack of Audit Trail and Data Lineage",
+      "problem3_desc": "Inability to trace who changed what and where data traveled exposes enterprises to severe compliance risks.",
+      "solution_title": "How MDM Platform Solves This",
+      "solution_desc": "Dynamic schema modeling, automated approval flows, and end-to-end pipelines guarantee a single, verified master record.",
+      "calc_roi_cta": "Calculate Your Projected Savings"
+    },
+    "features": {
+      "badge": "Core Capabilities",
+      "title": "5 Pillars of Enterprise Master Data Management",
+      "subtitle": "Define complex master data and automate governance without writing a single line of code.",
+      "f1_title": "Dynamic Schema & Custom Modeling",
+      "f1_desc": "Visually architect domains, classification trees, and custom fields with instant multilingual metadata support.",
+      "f2_title": "11 Real-Time DQ (Data Quality) Rules",
+      "f2_desc": "Block bad data at ingestion with regex formats, range checks, uniqueness, and cross-field validation rules.",
+      "f3_title": "4-Tier Approval Workflow Engine",
+      "f3_desc": "Route change requests through organizational reviewers and approvers to guarantee only verified records reach master state.",
+      "f4_title": "5-Stage End-to-End Data Lineage",
+      "f4_desc": "Visualize the entire journey from source systems to ingestion pipelines, golden records, and downstream consumers with SpEL rules.",
+      "f5_title": "Multi-Protocol Integration Engine",
+      "f5_desc": "Synchronize bidirectional data with Kafka, RabbitMQ, REST APIs, and relational databases in real time."
+    },
+    "cases": {
+      "badge": "Success Scenarios",
+      "title": "Proven Value in Enterprise Production",
+      "subtitle": "Transforming master data management across retail, finance, manufacturing, and public sectors.",
+      "c1_title": "Global Retail Enterprise: Vendor & Product Master",
+      "c1_desc": "Unified 120k vendor and product records across 8 global entities into a single golden master, reducing duplication by 82%.",
+      "c1_metric": "82% Duplication Reduction",
+      "c2_title": "FinTech Leader: Regulatory Compliance & Disclosure",
+      "c2_desc": "Enforced complete DQ pre-checks before KRX regulatory dispatch with audit-proof tracking, maintaining 99.99% consistency.",
+      "c2_metric": "99.99% Data Consistency",
+      "c3_title": "Manufacturing Mid-Market: Automated ERP Migration",
+      "c3_desc": "Automated data cleaning and SpEL transformation for 500k legacy records, accelerating project timeline by 4 months.",
+      "c3_metric": "4 Months Timeline Saved"
+    },
+    "trust": {
+      "badge": "Enterprise Security",
+      "title": "Built for Stringent Regulatory & Enterprise Compliance",
+      "subtitle": "Safeguarding your core enterprise data assets with top-tier cryptography and immutable audit logs.",
+      "t1_title": "AES-256 Field-Level Encryption",
+      "t1_desc": "Personally identifiable and sensitive attributes are encrypted before persistence, inaccessible even to database admins without key authorization.",
+      "t2_title": "Hash-Chain Tamper-Evident Audit Logs",
+      "t2_desc": "Record versions and approval actions are cryptographically chained, instantly flagging any unauthorized modification.",
+      "t3_title": "Granular RBAC & Dynamic Column Masking",
+      "t3_desc": "Organizational scopes and masking rules restrict data exposure to strictly authorized personas."
+    },
+    "faq": {
+      "badge": "FAQ",
+      "title": "Frequently Asked Questions",
+      "subtitle": "Common answers regarding deployment, integration, and architecture.",
+      "q1": "Can we integrate with our existing ERP (SAP, etc.) and databases?",
+      "a1": "Yes. We support standard JDBC, REST API, Kafka, and message queues out of the box with SpEL field mapping for zero-code integration.",
+      "q2": "Can this be installed in an air-gapped on-premises or private cloud environment?",
+      "a2": "Yes. Standard Docker containers and Kubernetes manifests are provided for seamless deployment on AWS, GCP, or private bare-metal servers.",
+      "q3": "Can departments manage permissions and domains independently?",
+      "a3": "Yes. Multi-tenancy and department-based granular RBAC allow HR, Finance, and Procurement to isolate domain access and approval workflows.",
+      "q4": "What features are included during the free trial?",
+      "a4": "All enterprise features including dynamic schema design, 11 DQ rules, approval flows, and 5-stage data lineage are fully accessible."
+    },
+    "cta": {
+      "title": "Experience Next-Gen Master Data Governance Today",
+      "subtitle": "The most effective way to eliminate manual cleaning costs and guarantee data accuracy.",
+      "btn_primary": "Sign In & Get Started",
+      "btn_secondary": "Contact Enterprise Sales"
+    },
+    "footer": {
+      "desc": "Enterprise Master Data Management & Governance Platform",
+      "copyright": "© 2026 MDM Platform. All rights reserved.",
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service",
+      "contact": "Support"
+    }
+  }
+}

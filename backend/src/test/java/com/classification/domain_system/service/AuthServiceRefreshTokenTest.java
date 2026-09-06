@@ -53,6 +53,18 @@ class AuthServiceRefreshTokenTest {
     @Mock
     private RestTemplate restTemplate;
 
+    @Mock
+    private com.classification.domain_system.repository.OrganizationRepository organizationRepository;
+
+    @Mock
+    private com.classification.domain_system.repository.DomainPermissionRepository domainPermissionRepository;
+
+    @Mock
+    private SpecializedDomainTemplateService specializedDomainTemplateService;
+
+    @Mock
+    private TwoFactorAuthService twoFactorAuthService;
+
     @InjectMocks
     private AuthService authService;
 

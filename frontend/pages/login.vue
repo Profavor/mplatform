@@ -1,6 +1,6 @@
 <template>
   <div :class="['auth-container', isDark ? 'theme-dark' : 'theme-light']">
-    <div class="auth-box">
+    <main class="auth-box" role="main">
       <!-- Welcome Header -->
       <div class="auth-header">
         <div class="logo-container">
@@ -26,28 +26,55 @@
             <va-progress-circle indeterminate size="16px" color="primary" />
             <span>{{ isRedirecting ? $t('auth_redirecting') : $t('auth_checking') }}</span>
           </div>
+
+          <div class="register-prompt-container">
+            <span class="register-prompt">{{ $t('need_account') }}</span>
+            <NuxtLink to="/register" class="register-link">
+              {{ $t('link_register') }}
+            </NuxtLink>
+          </div>
         </va-card-content>
       </va-card>
+
+      <!-- 2FA Step-up Verification Modal -->
+      <TwoFactorVerifyModal
+        v-model:is-open="is2FaModalOpen"
+        :username="twoFactorUsername"
+        :temp-token="twoFactorTempToken"
+        :masked-email="twoFactorMaskedEmail"
+        :grace-period-remaining-days="twoFactorGraceDays"
+        :two-factor-type="twoFactorType"
+        @verified="handle2FaVerified"
+        @skip="handle2FaSkip"
+      />
 
       <div class="auth-footer">
         {{ $t('footer.copyright', { year: new Date().getFullYear() }) }}
       </div>
-    </div>
+    </main>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { useRoute, navigateTo, useCookie } from '#app'
+import { useRoute, navigateTo, useCookie, useHead } from '#app'
 import { useI18n } from 'vue-i18n'
 import { useToast, useColors } from 'vuestic-ui'
+import TwoFactorVerifyModal from '~/components/auth/TwoFactorVerifyModal.vue'
 
 definePageMeta({
   layout: false
 })
 
 const route = useRoute()
-const { t } = useI18n()
+const { t, locale } = useI18n()
+
+useHead({
+  title: computed(() => t('footer.system_name')),
+  htmlAttrs: {
+    lang: computed(() => (locale?.value || 'ko').startsWith('en') ? 'en' : 'ko')
+  }
+})
 const { init: initToast } = useToast()
 const colors = useColors()
 const currentPresetName = colors?.currentPresetName
@@ -55,6 +82,21 @@ const isDark = computed(() => currentPresetName?.value === 'dark')
 
 const { loggedIn, login, logout } = useOidcAuth()
 const authToken = useCookie('auth_token')
+
+const is2FaModalOpen = ref(false)
+const twoFactorUsername = ref('')
+const twoFactorTempToken = ref('')
+const twoFactorMaskedEmail = ref('')
+const twoFactorGraceDays = ref(null)
+const twoFactorType = ref('TOTP')
+
+const handle2FaVerified = () => {
+  redirectToDashboard()
+}
+
+const handle2FaSkip = () => {
+  redirectToDashboard()
+}
 
 const isCheckingAuth = ref(true)
 const isLoggingIn = ref(false)
@@ -140,6 +182,21 @@ watch([loggedIn, () => authToken.value], ([isLoggedIn, currentToken]) => {
 }, { immediate: true })
 
 onMounted(async () => {
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = (locale?.value || 'ko').startsWith('en') ? 'en-US' : 'ko-KR'
+  }
+  if (route.query.temp_token && route.query.username) {
+    twoFactorUsername.value = String(route.query.username)
+    twoFactorTempToken.value = String(route.query.temp_token)
+    twoFactorMaskedEmail.value = String(route.query.masked_email || '')
+    twoFactorType.value = String(route.query.two_factor_type || 'TOTP')
+    if (route.query.grace_days) {
+      twoFactorGraceDays.value = parseInt(String(route.query.grace_days), 10)
+    }
+    is2FaModalOpen.value = true
+    isCheckingAuth.value = false
+    return
+  }
   await checkAuthentication()
 })
 
@@ -155,6 +212,12 @@ const handleLogin = async () => {
         sessionStorage.setItem('post_login_redirect', queryRedirect)
       } catch (e) {}
     }
+  }
+
+  if (loggedIn.value && !authToken.value) {
+    try {
+      await logout('keycloak')
+    } catch (e) {}
   }
 
   try {
@@ -202,7 +265,7 @@ const handleLogin = async () => {
   border: 1px solid rgba(255, 255, 255, 0.8);
 }
 .theme-light .auth-footer {
-  color: #94a3b8;
+  color: #475569;
 }
 
 /* Dark Theme */
@@ -226,7 +289,7 @@ const handleLogin = async () => {
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 .theme-dark .auth-footer {
-  color: #64748b;
+  color: #cbd5e1;
 }
 
 /* Common Styles */
@@ -307,5 +370,35 @@ const handleLogin = async () => {
   font-size: 0.85rem;
   font-weight: 500;
   transition: color 0.3s ease;
+}
+
+.register-prompt-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  font-size: 0.875rem;
+}
+
+.theme-dark .register-prompt-container {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+.register-prompt {
+  color: var(--va-text-secondary);
+}
+
+.register-link {
+  color: var(--va-primary);
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.register-link:hover {
+  text-decoration: underline;
 }
 </style>

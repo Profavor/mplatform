@@ -55,17 +55,17 @@ class SpecializedDomainTemplateServiceTest extends BaseServiceTest {
     class GetTemplates {
 
         @Test
-        @DisplayName("6개 핵심 특화도메인 템플릿 목록과 고도화된 섹터/그룹/필드를 정상 반환한다")
-        void returnsAllSixTemplates() {
+        @DisplayName("7개 핵심 특화도메인 템플릿 목록과 고도화된 섹터/그룹/필드를 정상 반환한다")
+        void returnsAllSevenTemplates() {
             List<SpecializedDomainTemplateDto> templates = templateService.getTemplates();
 
-            assertThat(templates).hasSize(6);
+            assertThat(templates).hasSize(7);
             List<String> categories = templates.stream()
                     .map(SpecializedDomainTemplateDto::getCategory)
                     .toList();
 
             assertThat(categories).containsExactlyInAnyOrder(
-                    "CUSTOMER", "VENDOR", "PRODUCT", "MATERIAL", "EMPLOYEE", "STOCK"
+                    "CUSTOMER", "VENDOR", "PRODUCT", "MATERIAL", "EMPLOYEE", "STOCK", "LEASE_CONTRACT"
             );
 
             // 각 템플릿의 무결성 검증

@@ -139,3 +139,61 @@ vuesticAriaPaths.forEach((rel) => {
     }
   }
 });
+
+// 8. Patch vuestic-ui VaSwitch to prevent $t:switch aria-label leak (#205)
+const vuesticSwitchPaths = [
+  'node_modules/vuestic-ui/dist/es/src/components/va-switch/VaSwitch.vue_vue_type_script_setup_true_lang.js',
+  'node_modules/vuestic-ui/dist/esm-node/src/components/va-switch/VaSwitch.vue_vue_type_script_setup_true_lang.mjs',
+  'node_modules/vuestic-ui/dist/web-components/src/components/va-switch/VaSwitch.vue_vue_type_script_setup_true_lang.js'
+];
+vuesticSwitchPaths.forEach((rel) => {
+  const fPath = path.resolve(process.cwd(), rel);
+  if (fs.existsSync(fPath)) {
+    let content = fs.readFileSync(fPath, 'utf8');
+    if (content.includes("useTranslationProp('$t:switch')") || content.includes('useTranslationProp("$t:switch")')) {
+      content = content.replace(/useTranslationProp\(["']\$t:switch["']\)/g, "useTranslationProp('')");
+      fs.writeFileSync(fPath, content);
+      console.log(`Patched vuestic-ui ${rel} successfully (prevent $t:switch leak).`);
+    }
+  }
+});
+
+// 9. Patch security.js validateToken to support multi-issuer / reverse proxy / dynamic host validation (#208)
+const securityFile = path.resolve(process.cwd(), 'node_modules/nuxt-oidc-auth/dist/runtime/server/utils/security.js');
+if (fs.existsSync(securityFile)) {
+  let content = fs.readFileSync(securityFile, 'utf8');
+  if (!content.includes('parsedTokenIss')) {
+    const targetPattern = /export async function validateToken\(token, options\) \{[\s\S]*?const \{ payload \} = await jwtVerify\(token, jwks, \{[\s\S]*?\}\);[\s\S]*?return payload;[\s\S]*?\}/;
+    const replacement = `export async function validateToken(token, options) {
+  const jwksUri = (process.env.JWK_SET_URI && !options.jwksUri.startsWith('http://keycloak'))
+    ? process.env.JWK_SET_URI
+    : options.jwksUri;
+  const jwks = createRemoteJWKSet(new URL(jwksUri));
+  let parsedTokenIss;
+  try {
+    const parsed = parseJwtToken(token, false);
+    parsedTokenIss = parsed?.iss;
+  } catch (e) {}
+
+  let allowedIssuers = [];
+  if (options.issuer) {
+    allowedIssuers = Array.isArray(options.issuer) ? [...options.issuer] : [options.issuer];
+  }
+  if (parsedTokenIss && !allowedIssuers.includes(parsedTokenIss)) {
+    const realmMatch = parsedTokenIss.includes('/realms/mplatform');
+    if (realmMatch || allowedIssuers.length === 0) {
+      allowedIssuers.push(parsedTokenIss);
+    }
+  }
+
+  const { payload } = await jwtVerify(token, jwks, {
+    issuer: allowedIssuers.length > 0 ? (allowedIssuers.length === 1 ? allowedIssuers[0] : allowedIssuers) : undefined,
+    audience: options.audience
+  });
+  return payload;
+}`;
+    content = content.replace(targetPattern, replacement);
+    fs.writeFileSync(securityFile, content);
+    console.log('Patched nuxt-oidc-auth security.js successfully (dynamic issuer & reverse proxy support).');
+  }
+}

@@ -59,8 +59,9 @@ public class SecurityConfig {
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                // 인증 및 계정 관련 공개 API (로그인, 토큰 갱신, 아이디 중복확인만 공개, 등록/조회는 보안 인증 필수)
-                .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/check-username").permitAll()
+                // 인증 및 계정 관련 공개 API (로그인, 토큰 갱신, 아이디 중복확인, B2B 셀프 회원가입, 2FA 단계별 인증 공개)
+                .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/check-username", "/api/auth/self-register", "/api/auth/2fa/**").permitAll()
+                .requestMatchers("/api/roi/**").permitAll()
                 .requestMatchers("/api/auth/me").authenticated()
                 // 시스템 최초 설치 엔드포인트 (최초 환경 구성 및 설치 상태 조회용)
                 .requestMatchers("/api/system/install", "/api/system/install-status").permitAll()

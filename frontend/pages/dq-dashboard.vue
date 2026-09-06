@@ -1,49 +1,100 @@
 <template>
   <div style="display: flex; flex-direction: column; gap: 1.25rem; padding-bottom: 2rem;">
     <!-- Top Action Bar -->
-    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-      <div style="display: flex; align-items: center; gap: 0.75rem;">
+    <div class="top-action-bar">
+      <div class="header-title-area">
         <va-icon name="dashboard" size="large" color="primary" />
         <div>
-          <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+          <h2 class="page-title">
             {{ pageTitle }}
             <va-badge text="Analytics" color="primary" size="small" />
           </h2>
-          <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
+          <span class="page-subtitle">
             {{ $t('dq_dashboard_subtitle') }}
           </span>
         </div>
       </div>
 
-      <div style="display: flex; gap: 0.75rem; align-items: center;">
+      <div class="header-controls-area">
+        <!-- View Mode Switcher -->
+        <div class="view-mode-toggle-group">
+          <button
+            type="button"
+            class="view-mode-btn"
+            :class="{ active: viewMode === 'detail' }"
+            @click="switchViewMode('detail')"
+          >
+            <va-icon name="analytics" size="small" />
+            {{ $t('benchmark.view_detail') }}
+          </button>
+          <button
+            type="button"
+            class="view-mode-btn"
+            :class="{ active: viewMode === 'benchmark' }"
+            @click="switchViewMode('benchmark')"
+          >
+            <va-icon name="compare_arrows" size="small" />
+            {{ $t('benchmark.view_benchmark') }}
+          </button>
+        </div>
+
         <va-select
+          v-if="viewMode === 'detail'"
           v-model="selectedDomainId"
           :options="domains"
           text-by="label"
           value-by="value"
-          style="min-width: 220px;"
+          class="domain-select"
           dense
           :placeholder="$t('dq_dashboard.select_domain_placeholder')"
         />
-        <va-button preset="outline" color="primary" icon="refresh" size="small" :loading="loading" @click="fetchDashboardData">
+        <va-button preset="outline" color="primary" icon="refresh" size="small" :loading="loading || benchmarkLoading || benchmarkTrendLoading" @click="handleRefreshAll">
           {{ $t('refresh') }}
         </va-button>
       </div>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="loading" class="loading-state">
-      <va-progress-circle indeterminate size="3.5rem" color="primary" />
-      <span class="loading-text">{{ $t('loading_dq_metrics') }}</span>
-    </div>
+    <!-- ── Benchmark Mode View ──────────────────────────────────────── -->
+    <template v-if="viewMode === 'benchmark'">
+      <div v-if="benchmarkLoading && !benchmarkData" class="loading-state">
+        <va-progress-circle indeterminate size="3.5rem" color="primary" />
+        <span class="loading-text">{{ $t('loading_dq_metrics') }}</span>
+      </div>
+      <template v-else>
+        <!-- Benchmark Comparison Matrix -->
+        <DqBenchmarkMatrix
+          :benchmark-data="benchmarkData"
+          :loading="benchmarkLoading"
+          @select-domain="handleSelectDomainFromBenchmark"
+          @refresh="fetchBenchmarkData"
+        />
 
-    <!-- Score & Stats -->
-    <template v-else-if="scoreData">
-      <!-- 4 Core Metric KPI Cards (Decoupled Component) -->
-      <DqKpiCards
-        :score-data="scoreData"
-        :rule-count="ruleCount"
-      />
+        <!-- Multi-Domain Trend Overlay Chart -->
+        <DqMultiDomainTrendChart
+          :multi-domain-trends="multiDomainTrends"
+          :days="benchmarkDays"
+          :loading="benchmarkTrendLoading"
+          @change-days="handleBenchmarkDaysChange"
+          @select-domain="handleSelectDomainFromBenchmark"
+        />
+      </template>
+    </template>
+
+    <!-- ── Single Domain Detail View ────────────────────────────────── -->
+    <template v-else-if="viewMode === 'detail'">
+      <!-- Loading State -->
+      <div v-if="loading" class="loading-state">
+        <va-progress-circle indeterminate size="3.5rem" color="primary" />
+        <span class="loading-text">{{ $t('loading_dq_metrics') }}</span>
+      </div>
+
+      <!-- Score & Stats -->
+      <template v-else-if="scoreData">
+        <!-- 4 Core Metric KPI Cards (Decoupled Component) -->
+        <DqKpiCards
+          :score-data="scoreData"
+          :rule-count="ruleCount"
+        />
 
       <!-- DQ Score Trend Card (Decoupled Component) -->
       <DqScoreTrendCard
@@ -151,12 +202,13 @@
         @reset-filters="resetViolationFilters"
         @go-to-record="goToRecord"
       />
-    </template>
+      </template>
 
-    <div v-else-if="selectedDomainId" class="select-domain-prompt">
-      <va-icon name="touch_app" size="3rem" color="primary" />
-      <p>{{ $t('dq_dashboard.select_domain_prompt', '조회할 도메인을 선택하면 Data Quality 지표가 표시됩니다.') }}</p>
-    </div>
+      <div v-else-if="selectedDomainId" class="select-domain-prompt">
+        <va-icon name="touch_app" size="3rem" color="primary" />
+        <p>{{ $t('dq_dashboard.select_domain_prompt', '조회할 도메인을 선택하면 Data Quality 지표가 표시됩니다.') }}</p>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -167,6 +219,8 @@ import AiDqRecommendations from '~/components/dq/AiDqRecommendations.vue'
 import DqKpiCards from '~/components/dq/DqKpiCards.vue'
 import DqScoreTrendCard from '~/components/dq/DqScoreTrendCard.vue'
 import DqViolationsTable from '~/components/dq/DqViolationsTable.vue'
+import DqBenchmarkMatrix from '~/components/dq/DqBenchmarkMatrix.vue'
+import DqMultiDomainTrendChart from '~/components/dq/DqMultiDomainTrendChart.vue'
 import { usePageTitle } from '~/composables/usePageTitle'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 
@@ -174,6 +228,68 @@ const { t, locale } = useI18n()
 const { pageTitle } = usePageTitle('dq_dashboard_title', '데이터 품질 진단 대시보드')
 const { init: notify } = useToast()
 const customFetch = useCustomFetch()
+
+// ── View Mode & Benchmark State ──────────────────────────────────────
+const viewMode = ref('detail') // 'detail' | 'benchmark'
+const benchmarkData = ref(null)
+const benchmarkLoading = ref(false)
+const multiDomainTrends = ref([])
+const benchmarkDays = ref(30)
+const benchmarkTrendLoading = ref(false)
+
+async function fetchBenchmarkData() {
+  benchmarkLoading.value = true
+  try {
+    const res = await customFetch('/api/domains/dq-benchmark')
+    benchmarkData.value = res
+  } catch (err) {
+    console.error('Failed to fetch DQ benchmark data:', err)
+  } finally {
+    benchmarkLoading.value = false
+  }
+}
+
+async function fetchBenchmarkTrend(days = 30) {
+  benchmarkDays.value = days
+  benchmarkTrendLoading.value = true
+  try {
+    const res = await customFetch(`/api/domains/dq-benchmark/trend?days=${days}`)
+    multiDomainTrends.value = res || []
+  } catch (err) {
+    console.error('Failed to fetch DQ benchmark trend:', err)
+  } finally {
+    benchmarkTrendLoading.value = false
+  }
+}
+
+function handleSelectDomainFromBenchmark(domainId) {
+  selectedDomainId.value = domainId
+  viewMode.value = 'detail'
+}
+
+function handleBenchmarkDaysChange(days) {
+  fetchBenchmarkTrend(days)
+}
+
+function switchViewMode(mode) {
+  viewMode.value = mode
+  if (mode === 'benchmark') {
+    if (!benchmarkData.value) {
+      fetchBenchmarkData()
+    }
+    if (!multiDomainTrends.value || multiDomainTrends.value.length === 0) {
+      fetchBenchmarkTrend(benchmarkDays.value)
+    }
+  }
+}
+
+async function handleRefreshAll() {
+  if (viewMode.value === 'benchmark') {
+    await Promise.all([fetchBenchmarkData(), fetchBenchmarkTrend(benchmarkDays.value)])
+  } else {
+    await fetchDashboardData()
+  }
+}
 
 const domains = ref([])
 const selectedDomainId = ref(null)
@@ -593,6 +709,37 @@ function getScoreClass(score) {
 
 .domain-select {
   width: 320px;
+}
+
+.view-mode-toggle-group {
+  display: flex;
+  background: var(--va-background-element);
+  border: 1px solid var(--va-background-border);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.view-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: var(--va-text-secondary);
+  transition: all 0.2s ease;
+}
+
+.view-mode-btn.active {
+  background: var(--va-primary);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 .scan-btn {
@@ -1086,5 +1233,62 @@ function getScoreClass(score) {
   font-size: 1.1rem;
   font-weight: 600;
   text-align: center;
+}
+
+.top-action-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--va-background-primary);
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  border: 1px solid var(--va-background-border);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  gap: 1rem;
+}
+.header-title-area {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  word-break: keep-all;
+}
+.page-title {
+  font-weight: 700;
+  font-size: 1.35rem;
+  margin: 0;
+  color: var(--va-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  word-break: keep-all;
+}
+.page-subtitle {
+  font-size: 0.85rem;
+  color: var(--va-text-secondary);
+  word-break: keep-all;
+}
+.header-controls-area {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+.domain-select {
+  min-width: 220px;
+}
+
+@media (max-width: 768px) {
+  .top-action-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .header-controls-area {
+    flex-direction: row;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .domain-select {
+    flex: 1;
+    min-width: 160px;
+  }
 }
 </style>

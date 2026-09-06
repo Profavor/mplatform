@@ -57,7 +57,9 @@ export default defineNuxtConfig({
           'ko/common.json',
           'ko/dq.json',
           'ko/inbox.json',
+          'ko/landing.json',
           'ko/records.json',
+          'ko/roi.json',
           'ko/schema.json'
         ]
       },
@@ -70,7 +72,9 @@ export default defineNuxtConfig({
           'en/common.json',
           'en/dq.json',
           'en/inbox.json',
+          'en/landing.json',
           'en/records.json',
+          'en/roi.json',
           'en/schema.json'
         ]
       }
@@ -93,7 +97,7 @@ export default defineNuxtConfig({
         validateAccessToken: true,
         validateIdToken: true,
         scope: ['openid', 'profile', 'email'],
-        clientSecret: process.env.KEYCLOAK_CLIENT_SECRET || '',
+        clientSecret: process.env.KEYCLOAK_CLIENT_SECRET || 'secret',
         authenticationScheme: 'none',
         pkce: true,
         nonce: true,
@@ -120,7 +124,7 @@ export default defineNuxtConfig({
   app: {
     head: {
       title: 'Domain Governance System',
-      titleTemplate: '%s | Domain Governance System',
+      titleTemplate: (titleChunk?: string) => (!titleChunk || titleChunk === 'Domain Governance System') ? 'Domain Governance System' : `${titleChunk} | Domain Governance System`,
       charset: 'utf-8',
       viewport: 'width=device-width, initial-scale=1',
       meta: [

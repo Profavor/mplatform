@@ -10,7 +10,7 @@
     :ok-text="okText"
     :cancel-text="cancelText"
     :no-padding="noPadding"
-    :zIndex="zIndex"
+    :zIndex="activeZIndex"
     :no-outside-dismiss="noOutsideDismiss"
     :class="[
       'app-modal-wrapper',
@@ -85,9 +85,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ModalControls from './ModalControls.vue'
+import { useModalStack } from '~/composables/useModalStack'
 
 const props = withDefaults(
   defineProps<{
@@ -156,6 +157,8 @@ const customWidth = ref<number | null>(null)
 const customHeight = ref<number | null>(null)
 const isResizing = ref(false)
 
+const { activeZIndex } = useModalStack(toRef(props, 'modelValue'), toRef(props, 'zIndex'))
+
 const modalCustomStyle = computed(() => {
   const styles: Record<string, string> = {}
   if (customWidth.value && !isFullscreen.value) {
@@ -164,10 +167,9 @@ const modalCustomStyle = computed(() => {
   if (customHeight.value && !isFullscreen.value) {
     styles['--app-modal-custom-height'] = `${customHeight.value}px`
   }
-  if (props.zIndex) {
-    styles['z-index'] = String(props.zIndex)
-    styles['--va-modal-z-index'] = String(props.zIndex)
-  }
+  styles['z-index'] = String(activeZIndex.value)
+  styles['--app-modal-z-index'] = String(activeZIndex.value)
+  styles['--va-modal-z-index'] = String(activeZIndex.value)
   return styles
 })
 
@@ -331,6 +333,21 @@ const handleClose = () => {
 </script>
 
 <style>
+/* Ensure modal and its overlay & dialog always take active zIndex */
+.app-modal-wrapper,
+.app-modal-wrapper.va-modal,
+.va-modal.app-modal-wrapper {
+  z-index: var(--app-modal-z-index, 1050) !important;
+}
+
+.app-modal-wrapper .va-modal__overlay {
+  z-index: calc(var(--app-modal-z-index, 1050) - 1) !important;
+}
+
+.app-modal-wrapper .va-modal__dialog {
+  z-index: var(--app-modal-z-index, 1050) !important;
+}
+
 /* Resizable styling applied to Vuestic Modal Dialog ONLY when custom size is explicitly applied by dragging */
 .app-modal-wrapper.has-custom-width:not(.va-modal--fullscreen) .va-modal__dialog {
   width: var(--app-modal-custom-width) !important;

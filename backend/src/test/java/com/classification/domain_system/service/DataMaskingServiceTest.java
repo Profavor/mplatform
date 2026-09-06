@@ -24,6 +24,7 @@ public class DataMaskingServiceTest {
     @Mock private RecordRepository recordRepository;
     @Mock private com.classification.domain_system.repository.FieldDefinitionRepository fieldDefinitionRepository;
     @Mock private FieldEncryptionService fieldEncryptionService;
+    @Mock private ColumnMaskingPolicyService columnMaskingPolicyService;
 
     @InjectMocks
     private DataMaskingService dataMaskingService;
@@ -175,6 +176,38 @@ public class DataMaskingServiceTest {
 
         assertThat(result).contains("m***@mplatform.com");
         assertThat(result).doesNotContain("money@mplatform.com");
+    }
+
+    @Test
+    @DisplayName("#146: 컬럼 수준 마스킹 정책에 따라 특정 부서/역할 사용자는 phone만 마스킹 해제되고 email은 마스킹 유지되어야 한다")
+    void testMaskJsonData_ColumnLevelPolicy_CSManagerCanViewPhoneUnmaskedWhileEmailRemainsMasked() throws Exception {
+        UUID domainId = UUID.randomUUID();
+        UUID deptId = UUID.randomUUID();
+
+        com.classification.domain_system.entity.User csUser = new com.classification.domain_system.entity.User();
+        csUser.setId("u-cs-01");
+        csUser.setUsername("cs_agent");
+        csUser.setRole("ROLE_CS_MANAGER");
+        csUser.setDepartmentId(deptId);
+
+        // phone 필드는 UNMASK 권한 있음, email 필드는 UNMASK 권한 없음
+        when(columnMaskingPolicyService.canUserUnmaskField("ROLE_CS_MANAGER", deptId, domainId, "phone"))
+                .thenReturn(true);
+        when(columnMaskingPolicyService.canUserUnmaskField("ROLE_CS_MANAGER", deptId, domainId, "email"))
+                .thenReturn(false);
+
+        String json = "{\"phone\":\"010-1234-5678\",\"email\":\"customer@company.com\",\"name\":\"홍길동\"}";
+        String result = dataMaskingService.maskJsonData(json, mockFields, csUser, domainId, false);
+
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        java.util.Map<String, Object> map = mapper.readValue(result, java.util.Map.class);
+
+        // phone은 마스킹 해제되어 원본 평문 유지
+        assertThat(map.get("phone")).isEqualTo("010-1234-5678");
+        // email은 마스킹 패턴 적용
+        assertThat(map.get("email").toString()).contains("***@company.com");
+        // name은 일반 필드로 평문 유지
+        assertThat(map.get("name")).isEqualTo("홍길동");
     }
 }
 

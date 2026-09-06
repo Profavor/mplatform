@@ -37,7 +37,19 @@ class AuthServiceTest {
     private LoginLogRepository loginLogRepository;
 
     @Mock
+    private com.classification.domain_system.repository.OrganizationRepository organizationRepository;
+
+    @Mock
+    private com.classification.domain_system.repository.DomainPermissionRepository domainPermissionRepository;
+
+    @Mock
+    private SpecializedDomainTemplateService specializedDomainTemplateService;
+
+    @Mock
     private com.classification.domain_system.websocket.WebSocketPublisher webSocketPublisher;
+
+    @Mock
+    private TwoFactorAuthService twoFactorAuthService;
 
     @InjectMocks
     private AuthService authService;
@@ -225,6 +237,80 @@ class AuthServiceTest {
 
             // then
             assertThat(result).isNull();
+        }
+    }
+
+    @Nested
+    @DisplayName("TwoFactorAuth")
+    class TwoFactorAuth {
+
+        @Test
+        @DisplayName("2FA 필수 사용자인 경우 loginWithTokens는 tempToken과 twoFactorRequired=true를 반환한다")
+        void loginWithTokens_twoFactorRequired() {
+            // given
+            User user = createTestUser("user-id-1", "admin", "encoded_pw", "ROLE_ADMIN");
+            user.setEmail("admin@example.com");
+            user.setTwoFactorType("TOTP");
+            given(userRepository.findByUsername("admin")).willReturn(Optional.of(user));
+            given(passwordEncoder.matches("rawpassword", "encoded_pw")).willReturn(true);
+            given(twoFactorAuthService.isTwoFactorRequired(user)).willReturn(true);
+
+            // when
+            java.util.Map<String, String> response = authService.loginWithTokens("admin", "rawpassword", "127.0.0.1", "Mozilla/5.0");
+
+            // then
+            assertThat(response).containsEntry("twoFactorRequired", "true");
+            assertThat(response).containsKey("tempToken");
+            assertThat(response.get("tempToken")).isNotBlank();
+            assertThat(response).containsEntry("twoFactorType", "TOTP");
+            assertThat(response).containsEntry("maskedEmail", "ad***@example.com");
+            assertThat(response).doesNotContainKey("token");
+        }
+
+        @Test
+        @DisplayName("2FA 불필요 사용자인 경우 loginWithTokens는 정식 JWT 토큰을 즉시 반환한다")
+        void loginWithTokens_normalUser() {
+            // given
+            User user = createTestUser("user-id-2", "viewer", "encoded_pw", "ROLE_VIEWER");
+            given(userRepository.findByUsername("viewer")).willReturn(Optional.of(user));
+            given(passwordEncoder.matches("rawpassword", "encoded_pw")).willReturn(true);
+            given(twoFactorAuthService.isTwoFactorRequired(user)).willReturn(false);
+            given(jwtUtil.generateToken(anyString(), anyString(), anyString(), anyString())).willReturn("access.token.jwt");
+            given(jwtUtil.generateRefreshToken(anyString(), anyString(), anyString(), anyString())).willReturn("refresh.token.jwt");
+
+            // when
+            java.util.Map<String, String> response = authService.loginWithTokens("viewer", "rawpassword", "127.0.0.1", "Mozilla/5.0");
+
+            // then
+            assertThat(response).doesNotContainKey("twoFactorRequired");
+            assertThat(response).containsEntry("token", "access.token.jwt");
+            assertThat(response).containsEntry("refreshToken", "refresh.token.jwt");
+        }
+
+        @Test
+        @DisplayName("임시 2FA 토큰 검증 및 최종 토큰 발급 테스트")
+        void tempTokenValidationAndFinalTokenIssue() {
+            // given
+            String tempToken = authService.generateTempToken("admin", "127.0.0.1", "Mozilla/5.0");
+            assertThat(authService.validateTempToken(tempToken, "admin")).isTrue();
+            assertThat(authService.validateTempToken(tempToken, "otherUser")).isFalse();
+            assertThat(authService.validateTempToken("invalid-token", "admin")).isFalse();
+
+            User user = createTestUser("user-id-1", "admin", "encoded_pw", "ROLE_ADMIN");
+            given(jwtUtil.generateToken(anyString(), anyString(), anyString(), anyString())).willReturn("final.access.token");
+            given(jwtUtil.generateRefreshToken(anyString(), anyString(), anyString(), anyString())).willReturn("final.refresh.token");
+
+            // when
+            java.util.Map<String, String> finalTokens = authService.issueFinalTokensAfter2Fa(user, "127.0.0.1", "Mozilla/5.0", "TOTP");
+
+            // then
+            assertThat(finalTokens).containsEntry("token", "final.access.token");
+            assertThat(finalTokens).containsEntry("refreshToken", "final.refresh.token");
+            verify(loginLogRepository).save(any());
+
+            // consume tempToken
+            authService.consumeTempToken(tempToken);
+            assertThat(authService.validateTempToken(tempToken, "admin")).isFalse();
         }
     }
 }

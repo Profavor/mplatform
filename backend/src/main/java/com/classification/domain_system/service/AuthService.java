@@ -22,6 +22,10 @@ public class AuthService {
     private final com.classification.domain_system.websocket.WebSocketPublisher webSocketPublisher;
     private final SseNotificationService sseNotificationService;
     private final org.springframework.beans.factory.ObjectProvider<org.springframework.security.oauth2.jwt.JwtDecoder> jwtDecoderProvider;
+    private final com.classification.domain_system.repository.OrganizationRepository organizationRepository;
+    private final com.classification.domain_system.repository.DomainPermissionRepository domainPermissionRepository;
+    private final SpecializedDomainTemplateService specializedDomainTemplateService;
+    private final TwoFactorAuthService twoFactorAuthService;
 
     @org.springframework.beans.factory.annotation.Value("${keycloak.token-uri:}")
     private String keycloakTokenUri;
@@ -55,6 +59,129 @@ public class AuthService {
         user.setTimezone(timezone != null && !timezone.trim().isEmpty() ? timezone : "Asia/Seoul");
         
         userRepository.save(user);
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public Map<String, String> selfRegister(com.classification.domain_system.dto.SelfRegisterRequest request, String ipAddress, String userAgent) {
+        if (request == null) {
+            throw new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.INVALID_INPUT,
+                    "Request body is required"
+            );
+        }
+
+        String username = request.getUsername() != null ? request.getUsername().trim() : "";
+        String email = request.getEmail() != null ? request.getEmail().trim() : "";
+        String password = request.getPassword() != null ? request.getPassword().trim() : "";
+        String companyName = request.getCompanyName() != null ? request.getCompanyName().trim() : "";
+        Boolean termsAgreed = request.getTermsAgreed();
+
+        if (username.isEmpty() || password.isEmpty() || companyName.isEmpty()) {
+            throw new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.INVALID_INPUT,
+                    "Username, password, and company name are required"
+            );
+        }
+
+        if (termsAgreed == null || !termsAgreed) {
+            throw new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.INVALID_INPUT,
+                    "Terms of service and privacy policy agreement is required"
+            );
+        }
+
+        if (userRepository.findByUsername(username).isPresent()) {
+            throw new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.USERNAME_ALREADY_EXISTS,
+                    "Username already exists"
+            );
+        }
+
+        // 1. Create or Find Organization
+        com.classification.domain_system.entity.Organization org = new com.classification.domain_system.entity.Organization();
+        org.setName(companyName);
+        org.setDisplayName(companyName);
+        org.setIsActive(true);
+        try {
+            org = organizationRepository.save(org);
+        } catch (Exception e) {
+            // In case of duplicate name collision, append UUID suffix or handle gracefully
+            org.setName(companyName + " (" + java.util.UUID.randomUUID().toString().substring(0, 8) + ")");
+            org = organizationRepository.save(org);
+        }
+
+        // 2. Create User
+        User user = new User();
+        user.setUsername(username);
+        user.setEmail(email);
+        user.setPassword(passwordEncoder.encode(password));
+        user.setRole("ROLE_USER,ORG_ADMIN");
+        user.setOrganizationId(org.getId());
+        user.setTimezone(request.getTimezone() != null && !request.getTimezone().trim().isEmpty() ? request.getTimezone() : "Asia/Seoul");
+        user.setIsActive(true);
+        user = userRepository.save(user);
+
+        // 3. Provision Trial Domain (Custom template if requested, otherwise default to CUSTOMER)
+        try {
+            if (specializedDomainTemplateService != null) {
+                String requestedCategory = request.getTemplateCategory() != null && !request.getTemplateCategory().trim().isEmpty()
+                        ? request.getTemplateCategory().trim().toUpperCase()
+                        : "CUSTOMER";
+
+                String koSuffix = "CUSTOMER".equals(requestedCategory) ? " 고객 마스터" : " 마스터";
+                String enSuffix = "CUSTOMER".equals(requestedCategory) ? " Customer Master" : " Master";
+                try {
+                    var templateDto = specializedDomainTemplateService.getTemplate(requestedCategory);
+                    if (templateDto != null && templateDto.getName() != null) {
+                        if (templateDto.getName().get("ko") != null) koSuffix = " " + templateDto.getName().get("ko");
+                        if (templateDto.getName().get("en") != null) enSuffix = " " + templateDto.getName().get("en");
+                    }
+                } catch (Exception ignored) {
+                }
+
+                com.classification.domain_system.dto.SpecializedDomainProvisionRequest provReq =
+                        com.classification.domain_system.dto.SpecializedDomainProvisionRequest.builder()
+                                .category(requestedCategory)
+                                .name(Map.of(
+                                        "ko", companyName + koSuffix,
+                                        "en", companyName + enSuffix
+                                ))
+                                .build();
+                var domainResp = specializedDomainTemplateService.provisionDomainForOrganization(provReq, org.getId());
+                if (domainResp != null && domainResp.getId() != null && domainPermissionRepository != null) {
+                    com.classification.domain_system.entity.DomainPermission perm = new com.classification.domain_system.entity.DomainPermission();
+                    perm.setUser(user);
+                    com.classification.domain_system.entity.Domain dom = new com.classification.domain_system.entity.Domain();
+                    dom.setId(domainResp.getId());
+                    perm.setDomain(dom);
+                    domainPermissionRepository.save(perm);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Trial domain provisioning error for org " + org.getId() + ": " + e.getMessage());
+        }
+
+        // 4. Issue Login Tokens for seamless onboarding
+        String userIdStr = user.getId() != null ? user.getId().toString() : null;
+        String newSessionId = java.util.UUID.randomUUID().toString();
+        user.setActiveSessionId(newSessionId);
+        userRepository.saveAndFlush(user);
+
+        String accessToken = jwtUtil.generateToken(user.getUsername(), user.getRole(), userIdStr, newSessionId);
+        String refreshToken = jwtUtil.generateRefreshToken(user.getUsername(), user.getRole(), userIdStr, newSessionId);
+
+        com.classification.domain_system.entity.LoginLog log = com.classification.domain_system.entity.LoginLog.builder()
+                .userId(user.getId())
+                .username(user.getUsername())
+                .userAgent(userAgent)
+                .clientIp(ipAddress)
+                .build();
+        loginLogRepository.save(log);
+
+        Map<String, String> tokens = new HashMap<>();
+        tokens.put("token", accessToken);
+        tokens.put("refreshToken", refreshToken);
+        return tokens;
     }
 
     public boolean existsByUsername(String username) {
@@ -123,6 +250,134 @@ public class AuthService {
         return jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getId(), newSessionId);
     }
 
+    @lombok.Getter
+    @lombok.AllArgsConstructor
+    public static class TempTokenInfo {
+        private String username;
+        private String ipAddress;
+        private String userAgent;
+        private long createdAt;
+    }
+
+    private final Map<String, TempTokenInfo> tempTokenCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public String generateTempToken(String username, String ipAddress, String userAgent) {
+        cleanExpiredTempTokens();
+        String tempToken = java.util.UUID.randomUUID().toString();
+        tempTokenCache.put(tempToken, new TempTokenInfo(username, ipAddress, userAgent, System.currentTimeMillis()));
+        return tempToken;
+    }
+
+    public boolean validateTempToken(String tempToken, String username) {
+        if (tempToken == null || tempToken.isBlank() || username == null) {
+            return false;
+        }
+        TempTokenInfo info = tempTokenCache.get(tempToken);
+        if (info == null) {
+            return false;
+        }
+        if (System.currentTimeMillis() - info.getCreatedAt() > 5 * 60 * 1000) {
+            tempTokenCache.remove(tempToken);
+            return false;
+        }
+        return username.equals(info.getUsername());
+    }
+
+    public TempTokenInfo getTempTokenInfo(String tempToken) {
+        if (tempToken == null || tempToken.isBlank()) {
+            return null;
+        }
+        TempTokenInfo info = tempTokenCache.get(tempToken);
+        if (info == null) {
+            return null;
+        }
+        if (System.currentTimeMillis() - info.getCreatedAt() > 5 * 60 * 1000) {
+            tempTokenCache.remove(tempToken);
+            return null;
+        }
+        return info;
+    }
+
+    public void consumeTempToken(String tempToken) {
+        if (tempToken != null) {
+            tempTokenCache.remove(tempToken);
+        }
+    }
+
+    private void cleanExpiredTempTokens() {
+        long now = System.currentTimeMillis();
+        tempTokenCache.entrySet().removeIf(entry -> now - entry.getValue().getCreatedAt() > 10 * 60 * 1000);
+    }
+
+    public String maskEmail(String email) {
+        if (email == null || !email.contains("@")) {
+            return email != null ? email : "";
+        }
+        int atIndex = email.indexOf('@');
+        String name = email.substring(0, atIndex);
+        String domain = email.substring(atIndex);
+        if (name.length() <= 2) {
+            return name.charAt(0) + "*".repeat(Math.max(1, name.length() - 1)) + domain;
+        }
+        return name.substring(0, 2) + "*".repeat(Math.max(1, name.length() - 2)) + domain;
+    }
+
+    private Map<String, String> buildTwoFactorRequiredResponse(User user, String ipAddress, String userAgent) {
+        String tempToken = generateTempToken(user.getUsername(), ipAddress, userAgent);
+        Map<String, String> map = new HashMap<>();
+        map.put("twoFactorRequired", "true");
+        map.put("tempToken", tempToken);
+        map.put("twoFactorType", user.getTwoFactorType() != null ? user.getTwoFactorType() : (Boolean.TRUE.equals(user.getTwoFactorEnabled()) ? "TOTP" : "NONE"));
+        map.put("role", user.getRole());
+        if (user.getEmail() != null && !user.getEmail().isBlank()) {
+            map.put("maskedEmail", maskEmail(user.getEmail()));
+        }
+        if (user.getTwoFactorGraceUntil() != null && java.time.LocalDateTime.now().isBefore(user.getTwoFactorGraceUntil())) {
+            long days = java.time.Duration.between(java.time.LocalDateTime.now(), user.getTwoFactorGraceUntil()).toDays();
+            map.put("gracePeriodRemainingDays", String.valueOf(Math.max(1, days)));
+        }
+        return map;
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public Map<String, String> issueFinalTokensAfter2Fa(User user, String ipAddress, String userAgent) {
+        return issueFinalTokensAfter2Fa(user, ipAddress, userAgent, user.getTwoFactorType() != null ? user.getTwoFactorType() : "TOTP");
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public Map<String, String> issueFinalTokensAfter2Fa(User user, String ipAddress, String userAgent, String authType) {
+        if (user == null) {
+            throw new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.INVALID_CREDENTIALS,
+                    "User not found"
+            );
+        }
+
+        String userIdStr = user.getId() != null ? user.getId().toString() : null;
+        String newSessionId = java.util.UUID.randomUUID().toString();
+        sendForceLogout(user);
+        user.setActiveSessionId(newSessionId);
+        userRepository.saveAndFlush(user);
+
+        String accessToken = jwtUtil.generateToken(user.getUsername(), user.getRole(), userIdStr, newSessionId);
+        String refreshToken = jwtUtil.generateRefreshToken(user.getUsername(), user.getRole(), userIdStr, newSessionId);
+
+        com.classification.domain_system.entity.LoginLog log = com.classification.domain_system.entity.LoginLog.builder()
+                .userId(user.getId())
+                .username(user.getUsername())
+                .userAgent(userAgent)
+                .clientIp(ipAddress)
+                .twoFactorStatus("SUCCESS")
+                .twoFactorType(authType)
+                .build();
+        loginLogRepository.save(log);
+
+        Map<String, String> map = new HashMap<>();
+        map.put("token", accessToken);
+        map.put("refreshToken", refreshToken);
+        return map;
+    }
+
     @org.springframework.transaction.annotation.Transactional
     public Map<String, String> loginWithTokens(String username, String password, String ipAddress, String userAgent) {
         String accessToken = null;
@@ -154,18 +409,27 @@ public class AuthService {
                     new com.classification.domain_system.exception.BusinessException(com.classification.domain_system.exception.ErrorCode.INVALID_CREDENTIALS, "User authenticated by Keycloak but not found in local DB")
                 );
 
+                if (twoFactorAuthService != null && twoFactorAuthService.isTwoFactorRequired(user)) {
+                    return buildTwoFactorRequiredResponse(user, ipAddress, userAgent);
+                }
+
                 String sid = (String) body.get("session_state");
                 if (sid == null || sid.isBlank()) {
                     sid = java.util.UUID.randomUUID().toString();
                 }
                 sendForceLogout(user);
                 user.setActiveSessionId(sid);
+            } catch (com.classification.domain_system.exception.BusinessException be) {
+                throw be;
             } catch (Exception e) {
                 System.err.println("Keycloak login failed for user '" + username + "', falling back to local DB. Reason: " + e.getMessage());
             }
 
             if (!kcSuccess) {
                 user = validateAndProcessLogin(username, password);
+                if (twoFactorAuthService != null && twoFactorAuthService.isTwoFactorRequired(user)) {
+                    return buildTwoFactorRequiredResponse(user, ipAddress, userAgent);
+                }
                 String userIdStr = user.getId() != null ? user.getId().toString() : null;
                 String newSessionId = java.util.UUID.randomUUID().toString();
                 accessToken = jwtUtil.generateToken(user.getUsername(), user.getRole(), userIdStr, newSessionId);
@@ -175,6 +439,9 @@ public class AuthService {
             }
         } else {
             user = validateAndProcessLogin(username, password);
+            if (twoFactorAuthService != null && twoFactorAuthService.isTwoFactorRequired(user)) {
+                return buildTwoFactorRequiredResponse(user, ipAddress, userAgent);
+            }
             String userIdStr = user.getId() != null ? user.getId().toString() : null;
             String newSessionId = java.util.UUID.randomUUID().toString();
             accessToken = jwtUtil.generateToken(user.getUsername(), user.getRole(), userIdStr, newSessionId);

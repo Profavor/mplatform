@@ -1,10 +1,41 @@
 <template>
   <div class="schema-history-tab flex flex-col h-full min-h-[400px]">
     <!-- Header Toolbar -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
       <h3 style="font-size: 1.125rem; font-weight: 700; color: var(--va-text-primary);">
         {{ $t('schema_history.title') }}
       </h3>
+    </div>
+
+    <!-- Search & Filter Controls -->
+    <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; background: var(--va-background-element); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--va-background-border);">
+      <va-input
+        v-model="searchQuery"
+        :placeholder="$t('schema_history_tab.search_placeholder')"
+        clearable
+        style="flex: 1; min-width: 200px;"
+      >
+        <template #prependInner>
+          <va-icon name="search" size="small" color="secondary" />
+        </template>
+      </va-input>
+
+      <va-select
+        v-model="filterTargetType"
+        :options="targetTypeOptions"
+        value-by="value"
+        text-by="label"
+        style="width: 160px;"
+      />
+
+      <va-select
+        v-model="filterAction"
+        :options="actionOptions"
+        value-by="value"
+        text-by="label"
+        style="width: 140px;"
+      />
+
       <va-button preset="secondary" icon="refresh" @click="fetchHistory">
         {{ $t('match_review.refresh') }}
       </va-button>
@@ -19,17 +50,21 @@
       <table v-else class="va-table va-table--hoverable" style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
         <thead>
           <tr style="background: var(--va-background-element); border-bottom: 2px solid var(--va-background-border); text-align: left;">
+            <th style="padding: 0.75rem 1rem; font-weight: 700;">{{ $t('schema_history_tab.target_name') }}</th>
             <th style="padding: 0.75rem 1rem; font-weight: 700;">{{ $t('schema_history.target_type') }}</th>
             <th style="padding: 0.75rem 1rem; font-weight: 700;">{{ $t('schema_history.action') }}</th>
             <th style="padding: 0.75rem 1rem; font-weight: 700;">{{ $t('schema_history.changed_by') }}</th>
             <th style="padding: 0.75rem 1rem; font-weight: 700;">{{ $t('schema_history.changed_at') }}</th>
-            <th style="padding: 0.75rem 1rem; text-align: right; width: 160px;"></th>
+            <th style="padding: 0.75rem 1rem; text-align: right; width: 140px;"></th>
           </tr>
         </thead>
         <tbody>
-          <template v-for="(row, index) in historyList" :key="row.id || index">
+          <template v-for="(row, index) in filteredHistoryList" :key="row.id || index">
             <!-- Data Row -->
             <tr style="border-bottom: 1px solid var(--va-background-border); transition: background 0.15s ease;">
+              <td style="padding: 0.75rem 1rem; font-weight: 700; color: var(--va-text-primary);">
+                {{ getTargetDisplayName(row) }}
+              </td>
               <td style="padding: 0.75rem 1rem;">
                 <va-badge :text="codeStore.getCodeName('TARGET_TYPE', row.targetType, $t('schema_history.' + (row.targetType || '').toLowerCase()))" :color="getTypeColor(row.targetType)" />
               </td>
@@ -56,12 +91,12 @@
 
             <!-- Expanded Details Row -->
             <tr v-if="expandedRowId === (row.id || index)" style="background: var(--va-background-element); border-bottom: 1px solid var(--va-background-border);">
-              <td colspan="5" style="padding: 1rem 1.25rem;">
+              <td colspan="6" style="padding: 1rem 1.25rem;">
                 <div v-if="getDiffItems(row).length > 0" style="overflow-x: auto;">
                   <table style="width: 100%; border-collapse: collapse; font-size: 0.825rem; background: var(--va-background-secondary); border-radius: 6px; border: 1px solid var(--va-background-border);">
                     <thead>
                       <tr style="background: rgba(0, 0, 0, 0.04); border-bottom: 1px solid var(--va-background-border); text-align: left;">
-                        <th style="padding: 0.5rem 0.85rem; font-weight: 700; width: 160px; color: var(--va-text-secondary);">속성 / 항목</th>
+                        <th style="padding: 0.5rem 0.85rem; font-weight: 700; width: 160px; color: var(--va-text-secondary);">{{ $t('field_impact.col_target_field') }}</th>
                         <th v-if="row.action === 'UPDATE' || row.action === 'DELETE'" style="padding: 0.5rem 0.85rem; font-weight: 700; color: #dc2626; width: 40%;">{{ $t('schema_history.before') }}</th>
                         <th v-if="row.action === 'UPDATE' || row.action === 'CREATE'" style="padding: 0.5rem 0.85rem; font-weight: 700; color: #16a34a; width: 40%;">{{ $t('schema_history.after') }}</th>
                       </tr>
@@ -101,8 +136,8 @@
             </tr>
           </template>
 
-          <tr v-if="historyList.length === 0">
-            <td colspan="5" style="text-align: center; padding: 3rem; color: var(--va-text-secondary);">
+          <tr v-if="filteredHistoryList.length === 0">
+            <td colspan="6" style="text-align: center; padding: 3rem; color: var(--va-text-secondary);">
               {{ $t('schema_history.no_history') }}
             </td>
           </tr>
@@ -122,7 +157,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useToast } from 'vuestic-ui'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useUserStore } from '~/stores/useUserStore'
@@ -148,6 +183,69 @@ const currentPage = ref(1)
 const totalPages = ref(1)
 const size = 20
 const expandedRowId = ref<any>(null)
+
+const searchQuery = ref('')
+const filterTargetType = ref('ALL')
+const filterAction = ref('ALL')
+
+const targetTypeOptions = computed(() => [
+  { value: 'ALL', label: `${t('schema_history_tab.filter_target_type')}: ${t('schema_history_tab.filter_all')}` },
+  { value: 'FIELD', label: codeStore.getCodeName('TARGET_TYPE', 'FIELD', t('schema_history.field')) },
+  { value: 'NODE', label: codeStore.getCodeName('TARGET_TYPE', 'NODE', t('schema_history.node')) },
+  { value: 'GROUP', label: codeStore.getCodeName('TARGET_TYPE', 'GROUP', t('schema_history.group')) },
+  { value: 'DOMAIN', label: codeStore.getCodeName('TARGET_TYPE', 'DOMAIN', t('schema_history.domain_entity')) }
+])
+
+const actionOptions = computed(() => [
+  { value: 'ALL', label: `${t('schema_history_tab.filter_action')}: ${t('schema_history_tab.filter_all')}` },
+  { value: 'CREATE', label: codeStore.getCodeName('SCHEMA_ACTION', 'CREATE', t('schema_history.create')) },
+  { value: 'UPDATE', label: codeStore.getCodeName('SCHEMA_ACTION', 'UPDATE', t('schema_history.update')) },
+  { value: 'DELETE', label: codeStore.getCodeName('SCHEMA_ACTION', 'DELETE', t('schema_history.delete')) }
+])
+
+const getTargetDisplayName = (row: any): string => {
+  if (row.targetName) return row.targetName
+  const obj = parseSnapshot(row.afterData || row.afterSnapshot || row.beforeData || row.beforeSnapshot)
+  if (obj && Object.keys(obj).length > 0) {
+    if (obj.name) {
+      if (typeof obj.name === 'object') {
+        const localized = locale.value === 'ko' ? (obj.name.ko || obj.name.en) : (obj.name.en || obj.name.ko)
+        if (localized) {
+          return obj.key ? `${obj.key} (${localized})` : localized
+        }
+      } else if (typeof obj.name === 'string') {
+        return obj.key ? `${obj.key} (${obj.name})` : obj.name
+      }
+    }
+    if (obj.key) return obj.key
+    if (obj.title) return obj.title
+    if (obj.groupName) return obj.groupName
+  }
+  if (row.targetId) {
+    const idStr = String(row.targetId)
+    return idStr.length > 8 ? `SCH-${idStr.substring(0, 8)}` : idStr
+  }
+  return '-'
+}
+
+const filteredHistoryList = computed(() => {
+  return historyList.value.filter(row => {
+    if (filterTargetType.value && filterTargetType.value !== 'ALL' && row.targetType !== filterTargetType.value) {
+      return false
+    }
+    if (filterAction.value && filterAction.value !== 'ALL' && row.action !== filterAction.value) {
+      return false
+    }
+    if (searchQuery.value && searchQuery.value.trim() !== '') {
+      const q = searchQuery.value.toLowerCase().trim()
+      const targetName = getTargetDisplayName(row).toLowerCase()
+      const changer = (userStore.getUserName(row.changedBy) || '').toLowerCase()
+      const rawData = JSON.stringify(row.afterData || row.beforeData || '').toLowerCase()
+      return targetName.includes(q) || changer.includes(q) || rawData.includes(q)
+    }
+    return true
+  })
+})
 
 const toggleRow = (id: any) => {
   if (expandedRowId.value === id) {
@@ -266,7 +364,7 @@ const getDiffItems = (row: any) => {
     
     // 이전 백엔드 직렬화 오류로 인해 afterData가 NULL로 저장되었던 과거 수정이력 처리
     if (row.action === 'UPDATE' && !hasAfter && hasBefore) {
-      aVal = '(이전 버전 데이터 유실)'
+      aVal = locale.value === 'ko' ? '(이전 버전 데이터 유실)' : '(Previous data missing)'
     }
     
     const label = te('schema_prop_' + k) ? t('schema_prop_' + k) : k

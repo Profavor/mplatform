@@ -229,6 +229,12 @@ public class DomainController {
     private final com.classification.domain_system.service.dq.DqRuleEngine dqRuleEngine;
     private final com.classification.domain_system.repository.DqRuleRepository dqRuleRepository;
     private final com.classification.domain_system.service.DqScoreSnapshotService dqScoreSnapshotService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.classification.domain_system.service.DqBenchmarkService dqBenchmarkService;
+
+    public void setDqBenchmarkService(com.classification.domain_system.service.DqBenchmarkService dqBenchmarkService) {
+        this.dqBenchmarkService = dqBenchmarkService;
+    }
 
     // FieldGroups
     @GetMapping("/{domainId}/groups")
@@ -317,6 +323,21 @@ public class DomainController {
     public ResponseEntity<java.util.List<com.classification.domain_system.entity.DqScoreSnapshot>> getDqScoreRecent(
             @PathVariable UUID domainId) {
         return ResponseEntity.ok(dqScoreSnapshotService.getRecentSnapshots(domainId));
+    }
+
+    @GetMapping("/dq-benchmark")
+    @PreAuthorize("hasPermission(null, 'domain:read')")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public ResponseEntity<com.classification.domain_system.dto.DqBenchmarkDto.OverviewResponse> getBenchmarkOverview() {
+        return ResponseEntity.ok(dqBenchmarkService.getBenchmarkOverview());
+    }
+
+    @GetMapping("/dq-benchmark/trend")
+    @PreAuthorize("hasPermission(null, 'domain:read')")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public ResponseEntity<java.util.List<com.classification.domain_system.dto.DqBenchmarkDto.MultiDomainTrend>> getBenchmarkTrend(
+            @RequestParam(defaultValue = "30") int days) {
+        return ResponseEntity.ok(dqBenchmarkService.getMultiDomainTrend(days));
     }
 
     @GetMapping("/{domainId}/package/export")

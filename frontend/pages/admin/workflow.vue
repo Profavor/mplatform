@@ -2,26 +2,26 @@
   <div style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; height: calc(100vh - 80px); overflow: hidden;">
     
     <!-- Top Action Bar -->
-    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-      <div style="display: flex; align-items: center; gap: 0.75rem;">
+    <div class="top-action-bar">
+      <div class="header-title-area">
         <va-icon name="account_tree" size="large" color="primary" />
         <div>
-          <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+          <h2 class="page-title">
             {{ pageTitle }}
             <va-badge :text="$t('ag_grid_unified_list')" color="primary" size="small" />
           </h2>
-          <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
+          <span class="page-subtitle">
             {{ $t('workflow_management_desc') }}
           </span>
         </div>
       </div>
 
-      <div style="display: flex; gap: 0.75rem; align-items: center;">
+      <div class="header-controls-area">
         <va-button
           color="primary"
           icon="add"
           @click="openCreateModal"
-          style="font-weight: 700; padding: 0.55rem 1.25rem;"
+          class="create-wf-btn"
         >
           {{ $t('new_workflow_register') }}
         </va-button>
@@ -29,9 +29,9 @@
     </div>
 
     <!-- Filtering & Control Bar -->
-    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 0.75rem 1.25rem; border-radius: 10px; border: 1px solid var(--va-background-border);">
+    <div class="workflow-filter-bar">
       <!-- Action Type Filter Tabs -->
-      <div style="display: flex; gap: 0.35rem; background: var(--va-background-element); padding: 0.25rem; border-radius: 8px; border: 1px solid var(--va-background-border);">
+      <div class="action-filter-tabs">
         <va-button
           v-for="tab in actionFilterTabs"
           :key="tab.value"
@@ -46,14 +46,14 @@
       </div>
 
       <!-- Search & Scope Controls -->
-      <div style="display: flex; gap: 0.75rem; align-items: center;">
+      <div class="filter-controls-area">
         <va-input
           v-model="searchQuery"
           :placeholder="$t('search_workflow_placeholder')"
           preset="outline"
           dense
           clearable
-          style="width: 240px;"
+          class="wf-search-input"
           @update:model-value="onSearchChanged"
         >
           <template #prependInner>
@@ -767,3 +767,104 @@ onMounted(async () => {
   await fetchWorkflows()
 })
 </script>
+
+<style scoped>
+.top-action-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--va-background-primary);
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  border: 1px solid var(--va-background-border);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  gap: 1rem;
+}
+.header-title-area {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  word-break: keep-all;
+}
+.page-title {
+  font-weight: 700;
+  font-size: 1.35rem;
+  margin: 0;
+  color: var(--va-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  word-break: keep-all;
+}
+.page-subtitle {
+  font-size: 0.85rem;
+  color: var(--va-text-secondary);
+  word-break: keep-all;
+}
+.header-controls-area {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+.create-wf-btn {
+  font-weight: 700;
+  padding: 0.55rem 1.25rem;
+  white-space: nowrap;
+}
+
+.workflow-filter-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--va-background-primary);
+  padding: 0.75rem 1.25rem;
+  border-radius: 10px;
+  border: 1px solid var(--va-background-border);
+  gap: 1rem;
+}
+.action-filter-tabs {
+  display: flex;
+  gap: 0.35rem;
+  background: var(--va-background-element);
+  padding: 0.25rem;
+  border-radius: 8px;
+  border: 1px solid var(--va-background-border);
+  flex-wrap: wrap;
+}
+.filter-controls-area {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+.wf-search-input {
+  width: 240px;
+}
+
+@media (max-width: 768px) {
+  .top-action-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .header-controls-area {
+    width: 100%;
+  }
+  .create-wf-btn {
+    width: 100%;
+  }
+  .workflow-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .action-filter-tabs {
+    width: 100%;
+  }
+  .filter-controls-area {
+    width: 100%;
+    flex-direction: row;
+  }
+  .wf-search-input {
+    flex: 1;
+    width: auto !important;
+  }
+}
+</style>

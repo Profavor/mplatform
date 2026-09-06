@@ -28,4 +28,10 @@ public class LoginLog {
     @CreationTimestamp
     @Column(name = "login_at", updatable = false)
     private LocalDateTime loginAt;
+
+    @Column(name = "two_factor_status", length = 30)
+    private String twoFactorStatus;
+
+    @Column(name = "two_factor_type", length = 20)
+    private String twoFactorType;
 }

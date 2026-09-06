@@ -1,5 +1,5 @@
 <template>
-  <div class="admin-container" style="display: flex; flex-direction: column; gap: 1.25rem; height: calc(100vh - 120px); padding-bottom: 2rem;">
+  <div class="admin-container approval-monitor-container" style="display: flex; flex-direction: column; gap: 1.25rem; height: calc(100vh - 120px); padding-bottom: 2rem;">
     <!-- Top Action Bar -->
     <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
       <div style="display: flex; align-items: center; gap: 0.75rem;">
@@ -491,4 +491,31 @@ onUnmounted(() => {
   }
 })
 </script>
+
+<style scoped>
+.approval-monitor-container {
+  padding-bottom: 5rem;
+}
+
+:deep(.ag-theme-quartz .ag-paging-panel),
+:deep(.ag-theme-alpine .ag-paging-panel) {
+  min-height: 48px;
+  overflow: visible !important;
+}
+
+@media (max-width: 768px) {
+  .approval-monitor-container {
+    padding-bottom: 6rem;
+  }
+  :deep(.ag-theme-quartz .ag-paging-panel),
+  :deep(.ag-theme-alpine .ag-paging-panel) {
+    height: auto !important;
+    min-height: 54px !important;
+    padding: 8px 12px !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 6px !important;
+  }
+}
+</style>
 

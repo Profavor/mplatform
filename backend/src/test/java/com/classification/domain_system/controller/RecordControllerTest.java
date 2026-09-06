@@ -225,4 +225,35 @@ class RecordControllerTest {
                 .andExpect(jsonPath("$.totalCount").value(1))
                 .andExpect(jsonPath("$.createdCount").value(1));
     }
+
+    @Test
+    @DisplayName("GET /api/nodes/{nodeId}/records - 정렬 및 필터 파라미터 전달 성공")
+    void getRecords_WithSortAndFilter_Success() throws Exception {
+        Record record = new Record();
+        record.setId(UUID.randomUUID());
+        record.setData("{\"code\":\"C001\"}");
+        record.setStatus("ACTIVE");
+
+        Page<Record> page = new PageImpl<>(List.of(record), PageRequest.of(0, 50), 1);
+
+        when(recordService.getRecords(
+                eq(nodeId),
+                eq("ACTIVE"),
+                eq(true),
+                eq(0),
+                eq(50),
+                org.mockito.ArgumentMatchers.argThat(map -> "C001".equals(map.get("search_code")) && "code,asc".equals(map.get("sort")))
+        )).thenReturn(page);
+
+        mockMvc.perform(get("/api/nodes/{nodeId}/records", nodeId)
+                .param("page", "0")
+                .param("size", "50")
+                .param("status", "ACTIVE")
+                .param("includeChildren", "true")
+                .param("search_code", "C001")
+                .param("sort", "code,asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1));
+    }
 }
+

@@ -45,4 +45,11 @@ public class DashboardController {
     public ResponseEntity<List<Map<String, Object>>> getDqSeverityDistribution() {
         return ResponseEntity.ok(dashboardService.getDqSeverityDistribution());
     }
+
+    @GetMapping("/lease-summary")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<com.classification.domain_system.dto.LeaseSummaryDto> getLeaseSummary(
+            @RequestParam(required = false) java.util.UUID organizationId) {
+        return ResponseEntity.ok(dashboardService.getLeaseSummary(organizationId));
+    }
 }

@@ -36,6 +36,7 @@
         <va-switch
           v-model="selectedMenu.isActive"
           :label="t('is_active_label', '사용 여부 (Active)')"
+          :aria-label="t('is_active_label', '사용 여부 (Active)')"
           color="success"
         />
       </div>

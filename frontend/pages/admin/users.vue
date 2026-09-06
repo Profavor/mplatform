@@ -66,7 +66,8 @@
                 </div>
                 <div style="display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap;">
                   <RoleBadge :value="user.role" />
-                  <va-badge :text="getOrgName(user.organizationId)" color="info" outline size="small" />
+                  <va-badge v-if="user.organizationId" :text="getOrgName(user.organizationId)" color="info" outline size="small" />
+                  <va-badge v-else :text="$t('unassigned_org_warning_title')" color="warning" outline size="small" />
                   <va-badge v-if="getDeptName(user.departmentId)" :text="getDeptName(user.departmentId)" color="success" outline size="small" />
                   <va-badge v-if="user.mustChangePassword" :text="$t('temp_password', '임시비밀번호')" color="warning" size="small" />
                 </div>
@@ -111,102 +112,164 @@
         </va-card-title>
 
         <va-card-content style="display: flex; flex-direction: column; gap: 1.5rem; padding-top: 1.25rem;">
-          
-          <!-- User Basic Info & System Role Setting -->
-          <div style="background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem;">
-              <h3 style="font-weight: 800; margin: 0; color: var(--va-text-primary); font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
-                <va-icon name="manage_accounts" color="primary" />
-                <span>{{ $t('user_info_and_role') }}</span>
-              </h3>
+          <!-- Sub Tabs Navigation -->
+          <va-tabs v-model="selectedUserTab" style="border-bottom: 1px solid var(--va-background-border); padding-bottom: 0.25rem;">
+            <template #tabs>
+              <va-tab :name="0" icon="person">
+                {{ $t('tab_user_info') }}
+              </va-tab>
+              <va-tab :name="1" icon="shield">
+                {{ $t('tab_data_scopes') }}
+              </va-tab>
+              <va-tab :name="2" icon="visibility_off">
+                {{ $t('tab_masking_policies') }}
+              </va-tab>
+              <va-tab :name="3" icon="history_edu">
+                {{ $t('tab_audit_logs') }}
+              </va-tab>
+              <va-tab :name="4" icon="history">
+                {{ $t('tab_org_history') }}
+              </va-tab>
+            </template>
+          </va-tabs>
 
-              <va-button
-                v-if="hasPermission('admin:write') || hasPermission('admin:*') || hasPermission('org:write') || hasPermission('org:*')"
-                color="primary"
-                icon="save"
-                size="small"
-                :loading="isSavingUserInfo"
-                @click="saveUserInfo"
-                style="font-weight: 700;"
-              >
-                {{ $t('save_user_info') }}
-              </va-button>
+          <!-- Tab 0: Basic Info & System Role Setting -->
+          <div v-if="selectedUserTab === 0" style="display: flex; flex-direction: column; gap: 1.25rem;">
+            <!-- Unassigned Org Warning Guard Banner -->
+            <va-alert v-if="isUnassignedOrg" color="warning" outline>
+              <div style="font-weight: 700; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.4rem;">
+                <va-icon name="warning" size="small" />
+                <span>{{ $t('unassigned_org_warning_title') }}</span>
+              </div>
+              <div style="font-size: 0.85rem;">
+                {{ $t('unassigned_org_warning_desc') }}
+              </div>
+            </va-alert>
+
+            <div style="background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem;">
+                <h3 style="font-weight: 800; margin: 0; color: var(--va-text-primary); font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
+                  <va-icon name="manage_accounts" color="primary" />
+                  <span>{{ $t('user_info_and_role') }}</span>
+                </h3>
+
+                <va-button
+                  v-if="canWriteUsers"
+                  color="primary"
+                  icon="save"
+                  size="small"
+                  :loading="isSavingUserInfo"
+                  @click="saveUserInfo"
+                  style="font-weight: 700;"
+                >
+                  {{ $t('save_user_info') }}
+                </va-button>
+              </div>
+
+              <!-- Email Address Input -->
+              <div style="margin-bottom: 1rem;">
+                <va-input
+                  v-model="selectedUserEmail"
+                  :label="$t('user_email')"
+                  placeholder="user@example.com"
+                  style="width: 100%;"
+                  clearable
+                  :rules="[val => !val || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) || $t('invalid_email_format')]"
+                >
+                  <template #prependInner>
+                    <va-icon name="mail" color="primary" />
+                  </template>
+                </va-input>
+              </div>
+              
+              <div style="display: flex; gap: 0.5rem; margin-bottom: 0.85rem; align-items: center; font-size: 0.88rem; color: var(--va-text-secondary); flex-wrap: wrap;">
+                <span>{{ $t('current_affiliation') }}</span>
+                <va-badge :text="getOrgName(selectedUser.organizationId)" color="info" outline size="small" />
+                <va-badge v-if="getDeptName(selectedUser.departmentId)" :text="getDeptName(selectedUser.departmentId)" color="success" outline size="small" />
+                <span v-else style="font-style: italic; color: var(--va-text-secondary);">{{ $t('no_dept_assigned_tip') }}</span>
+              </div>
+
+              <UserRoleSelect
+                v-model="selectedUserRoles"
+                multiple
+                :org-id="selectedUser?.organizationId"
+                :label="getLabel('user_roles', '사용자 시스템 역할 (다중 선택 가능)')"
+                style="width: 100%;"
+              />
             </div>
 
-            <!-- Email Address Input -->
-            <div style="margin-bottom: 1rem;">
-              <va-input
-                v-model="selectedUserEmail"
-                :label="$t('user_email')"
-                placeholder="user@example.com"
-                style="width: 100%;"
-                clearable
-                :rules="[val => !val || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) || $t('invalid_email_format')]"
-              >
-                <template #prependInner>
-                  <va-icon name="mail" color="primary" />
-                </template>
-              </va-input>
+            <!-- Domain Permissions Section -->
+            <div style="background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
+              <h3 style="font-weight: 800; margin: 0 0 0.75rem 0; color: var(--va-text-primary); font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
+                <va-icon name="verified_user" color="primary" />
+                <span>{{ $t('granted_domains') }}</span>
+              </h3>
+              <div v-if="userPermissions.length === 0" style="padding: 1.25rem; text-align: center; background: var(--va-background-primary); border: 1px dashed var(--va-background-border); border-radius: 8px; color: var(--va-text-secondary); font-size: 0.88rem;">
+                <va-icon name="do_not_disturb_on" color="secondary" size="medium" style="margin-bottom: 0.35rem; display: block;" />
+                <span>{{ $t('no_specific_domain_permissions') }}</span>
+              </div>
+              <div v-else style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <va-chip v-for="perm in userPermissions" :key="perm.id" color="primary" style="font-weight: 700; font-size: 0.85rem; padding: 6px 12px;">
+                  {{ getDomainName(perm.domain.name) }}
+                  <va-icon v-if="canWriteUsers" name="close" size="small" style="margin-left: 0.5rem; cursor: pointer;" @click="revokePermission(perm.domain.id)" />
+                </va-chip>
+              </div>
             </div>
             
-            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.85rem; align-items: center; font-size: 0.88rem; color: var(--va-text-secondary); flex-wrap: wrap;">
-              <span>{{ $t('current_affiliation') }}</span>
-              <va-badge :text="getOrgName(selectedUser.organizationId)" color="info" outline size="small" />
-              <va-badge v-if="getDeptName(selectedUser.departmentId)" :text="getDeptName(selectedUser.departmentId)" color="success" outline size="small" />
-              <span v-else style="font-style: italic; color: var(--va-text-secondary);">{{ $t('no_dept_assigned_tip') }}</span>
+            <!-- Grant New Permission Section -->
+            <div style="background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
+              <h3 style="font-weight: 800; margin: 0 0 0.75rem 0; color: var(--va-text-primary); font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
+                <va-icon name="add_moderator" color="primary" />
+                <span>{{ $t('grant_new_permission') }}</span>
+              </h3>
+              <div style="display: flex; gap: 0.75rem; align-items: flex-end;">
+                <va-select
+                  v-model="selectedDomainsToGrant"
+                  multiple
+                  :options="availableDomains"
+                  value-by="id"
+                  text-by="label"
+                  :placeholder="$t('select_a_domain')"
+                  style="flex: 1;"
+                />
+                <va-button v-if="canWriteUsers" color="primary" icon="add" @click="grantPermissions" :disabled="!selectedDomainsToGrant || selectedDomainsToGrant.length === 0" style="font-weight: 700;">
+                  {{ $t('grant') }}
+                </va-button>
+              </div>
             </div>
+          </div>
 
-            <UserRoleSelect
-              v-model="selectedUserRoles"
-              multiple
-              :org-id="selectedUser?.organizationId"
-              :label="getLabel('user_roles', '사용자 시스템 역할 (다중 선택 가능)')"
-              style="width: 100%;"
+          <!-- Tab 1: Data Scopes Tab -->
+          <div v-if="selectedUserTab === 1">
+            <UserDataScopesTab
+              :user-id="selectedUser.id"
+              :username="selectedUser.username"
+              :can-write="canWriteUsers"
+              :domains="allDomains"
+              @notify="onTabNotify"
             />
           </div>
 
-          <!-- Domain Permissions Section -->
-          <div style="background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
-            <h3 style="font-weight: 800; margin: 0 0 0.75rem 0; color: var(--va-text-primary); font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
-              <va-icon name="verified_user" color="primary" />
-              <span>{{ $t('granted_domains') }}</span>
-            </h3>
-            <div v-if="userPermissions.length === 0" style="padding: 1.25rem; text-align: center; background: var(--va-background-primary); border: 1px dashed var(--va-background-border); border-radius: 8px; color: var(--va-text-secondary); font-size: 0.88rem;">
-              <va-icon name="do_not_disturb_on" color="secondary" size="medium" style="margin-bottom: 0.35rem; display: block;" />
-              <span>{{ $t('no_specific_domain_permissions') }}</span>
-            </div>
-            <div v-else style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-              <va-chip v-for="perm in userPermissions" :key="perm.id" color="primary" style="font-weight: 700; font-size: 0.85rem; padding: 6px 12px;">
-                {{ getDomainName(perm.domain.name) }}
-                <va-icon v-if="hasPermission('admin:write') || hasPermission('admin:*') || hasPermission('org:write') || hasPermission('org:*')" name="close" size="small" style="margin-left: 0.5rem; cursor: pointer;" @click="revokePermission(perm.domain.id)" />
-              </va-chip>
-            </div>
-          </div>
-          
-          <!-- Grant New Permission Section -->
-          <div style="background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
-            <h3 style="font-weight: 800; margin: 0 0 0.75rem 0; color: var(--va-text-primary); font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
-              <va-icon name="add_moderator" color="primary" />
-              <span>{{ $t('grant_new_permission') }}</span>
-            </h3>
-            <div style="display: flex; gap: 0.75rem; align-items: flex-end;">
-              <va-select
-                v-model="selectedDomainsToGrant"
-                multiple
-                :options="availableDomains"
-                value-by="id"
-                text-by="label"
-                :placeholder="$t('select_a_domain')"
-                style="flex: 1;"
-              />
-              <va-button v-if="hasPermission('admin:write') || hasPermission('admin:*') || hasPermission('org:write') || hasPermission('org:*')" color="primary" icon="add" @click="grantPermissions" :disabled="!selectedDomainsToGrant || selectedDomainsToGrant.length === 0" style="font-weight: 700;">
-                {{ $t('grant') }}
-              </va-button>
-            </div>
+          <!-- Tab 2: Column Masking Policies Tab -->
+          <div v-if="selectedUserTab === 2">
+            <ColumnMaskingPoliciesTab
+              :can-write="canWriteUsers"
+              :domains="allDomains"
+              :departments="allDepartmentsList"
+              @notify="onTabNotify"
+            />
           </div>
 
-          <!-- Organization Change History -->
-          <div style="background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
+          <!-- Tab 3: Permission Audit Logs Tab -->
+          <div v-if="selectedUserTab === 3">
+            <PermissionAuditLogsTab
+              :user-id="selectedUser.id"
+              :username="selectedUser.username"
+            />
+          </div>
+
+          <!-- Tab 4: Organization Change History -->
+          <div v-if="selectedUserTab === 4" style="background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
             <h3 style="font-weight: 800; margin: 0 0 0.75rem 0; color: var(--va-text-primary); font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
               <va-icon name="history" color="primary" />
               <span>{{ $t('org_history_title') }}</span>
@@ -215,7 +278,7 @@
               <va-icon name="history_toggle_off" color="secondary" size="medium" style="margin-bottom: 0.35rem; display: block;" />
               <span>{{ $t('no_org_history') }}</span>
             </div>
-            <div v-else style="display: flex; flex-direction: column; gap: 0.65rem; max-height: 240px; overflow-y: auto;">
+            <div v-else style="display: flex; flex-direction: column; gap: 0.65rem; max-height: 360px; overflow-y: auto;">
               <div
                 v-for="h in userOrgHistory"
                 :key="h.id"
@@ -405,11 +468,17 @@ import { usePermission } from '~/composables/usePermission'
 import { usePageTitle } from '~/composables/usePageTitle'
 import AppModal from '~/components/common/AppModal.vue'
 import CreateUserModal from '~/components/admin/CreateUserModal.vue'
+import UserDataScopesTab from '~/components/admin/UserDataScopesTab.vue'
+import ColumnMaskingPoliciesTab from '~/components/admin/ColumnMaskingPoliciesTab.vue'
+import PermissionAuditLogsTab from '~/components/admin/PermissionAuditLogsTab.vue'
 
 const { pageTitle } = usePageTitle('user_management', '사용자 및 권한 관리')
 
 const { t, locale } = useI18n()
 const { hasPermission } = usePermission()
+
+const selectedUserTab = ref(0)
+const canWriteUsers = computed(() => hasPermission('admin:write') || hasPermission('admin:*') || hasPermission('org:write') || hasPermission('org:*'))
 
 const getLabel = (key, fallback) => {
   const res = t(key)
@@ -602,6 +671,18 @@ const getUserRolesArray = (role) => {
   return String(role).split(',').map(r => r.trim()).filter(Boolean)
 }
 
+const isUnassignedOrg = computed(() => {
+  return selectedUser.value && !selectedUser.value.organizationId && !selectedUser.value.departmentId
+})
+
+const allDepartmentsList = computed(() => {
+  return Object.entries(allDepartmentsMap.value).map(([id, name]) => ({ id, name }))
+})
+
+const onTabNotify = ({ message, type }) => {
+  showCustomAlert(message, '', t('system_notification'), type || 'success')
+}
+
 const selectUser = async (user) => {
   if (user) {
     selectedUser.value = user
@@ -634,6 +715,16 @@ const saveUserInfo = async () => {
   if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
     showCustomAlert(t('invalid_email_format'), getLabel('input_error', '입력 오류'), getLabel('notification', '알림'), 'warning')
     return
+  }
+
+  // Guard: Unassigned organization account cannot be granted admin role
+  if (isUnassignedOrg.value) {
+    const roleArr = Array.isArray(selectedUserRoles.value) ? selectedUserRoles.value : [selectedUserRoles.value]
+    const hasHighRole = roleArr.some(r => r && (String(r).toUpperCase().includes('ADMIN') || String(r).toUpperCase().includes('SUPER')))
+    if (hasHighRole) {
+      showCustomAlert(t('unassigned_org_warning_desc'), t('unassigned_org_error'), t('system_notification'), 'warning')
+      return
+    }
   }
 
   isSavingUserInfo.value = true

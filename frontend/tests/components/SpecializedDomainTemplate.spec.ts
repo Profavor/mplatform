@@ -49,4 +49,48 @@ describe('SpecializedDomainTemplate Frontend Unit Tests', () => {
     expect(rootNodes.map(n => n.code)).toEqual(['INDIVIDUAL', 'CORPORATE'])
     expect(mockNodes.find(n => n.name.ko === '전체 고객')).toBeUndefined()
   })
+
+  it('LEASE_CONTRACT(부동산 임대차 마스터) 템플릿 페이로드 및 필드 타입이 규격에 맞게 구성되어야 한다', () => {
+    const leaseTemplate = {
+      category: 'LEASE_CONTRACT',
+      name: { ko: '부동산 임대차 마스터', en: 'Real Estate Lease Master' },
+      description: { ko: '건물·층·호실별 임대차 계약 정보, 보증금 및 월세 관리, 만기일자 및 권리관계 리스크 상시 감시', en: 'Real Estate Lease & Risk Management Master Data' },
+      numberingPattern: 'LEASE-{YYYY}-{SEQ:6}',
+      icon: 'apartment',
+      axisCode: 'LEASE_PROPERTY_TYPE',
+      identifierFieldKey: 'contract_no',
+      displayNameFieldKey: 'tenant_name',
+      fields: [
+        { key: 'contract_no', type: 'TEXT' },
+        { key: 'building_name', type: 'TEXT' },
+        { key: 'address_primary', type: 'TEXT' },
+        { key: 'unit_number', type: 'TEXT' },
+        { key: 'exclusive_area', type: 'NUMBER' },
+        { key: 'tenant_name', type: 'TEXT' },
+        { key: 'tenant_contact', type: 'TEXT' },
+        { key: 'tenant_email', type: 'EMAIL' },
+        { key: 'lease_type', type: 'SELECT' },
+        { key: 'contract_start_date', type: 'DATE' },
+        { key: 'contract_end_date', type: 'DATE' },
+        { key: 'deposit_amount', type: 'NUMBER' },
+        { key: 'monthly_rent', type: 'NUMBER' },
+        { key: 'maintenance_fee', type: 'NUMBER' },
+        { key: 'rent_payment_day', type: 'NUMBER' },
+        { key: 'prior_mortgage_amount', type: 'NUMBER' },
+        { key: 'market_price_estimate', type: 'NUMBER' },
+        { key: 'debt_ratio', type: 'NUMBER' },
+        { key: 'contract_status', type: 'SELECT' },
+        { key: 'special_agreement', type: 'HTML_TEXT' }
+      ]
+    }
+
+    expect(leaseTemplate.category).toBe('LEASE_CONTRACT')
+    expect(leaseTemplate.icon).toBe('apartment')
+    expect(leaseTemplate.numberingPattern).toBe('LEASE-{YYYY}-{SEQ:6}')
+    expect(leaseTemplate.fields).toHaveLength(20)
+
+    leaseTemplate.fields.forEach(field => {
+      expect(validCommonCodeFieldTypes.has(field.type)).toBe(true)
+    })
+  })
 })

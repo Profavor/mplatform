@@ -75,4 +75,21 @@ public class User {
     @com.fasterxml.jackson.annotation.JsonIgnore
     @Column(name = "locked_until")
     private java.time.LocalDateTime lockedUntil;
+
+    @Column(name = "two_factor_enabled")
+    private Boolean twoFactorEnabled = false;
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @Column(name = "two_factor_secret")
+    private String twoFactorSecret;
+
+    @Column(name = "two_factor_type", length = 20)
+    private String twoFactorType;
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @Column(name = "backup_codes", columnDefinition = "TEXT")
+    private String backupCodes;
+
+    @Column(name = "two_factor_grace_until")
+    private java.time.LocalDateTime twoFactorGraceUntil;
 }

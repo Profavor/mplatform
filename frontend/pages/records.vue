@@ -128,6 +128,81 @@
             {{ $t('reset_all') }}
           </va-button>
         </div>
+
+        <!-- Right Side: Stats Badges, Quick Status Filter, View Mode Toggle, Page Jump -->
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <!-- Total Records Badge -->
+          <va-chip size="small" color="primary" style="font-weight: 700;">
+            {{ $t('total_records') }}: {{ (totalRecordsCount || 0).toLocaleString() }}
+          </va-chip>
+
+          <!-- Quick Status Filter -->
+          <va-button-group size="small">
+            <va-button
+              :preset="quickStatusFilter === 'ALL' ? 'primary' : 'secondary'"
+              @click="setQuickStatus('ALL')"
+            >
+              {{ $t('quick_status_all') }}
+            </va-button>
+            <va-button
+              :preset="quickStatusFilter === 'ACTIVE' ? 'primary' : 'secondary'"
+              @click="setQuickStatus('ACTIVE')"
+            >
+              {{ $t('quick_status_active') }}
+            </va-button>
+            <va-button
+              :preset="quickStatusFilter === 'PENDING_APPROVAL' ? 'primary' : 'secondary'"
+              @click="setQuickStatus('PENDING_APPROVAL')"
+            >
+              {{ $t('quick_status_pending') }}
+            </va-button>
+          </va-button-group>
+
+          <!-- View Mode Toggle: Virtual Scroll vs Pagination -->
+          <va-button-group size="small">
+            <va-button
+              :preset="viewMode === 'virtual' ? 'primary' : 'secondary'"
+              icon="view_stream"
+              :title="$t('view_mode_virtual')"
+              @click="toggleViewMode('virtual')"
+            >
+              {{ $t('view_mode_virtual') }}
+            </va-button>
+            <va-button
+              :preset="viewMode === 'pagination' ? 'primary' : 'secondary'"
+              icon="auto_stories"
+              :title="$t('view_mode_pagination')"
+              @click="toggleViewMode('pagination')"
+            >
+              {{ $t('view_mode_pagination') }}
+            </va-button>
+          </va-button-group>
+
+          <!-- Page Jump Controls (only for pagination mode) -->
+          <div
+            v-if="viewMode === 'pagination'"
+            style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; background: var(--va-background-primary); padding: 2px 8px; border-radius: 6px; border: 1px solid var(--va-background-border);"
+          >
+            <span>{{ $t('jump_to_page') }}</span>
+            <input
+              type="number"
+              min="1"
+              :max="totalPages"
+              v-model.number="jumpPageInput"
+              @keydown.enter="jumpToPage"
+              style="width: 48px; text-align: center; border: 1px solid var(--va-background-border); border-radius: 4px; padding: 2px 4px; font-size: 0.8rem; background: var(--va-background-element); color: var(--va-text-primary);"
+            />
+            <span>/ {{ totalPages }}</span>
+            <va-button
+              size="small"
+              preset="plain"
+              @click="jumpToPage"
+              style="padding: 0 4px; min-width: 28px;"
+            >
+              {{ $t('jump_btn') }}
+            </va-button>
+          </div>
+        </div>
       </div>
 
       <!-- 2. Advanced Search Panel (Full Width) -->
@@ -174,11 +249,13 @@
                 :columnDefs="columnDefs"
                 :defaultColDef="defaultColDef"
                 rowModelType="infinite"
-                :cacheBlockSize="20"
+                :cacheBlockSize="100"
+                :maxBlocksInCache="20"
+                :rowBuffer="15"
                 :rowSelection="{ mode: 'multiRow', enableClickSelection: true, headerCheckbox: false }"
-                :pagination="true"
-                :paginationPageSize="20"
-                :paginationPageSizeSelector="[10, 20, 50]"
+                :pagination="viewMode === 'pagination'"
+                :paginationPageSize="pageSize"
+                :paginationPageSizeSelector="[20, 50, 100, 200, 500]"
                 :localeText="gridLocaleText"
                 @grid-ready="onGridReady"
                 @selection-changed="onSelectionChanged"
@@ -188,6 +265,7 @@
                 @rowDoubleClicked="onRowDoubleClicked"
                 @cellDoubleClicked="onCellDoubleClicked"
                 @cell-key-down="onCellKeyDown"
+                @pagination-changed="onPaginationChanged"
               />
 
             </div>
@@ -348,6 +426,7 @@
       v-model="showApprovalHistoryModal"
       :request="selectedApprovalRequest"
       :node-id="selectedNode?.id || selectedRecordData?.node?.id"
+      :zIndex="1200"
     />
 
     <RecordsDomainRefModal
@@ -1240,6 +1319,7 @@ onBeforeUnmount(() => {
 
 const handleInitialRouteParams = async () => {
   if (initialRouteHandled.value) return
+  restoreStateFromUrlQuery()
   const queryRecordId = route.query.recordId
   const queryDomainId = route.query.domainId
   const queryNodeId = route.query.nodeId
@@ -1357,7 +1437,10 @@ const selectNode = async (node) => {
       nodeFields.value = fields
       await loadDomainReferences(fields)
       columnDefs.value = buildColumnDefs(fields, true)
+      currentPage.value = 1
+      jumpPageInput.value = 1
       await fetchRecords()
+      updateUrlQuery()
     } catch (e) {
       console.error(e)
     }
@@ -1384,7 +1467,10 @@ const selectNode = async (node) => {
       hasUpdateWorkflow.value = true
     }
     
+    currentPage.value = 1
+    jumpPageInput.value = 1
     await fetchRecords()
+    updateUrlQuery()
   } catch (e) {
     console.error(e)
   }
@@ -1980,6 +2066,157 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
 
 const columnDefs = ref([])
   
+const totalRecordsCount = ref(0)
+const totalPages = ref(1)
+const currentPage = ref(1)
+const jumpPageInput = ref(1)
+const pageSize = ref(50)
+const viewMode = ref('pagination') // 'virtual' | 'pagination'
+const quickStatusFilter = ref('ALL') // 'ALL' | 'ACTIVE' | 'PENDING_APPROVAL'
+
+const setQuickStatus = (status) => {
+  quickStatusFilter.value = status
+  fetchRecords()
+  updateUrlQuery()
+}
+
+const toggleViewMode = (mode) => {
+  viewMode.value = mode
+  if (gridApi.value) {
+    gridApi.value.setGridOption('pagination', mode === 'pagination')
+    gridApi.value.refreshInfiniteCache()
+    gridApi.value.purgeInfiniteCache()
+  }
+  updateUrlQuery()
+}
+
+const jumpToPage = () => {
+  if (!gridApi.value) return
+  const p = parseInt(String(jumpPageInput.value), 10)
+  if (isNaN(p) || p < 1 || p > totalPages.value) return
+  gridApi.value.paginationGoToPage(p - 1)
+}
+
+const onPaginationChanged = () => {
+  if (!gridApi.value) return
+  try {
+    const cp = gridApi.value.paginationGetCurrentPage() + 1
+    const tp = gridApi.value.paginationGetTotalPages() || 1
+    currentPage.value = cp
+    totalPages.value = tp
+    jumpPageInput.value = cp
+    updateUrlQuery()
+  } catch (e) {}
+}
+
+let isUpdatingUrl = false
+const updateUrlQuery = () => {
+  if (isUpdatingUrl) return
+  isUpdatingUrl = true
+  setTimeout(() => {
+    isUpdatingUrl = false
+  }, 250)
+
+  const currentQuery = { ...route.query }
+  const newQuery = { ...currentQuery }
+
+  if (selectedNode.value) {
+    if (selectedNode.value.isDomain) {
+      newQuery.domainId = selectedNode.value.id
+      delete newQuery.nodeId
+    } else {
+      newQuery.nodeId = selectedNode.value.id
+      delete newQuery.domainId
+    }
+  }
+
+  if (viewMode.value !== 'pagination') {
+    newQuery.viewMode = viewMode.value
+  } else {
+    delete newQuery.viewMode
+  }
+
+  if (quickStatusFilter.value && quickStatusFilter.value !== 'ALL') {
+    newQuery.status = quickStatusFilter.value
+  } else {
+    delete newQuery.status
+  }
+
+  if (pageSize.value && pageSize.value !== 50) {
+    newQuery.size = String(pageSize.value)
+  } else {
+    delete newQuery.size
+  }
+
+  if (currentPage.value > 1 && viewMode.value === 'pagination') {
+    newQuery.page = String(currentPage.value)
+  } else {
+    delete newQuery.page
+  }
+
+  // Active filters in query
+  Object.keys(newQuery).forEach(k => {
+    if (k.startsWith('search_')) delete newQuery[k]
+  })
+  Object.entries(activeFilters.value).forEach(([k, v]) => {
+    if (v !== null && v !== undefined && v !== '') {
+      newQuery[`search_${k}`] = String(v)
+      if (activeFiltersOp.value[k]) {
+        newQuery[`search_op_${k}`] = activeFiltersOp.value[k]
+      }
+      if (activeFiltersMax.value[k]) {
+        newQuery[`search_${k}_max`] = activeFiltersMax.value[k]
+      }
+    }
+  })
+
+  const isDiff = JSON.stringify(currentQuery) !== JSON.stringify(newQuery)
+  if (isDiff) {
+    router.replace({ query: newQuery }).catch(() => {})
+  }
+}
+
+const restoreStateFromUrlQuery = () => {
+  const q = route.query
+  if (q.viewMode === 'virtual' || q.viewMode === 'pagination') {
+    viewMode.value = q.viewMode
+  }
+  if (q.status) {
+    quickStatusFilter.value = String(q.status)
+  }
+  if (q.size) {
+    const s = parseInt(String(q.size), 10)
+    if (!isNaN(s) && [20, 50, 100, 200, 500].includes(s)) {
+      pageSize.value = s
+    }
+  }
+
+  const restoredFilters = {}
+  const restoredOp = {}
+  const restoredMax = {}
+  Object.entries(q).forEach(([k, v]) => {
+    if (k.startsWith('search_') && !k.startsWith('search_op_') && !k.endsWith('_max')) {
+      const field = k.substring(7)
+      restoredFilters[field] = String(v)
+      if (q[`search_op_${field}`]) {
+        restoredOp[field] = String(q[`search_op_${field}`])
+      }
+      if (q[`search_${field}_max`]) {
+        restoredMax[field] = String(q[`search_${field}_max`])
+      }
+    }
+  })
+
+  if (Object.keys(restoredFilters).length > 0) {
+    activeFilters.value = restoredFilters
+    draftFilters.value = { ...restoredFilters }
+    activeFiltersOp.value = restoredOp
+    draftFiltersOp.value = { ...restoredOp }
+    activeFiltersMax.value = restoredMax
+    draftFiltersMax.value = { ...restoredMax }
+  }
+}
+
 const activeFilters = ref({})
 const activeFiltersOp = ref({})
 const activeFiltersMax = ref({})
@@ -2002,6 +2239,7 @@ const applyFilters = () => {
   activeFiltersOp.value = { ...draftFiltersOp.value }
   activeFiltersMax.value = { ...draftFiltersMax.value }
   fetchRecords()
+  updateUrlQuery()
 }
 
 const clearFilters = () => {
@@ -2012,6 +2250,7 @@ const clearFilters = () => {
   activeFiltersOp.value = {}
   activeFiltersMax.value = {}
   fetchRecords()
+  updateUrlQuery()
 }
 
 const removeFilter = (key) => {
@@ -2040,6 +2279,7 @@ const removeFilter = (key) => {
   activeFiltersMax.value = nextActiveMax
 
   fetchRecords()
+  updateUrlQuery()
 }
 
 const getFilterFieldLabel = (key) => {
@@ -2084,8 +2324,15 @@ const createDatasource = () => {
           const qs = new URLSearchParams(parts[1])
           qs.forEach((v, k) => searchParams.append(k, v))
         }
+
+        // 1. Status Filter
+        if (quickStatusFilter.value && quickStatusFilter.value !== 'ALL') {
+          searchParams.append('status', quickStatusFilter.value)
+        }
+
+        // 2. Advanced Search Filters
         Object.entries(activeFilters.value).forEach(([k, v]) => {
-          if (v !== null && v !== '') {
+          if (v !== null && v !== '' && v !== undefined) {
             searchParams.append('search_' + k, v)
             const op = activeFiltersOp.value[k] || 'EQ'
             searchParams.append('search_op_' + k, op)
@@ -2094,15 +2341,76 @@ const createDatasource = () => {
             }
           }
         })
-        
-        if (params.sortModel && params.sortModel.length > 0) {
-          const sort = params.sortModel[0]
-          let colId = sort.colId || ''
-          if (colId.startsWith('data.')) {
-            colId = colId.substring(5)
+
+        // 3. AG-Grid Column Filters (params.filterModel)
+        if (params.filterModel) {
+          const opMap = {
+            contains: 'CONTAINS',
+            notContains: 'CONTAINS',
+            equals: 'EQ',
+            notEqual: 'EQ',
+            startsWith: 'STARTS_WITH',
+            endsWith: 'ENDS_WITH',
+            greaterThan: 'GT',
+            greaterThanOrEqual: 'GTE',
+            lessThan: 'LT',
+            lessThanOrEqual: 'LTE',
+            inRange: 'BETWEEN'
           }
-          searchParams.append('sortField', colId)
-          searchParams.append('sortOrder', sort.sort.toUpperCase())
+
+          const applyFilterItem = (colKey, item) => {
+            if (!item) return
+            let fKey = colKey
+            if (fKey.startsWith('data.')) fKey = fKey.substring(5)
+            else if (fKey === 'sys_record_status') fKey = 'status'
+
+            const agOp = item.type || 'contains'
+            const backendOp = opMap[agOp] || 'EQ'
+
+            if (item.filter !== undefined && item.filter !== null && item.filter !== '') {
+              if (!searchParams.has('search_' + fKey)) {
+                searchParams.append('search_' + fKey, String(item.filter))
+                searchParams.append('search_op_' + fKey, backendOp)
+                if (agOp === 'inRange' && item.filterTo !== undefined && item.filterTo !== null) {
+                  searchParams.append('search_' + fKey + '_max', String(item.filterTo))
+                }
+              }
+            } else if (Array.isArray(item.values) && item.values.length > 0) {
+              if (!searchParams.has('search_' + fKey)) {
+                searchParams.append('search_' + fKey, item.values.join(','))
+                searchParams.append('search_op_' + fKey, 'IN')
+              }
+            }
+          }
+
+          Object.entries(params.filterModel).forEach(([colKey, filterObj]) => {
+            if (!filterObj) return
+            if (filterObj.filter !== undefined || filterObj.values !== undefined) {
+              applyFilterItem(colKey, filterObj)
+            } else if (filterObj.condition1) {
+              applyFilterItem(colKey, filterObj.condition1)
+            }
+          })
+        }
+        
+        // 4. AG-Grid Sort Model
+        if (params.sortModel && params.sortModel.length > 0) {
+          const sortParts = params.sortModel.map(s => {
+            let colId = s.colId || ''
+            if (colId.startsWith('data.')) colId = colId.substring(5)
+            else if (colId === 'sys_record_status') colId = 'status'
+            else if (colId === 'sys_node_name') colId = 'nodeName'
+            return `${colId},${s.sort.toLowerCase()}`
+          })
+          const primary = params.sortModel[0]
+          let primaryCol = primary.colId || ''
+          if (primaryCol.startsWith('data.')) primaryCol = primaryCol.substring(5)
+          else if (primaryCol === 'sys_record_status') primaryCol = 'status'
+          else if (primaryCol === 'sys_node_name') primaryCol = 'nodeName'
+
+          searchParams.append('sortField', primaryCol)
+          searchParams.append('sortOrder', primary.sort.toUpperCase())
+          searchParams.append('sort', sortParts.join(';'))
         }
         
         searchParams.append('page', page);
@@ -2111,18 +2419,20 @@ const createDatasource = () => {
         const finalEndpoint = endpoint.split('?')[0] + '?' + searchParams.toString();
           
         const pageData = await customFetch(finalEndpoint);
+        totalRecordsCount.value = pageData.totalElements || 0;
+        if (gridApi.value && viewMode.value === 'pagination') {
+          totalPages.value = Math.ceil((pageData.totalElements || 0) / size) || 1;
+        }
         
-        const rows = pageData.content.map(r => {
+        const rows = (pageData.content || []).map(r => {
           const parsedData = processRecordDataWithFields(r.data, nodeFields.value)
-          
           const nodeNameMap = r.node?.name || {}
           const nodeName = parseName(nodeNameMap)?.[currentLocale.value] || parseName(nodeNameMap)?.ko || parseName(nodeNameMap)?.en || r.node?.id || 'Unknown'
-          
           return { ...r, data: parsedData, nodeName }
         });
 
-        
         params.successCallback(rows, pageData.totalElements);
+        updateUrlQuery();
         
       } catch (e) {
         console.error('Failed to load records:', e);
@@ -2694,6 +3004,8 @@ const requestDeleteRecord = async () => {
 const defaultColDef = {
   minWidth: 100,
   resizable: true,
+  sortable: true,
+  filter: true,
   cellDataType: false,
   tooltipValueGetter: (params) => params.valueFormatted || params.value
 }

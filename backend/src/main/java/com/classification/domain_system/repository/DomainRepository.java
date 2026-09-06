@@ -30,4 +30,6 @@ public interface DomainRepository extends JpaRepository<Domain, UUID> {
     Long getCurrentSequenceNative(@Param("domainId") UUID domainId);
 
     java.util.Optional<Domain> findBySpecializedCategory(String specializedCategory);
+
+    java.util.Optional<Domain> findBySpecializedCategoryAndOrganizationId(String specializedCategory, UUID organizationId);
 }

@@ -72,21 +72,7 @@ public class GlobalRecordController {
             searchParams.put("keyword", allParams.get("q"));
         }
 
-        org.springframework.data.domain.Sort sort = org.springframework.data.domain.Sort.unsorted();
-        String sortField = allParams.get("sortField");
-        String sortOrder = allParams.get("sortOrder");
-        if (sortField == null && allParams.containsKey("sort")) {
-            String sortParam = allParams.get("sort");
-            String[] parts = sortParam.split(",");
-            sortField = parts[0];
-            if (parts.length > 1) sortOrder = parts[1];
-        }
-        if (sortField != null && !sortField.isEmpty()) {
-            org.springframework.data.domain.Sort.Direction dir = "DESC".equalsIgnoreCase(sortOrder)
-                    ? org.springframework.data.domain.Sort.Direction.DESC
-                    : org.springframework.data.domain.Sort.Direction.ASC;
-            sort = org.springframework.data.domain.Sort.by(dir, sortField);
-        }
+        org.springframework.data.domain.Sort sort = com.classification.domain_system.service.RecordService.parseSort(allParams);
 
         Page<Record> records = recordService.findDynamicRecordsByDomain(
                 domainId, searchParams, PageRequest.of(page, size, sort));
@@ -114,21 +100,7 @@ public class GlobalRecordController {
             searchParams.put("keyword", searchKeyword);
         }
 
-        org.springframework.data.domain.Sort sort = org.springframework.data.domain.Sort.unsorted();
-        String sortField = allParams.get("sortField");
-        String sortOrder = allParams.get("sortOrder");
-        if (sortField == null && allParams.containsKey("sort")) {
-            String sortParam = allParams.get("sort");
-            String[] parts = sortParam.split(",");
-            sortField = parts[0];
-            if (parts.length > 1) sortOrder = parts[1];
-        }
-        if (sortField != null && !sortField.isEmpty()) {
-            org.springframework.data.domain.Sort.Direction dir = "DESC".equalsIgnoreCase(sortOrder)
-                    ? org.springframework.data.domain.Sort.Direction.DESC
-                    : org.springframework.data.domain.Sort.Direction.ASC;
-            sort = org.springframework.data.domain.Sort.by(dir, sortField);
-        }
+        org.springframework.data.domain.Sort sort = com.classification.domain_system.service.RecordService.parseSort(allParams);
 
         Page<Record> records = recordService.findDynamicRecordsByDomain(
                 domainId, searchParams, PageRequest.of(page, size, sort));

@@ -17,9 +17,17 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -71,19 +79,59 @@ public class RecordLineageService {
 
         parseRecordNameAndEmpNo(record.getData(), response);
 
-        // 1. Source System Node (데이터 생성의 출발점)
+        // All channels in system
+        List<com.classification.domain_system.entity.IntegrationChannel> allChannels = channelRepository.findAll();
+
+        // -------------------------------------------------------------
+        // STAGE 1 & 2: Source System & Inbound Ingestion Pipeline
+        // -------------------------------------------------------------
+        String sourceSysName = record.getSourceSystem() != null && !record.getSourceSystem().isBlank()
+                ? record.getSourceSystem() : "Master Data Portal";
+
+        com.classification.domain_system.entity.IntegrationChannel matchedInboundChannel = allChannels.stream()
+                .filter(c -> "INBOUND".equalsIgnoreCase(c.getDirection()))
+                .filter(c -> c.getName().equalsIgnoreCase(sourceSysName) || (c.getChannelCode() != null && c.getChannelCode().equalsIgnoreCase(sourceSysName)))
+                .findFirst()
+                .orElse(null);
+
+        // Stage 1: Source System Node
         String sourceNodeId = "SRC-1";
         RecordLineageDto.LineageNode sourceNode = new RecordLineageDto.LineageNode(
                 sourceNodeId,
-                "Source System: " + (record.getSourceSystem() != null ? record.getSourceSystem() : "Master Data Portal"),
+                "Source System: " + sourceSysName,
+                "SOURCE",
                 "SOURCE",
                 formatDateTime(recordCreatedAt)
         );
+        sourceNode.setHealthStatus("HEALTHY");
+        if (matchedInboundChannel != null) {
+            sourceNode.getDetails().put("channelCode", matchedInboundChannel.getChannelCode());
+            sourceNode.getDetails().put("channelType", matchedInboundChannel.getType());
+        }
         response.getNodes().add(sourceNode);
 
-        // 2. Record Revision History Nodes (생애주기 버전 이력: Version 1 -> Version 2 오름차순)
+        // Stage 2: Inbound Ingestion Pipeline Node
+        String inboundNodeId = "INB-1";
+        String inboundLabel = "Inbound Pipeline: " + (matchedInboundChannel != null ? matchedInboundChannel.getName() : "Data Ingestion Adapter");
+        RecordLineageDto.LineageNode inboundNode = new RecordLineageDto.LineageNode(
+                inboundNodeId,
+                inboundLabel,
+                "INBOUND",
+                "INBOUND_PIPELINE",
+                formatDateTime(recordCreatedAt)
+        );
+        inboundNode.setHealthStatus("HEALTHY");
+        if (matchedInboundChannel != null && matchedInboundChannel.getMappingConfigJson() != null) {
+            inboundNode.setMappingRules(parseMappingRules(matchedInboundChannel.getMappingConfigJson()));
+        }
+        response.getNodes().add(inboundNode);
+        response.getEdges().add(new RecordLineageDto.LineageEdge(sourceNodeId, inboundNodeId, "INGESTED_VIA"));
+
+        // -------------------------------------------------------------
+        // STAGE 3: Master Record (Histories & Golden Master Record)
+        // -------------------------------------------------------------
         List<RecordHistory> histories = recordHistoryRepository.findByRecordIdOrderByVersionAsc(recordId);
-        String lastHistoryNodeId = sourceNodeId;
+        String lastHistoryNodeId = inboundNodeId;
 
         for (RecordHistory history : histories) {
             String historyNodeId = "HIST-" + history.getId();
@@ -92,16 +140,20 @@ public class RecordLineageService {
                     historyNodeId,
                     "Version " + history.getVersion() + " (" + history.getChangeType() + ")",
                     "RECORD_VERSION",
+                    "MASTER_RECORD",
                     formatDateTime(historyTime)
             );
+            histNode.setHealthStatus("HEALTHY");
 
             String rawUser = history.getChangedBy();
             String resolvedUser = resolveUserName(rawUser);
             histNode.getDetails().put("changedBy", resolvedUser);
             histNode.getDetails().put("version", history.getVersion());
-            
-            UUID nodeId = (history.getRecord() != null && history.getRecord().getNode() != null) ? history.getRecord().getNode().getId() : (record.getNode() != null ? record.getNode().getId() : null);
-            
+
+            UUID nodeId = (history.getRecord() != null && history.getRecord().getNode() != null)
+                    ? history.getRecord().getNode().getId()
+                    : (record.getNode() != null ? record.getNode().getId() : null);
+
             List<String> changedFields = recordService.computeChangedFieldKeys(history.getPreviousData(), history.getNewData());
             histNode.getDetails().put("changedFields", changedFields);
 
@@ -124,36 +176,216 @@ public class RecordLineageService {
             lastHistoryNodeId = historyNodeId;
         }
 
-        // 3. Root Record Node (최종 통합 관리 중인 Master Record)
+        // Golden Master Record Node
         String recordNodeId = "REC-" + record.getId();
         RecordLineageDto.LineageNode rootNode = new RecordLineageDto.LineageNode(
                 recordNodeId,
                 "Golden Master Record (" + displayCode + ")",
                 "RECORD",
+                "MASTER_RECORD",
                 formatDateTime(record.getUpdatedAt() != null ? record.getUpdatedAt() : recordCreatedAt)
         );
         rootNode.getDetails().put("status", record.getStatus() != null ? record.getStatus() : "ACTIVE");
+        rootNode.getDetails().put("version", record.getVersion() != null ? record.getVersion() : 1);
+        rootNode.setHealthStatus("ACTIVE".equalsIgnoreCase(record.getStatus()) ? "HEALTHY" : "WARNING");
+        if (!"ACTIVE".equalsIgnoreCase(record.getStatus())) {
+            rootNode.setAnomalyReason("레코드 상태: " + (record.getStatus() != null ? record.getStatus() : "비활성"));
+        }
         response.getNodes().add(rootNode);
         response.getEdges().add(new RecordLineageDto.LineageEdge(lastHistoryNodeId, recordNodeId, "EVOLVED_TO"));
 
-        // 4. Outbound Integration Nodes (외부 전파 파이프라인)
+        // -------------------------------------------------------------
+        // STAGE 4 & 5: Outbound Pipelines & Downstream Consumers
+        // -------------------------------------------------------------
         List<IntegrationLog> integrationLogs = integrationLogRepository.findByRecordIdOrderByCreatedAtDesc(recordId);
+
+        // Group integration logs by channel
+        java.util.Map<UUID, List<IntegrationLog>> logsByChannel = new java.util.LinkedHashMap<>();
         for (IntegrationLog log : integrationLogs) {
-            String logNodeId = "OUT-" + log.getId();
-            String channelName = log.getChannel() != null ? log.getChannel().getName() : "Outbound Channel";
-            LocalDateTime logTime = log.getCreatedAt() != null ? log.getCreatedAt() : recordCreatedAt;
-            RecordLineageDto.LineageNode outNode = new RecordLineageDto.LineageNode(
-                    logNodeId,
-                    "Outbound: " + channelName,
-                    "OUTBOUND",
-                    formatDateTime(logTime)
-            );
-            outNode.getDetails().put("status", log.getStatus() != null ? log.getStatus() : "SUCCESS");
-            response.getNodes().add(outNode);
-            response.getEdges().add(new RecordLineageDto.LineageEdge(recordNodeId, logNodeId, "DISPATCHED_TO"));
+            if (log.getChannel() != null) {
+                logsByChannel.computeIfAbsent(log.getChannel().getId(), k -> new ArrayList<>()).add(log);
+            }
         }
 
+        // Also identify outbound channels that match domain or are available
+        List<com.classification.domain_system.entity.IntegrationChannel> outboundChannels = allChannels.stream()
+                .filter(c -> "OUTBOUND".equalsIgnoreCase(c.getDirection()))
+                .filter(c -> c.getNodeId() == null || (record.getNode() != null && c.getNodeId().equals(record.getNode().getId())))
+                .collect(java.util.stream.Collectors.toList());
+
+        // Merge channels with logs and configured outbound channels
+        java.util.Set<UUID> processedChannelIds = new java.util.HashSet<>();
+        List<java.util.Map<String, Object>> consumptionSummaryList = new ArrayList<>();
+
+        for (com.classification.domain_system.entity.IntegrationChannel ch : outboundChannels) {
+            processedChannelIds.add(ch.getId());
+            processOutboundAndConsumerNode(recordNodeId, ch, logsByChannel.get(ch.getId()), response, consumptionSummaryList);
+        }
+
+        // Check any other channels that logged for this record
+        for (Map.Entry<UUID, List<IntegrationLog>> entry : logsByChannel.entrySet()) {
+            if (!processedChannelIds.contains(entry.getKey()) && !entry.getValue().isEmpty()) {
+                com.classification.domain_system.entity.IntegrationChannel ch = entry.getValue().get(0).getChannel();
+                if (ch != null) {
+                    processOutboundAndConsumerNode(recordNodeId, ch, entry.getValue(), response, consumptionSummaryList);
+                }
+            }
+        }
+
+        response.setChannelConsumption(consumptionSummaryList);
+
+        // -------------------------------------------------------------
+        // Pipeline Stages Summary Computation
+        // -------------------------------------------------------------
+        computePipelineStages(response);
+
         return response;
+    }
+
+    private void processOutboundAndConsumerNode(
+            String recordNodeId,
+            com.classification.domain_system.entity.IntegrationChannel channel,
+            List<IntegrationLog> logs,
+            RecordLineageDto.RecordLineageResponse response,
+            List<java.util.Map<String, Object>> consumptionSummaryList) {
+
+        String outNodeId = "OUT-" + channel.getId();
+        String cnsNodeId = "CNS-" + channel.getId();
+        String channelName = channel.getName() != null ? channel.getName() : "Outbound Channel";
+        String channelCode = channel.getChannelCode() != null ? channel.getChannelCode() : channel.getId().toString().substring(0, 8);
+
+        RecordLineageDto.LineageNode outNode = new RecordLineageDto.LineageNode(
+                outNodeId,
+                "Outbound: " + channelName,
+                "OUTBOUND",
+                "OUTBOUND_PIPELINE",
+                formatDateTime(channel.getCreatedAt())
+        );
+
+        RecordLineageDto.LineageNode cnsNode = new RecordLineageDto.LineageNode(
+                cnsNodeId,
+                "Consumer: " + channelName,
+                "CONSUMER",
+                "DOWNSTREAM_CONSUMER",
+                formatDateTime(channel.getCreatedAt())
+        );
+
+        if (channel.getMappingConfigJson() != null) {
+            outNode.setMappingRules(parseMappingRules(channel.getMappingConfigJson()));
+        }
+
+        // Metrics & Health calculation
+        long totalDispatched = logs != null ? logs.size() : 0;
+        long successCount = logs != null ? logs.stream().filter(l -> "SUCCESS".equalsIgnoreCase(l.getStatus())).count() : 0;
+        long failCount = logs != null ? logs.stream().filter(l -> "FAIL".equalsIgnoreCase(l.getStatus()) || "DEAD_LETTER".equalsIgnoreCase(l.getStatus())).count() : 0;
+        IntegrationLog lastLog = (logs != null && !logs.isEmpty()) ? logs.get(0) : null;
+
+        java.util.Map<String, Object> metrics = new java.util.HashMap<>();
+        metrics.put("totalDispatched", totalDispatched);
+        metrics.put("successCount", successCount);
+        metrics.put("failCount", failCount);
+        if (lastLog != null) {
+            metrics.put("lastDispatchedAt", formatDateTime(lastLog.getCreatedAt()));
+            metrics.put("lastStatus", lastLog.getStatus());
+            outNode.setTimestamp(formatDateTime(lastLog.getCreatedAt()));
+            cnsNode.setTimestamp(formatDateTime(lastLog.getCreatedAt()));
+        }
+
+        outNode.setMetrics(metrics);
+        cnsNode.setMetrics(metrics);
+
+        // Anomaly / Health check
+        if (lastLog != null && ("FAIL".equalsIgnoreCase(lastLog.getStatus()) || "DEAD_LETTER".equalsIgnoreCase(lastLog.getStatus()))) {
+            outNode.setHealthStatus("ERROR");
+            cnsNode.setHealthStatus("ERROR");
+            String err = lastLog.getErrorMessage() != null ? lastLog.getErrorMessage() : "전송 실패 (오류 발생)";
+            outNode.setAnomalyReason("최근 연동 실패: " + err);
+            cnsNode.setAnomalyReason("소비 실패: " + err);
+        } else if (lastLog != null && lastLog.getRetryCount() > 0) {
+            outNode.setHealthStatus("WARNING");
+            cnsNode.setHealthStatus("WARNING");
+            outNode.setAnomalyReason("전송 지연 (재시도 " + lastLog.getRetryCount() + "회 발생)");
+            cnsNode.setAnomalyReason("소비 지연 (재시도 발생)");
+        } else if (totalDispatched == 0) {
+            outNode.setHealthStatus("WARNING");
+            cnsNode.setHealthStatus("WARNING");
+            outNode.setAnomalyReason("아직 전파된 연동 이력이 없습니다.");
+            cnsNode.setAnomalyReason("소비 대기 중");
+        } else {
+            outNode.setHealthStatus("HEALTHY");
+            cnsNode.setHealthStatus("HEALTHY");
+        }
+
+        response.getNodes().add(outNode);
+        response.getNodes().add(cnsNode);
+
+        response.getEdges().add(new RecordLineageDto.LineageEdge(recordNodeId, outNodeId, "DISPATCHED_TO"));
+        response.getEdges().add(new RecordLineageDto.LineageEdge(outNodeId, cnsNodeId, "CONSUMED_BY"));
+
+        // Add to channel consumption summary
+        java.util.Map<String, Object> summary = new java.util.HashMap<>();
+        summary.put("channelId", channel.getId());
+        summary.put("channelName", channelName);
+        summary.put("channelCode", channelCode);
+        summary.put("type", channel.getType());
+        summary.put("direction", channel.getDirection());
+        summary.put("totalDispatched", totalDispatched);
+        summary.put("successCount", successCount);
+        summary.put("failCount", failCount);
+        summary.put("healthStatus", outNode.getHealthStatus());
+        summary.put("anomalyReason", outNode.getAnomalyReason());
+        summary.put("lastDispatchedAt", lastLog != null ? formatDateTime(lastLog.getCreatedAt()) : "-");
+        consumptionSummaryList.add(summary);
+    }
+
+    private void computePipelineStages(RecordLineageDto.RecordLineageResponse response) {
+        String[] stageKeys = {"SOURCE", "INBOUND_PIPELINE", "MASTER_RECORD", "OUTBOUND_PIPELINE", "DOWNSTREAM_CONSUMER"};
+        String[] stageLabels = {"원천 시스템", "수집 파이프라인", "마스터 레코드", "전파 파이프라인", "다운스트림 소비자"};
+
+        List<RecordLineageDto.PipelineStageSummary> stages = new ArrayList<>();
+        for (int i = 0; i < stageKeys.length; i++) {
+            String key = stageKeys[i];
+            String label = stageLabels[i];
+            List<RecordLineageDto.LineageNode> stageNodes = response.getNodes().stream()
+                    .filter(n -> key.equalsIgnoreCase(n.getStage()))
+                    .collect(java.util.stream.Collectors.toList());
+
+            String overallStatus = "HEALTHY";
+            if (stageNodes.stream().anyMatch(n -> "ERROR".equalsIgnoreCase(n.getHealthStatus()))) {
+                overallStatus = "ERROR";
+            } else if (stageNodes.stream().anyMatch(n -> "WARNING".equalsIgnoreCase(n.getHealthStatus()))) {
+                overallStatus = "WARNING";
+            }
+
+            stages.add(new RecordLineageDto.PipelineStageSummary(key, label, i + 1, stageNodes.size(), overallStatus));
+        }
+        response.setStages(stages);
+    }
+
+    private List<RecordLineageDto.MappingRuleSummary> parseMappingRules(String mappingConfigJson) {
+        List<RecordLineageDto.MappingRuleSummary> rules = new ArrayList<>();
+        if (mappingConfigJson == null || mappingConfigJson.isBlank()) {
+            return rules;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(mappingConfigJson);
+            JsonNode mappings = root.get("mappings");
+            if (mappings != null && mappings.isArray()) {
+                for (JsonNode m : mappings) {
+                    String target = m.has("targetField") ? m.get("targetField").asText() : "";
+                    String expr = m.has("sourceExpression") ? m.get("sourceExpression").asText() : "";
+                    String source = expr.replaceAll("[^a-zA-Z0-9_.]", "");
+                    rules.add(new RecordLineageDto.MappingRuleSummary(source, target, expr));
+                }
+            } else if (root.isObject()) {
+                root.fields().forEachRemaining(entry -> {
+                    String target = entry.getKey();
+                    String expr = entry.getValue().isTextual() ? entry.getValue().asText() : entry.getValue().toString();
+                    rules.add(new RecordLineageDto.MappingRuleSummary(target, target, expr));
+                });
+            }
+        } catch (Exception ignored) {}
+        return rules;
     }
 
     private String extractRecordDisplayName(String jsonContent) {
