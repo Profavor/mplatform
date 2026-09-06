@@ -23,6 +23,35 @@ public class UserService {
     private final com.classification.domain_system.repository.OrganizationRepository organizationRepository;
     private final com.classification.domain_system.repository.DepartmentRepository departmentRepository;
     private final KeycloakAdminService keycloakAdminService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private PermissionAuditService auditService;
+
+    public static boolean isHighPrivilegeRole(String role) {
+        if (role == null || role.isBlank()) return false;
+        for (String r : role.split(",")) {
+            String trimmed = r.trim().toUpperCase();
+            if (trimmed.equals("ROLE_ADMIN") || trimmed.equals("ADMIN")
+                    || trimmed.equals("ROLE_SUPER_ADMIN") || trimmed.equals("SUPER_ADMIN")
+                    || trimmed.equals("ROLE_SYSTEM_ADMIN") || trimmed.equals("SYSTEM_ADMIN")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void setAuditService(PermissionAuditService auditService) {
+        this.auditService = auditService;
+    }
+
+    private void validateOrganizationForHighPrivilegeRole(com.classification.domain_system.entity.User user, String newRole, java.util.UUID newOrgId, java.util.UUID newDeptId) {
+        if (isHighPrivilegeRole(newRole)) {
+            java.util.UUID effectiveOrgId = newOrgId != null ? newOrgId : user.getOrganizationId();
+            java.util.UUID effectiveDeptId = newDeptId != null ? newDeptId : user.getDepartmentId();
+            if (effectiveOrgId == null && effectiveDeptId == null) {
+                throw new IllegalStateException("소속 조직 또는 부서가 할당되지 않은 계정에는 고위 관리자 권한을 부여할 수 없습니다. 먼저 조직/부서를 배정해주세요.");
+            }
+        }
+    }
 
     @Transactional(readOnly = true)
     public List<UserDto> getAllUsers() {
@@ -55,6 +84,7 @@ public class UserService {
         java.util.UUID prevOrgId = user.getOrganizationId();
         java.util.UUID prevDeptId = user.getDepartmentId();
         java.util.UUID prevTeamId = user.getTeamId();
+        String prevRole = user.getRole();
 
         boolean orgChanged = false;
         if (dto.getOrganizationId() != null && !java.util.Objects.equals(prevOrgId, dto.getOrganizationId())) {
@@ -69,7 +99,16 @@ public class UserService {
             user.setTeamId(dto.getTeamId());
             orgChanged = true;
         }
-        if (dto.getRole() != null) user.setRole(dto.getRole());
+
+        if (dto.getRole() != null) {
+            validateOrganizationForHighPrivilegeRole(user, dto.getRole(), dto.getOrganizationId(), dto.getDepartmentId());
+            user.setRole(dto.getRole());
+
+            if (!java.util.Objects.equals(prevRole, dto.getRole()) && auditService != null) {
+                auditService.recordLog(user.getId(), user.getUsername(), "GRANT_ROLE", "USER_ROLE",
+                        user.getId(), user.getUsername(), prevRole, dto.getRole(), "ADMIN", null);
+            }
+        }
         if (dto.getIsActive() != null) user.setIsActive(dto.getIsActive());
         if (dto.getEmail() != null) {
             String cleanEmail = dto.getEmail().trim();
@@ -213,14 +252,25 @@ public class UserService {
     public void updateUserRole(String userId, String role) {
         com.classification.domain_system.entity.User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+        validateOrganizationForHighPrivilegeRole(user, role, null, null);
+        String prevRole = user.getRole();
         user.setRole(role);
         userRepository.save(user);
+
+        if (!java.util.Objects.equals(prevRole, role) && auditService != null) {
+            auditService.recordLog(user.getId(), user.getUsername(), "GRANT_ROLE", "USER_ROLE",
+                    user.getId(), user.getUsername(), prevRole, role, "ADMIN", null);
+        }
     }
 
     @Transactional
     public String createAdminUser(String username, String email, String role, java.util.UUID organizationId, java.util.UUID departmentId) {
         if (userRepository.findByUsername(username).isPresent()) {
             throw new IllegalArgumentException("Username already exists");
+        }
+
+        if (isHighPrivilegeRole(role) && organizationId == null && departmentId == null) {
+            throw new IllegalStateException("소속 조직 또는 부서가 할당되지 않은 계정에는 고위 관리자 권한을 부여할 수 없습니다. 먼저 조직/부서를 배정해주세요.");
         }
         
         // Resolve email fallback with Organization email domain

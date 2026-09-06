@@ -21,12 +21,15 @@ public class DataMaskingService {
     private final FieldEncryptionService fieldEncryptionService;
     private final RecordRepository recordRepository;
     private final com.classification.domain_system.repository.FieldDefinitionRepository fieldDefinitionRepository;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private ColumnMaskingPolicyService columnMaskingPolicyService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public DataMaskingService(FieldEncryptionService fieldEncryptionService) {
         this.fieldEncryptionService = fieldEncryptionService;
         this.recordRepository = null;
         this.fieldDefinitionRepository = null;
+        this.columnMaskingPolicyService = null;
     }
 
     @Autowired
@@ -36,10 +39,30 @@ public class DataMaskingService {
         this.fieldEncryptionService = fieldEncryptionService;
         this.recordRepository = recordRepository;
         this.fieldDefinitionRepository = fieldDefinitionRepository;
+        this.columnMaskingPolicyService = null;
+    }
+
+    public DataMaskingService(FieldEncryptionService fieldEncryptionService, 
+                              RecordRepository recordRepository,
+                              com.classification.domain_system.repository.FieldDefinitionRepository fieldDefinitionRepository,
+                              ColumnMaskingPolicyService columnMaskingPolicyService) {
+        this.fieldEncryptionService = fieldEncryptionService;
+        this.recordRepository = recordRepository;
+        this.fieldDefinitionRepository = fieldDefinitionRepository;
+        this.columnMaskingPolicyService = columnMaskingPolicyService;
+    }
+
+    public void setColumnMaskingPolicyService(ColumnMaskingPolicyService columnMaskingPolicyService) {
+        this.columnMaskingPolicyService = columnMaskingPolicyService;
     }
 
     @Transactional(readOnly = true)
     public DataMaskingDto.MaskedDataResponse getMaskedRecord(UUID recordId, boolean hasUnmaskPermission) {
+        return getMaskedRecordForUser(recordId, null, hasUnmaskPermission);
+    }
+
+    @Transactional(readOnly = true)
+    public DataMaskingDto.MaskedDataResponse getMaskedRecordForUser(UUID recordId, com.classification.domain_system.entity.User user, boolean fallbackCanUnmask) {
         if (recordRepository == null) {
             throw new IllegalStateException("RecordRepository is not configured");
         }
@@ -48,16 +71,21 @@ public class DataMaskingService {
 
         Map<String, Object> originalData = parseData(record.getData());
         List<FieldDefinition> fields = Collections.emptyList();
+        UUID domainId = null;
+        if (record.getNode() != null && record.getNode().getDomain() != null) {
+            domainId = record.getNode().getDomain().getId();
+        }
+
         if (fieldDefinitionRepository != null && record.getNode() != null) {
             if (record.getNode().getId() != null) {
                 fields = fieldDefinitionRepository.findNodeFieldsWithSort(record.getNode().getId());
             }
-            if (fields.isEmpty() && record.getNode().getDomain() != null && record.getNode().getDomain().getId() != null) {
-                fields = fieldDefinitionRepository.findDomainFieldsWithSort(record.getNode().getDomain().getId());
+            if (fields.isEmpty() && domainId != null) {
+                fields = fieldDefinitionRepository.findDomainFieldsWithSort(domainId);
             }
         }
         
-        String maskedJson = maskJsonData(record.getData(), fields, hasUnmaskPermission);
+        String maskedJson = maskJsonData(record.getData(), fields, user, domainId, fallbackCanUnmask);
         Map<String, Object> maskedData = parseData(maskedJson);
 
         int maskedCount = 0;
@@ -74,14 +102,18 @@ public class DataMaskingService {
         return DataMaskingDto.MaskedDataResponse.builder()
                 .recordId(record.getId())
                 .recordCode(recordCode)
-                .originalData(hasUnmaskPermission ? originalData : Collections.emptyMap())
+                .originalData(fallbackCanUnmask ? originalData : Collections.emptyMap())
                 .maskedData(maskedData)
-                .isMasked(!hasUnmaskPermission && maskedCount > 0)
+                .isMasked(maskedCount > 0)
                 .maskedFieldCount(maskedCount)
                 .build();
     }
 
     public String maskJsonData(String dataJson, List<FieldDefinition> fields, boolean canUnmask) {
+        return maskJsonData(dataJson, fields, null, null, canUnmask);
+    }
+
+    public String maskJsonData(String dataJson, List<FieldDefinition> fields, com.classification.domain_system.entity.User user, UUID domainId, boolean fallbackCanUnmask) {
         if (dataJson == null || dataJson.isBlank()) {
             return dataJson;
         }
@@ -122,7 +154,17 @@ public class DataMaskingService {
                     continue;
                 }
 
-                // 1. Encrypted field handling - 방안 1: 조회 시 decrypt() 절대 호출 금지, _mask_ 캐시 우선 반환
+                // 컬럼 수준 마스킹 권한 동적 판정 (사용자 역할/부서별 ColumnMaskingPolicy 매칭)
+                boolean canUnmaskThisField = fallbackCanUnmask;
+                if (user != null) {
+                    if (user.getRole() != null && (user.getRole().toUpperCase().contains("ADMIN") || user.getRole().toUpperCase().contains("SUPER"))) {
+                        canUnmaskThisField = true;
+                    } else if (columnMaskingPolicyService != null) {
+                        canUnmaskThisField = columnMaskingPolicyService.canUserUnmaskField(user.getRole(), user.getDepartmentId(), domainId, key);
+                    }
+                }
+
+                // 1. Encrypted field handling - 조회 시 decrypt() 절대 호출 금지, _mask_ 캐시 우선 반환 (#171)
                 if (Boolean.TRUE.equals(fd.getIsEncrypted())) {
                     String maskKey = "_mask_" + key;
                     String maskKeyLower = "_mask_" + key.toLowerCase();
@@ -142,7 +184,7 @@ public class DataMaskingService {
 
                 // 2. Explicit sensitive masking pattern configured on field definition (e.g. RRN, PHONE, EMAIL, CARD)
                 if (isSpecificMaskingPattern(fd.getMaskingPattern())) {
-                    if (canUnmask) {
+                    if (canUnmaskThisField) {
                         result.put(key, val);
                     } else if (val instanceof String valStr) {
                         result.put(key, maskByPattern(fd.getMaskingPattern(), valStr));
@@ -172,6 +214,10 @@ public class DataMaskingService {
     }
 
     public String maskChangesJson(String changesJson, List<FieldDefinition> fields, boolean canUnmask) {
+        return maskChangesJson(changesJson, fields, null, null, canUnmask);
+    }
+
+    public String maskChangesJson(String changesJson, List<FieldDefinition> fields, com.classification.domain_system.entity.User user, UUID domainId, boolean canUnmask) {
         if (changesJson == null || changesJson.isBlank()) {
             return changesJson;
         }
@@ -182,7 +228,7 @@ public class DataMaskingService {
                 if (changes.containsKey(subKey) && changes.get(subKey) instanceof Map) {
                     @SuppressWarnings("unchecked")
                     Map<String, Object> dataMap = (Map<String, Object>) changes.get(subKey);
-                    String maskedDataStr = maskJsonData(objectMapper.writeValueAsString(dataMap), fields, canUnmask);
+                    String maskedDataStr = maskJsonData(objectMapper.writeValueAsString(dataMap), fields, user, domainId, canUnmask);
                     changes.put(subKey, objectMapper.readValue(maskedDataStr, Map.class));
                     hasSubMaps = true;
                 }
@@ -190,7 +236,7 @@ public class DataMaskingService {
             if (hasSubMaps) {
                 return objectMapper.writeValueAsString(changes);
             } else {
-                return maskJsonData(changesJson, fields, canUnmask);
+                return maskJsonData(changesJson, fields, user, domainId, canUnmask);
             }
         } catch (Exception e) {
             return changesJson;

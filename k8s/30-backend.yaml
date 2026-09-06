@@ -18,12 +18,12 @@ spec:
       labels:
         app: backend
         app.kubernetes.io/name: backend
-        app.kubernetes.io/version: "1.2.40"
-        version: "1.2.40"
+        app.kubernetes.io/version: "1.2.41"
+        version: "1.2.41"
     spec:
       containers:
       - name: backend
-        image: profavor2/mplatform-backend:1.2.40
+        image: profavor2/mplatform-backend:1.2.41
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080

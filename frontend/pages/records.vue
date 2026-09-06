@@ -426,6 +426,7 @@
       v-model="showApprovalHistoryModal"
       :request="selectedApprovalRequest"
       :node-id="selectedNode?.id || selectedRecordData?.node?.id"
+      :zIndex="1200"
     />
 
     <RecordsDomainRefModal

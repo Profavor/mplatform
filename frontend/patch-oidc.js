@@ -157,3 +157,43 @@ vuesticSwitchPaths.forEach((rel) => {
     }
   }
 });
+
+// 9. Patch security.js validateToken to support multi-issuer / reverse proxy / dynamic host validation (#208)
+const securityFile = path.resolve(process.cwd(), 'node_modules/nuxt-oidc-auth/dist/runtime/server/utils/security.js');
+if (fs.existsSync(securityFile)) {
+  let content = fs.readFileSync(securityFile, 'utf8');
+  if (!content.includes('parsedTokenIss')) {
+    const targetPattern = /export async function validateToken\(token, options\) \{[\s\S]*?const \{ payload \} = await jwtVerify\(token, jwks, \{[\s\S]*?\}\);[\s\S]*?return payload;[\s\S]*?\}/;
+    const replacement = `export async function validateToken(token, options) {
+  const jwksUri = (process.env.JWK_SET_URI && !options.jwksUri.startsWith('http://keycloak'))
+    ? process.env.JWK_SET_URI
+    : options.jwksUri;
+  const jwks = createRemoteJWKSet(new URL(jwksUri));
+  let parsedTokenIss;
+  try {
+    const parsed = parseJwtToken(token, false);
+    parsedTokenIss = parsed?.iss;
+  } catch (e) {}
+
+  let allowedIssuers = [];
+  if (options.issuer) {
+    allowedIssuers = Array.isArray(options.issuer) ? [...options.issuer] : [options.issuer];
+  }
+  if (parsedTokenIss && !allowedIssuers.includes(parsedTokenIss)) {
+    const realmMatch = parsedTokenIss.includes('/realms/mplatform');
+    if (realmMatch || allowedIssuers.length === 0) {
+      allowedIssuers.push(parsedTokenIss);
+    }
+  }
+
+  const { payload } = await jwtVerify(token, jwks, {
+    issuer: allowedIssuers.length > 0 ? (allowedIssuers.length === 1 ? allowedIssuers[0] : allowedIssuers) : undefined,
+    audience: options.audience
+  });
+  return payload;
+}`;
+    content = content.replace(targetPattern, replacement);
+    fs.writeFileSync(securityFile, content);
+    console.log('Patched nuxt-oidc-auth security.js successfully (dynamic issuer & reverse proxy support).');
+  }
+}

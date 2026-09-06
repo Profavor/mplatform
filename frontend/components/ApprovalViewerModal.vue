@@ -3,8 +3,8 @@
     :model-value="modelValue"
     v-model:fullscreen="isFullscreenModal"
     size="large"
+    :zIndex="zIndex"
     hide-default-actions
-    without-transitions
     @update:model-value="val => emit('update:modelValue', val)"
   >
     <template #header>
@@ -62,11 +62,17 @@ const { t } = useI18n()
 const { getRequestTypeLabel, getRequestTypeColor } = useApprovalEnricher()
 const isFullscreenModal = ref(false)
 
-const props = defineProps<{
-  modelValue: boolean
-  request: any
-  nodeId?: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    modelValue: boolean
+    request: any
+    nodeId?: string
+    zIndex?: number
+  }>(),
+  {
+    zIndex: 1200
+  }
+)
 
 const emit = defineEmits<{
   (e: 'update:modelValue', val: boolean): void
