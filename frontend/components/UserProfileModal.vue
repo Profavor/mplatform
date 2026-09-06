@@ -56,7 +56,36 @@
           </template>
         </div>
       </div>
+
+      <!-- Security & 2FA Section -->
+      <div style="display: flex; flex-direction: column; gap: 0.75rem; border: 1px solid var(--va-background-border); border-radius: 8px; padding: 1rem; background: var(--va-background-secondary);">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <div style="font-size: 0.88rem; font-weight: 800; color: var(--va-primary); display: flex; align-items: center; gap: 0.4rem;">
+            <va-icon name="security" size="small" color="primary" />
+            <span>{{ t('two_factor_title') }}</span>
+          </div>
+          <va-badge
+            :color="is2FaEnabled ? 'success' : 'secondary'"
+            :text="is2FaEnabled ? t('two_factor_enabled_badge') : t('two_factor_disabled_badge')"
+          />
+        </div>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+          <span style="font-size: 0.82rem; color: var(--va-text-secondary);">{{ t('two_factor_desc') }}</span>
+          <va-button size="small" preset="secondary" @click="is2FaModalOpen = true">
+            {{ t('two_factor_setup_title') }}
+          </va-button>
+        </div>
+      </div>
     </div>
+
+    <!-- 2FA Setup / Management Modal -->
+    <TwoFactorSetupModal
+      v-model:is-open="is2FaModalOpen"
+      :username="userProfile?.username || ''"
+      :is-already-enabled="is2FaEnabled"
+      @enabled="handle2FaStatusChange"
+      @disabled="handle2FaStatusChange"
+    />
 
     <template #footer>
       <div style="display: flex; justify-content: flex-end; width: 100%; margin-top: 0.5rem;">
@@ -69,10 +98,14 @@
 </template>
 
 <script setup>
+import { ref, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppModal from '~/components/common/AppModal.vue'
+import TwoFactorSetupModal from '~/components/auth/TwoFactorSetupModal.vue'
+import { useCustomFetch } from '~/composables/useCustomFetch'
 
 const { t, locale } = useI18n()
+const { customFetch } = useCustomFetch()
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -80,6 +113,31 @@ const props = defineProps({
 })
 
 defineEmits(['update:modelValue'])
+
+const is2FaModalOpen = ref(false)
+const is2FaEnabled = ref(false)
+
+const load2FaStatus = async () => {
+  if (!props.userProfile?.username) return
+  try {
+    const resp = await customFetch('/api/auth/2fa/status', {
+      params: { username: props.userProfile.username }
+    })
+    is2FaEnabled.value = Boolean(resp?.twoFactorEnabled)
+  } catch (e) {
+    // ignore
+  }
+}
+
+watch(() => props.modelValue, (isOpen) => {
+  if (isOpen) {
+    load2FaStatus()
+  }
+})
+
+const handle2FaStatusChange = () => {
+  load2FaStatus()
+}
 
 const formatLocalizedText = (val) => {
   if (!val) return '-'

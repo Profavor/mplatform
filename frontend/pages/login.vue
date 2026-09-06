@@ -36,6 +36,18 @@
         </va-card-content>
       </va-card>
 
+      <!-- 2FA Step-up Verification Modal -->
+      <TwoFactorVerifyModal
+        v-model:is-open="is2FaModalOpen"
+        :username="twoFactorUsername"
+        :temp-token="twoFactorTempToken"
+        :masked-email="twoFactorMaskedEmail"
+        :grace-period-remaining-days="twoFactorGraceDays"
+        :two-factor-type="twoFactorType"
+        @verified="handle2FaVerified"
+        @skip="handle2FaSkip"
+      />
+
       <div class="auth-footer">
         {{ $t('footer.copyright', { year: new Date().getFullYear() }) }}
       </div>
@@ -48,6 +60,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, navigateTo, useCookie, useHead } from '#app'
 import { useI18n } from 'vue-i18n'
 import { useToast, useColors } from 'vuestic-ui'
+import TwoFactorVerifyModal from '~/components/auth/TwoFactorVerifyModal.vue'
 
 definePageMeta({
   layout: false
@@ -69,6 +82,21 @@ const isDark = computed(() => currentPresetName?.value === 'dark')
 
 const { loggedIn, login, logout } = useOidcAuth()
 const authToken = useCookie('auth_token')
+
+const is2FaModalOpen = ref(false)
+const twoFactorUsername = ref('')
+const twoFactorTempToken = ref('')
+const twoFactorMaskedEmail = ref('')
+const twoFactorGraceDays = ref(null)
+const twoFactorType = ref('TOTP')
+
+const handle2FaVerified = () => {
+  redirectToDashboard()
+}
+
+const handle2FaSkip = () => {
+  redirectToDashboard()
+}
 
 const isCheckingAuth = ref(true)
 const isLoggingIn = ref(false)
@@ -156,6 +184,18 @@ watch([loggedIn, () => authToken.value], ([isLoggedIn, currentToken]) => {
 onMounted(async () => {
   if (typeof document !== 'undefined') {
     document.documentElement.lang = (locale?.value || 'ko').startsWith('en') ? 'en-US' : 'ko-KR'
+  }
+  if (route.query.temp_token && route.query.username) {
+    twoFactorUsername.value = String(route.query.username)
+    twoFactorTempToken.value = String(route.query.temp_token)
+    twoFactorMaskedEmail.value = String(route.query.masked_email || '')
+    twoFactorType.value = String(route.query.two_factor_type || 'TOTP')
+    if (route.query.grace_days) {
+      twoFactorGraceDays.value = parseInt(String(route.query.grace_days), 10)
+    }
+    is2FaModalOpen.value = true
+    isCheckingAuth.value = false
+    return
   }
   await checkAuthentication()
 })

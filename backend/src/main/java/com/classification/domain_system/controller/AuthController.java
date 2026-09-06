@@ -51,6 +51,10 @@ public class AuthController {
         String userAgent = httpRequest.getHeader("User-Agent");
 
         java.util.Map<String, String> tokens = authService.loginWithTokens(request.getUsername(), request.getPassword(), ip, userAgent);
+        if (tokens != null && "true".equals(tokens.get("twoFactorRequired"))) {
+            return ResponseEntity.ok(tokens);
+        }
+
         User user = authService.findByUsername(request.getUsername());
 
         var perms = permissionService.getAuthoritiesForUser(user.getUsername(), user.getRole()).stream()

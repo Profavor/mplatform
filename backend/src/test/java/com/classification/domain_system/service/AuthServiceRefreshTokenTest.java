@@ -62,6 +62,9 @@ class AuthServiceRefreshTokenTest {
     @Mock
     private SpecializedDomainTemplateService specializedDomainTemplateService;
 
+    @Mock
+    private TwoFactorAuthService twoFactorAuthService;
+
     @InjectMocks
     private AuthService authService;
 

@@ -57,6 +57,9 @@ class AuthServiceSelfRegisterTest {
     @Mock
     private LoginLogRepository loginLogRepository;
 
+    @Mock
+    private TwoFactorAuthService twoFactorAuthService;
+
     @InjectMocks
     private AuthService authService;
 

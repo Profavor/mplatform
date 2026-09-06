@@ -25,6 +25,7 @@ public class AuthService {
     private final com.classification.domain_system.repository.OrganizationRepository organizationRepository;
     private final com.classification.domain_system.repository.DomainPermissionRepository domainPermissionRepository;
     private final SpecializedDomainTemplateService specializedDomainTemplateService;
+    private final TwoFactorAuthService twoFactorAuthService;
 
     @org.springframework.beans.factory.annotation.Value("${keycloak.token-uri:}")
     private String keycloakTokenUri;
@@ -231,6 +232,134 @@ public class AuthService {
         return jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getId(), newSessionId);
     }
 
+    @lombok.Getter
+    @lombok.AllArgsConstructor
+    public static class TempTokenInfo {
+        private String username;
+        private String ipAddress;
+        private String userAgent;
+        private long createdAt;
+    }
+
+    private final Map<String, TempTokenInfo> tempTokenCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public String generateTempToken(String username, String ipAddress, String userAgent) {
+        cleanExpiredTempTokens();
+        String tempToken = java.util.UUID.randomUUID().toString();
+        tempTokenCache.put(tempToken, new TempTokenInfo(username, ipAddress, userAgent, System.currentTimeMillis()));
+        return tempToken;
+    }
+
+    public boolean validateTempToken(String tempToken, String username) {
+        if (tempToken == null || tempToken.isBlank() || username == null) {
+            return false;
+        }
+        TempTokenInfo info = tempTokenCache.get(tempToken);
+        if (info == null) {
+            return false;
+        }
+        if (System.currentTimeMillis() - info.getCreatedAt() > 5 * 60 * 1000) {
+            tempTokenCache.remove(tempToken);
+            return false;
+        }
+        return username.equals(info.getUsername());
+    }
+
+    public TempTokenInfo getTempTokenInfo(String tempToken) {
+        if (tempToken == null || tempToken.isBlank()) {
+            return null;
+        }
+        TempTokenInfo info = tempTokenCache.get(tempToken);
+        if (info == null) {
+            return null;
+        }
+        if (System.currentTimeMillis() - info.getCreatedAt() > 5 * 60 * 1000) {
+            tempTokenCache.remove(tempToken);
+            return null;
+        }
+        return info;
+    }
+
+    public void consumeTempToken(String tempToken) {
+        if (tempToken != null) {
+            tempTokenCache.remove(tempToken);
+        }
+    }
+
+    private void cleanExpiredTempTokens() {
+        long now = System.currentTimeMillis();
+        tempTokenCache.entrySet().removeIf(entry -> now - entry.getValue().getCreatedAt() > 10 * 60 * 1000);
+    }
+
+    public String maskEmail(String email) {
+        if (email == null || !email.contains("@")) {
+            return email != null ? email : "";
+        }
+        int atIndex = email.indexOf('@');
+        String name = email.substring(0, atIndex);
+        String domain = email.substring(atIndex);
+        if (name.length() <= 2) {
+            return name.charAt(0) + "*".repeat(Math.max(1, name.length() - 1)) + domain;
+        }
+        return name.substring(0, 2) + "*".repeat(Math.max(1, name.length() - 2)) + domain;
+    }
+
+    private Map<String, String> buildTwoFactorRequiredResponse(User user, String ipAddress, String userAgent) {
+        String tempToken = generateTempToken(user.getUsername(), ipAddress, userAgent);
+        Map<String, String> map = new HashMap<>();
+        map.put("twoFactorRequired", "true");
+        map.put("tempToken", tempToken);
+        map.put("twoFactorType", user.getTwoFactorType() != null ? user.getTwoFactorType() : (Boolean.TRUE.equals(user.getTwoFactorEnabled()) ? "TOTP" : "NONE"));
+        map.put("role", user.getRole());
+        if (user.getEmail() != null && !user.getEmail().isBlank()) {
+            map.put("maskedEmail", maskEmail(user.getEmail()));
+        }
+        if (user.getTwoFactorGraceUntil() != null && java.time.LocalDateTime.now().isBefore(user.getTwoFactorGraceUntil())) {
+            long days = java.time.Duration.between(java.time.LocalDateTime.now(), user.getTwoFactorGraceUntil()).toDays();
+            map.put("gracePeriodRemainingDays", String.valueOf(Math.max(1, days)));
+        }
+        return map;
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public Map<String, String> issueFinalTokensAfter2Fa(User user, String ipAddress, String userAgent) {
+        return issueFinalTokensAfter2Fa(user, ipAddress, userAgent, user.getTwoFactorType() != null ? user.getTwoFactorType() : "TOTP");
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public Map<String, String> issueFinalTokensAfter2Fa(User user, String ipAddress, String userAgent, String authType) {
+        if (user == null) {
+            throw new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.INVALID_CREDENTIALS,
+                    "User not found"
+            );
+        }
+
+        String userIdStr = user.getId() != null ? user.getId().toString() : null;
+        String newSessionId = java.util.UUID.randomUUID().toString();
+        sendForceLogout(user);
+        user.setActiveSessionId(newSessionId);
+        userRepository.saveAndFlush(user);
+
+        String accessToken = jwtUtil.generateToken(user.getUsername(), user.getRole(), userIdStr, newSessionId);
+        String refreshToken = jwtUtil.generateRefreshToken(user.getUsername(), user.getRole(), userIdStr, newSessionId);
+
+        com.classification.domain_system.entity.LoginLog log = com.classification.domain_system.entity.LoginLog.builder()
+                .userId(user.getId())
+                .username(user.getUsername())
+                .userAgent(userAgent)
+                .clientIp(ipAddress)
+                .twoFactorStatus("SUCCESS")
+                .twoFactorType(authType)
+                .build();
+        loginLogRepository.save(log);
+
+        Map<String, String> map = new HashMap<>();
+        map.put("token", accessToken);
+        map.put("refreshToken", refreshToken);
+        return map;
+    }
+
     @org.springframework.transaction.annotation.Transactional
     public Map<String, String> loginWithTokens(String username, String password, String ipAddress, String userAgent) {
         String accessToken = null;
@@ -262,18 +391,27 @@ public class AuthService {
                     new com.classification.domain_system.exception.BusinessException(com.classification.domain_system.exception.ErrorCode.INVALID_CREDENTIALS, "User authenticated by Keycloak but not found in local DB")
                 );
 
+                if (twoFactorAuthService != null && twoFactorAuthService.isTwoFactorRequired(user)) {
+                    return buildTwoFactorRequiredResponse(user, ipAddress, userAgent);
+                }
+
                 String sid = (String) body.get("session_state");
                 if (sid == null || sid.isBlank()) {
                     sid = java.util.UUID.randomUUID().toString();
                 }
                 sendForceLogout(user);
                 user.setActiveSessionId(sid);
+            } catch (com.classification.domain_system.exception.BusinessException be) {
+                throw be;
             } catch (Exception e) {
                 System.err.println("Keycloak login failed for user '" + username + "', falling back to local DB. Reason: " + e.getMessage());
             }
 
             if (!kcSuccess) {
                 user = validateAndProcessLogin(username, password);
+                if (twoFactorAuthService != null && twoFactorAuthService.isTwoFactorRequired(user)) {
+                    return buildTwoFactorRequiredResponse(user, ipAddress, userAgent);
+                }
                 String userIdStr = user.getId() != null ? user.getId().toString() : null;
                 String newSessionId = java.util.UUID.randomUUID().toString();
                 accessToken = jwtUtil.generateToken(user.getUsername(), user.getRole(), userIdStr, newSessionId);
@@ -283,6 +421,9 @@ public class AuthService {
             }
         } else {
             user = validateAndProcessLogin(username, password);
+            if (twoFactorAuthService != null && twoFactorAuthService.isTwoFactorRequired(user)) {
+                return buildTwoFactorRequiredResponse(user, ipAddress, userAgent);
+            }
             String userIdStr = user.getId() != null ? user.getId().toString() : null;
             String newSessionId = java.util.UUID.randomUUID().toString();
             accessToken = jwtUtil.generateToken(user.getUsername(), user.getRole(), userIdStr, newSessionId);
