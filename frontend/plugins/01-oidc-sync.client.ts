@@ -1,11 +1,18 @@
 import { useOidcAuth, useCookie } from '#imports'
 import { useAuthRefresh } from '~/composables/useAuthRefresh'
 
-export default defineNuxtPlugin((nuxtApp) => {
+export default defineNuxtPlugin(async (nuxtApp) => {
   if (!process.client || typeof document === 'undefined') return
 
-  const { loggedIn, user } = useOidcAuth()
+  const { loggedIn, user, fetch: fetchOidcSession } = useOidcAuth()
   const { setAuthCookies, clearAuthCookies, scheduleSilentRefresh, parseJwtExp, performTokenRefresh } = useAuthRefresh()
+
+  // 클라이언트 기동 시 세션 정보가 없으면 /api/_auth/session을 호출하여 세션 상태 복원
+  if (!user.value) {
+    try {
+      await fetchOidcSession()
+    } catch (e) {}
+  }
 
   const syncTokens = () => {
     if (typeof document === 'undefined') return
@@ -31,9 +38,9 @@ export default defineNuxtPlugin((nuxtApp) => {
   // 즉시 동기화
   syncTokens()
 
-  watchEffect(() => {
+  watch([loggedIn, () => user.value], () => {
     syncTokens()
-  })
+  }, { immediate: true, deep: true })
 
   // 브라우저 탭 활성화 시 토큰 만료 여부 확인 및 무중단 갱신
   if (typeof document !== 'undefined' && document.addEventListener) {

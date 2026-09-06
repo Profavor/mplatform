@@ -48,7 +48,7 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   // 1) 로그인된 사용자는 내부 업무 대시보드(/dashboard)로 자동 리다이렉트
   // 2) 비로그인 방문자는 소개 홈페이지(랜딩 페이지) 자유 열람 허용
   if (to.path === '/') {
-    if (token) {
+    if (token || loggedIn.value) {
       return navigateTo('/dashboard')
     }
     return
@@ -57,7 +57,7 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   // 회원가입 경로('/register') 접근 시:
   // 이미 로그인된 사용자는 대시보드로 리다이렉트, 비로그인 방문자는 회원가입 허용
   if (to.path === '/register') {
-    if (token) {
+    if (token || loggedIn.value) {
       return navigateTo('/dashboard')
     }
     return

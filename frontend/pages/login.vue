@@ -130,7 +130,7 @@ const getSafeRedirectUrl = () => {
       }
     } catch (e) {}
   }
-  return '/'
+  return '/dashboard'
 }
 
 const redirectToDashboard = () => {
@@ -153,7 +153,8 @@ const checkAuthentication = async () => {
   if (isError || isExpired) {
     if (loggedIn.value) {
       try {
-        await logout('keycloak')
+        const { clear } = useOidcAuth()
+        await clear()
       } catch (e) {}
     }
     initToast({
@@ -166,7 +167,7 @@ const checkAuthentication = async () => {
     return
   }
 
-  if (loggedIn.value && token) {
+  if (loggedIn.value || token) {
     redirectToDashboard()
     return
   }
@@ -214,10 +215,9 @@ const handleLogin = async () => {
     }
   }
 
-  if (loggedIn.value && !authToken.value) {
-    try {
-      await logout('keycloak')
-    } catch (e) {}
+  if (loggedIn.value) {
+    redirectToDashboard()
+    return
   }
 
   try {

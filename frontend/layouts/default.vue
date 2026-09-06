@@ -262,6 +262,7 @@ import AdminMusicControlModal from '~/components/chat/AdminMusicControlModal.vue
 import AppModal from '~/components/common/AppModal.vue'
 import ChangePasswordForm from '~/components/auth/ChangePasswordForm.vue'
 import { useRoles } from '~/composables/useRoles'
+import { useAuthRefresh } from '~/composables/useAuthRefresh'
 
 const { t, locale, setLocale } = useI18n()
 const config = useRuntimeConfig()
@@ -643,19 +644,21 @@ const currentOrgName = computed(() => {
 })
 
 const handleLogout = async () => {
+  const { clearAuthCookies } = useAuthRefresh()
+  clearAuthCookies()
   tokenCookie.value = null
   userCookie.value = null
-  if (process.client) {
-    document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-    document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-    document.cookie = 'user_data=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-  }
-  
+
   try {
-    const { logout } = useOidcAuth()
-    await logout()
+    const { clear } = useOidcAuth()
+    await clear()
   } catch (e) {
-    console.warn('OIDC logout error', e)
+    console.warn('OIDC session clear warning', e)
+  }
+
+  if (process.client) {
+    window.location.href = '/login'
+  } else {
     router.push('/login')
   }
 }

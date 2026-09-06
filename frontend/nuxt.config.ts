@@ -102,7 +102,8 @@ export default defineNuxtConfig({
         pkce: true,
         nonce: true,
         redirectUri: process.env.KEYCLOAK_REDIRECT_URI || '/auth/keycloak/callback',
-        logoutRedirectUri: process.env.KEYCLOAK_LOGOUT_REDIRECT_URI || '/login'
+        logoutRedirectUri: process.env.KEYCLOAK_LOGOUT_REDIRECT_URI || '/login',
+        callbackRedirectUrl: '/dashboard'
       }
     },
     session: {
