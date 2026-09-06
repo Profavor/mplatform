@@ -38,7 +38,7 @@
       <va-input v-model="detailForm.sortOrder" type="number" :label="t('code_management.sort_order')" outline />
       <div style="background: var(--va-background-element); padding: 1rem; border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
         <span style="font-weight: 600; font-size: 0.9rem;">{{ t('code_management.active') }}</span>
-        <va-switch v-model="detailForm.isActive" size="small" />
+        <va-switch v-model="detailForm.isActive" size="small" :aria-label="t('code_management.active', '사용 여부')" />
       </div>
     </div>
     <template #footer>

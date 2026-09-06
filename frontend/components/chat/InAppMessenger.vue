@@ -2,7 +2,7 @@
 <template>
   <div class="in-app-messenger-container">
     <!-- Floating Toggle Button (hidden on mobile when panel is open) -->
-    <div v-show="!isMobileView || !isOpen" style="position: fixed; bottom: 80px; right: 24px; z-index: 999; display: inline-flex;">
+    <div v-show="!isMobileView || !isOpen" class="messenger-fab-wrapper">
       <va-button
         preset="primary"
         :class="['messenger-toggle-btn', { 'has-unread-pulse': totalUnreadCount > 0 && !isOpen }]"
@@ -2518,5 +2518,20 @@ onUnmounted(() => {
 .calendar-day-active:hover {
   background: rgba(59, 130, 246, 0.25) !important;
   transform: scale(1.1);
+}
+
+.messenger-fab-wrapper {
+  position: fixed;
+  bottom: 80px;
+  right: 24px;
+  z-index: 999;
+  display: inline-flex;
+}
+
+@media (max-width: 768px) {
+  .messenger-fab-wrapper {
+    bottom: 90px;
+    right: 16px;
+  }
 }
 </style>

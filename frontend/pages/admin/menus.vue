@@ -1,21 +1,21 @@
 <template>
   <div style="display: flex; flex-direction: column; gap: 1.25rem; padding-bottom: 2rem;">
     <!-- Top Action Bar -->
-    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-      <div style="display: flex; align-items: center; gap: 0.75rem;">
+    <div class="top-action-bar">
+      <div class="header-title-area">
         <va-icon name="menu_book" size="large" color="primary" />
         <div>
-          <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+          <h2 class="page-title">
             {{ pageTitle }}
             <va-badge text="System" color="primary" size="small" />
           </h2>
-          <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
+          <span class="page-subtitle">
             {{ $t('menu_management_desc') }}
           </span>
         </div>
       </div>
 
-      <div style="display: flex; gap: 0.75rem; align-items: center;">
+      <div class="header-controls-area">
         <va-button v-if="hasPermission('admin:write')" preset="primary" color="warning" icon="sync" size="small" @click="syncMenuSeed">
           {{ $t('sync_menu_seed') }}
         </va-button>
@@ -31,9 +31,9 @@
 
     <va-card>
       <va-card-content>
-        <div class="d-flex" style="gap: 2rem;">
+        <div class="menu-content-container">
           <!-- Menu Tree -->
-          <div style="flex: 1; border-right: 1px solid var(--va-background-border); padding-right: 1rem;">
+          <div class="menu-tree-pane">
             <va-tree-view :nodes="treeNodes" @selected="onNodeSelected" expandable>
               <template #content="node">
                 <div class="d-flex justify-space-between align-center w-100" style="padding: 0.25rem 0; cursor: pointer;" @click="onNodeSelected(node)">
@@ -51,7 +51,7 @@
           </div>
 
           <!-- Edit Form (Decoupled Component) -->
-          <div style="flex: 2;">
+          <div class="menu-form-pane">
             <MenuEditForm
               :selected-menu="selectedMenu"
               :selected-menu-name-ko="selectedMenuNameKo"
@@ -374,5 +374,78 @@ onMounted(async () => {
   padding: 1.5rem;
   border-radius: 12px;
   border: 1px solid var(--va-background-border);
+}
+
+.top-action-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--va-background-primary);
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  border: 1px solid var(--va-background-border);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  gap: 1rem;
+}
+.header-title-area {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  word-break: keep-all;
+}
+.page-title {
+  font-weight: 700;
+  font-size: 1.35rem;
+  margin: 0;
+  color: var(--va-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  word-break: keep-all;
+}
+.page-subtitle {
+  font-size: 0.85rem;
+  color: var(--va-text-secondary);
+  word-break: keep-all;
+}
+.header-controls-area {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.menu-content-container {
+  display: flex;
+  gap: 2rem;
+}
+.menu-tree-pane {
+  flex: 1;
+  border-right: 1px solid var(--va-background-border);
+  padding-right: 1rem;
+}
+.menu-form-pane {
+  flex: 2;
+}
+
+@media (max-width: 768px) {
+  .top-action-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .header-controls-area {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .menu-content-container {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  .menu-tree-pane {
+    border-right: none;
+    border-bottom: 1px solid var(--va-background-border);
+    padding-right: 0;
+    padding-bottom: 1.5rem;
+  }
 }
 </style>

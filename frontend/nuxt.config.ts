@@ -93,7 +93,7 @@ export default defineNuxtConfig({
         validateAccessToken: true,
         validateIdToken: true,
         scope: ['openid', 'profile', 'email'],
-        clientSecret: process.env.KEYCLOAK_CLIENT_SECRET || '',
+        clientSecret: process.env.KEYCLOAK_CLIENT_SECRET || 'secret',
         authenticationScheme: 'none',
         pkce: true,
         nonce: true,
@@ -120,7 +120,7 @@ export default defineNuxtConfig({
   app: {
     head: {
       title: 'Domain Governance System',
-      titleTemplate: '%s | Domain Governance System',
+      titleTemplate: (titleChunk?: string) => (!titleChunk || titleChunk === 'Domain Governance System') ? 'Domain Governance System' : `${titleChunk} | Domain Governance System`,
       charset: 'utf-8',
       viewport: 'width=device-width, initial-scale=1',
       meta: [

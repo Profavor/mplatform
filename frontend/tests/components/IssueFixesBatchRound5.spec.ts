@@ -15,7 +15,8 @@ describe('Batch Round 5 Issue Fixes', () => {
     })
 
     it('should have a titleTemplate in app.head', () => {
-      expect(configContent).toContain("titleTemplate: '%s | Domain Governance System'")
+      expect(configContent).toContain('titleTemplate:')
+      expect(configContent).toContain('Domain Governance System')
     })
 
     it('should have meta description tag', () => {

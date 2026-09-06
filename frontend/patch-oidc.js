@@ -139,3 +139,21 @@ vuesticAriaPaths.forEach((rel) => {
     }
   }
 });
+
+// 8. Patch vuestic-ui VaSwitch to prevent $t:switch aria-label leak (#205)
+const vuesticSwitchPaths = [
+  'node_modules/vuestic-ui/dist/es/src/components/va-switch/VaSwitch.vue_vue_type_script_setup_true_lang.js',
+  'node_modules/vuestic-ui/dist/esm-node/src/components/va-switch/VaSwitch.vue_vue_type_script_setup_true_lang.mjs',
+  'node_modules/vuestic-ui/dist/web-components/src/components/va-switch/VaSwitch.vue_vue_type_script_setup_true_lang.js'
+];
+vuesticSwitchPaths.forEach((rel) => {
+  const fPath = path.resolve(process.cwd(), rel);
+  if (fs.existsSync(fPath)) {
+    let content = fs.readFileSync(fPath, 'utf8');
+    if (content.includes("useTranslationProp('$t:switch')") || content.includes('useTranslationProp("$t:switch")')) {
+      content = content.replace(/useTranslationProp\(["']\$t:switch["']\)/g, "useTranslationProp('')");
+      fs.writeFileSync(fPath, content);
+      console.log(`Patched vuestic-ui ${rel} successfully (prevent $t:switch leak).`);
+    }
+  }
+});

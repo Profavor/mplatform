@@ -290,6 +290,7 @@ const { getRoleBadgeStyle: getStoreRoleBadgeStyle, formatRoleText, initGlobalRol
 const router = useRouter()
 const tokenCookie = useCookie('auth_token')
 const userCookie = useCookie('user_data')
+const userPermissionsCookie = useCookie('user_permissions', { default: () => [] })
 const currentLocale = useCookie('locale', { default: () => 'ko' })
 const savedTheme = useCookie('theme', { default: () => 'light' })
 const authUserStore = useAuthUser()
@@ -548,8 +549,8 @@ watch(currentLocale, (newLang) => {
     document.documentElement.lang = newLang === 'en' ? 'en-US' : 'ko-KR'
   }
 }, { immediate: true })
-const isMobile = ref(typeof window !== 'undefined' ? window.innerWidth < 768 : false)
-const showSidebar = ref(typeof window !== 'undefined' ? window.innerWidth >= 768 : false)
+const isMobile = ref(typeof window !== 'undefined' ? window.innerWidth < 1024 : false)
+const showSidebar = ref(typeof window !== 'undefined' ? window.innerWidth >= 1024 : false)
 
 const route = useRoute()
 
@@ -576,19 +577,19 @@ onMounted(async () => {
   }
 
   updateNavbarHeight()
-  const isInitialMobile = window.innerWidth < 768
-  isMobile.value = isInitialMobile
-  showSidebar.value = !isInitialMobile
+  const currentWidth = window.innerWidth
+  isMobile.value = currentWidth < 1024
+  showSidebar.value = currentWidth >= 1024
 
   window.addEventListener('resize', () => {
     updateNavbarHeight()
-    const isNowMobile = window.innerWidth < 768
-    if (isMobile.value && !isNowMobile) {
-      showSidebar.value = true // Restore on PC
-    } else if (!isMobile.value && isNowMobile) {
-      showSidebar.value = false // Auto close on mobile
+    const width = window.innerWidth
+    isMobile.value = width < 1024
+    if (width >= 1024) {
+      showSidebar.value = true
+    } else {
+      showSidebar.value = false
     }
-    isMobile.value = isNowMobile
   })
   isMounted.value = true
   
@@ -829,7 +830,7 @@ body {
   background: var(--va-background-element);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1023px) {
   body {
     overflow-x: hidden;
   }

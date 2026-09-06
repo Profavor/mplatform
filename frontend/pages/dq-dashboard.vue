@@ -1,27 +1,27 @@
 <template>
   <div style="display: flex; flex-direction: column; gap: 1.25rem; padding-bottom: 2rem;">
     <!-- Top Action Bar -->
-    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-      <div style="display: flex; align-items: center; gap: 0.75rem;">
+    <div class="top-action-bar">
+      <div class="header-title-area">
         <va-icon name="dashboard" size="large" color="primary" />
         <div>
-          <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+          <h2 class="page-title">
             {{ pageTitle }}
             <va-badge text="Analytics" color="primary" size="small" />
           </h2>
-          <span style="font-size: 0.85rem; color: var(--va-text-secondary);">
+          <span class="page-subtitle">
             {{ $t('dq_dashboard_subtitle') }}
           </span>
         </div>
       </div>
 
-      <div style="display: flex; gap: 0.75rem; align-items: center;">
+      <div class="header-controls-area">
         <va-select
           v-model="selectedDomainId"
           :options="domains"
           text-by="label"
           value-by="value"
-          style="min-width: 220px;"
+          class="domain-select"
           dense
           :placeholder="$t('dq_dashboard.select_domain_placeholder')"
         />
@@ -1086,5 +1086,62 @@ function getScoreClass(score) {
   font-size: 1.1rem;
   font-weight: 600;
   text-align: center;
+}
+
+.top-action-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--va-background-primary);
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  border: 1px solid var(--va-background-border);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  gap: 1rem;
+}
+.header-title-area {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  word-break: keep-all;
+}
+.page-title {
+  font-weight: 700;
+  font-size: 1.35rem;
+  margin: 0;
+  color: var(--va-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  word-break: keep-all;
+}
+.page-subtitle {
+  font-size: 0.85rem;
+  color: var(--va-text-secondary);
+  word-break: keep-all;
+}
+.header-controls-area {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+.domain-select {
+  min-width: 220px;
+}
+
+@media (max-width: 768px) {
+  .top-action-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .header-controls-area {
+    flex-direction: row;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .domain-select {
+    flex: 1;
+    min-width: 160px;
+  }
 }
 </style>

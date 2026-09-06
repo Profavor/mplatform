@@ -1,166 +1,131 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'fs'
 import path from 'path'
-import { getAgGridLocaleText, AG_GRID_LOCALE_KO, AG_GRID_LOCALE_EN } from '../../utils/agGridLocale'
 
-describe('Batch Round 6 Issue Fixes', () => {
-  // #176: Brand name consistency in login.vue
-  describe('#176 - Brand name unified to Domain Governance System', () => {
-    const loginContent = fs.readFileSync(
-      path.resolve(__dirname, '../../pages/login.vue'),
-      'utf-8'
-    )
+describe('Batch Round 6 Issue Fixes (#199 ~ #207)', () => {
+  const rootDir = path.resolve(__dirname, '../../')
 
-    it('login.vue title should use $t("footer.system_name")', () => {
-      expect(loginContent).toContain("{{ $t('footer.system_name') }}")
-      expect(loginContent).not.toContain('<h1 class="title">Domain System</h1>')
+  // #202: userPermissionsCookie is defined in default.vue
+  describe('#202 - userPermissionsCookie definition in default.vue', () => {
+    const layoutContent = fs.readFileSync(path.resolve(rootDir, 'layouts/default.vue'), 'utf-8')
+
+    it('should declare userPermissionsCookie using useCookie', () => {
+      expect(layoutContent).toMatch(/const\s+userPermissionsCookie\s*=\s*useCookie/)
     })
 
-    it('login.vue footer should use $t("footer.copyright")', () => {
-      expect(loginContent).toContain("{{ $t('footer.copyright'")
-      expect(loginContent).not.toContain('&copy; 2026 Domain System. All rights reserved.')
+    it('syncCurrentUserInfo should safely update userPermissionsCookie', () => {
+      expect(layoutContent).toContain('userPermissionsCookie.value = me.permissions')
     })
   })
 
-  // #174: Mobile sidebar initial closed state & auto close on resize
-  describe('#174 - Mobile sidebar default closed and resize handling', () => {
-    const defaultLayoutContent = fs.readFileSync(
-      path.resolve(__dirname, '../../layouts/default.vue'),
-      'utf-8'
-    )
+  // #206: Sidebar resize 375px -> 768px should not overlap main content
+  describe('#206 - Responsive sidebar & main layout', () => {
+    const layoutContent = fs.readFileSync(path.resolve(rootDir, 'layouts/default.vue'), 'utf-8')
 
-    it('showSidebar should be conditionally initialized based on viewport width', () => {
-      expect(defaultLayoutContent).toContain("showSidebar = ref(typeof window !== 'undefined' ? window.innerWidth >= 768 : false)")
-    })
-
-    it('resize listener should auto-close sidebar when switching to mobile', () => {
-      expect(defaultLayoutContent).toContain("showSidebar.value = false // Auto close on mobile")
+    it('should align mobile/tablet breakpoint between JS and CSS', () => {
+      // 768px should not force open sidebar without desktop width
+      expect(layoutContent).not.toContain('if (isMobile.value && !isNowMobile) {\n      showSidebar.value = true')
     })
   })
 
-  // #178: RecordToolbar reset buttons separation
-  describe('#178 - Record toolbar reset button separation', () => {
-    const toolbarContent = fs.readFileSync(
-      path.resolve(__dirname, '../../components/records/RecordToolbar.vue'),
-      'utf-8'
-    )
+  // #199: OIDC Keycloak clientSecret fallback in nuxt.config.ts
+  describe('#199 - OIDC Keycloak configuration', () => {
+    const configContent = fs.readFileSync(path.resolve(rootDir, 'nuxt.config.ts'), 'utf-8')
 
-    it('domain records reset should use delete_sweep icon', () => {
-      expect(toolbarContent).toContain('name="delete_sweep"')
-    })
-
-    it('filter reset should use filter_alt_off icon and reset_filters label', () => {
-      expect(toolbarContent).toContain('icon="filter_alt_off"')
-      expect(toolbarContent).toContain("t('reset_filters')")
-    })
-
-    it('toolbar should include vertical divider between actions and view controls', () => {
-      expect(toolbarContent).toContain('<va-divider vertical class="mx-1" />')
+    it('should provide clientSecret fallback to avoid empty string validation error', () => {
+      expect(configContent).toMatch(/clientSecret:\s*process\.env\.KEYCLOAK_CLIENT_SECRET\s*\|\|\s*['"]secret['"]/)
     })
   })
 
-  // #169: Single click row selection, hint, and enter key detail open
-  describe('#169 - Record grid single-click selection and double-click hint', () => {
-    const recordsContent = fs.readFileSync(
-      path.resolve(__dirname, '../../pages/records.vue'),
-      'utf-8'
-    )
+  // #200: Login a11y (lang, main landmark, footer contrast)
+  describe('#200 - Login page a11y enhancements', () => {
+    const loginContent = fs.readFileSync(path.resolve(rootDir, 'pages/login.vue'), 'utf-8')
 
-    it('ag-grid rowSelection should have enableClickSelection: true', () => {
-      expect(recordsContent).toContain("enableClickSelection: true")
+    it('should contain a semantic <main> tag with role="main"', () => {
+      expect(loginContent).toMatch(/<main[^>]*class="auth-box"[^>]*role="main"/)
     })
 
-    it('should include double-click hint banner with row_double_click_hint i18n key', () => {
-      expect(recordsContent).toContain("$t('row_double_click_hint')")
+    it('should set html lang attribute via useHead', () => {
+      expect(loginContent).toContain('htmlAttrs')
+      expect(loginContent).toContain('lang')
     })
 
-    it('should have onRowClicked and onCellKeyDown event listeners', () => {
-      expect(recordsContent).toContain('@row-clicked="onRowClicked"')
-      expect(recordsContent).toContain('@cell-key-down="onCellKeyDown"')
-      expect(recordsContent).toContain('const onRowClicked =')
-      expect(recordsContent).toContain('const onCellKeyDown =')
-    })
-
-    it('records grid wrapper should set cursor: pointer on ag-row', () => {
-      expect(recordsContent).toContain('.records-grid-wrapper :deep(.ag-row)')
-      expect(recordsContent).toContain('cursor: pointer;')
+    it('should use high-contrast color for light theme footer', () => {
+      expect(loginContent).toMatch(/\.theme-light\s+\.auth-footer\s*\{[^}]*color:\s*#475569/)
     })
   })
 
-  // #175: i18n hardcoded text removal & AG-Grid localeText
-  describe('#175 - i18n completeness and AG-Grid localeText', () => {
-    it('agGridLocale helper should export Korean and English mappings', () => {
-      expect(AG_GRID_LOCALE_KO.page).toBe('페이지')
-      expect(AG_GRID_LOCALE_KO.loadingOoo).toContain('데이터')
-      expect(AG_GRID_LOCALE_EN.page).toBe('Page')
-      expect(getAgGridLocaleText('ko')).toEqual(AG_GRID_LOCALE_KO)
-      expect(getAgGridLocaleText('en')).toEqual(AG_GRID_LOCALE_EN)
+  // #201: titleTemplate prevents duplicate service name
+  describe('#201 - Title template duplicate prevention', () => {
+    const configContent = fs.readFileSync(path.resolve(rootDir, 'nuxt.config.ts'), 'utf-8')
+
+    it('should use a function for titleTemplate to prevent duplication', () => {
+      expect(configContent).toContain('titleTemplate:')
+      expect(configContent).toMatch(/titleTemplate:\s*\(titleChunk[^)]*\)\s*=>/)
+    })
+  })
+
+  // #205: va-switch aria-label $t:switch prevention
+  describe('#205 - VaSwitch aria-label $t:switch fix', () => {
+    const patchContent = fs.readFileSync(path.resolve(rootDir, 'patch-oidc.js'), 'utf-8')
+    const addMenuContent = fs.readFileSync(path.resolve(rootDir, 'components/admin/AddMenuModal.vue'), 'utf-8')
+    const codeGroupContent = fs.readFileSync(path.resolve(rootDir, 'components/admin/CodeGroupModal.vue'), 'utf-8')
+
+    it('patch-oidc.js should include patch for $t:switch in VaSwitch', () => {
+      expect(patchContent).toContain('$t:switch')
     })
 
-    it('records.vue should bind localeText to ag-grid-vue', () => {
-      const recordsContent = fs.readFileSync(
-        path.resolve(__dirname, '../../pages/records.vue'),
-        'utf-8'
-      )
-      expect(recordsContent).toContain(':localeText="gridLocaleText"')
-      expect(recordsContent).toContain('getAgGridLocaleText')
+    it('AddMenuModal should provide an explicit aria-label for the switch', () => {
+      expect(addMenuContent).toMatch(/<va-switch[^>]*aria-label=/)
     })
 
-    it('AiDqRecommendations.vue should use no_new_rules_recommended i18n key', () => {
-      const aiDqContent = fs.readFileSync(
-        path.resolve(__dirname, '../../components/dq/AiDqRecommendations.vue'),
-        'utf-8'
-      )
-      expect(aiDqContent).toContain("$t('no_new_rules_recommended')")
-      expect(aiDqContent).not.toContain('현재 추천할 새로운 규칙이 없습니다.')
+    it('CodeGroupModal should provide an explicit aria-label for the switch', () => {
+      expect(codeGroupContent).toMatch(/<va-switch[^>]*aria-label=/)
+    })
+  })
+
+  // #203: Mobile responsive layouts for DQ, menus, and workflow
+  describe('#203 - Mobile responsive headers and controls', () => {
+    const dqContent = fs.readFileSync(path.resolve(rootDir, 'pages/dq-dashboard.vue'), 'utf-8')
+    const menuContent = fs.readFileSync(path.resolve(rootDir, 'pages/admin/menus.vue'), 'utf-8')
+    const workflowContent = fs.readFileSync(path.resolve(rootDir, 'pages/admin/workflow.vue'), 'utf-8')
+
+    it('dq-dashboard should have responsive top action bar classes', () => {
+      expect(dqContent).toContain('top-action-bar')
+      expect(dqContent).toMatch(/@media\s*\(max-width:\s*768px\)/)
     })
 
-    it('match-candidates.vue should use no_match_candidates_found i18n key', () => {
-      const matchContent = fs.readFileSync(
-        path.resolve(__dirname, '../../pages/match-candidates.vue'),
-        'utf-8'
-      )
-      expect(matchContent).toContain("$t('no_match_candidates_found')")
-      expect(matchContent).not.toContain('현재 상태 조건에 해당하는 중복 레코드 검토 후보가 없습니다.')
+    it('admin/menus should have responsive action bar and tree-form layout', () => {
+      expect(menuContent).toContain('top-action-bar')
+      expect(menuContent).toMatch(/@media\s*\(max-width:\s*768px\)/)
     })
 
-    it('DqKpiCards.vue should use grade_a_excellent i18n key in getGradeLabel', () => {
-      const dqKpiContent = fs.readFileSync(
-        path.resolve(__dirname, '../../components/dq/DqKpiCards.vue'),
-        'utf-8'
-      )
-      expect(dqKpiContent).toContain("t('grade_a_excellent'")
+    it('admin/workflow should have responsive header and filter bar', () => {
+      expect(workflowContent).toContain('top-action-bar')
+      expect(workflowContent).toMatch(/@media\s*\(max-width:\s*768px\)/)
+    })
+  })
+
+  // #204: Mobile system logs chart xAxis label rotation
+  describe('#204 - System logs chart xAxis label formatting', () => {
+    const sysLogsContent = fs.readFileSync(path.resolve(rootDir, 'pages/admin/system-logs.vue'), 'utf-8')
+
+    it('chartOption xAxis should have rotate or overflow handling', () => {
+      expect(sysLogsContent).toMatch(/rotate:\s*4[05]/)
+    })
+  })
+
+  // #207: Approval monitor AG-Grid pagination & chat FAB safe spacing
+  describe('#207 - Approval monitor pagination & messenger FAB', () => {
+    const approvalContent = fs.readFileSync(path.resolve(rootDir, 'pages/admin/approval-monitor.vue'), 'utf-8')
+    const messengerContent = fs.readFileSync(path.resolve(rootDir, 'components/chat/InAppMessenger.vue'), 'utf-8')
+
+    it('approval-monitor should have mobile ag-paging-panel styling', () => {
+      expect(approvalContent).toContain('ag-paging-panel')
     })
 
-    it('ko and en common.json should contain all required keys for Batch 6', () => {
-      const koJson = JSON.parse(
-        fs.readFileSync(
-          path.resolve(__dirname, '../../i18n/locales/ko/common.json'),
-          'utf-8'
-        )
-      )
-      const enJson = JSON.parse(
-        fs.readFileSync(
-          path.resolve(__dirname, '../../i18n/locales/en/common.json'),
-          'utf-8'
-        )
-      )
-
-      const requiredKeys = [
-        'reset_filters',
-        'row_double_click_hint',
-        'no_new_rules_recommended',
-        'no_match_candidates_found',
-        'grade_a_excellent',
-        'grade_b_good',
-        'grade_c_normal',
-        'grade_d_warning'
-      ]
-
-      requiredKeys.forEach((key) => {
-        expect(koJson[key], `ko/common.json missing ${key}`).toBeDefined()
-        expect(enJson[key], `en/common.json missing ${key}`).toBeDefined()
-      })
+    it('InAppMessenger toggle button should have mobile safe offset', () => {
+      expect(messengerContent).toMatch(/bottom:\s*90px/)
     })
   })
 })

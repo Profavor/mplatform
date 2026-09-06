@@ -756,8 +756,11 @@ const chartOption = ref({
       data: [],
       axisTick: { alignWithLabel: true },
       axisLabel: {
-        interval: 0,
-        rotate: 0
+        interval: 'auto',
+        rotate: 45,
+        width: 80,
+        overflow: 'truncate',
+        formatter: (val) => val && val.length > 8 ? val.substring(0, 7) + '…' : val
       }
     }
   ],

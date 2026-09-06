@@ -1,6 +1,6 @@
 <template>
   <div :class="['auth-container', isDark ? 'theme-dark' : 'theme-light']">
-    <div class="auth-box">
+    <main class="auth-box" role="main">
       <!-- Welcome Header -->
       <div class="auth-header">
         <div class="logo-container">
@@ -32,13 +32,13 @@
       <div class="auth-footer">
         {{ $t('footer.copyright', { year: new Date().getFullYear() }) }}
       </div>
-    </div>
+    </main>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { useRoute, navigateTo, useCookie } from '#app'
+import { useRoute, navigateTo, useCookie, useHead } from '#app'
 import { useI18n } from 'vue-i18n'
 import { useToast, useColors } from 'vuestic-ui'
 
@@ -47,7 +47,14 @@ definePageMeta({
 })
 
 const route = useRoute()
-const { t } = useI18n()
+const { t, locale } = useI18n()
+
+useHead({
+  title: computed(() => t('footer.system_name')),
+  htmlAttrs: {
+    lang: computed(() => (locale?.value || 'ko').startsWith('en') ? 'en' : 'ko')
+  }
+})
 const { init: initToast } = useToast()
 const colors = useColors()
 const currentPresetName = colors?.currentPresetName
@@ -140,6 +147,9 @@ watch([loggedIn, () => authToken.value], ([isLoggedIn, currentToken]) => {
 }, { immediate: true })
 
 onMounted(async () => {
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = (locale?.value || 'ko').startsWith('en') ? 'en-US' : 'ko-KR'
+  }
   await checkAuthentication()
 })
 
@@ -155,6 +165,12 @@ const handleLogin = async () => {
         sessionStorage.setItem('post_login_redirect', queryRedirect)
       } catch (e) {}
     }
+  }
+
+  if (loggedIn.value && !authToken.value) {
+    try {
+      await logout('keycloak')
+    } catch (e) {}
   }
 
   try {
@@ -202,7 +218,7 @@ const handleLogin = async () => {
   border: 1px solid rgba(255, 255, 255, 0.8);
 }
 .theme-light .auth-footer {
-  color: #94a3b8;
+  color: #475569;
 }
 
 /* Dark Theme */
@@ -226,7 +242,7 @@ const handleLogin = async () => {
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 .theme-dark .auth-footer {
-  color: #64748b;
+  color: #cbd5e1;
 }
 
 /* Common Styles */
