@@ -5,6 +5,7 @@
       "why_mdm": "Why MDM",
       "features": "Capabilities",
       "cases": "Case Studies",
+      "roi_calculator": "ROI Calculator",
       "trust": "Security & Trust",
       "faq": "FAQ",
       "login": "Sign In",
@@ -17,6 +18,7 @@
       "subtitle": "Eliminate data silos across ERP, CRM, and spreadsheets with real-time 11 DQ rule validation and 5-stage end-to-end data lineage to create the Golden Record.",
       "cta_start": "Get Started Free",
       "cta_demo": "Explore Capabilities",
+      "cta_roi": "ROI Calculator",
       "badge_dq": "11 Real-Time DQ Rules",
       "badge_lineage": "5-Stage End-to-End Lineage",
       "badge_security": "Enterprise-Grade Encryption"
@@ -42,7 +44,8 @@
       "problem3_title": "Lack of Audit Trail and Data Lineage",
       "problem3_desc": "Inability to trace who changed what and where data traveled exposes enterprises to severe compliance risks.",
       "solution_title": "How MDM Platform Solves This",
-      "solution_desc": "Dynamic schema modeling, automated approval flows, and end-to-end pipelines guarantee a single, verified master record."
+      "solution_desc": "Dynamic schema modeling, automated approval flows, and end-to-end pipelines guarantee a single, verified master record.",
+      "calc_roi_cta": "Calculate Your Projected Savings"
     },
     "features": {
       "badge": "Core Capabilities",

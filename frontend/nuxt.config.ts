@@ -59,6 +59,7 @@ export default defineNuxtConfig({
           'ko/inbox.json',
           'ko/landing.json',
           'ko/records.json',
+          'ko/roi.json',
           'ko/schema.json'
         ]
       },
@@ -73,6 +74,7 @@ export default defineNuxtConfig({
           'en/inbox.json',
           'en/landing.json',
           'en/records.json',
+          'en/roi.json',
           'en/schema.json'
         ]
       }

@@ -11,11 +11,12 @@
 
         <!-- Desktop Navigation Links -->
         <nav class="landing-nav-links">
-          <a href="#why-mdm" class="nav-link">{{ $t('landing.nav.why_mdm') }}</a>
-          <a href="#features" class="nav-link">{{ $t('landing.nav.features') }}</a>
-          <a href="#cases" class="nav-link">{{ $t('landing.nav.cases') }}</a>
-          <a href="#trust" class="nav-link">{{ $t('landing.nav.trust') }}</a>
-          <a href="#faq" class="nav-link">{{ $t('landing.nav.faq') }}</a>
+          <a href="/#why-mdm" class="nav-link">{{ $t('landing.nav.why_mdm') }}</a>
+          <a href="/#features" class="nav-link">{{ $t('landing.nav.features') }}</a>
+          <a href="/#cases" class="nav-link">{{ $t('landing.nav.cases') }}</a>
+          <NuxtLink to="/roi-calculator" class="nav-link roi-nav-link">{{ $t('landing.nav.roi_calculator') }}</NuxtLink>
+          <a href="/#trust" class="nav-link">{{ $t('landing.nav.trust') }}</a>
+          <a href="/#faq" class="nav-link">{{ $t('landing.nav.faq') }}</a>
         </nav>
 
         <!-- Right Action Controls -->
@@ -85,10 +86,11 @@
         </div>
 
         <div class="footer-links">
-          <a href="#why-mdm">{{ $t('landing.nav.why_mdm') }}</a>
-          <a href="#features">{{ $t('landing.nav.features') }}</a>
-          <a href="#trust">{{ $t('landing.nav.trust') }}</a>
-          <a href="#faq">{{ $t('landing.nav.faq') }}</a>
+          <a href="/#why-mdm">{{ $t('landing.nav.why_mdm') }}</a>
+          <a href="/#features">{{ $t('landing.nav.features') }}</a>
+          <NuxtLink to="/roi-calculator">{{ $t('landing.nav.roi_calculator') }}</NuxtLink>
+          <a href="/#trust">{{ $t('landing.nav.trust') }}</a>
+          <a href="/#faq">{{ $t('landing.nav.faq') }}</a>
           <NuxtLink to="/login">{{ $t('landing.nav.login') }}</NuxtLink>
         </div>
       </div>
@@ -196,6 +198,17 @@ const toggleTheme = () => {
 
 .nav-link:hover {
   color: var(--va-primary, #2563eb);
+}
+
+.roi-nav-link {
+  color: var(--va-primary, #2563eb) !important;
+  background-color: rgba(37, 99, 235, 0.08);
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.roi-nav-link:hover {
+  background-color: rgba(37, 99, 235, 0.15);
 }
 
 .landing-nav-actions {

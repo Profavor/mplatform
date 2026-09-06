@@ -40,6 +40,16 @@
           >
             {{ $t('landing.hero.cta_demo') }}
           </va-button>
+          <va-button
+            to="/roi-calculator"
+            preset="outline"
+            color="primary"
+            size="large"
+            icon-right="calculate"
+            class="hero-secondary-cta"
+          >
+            {{ $t('landing.hero.cta_roi') }}
+          </va-button>
         </div>
 
         <!-- Trust Badges Under Hero -->
@@ -122,6 +132,16 @@
           <div class="solution-content">
             <h4>{{ $t('landing.why_mdm.solution_title') }}</h4>
             <p>{{ $t('landing.why_mdm.solution_desc') }}</p>
+          </div>
+          <div class="solution-action">
+            <va-button
+              to="/roi-calculator"
+              color="primary"
+              size="medium"
+              icon-right="trending_up"
+            >
+              {{ $t('landing.why_mdm.calc_roi_cta') }}
+            </va-button>
           </div>
         </div>
       </div>
@@ -531,6 +551,10 @@ onMounted(() => {
   gap: 1.5rem;
 }
 
+.solution-content {
+  flex: 1;
+}
+
 .solution-content h4 {
   font-size: 1.1rem;
   font-weight: 700;
@@ -543,6 +567,10 @@ onMounted(() => {
   margin: 0;
   color: var(--va-text-secondary, #475569);
   line-height: 1.5;
+}
+
+.solution-action {
+  flex-shrink: 0;
 }
 
 /* Features Grid */
