@@ -4,7 +4,7 @@ metadata:
   name: backend
   namespace: mdm-system
 spec:
-  replicas: 1
+  replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -18,13 +18,21 @@ spec:
       labels:
         app: backend
         app.kubernetes.io/name: backend
-        app.kubernetes.io/version: "1.2.43"
-        version: "1.2.43"
+        app.kubernetes.io/version: "1.2.46"
+        version: "1.2.46"
     spec:
+      terminationGracePeriodSeconds: 60
       containers:
       - name: backend
-        image: profavor2/mplatform-backend:1.2.43
+        image: profavor2/mplatform-backend:1.2.46
         imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 2
+            memory: 4Gi
         ports:
         - containerPort: 8080
         readinessProbe:
