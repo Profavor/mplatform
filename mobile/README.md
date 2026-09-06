@@ -4,6 +4,19 @@ MPlatform의 크로스 플랫폼(Android, iOS, Web) 프론트엔드 애플리케
 
 ## 🚀 주요 기능 (Key Features)
 
+* **모바일 전자결재 (Mobile Approvals):**
+  * 결재 대기 목록, 실시간 푸시 알림 수신.
+  * 모바일 원클릭 승인, 반려(사유 입력) 및 결재 위임(대결자 지정) 처리.
+* **마스터 레코드 탐색기 (Master Records Explorer):**
+  * 도메인 및 다축 분류 노드별 모바일 카드 그리드 뷰.
+  * 검색, 필터링, 민감 데이터 마스킹 적용 상태 확인.
+* **2FA / OTP 모바일 다중인증 (Two-Factor Authentication):**
+  * 모바일 환경에서의 TOTP(구글 OTP), 이메일 OTP, 일회용 긴급 백업코드 입력 및 검증.
+  * 생체 인증(생체 지문/Face ID) 연계 준비.
+* **부동산 임대차 (`LEASE_CONTRACT`) 리스크 모바일 알림:**
+  * 계약 만기 임박(D-30, D-7) 알림 및 월세 연체 상태 모바일 대시보드 위젯.
+* **모바일 데이터 계보 (Mobile Data Lineage):**
+  * 레코드의 5단계 파이프라인(Ingestion → DQ → Cleansing → Golden Record → Target) 모바일 요약 카드 뷰.
 * **실시간 채팅 (Real-time Chat):** 
   * WebSocket(`stomp_dart_client`)을 활용한 양방향 실시간 메시징.
   * 채팅방 목록 조회, 안 읽은 메시지 카운트, 읽음 처리 기능.
@@ -61,6 +74,25 @@ MPlatform 개발 시 반드시 준수해야 하는 규칙입니다.
    사용자 화면에 무의미한 Raw UUID(예: `340a0917-...`)를 그대로 노출하지 마세요. 반드시 포매팅 함수(예: `REC-...`)를 거치거나 사용자 친화적인 명칭으로 치환해야 합니다.
 4. **크로스 플랫폼 호환성 유지:**
    특정 플랫폼(Web, Android, iOS)에서만 동작하는 라이브러리(예: `dart:html`)를 전역으로 Import하지 마세요. 불가피할 경우 반드시 `if (dart.library.html)` 형태의 조건부 임포트와 Stub 파일을 활용하여 타 플랫폼 빌드 에러를 방지해야 합니다.
+
+## 🌐 모바일 웹 빌드 및 K8s 배포 (Web & K8s Deploy)
+Flutter Web 빌드 결과물은 Nginx 컨테이너로 패키징되어 K8s 클러스터(`k8s/32-mobile.yaml`)에 배포됩니다.
+
+```bash
+# 1. Flutter Web 프로덕션 빌드 (Base Href 설정 필수)
+flutter build web --release --base-href /mobile/
+
+# 2. 도커 이미지 빌드 및 배포
+docker build -t profavor2/mplatform-mobile:1.1.0 .
+minikube image load profavor2/mplatform-mobile:1.1.0
+kubectl apply -f ../k8s/32-mobile.yaml
+kubectl rollout restart deployment mobile -n mdm-system
+```
+
+- **공인 도메인 접속**: [`https://mdm.mplat.store/mobile/`](https://mdm.mplat.store/mobile/)
+- **로컬 개발 접속**: `http://localhost:8082`
+
+---
 
 ## 🏃 시작하기 (Getting Started)
 

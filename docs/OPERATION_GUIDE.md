@@ -85,43 +85,63 @@ graph TD
 
 ## 2. 🚀 배포 및 환경 구동 가이드 (Deployment & Operations)
 
-### 2.1 쿠버네티스 (K8s Minikube / Production) 배포
+### 2.1 쿠버네티스 (K8s Production / Minikube) 배포
 K8s 클러스터 배포 시 `k8s/` 매니페스트 파일들을 순서대로 적용합니다.
+고가용성 환경을 위해 백엔드와 프론트엔드는 각각 `replicas: 2` 및 무중단 RollingUpdate(`maxUnavailable: 0`, `maxSurge: 1`)로 운영됩니다.
 
-```powershell
+```bash
 # 1. Namespace 및 ConfigMap, Secret, PVC 생성
-kubectl apply -f c:\dev\ai\k8s\00-namespace.yaml
-kubectl apply -f c:\dev\ai\k8s\01-config.yaml
-kubectl apply -f c:\dev\ai\k8s\02-pvc.yaml
-kubectl apply -f c:\dev\ai\k8s\03-tls-secret.yaml
+kubectl apply -f k8s/00-namespace.yaml
+kubectl apply -f k8s/01-config.yaml
+kubectl apply -f k8s/02-pvc.yaml
+kubectl apply -f k8s/03-tls-secret.yaml
 
 # 2. 데이터베이스 & 미들웨어 파드 기동
-kubectl apply -f c:\dev\ai\k8s\10-postgres.yaml
-kubectl apply -f c:\dev\ai\k8s\11-opensearch.yaml
-kubectl apply -f c:\dev\ai\k8s\12-minio.yaml
-kubectl apply -f c:\dev\ai\k8s\13-rabbitmq.yaml
-kubectl apply -f c:\dev\ai\k8s\14-kafka-zookeeper.yaml
-kubectl apply -f c:\dev\ai\k8s\15-keycloak.yaml
-kubectl apply -f c:\dev\ai\k8s\16-redis.yaml
-kubectl apply -f c:\dev\ai\k8s\17-vault.yaml
-kubectl apply -f c:\dev\ai\k8s\18-mailserver.yaml
+kubectl apply -f k8s/10-postgres.yaml
+kubectl apply -f k8s/11-opensearch.yaml
+kubectl apply -f k8s/12-minio.yaml
+kubectl apply -f k8s/13-rabbitmq.yaml
+kubectl apply -f k8s/14-kafka-zookeeper.yaml
+kubectl apply -f k8s/15-keycloak.yaml
+kubectl apply -f k8s/16-redis.yaml
+kubectl apply -f k8s/17-vault.yaml
+kubectl apply -f k8s/18-mailserver.yaml
 
 # 3. 모니터링 & 애플리케이션 서비스 기동
-kubectl apply -f c:\dev\ai\k8s\20-prometheus.yaml
-kubectl apply -f c:\dev\ai\k8s\21-grafana.yaml
-kubectl apply -f c:\dev\ai\k8s\30-backend.yaml
-kubectl apply -f c:\dev\ai\k8s\31-frontend.yaml
-kubectl apply -f c:\dev\ai\k8s\32-mobile.yaml
-kubectl apply -f c:\dev\ai\k8s\40-ingress.yaml
+kubectl apply -f k8s/20-prometheus.yaml
+kubectl apply -f k8s/21-grafana.yaml
+kubectl apply -f k8s/30-backend.yaml
+kubectl apply -f k8s/31-frontend.yaml
+kubectl apply -f k8s/32-mobile.yaml
+kubectl apply -f k8s/40-ingress.yaml
 
 # 4. 배포 롤아웃 상태 확인
 kubectl get pods -n mdm-system -o wide
 ```
 
-### 2.2 원클릭 빌드 & 무중단 롤아웃 (`deploy.ps1`)
-소스 코드 수정 후 새로운 컨테이너 이미지를 빌드하여 무중단 롤아웃을 수행합니다.
-```powershell
-powershell -ExecutionPolicy Bypass -File c:\dev\ai\deploy.ps1
+### 2.2 초고속 모듈별 단독 배포 파이프라인
+프로덕션 배포 시 호스트 머신에서 사전 컴파일/빌드된 산출물을 재활용하여 다운타임 없이 초고속으로 배포합니다.
+
+- **프론트엔드 배포 (~20초)**:
+  ```bash
+  # frontend/package.json 및 k8s/31-frontend.yaml 버전 상향 후
+  ./deploy-frontend.sh
+  ```
+- **백엔드 배포 (~15초)**:
+  ```bash
+  # backend/pom.xml 및 k8s/30-backend.yaml 버전 상향 후
+  ./deploy-backend.sh
+  ```
+- **전체 통합 배포**:
+  ```bash
+  ./deploy.sh
+  ```
+
+### 2.3 공인 도메인 및 Let's Encrypt SSL 자동 갱신
+가비아 공인 도메인(`mdm.mplat.store`) 연동 및 Let's Encrypt SSL 인증서 자동 갱신 데몬이 구동됩니다.
+```bash
+# 인증서 수동 갱신 및 K8s 시크릿 반영 필요 시
+./renew-ssl.sh
 ```
 
 ---
@@ -134,7 +154,16 @@ powershell -ExecutionPolicy Bypass -File c:\dev\ai\deploy.ps1
 - **모바일 클라이언트**: `mdm-mobile` (OIDC PKCE 인증 흐름)
 - **동시 세션 제어**: 단일 계정 다중 로그인 감지 시 이전 세션 자동 만료 및 알림 전파
 
-### 3.2 HashiCorp Vault Transit HSM 암호화
+### 3.2 2FA / OTP 다중인증 운영 및 장애 복구 SOP
+- **인증 수단**: Google Authenticator 등 RFC 6238 TOTP, 사내 메일서버 기반 이메일 OTP (TTL 5분), 8자리 일회용 백업코드(8개).
+- **사용자 디바이스 분실/초기화 시 관리자 조치 SOP**:
+  1. 관리자 권한으로 `POST /api/users/{userId}/2fa/reset` 호출 또는 DB 플래그 초기화:
+     ```sql
+     UPDATE "user" SET two_factor_enabled = false, two_factor_secret = null WHERE username = '대상사용자';
+     ```
+  2. 사용자는 비밀번호로 로그인 후 마이페이지에서 2FA를 재등록하도록 안내.
+
+### 3.3 HashiCorp Vault Transit HSM 암호화
 - **Transit Secret Engine**: `sys/mounts/transit`
 - **마스터 암호화 키**: `mdm-field-key` (AES-256-GCM96)
 - **키 로테이션 (Key Rotation) 절차**:
@@ -144,7 +173,7 @@ powershell -ExecutionPolicy Bypass -File c:\dev\ai\deploy.ps1
   ```
   - 새 데이터는 최신 버전 키로 암호화되며, 구버전 데이터는 백그라운드 재암호화(`rewrap`)를 통해 안전하게 유지됩니다.
 
-### 3.3 제로 트러스트 하이브리드 암호화 & Blind Indexing
+### 3.4 제로 트러스트 하이브리드 암호화 & Blind Indexing
 - **민감 필드 암호화**: 32바이트 AES 대칭키 또는 Vault Transit을 통해 필드 레벨 암호화 수행.
 - **HMAC Blind Index**: 검색 성능 및 보안을 위해 원본 평문을 복호화하지 않고 `SHA-256 HMAC` 블라인드 인덱스를 생성하여 일치 검색(Exact Search)을 지원.
 
@@ -194,10 +223,10 @@ mc mirror mdm-minio/mdm-attachments /backup/minio-attachments/
 
 ### 6.1 접속 URL
 - **Swagger UI 웹 인터페이스**:
-  - Ingress Gateway: [`https://mplatform.local/api/swagger-ui.html`](https://mplatform.local/api/swagger-ui.html)
+  - 공인 도메인 Ingress: [`https://mdm.mplat.store/api/swagger-ui.html`](https://mdm.mplat.store/api/swagger-ui.html)
   - 로컬 개발 환경: [`http://localhost:8080/api/swagger-ui.html`](http://localhost:8080/api/swagger-ui.html)
 - **OpenAPI v3 JSON 명세서**:
-  - [`https://mplatform.local/api/v3/api-docs`](https://mplatform.local/api/v3/api-docs)
+  - [`https://mdm.mplat.store/api/v3/api-docs`](https://mdm.mplat.store/api/v3/api-docs)
 
 ### 6.2 4대 API 그룹 분할
 1. `00-all-apis`: 전사 전체 REST 엔드포인트

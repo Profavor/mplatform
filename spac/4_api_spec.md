@@ -1,6 +1,6 @@
 # 4. REST API & WebSocket 명세서 (API Specifications)
 
-본 문서는 백엔드(Spring Boot 4.1.0)에 구현된 **94개 컨트롤러의 전체 REST API 및 STOMP WebSocket 엔드포인트**에 대한 종합 명세서이다. (기본 Base URL: `/api`)
+본 문서는 백엔드(Spring Boot 4.1.0)에 구현된 **97개 컨트롤러의 전체 REST API 및 STOMP WebSocket 엔드포인트**에 대한 종합 명세서이다. (기본 Base URL: `/api`)
 
 ---
 
@@ -190,3 +190,30 @@
 | **STOMP 웹소켓** | `WS` | `/ws-stomp` | STOMP 웹소켓 연결 (채팅, 알림) |
 | **파일 업/다운로드**| `POST, GET` | `/api/files/upload`, `/api/files/download/{id}` | MinIO 파일 업로드 및 다운로드 |
 | **모니터링 메트릭**| `GET` | `/actuator/prometheus` | Prometheus 메트릭 수집 엔드포인트 |
+
+---
+
+## 4.10 신규 확장 API (2FA, 온보딩, 임대차 리스크, 계보, RBAC/마스킹, DQ 벤치마크)
+
+| 구분 | HTTP Method | Endpoint | 설명 |
+|---|---|---|---|
+| **2FA TOTP 발급** | `POST` | `/api/auth/2fa/setup` | Google Authenticator 연동용 Secret 및 QR URI 발급 |
+| **2FA TOTP 검증** | `POST` | `/api/auth/2fa/verify` | 6자리 OTP 코드 검증 및 2FA 최종 활성화 |
+| **2FA 이메일 OTP** | `POST` | `/api/auth/2fa/email-otp/send` | 사내 메일서버를 통한 일회용 인증코드(TTL 5분) 발송 |
+| **2FA 이메일 검증** | `POST` | `/api/auth/2fa/email-otp/verify` | 이메일로 수신된 6자리 인증코드 검증 |
+| **2FA 백업코드 발급**| `POST` | `/api/auth/2fa/backup-codes/generate` | 비상 복구용 8자리 일회용 백업코드 8개 신규 발급 |
+| **2FA 백업코드 검증**| `POST` | `/api/auth/2fa/backup-codes/verify` | 디바이스 분실 시 일회용 백업코드로 2단계 로그인 |
+| **B2B 회원가입** | `POST` | `/api/auth/signup` | B2B 셀프서비스 온보딩 회원가입 기안 |
+| **온보딩 템플릿** | `GET` | `/api/onboarding/templates` | 업종별 맞춤 도메인 템플릿(부동산, 고객, 상품 등) 목록 |
+| **도메인 프로비저닝**| `POST` | `/api/onboarding/provision` | 선택된 템플릿 기반 도메인/스키마/샘플데이터 일괄 자동 생성 |
+| **MDM ROI 계산** | `POST` | `/api/lead-magnet/roi-calculate` | 기업 규모별 마스터 데이터 오류 비용 절감액 산출 |
+| **ROI 리드 수집** | `POST` | `/api/lead-magnet/submit` | ROI 리포트 다운로드 고객 연락처 및 견적 리드 수집 |
+| **임대차 리스크 위젯**| `GET` | `/api/dashboard/lease-contract/risks` | 부동산 임대차 만기(D-30/D-7) 및 월세 연체 위험 계약 통계 |
+| **데이터 계보 5단계** | `GET` | `/api/records/{id}/pipeline-lineage` | Ingestion부터 Golden Record까지 5단계 계보 파이프라인 그래프 |
+| **RBAC 스코프 관리**| `GET, PUT` | `/api/permissions/scopes` | 역할별 도메인 및 분류 노드 접근 스코프 조회 및 설정 |
+| **컬럼 마스킹 관리** | `GET, PUT` | `/api/permissions/column-masking` | 역할별 특정 필드에 대한 런타임 동적 마스킹(`***`) 규칙 설정 |
+| **스키마 사전 시뮬** | `POST` | `/api/domains/{id}/schema-history/simulate` | 스키마 변경 전 브레이킹 체인지 및 부적합 레코드 시뮬레이션 |
+| **크로스 DQ 벤치마크**| `GET` | `/api/dq/benchmarks/cross-domain` | 전사 도메인 간 종합 품질 점수 정규화 벤치마크 및 비교 |
+| **대량 임포트 템플릿**| `GET` | `/api/records/bulk-import/template` | 도메인 필드 명세가 드롭다운/주석으로 포함된 엑셀 템플릿 생성 |
+| **대량 임포트 검증** | `POST` | `/api/records/bulk-import/validate` | 업로드 파일에 대한 행/열 단위 DQ 사전 검증 리포트 |
+

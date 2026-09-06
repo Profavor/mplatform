@@ -79,10 +79,10 @@ graph TD
 | `18-mailserver.yaml` | Deployment / Service | Docker Mailserver (SMTP, IMAP, SMTPS, IMAPS 메일 서비스) |
 | `20-prometheus.yaml`| Deployment / Service | Prometheus 메트릭 수집 엔진 (Actuator 스크랩) |
 | `21-grafana.yaml` | Deployment / Service | Grafana 모니터링 대시보드 (사전 프로비저닝) |
-| `30-backend.yaml` | Deployment / Service | Spring Boot 백엔드 애플리케이션 (JVM 옵션, 헬스체크) |
-| `31-frontend.yaml` | Deployment / Service | Nuxt 3 프론트엔드 웹 콘솔 (Node.js SSR) |
+| `30-backend.yaml` | Deployment / Service | Spring Boot 백엔드 (Replicas: 2 무중단 롤링, Readiness/Liveness Probe) |
+| `31-frontend.yaml` | Deployment / Service | Nuxt 3 프론트엔드 웹 콘솔 (Replicas: 2 무중단 롤링, Node.js SSR) |
 | `32-mobile.yaml` | Deployment / Service | Flutter 모바일 웹 클라이언트 (Nginx 서빙, 80 포트) |
-| `40-ingress.yaml` | Ingress | NGINX Ingress 라우팅 (SSL/TLS 종료, Path 라우팅) |
+| `40-ingress.yaml` | Ingress | 공인 도메인(`mdm.mplat.store`) NGINX Ingress 라우팅 (Let's Encrypt TLS, 버퍼 튜닝) |
 
 ### K8s 배포 실행 가이드:
 ```bash
@@ -107,7 +107,7 @@ kubectl apply -f k8s/18-mailserver.yaml
 kubectl apply -f k8s/20-prometheus.yaml
 kubectl apply -f k8s/21-grafana.yaml
 
-# 애플리케이션 및 인그레스 배포
+# 애플리케이션 및 인그레스 배포 (Replicas: 2 고가용성 롤링 업데이트)
 kubectl apply -f k8s/30-backend.yaml
 kubectl apply -f k8s/31-frontend.yaml
 kubectl apply -f k8s/32-mobile.yaml
@@ -116,41 +116,37 @@ kubectl apply -f k8s/40-ingress.yaml
 
 ---
 
-## 10.3 배포 및 이미지 빌드 자동화 스크립트 (`deploy.sh`, `publish-docker.sh`)
+## 10.3 배포 및 이미지 빌드 자동화 스크립트 (`deploy-*.sh`, `deploy.sh`)
 
-MPlatform은 멀티 컨테이너 서비스(Backend, Frontend, Mobile)의 빌드 및 쿠버네티스 롤아웃을 신속하고 재현 가능하게 수행하기 위한 표준화된 자동화 스크립트를 제공합니다.
+MPlatform은 다운타임 없는 초고속 모듈별 독립 배포 파이프라인과 전체 시스템 통합 배포 도구를 제공합니다.
 
-> [!NOTE]
-> **PowerShell 스크립트 제거 안내**:
-> 이전 버전에 존재하던 Windows 전용 PowerShell 스크립트(`deploy.ps1`, `publish-docker.ps1`)는 크로스플랫폼(Linux, macOS, CI/CD 러너) 호환성 보장 및 운영 환경의 일관성을 위해 완전히 제거되었습니다. 현재는 표준 Bash 스크립트(`deploy.sh`, `publish-docker.sh`)만 유지 및 사용됩니다.
+### 1. 모듈별 초고속 단독 배포 파이프라인 (표준 배포 방식)
+변경사항이 있는 모듈만 개별적으로 버전을 올리고 호스트 머신의 사전 빌드 산출물을 복사하여 배포합니다:
+- **프론트엔드 단독 배포 (`./deploy-frontend.sh`)**:
+  - 소요 시간: **~20초**
+  - 절차: 호스트 `npm run build` → Docker 이미지 생성 → Minikube 로드 → K8s 롤아웃 재시작.
+- **백엔드 단독 배포 (`./deploy-backend.sh`)**:
+  - 소요 시간: **~15초**
+  - 절차: 호스트 `mvn clean package -DskipTests` → Docker 이미지 생성 → Minikube 로드 → K8s 롤아웃 재시작.
 
-### 1. Docker 이미지 빌드 & 퍼블리시 (`publish-docker.sh`):
-Backend(Spring Boot), Frontend(Nuxt 3), Mobile(Flutter Web) 3개 컴포넌트를 지정된 레지스트리에 일괄/개별 빌드 및 푸시합니다.
+### 2. 전체 시스템 통합 배포 (`./deploy.sh`):
+전체 서비스 및 인프라를 일괄 배포할 때 사용합니다.
+```bash
+# 기본 사용법: ./deploy.sh [REGISTRY] [TAG]
+./deploy.sh profavor2 1.2.47
+```
+
+### 3. Docker 이미지 빌드 & 퍼블리시 (`publish-docker.sh`):
 ```bash
 # 기본 사용법: ./publish-docker.sh [REGISTRY] [TAG] [TARGET]
 
-# 1) 전체 서비스 v1.1.0 빌드 및 레지스트리(GHCR) 푸시
-./publish-docker.sh ghcr.io/myorg v1.1.0 all
+# 1) 최신 릴리즈 빌드 및 레지스트리 푸시
+./publish-docker.sh profavor2 1.2.47 backend
+./publish-docker.sh profavor2 1.5.76 frontend
+./publish-docker.sh profavor2 1.1.0 mobile
 
-# 2) 특정 서비스만 빌드 및 푸시 (예: backend, frontend, mobile)
-./publish-docker.sh ghcr.io/myorg v1.1.0 backend
-./publish-docker.sh ghcr.io/myorg v1.1.0 frontend
-./publish-docker.sh ghcr.io/myorg v1.1.0 mobile
-
-# 3) 환경 변수를 통한 빌드 제어 (푸시 없이 로컬 이미지 빌드)
-PUSH=false ./publish-docker.sh mplatform 1.1.0 all
-```
-
-### 2. Kubernetes 원클릭 배포 & 롤아웃 (`deploy.sh`):
-전체 19종 K8s 매니페스트를 적용하고 원격 레지스트리의 최신 이미지 태그를 주입한 뒤 롤아웃 상태를 자동 검증합니다.
-```bash
-# 기본 사용법: ./deploy.sh [REGISTRY] [TAG]
-
-# v1.1.0 버전으로 K8s 배포 및 롤아웃 갱신
-./deploy.sh ghcr.io/myorg v1.1.0
-
-# 로컬 클러스터 매니페스트 기본 적용
-./deploy.sh
+# 2) 푸시 없이 로컬 도커 이미지로만 빌드
+PUSH=false ./publish-docker.sh mplatform local-test all
 ```
 
 ---
@@ -212,3 +208,31 @@ vault write auth/kubernetes/config \
    - DB 유지보수 및 테스트 시 기존 데이터를 일괄 삭제하는 `TRUNCATE` 사용을 엄격히 금지하며, 명시적 조건 조회를 통한 개별 삭제(Delete)를 원칙으로 한다.
 3. **멱등성 시딩 (Idempotent Seeding)**:
    - 권한, 메뉴, 공통코드 등 기초 데이터 시더는 서버 재시작 시 기존 레코드 카운트를 선 검증(`count() > 0`)하여 중복 실행되지 않도록 멱등성을 보장한다.
+
+---
+
+## 10.8 공인 도메인 (`mdm.mplat.store`) 연동 & Let's Encrypt SSL 자동 갱신
+
+MPlatform은 사내망뿐만 아니라 가비아 공인 도메인(`mdm.mplat.store`)을 통해 외부 안전 접속을 지원합니다.
+
+### 1. 네트워크 및 Ingress 토폴로지
+- **가비아 DNS**: `mdm.mplat.store` → 공인 고정 IP 매핑.
+- **포트포워딩 데몬 (`port-forward.sh`)**:
+  - 호스트 네트워크 모드(`docker run --net=host`)를 사용하여 외부 80/443 트래픽을 Minikube Ingress Controller로 무손실 프록시.
+- **NGINX Ingress Controller**:
+  - TLS 종단 처리 및 SSL Redirect 강제.
+  - 경로 라우팅:
+    - `/` → 프론트엔드 (Nuxt 3 SSR)
+    - `/api` → 백엔드 코어 (Spring Boot)
+    - `/mobile/` → 모바일 웹 (Flutter Nginx)
+    - `/ws-stomp` → 실시간 웹소켓
+
+### 2. Let's Encrypt SSL 자동 갱신 (`renew-ssl.sh`)
+- Certbot HTTP-01 챌린지를 활용하여 무료 공인 와일드카드/도메인 SSL 인증서를 발급받고, K8s Secret(`mdm-tls-secret`)을 자동 갱신합니다:
+  ```bash
+  # 수동 갱신 테스트
+  ./renew-ssl.sh
+  ```
+- **systemd 사용자 타이머 연동**:
+  - 60일 주기(만료 30일 전)로 자동 갱신 스크립트가 실행되어 인증서 만료로 인한 서비스 중단을 원천 방지합니다.
+
