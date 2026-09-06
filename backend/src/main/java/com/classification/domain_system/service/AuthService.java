@@ -22,6 +22,9 @@ public class AuthService {
     private final com.classification.domain_system.websocket.WebSocketPublisher webSocketPublisher;
     private final SseNotificationService sseNotificationService;
     private final org.springframework.beans.factory.ObjectProvider<org.springframework.security.oauth2.jwt.JwtDecoder> jwtDecoderProvider;
+    private final com.classification.domain_system.repository.OrganizationRepository organizationRepository;
+    private final com.classification.domain_system.repository.DomainPermissionRepository domainPermissionRepository;
+    private final SpecializedDomainTemplateService specializedDomainTemplateService;
 
     @org.springframework.beans.factory.annotation.Value("${keycloak.token-uri:}")
     private String keycloakTokenUri;
@@ -55,6 +58,111 @@ public class AuthService {
         user.setTimezone(timezone != null && !timezone.trim().isEmpty() ? timezone : "Asia/Seoul");
         
         userRepository.save(user);
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public Map<String, String> selfRegister(com.classification.domain_system.dto.SelfRegisterRequest request, String ipAddress, String userAgent) {
+        if (request == null) {
+            throw new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.INVALID_INPUT,
+                    "Request body is required"
+            );
+        }
+
+        String username = request.getUsername() != null ? request.getUsername().trim() : "";
+        String email = request.getEmail() != null ? request.getEmail().trim() : "";
+        String password = request.getPassword() != null ? request.getPassword().trim() : "";
+        String companyName = request.getCompanyName() != null ? request.getCompanyName().trim() : "";
+        Boolean termsAgreed = request.getTermsAgreed();
+
+        if (username.isEmpty() || password.isEmpty() || companyName.isEmpty()) {
+            throw new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.INVALID_INPUT,
+                    "Username, password, and company name are required"
+            );
+        }
+
+        if (termsAgreed == null || !termsAgreed) {
+            throw new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.INVALID_INPUT,
+                    "Terms of service and privacy policy agreement is required"
+            );
+        }
+
+        if (userRepository.findByUsername(username).isPresent()) {
+            throw new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.USERNAME_ALREADY_EXISTS,
+                    "Username already exists"
+            );
+        }
+
+        // 1. Create or Find Organization
+        com.classification.domain_system.entity.Organization org = new com.classification.domain_system.entity.Organization();
+        org.setName(companyName);
+        org.setDisplayName(companyName);
+        org.setIsActive(true);
+        try {
+            org = organizationRepository.save(org);
+        } catch (Exception e) {
+            // In case of duplicate name collision, append UUID suffix or handle gracefully
+            org.setName(companyName + " (" + java.util.UUID.randomUUID().toString().substring(0, 8) + ")");
+            org = organizationRepository.save(org);
+        }
+
+        // 2. Create User
+        User user = new User();
+        user.setUsername(username);
+        user.setEmail(email);
+        user.setPassword(passwordEncoder.encode(password));
+        user.setRole("ROLE_USER,ORG_ADMIN");
+        user.setOrganizationId(org.getId());
+        user.setTimezone(request.getTimezone() != null && !request.getTimezone().trim().isEmpty() ? request.getTimezone() : "Asia/Seoul");
+        user.setIsActive(true);
+        user = userRepository.save(user);
+
+        // 3. Provision Trial Domain (CUSTOMER template)
+        try {
+            if (specializedDomainTemplateService != null) {
+                com.classification.domain_system.dto.SpecializedDomainProvisionRequest provReq =
+                        com.classification.domain_system.dto.SpecializedDomainProvisionRequest.builder()
+                                .category("CUSTOMER")
+                                .name(Map.of("ko", companyName + " 고객 마스터", "en", companyName + " Customer Master"))
+                                .build();
+                var domainResp = specializedDomainTemplateService.provisionDomainForOrganization(provReq, org.getId());
+                if (domainResp != null && domainResp.getId() != null && domainPermissionRepository != null) {
+                    com.classification.domain_system.entity.DomainPermission perm = new com.classification.domain_system.entity.DomainPermission();
+                    perm.setUser(user);
+                    com.classification.domain_system.entity.Domain dom = new com.classification.domain_system.entity.Domain();
+                    dom.setId(domainResp.getId());
+                    perm.setDomain(dom);
+                    domainPermissionRepository.save(perm);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Trial domain provisioning error for org " + org.getId() + ": " + e.getMessage());
+        }
+
+        // 4. Issue Login Tokens for seamless onboarding
+        String userIdStr = user.getId() != null ? user.getId().toString() : null;
+        String newSessionId = java.util.UUID.randomUUID().toString();
+        user.setActiveSessionId(newSessionId);
+        userRepository.saveAndFlush(user);
+
+        String accessToken = jwtUtil.generateToken(user.getUsername(), user.getRole(), userIdStr, newSessionId);
+        String refreshToken = jwtUtil.generateRefreshToken(user.getUsername(), user.getRole(), userIdStr, newSessionId);
+
+        com.classification.domain_system.entity.LoginLog log = com.classification.domain_system.entity.LoginLog.builder()
+                .userId(user.getId())
+                .username(user.getUsername())
+                .userAgent(userAgent)
+                .clientIp(ipAddress)
+                .build();
+        loginLogRepository.save(log);
+
+        Map<String, String> tokens = new HashMap<>();
+        tokens.put("token", accessToken);
+        tokens.put("refreshToken", refreshToken);
+        return tokens;
     }
 
     public boolean existsByUsername(String username) {

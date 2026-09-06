@@ -26,6 +26,13 @@
             <va-progress-circle indeterminate size="16px" color="primary" />
             <span>{{ isRedirecting ? $t('auth_redirecting') : $t('auth_checking') }}</span>
           </div>
+
+          <div class="register-prompt-container">
+            <span class="register-prompt">{{ $t('need_account') }}</span>
+            <NuxtLink to="/register" class="register-link">
+              {{ $t('link_register') }}
+            </NuxtLink>
+          </div>
         </va-card-content>
       </va-card>
 
@@ -323,5 +330,35 @@ const handleLogin = async () => {
   font-size: 0.85rem;
   font-weight: 500;
   transition: color 0.3s ease;
+}
+
+.register-prompt-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  font-size: 0.875rem;
+}
+
+.theme-dark .register-prompt-container {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+.register-prompt {
+  color: var(--va-text-secondary);
+}
+
+.register-link {
+  color: var(--va-primary);
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.register-link:hover {
+  text-decoration: underline;
 }
 </style>

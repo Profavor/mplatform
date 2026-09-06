@@ -100,6 +100,35 @@ public class AuthController {
         return ResponseEntity.ok("User registered successfully");
     }
 
+    @PostMapping("/self-register")
+    public ResponseEntity<?> selfRegister(@RequestBody com.classification.domain_system.dto.SelfRegisterRequest request, HttpServletRequest httpRequest) {
+        String ip = ClientIpUtil.getClientIp(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
+        java.util.Map<String, String> tokens = authService.selfRegister(request, ip, userAgent);
+        User user = authService.findByUsername(request.getUsername());
+
+        var perms = permissionService.getAuthoritiesForUser(user.getUsername(), user.getRole()).stream()
+            .map(a -> a.getAuthority())
+            .filter(auth -> !auth.startsWith("ROLE_"))
+            .toList();
+
+        String serverOffset = OffsetDateTime.now().getOffset().getId();
+        return ResponseEntity.ok(new LoginResponse(
+            tokens.get("token"),
+            tokens.get("refreshToken"),
+            user.getUsername(),
+            user.getRole(),
+            user.getId(),
+            user.getId(),
+            user.getOrganizationId(),
+            user.getDepartmentId(),
+            user.getTimezone(),
+            serverOffset,
+            perms,
+            false
+        ));
+    }
+
     @GetMapping("/check-username")
     public ResponseEntity<?> checkUsername(@RequestParam String username) {
         boolean exists = authService.existsByUsername(username);

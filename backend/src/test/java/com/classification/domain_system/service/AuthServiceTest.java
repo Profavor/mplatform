@@ -37,6 +37,15 @@ class AuthServiceTest {
     private LoginLogRepository loginLogRepository;
 
     @Mock
+    private com.classification.domain_system.repository.OrganizationRepository organizationRepository;
+
+    @Mock
+    private com.classification.domain_system.repository.DomainPermissionRepository domainPermissionRepository;
+
+    @Mock
+    private SpecializedDomainTemplateService specializedDomainTemplateService;
+
+    @Mock
     private com.classification.domain_system.websocket.WebSocketPublisher webSocketPublisher;
 
     @InjectMocks

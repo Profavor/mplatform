@@ -22,7 +22,7 @@
         <!-- CTA Buttons -->
         <div class="hero-cta-group">
           <va-button
-            to="/login"
+            to="/register"
             color="primary"
             size="large"
             icon-right="arrow_forward"
@@ -285,7 +285,7 @@
         <p class="bottom-cta-subtitle">{{ $t('landing.cta.subtitle') }}</p>
         <div class="bottom-cta-buttons">
           <va-button
-            to="/login"
+            to="/register"
             color="primary"
             size="large"
             icon-right="rocket_launch"

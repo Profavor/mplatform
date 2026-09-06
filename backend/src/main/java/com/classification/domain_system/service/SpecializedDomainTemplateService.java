@@ -603,17 +603,28 @@ public class SpecializedDomainTemplateService {
 
     @Transactional
     public DomainResponse provisionDomain(SpecializedDomainProvisionRequest request) {
+        return provisionDomainForOrganization(request, null);
+    }
+
+    @Transactional
+    public DomainResponse provisionDomainForOrganization(SpecializedDomainProvisionRequest request, UUID organizationId) {
         String category = request.getCategory() != null ? request.getCategory().toUpperCase() : "";
         SpecializedDomainTemplateDto template = getTemplate(category);
         Set<String> validFieldTypes = getValidFieldTypes();
 
         // 1. Find existing domain for Merge or Create new Domain
-        Domain domain = domainRepository.findBySpecializedCategory(category).orElse(null);
+        Domain domain = null;
+        if (organizationId == null) {
+            domain = domainRepository.findBySpecializedCategory(category).orElse(null);
+        }
         if (domain == null) {
             domain = new Domain();
             domain.setDomainType("SPECIALIZED");
             domain.setSpecializedCategory(category);
             domain.setSortOrder(0);
+            if (organizationId != null) {
+                domain.setOrganizationId(organizationId);
+            }
         }
 
         domain.setName(request.getName() != null && !request.getName().isEmpty() ? request.getName() : template.getName());

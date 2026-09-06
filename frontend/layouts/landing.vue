@@ -56,7 +56,7 @@
 
           <!-- Start Free / Demo CTA Button -->
           <va-button
-            to="/login"
+            to="/register"
             color="primary"
             size="small"
             class="cta-btn"
