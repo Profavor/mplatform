@@ -41,6 +41,16 @@
     <!-- 4 Core KPI Metric Cards (Decoupled Component) -->
     <DashboardKpiCards :stats="stats" />
 
+    <!-- Real Estate Lease Risk Monitoring Widget (#158) -->
+    <DashboardLeaseRiskWidget
+      v-if="leaseSummary && leaseSummary.totalLeaseContracts > 0"
+      :lease-summary="leaseSummary"
+      :is-loading="isLoading"
+      :show-refresh="true"
+      @refresh="fetchLeaseSummary"
+      @navigate-record="handleNavigateLeaseContract"
+    />
+
     <!-- Real Analytics & Distribution Charts Section (Decoupled Component) -->
     <DashboardApprovalCharts
       :trend-chart-option="trendChartOption"
@@ -80,6 +90,7 @@ import DashboardGovernanceCard from '~/components/dashboard/DashboardGovernanceC
 import DashboardTodoList from '~/components/dashboard/DashboardTodoList.vue'
 import DashboardApprovalCharts from '~/components/dashboard/DashboardApprovalCharts.vue'
 import DashboardDqCharts from '~/components/dashboard/DashboardDqCharts.vue'
+import DashboardLeaseRiskWidget from '~/components/dashboard/DashboardLeaseRiskWidget.vue'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 
 const { t } = useI18n()
@@ -88,6 +99,7 @@ const { customFetch } = useCustomFetch()
 
 const router = useRouter()
 const stats = ref(null)
+const leaseSummary = ref(null)
 const todos = ref([])
 const domainList = ref([])
 const displayInfo = ref({})
@@ -194,12 +206,31 @@ const fetchDashboardData = async () => {
       rawDqSeverity.value = await customFetch('/api/dashboard/dq-severity')
     } catch(e) {}
 
+    await fetchLeaseSummary()
     await loadDashboardTodos()
   } catch (e) {
     console.error('Error fetching dashboard data:', e)
     fetchError.value = e?.message || t('common.error_fetch', '대시보드 데이터를 불러오는 중 오류가 발생했습니다.')
   } finally {
     isLoading.value = false
+  }
+}
+
+const fetchLeaseSummary = async () => {
+  try {
+    const res = await customFetch('/api/dashboard/lease-summary')
+    if (res) {
+      leaseSummary.value = res
+    }
+  } catch (e) {
+    console.warn('Failed to load lease summary:', e)
+  }
+}
+
+const handleNavigateLeaseContract = (contract) => {
+  if (contract?.contractNo || contract?.recordId) {
+    const keyword = contract.contractNo || contract.recordId
+    router.push(`/records?search=${encodeURIComponent(keyword)}`)
   }
 }
 
