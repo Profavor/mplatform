@@ -125,6 +125,7 @@ class AuthorizationSecurityIntegrationTest {
         targetUser.setId("target-user-1");
         targetUser.setUsername("target_user");
         targetUser.setRole("ROLE_USER");
+        targetUser.setOrganizationId(UUID.randomUUID());
 
         given(authContext.getUserId()).willReturn("admin-1");
         given(userRepository.findById("target-user-1")).willReturn(Optional.of(targetUser));
