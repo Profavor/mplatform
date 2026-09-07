@@ -26,7 +26,7 @@ echo " Tag: $TAG"
 echo "================================================================"
 
 echo "==> 1. Building Nuxt on host (Fast)..."
-(cd "$SCRIPT_DIR/frontend" && NODE_OPTIONS="--max-old-space-size=4096" npm run build)
+(cd "$SCRIPT_DIR/frontend" && node patch-oidc.js && NODE_OPTIONS="--max-old-space-size=4096" npm run build)
 
 echo "==> 2. Packaging Docker image..."
 (cd "$SCRIPT_DIR/frontend" && docker build -t "profavor2/mplatform-frontend:$TAG" .)
@@ -34,14 +34,6 @@ echo "==> 2. Packaging Docker image..."
 echo "==> 3. Loading image into Minikube..."
 minikube image load --overwrite=true "profavor2/mplatform-frontend:$TAG"
 
-# .env 파일에 AG_GRID_LICENSE가 정의되어 있는 경우 Secret에 자동 패치 (Git 커밋 방지)
-if [ -f "$SCRIPT_DIR/.env" ]; then
-  AG_LICENSE=$(grep -E '^AG_GRID_LICENSE=' "$SCRIPT_DIR/.env" | cut -d '=' -f2- | tr -d '"' | tr -d "'" | xargs)
-  if [ -n "$AG_LICENSE" ]; then
-    echo "==> Syncing AG_GRID_LICENSE to k8s secret (mdm-secrets)..."
-    kubectl patch secret mdm-secrets -n mdm-system --type merge -p "{\"stringData\":{\"AG_GRID_LICENSE\":\"$AG_LICENSE\"}}" || true
-  fi
-fi
 
 echo "==> 4. Applying K8s frontend manifest..."
 kubectl apply -f "$SCRIPT_DIR/k8s/31-frontend.yaml"

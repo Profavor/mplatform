@@ -1131,5 +1131,19 @@
   "grade_a_excellent": "Grade A (Excellent)",
   "grade_b_good": "Grade B (Good)",
   "grade_c_normal": "Grade C (Fair)",
-  "grade_d_warning": "Grade D (Needs Attention)"
+  "grade_d_warning": "Grade D (Needs Attention)",
+  "media_link": "Media Link",
+  "media_link_placeholder": "Enter image or video URL (e.g., YouTube, Vimeo, MP4, PNG, JPG, etc.)",
+  "media_preview": "Media Preview",
+  "media_unsupported_or_empty": "No media registered.",
+  "media_open_link": "Open in New Tab",
+  "media_copy_link": "Copy Link",
+  "media_type_image": "Image",
+  "media_type_video": "Video",
+  "media_type_audio": "Audio",
+  "media_type_link": "Web Link",
+  "media_add_link": "Add Media Link",
+  "media_remove_link": "Delete",
+  "media_video_player": "Media Video Player",
+  "media_video_not_supported": "Your browser does not support this video format."
 }

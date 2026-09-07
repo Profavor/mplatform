@@ -203,6 +203,16 @@
                         />
                       </div>
 
+                      <!-- Media Link Viewer / Input -->
+                      <div v-else-if="field.type === 'MEDIA_LINK'" class="w-full">
+                        <MediaLinkViewer
+                          v-model="localRecord[field.key]"
+                          :multiple="field.isMultiValue"
+                          :readonly="evalConditionRule(field, localRecord).readOnly"
+                          :disabled="evalConditionRule(field, localRecord).disabled"
+                        />
+                      </div>
+
                       <!-- File Upload -->
                       <div v-else-if="field.type === 'FILE'" class="w-full">
                         <va-file-upload
@@ -431,6 +441,7 @@ import { useToast } from 'vuestic-ui'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import HtmlEditor from '~/components/common/HtmlEditor.vue'
 import ImageUploader from '~/components/common/ImageUploader.vue'
+import MediaLinkViewer from '~/components/common/MediaLinkViewer.vue'
 import AppModal from '~/components/common/AppModal.vue'
 import { parseOptions } from '~/utils/optionParser'
 import { safeEvaluateCondition } from '~/utils/safeEvaluator'

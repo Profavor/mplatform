@@ -32,7 +32,7 @@ import { useInbox } from '~/composables/useInbox'
 import { useUserStore } from '~/stores/useUserStore'
 import { useColors } from 'vuestic-ui'
 import { useTimezoneDate } from '~/composables/useTimezoneDate'
-import type { GridOptions, GridReadyEvent, IServerSideDatasource } from 'ag-grid-community'
+import type { GridOptions, GridReadyEvent, IDatasource, IGetRowsParams } from 'ag-grid-community'
 
 const props = defineProps<{
   folder: string
@@ -41,7 +41,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['select-message', 'refresh', 'update:searchKeyword'])
 const { t } = useI18n()
-const { fetchMessages, customFetch } = useInbox()
+const { fetchMessages, toggleStar, bulkMarkAsRead, bulkMoveToTrash, customFetch } = useInbox()
 const userStore = useUserStore()
 const { currentPresetName } = useColors()
 const { formatWithTimezone } = useTimezoneDate()
@@ -52,19 +52,46 @@ const localKeyword = ref(props.searchKeyword)
 let gridApi: any = null
 const selectedRows = ref<any[]>([])
 
-const onSearch = () => {
-  emit('update:searchKeyword', localKeyword.value)
-  if (gridApi) gridApi.refreshServerSide()
-}
+const createDatasource = (): IDatasource => ({
+  getRows: async (params: IGetRowsParams) => {
+    try {
+      const size = (params.endRow && params.startRow !== undefined) ? (params.endRow - params.startRow) : 50
+      const page = Math.floor((params.startRow || 0) / size)
+      const res: any = await fetchMessages(props.folder, page, size, localKeyword.value)
+      const rowData = res?.content || res?.data?.value?.content || res?.data?.content || (Array.isArray(res) ? res : [])
+      const totalCount = res?.totalElements ?? res?.data?.value?.totalElements ?? res?.data?.totalElements ?? rowData.length
+      params.successCallback(rowData, totalCount)
+    } catch (e) {
+      console.error('Failed to load inbox messages', e)
+      params.failCallback()
+    }
+  }
+})
 
-const handleRealtimeInboxRefresh = () => {
+const refreshGrid = () => {
   if (gridApi) {
-    gridApi.refreshServerSide()
+    gridApi.setGridOption('datasource', createDatasource())
   }
 }
 
+const onSearch = () => {
+  emit('update:searchKeyword', localKeyword.value)
+  refreshGrid()
+}
+
+const handleRealtimeInboxRefresh = () => {
+  refreshGrid()
+}
+
 watch(() => props.folder, () => {
-  if (gridApi) gridApi.refreshServerSide()
+  refreshGrid()
+})
+
+watch(() => props.searchKeyword, (newVal) => {
+  if (newVal !== localKeyword.value) {
+    localKeyword.value = newVal || ''
+    refreshGrid()
+  }
 })
 
 onMounted(() => {
@@ -87,52 +114,41 @@ const onRowClicked = (event: any) => {
 
 const onGridReady = (params: GridReadyEvent) => {
   gridApi = params.api
-  const dataSource: IServerSideDatasource = {
-    getRows: async (params) => {
-      try {
-        const page = Math.floor((params.request.startRow || 0) / 50)
-        const size = 50
-        const res: any = await fetchMessages(props.folder, page, size, localKeyword.value)
-        const rowData = res?.content || res?.data?.value?.content || res?.data?.content || (Array.isArray(res) ? res : [])
-        const totalCount = res?.totalElements ?? res?.data?.value?.totalElements ?? res?.data?.totalElements ?? rowData.length
-        params.success({ rowData, rowCount: totalCount })
-      } catch (e) {
-        console.error('Failed to load inbox messages', e)
-        params.success({ rowData: [], rowCount: 0 })
-      }
-    }
-  }
-  gridApi.setGridOption('serverSideDatasource', dataSource)
+  refreshGrid()
 }
 
 const markRead = async () => {
   const ids = selectedRows.value.map(r => r.id)
   if (!ids.length) return
-  await customFetch('/inbox/messages/read', { method: 'PUT', body: { messageIds: ids } })
-  if (gridApi) gridApi.refreshServerSide()
+  await bulkMarkAsRead(ids)
+  refreshGrid()
   emit('refresh')
 }
 
 const archive = async () => {
   const ids = selectedRows.value.map(r => r.id)
   if (!ids.length) return
-  await customFetch('/inbox/messages/move', { method: 'PUT', body: { messageIds: ids, targetFolder: 'ARCHIVE' } })
-  if (gridApi) gridApi.refreshServerSide()
+  await customFetch('/inbox/messages/bulk-action', {
+    method: 'POST',
+    body: { action: 'MOVE_TO_ARCHIVE', messageIds: ids }
+  })
+  refreshGrid()
   emit('refresh')
 }
 
 const trash = async () => {
   const ids = selectedRows.value.map(r => r.id)
   if (!ids.length) return
-  await customFetch('/inbox/messages/move', { method: 'PUT', body: { messageIds: ids, targetFolder: 'TRASH' } })
-  if (gridApi) gridApi.refreshServerSide()
+  await bulkMoveToTrash(ids)
+  refreshGrid()
   emit('refresh')
 }
 
 const gridOptions = computed<GridOptions>(() => {
   return {
-    rowModelType: 'serverSide',
+    rowModelType: 'infinite',
     cacheBlockSize: 50,
+    maxBlocksInCache: 10,
     getRowId: (params: any) => {
       if (params.data?.recipientId) return String(params.data.recipientId)
       if (params.data?.id) return String(params.data.id) + (params.data?.folder ? '_' + params.data.folder : '')
@@ -156,8 +172,8 @@ const gridOptions = computed<GridOptions>(() => {
         onCellClicked: async (params: any) => {
           const msg = params.data
           if (!msg) return
-          await customFetch(`/inbox/messages/${msg.id}/star`, { method: 'PUT', body: { isStarred: !msg.isStarred } })
-          if (gridApi) gridApi.refreshServerSide()
+          await toggleStar(msg.id)
+          refreshGrid()
           emit('refresh')
         }
       },
@@ -206,6 +222,7 @@ const gridOptions = computed<GridOptions>(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
   background: var(--va-background-primary);
 }
 .message-list-toolbar {
@@ -224,8 +241,10 @@ const gridOptions = computed<GridOptions>(() => {
   gap: 0.5rem;
 }
 .grid-wrapper {
-  flex-grow: 1;
+  flex: 1 1 0;
   width: 100%;
-  min-height: 300px;
+  height: 100%;
+  min-height: 0;
+  position: relative;
 }
 </style>

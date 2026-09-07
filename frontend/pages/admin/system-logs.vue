@@ -82,8 +82,8 @@
                 style="width: 100%; height: 100%;"
                 :theme="gridTheme"
                 :columnDefs="columnDefs"
-                :rowModelType="'serverSide'"
-                :serverSideDatasource="datasource"
+                rowModelType="infinite"
+                :datasource="datasource"
                 :pagination="true"
                 :paginationPageSize="20"
                 :cacheBlockSize="20"
@@ -136,8 +136,8 @@
                 style="width: 100%; height: 100%;"
                 :theme="gridTheme"
                 :columnDefs="loginColumnDefs"
-                :rowModelType="'serverSide'"
-                :serverSideDatasource="loginDatasource"
+                rowModelType="infinite"
+                :datasource="loginDatasource"
                 :pagination="true"
                 :paginationPageSize="20"
                 :cacheBlockSize="20"
@@ -167,8 +167,8 @@
                 style="width: 100%; height: 100%;"
                 :theme="gridTheme"
                 :columnDefs="errorColumnDefs"
-                :rowModelType="'serverSide'"
-                :serverSideDatasource="errorDatasource"
+                rowModelType="infinite"
+                :datasource="errorDatasource"
                 :pagination="true"
                 :paginationPageSize="20"
                 :cacheBlockSize="20"
@@ -271,8 +271,8 @@
                 style="width: 100%; height: 100%;"
                 :theme="gridTheme"
                 :columnDefs="integrationColumnDefs"
-                :rowModelType="'serverSide'"
-                :serverSideDatasource="integrationDatasource"
+                rowModelType="infinite"
+                :datasource="integrationDatasource"
                 :pagination="true"
                 :paginationPageSize="20"
                 :cacheBlockSize="20"
@@ -784,30 +784,31 @@ const onGridReady = (params) => {
 const datasource = {
   getRows: async (params) => {
     try {
-      const page = Math.floor(params.request.startRow / 20)
+      const size = (params.endRow && params.startRow !== undefined) ? (params.endRow - params.startRow) : 20
+      const page = Math.floor((params.startRow || 0) / size)
       
       const response = await $fetch('/api/menus/logs', {
         headers: token.value ? { Authorization: `Bearer ${token.value}` } : {},
         params: {
           page: page,
-          size: 20,
+          size: size,
           sort: 'accessedAt,desc'
         }
       })
       
       let lastRow = -1
-      if (response.content.length < 20) {
-        lastRow = params.request.startRow + response.content.length
+      if (response.content.length < size) {
+        lastRow = (params.startRow || 0) + response.content.length
       } else if (response.totalElements) {
         lastRow = response.totalElements
       }
       
-      params.success({ rowData: response.content, rowCount: lastRow })
+      params.successCallback(response.content || [], lastRow)
       updateChart()
       
     } catch (error) {
       console.error('Failed to fetch menu logs:', error)
-      params.fail()
+      params.failCallback()
     }
   }
 }
@@ -859,7 +860,7 @@ const updateChart = async () => {
 
 const refreshGrid = () => {
   if (gridApi.value) {
-    gridApi.value.refreshServerSide()
+    gridApi.value.setGridOption('datasource', datasource)
   }
   updateChart()
 }
@@ -921,28 +922,29 @@ const onLoginGridReady = (params) => {
 const loginDatasource = {
   getRows: async (params) => {
     try {
-      const page = Math.floor(params.request.startRow / 20)
+      const size = (params.endRow && params.startRow !== undefined) ? (params.endRow - params.startRow) : 20
+      const page = Math.floor((params.startRow || 0) / size)
       
       const response = await $fetch('/api/auth/login-logs', {
         headers: token.value ? { Authorization: `Bearer ${token.value}` } : {},
         params: {
           page: page,
-          size: 20
+          size: size
         }
       })
       
       let lastRow = -1
-      if (response.content.length < 20) {
-        lastRow = params.request.startRow + response.content.length
+      if (response.content.length < size) {
+        lastRow = (params.startRow || 0) + response.content.length
       } else if (response.totalElements) {
         lastRow = response.totalElements
       }
       
-      params.success({ rowData: response.content, rowCount: lastRow })
+      params.successCallback(response.content || [], lastRow)
       updateLoginChart()
     } catch (error) {
       console.error('Failed to fetch login logs:', error)
-      params.fail()
+      params.failCallback()
     }
   }
 }
@@ -980,7 +982,7 @@ const updateLoginChart = async () => {
 
 const refreshLoginGrid = () => {
   if (loginGridApi.value) {
-    loginGridApi.value.refreshServerSide()
+    loginGridApi.value.setGridOption('datasource', loginDatasource)
   }
   updateLoginChart()
 }
@@ -1015,34 +1017,35 @@ const onErrorGridReady = (params) => {
 const errorDatasource = {
   getRows: async (params) => {
     try {
-      const page = Math.floor(params.request.startRow / 20)
+      const size = (params.endRow && params.startRow !== undefined) ? (params.endRow - params.startRow) : 20
+      const page = Math.floor((params.startRow || 0) / size)
       
       const response = await $fetch('/api/admin/error-logs', {
         headers: token.value ? { Authorization: `Bearer ${token.value}` } : {},
         params: {
           page: page,
-          size: 20
+          size: size
         }
       })
       
       let lastRow = -1
-      if (response.content.length < 20) {
-        lastRow = params.request.startRow + response.content.length
+      if (response.content.length < size) {
+        lastRow = (params.startRow || 0) + response.content.length
       } else if (response.totalElements) {
         lastRow = response.totalElements
       }
       
-      params.success({ rowData: response.content, rowCount: lastRow })
+      params.successCallback(response.content || [], lastRow)
     } catch (error) {
       console.error('Failed to fetch error logs:', error)
-      params.fail()
+      params.failCallback()
     }
   }
 }
 
 const refreshErrorGrid = () => {
   if (errorGridApi.value) {
-    errorGridApi.value.refreshServerSide()
+    errorGridApi.value.setGridOption('datasource', errorDatasource)
   }
 }
 
@@ -1149,8 +1152,9 @@ const integrationColumnDefs = ref([
 const integrationDatasource = {
   getRows: async (params) => {
     try {
-      const page = Math.floor(params.request.startRow / 20)
-      const query = new URLSearchParams({ page: String(page), size: '20' })
+      const size = (params.endRow && params.startRow !== undefined) ? (params.endRow - params.startRow) : 20
+      const page = Math.floor((params.startRow || 0) / size)
+      const query = new URLSearchParams({ page: String(page), size: String(size) })
       if (selectedChannelId.value) query.append('channelId', selectedChannelId.value)
 
       const endpoint = isDlqOnly.value
@@ -1163,16 +1167,16 @@ const integrationDatasource = {
 
       const content = data.content || data || []
       let lastRow = -1
-      if (content.length < 20) {
-        lastRow = params.request.startRow + content.length
+      if (content.length < size) {
+        lastRow = (params.startRow || 0) + content.length
       } else if (data.totalElements) {
         lastRow = data.totalElements
       }
 
-      params.success({ rowData: content, rowCount: lastRow })
+      params.successCallback(content, lastRow)
     } catch (e) {
       console.error('Failed to load integration logs:', e)
-      params.fail()
+      params.failCallback()
     }
   }
 }
@@ -1180,7 +1184,7 @@ const integrationDatasource = {
 // 필터 변경 시 그리드 새로고침
 const fetchIntegrationLogs = (_page) => {
   if (integrationGridApi.value) {
-    integrationGridApi.value.refreshServerSide({ purge: true })
+    integrationGridApi.value.setGridOption('datasource', integrationDatasource)
   }
 }
 

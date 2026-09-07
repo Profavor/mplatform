@@ -1131,5 +1131,19 @@
   "grade_a_excellent": "Grade A (우수)",
   "grade_b_good": "Grade B (양호)",
   "grade_c_normal": "Grade C (보통)",
-  "grade_d_warning": "Grade D (주의)"
+  "grade_d_warning": "Grade D (주의)",
+  "media_link": "미디어 링크",
+  "media_link_placeholder": "이미지 또는 동영상 URL을 입력하세요 (예: YouTube, Vimeo, MP4, PNG, JPG 등)",
+  "media_preview": "미디어 미리보기",
+  "media_unsupported_or_empty": "등록된 미디어가 없습니다.",
+  "media_open_link": "새 탭에서 열기",
+  "media_copy_link": "링크 복사",
+  "media_type_image": "이미지",
+  "media_type_video": "동영상",
+  "media_type_audio": "오디오",
+  "media_type_link": "웹 링크",
+  "media_add_link": "미디어 링크 추가",
+  "media_remove_link": "삭제",
+  "media_video_player": "미디어 동영상 재생",
+  "media_video_not_supported": "브라우저가 이 동영상 형식을 지원하지 않습니다."
 }

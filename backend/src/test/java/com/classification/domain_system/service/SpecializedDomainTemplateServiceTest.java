@@ -135,7 +135,7 @@ class SpecializedDomainTemplateServiceTest extends BaseServiceTest {
             Set<String> validCommonCodeFieldTypes = Set.of(
                     "TEXT", "NUMBER", "DATE", "BOOLEAN", "JSON", "SELECT",
                     "DOMAIN_REFERENCE", "TIME", "HTML_TEXT", "CALCULATED",
-                    "MULTILINGUAL", "FILE", "IMAGE", "DATE_RANGE", "EMAIL"
+                    "MULTILINGUAL", "FILE", "IMAGE", "DATE_RANGE", "EMAIL", "MEDIA_LINK"
             );
 
             List<SpecializedDomainTemplateDto> templates = templateService.getTemplates();

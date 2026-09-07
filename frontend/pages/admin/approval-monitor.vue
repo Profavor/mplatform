@@ -254,11 +254,7 @@ const columnDefs = computed(() => [
       return createTargetTypeBadgeElement(params.value, isDark.value)
     },
     valueFormatter: (params) => formatTargetType(params.value),
-    filter: 'agSetColumnFilter',
-    filterParams: {
-      values: ['RECORD_CREATE', 'RECORD_UPDATE', 'RECORD_DELETE', 'BULK_UPLOAD', 'SCHEMA', 'MEMO'],
-      valueFormatter: (params) => formatTargetType(params.value)
-    }
+    filter: 'agTextColumnFilter'
   },
   { 
     headerName: t('colDomain') || '도메인 / 대상', 
@@ -296,13 +292,7 @@ const columnDefs = computed(() => [
     field: 'status', 
     width: 110,
     valueFormatter: (params) => getStatusText(params.value),
-    filter: 'agSetColumnFilter',
-    filterParams: {
-      values: ['SUBMITTED', 'PENDING', 'APPROVED', 'REJECTED'],
-      valueFormatter: (params) => {
-        return getStatusText(params.value);
-      }
-    },
+    filter: 'agTextColumnFilter',
     cellStyle: (params) => {
       if (params.value === 'PENDING') return { color: 'orange', fontWeight: 'bold' }
       if (params.value === 'APPROVED') return { color: 'green', fontWeight: 'bold' }

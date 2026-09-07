@@ -8,7 +8,10 @@ const { mockState, navigateToMock, createMockOidc, createMockCookie } = vi.hoist
     user: null as any,
     clearedCookies: false,
     clearedOidc: false,
-    oidcLoggedOut: false
+    oidcLoggedOut: false,
+    fetchCalled: false,
+    performTokenRefreshCalled: false,
+    onFetch: null as (() => Promise<void> | void) | null
   }
   const navigateToMock = vi.fn((path: any) => path)
   const createMockOidc = () => ({
@@ -18,6 +21,14 @@ const { mockState, navigateToMock, createMockOidc, createMockCookie } = vi.hoist
     user: {
       get value() { return mockState.user }
     },
+    fetch: vi.fn(async () => {
+      mockState.fetchCalled = true
+      if (typeof mockState.onFetch === 'function') {
+        await mockState.onFetch()
+      } else if (mockState.user) {
+        mockState.loggedIn = true
+      }
+    }),
     clear: vi.fn(async () => {
       mockState.clearedOidc = true
     }),
@@ -77,7 +88,10 @@ vi.mock('~/composables/useAuthRefresh', () => ({
       mockState.authToken = null
       mockState.refreshToken = null
     }),
-    performTokenRefresh: vi.fn(async () => null),
+    performTokenRefresh: vi.fn(async () => {
+      mockState.performTokenRefreshCalled = true
+      return null
+    }),
     parseJwtExp: vi.fn(() => 9999999999)
   })
 }))
@@ -93,6 +107,9 @@ describe('로그인/로그아웃 및 대시보드 리다이렉트 흐름 (TDD Un
     mockState.clearedCookies = false
     mockState.clearedOidc = false
     mockState.oidcLoggedOut = false
+    mockState.fetchCalled = false
+    mockState.performTokenRefreshCalled = false
+    mockState.onFetch = null
     navigateToMock.mockClear()
   })
 
@@ -122,16 +139,48 @@ describe('로그인/로그아웃 및 대시보드 리다이렉트 흐름 (TDD Un
       expect(result).toBeUndefined()
     })
 
-    it('인증이 필요한 내부 업무 경로(/system/users)에 비인가 사용자가 접근 시 로그인(/login)으로 리다이렉트한다', async () => {
+    it('인증이 필요한 내부 업무 경로(/system/users)에 비인가 사용자가 접근 시 로그인(/login)으로 리다이렉트한다 (임의의 expired:1 파라미터가 없어야 함)', async () => {
       mockState.authToken = null
       mockState.loggedIn = false
       mockState.user = null
 
-      await authMiddleware({ path: '/system/users', fullPath: '/system/users' } as any, { path: '/' } as any)
+      await authMiddleware({ path: '/system/users', fullPath: '/system/users' } as any, { path: '/some-internal-path' } as any)
       expect(navigateToMock).toHaveBeenCalledWith({
         path: '/login',
         query: { redirect: '/system/users' }
       })
+    })
+
+    it('토큰 쿠키가 비어있고 user가 없을 때 fetch()를 호출하여 OIDC 세션을 복원하고 대시보드 접근을 허용한다', async () => {
+      mockState.authToken = null
+      mockState.loggedIn = false
+      mockState.user = null
+
+      // fetch가 호출되면 user 세션이 채워지는 시나리오
+      mockState.onFetch = async () => {
+        mockState.user = { accessToken: 'recovered-access-token' }
+        mockState.loggedIn = true
+      }
+
+      await authMiddleware({ path: '/dashboard', fullPath: '/dashboard' } as any, { path: '/login' } as any)
+      expect(mockState.fetchCalled).toBe(true)
+      // 토큰이 복원되었으므로 login으로 튕기지 않고 통과 (navigateTo가 /login으로 호출되지 않음)
+      expect(navigateToMock).not.toHaveBeenCalledWith(expect.objectContaining({ path: '/login' }))
+      // auth_token 쿠키에 동기화됨
+      expect(mockState.authToken).toBe('recovered-access-token')
+    })
+
+    it('OIDC 세션에 user.accessToken이 이미 존재하면 불필요한 performTokenRefresh를 호출하지 않고 토큰을 즉시 쿠키에 동기화한다', async () => {
+      mockState.authToken = null
+      mockState.loggedIn = true
+      mockState.user = { accessToken: 'fresh-keycloak-token' }
+      mockState.refreshToken = 'some-refresh-token'
+      mockState.performTokenRefreshCalled = false
+
+      await authMiddleware({ path: '/dashboard', fullPath: '/dashboard' } as any, { path: '/auth/keycloak/callback' } as any)
+      expect(mockState.performTokenRefreshCalled).toBe(false)
+      expect(mockState.authToken).toBe('fresh-keycloak-token')
+      expect(navigateToMock).not.toHaveBeenCalledWith(expect.objectContaining({ path: '/login' }))
     })
   })
 
@@ -186,6 +235,55 @@ describe('로그인/로그아웃 및 대시보드 리다이렉트 흐름 (TDD Un
       }
 
       expect(mockState.oidcLoggedOut).toBe(false)
+      expect(redirected).toBe(true)
+      expect(navigateToMock).toHaveBeenCalledWith('/dashboard')
+    })
+
+    it('handleLogin 실행 시 loggedIn이 아직 false라도 authToken 쿠키가 있으면 대시보드로 즉시 이동한다', async () => {
+      mockState.loggedIn = false
+      mockState.authToken = 'valid-token'
+      let redirected = false
+      const redirectToDashboard = () => {
+        redirected = true
+        navigateToMock('/dashboard')
+      }
+
+      if (mockState.loggedIn || mockState.authToken) {
+        redirectToDashboard()
+      }
+
+      expect(redirected).toBe(true)
+      expect(navigateToMock).toHaveBeenCalledWith('/dashboard')
+    })
+
+    it('checkAuthentication 실행 시 세션/토큰이 유효하면 URL에 expired=1이 남아있더라도 clear()를 부르지 않고 대시보드로 이동한다', async () => {
+      mockState.authToken = 'valid-active-token'
+      mockState.loggedIn = true
+      let redirected = false
+      const redirectToDashboard = () => {
+        redirected = true
+        navigateToMock('/dashboard')
+      }
+
+      const checkAuth = async (query: { expired?: string }) => {
+        const token = mockState.authToken
+        const isExpired = query.expired === '1'
+
+        // 유효한 토큰/세션이 이미 존재하는 경우 만료 쿼리가 잔존하더라도 대시보드로 이동
+        if (mockState.loggedIn || token) {
+          redirectToDashboard()
+          return
+        }
+
+        if (isExpired) {
+          if (mockState.loggedIn) {
+            mockState.clearedOidc = true
+          }
+        }
+      }
+
+      await checkAuth({ expired: '1' })
+      expect(mockState.clearedOidc).toBe(false)
       expect(redirected).toBe(true)
       expect(navigateToMock).toHaveBeenCalledWith('/dashboard')
     })

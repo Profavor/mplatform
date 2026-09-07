@@ -150,6 +150,12 @@ const checkAuthentication = async () => {
   const isExpired = route.query.expired === '1' || route.query.expired === 'true' || route.query.reason === 'expired'
   const isError = Boolean(route.query.error)
 
+  // 이미 유효한 토큰 또는 로그인 세션이 확보된 경우 만료 파라미터가 잔존하더라도 대시보드로 이동
+  if (loggedIn.value || token) {
+    redirectToDashboard()
+    return
+  }
+
   if (isError || isExpired) {
     if (loggedIn.value) {
       try {
@@ -167,17 +173,12 @@ const checkAuthentication = async () => {
     return
   }
 
-  if (loggedIn.value || token) {
-    redirectToDashboard()
-    return
-  }
   isCheckingAuth.value = false
 }
 
 // Keycloak 콜백 복귀 시 비동기로 세션 및 토큰이 채워지는 즉시 감지하여 대시보드로 이동
 watch([loggedIn, () => authToken.value], ([isLoggedIn, currentToken]) => {
-  const isExpired = route.query.expired === '1' || route.query.expired === 'true' || route.query.reason === 'expired'
-  if (isLoggedIn && currentToken && !route.query.error && !isExpired) {
+  if (isLoggedIn || currentToken) {
     redirectToDashboard()
   }
 }, { immediate: true })
@@ -215,7 +216,7 @@ const handleLogin = async () => {
     }
   }
 
-  if (loggedIn.value) {
+  if (loggedIn.value || authToken.value) {
     redirectToDashboard()
     return
   }

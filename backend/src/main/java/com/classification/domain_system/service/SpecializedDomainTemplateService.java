@@ -680,7 +680,7 @@ public class SpecializedDomainTemplateService {
         return Set.of(
                 "TEXT", "NUMBER", "DATE", "BOOLEAN", "JSON", "SELECT",
                 "DOMAIN_REFERENCE", "TIME", "HTML_TEXT", "CALCULATED",
-                "MULTILINGUAL", "FILE", "IMAGE", "DATE_RANGE", "EMAIL"
+                "MULTILINGUAL", "FILE", "IMAGE", "DATE_RANGE", "EMAIL", "MEDIA_LINK"
         );
     }
 

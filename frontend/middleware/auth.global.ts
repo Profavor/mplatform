@@ -12,14 +12,35 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     return
   }
 
-  const { loggedIn, user } = useOidcAuth()
+  const { loggedIn, user, fetch: fetchOidcSession } = useOidcAuth()
   let token = useCookie('auth_token').value
   const refreshToken = useCookie('refresh_token').value
 
   const { performTokenRefresh, parseJwtExp } = useAuthRefresh()
 
-  // 토큰 쿠키가 비어있으나 OIDC 세션이나 리프레시 토큰이 살아있는 경우 무중단 토큰 갱신 시도
-  if (!token && (loggedIn.value || !!refreshToken)) {
+  // 1. 토큰 쿠키가 없고 user 세션 정보도 없는 경우 세션 상태 복원 시도 (SSR 및 클라이언트 공통)
+  if (!token && !user.value && typeof fetchOidcSession === 'function') {
+    try {
+      await fetchOidcSession()
+    } catch (e) {
+      console.warn('Auth middleware: OIDC session fetch failed', e)
+    }
+  }
+
+  // 2. OIDC 세션에서 토큰이 확인되는 경우 즉시 token에 할당하고 쿠키에 동기화
+  if (!token && (loggedIn.value || user.value?.accessToken) && user.value?.accessToken) {
+    token = user.value.accessToken
+    try {
+      const exp = parseJwtExp(token)
+      const nowSec = Math.floor(Date.now() / 1000)
+      const maxAge = exp && exp > nowSec ? Math.max(60, exp - nowSec) : 1800
+      const tokenCookie = useCookie('auth_token', { maxAge, path: '/', sameSite: 'lax' })
+      tokenCookie.value = token
+    } catch (e) {}
+  }
+
+  // 3. 토큰 쿠키가 여전히 비어있고 리프레시 토큰이 살아있는 경우 무중단 토큰 갱신 시도
+  if (!token && !!refreshToken) {
     try {
       token = await performTokenRefresh()
     } catch (e) {
@@ -37,11 +58,6 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
         console.warn('Auth middleware: Proactive refresh failed', e)
       }
     }
-  }
-
-  // OIDC 세션에서 토큰이 확인되는 경우 쿠키가 채워질 때까지 동기화 허용
-  if (!token && loggedIn.value && user.value?.accessToken) {
-    token = user.value.accessToken
   }
 
   // 루트 경로('/') 접근 시 로그인 상태에 따라 분기:
@@ -64,7 +80,8 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   }
 
   if (!token) {
-    const isExpired = !!refreshToken || Boolean(from && from.path && from.path !== '/login' && from.path !== '/')
+    // 기존에 리프레시 토큰이 존재했으나 갱신에 실패한 만료 세션인 경우에만 expired: '1' 표시
+    const isExpired = !!refreshToken
     const redirectPath = (to.fullPath && to.fullPath !== '/' && to.fullPath !== '/login') ? to.fullPath : undefined
     return navigateTo({
       path: '/login',

@@ -141,7 +141,6 @@ export default defineNuxtConfig({
     }
   },
   runtimeConfig: {
-    agGridLicense: process.env.AG_GRID_LICENSE || '',
     public: {
       appVersion: process.env.APP_VERSION || (pkg?.version ? `v${pkg.version}` : ''),
       buildTime: new Date().toISOString(),

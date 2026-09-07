@@ -74,11 +74,11 @@
 
 ---
 
-## 8.10 AG-Grid Vue3 엔터프라이즈 그리드 대용량 최적화
-- **Enterprise 가상 스크롤 (Virtual Scrolling)**:
+## 8.10 AG-Grid Vue3 그리드 대용량 최적화 (Community Infinite Model)
+- **가상 스크롤 (Virtual Scrolling)**:
   - 수만 건 이상의 마스터 레코드를 렌더링할 때 브라우저 DOM 노드를 뷰포트 내의 행만 동적으로 유지하여 메모리 누수와 렌더링 병목을 원천 제거.
 - **서버사이드 페이징 & 정렬/필터 (Server-Side Operations)**:
-  - 클라이언트로 전건을 수신하지 않고 AG-Grid의 `ServerSideRowModel` 및 백엔드 Spring Data JPA `Pageable`을 연동하여, 수십만 건 데이터에 대해 100ms 이내의 실시간 페이징 및 다중 컬럼 정렬/필터링을 지원.
+  - 클라이언트로 전건을 수신하지 않고 AG-Grid Community 무한 스크롤 모델(`InfiniteRowModel`) 및 백엔드 Spring Data JPA `Pageable`을 연동하여, 수십만 건 데이터에 대해 100ms 이내의 실시간 페이징 및 다중 컬럼 정렬/필터링을 지원.
 
 ---
 

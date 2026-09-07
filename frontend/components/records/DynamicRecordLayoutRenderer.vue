@@ -117,6 +117,16 @@
                 <span v-else class="sample-val-text text-secondary">{{ $t('no_file_data') }}</span>
               </div>
 
+              <!-- MEDIA_LINK -->
+              <div v-else-if="getFieldType(widget) === 'MEDIA_LINK'" class="single-row-file w-full">
+                <MediaLinkViewer
+                  :model-value="record[widget.fieldKey]"
+                  :readonly="!isEditing"
+                  :disabled="!isEditing || widget.options?.readOnly"
+                  @update:model-value="(val) => setFieldValue(widget.fieldKey, val)"
+                />
+              </div>
+
               <!-- TEXT_BANNER -->
               <div v-else-if="widget.type === 'TEXT_BANNER'" class="single-row-banner" :class="['style-' + (widget.options?.bgStyle || 'filled'), 'align-' + (widget.options?.align || 'left')]">
                 <strong class="banner-highlight-text">{{ getFieldValue(widget.fieldKey) || getWidgetTitle(widget) }}</strong>
@@ -266,6 +276,26 @@
                   <span class="empty-text">{{ $t('no_image_data') }}</span>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <!-- 1-1. MEDIA_LINK WIDGET -->
+          <div v-else-if="widget.type === 'MEDIA_LINK' || isFieldType(widget, 'MEDIA_LINK')" class="widget-image-box">
+            <div class="widget-box-header">
+              <span class="widget-box-title">
+                <va-icon name="perm_media" size="14px" color="primary" class="mr-1" />
+                {{ getWidgetTitle(widget) }}
+                <span v-if="isFieldRequired(widget)" class="required-star">*</span>
+              </span>
+            </div>
+            <div class="widget-image-content" style="overflow-y: auto; padding: 0.5rem;" :style="{ height: getImageContentHeight(widget) }">
+              <MediaLinkViewer
+                :model-value="record[widget.fieldKey]"
+                :readonly="!isEditing"
+                :disabled="!isEditing || widget.options?.readOnly"
+                :multiple="getFieldDefinition(widget.fieldKey)?.isMultiValue"
+                @update:model-value="(val) => setFieldValue(widget.fieldKey, val)"
+              />
             </div>
           </div>
 
@@ -849,6 +879,7 @@ import { useI18n } from 'vue-i18n'
 import HtmlEditor from '~/components/common/HtmlEditor.vue'
 import ImageUploader from '~/components/common/ImageUploader.vue'
 import ImageLightboxModal from '~/components/common/ImageLightboxModal.vue'
+import MediaLinkViewer from '~/components/common/MediaLinkViewer.vue'
 import SpecializedDomainWidgetRenderer from './specialized/SpecializedDomainWidgetRenderer.vue'
 import { parseOptions } from '~/utils/optionParser'
 import { formatMultilingual } from '~/composables/useMultilingual'

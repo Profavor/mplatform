@@ -648,6 +648,15 @@
         },
         "sortOrder": 15,
         "isActive": true
+      },
+      {
+        "detailCode": "MEDIA_LINK",
+        "name": {
+          "ko": "🎬🔗 미디어 링크 (Media Link)",
+          "en": "🎬🔗 Media Link"
+        },
+        "sortOrder": 16,
+        "isActive": true
       }
     ]
   },
