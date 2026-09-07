@@ -1,6 +1,6 @@
 {
   "name": "classification-front",
-  "version": "1.5.79",
+  "version": "1.5.80",
   "private": true,
   "type": "module",
   "scripts": {
@@ -49,7 +49,7 @@
     "node-fetch": "^3.3.2",
     "nuxt": "^3.21.11",
     "nuxt-auth-utils": "^0.5.30",
-    "nuxt-oidc-auth": "^1.0.0-beta.12",
+    "nuxt-oidc-auth": "1.0.0-beta.11",
     "pinia": "^4.0.3",
     "vue-echarts": "^7.0.3",
     "vue3-emoji-picker": "^1.1.8",
