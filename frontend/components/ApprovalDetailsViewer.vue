@@ -270,6 +270,12 @@
                                       </div>
                                     </div>
                                   </template>
+                                  <template v-else-if="f.type === 'MEDIA_LINK' && (f.val?.before !== undefined ? f.val.before : f.val)">
+                                    <MediaLinkViewer
+                                      :model-value="f.val?.before !== undefined ? f.val.before : f.val"
+                                      :readonly="true"
+                                    />
+                                  </template>
                                   <template v-else-if="(['HTML_TEXT', 'HTML', 'RICHTEXT', 'RICH_TEXT'].includes(f.type) || (typeof (f.val?.before !== undefined ? f.val.before : f.val) === 'string' && (f.val?.before !== undefined ? f.val.before : f.val).includes('<p>'))) && (f.val?.before !== undefined ? f.val.before : f.val)">
                                     <div class="custom-html-preview" style="border: 1px solid rgba(239, 68, 68, 0.25);" @click="handleHtmlImageClick" v-html="f.val?.before !== undefined ? f.val.before : f.val" />
                                   </template>
@@ -333,6 +339,12 @@
                                         </div>
                                       </div>
                                     </div>
+                                  </template>
+                                  <template v-else-if="f.type === 'MEDIA_LINK' && (f.val?.after !== undefined ? f.val.after : f.val)">
+                                    <MediaLinkViewer
+                                      :model-value="f.val?.after !== undefined ? f.val.after : f.val"
+                                      :readonly="true"
+                                    />
                                   </template>
                                   <template v-else-if="(['HTML_TEXT', 'HTML', 'RICHTEXT', 'RICH_TEXT'].includes(f.type) || (typeof (f.val?.after !== undefined ? f.val.after : f.val) === 'string' && (f.val?.after !== undefined ? f.val.after : f.val).includes('<p>'))) && (f.val?.after !== undefined ? f.val.after : f.val)">
                                     <div class="custom-html-preview" style="border: 1px solid rgba(34, 197, 94, 0.25);" @click="handleHtmlImageClick" v-html="f.val?.after !== undefined ? f.val.after : f.val" />
@@ -457,6 +469,7 @@ import ApprovalHistoryTimeline from './approval/ApprovalHistoryTimeline.vue'
 import UnmaskReasonModal from './UnmaskReasonModal.vue'
 import ImageUploader from './common/ImageUploader.vue'
 import ImageLightboxModal from './common/ImageLightboxModal.vue'
+import MediaLinkViewer from './common/MediaLinkViewer.vue'
 import { useToast } from 'vuestic-ui'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useAuthenticatedImage } from '~/composables/useAuthenticatedImage'

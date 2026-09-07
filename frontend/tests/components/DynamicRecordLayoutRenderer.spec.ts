@@ -481,5 +481,72 @@ describe('DynamicRecordLayoutRenderer - 암호화 필드 보안 마스킹 및 �
       expect(activeBtn?.text()).toBe('정규 계약')
     })
   })
+
+  describe('2D 레이아웃 미디어링크(MEDIA_LINK) 렌더링 (TDD)', () => {
+    const mediaLayout = {
+      id: 'layout_media_test',
+      cols: 12,
+      rowHeight: 40,
+      widgets: [
+        {
+          id: 'w_media_single',
+          type: 'FIELD',
+          fieldKey: 'media_intro',
+          w: 6,
+          h: 1
+        },
+        {
+          id: 'w_media_rich',
+          type: 'MEDIA_LINK',
+          fieldKey: 'media_video',
+          w: 6,
+          h: 3
+        }
+      ]
+    }
+
+    const mediaFields = [
+      {
+        key: 'media_intro',
+        name: { ko: '소개 미디어', en: 'Intro Media' },
+        type: 'MEDIA_LINK'
+      },
+      {
+        key: 'media_video',
+        name: { ko: '동영상 미디어', en: 'Video Media' },
+        type: 'MEDIA_LINK'
+      }
+    ]
+
+    const mediaRecord = {
+      media_intro: 'https://example.com/photo.jpg',
+      media_video: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+    }
+
+    it('단일 행 및 멀티행 위젯 모드에서 MEDIA_LINK 필드가 MediaLinkViewer 컴포넌트로 정상 렌더링되어야 한다', () => {
+      const wrapper = mount(DynamicRecordLayoutRenderer, {
+        props: {
+          layoutConfig: mediaLayout,
+          fields: mediaFields,
+          record: mediaRecord,
+          isEditing: false
+        },
+        global: {
+          plugins: [i18n],
+          stubs: { vaIcon: true, vaBadge: true, vaChip: true, vaInput: true, vaSelect: true }
+        }
+      })
+
+      // 이미지 태그 렌더링 확인
+      const img = wrapper.find('img.media-preview-img')
+      expect(img.exists()).toBe(true)
+      expect(img.attributes('src')).toBe('https://example.com/photo.jpg')
+
+      // 유튜브 iframe 태그 렌더링 확인
+      const iframe = wrapper.find('iframe.media-preview-iframe')
+      expect(iframe.exists()).toBe(true)
+      expect(iframe.attributes('src')).toContain('https://www.youtube.com/embed/dQw4w9WgXcQ')
+    })
+  })
 })
 

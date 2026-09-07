@@ -71,7 +71,7 @@
             style="width: 100%; height: 100%;"
             :theme="gridTheme"
             :columnDefs="groupColumnDefs"
-            :rowModelType="'serverSide'"
+            rowModelType="infinite"
             :pagination="true"
             :paginationPageSize="20"
             :cacheBlockSize="20"
@@ -159,7 +159,6 @@ import { useCodeStore } from '~/stores/useCodeStore'
 import CodeGroupModal from '~/components/admin/CodeGroupModal.vue'
 import CodeDetailModal from '~/components/admin/CodeDetailModal.vue'
 import 'vue3-emoji-picker/css'
-import 'ag-grid-enterprise'
 
 const { t } = useI18n()
 usePageTitle('code_management.title')
@@ -272,43 +271,42 @@ const groupColumnDefs = computed(() => [
     }
   }
 
-const onGridReady = (params) => {
-  gridApi.value = params.api
-  const datasource = {
-    getRows: async (rowParams) => {
-      try {
-        const page = Math.floor(rowParams.request.startRow / 20)
-        let sortStr = 'groupCode,asc'
-        if (rowParams.request.sortModel && rowParams.request.sortModel.length > 0) {
-          const s = rowParams.request.sortModel[0]
-          sortStr = `${s.colId},${s.sort}`
-        }
-
-        let url = `/api/code-groups/page?page=${page}&size=20&sort=${sortStr}`
-        if (searchKeyword.value) {
-          url += `&keyword=${encodeURIComponent(searchKeyword.value)}`
-        }
-
-        const data = await $fetch(url, {
-          headers: { Authorization: `Bearer ${token.value}` }
-        })
-        
-        rowParams.success({
-          rowData: data.content,
-          rowCount: data.totalElements
-        })
-      } catch (e) {
-        init({ message: t('code_management.load_failed'), color: 'danger' })
-        rowParams.fail()
+const createDatasource = () => ({
+  getRows: async (rowParams) => {
+    try {
+      const size = (rowParams.endRow && rowParams.startRow !== undefined) ? (rowParams.endRow - rowParams.startRow) : 20
+      const page = Math.floor((rowParams.startRow || 0) / size)
+      let sortStr = 'groupCode,asc'
+      if (rowParams.sortModel && rowParams.sortModel.length > 0) {
+        const s = rowParams.sortModel[0]
+        sortStr = `${s.colId},${s.sort}`
       }
+
+      let url = `/api/code-groups/page?page=${page}&size=${size}&sort=${sortStr}`
+      if (searchKeyword.value) {
+        url += `&keyword=${encodeURIComponent(searchKeyword.value)}`
+      }
+
+      const data = await $fetch(url, {
+        headers: { Authorization: `Bearer ${token.value}` }
+      })
+      
+      rowParams.successCallback(data.content || [], data.totalElements || 0)
+    } catch (e) {
+      init({ message: t('code_management.load_failed'), color: 'danger' })
+      rowParams.failCallback()
     }
   }
-  params.api.setGridOption('serverSideDatasource', datasource)
+})
+
+const onGridReady = (params) => {
+  gridApi.value = params.api
+  params.api.setGridOption('datasource', createDatasource())
 }
 
 const refreshGrid = () => {
   if (gridApi.value) {
-    gridApi.value.refreshServerSide()
+    gridApi.value.setGridOption('datasource', createDatasource())
   }
 }
 

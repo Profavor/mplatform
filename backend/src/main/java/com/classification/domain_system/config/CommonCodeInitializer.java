@@ -19,6 +19,8 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -33,18 +35,54 @@ public class CommonCodeInitializer {
     @Transactional
     public void initCommonCodes() {
         try {
-            if (codeGroupRepository.count() > 0) {
-                log.info("Common code data already exists. Skipping initialization.");
-                return;
-            }
-
-            log.info("No common code data found. Initializing from default_codes.json...");
-
             List<CommonCodeSeedDto> seedData = loadDefaultCodes();
             if (seedData == null || seedData.isEmpty()) {
                 log.warn("No default codes found in default_codes.json!");
                 return;
             }
+
+            if (codeGroupRepository.count() > 0) {
+                log.info("Common code data exists. Checking and syncing missing seed codes...");
+                int addedDetailCount = 0;
+                for (CommonCodeSeedDto dto : seedData) {
+                    CodeGroup group = codeGroupRepository.findByGroupCode(dto.getGroupCode()).orElse(null);
+                    if (group == null) {
+                        group = new CodeGroup();
+                        group.setGroupCode(dto.getGroupCode());
+                        group.setName(dto.getName());
+                        group.setDescription(dto.getDescription());
+                        group.setIsActive(dto.getIsActive() != null ? dto.getIsActive() : true);
+                        group = codeGroupRepository.save(group);
+                    }
+                    if (dto.getDetails() != null && !dto.getDetails().isEmpty()) {
+                        List<CodeDetail> existing = codeDetailRepository.findByCodeGroupIdOrderBySortOrderAsc(group.getId());
+                        Set<String> existingCodes = existing.stream().map(CodeDetail::getDetailCode).collect(Collectors.toSet());
+                        List<CodeDetail> missingDetails = new ArrayList<>();
+                        for (CommonCodeDetailSeedDto dDto : dto.getDetails()) {
+                            if (!existingCodes.contains(dDto.getDetailCode())) {
+                                CodeDetail detail = new CodeDetail();
+                                detail.setCodeGroup(group);
+                                detail.setDetailCode(dDto.getDetailCode());
+                                detail.setName(dDto.getName());
+                                detail.setSortOrder(dDto.getSortOrder() != null ? dDto.getSortOrder() : 0);
+                                detail.setIsActive(dDto.getIsActive() != null ? dDto.getIsActive() : true);
+                                missingDetails.add(detail);
+                            }
+                        }
+                        if (!missingDetails.isEmpty()) {
+                            codeDetailRepository.saveAll(missingDetails);
+                            addedDetailCount += missingDetails.size();
+                            log.info("Synced {} missing details for group {}: {}",
+                                    missingDetails.size(), group.getGroupCode(),
+                                    missingDetails.stream().map(CodeDetail::getDetailCode).collect(Collectors.toList()));
+                        }
+                    }
+                }
+                log.info("Common code sync finished. Added {} missing details.", addedDetailCount);
+                return;
+            }
+
+            log.info("No common code data found. Initializing from default_codes.json...");
 
             int groupCount = 0;
             int detailCount = 0;

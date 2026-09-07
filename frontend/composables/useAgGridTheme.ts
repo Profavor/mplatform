@@ -1,5 +1,4 @@
 import { computed } from 'vue'
-import 'ag-grid-enterprise'
 import { themeQuartz, colorSchemeDark } from 'ag-grid-community'
 import { useColors } from 'vuestic-ui'
 

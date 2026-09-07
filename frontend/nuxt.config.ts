@@ -102,7 +102,8 @@ export default defineNuxtConfig({
         pkce: true,
         nonce: true,
         redirectUri: process.env.KEYCLOAK_REDIRECT_URI || '/auth/keycloak/callback',
-        logoutRedirectUri: process.env.KEYCLOAK_LOGOUT_REDIRECT_URI || '/login'
+        logoutRedirectUri: process.env.KEYCLOAK_LOGOUT_REDIRECT_URI || '/login',
+        callbackRedirectUrl: '/dashboard'
       }
     },
     session: {
@@ -140,7 +141,6 @@ export default defineNuxtConfig({
     }
   },
   runtimeConfig: {
-    agGridLicense: process.env.AG_GRID_LICENSE || '',
     public: {
       appVersion: process.env.APP_VERSION || (pkg?.version ? `v${pkg.version}` : ''),
       buildTime: new Date().toISOString(),

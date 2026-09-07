@@ -1769,7 +1769,7 @@ const getFieldType = (widget: any) => {
 const isImageField = (widget: any) => {
   const type = getFieldType(widget)
   const key = (widget.fieldKey || '').toLowerCase()
-  return widget.type === 'IMAGE' || type === 'IMAGE' || key.includes('photo') || key.includes('image') || key.includes('avatar')
+  return widget.type === 'IMAGE' || type === 'IMAGE' || type === 'MEDIA_LINK' || key.includes('photo') || key.includes('image') || key.includes('avatar') || key.includes('media') || key.includes('video')
 }
 
 const isEditorField = (widget: any) => {
@@ -1889,7 +1889,7 @@ const WIDGET_COMPATIBLE_FIELD_TYPES: Record<string, string[]> = {
   TEXT_INPUT: ['TEXT', 'EMAIL'],
   MULTILINGUAL_INPUT: ['MULTILINGUAL'],
   TEXT_BANNER: ['TEXT'],
-  FIELD: ['TEXT', 'EMAIL'],
+  FIELD: ['TEXT', 'EMAIL', 'MEDIA_LINK'],
   TEXT_AREA: ['TEXTAREA'],
   EDITOR: ['HTML_TEXT'],
 
@@ -1914,8 +1914,8 @@ const WIDGET_COMPATIBLE_FIELD_TYPES: Record<string, string[]> = {
 
   // 5. 미디어, 참조 & 서브테이블
   FILE_ATTACHMENT: ['FILE'],
-  IMAGE_BOX: ['IMAGE'],
-  IMAGE_VIEWER: ['IMAGE'],
+  IMAGE_BOX: ['IMAGE', 'MEDIA_LINK'],
+  IMAGE_VIEWER: ['IMAGE', 'MEDIA_LINK'],
   DOMAIN_REF_CARD: ['DOMAIN_REFERENCE'],
   JSON_SUBTABLE: ['JSON']
 }
@@ -2084,6 +2084,7 @@ const addPredefinedFieldWidget = (field: any) => {
       h = 1
       break
     case 'IMAGE':
+    case 'MEDIA_LINK':
       widgetType = 'IMAGE_BOX'
       w = 3
       h = 2
@@ -2450,7 +2451,7 @@ const autoGenerateLayout = () => {
   let currentY = 0
 
   props.fields.forEach((field: any) => {
-    const isImage = field.type === 'IMAGE' || field.key.includes('photo') || field.key.includes('image')
+    const isImage = field.type === 'IMAGE' || field.type === 'MEDIA_LINK' || field.key.includes('photo') || field.key.includes('image') || field.key.includes('media') || field.key.includes('video')
     const isEditor = field.type === 'HTML' || field.type === 'RICHTEXT' || field.key.includes('desc') || field.key.includes('content')
     const isTable = field.type === 'TABLE' || field.type === 'JSON' || field.isTable || (field.options && String(field.options).includes('tableSchema'))
 

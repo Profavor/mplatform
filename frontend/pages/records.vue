@@ -470,6 +470,13 @@
       :images="gridLightboxImages"
       :initial-index="gridLightboxIndex"
     />
+
+    <!-- AG-Grid Video Player Modal -->
+    <VideoPlayerModal
+      v-model="showGridVideoModal"
+      :url="gridVideoUrl"
+      :title="gridVideoTitle"
+    />
   </div>
 </div>
 </template>
@@ -498,6 +505,8 @@ import ApprovalViewerModal from '~/components/ApprovalViewerModal.vue'
 import BulkReclassifyModal from '~/components/records/BulkReclassifyModal.vue'
 import CdcStreamModal from '~/components/records/CdcStreamModal.vue'
 import ImageLightboxModal from '~/components/common/ImageLightboxModal.vue'
+import VideoPlayerModal from '~/components/common/VideoPlayerModal.vue'
+import { parseMediaList } from '~/utils/mediaUtils'
 import { parseOptions, formatOptionLabel } from '~/utils/optionParser'
 import { getAgGridLocaleText } from '~/utils/agGridLocale'
 import { safeEvaluateCondition, safeEvaluateFormula } from '~/utils/safeEvaluator'
@@ -538,6 +547,21 @@ const openGridImageLightbox = (images, startIndex = 0) => {
 // Expose to window for AG-Grid DOM-based cellRenderer access
 if (typeof window !== 'undefined') {
   window.__openGridImageLightbox = openGridImageLightbox
+}
+
+// AG-Grid Video Player State
+const showGridVideoModal = ref(false)
+const gridVideoUrl = ref('')
+const gridVideoTitle = ref('')
+
+const openGridVideoPlayer = (url, title) => {
+  gridVideoUrl.value = url
+  gridVideoTitle.value = title || ''
+  showGridVideoModal.value = true
+}
+
+if (typeof window !== 'undefined') {
+  window.__openGridVideoPlayer = openGridVideoPlayer
 }
 
 const formatNodeName = (nameObj) => {
@@ -1762,6 +1786,81 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
 
         return container;
       }
+    } else if (f.type === 'MEDIA_LINK') {
+      colDef.cellRenderer = (params) => {
+        if (!params || !params.value) return '-';
+        const mediaList = parseMediaList(params.value);
+        if (mediaList.length === 0) return '-';
+
+        const container = document.createElement('div');
+        container.style.cssText = 'display: flex; align-items: center; gap: 6px; height: 100%; cursor: pointer;';
+
+        const first = mediaList[0];
+
+        if (first.type === 'IMAGE') {
+          const imgEl = document.createElement('img');
+          imgEl.style.cssText = 'width: 32px; height: 32px; border-radius: 4px; object-fit: cover; border: 1px solid rgba(0,0,0,0.1); background: #eee; cursor: pointer;';
+          imgEl.alt = first.title || t('media_type_image');
+          imgEl.src = first.thumbnailUrl || first.url;
+
+          const lightboxItems = mediaList
+            .filter(m => m.type === 'IMAGE')
+            .map((m, idx) => ({ url: m.url, name: m.title || `${t('preview_image')} ${idx + 1}` }));
+
+          const handleClick = (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (lightboxItems.length > 0 && typeof window !== 'undefined' && window.__openGridImageLightbox) {
+              window.__openGridImageLightbox(lightboxItems, 0);
+            }
+          };
+          container.addEventListener('click', handleClick);
+          container.appendChild(imgEl);
+        } else if (first.type === 'VIDEO' || first.type === 'YOUTUBE' || first.type === 'VIMEO') {
+          const videoBox = document.createElement('div');
+          videoBox.style.cssText = 'position: relative; width: 32px; height: 32px; border-radius: 4px; overflow: hidden; background: #1e293b; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid rgba(0,0,0,0.15); flex-shrink: 0;';
+
+          if (first.thumbnailUrl) {
+            const thumbImg = document.createElement('img');
+            thumbImg.src = first.thumbnailUrl;
+            thumbImg.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
+            videoBox.appendChild(thumbImg);
+          }
+
+          const playOverlay = document.createElement('span');
+          playOverlay.style.cssText = 'position: absolute; font-size: 11px; color: #ffffff; background: rgba(0,0,0,0.65); border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; line-height: 1;';
+          playOverlay.innerHTML = '▶';
+          videoBox.appendChild(playOverlay);
+
+          const handleClick = (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (typeof window !== 'undefined' && window.__openGridVideoPlayer) {
+              window.__openGridVideoPlayer(first.url, first.title || (first.type === 'YOUTUBE' ? 'YouTube Video' : 'Video'));
+            }
+          };
+          container.addEventListener('click', handleClick);
+          container.appendChild(videoBox);
+        } else {
+          const linkBadge = document.createElement('a');
+          linkBadge.href = first.url;
+          linkBadge.target = '_blank';
+          linkBadge.rel = 'noopener noreferrer';
+          linkBadge.style.cssText = 'color: #2563eb; text-decoration: underline; font-size: 0.82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; display: inline-flex; align-items: center; gap: 4px;';
+          linkBadge.innerText = `🔗 ${first.url.replace(/^https?:\/\//, '')}`;
+          linkBadge.onclick = (e) => e.stopPropagation();
+          container.appendChild(linkBadge);
+        }
+
+        if (mediaList.length > 1) {
+          const badge = document.createElement('span');
+          badge.style.cssText = 'font-size: 0.72rem; font-weight: 700; background: rgba(37,99,235,0.12); color: #2563eb; padding: 2px 6px; border-radius: 10px;';
+          badge.innerText = `+${mediaList.length - 1}`;
+          container.appendChild(badge);
+        }
+
+        return container;
+      };
     } else if (f.type === 'MULTILINGUAL') {
       colDef.cellRenderer = (params) => {
         if (!params.value) return ''
@@ -1916,7 +2015,7 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
         return formatted;
       };
     }
-    if (['SELECT', 'MULTI_SELECT', 'ENUM', 'CODE'].includes(f.type) || (f.options && !['JSON', 'CALCULATED', 'DATE', 'NUMBER', 'INTEGER', 'DECIMAL', 'IMAGE', 'FILE', 'MULTILINGUAL', 'DOMAIN_REFERENCE'].includes(f.type))) {
+    if (['SELECT', 'MULTI_SELECT', 'ENUM', 'CODE'].includes(f.type) || (f.options && !['JSON', 'CALCULATED', 'DATE', 'NUMBER', 'INTEGER', 'DECIMAL', 'IMAGE', 'FILE', 'MULTILINGUAL', 'DOMAIN_REFERENCE', 'MEDIA_LINK'].includes(f.type))) {
       colDef.valueFormatter = (params) => {
         if (!params || params.value === undefined || params.value === null || params.value === '') return defaultValText;
         return formatOptionLabel(f.options, params.value, currentLocale.value);

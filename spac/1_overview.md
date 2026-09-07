@@ -73,7 +73,7 @@
 | **백엔드 테스트** | JUnit 5 테스트 (Backend tests) | **253개** | 고정 암호문 회귀 검증(Golden Sample) 및 단위/통합 테스트 스위트 |
 | **백엔드 코드 규모** | Java 소스 라인 수 (LOC) | **약 83,800줄** | 엔터프라이즈 코어 로직 및 보안/거버넌스 엔진 |
 | **프론트엔드 화면** | Nuxt 3 라우트 페이지 (Pages) | **28개** | 소개 랜딩, B2B 가입, ROI 계산기, 마스터 데이터, 결재, 거버넌스 전용 페이지 |
-| **프론트엔드 컴포넌트** | Vue 3 UI 컴포넌트 (Components) | **170개** | AG-Grid Enterprise, Drawer, 계보 시각화 모달, 차트 등 고성능 재사용 컴포넌트 |
+| **프론트엔드 컴포넌트** | Vue 3 UI 컴포넌트 (Components) | **170개** | AG-Grid Community (Infinite Model), Drawer, 계보 시각화 모달, 차트 등 고성능 재사용 컴포넌트 |
 | **프론트엔드 비즈니스 훅**| Composables & Stores | **28개 Composables + 6개 Stores**| 인증 무중단 갱신, 다국어/타임존, 웹소켓 채팅, 메뉴 상태 관리 |
 | **프론트엔드 테스트** | Vitest 테스트 스펙 (Frontend test specs) | **243개** | 컴포넌트 및 단위 테스트 스펙 완비 |
 | **프론트엔드 코드 규모** | Vue/TS 소스 라인 수 (LOC) | **약 87,100줄** | 프론트엔드 전반 반응형 UI 및 비즈니스 로직 |

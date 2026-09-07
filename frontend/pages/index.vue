@@ -322,7 +322,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useCookie } from '#app'
+import { useCookie, useOidcAuth } from '#imports'
 
 definePageMeta({
   layout: 'landing'
@@ -330,6 +330,7 @@ definePageMeta({
 
 const router = useRouter()
 const tokenCookie = useCookie('auth_token')
+const { loggedIn } = useOidcAuth()
 
 // 클라이언트 측에서 로그인된 상태로 인덱스 진입 시 대시보드로 전환
 // 단, 만료된 토큰이 잔존하는 경우 쿠키를 정리하고 랜딩에 머무름
@@ -349,6 +350,9 @@ onMounted(() => {
     tokenCookie.value = null
     const refreshCookie = useCookie('refresh_token')
     refreshCookie.value = null
+  } else if (loggedIn.value) {
+    router.replace('/dashboard')
+    return
   }
 })
 </script>

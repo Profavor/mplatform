@@ -317,6 +317,15 @@
                             />
                           </div>
 
+                          <!-- 7-1. MEDIA_LINK -->
+                          <div v-else-if="field.type === 'MEDIA_LINK'" class="doc-field-value w-full">
+                            <MediaLinkViewer
+                              v-model="localRecord[field.key]"
+                              :multiple="field.isMultiValue"
+                              :readonly="true"
+                            />
+                          </div>
+
                           <!-- 8. FILE -->
                           <div v-else-if="field.type === 'FILE'" class="doc-field-value">
                             <div v-if="getFilesList(localRecord[field.key]).length > 0" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
@@ -424,6 +433,16 @@
                           <!-- Image Uploader & Carousel Gallery -->
                           <div v-else-if="field.type === 'IMAGE'" class="w-full">
                             <ImageUploader
+                              v-model="localRecord[field.key]"
+                              :multiple="field.isMultiValue"
+                              :readonly="evalConditionRule(field, localRecord).readOnly"
+                              :disabled="evalConditionRule(field, localRecord).disabled"
+                            />
+                          </div>
+
+                          <!-- Media Link Viewer / Input -->
+                          <div v-else-if="field.type === 'MEDIA_LINK'" class="w-full">
+                            <MediaLinkViewer
                               v-model="localRecord[field.key]"
                               :multiple="field.isMultiValue"
                               :readonly="evalConditionRule(field, localRecord).readOnly"
@@ -1039,6 +1058,7 @@ import UnmaskReasonModal from '../UnmaskReasonModal.vue'
 import UnmergePreviewModal from './UnmergePreviewModal.vue'
 import HtmlEditor from '~/components/common/HtmlEditor.vue'
 import ImageUploader from '~/components/common/ImageUploader.vue'
+import MediaLinkViewer from '~/components/common/MediaLinkViewer.vue'
 import ModalControls from '~/components/common/ModalControls.vue'
 import AppModal from '~/components/common/AppModal.vue'
 import DynamicRecordLayoutRenderer from './DynamicRecordLayoutRenderer.vue'

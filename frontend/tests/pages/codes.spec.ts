@@ -57,7 +57,13 @@ describe('Codes Management Page with AG-Grid', () => {
     })
   })
 
-  it('mounts and initializes AG-Grid Server-Side Row Model', async () => {
+  it('mounts and initializes AG-Grid with infinite row model and datasource', async () => {
+    const mockGridApi = {
+      setGridOption: vi.fn(),
+      purgeInfiniteCache: vi.fn(),
+      refreshInfiniteCache: vi.fn()
+    }
+
     const wrapper = mount(Codes, {
       global: {
         stubs: {
@@ -77,5 +83,33 @@ describe('Codes Management Page with AG-Grid', () => {
     
     const agGrid = wrapper.findComponent(AgGridVue)
     expect(agGrid.exists()).toBe(true)
+    expect(agGrid.props('rowModelType')).toBe('infinite')
+
+    // Trigger grid-ready
+    agGrid.vm.$emit('grid-ready', { api: mockGridApi })
+    expect(mockGridApi.setGridOption).toHaveBeenCalledWith('datasource', expect.any(Object))
+
+    // Test datasource getRows
+    const lastCall = mockGridApi.setGridOption.mock.calls.find((c: any[]) => c[0] === 'datasource')
+    const datasource = lastCall[1]
+    expect(datasource).toBeDefined()
+
+    const successCallback = vi.fn()
+    const failCallback = vi.fn()
+    await datasource.getRows({
+      startRow: 0,
+      endRow: 20,
+      successCallback,
+      failCallback
+    })
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/code-groups/page?page=0&size=20'),
+      expect.any(Object)
+    )
+    expect(successCallback).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ groupCode: 'TEST_1' })]),
+      1
+    )
   })
 })

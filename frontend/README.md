@@ -12,7 +12,7 @@ Nuxt 3 및 Vue 3 기반으로 구축되었으며, 대용량 엔터프라이즈 �
 | **Framework** | **Nuxt 3 + Vue 3** | Nuxt `^3.21.11`, Vue `3.5.x`, SSR & SPA 하이브리드 모드 |
 | **Language** | **TypeScript** | TypeScript `^5.9.3`, 엄격 타입 검사 |
 | **UI Library** | **Vuestic UI** | 반응형 모던 컴포넌트, 맞춤 CSS 토큰 시스템 |
-| **Grid Engine** | **AG-Grid Vue3** | AG-Grid Enterprise `^34.3.1` (가상 스크롤, 서버사이드 페이징/정렬/필터) |
+| **Grid Engine** | **AG-Grid Vue3** | AG-Grid Community `^34.3.1` (가상 스크롤, 서버사이드 페이징/정렬/필터) |
 | **Data Viz** | **Apache ECharts** | DQ 시계열 트렌드, 리스크 레이더, 데이터 계보 파이프라인 그래프 |
 | **State Management**| **Pinia** | 6개 전역 스토어 (`useAuthUser`, `useMenuStore`, `useChatStore` 등) |
 | **Internationalization**| **@nuxtjs/i18n** | Zero-Fallback 다국어 지원, 런타임 언어 실시간 전환 |
@@ -46,7 +46,7 @@ Nuxt 3 및 Vue 3 기반으로 구축되었으며, 대용량 엔터프라이즈 �
 4. **2FA / OTP 다중인증 모달 (`components/TwoFactorVerifyModal.vue`)**:
    - TOTP 구글 OTP, 이메일 OTP, 일회용 긴급 백업코드 입력 지원.
 5. **대용량 마스터 레코드 탐색기 (`pages/records/index.vue`)**:
-   - AG-Grid Enterprise 기반 수만 건 데이터의 무중단 가상 스크롤 및 서버사이드 정렬/필터링.
+   - AG-Grid Community (Infinite Model) 기반 수만 건 데이터의 무중단 가상 스크롤 및 서버사이드 정렬/필터링.
    - 단일 클릭 상세 서랍(Drawer) 및 더블 클릭 모달 뷰.
 6. **부동산 임대차 (`LEASE_CONTRACT`) 리스크 대시보드 (`components/dashboard/LeaseRiskWidget.vue`)**:
    - 계약 만기 임박(D-30, D-7) 알림 및 월세 연체 상태 실시간 관제.

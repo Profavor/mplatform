@@ -72,7 +72,7 @@ graph TD
 |---|---|---|
 | **Backend** | **Spring Boot 4.1.0 (Java 17)** | Maven Artifact `1.2.47`, Spring Data JPA, Spring Data Envers, Spring Integration, Spring Kafka, Spring AMQP, Spring Retry |
 | **Security & Enc** | **Keycloak 24 + Vault 1.15** | OIDC/RBAC, 2FA/OTP (TOTP/Email OTP/Backup Codes), 32바이트 AES 하이브리드 암호화, SHA-256 HMAC Blind Indexing, Vault Transit HSM |
-| **Frontend** | **Nuxt 3 (^3.21.11) + Vue 3** | 버전 `1.5.76`, TypeScript (^5.9.3), Vuestic UI, AG-Grid Vue3 (^34.3.1 Enterprise 가상스크롤 & 서버사이드 페이징), ECharts, STOMP, Tiptap 에디터 |
+| **Frontend** | **Nuxt 3 (^3.21.11) + Vue 3** | 버전 `1.5.76`, TypeScript (^5.9.3), Vuestic UI, AG-Grid Vue3 (^34.3.1 Community 가상스크롤 & 무한 서버사이드 페이징), ECharts, STOMP, Tiptap 에디터 |
 | **Mobile** | **Flutter 3.x (Dart)** | Riverpod (상태관리), GoRouter, Dio (타임존/보안 인터셉터), STOMP 실시간 채팅, 2FA 모바일 로그인, Web/iOS/Android |
 | **Database & Cache** | **PostgreSQL 15 + Redis** | PostGIS 공간 지원, JSONB 메타데이터, 분산 캐시 & Local In-Memory Fallback |
 | **Storage & Search** | **MinIO + OpenSearch 2.11** | S3 호환 오브젝트 스토리지, 다차원 형태소 분석 및 전역 전문 검색 엔진 |
@@ -139,7 +139,7 @@ graph TD
 - **거버넌스 AI 코파일럿 (`GovernanceCopilotService`)**: 거버넌스 정책 및 스키마 질의응답.
 
 ### 9. 🌐 고성능 협업 워크스페이스 & 크로스플랫폼 모바일
-- **Nuxt 3 반응형 웹 콘솔**: AG-Grid Vue3 (v34+ Enterprise 가상스크롤 & 서버사이드 페이징), ECharts, Zero-Fallback `@nuxtjs/i18n`, 개인화 타임존 지원.
+- **Nuxt 3 반응형 웹 콘솔**: AG-Grid Vue3 (v34+ Community 가상스크롤 & 무한 서버사이드 페이징), ECharts, Zero-Fallback `@nuxtjs/i18n`, 개인화 타임존 지원.
 - **8방향 리사이즈 인앱 메신저**: 실시간 웹소켓 채팅, 원클릭 다국어 번역, 대화형 엑셀/테이블 뷰어, 시스템 라디오.
 - **Flutter 모바일 앱**: 결재 승인/반려, 대시보드, 레코드 탐색, 2FA 다중인증, 인앱 채팅, 실시간 푸시 알림.
 
