@@ -1,5 +1,6 @@
 server:
   port: ${PORT}
+  forward-headers-strategy: framework
   tomcat:
     threads:
       max: 200
@@ -20,6 +21,9 @@ spring:
     keycloak:
       token-uri: ${KEYCLOAK_TOKEN_URI:http://localhost:8081/realms/mplatform/protocol/openid-connect/token}
       client-id: ${KEYCLOAK_CLIENT_ID:mdm-frontend}
+      client-secret: ${KEYCLOAK_CLIENT_SECRET:secret}
+      auth-uri: ${KEYCLOAK_AUTH_URI:}
+      realm: ${KEYCLOAK_REALM:mplatform}
   profiles:
     active: ${SPRING_PROFILES_ACTIVE}
   opensearch:

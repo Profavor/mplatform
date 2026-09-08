@@ -341,7 +341,7 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("5초 이내 동일 사용자의 중복 로그인 요청은 저장을 스킵한다")
+        @DisplayName("30초 이내 동일 사용자의 중복 로그인 요청은 저장을 스킵한다")
         void recordLoginLog_Duplicate_Skipped() {
             // given
             given(loginLogRepository.existsByUsernameAndLoginAtAfter(eq("testuser"), any())).willReturn(true);
@@ -370,6 +370,54 @@ class AuthServiceTest {
             verify(loginLogRepository).save(captor.capture());
             com.classification.domain_system.entity.LoginLog saved = captor.getValue();
             assertThat(saved.getUserAgent()).hasSize(500);
+        }
+    }
+
+    @Nested
+    @DisplayName("OIDC & JWT Token Helper Tests")
+    class OidcHelperTests {
+
+        @Test
+        @DisplayName("extractUsernameFromJwt - 유효한 JWT 페이로드에서 preferred_username을 정상 추출한다")
+        void extractUsernameFromJwt_ExtractsPreferredUsername() {
+            // given: header.payload.signature
+            // payload: {"preferred_username":"superadmin","sub":"user-123"}
+            String payload = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString("{\"preferred_username\":\"superadmin\",\"sub\":\"user-123\"}".getBytes());
+            String dummyJwt = "eyJhbGciOiJSUzI1NiJ9." + payload + ".dummySignature";
+
+            // when
+            String username = authService.extractUsernameFromJwt(dummyJwt);
+
+            // then
+            assertThat(username).isEqualTo("superadmin");
+        }
+
+        @Test
+        @DisplayName("extractUsernameFromJwt - preferred_username이 없으면 sub를 폴백으로 추출한다")
+        void extractUsernameFromJwt_FallsBackToSub() {
+            String payload = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString("{\"sub\":\"user-uuid-999\"}".getBytes());
+            String dummyJwt = "eyJhbGciOiJSUzI1NiJ9." + payload + ".dummySignature";
+
+            // when
+            String username = authService.extractUsernameFromJwt(dummyJwt);
+
+            // then
+            assertThat(username).isEqualTo("user-uuid-999");
+        }
+
+        @Test
+        @DisplayName("extractUsernameFromJwt - 잘못된 토큰 형식인 경우 null을 반환한다")
+        void extractUsernameFromJwt_MalformedReturnsNull() {
+            assertThat(authService.extractUsernameFromJwt(null)).isNull();
+            assertThat(authService.extractUsernameFromJwt("invalid.token")).isNull();
+            assertThat(authService.extractUsernameFromJwt("not-a-jwt")).isNull();
+        }
+
+        @Test
+        @DisplayName("exchangeOidcCode - 인가 코드가 빈 값인 경우 INVALID_REQUEST 예외 발생")
+        void exchangeOidcCode_EmptyCode_ThrowsException() {
+            assertThatThrownBy(() -> authService.exchangeOidcCode("", "http://localhost/callback", "127.0.0.1", "agent"))
+                    .isInstanceOf(com.classification.domain_system.exception.BusinessException.class);
         }
     }
 }

@@ -631,9 +631,9 @@ public class AuthService {
         }
         String cleanUsername = username.trim();
 
-        // 5초 이내 동일 사용자의 중복 로그인 요청은 중복 저장 방지 (Deduplication)
-        java.time.LocalDateTime fiveSecondsAgo = java.time.LocalDateTime.now().minusSeconds(5);
-        if (loginLogRepository.existsByUsernameAndLoginAtAfter(cleanUsername, fiveSecondsAgo)) {
+        // 30초 이내 동일 사용자의 중복 로그인 요청은 중복 저장 방지 (Deduplication)
+        java.time.LocalDateTime deduplicationWindow = java.time.LocalDateTime.now().minusSeconds(30);
+        if (loginLogRepository.existsByUsernameAndLoginAtAfter(cleanUsername, deduplicationWindow)) {
             return;
         }
 
@@ -657,6 +657,111 @@ public class AuthService {
                 .userAgent(safeUserAgent)
                 .build();
         loginLogRepository.save(log);
+    }
+
+    /**
+     * OIDC 인가 코드를 Keycloak 토큰 엔드포인트와 직접 통신하여 토큰으로 교환하고
+     * 백엔드 트랜잭션 내에서 login_log를 단 1회 정확하게 적재합니다.
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public Map<String, Object> exchangeOidcCode(String code, String redirectUri, String clientIp, String userAgent) {
+        if (code == null || code.trim().isEmpty()) {
+            throw new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.INVALID_INPUT,
+                    "Authorization code is required"
+            );
+        }
+        if (keycloakTokenUri == null || keycloakTokenUri.trim().isEmpty()) {
+            throw new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.INTERNAL_SERVER_ERROR,
+                    "Keycloak token URI is not configured"
+            );
+        }
+
+        org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED);
+
+        org.springframework.util.MultiValueMap<String, String> mapConfig = new org.springframework.util.LinkedMultiValueMap<>();
+        mapConfig.add("grant_type", "authorization_code");
+        mapConfig.add("code", code.trim());
+        mapConfig.add("redirect_uri", redirectUri != null ? redirectUri.trim() : "");
+        mapConfig.add("client_id", keycloakClientId != null && !keycloakClientId.trim().isEmpty() ? keycloakClientId : "mdm-frontend");
+        if (keycloakClientSecret != null && !keycloakClientSecret.trim().isEmpty()) {
+            mapConfig.add("client_secret", keycloakClientSecret.trim());
+        }
+
+        org.springframework.http.HttpEntity<org.springframework.util.MultiValueMap<String, String>> kcRequest =
+                new org.springframework.http.HttpEntity<>(mapConfig, headers);
+
+        Map body;
+        try {
+            org.springframework.http.ResponseEntity<Map> kcResponse = restTemplate.postForEntity(keycloakTokenUri, kcRequest, Map.class);
+            body = kcResponse.getBody();
+            if (body == null) {
+                throw new com.classification.domain_system.exception.BusinessException(
+                        com.classification.domain_system.exception.ErrorCode.INVALID_CREDENTIALS,
+                        "Keycloak token response is empty"
+                );
+            }
+        } catch (com.classification.domain_system.exception.BusinessException be) {
+            throw be;
+        } catch (Exception e) {
+            throw new com.classification.domain_system.exception.BusinessException(
+                    com.classification.domain_system.exception.ErrorCode.INVALID_CREDENTIALS,
+                    "Failed to exchange authorization code with Keycloak: " + e.getMessage()
+            );
+        }
+
+        String accessToken = (String) body.get("access_token");
+        String refreshToken = (String) body.get("refresh_token");
+        Number expiresIn = (Number) body.get("expires_in");
+
+        String username = extractUsernameFromJwt(accessToken);
+        User user = null;
+        if (username != null && !username.trim().isEmpty()) {
+            user = userRepository.findByUsername(username.trim()).orElse(null);
+            if (user != null) {
+                String sid = (String) body.get("session_state");
+                if (sid == null || sid.isBlank()) {
+                    sid = java.util.UUID.randomUUID().toString();
+                }
+                sendForceLogout(user);
+                user.setActiveSessionId(sid);
+                user.setLastLoginEpochSec(System.currentTimeMillis() / 1000L);
+                userRepository.saveAndFlush(user);
+            }
+            recordLoginLog(username.trim(), clientIp, userAgent);
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("accessToken", accessToken);
+        result.put("refreshToken", refreshToken);
+        result.put("expiresIn", expiresIn != null ? expiresIn.intValue() : 1800);
+        result.put("username", username);
+        if (user != null) {
+            result.put("user", user);
+        }
+        return result;
+    }
+
+    public String extractUsernameFromJwt(String token) {
+        if (token == null || token.trim().isEmpty()) return null;
+        try {
+            String[] parts = token.split("\\.");
+            if (parts.length < 2) return null;
+            byte[] payloadBytes = java.util.Base64.getUrlDecoder().decode(parts[1]);
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            Map claims = mapper.readValue(payloadBytes, Map.class);
+            String username = (String) claims.get("preferred_username");
+            if (username == null || username.isBlank()) username = (String) claims.get("clientId");
+            if (username == null || username.isBlank()) username = (String) claims.get("client_id");
+            if (username == null || username.isBlank()) username = (String) claims.get("azp");
+            if (username == null || username.isBlank()) username = (String) claims.get("sub");
+            return username;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     public org.springframework.data.domain.Page<com.classification.domain_system.entity.LoginLog> getLoginLogs(org.springframework.data.domain.Pageable pageable) {

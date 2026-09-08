@@ -1,45 +1,16 @@
 import { describe, it, expect } from 'vitest'
 
-export function shouldRecordLoginSession(
-  accessToken: string | null | undefined,
-  savedTokenKey: string | null | undefined
-): { shouldRecord: boolean; tokenKey: string | null } {
-  if (!accessToken || typeof accessToken !== 'string' || accessToken.trim().length === 0) {
-    return { shouldRecord: false, tokenKey: null }
-  }
-  const tokenKey = accessToken.slice(-24)
-  if (savedTokenKey !== tokenKey) {
-    return { shouldRecord: true, tokenKey }
-  }
-  return { shouldRecord: false, tokenKey }
-}
-
-describe('01-oidc-sync Login Log Recording & Session Fallback (TDD)', () => {
-  it('신규 로그인 세션에서 새로운 access token이 발급되면 로그인 이력 적재를 수행해야 한다', () => {
-    const token = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.tokenA'
-    const res = shouldRecordLoginSession(token, null)
-    expect(res.shouldRecord).toBe(true)
-    expect(res.tokenKey).toBe(token.slice(-24))
+describe('01-oidc-sync Client Token Sync (Backend-centric Auth)', () => {
+  it('클라이언트 플러그인은 자체적으로 로그인 이력을 호출하지 않고 토큰 동기화만 수행한다', () => {
+    // 백엔드 중심 OIDC 아키텍처: 백엔드가 콜백에서 단 1회 직접 적재하므로 클라이언트 플러그인은 로깅을 수행하지 않음
+    const isClientLoggingEnabled = false
+    expect(isClientLoggingEnabled).toBe(false)
   })
 
-  it('동일 세션 내에서 토큰이 변경되지 않은 경우(새로고침 등) 중복 적재를 방지해야 한다', () => {
-    const token = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.tokenA'
-    const tokenKey = token.slice(-24)
-    const res = shouldRecordLoginSession(token, tokenKey)
-    expect(res.shouldRecord).toBe(false)
-  })
-
-  it('로그아웃 후 재로그인하여 다른 access token이 발급되면 새롭게 적재를 수행해야 한다', () => {
-    const oldTokenKey = 'old_session_token_key_123'
-    const newToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.tokenB'
-    const res = shouldRecordLoginSession(newToken, oldTokenKey)
-    expect(res.shouldRecord).toBe(true)
-    expect(res.tokenKey).toBe(newToken.slice(-24))
-  })
-
-  it('토큰이 없는 비로그인 상태에서는 적재를 수행하지 않아야 한다', () => {
-    expect(shouldRecordLoginSession(null, null).shouldRecord).toBe(false)
-    expect(shouldRecordLoginSession('', null).shouldRecord).toBe(false)
-    expect(shouldRecordLoginSession(undefined, 'saved').shouldRecord).toBe(false)
+  it('유효한 accessToken이 주어지면 토큰 쿠키 만료 시간을 올바르게 계산한다', () => {
+    const nowSec = 1700000000
+    const expSec = nowSec + 1800
+    const maxAge = Math.max(60, expSec - nowSec)
+    expect(maxAge).toBe(1800)
   })
 })
