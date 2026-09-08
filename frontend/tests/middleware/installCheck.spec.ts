@@ -93,14 +93,14 @@ describe('00.install-check.global middleware', () => {
     expect(result).toBe('navigated-to-/')
   })
 
-  it('시스템 설치가 완료된 상태에서 미인증 사용자가 /install 접근 시 /login 으로 리다이렉트된다', async () => {
+  it('시스템 설치가 완료된 상태에서 미인증 사용자가 /install 접근 시 랜딩(/)으로 리다이렉트된다', async () => {
     mockFetch.mockResolvedValueOnce({ isInstalled: true, hasAdminAccount: true })
     mockState.cookieVal = null
     mockState.loggedIn = false
 
     const result = await middlewareFn({ path: '/install' }, { path: '/' })
-    expect(mockNavigateTo).toHaveBeenCalledWith('/login')
-    expect(result).toBe('navigated-to-/login')
+    expect(mockNavigateTo).toHaveBeenCalledWith('/')
+    expect(result).toBe('navigated-to-/')
   })
 
   it('시스템 설치가 완료된 상태에서 일반 업무 페이지(/records) 접근 시 install 미들웨어는 간섭하지 않는다', async () => {
