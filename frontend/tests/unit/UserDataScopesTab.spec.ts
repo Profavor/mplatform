@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
 import { mount } from '@vue/test-utils'
 import UserDataScopesTab from '../../components/admin/UserDataScopesTab.vue'
 
@@ -115,5 +115,9 @@ describe('UserDataScopesTab.vue (TDD Component Test)', () => {
       await grantBtn.trigger('click')
       expect((wrapper.vm as any).showGrantModal).toBe(true)
     }
+  })
+
+  afterAll(() => {
+    vi.unstubAllGlobals()
   })
 })

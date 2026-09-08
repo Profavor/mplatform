@@ -114,7 +114,7 @@ describe('DqScoreTrendCard.vue (TDD Component Test)', () => {
 
     const sparklineContainer = wrapper.find('.dq-sparkline-container')
     expect(sparklineContainer.exists()).toBe(true)
-    expect(sparklineContainer.attributes('style')).toContain('height: 155px')
+    expect(sparklineContainer.attributes('style')).toContain('height: 160px')
 
     const scoreLabels = wrapper.findAll('.dq-score-label')
     expect(scoreLabels.length).toBe(2)

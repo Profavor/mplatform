@@ -3,8 +3,19 @@ import { mount } from '@vue/test-utils'
 import CdcStreamModal from '../../components/records/CdcStreamModal.vue'
 
 const mockCustomFetch = vi.fn()
+const customFetchHandler = (url?: string, ...args: any[]) => {
+  if (!url || typeof url !== 'string') return Promise.resolve({})
+  return mockCustomFetch(url, ...args)
+}
 vi.mock('~/composables/useCustomFetch', () => ({
-  useCustomFetch: (...args: any[]) => mockCustomFetch(...args)
+  useCustomFetch: (...args: any[]) => {
+    if (args.length === 0) {
+      const fn: any = (url?: string, ...r: any[]) => customFetchHandler(url, ...r)
+      fn.customFetch = fn
+      return fn
+    }
+    return customFetchHandler(args[0], ...args.slice(1))
+  }
 }))
 
 vi.mock('vue-i18n', () => ({
@@ -137,7 +148,8 @@ describe('CdcStreamModal.vue', () => {
 
   it('does not re-fetch domain records if domainReferences prop is already provided', async () => {
     mockCustomFetch.mockClear()
-    mockCustomFetch.mockImplementation((url: string) => {
+    mockCustomFetch.mockImplementation((url?: string) => {
+      if (!url || typeof url !== 'string') return Promise.resolve({ data: { value: [] } })
       if (url.includes('/cdc/stream')) {
         return Promise.resolve({
           data: {

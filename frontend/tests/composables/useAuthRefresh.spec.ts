@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest'
 
 // Mock dependencies of #imports
 const mockLoggedIn = { value: true }
@@ -12,7 +12,16 @@ const mockRefresh = vi.fn()
 const mockLogin = vi.fn()
 const mockLogout = vi.fn()
 
-const mockCookieStore: Record<string, any> = {}
+let mockCookieStore: Record<string, any> = {}
+
+const cookieHandler = (name: string, options?: any) => ({
+  get value() {
+    return mockCookieStore[name] ?? null
+  },
+  set value(v: any) {
+    mockCookieStore[name] = v
+  }
+})
 
 vi.mock('#imports', () => ({
   useOidcAuth: () => ({
@@ -22,14 +31,7 @@ vi.mock('#imports', () => ({
     login: mockLogin,
     logout: mockLogout
   }),
-  useCookie: (name: string, options?: any) => ({
-    get value() {
-      return mockCookieStore[name] ?? null
-    },
-    set value(v: any) {
-      mockCookieStore[name] = v
-    }
-  }),
+  useCookie: cookieHandler,
   useRuntimeConfig: () => ({
     public: {
       accessTokenExpirationSec: 1800,
@@ -63,10 +65,18 @@ describe('useAuthRefresh (TDD Unit Test)', () => {
   })
 
   beforeEach(() => {
+    mockCookieStore = {}
+    vi.stubGlobal('useCookie', cookieHandler)
     vi.useFakeTimers()
     const { resetRefreshState, clearAuthCookies } = getAuth()
     resetRefreshState()
     clearAuthCookies()
+    if (typeof document !== 'undefined') {
+      document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/'
+      document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC;'
+      document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/'
+      document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC;'
+    }
     mockLoggedIn.value = true
     mockUser.value = {
       accessToken: 'mock-access-token-1',
@@ -78,8 +88,23 @@ describe('useAuthRefresh (TDD Unit Test)', () => {
   })
 
   afterEach(() => {
+    try {
+      const { clearAuthCookies } = getAuth()
+      clearAuthCookies()
+    } catch {}
+    if (typeof document !== 'undefined') {
+      document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/'
+      document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC;'
+      document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/'
+      document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC;'
+    }
     vi.useRealTimers()
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  afterAll(() => {
+    vi.unstubAllGlobals()
   })
 
   it('1. parseJwtExp - 유효한 JWT 토큰에서 exp(만료 시각)를 정상 추출하고 잘못된 형식은 null 반환', () => {
