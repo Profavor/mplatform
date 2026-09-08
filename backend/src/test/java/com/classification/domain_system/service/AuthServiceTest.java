@@ -313,4 +313,63 @@ class AuthServiceTest {
             assertThat(authService.validateTempToken(tempToken, "admin")).isFalse();
         }
     }
+
+    @Nested
+    @DisplayName("recordLoginLog")
+    class RecordLoginLog {
+
+        @Test
+        @DisplayName("정상 로그인 이력 적재 시 LoginLog가 성공적으로 저장된다")
+        void recordLoginLog_Success() {
+            // given
+            User user = createTestUser("user-uuid-1", "testuser", "pw", "ROLE_USER");
+            given(loginLogRepository.existsByUsernameAndLoginAtAfter(eq("testuser"), any())).willReturn(false);
+            given(userRepository.findByUsername("testuser")).willReturn(Optional.of(user));
+
+            // when
+            authService.recordLoginLog("testuser", "192.168.1.100", "Mozilla/5.0 Chrome");
+
+            // then
+            org.mockito.ArgumentCaptor<com.classification.domain_system.entity.LoginLog> captor =
+                    org.mockito.ArgumentCaptor.forClass(com.classification.domain_system.entity.LoginLog.class);
+            verify(loginLogRepository).save(captor.capture());
+            com.classification.domain_system.entity.LoginLog saved = captor.getValue();
+            assertThat(saved.getUsername()).isEqualTo("testuser");
+            assertThat(saved.getUserId()).isEqualTo("user-uuid-1");
+            assertThat(saved.getClientIp()).isEqualTo("192.168.1.100");
+            assertThat(saved.getUserAgent()).isEqualTo("Mozilla/5.0 Chrome");
+        }
+
+        @Test
+        @DisplayName("5초 이내 동일 사용자의 중복 로그인 요청은 저장을 스킵한다")
+        void recordLoginLog_Duplicate_Skipped() {
+            // given
+            given(loginLogRepository.existsByUsernameAndLoginAtAfter(eq("testuser"), any())).willReturn(true);
+
+            // when
+            authService.recordLoginLog("testuser", "192.168.1.100", "Mozilla/5.0 Chrome");
+
+            // then
+            verify(loginLogRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("UserAgent가 500자를 초과하는 경우 안전하게 500자로 잘라내어 저장한다")
+        void recordLoginLog_TruncatesLongUserAgent() {
+            // given
+            String longUserAgent = "A".repeat(600);
+            given(loginLogRepository.existsByUsernameAndLoginAtAfter(eq("testuser"), any())).willReturn(false);
+            given(userRepository.findByUsername("testuser")).willReturn(Optional.empty());
+
+            // when
+            authService.recordLoginLog("testuser", "127.0.0.1", longUserAgent);
+
+            // then
+            org.mockito.ArgumentCaptor<com.classification.domain_system.entity.LoginLog> captor =
+                    org.mockito.ArgumentCaptor.forClass(com.classification.domain_system.entity.LoginLog.class);
+            verify(loginLogRepository).save(captor.capture());
+            com.classification.domain_system.entity.LoginLog saved = captor.getValue();
+            assertThat(saved.getUserAgent()).hasSize(500);
+        }
+    }
 }

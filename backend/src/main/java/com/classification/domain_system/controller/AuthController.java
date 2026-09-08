@@ -86,6 +86,34 @@ public class AuthController {
         return ResponseEntity.ok(tokens);
     }
 
+    @PostMapping("/record-login")
+    public ResponseEntity<?> recordLogin(
+            @RequestBody(required = false) RecordLoginRequest body,
+            org.springframework.security.core.Authentication authentication,
+            HttpServletRequest httpRequest) {
+        String username = null;
+        if (authentication != null && authentication.isAuthenticated() && !"anonymousUser".equals(authentication.getName())) {
+            username = authentication.getName();
+        } else if (body != null && body.getUsername() != null && !body.getUsername().trim().isEmpty()) {
+            username = body.getUsername().trim();
+        }
+
+        if (username == null || username.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("Username is required to record login log");
+        }
+
+        String ip = (body != null && body.getClientIp() != null && !body.getClientIp().trim().isEmpty())
+                ? body.getClientIp().trim()
+                : ClientIpUtil.getClientIp(httpRequest);
+
+        String userAgent = (body != null && body.getUserAgent() != null && !body.getUserAgent().trim().isEmpty())
+                ? body.getUserAgent().trim()
+                : httpRequest.getHeader("User-Agent");
+
+        authService.recordLoginLog(username, ip, userAgent);
+        return ResponseEntity.ok(java.util.Map.of("message", "Login log recorded successfully"));
+    }
+
     @GetMapping("/login-logs")
     @PreAuthorize("hasPermission(null, 'admin:read') or hasPermission(null, 'log:read')")
     public ResponseEntity<?> getLoginLogs(
@@ -146,6 +174,13 @@ public class AuthController {
     static class LoginRequest {
         private String username;
         private String password;
+    }
+
+    @Data
+    static class RecordLoginRequest {
+        private String username;
+        private String clientIp;
+        private String userAgent;
     }
 
     @Data

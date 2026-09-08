@@ -209,6 +209,46 @@ class AuthControllerTest {
     }
 
     // ─────────────────────────────────────────────────────────────────
-    // getAllUsers 테스트
+    // recordLogin 테스트
     // ─────────────────────────────────────────────────────────────────
+    @Nested
+    @DisplayName("recordLogin")
+    class RecordLogin {
+
+        @Test
+        @DisplayName("요청 바디에 사용자명과 IP/UserAgent가 제공되면 로그인 이력이 성공적으로 적재된다 (200 OK)")
+        void recordLogin_WithBody_Returns200() throws Exception {
+            mockMvc.perform(post("/api/auth/record-login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"username\":\"sso_user\",\"clientIp\":\"192.168.1.50\",\"userAgent\":\"Mozilla/5.0\"}"))
+                    .andExpect(status().isOk());
+
+            verify(authService).recordLoginLog(eq("sso_user"), eq("192.168.1.50"), eq("Mozilla/5.0"));
+        }
+
+        @Test
+        @DisplayName("SecurityContext 인증 사용자 정보(Authentication)가 있으면 이를 기반으로 이력이 적재된다")
+        void recordLogin_WithAuthentication_Returns200() throws Exception {
+            org.springframework.security.core.Authentication auth =
+                    new org.springframework.security.authentication.UsernamePasswordAuthenticationToken("token_user", null, List.of());
+
+            mockMvc.perform(post("/api/auth/record-login")
+                    .principal(auth)
+                    .header("User-Agent", "TestBrowser/1.0"))
+                    .andExpect(status().isOk());
+
+            verify(authService).recordLoginLog(eq("token_user"), any(), eq("TestBrowser/1.0"));
+        }
+
+        @Test
+        @DisplayName("사용자명이 전혀 제공되지 않으면 400 Bad Request를 반환한다")
+        void recordLogin_MissingUsername_Returns400() throws Exception {
+            mockMvc.perform(post("/api/auth/record-login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{}"))
+                    .andExpect(status().isBadRequest());
+
+            verify(authService, never()).recordLoginLog(any(), any(), any());
+        }
+    }
 }

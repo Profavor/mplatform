@@ -624,6 +624,41 @@ public class AuthService {
         return userRepository.save(newUser);
     }
 
+    @org.springframework.transaction.annotation.Transactional
+    public void recordLoginLog(String username, String clientIp, String userAgent) {
+        if (username == null || username.trim().isEmpty()) {
+            return;
+        }
+        String cleanUsername = username.trim();
+
+        // 5초 이내 동일 사용자의 중복 로그인 요청은 중복 저장 방지 (Deduplication)
+        java.time.LocalDateTime fiveSecondsAgo = java.time.LocalDateTime.now().minusSeconds(5);
+        if (loginLogRepository.existsByUsernameAndLoginAtAfter(cleanUsername, fiveSecondsAgo)) {
+            return;
+        }
+
+        User user = userRepository.findByUsername(cleanUsername).orElse(null);
+        String userId = user != null ? user.getId() : null;
+
+        String safeIp = clientIp;
+        if (safeIp != null && safeIp.length() > 45) {
+            safeIp = safeIp.substring(0, 45);
+        }
+
+        String safeUserAgent = userAgent;
+        if (safeUserAgent != null && safeUserAgent.length() > 500) {
+            safeUserAgent = safeUserAgent.substring(0, 500);
+        }
+
+        com.classification.domain_system.entity.LoginLog log = com.classification.domain_system.entity.LoginLog.builder()
+                .userId(userId)
+                .username(cleanUsername)
+                .clientIp(safeIp)
+                .userAgent(safeUserAgent)
+                .build();
+        loginLogRepository.save(log);
+    }
+
     public org.springframework.data.domain.Page<com.classification.domain_system.entity.LoginLog> getLoginLogs(org.springframework.data.domain.Pageable pageable) {
         return loginLogRepository.findAll(pageable);
     }

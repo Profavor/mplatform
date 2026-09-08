@@ -638,12 +638,12 @@ watch(locale, () => {
   setTimeout(() => {
     if (gridApi.value) {
       gridApi.value.refreshHeader()
-      gridApi.value.refreshServerSide({ purge: true })
+      gridApi.value.setGridOption('datasource', datasource)
     }
-    // Refresh Server-Side grids
-    if (typeof loginGridApi !== 'undefined' && loginGridApi.value) loginGridApi.value.refreshServerSide({ purge: true })
-    if (typeof errorGridApi !== 'undefined' && errorGridApi.value) errorGridApi.value.refreshServerSide({ purge: true })
-    if (typeof integrationGridApi !== 'undefined' && integrationGridApi.value) integrationGridApi.value.refreshServerSide({ purge: true })
+    // Refresh Infinite grids
+    if (typeof loginGridApi !== 'undefined' && loginGridApi.value) loginGridApi.value.setGridOption('datasource', loginDatasource)
+    if (typeof errorGridApi !== 'undefined' && errorGridApi.value) errorGridApi.value.setGridOption('datasource', errorDatasource)
+    if (typeof integrationGridApi !== 'undefined' && integrationGridApi.value) integrationGridApi.value.setGridOption('datasource', integrationDatasource)
 
     if (typeof sensitiveGridApi !== 'undefined' && sensitiveGridApi.value) {
       sensitiveGridApi.value.refreshHeader()
