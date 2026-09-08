@@ -320,7 +320,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCookie, useOidcAuth } from '#imports'
 
@@ -330,7 +330,15 @@ definePageMeta({
 
 const router = useRouter()
 const tokenCookie = useCookie('auth_token')
-const { loggedIn } = useOidcAuth()
+let loggedIn = ref(false)
+try {
+  const oidc = useOidcAuth()
+  if (oidc && oidc.loggedIn) {
+    loggedIn = oidc.loggedIn
+  }
+} catch (e) {
+  // Graceful fallback for non-Nuxt unit test / SSR environment
+}
 
 // 클라이언트 측에서 로그인된 상태로 인덱스 진입 시 대시보드로 전환
 // 단, 만료된 토큰이 잔존하는 경우 쿠키를 정리하고 랜딩에 머무름

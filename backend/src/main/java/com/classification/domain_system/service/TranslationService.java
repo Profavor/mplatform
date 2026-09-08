@@ -13,11 +13,23 @@ import java.nio.charset.StandardCharsets;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class TranslationService {
 
-    private final RestTemplate restTemplate = new RestTemplate();
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
+
+    public TranslationService() {
+        this(new RestTemplate(), new ObjectMapper());
+    }
+
+    public TranslationService(RestTemplate restTemplate, ObjectMapper objectMapper) {
+        this.restTemplate = restTemplate != null ? restTemplate : new RestTemplate();
+        this.objectMapper = objectMapper != null ? objectMapper : new ObjectMapper();
+    }
+
+    public void setRestTemplate(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
+    }
 
     public String translateText(String text, String requestedTargetLang) {
         if (text == null || text.trim().isEmpty()) {

@@ -15,12 +15,33 @@ vi.mock('vue-router', () => ({
 
 // Mock useCookie
 let mockToken: string | null = null
+const createCookieMock = (name: string) => ({
+  get value() {
+    return name === 'auth_token' ? mockToken : (name === 'locale' ? 'ko' : 'light')
+  },
+  set value(v: any) {
+    if (name === 'auth_token') mockToken = v
+  }
+})
+
 vi.mock('#app', () => ({
-  useCookie: (name: string) => ({
-    value: name === 'auth_token' ? mockToken : (name === 'locale' ? 'ko' : 'light')
-  }),
+  useCookie: (name: string) => createCookieMock(name),
   definePageMeta: vi.fn()
 }))
+
+vi.mock('#app/composables/cookie', () => ({
+  useCookie: (name: string) => createCookieMock(name)
+}))
+
+vi.mock('#imports', () => ({
+  useCookie: (name: string) => createCookieMock(name),
+  definePageMeta: vi.fn(),
+  useOidcAuth: () => ({
+    loggedIn: { value: false }
+  })
+}))
+
+vi.stubGlobal('useCookie', (name: string) => createCookieMock(name))
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -102,7 +123,9 @@ describe('Landing Page & Layout (TDD Tests)', () => {
   })
 
   it('로그인 토큰이 존재하는 상태에서 랜딩 페이지 진입 시 /dashboard로 즉시 전환되어야 한다', async () => {
-    mockToken = 'valid-jwt-token-12345'
+    const futureExp = Math.floor(Date.now() / 1000) + 3600
+    const payload = btoa(JSON.stringify({ exp: futureExp, sub: 'user1' }))
+    mockToken = `eyJhbGciOiJSUzI1NiJ9.${payload}.signature`
     mount(LandingPage, {
       global: {
         mocks: {
