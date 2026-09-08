@@ -25,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -121,5 +122,34 @@ class StockRecordItemWriterTest {
         verify(recordRepository, times(1)).save(incomingRecord);
         verify(recordHistoryRepository, times(1)).save(argThat(h ->
                 "BATCH_INGEST".equals(h.getChangeType())));
+    }
+
+    @Test
+    @DisplayName("기존 레코드와 동일한 데이터가 인입되면(No-op) 버전을 올리지 않고 이력 저장을 건너뛴다")
+    void write_WhenDataIsIdentical_ShouldSkipVersionBumpAndHistory() throws Exception {
+        given(fieldDefinitionRepository.findById(idField.getId())).willReturn(Optional.of(idField));
+
+        Record existingRecord = new Record();
+        existingRecord.setId(UUID.randomUUID());
+        existingRecord.setNode(kospiNode);
+        existingRecord.setStatus("ACTIVE");
+        existingRecord.setData("{\"ticker_code\":\"034220\",\"stock_name\":\"LG디스플레이\",\"current_price\":9210}");
+        existingRecord.setVersion(5);
+
+        given(recordRepository.findActiveRecordsByDomainAndFieldValue(testDomain.getId(), "ticker_code", "034220"))
+                .willReturn(List.of(existingRecord));
+
+        Record incomingRecord = new Record();
+        incomingRecord.setNode(kospiNode);
+        incomingRecord.setStatus("ACTIVE");
+        incomingRecord.setData("{\"ticker_code\":\"034220\",\"stock_name\":\"LG디스플레이\",\"current_price\":9210}");
+
+        writer.write(Chunk.of(incomingRecord));
+
+        // Version should remain unchanged at 5
+        assertThat(existingRecord.getVersion()).isEqualTo(5);
+
+        // RecordHistory should NEVER be saved because there are no data changes
+        verify(recordHistoryRepository, never()).save(any(RecordHistory.class));
     }
 }

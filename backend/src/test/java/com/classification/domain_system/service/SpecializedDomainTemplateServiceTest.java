@@ -173,6 +173,62 @@ class SpecializedDomainTemplateServiceTest extends BaseServiceTest {
                 }
             }
         }
+
+        @Test
+        @DisplayName("주식(STOCK) 특화도메인 템플릿에 네이버 API 19개 주요 지표를 포함한 57개 기본 필드와 섹터/그룹이 온전히 구성되어야 한다")
+        void stockTemplateContainsAllDefaultMetricsAndValidMediaLinkType() {
+            SpecializedDomainTemplateDto stockTpl = templateService.getTemplate("STOCK");
+
+            assertThat(stockTpl).isNotNull();
+            assertThat(stockTpl.getFields()).hasSize(57);
+
+            // 신규 섹터 및 그룹 확인
+            List<String> sectorCodes = stockTpl.getSectors().stream()
+                    .map(SpecializedDomainTemplateDto.SectorTemplateDto::getCode)
+                    .toList();
+            assertThat(sectorCodes).contains("FINANCIAL_VALUATION");
+
+            SpecializedDomainTemplateDto.SectorTemplateDto financialSector = stockTpl.getSectors().stream()
+                    .filter(s -> "FINANCIAL_VALUATION".equals(s.getCode()))
+                    .findFirst()
+                    .orElseThrow();
+            List<String> groupCodes = financialSector.getGroups().stream()
+                    .map(SpecializedDomainTemplateDto.FieldGroupTemplateDto::getCode)
+                    .toList();
+            assertThat(groupCodes).contains("VALUATION_GROUP", "DIVIDEND_GROUP");
+
+            // 19개 신규 지표 필드 키 존재 확인
+            Map<String, SpecializedDomainTemplateDto.FieldTemplateDto> fieldMap = stockTpl.getFields().stream()
+                    .collect(java.util.stream.Collectors.toMap(SpecializedDomainTemplateDto.FieldTemplateDto::getKey, f -> f));
+
+            assertThat(fieldMap).containsKeys(
+                    "open_price", "high_price", "low_price", "change_price", "fluctuation_rate",
+                    "accumulated_trading_volume", "accumulated_trading_value",
+                    "per", "eps", "pbr", "bps", "cns_per", "cns_eps",
+                    "dividend_yield_ratio", "dividend_per_share", "dividend_date", "ex_dividend_date",
+                    "foreign_exhaustion_ratio", "logo_image_url"
+            );
+
+            // 로고 이미지 필드의 타입이 MEDIA_LINK인지 검증
+            SpecializedDomainTemplateDto.FieldTemplateDto logoField = fieldMap.get("logo_image_url");
+            assertThat(logoField.getType()).isEqualTo("MEDIA_LINK");
+            assertThat(logoField.getGroupCode()).isEqualTo("TICKER_BASIC_GROUP");
+
+            // 당일 시세 상세 필드들의 그룹 검증
+            assertThat(fieldMap.get("open_price").getGroupCode()).isEqualTo("PRICE_VALUATION_GROUP");
+            assertThat(fieldMap.get("fluctuation_rate").getGroupCode()).isEqualTo("PRICE_VALUATION_GROUP");
+
+            // 투자 가치/재무 지표 그룹 검증
+            assertThat(fieldMap.get("per").getGroupCode()).isEqualTo("VALUATION_GROUP");
+            assertThat(fieldMap.get("eps").getGroupCode()).isEqualTo("VALUATION_GROUP");
+
+            // 배당 지표 그룹 검증
+            assertThat(fieldMap.get("dividend_yield_ratio").getGroupCode()).isEqualTo("DIVIDEND_GROUP");
+            assertThat(fieldMap.get("dividend_date").getGroupCode()).isEqualTo("DIVIDEND_GROUP");
+
+            // 외인 소진율 그룹 검증
+            assertThat(fieldMap.get("foreign_exhaustion_ratio").getGroupCode()).isEqualTo("INVESTOR_TRADING_GROUP");
+        }
     }
 
     @Nested
