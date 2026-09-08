@@ -23,6 +23,22 @@ export default defineNuxtPlugin(async (nuxtApp) => {
         const exp = parseJwtExp(accessToken)
         setAuthCookies(accessToken, refToken, exp || undefined)
         scheduleSilentRefresh(accessToken)
+
+        // 신규 로그인 세션 감지 시 백엔드 로그인 이력 적재 (클라이언트 Fallback & 5초 이내 중복 방지)
+        try {
+          const tokenKey = accessToken.slice(-24)
+          if (sessionStorage.getItem('last_login_recorded_token') !== tokenKey) {
+            sessionStorage.setItem('last_login_recorded_token', tokenKey)
+            const username = user.value.userName || (user.value as any)?.claims?.preferred_username
+            if (username) {
+              const { customFetch } = useCustomFetch()
+              customFetch('/api/auth/record-login', {
+                method: 'POST',
+                body: { username }
+              }).catch(() => {})
+            }
+          }
+        } catch (e) {}
       }
     } else if (!loggedIn.value) {
       try {

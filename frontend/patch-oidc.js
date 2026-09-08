@@ -48,6 +48,42 @@ if (fs.existsSync(callbackFile)) {
     fs.writeFileSync(callbackFile, content);
     console.log('Patched nuxt-oidc-auth callback.js successfully (internal tokenUrl routing & forwarded headers).');
   }
+
+  if (!content.includes('/api/auth/record-login')) {
+    const successPattern = /export default callbackEventHandler\(\{[\s\S]*?async onSuccess\(event, \{ user, callbackRedirectUrl \}\) \{[\s\S]*?await setUserSession\(event, user\);[\s\S]*?return sendRedirect\(event, callbackRedirectUrl \|\| "\/"\);[\s\S]*?\}[\s\S]*?\}\);/;
+    const successReplacement = `export default callbackEventHandler({
+  async onSuccess(event, { user, callbackRedirectUrl }) {
+    await setUserSession(event, user);
+    try {
+      const backendUrl = process.env.API_BASE_URL || 'http://backend:8080';
+      const clientIp = event.node?.req?.headers?.['x-forwarded-for'] || event.node?.req?.headers?.['x-real-ip'] || event.node?.req?.socket?.remoteAddress || '';
+      const userAgent = event.node?.req?.headers?.['user-agent'] || '';
+      const username = user?.userName || user?.claims?.preferred_username || user?.claims?.sub;
+      if (username) {
+        fetch(\`\${backendUrl.replace(/\\/$/, '')}/api/auth/record-login\`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Forwarded-For': clientIp,
+            'User-Agent': userAgent
+          },
+          body: JSON.stringify({
+            username: username,
+            clientIp: clientIp,
+            userAgent: userAgent
+          })
+        }).catch((err) => console.warn('[OIDC Callback] Record login error:', err));
+      }
+    } catch (e) {}
+    return sendRedirect(event, callbackRedirectUrl || "/");
+  }
+});`;
+    if (content.match(successPattern)) {
+      content = content.replace(successPattern, successReplacement);
+      fs.writeFileSync(callbackFile, content);
+      console.log('Patched nuxt-oidc-auth callback.js successfully (login log recording).');
+    }
+  }
 }
 
 // 4. Patch keycloak.js provider to resolve internal openIdConfiguration
