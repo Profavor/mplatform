@@ -70,6 +70,27 @@ public class StockItemProcessor implements ItemProcessor<StockApiRawItem, Record
         data.put("inst_cumulative_net_buy_20d", item.getInstCumulativeNetBuy20d());
         data.put("retail_cumulative_net_buy_20d", item.getRetailCumulativeNetBuy20d());
         
+        // Naver Stock API extended metrics
+        data.put("open_price", item.getOpenPrice());
+        data.put("high_price", item.getHighPrice());
+        data.put("low_price", item.getLowPrice());
+        data.put("change_price", item.getChangePrice());
+        data.put("fluctuation_rate", item.getFluctuationRate());
+        data.put("accumulated_trading_volume", item.getAccumulatedTradingVolume());
+        data.put("accumulated_trading_value", item.getAccumulatedTradingValue());
+        data.put("per", item.getPer());
+        data.put("eps", item.getEps());
+        data.put("cns_per", item.getCnsPer());
+        data.put("cns_eps", item.getCnsEps());
+        data.put("pbr", item.getPbr());
+        data.put("bps", item.getBps());
+        data.put("dividend_yield_ratio", item.getDividendYieldRatio());
+        data.put("dividend_per_share", item.getDividendPerShare());
+        data.put("dividend_date", item.getDividendAt());
+        data.put("ex_dividend_date", item.getExDividendAt());
+        data.put("foreign_exhaustion_ratio", item.getForeignExhaustionRatio());
+        data.put("logo_image_url", item.getLogoImageUrl());
+
         data.put("investor_relations_url", item.getInvestorRelationsUrl());
         data.put("business_summary", item.getBusinessSummary());
 

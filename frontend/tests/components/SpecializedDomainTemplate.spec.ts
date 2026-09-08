@@ -4,7 +4,7 @@ describe('SpecializedDomainTemplate Frontend Unit Tests', () => {
   const validCommonCodeFieldTypes = new Set([
     'TEXT', 'NUMBER', 'DATE', 'BOOLEAN', 'JSON', 'SELECT',
     'DOMAIN_REFERENCE', 'TIME', 'HTML_TEXT', 'CALCULATED',
-    'MULTILINGUAL', 'FILE', 'IMAGE', 'DATE_RANGE', 'EMAIL'
+    'MULTILINGUAL', 'FILE', 'IMAGE', 'DATE_RANGE', 'EMAIL', 'MEDIA_LINK'
   ])
 
   it('특화도메인 카테고리별 유효한 필드 타입만 정의되어야 한다 (RICHTEXT 등 미정의 타입 배제)', () => {
@@ -92,5 +92,50 @@ describe('SpecializedDomainTemplate Frontend Unit Tests', () => {
     leaseTemplate.fields.forEach(field => {
       expect(validCommonCodeFieldTypes.has(field.type)).toBe(true)
     })
+  })
+
+  it('STOCK(주식 종목 마스터) 템플릿에 네이버 API 19개 주요 지표를 포함한 57개 기본 필드와 MEDIA_LINK 로고가 정의되어야 한다', () => {
+    const stockTemplate = {
+      category: 'STOCK',
+      name: { ko: '주식 종목 마스터', en: 'Stock Master' },
+      icon: 'candlestick_chart',
+      numberingPattern: 'STK-{SEQ:6}',
+      axisCode: 'MARKET',
+      identifierFieldKey: 'ticker_code',
+      displayNameFieldKey: 'stock_name',
+      fieldsCount: 57,
+      extendedFields: [
+        { key: 'logo_image_url', type: 'MEDIA_LINK', groupCode: 'TICKER_BASIC_GROUP' },
+        { key: 'open_price', type: 'NUMBER', groupCode: 'PRICE_VALUATION_GROUP' },
+        { key: 'high_price', type: 'NUMBER', groupCode: 'PRICE_VALUATION_GROUP' },
+        { key: 'low_price', type: 'NUMBER', groupCode: 'PRICE_VALUATION_GROUP' },
+        { key: 'change_price', type: 'NUMBER', groupCode: 'PRICE_VALUATION_GROUP' },
+        { key: 'fluctuation_rate', type: 'NUMBER', groupCode: 'PRICE_VALUATION_GROUP' },
+        { key: 'accumulated_trading_volume', type: 'NUMBER', groupCode: 'PRICE_VALUATION_GROUP' },
+        { key: 'accumulated_trading_value', type: 'NUMBER', groupCode: 'PRICE_VALUATION_GROUP' },
+        { key: 'per', type: 'NUMBER', groupCode: 'VALUATION_GROUP' },
+        { key: 'eps', type: 'NUMBER', groupCode: 'VALUATION_GROUP' },
+        { key: 'pbr', type: 'NUMBER', groupCode: 'VALUATION_GROUP' },
+        { key: 'bps', type: 'NUMBER', groupCode: 'VALUATION_GROUP' },
+        { key: 'cns_per', type: 'NUMBER', groupCode: 'VALUATION_GROUP' },
+        { key: 'cns_eps', type: 'NUMBER', groupCode: 'VALUATION_GROUP' },
+        { key: 'dividend_yield_ratio', type: 'NUMBER', groupCode: 'DIVIDEND_GROUP' },
+        { key: 'dividend_per_share', type: 'NUMBER', groupCode: 'DIVIDEND_GROUP' },
+        { key: 'dividend_date', type: 'DATE', groupCode: 'DIVIDEND_GROUP' },
+        { key: 'ex_dividend_date', type: 'DATE', groupCode: 'DIVIDEND_GROUP' },
+        { key: 'foreign_exhaustion_ratio', type: 'NUMBER', groupCode: 'INVESTOR_TRADING_GROUP' }
+      ]
+    }
+
+    expect(stockTemplate.category).toBe('STOCK')
+    expect(stockTemplate.fieldsCount).toBe(57)
+    expect(stockTemplate.extendedFields).toHaveLength(19)
+
+    stockTemplate.extendedFields.forEach(field => {
+      expect(validCommonCodeFieldTypes.has(field.type)).toBe(true)
+    })
+
+    const logoField = stockTemplate.extendedFields.find(f => f.key === 'logo_image_url')
+    expect(logoField?.type).toBe('MEDIA_LINK')
   })
 })

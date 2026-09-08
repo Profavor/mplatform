@@ -60,6 +60,25 @@ class StockItemProcessorTest {
                 .marketType("KOSPI")
                 .currentPrice(78500.0)
                 .previousClosePrice(77500.0)
+                .openPrice(77800.0)
+                .highPrice(79000.0)
+                .lowPrice(77600.0)
+                .changePrice(1000.0)
+                .fluctuationRate(1.29)
+                .accumulatedTradingVolume(15420000L)
+                .accumulatedTradingValue(1210000000000L)
+                .per(14.52)
+                .eps(5406.0)
+                .cnsPer(11.20)
+                .cnsEps(7000.0)
+                .pbr(1.42)
+                .bps(55280.0)
+                .dividendYieldRatio(2.15)
+                .dividendPerShare(1444.0)
+                .dividendAt("2024-04-19")
+                .exDividendAt("2023-12-27")
+                .foreignExhaustionRatio(56.12)
+                .logoImageUrl("https://ssl.pstatic.net/imgstock/images5/logo/KR7005930003.png")
                 .marketCap(468627930175000L)
                 .foreignDailyNetBuy(482000L)
                 .instDailyNetBuy(150000L)
@@ -84,5 +103,26 @@ class StockItemProcessorTest {
         assertThat(data.get("current_price")).isEqualTo(78500.0);
         assertThat(data.get("foreign_daily_net_buy")).isEqualTo(482000);
         assertThat(data.get("foreign_ownership_ratio")).isEqualTo(46.72);
+
+        // 19개 네이버 API 신규 지표 매핑 검증
+        assertThat(data.get("open_price")).isEqualTo(77800.0);
+        assertThat(data.get("high_price")).isEqualTo(79000.0);
+        assertThat(data.get("low_price")).isEqualTo(77600.0);
+        assertThat(data.get("change_price")).isEqualTo(1000.0);
+        assertThat(data.get("fluctuation_rate")).isEqualTo(1.29);
+        assertThat(data.get("accumulated_trading_volume")).isEqualTo(15420000);
+        assertThat(data.get("accumulated_trading_value")).isEqualTo(1210000000000L);
+        assertThat(data.get("per")).isEqualTo(14.52);
+        assertThat(data.get("eps")).isEqualTo(5406.0);
+        assertThat(data.get("cns_per")).isEqualTo(11.20);
+        assertThat(data.get("cns_eps")).isEqualTo(7000.0);
+        assertThat(data.get("pbr")).isEqualTo(1.42);
+        assertThat(data.get("bps")).isEqualTo(55280.0);
+        assertThat(data.get("dividend_yield_ratio")).isEqualTo(2.15);
+        assertThat(data.get("dividend_per_share")).isEqualTo(1444.0);
+        assertThat(data.get("dividend_date")).isEqualTo("2024-04-19");
+        assertThat(data.get("ex_dividend_date")).isEqualTo("2023-12-27");
+        assertThat(data.get("foreign_exhaustion_ratio")).isEqualTo(56.12);
+        assertThat(data.get("logo_image_url")).isEqualTo("https://ssl.pstatic.net/imgstock/images5/logo/KR7005930003.png");
     }
 }

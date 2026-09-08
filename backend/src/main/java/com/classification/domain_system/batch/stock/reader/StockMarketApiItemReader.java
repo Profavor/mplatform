@@ -104,9 +104,25 @@ public class StockMarketApiItemReader implements ItemReader<StockApiRawItem> {
                         for (JsonNode s : stockArray) {
                             String symbol = s.path("symbolCode").asText(s.path("reutersCode").asText(null));
                             if (symbol == null || symbol.isBlank()) continue;
+                            String reutersCode = s.path("reutersCode").asText(null);
 
                             double price = parseNumber(s.path("closePrice").asText("0"));
                             long mktCap = (long) parseNumber(s.path("marketValue").asText("0"));
+
+                            StockDetailInfo detail = fetchOverseasStockDetail(reutersCode, symbol);
+                            double week52High = (detail != null && detail.week52High != null && detail.week52High > 0)
+                                    ? detail.week52High : price;
+                            double week52Low = (detail != null && detail.week52Low != null && detail.week52Low > 0)
+                                    ? detail.week52Low : price;
+
+                            double openPrice = parseNumber(s.path("openPriceRaw").asText(s.path("openPrice").asText("0")));
+                            double highPrice = parseNumber(s.path("highPriceRaw").asText(s.path("highPrice").asText("0")));
+                            double lowPrice = parseNumber(s.path("lowPriceRaw").asText(s.path("lowPrice").asText("0")));
+                            double changePrice = parseNumber(s.path("compareToPreviousClosePriceRaw").asText(s.path("compareToPreviousClosePrice").asText("0")));
+                            double fluctuationRate = parseNumber(s.path("fluctuationsRatioRaw").asText(s.path("fluctuationsRatio").asText("0")));
+                            long vol = (long) parseNumber(s.path("accumulatedTradingVolumeRaw").asText(s.path("accumulatedTradingVolume").asText("0")));
+                            long val = (long) parseNumber(s.path("accumulatedTradingValueRaw").asText("0"));
+                            String logoUrl = s.path("itemLogoUrl").asText(s.path("itemLogoPngUrl").asText(null));
 
                             items.add(StockApiRawItem.builder()
                                     .marketNodeCode("US_MARKET")
@@ -124,8 +140,24 @@ public class StockMarketApiItemReader implements ItemReader<StockApiRawItem> {
                                     .currentPrice(price)
                                     .previousClosePrice(price)
                                     .marketCap(mktCap)
-                                    .week52High(price * 1.3)
-                                    .week52Low(price * 0.7)
+                                    .week52High(week52High)
+                                    .week52Low(week52Low)
+                                    .openPrice(openPrice > 0 ? openPrice : price)
+                                    .highPrice(highPrice > 0 ? highPrice : price)
+                                    .lowPrice(lowPrice > 0 ? lowPrice : price)
+                                    .changePrice(changePrice)
+                                    .fluctuationRate(fluctuationRate)
+                                    .accumulatedTradingVolume(vol)
+                                    .accumulatedTradingValue(val)
+                                    .logoImageUrl(logoUrl)
+                                    .per(detail != null ? detail.per : null)
+                                    .eps(detail != null ? detail.eps : null)
+                                    .pbr(detail != null ? detail.pbr : null)
+                                    .bps(detail != null ? detail.bps : null)
+                                    .dividendYieldRatio(detail != null ? detail.dividendYieldRatio : null)
+                                    .dividendPerShare(detail != null ? detail.dividendPerShare : null)
+                                    .dividendAt(detail != null ? detail.dividendAt : null)
+                                    .exDividendAt(detail != null ? detail.exDividendAt : null)
                                     .priceBaseDate(todayStr)
                                     .listingDate("1990-01-01")
                                     .fiscalMonth("12")
@@ -170,13 +202,26 @@ public class StockMarketApiItemReader implements ItemReader<StockApiRawItem> {
                             }
                             long vol = (long) parseNumber(s.path("accumulatedTradingVolumeRaw").asText(s.path("accumulatedTradingVolume").asText("0")));
 
-                            // Query exact investor trend if available
+                            // Query exact investor trend and 52-week price detail if available
                             InvestorTrend trend = fetchInvestorTrend(ticker);
+                            StockDetailInfo detail = fetchDomesticStockDetail(ticker);
 
                             long foreignDaily = trend != null ? trend.foreignDaily : (long) (vol * 0.05);
                             long instDaily = trend != null ? trend.instDaily : (long) (vol * 0.03);
                             long retailDaily = trend != null ? trend.retailDaily : -(foreignDaily + instDaily);
                             double foreignRatio = trend != null ? trend.foreignRatio : 15.0;
+
+                            double week52High = (detail != null && detail.week52High != null && detail.week52High > 0)
+                                    ? detail.week52High : price;
+                            double week52Low = (detail != null && detail.week52Low != null && detail.week52Low > 0)
+                                    ? detail.week52Low : price;
+
+                            double openPrice = parseNumber(s.path("openPriceRaw").asText(s.path("openPrice").asText("0")));
+                            double highPrice = parseNumber(s.path("highPriceRaw").asText(s.path("highPrice").asText("0")));
+                            double lowPrice = parseNumber(s.path("lowPriceRaw").asText(s.path("lowPrice").asText("0")));
+                            double fluctuationRate = parseNumber(s.path("fluctuationsRatioRaw").asText(s.path("fluctuationsRatio").asText("0")));
+                            long tradingValue = (long) parseNumber(s.path("accumulatedTradingValueRaw").asText("0"));
+                            String logoUrl = s.path("itemLogoUrl").asText(s.path("itemLogoPngUrl").asText(null));
 
                             items.add(StockApiRawItem.builder()
                                     .marketNodeCode(market.toUpperCase())
@@ -194,8 +239,25 @@ public class StockMarketApiItemReader implements ItemReader<StockApiRawItem> {
                                     .currentPrice(price)
                                     .previousClosePrice(price > change ? price - change : price)
                                     .marketCap(mktCap)
-                                    .week52High(price * 1.3)
-                                    .week52Low(price * 0.7)
+                                    .week52High(week52High)
+                                    .week52Low(week52Low)
+                                    .openPrice(openPrice > 0 ? openPrice : price)
+                                    .highPrice(highPrice > 0 ? highPrice : price)
+                                    .lowPrice(lowPrice > 0 ? lowPrice : price)
+                                    .changePrice(change)
+                                    .fluctuationRate(fluctuationRate)
+                                    .accumulatedTradingVolume(vol)
+                                    .accumulatedTradingValue(tradingValue)
+                                    .logoImageUrl(logoUrl)
+                                    .per(detail != null ? detail.per : null)
+                                    .eps(detail != null ? detail.eps : null)
+                                    .cnsPer(detail != null ? detail.cnsPer : null)
+                                    .cnsEps(detail != null ? detail.cnsEps : null)
+                                    .pbr(detail != null ? detail.pbr : null)
+                                    .bps(detail != null ? detail.bps : null)
+                                    .dividendYieldRatio(detail != null ? detail.dividendYieldRatio : null)
+                                    .dividendPerShare(detail != null ? detail.dividendPerShare : null)
+                                    .foreignExhaustionRatio(detail != null ? detail.foreignExhaustionRatio : null)
                                     .priceBaseDate(todayStr)
                                     .listingDate("2010-01-01")
                                     .fiscalMonth("12")
@@ -320,10 +382,111 @@ public class StockMarketApiItemReader implements ItemReader<StockApiRawItem> {
         }
     }
 
+    private StockDetailInfo fetchDomesticStockDetail(String ticker) {
+        try {
+            String url = "https://m.stock.naver.com/api/stock/" + ticker + "/integration";
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("User-Agent", USER_AGENT);
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                JsonNode root = objectMapper.readTree(response.getBody());
+                JsonNode totalInfos = root.path("totalInfos");
+                if (totalInfos.isArray()) {
+                    StockDetailInfo detail = new StockDetailInfo();
+                    for (JsonNode info : totalInfos) {
+                        String code = info.path("code").asText("");
+                        String val = info.path("value").asText(null);
+                        if ("highPriceOf52Weeks".equalsIgnoreCase(code)) {
+                            detail.week52High = parseNumber(val);
+                        } else if ("lowPriceOf52Weeks".equalsIgnoreCase(code)) {
+                            detail.week52Low = parseNumber(val);
+                        } else if ("per".equalsIgnoreCase(code)) {
+                            detail.per = parseNumber(val);
+                        } else if ("eps".equalsIgnoreCase(code)) {
+                            detail.eps = parseNumber(val);
+                        } else if ("cnsPer".equalsIgnoreCase(code)) {
+                            detail.cnsPer = parseNumber(val);
+                        } else if ("cnsEps".equalsIgnoreCase(code)) {
+                            detail.cnsEps = parseNumber(val);
+                        } else if ("pbr".equalsIgnoreCase(code)) {
+                            detail.pbr = parseNumber(val);
+                        } else if ("bps".equalsIgnoreCase(code)) {
+                            detail.bps = parseNumber(val);
+                        } else if ("dividendYieldRatio".equalsIgnoreCase(code)) {
+                            detail.dividendYieldRatio = parseNumber(val);
+                        } else if ("dividend".equalsIgnoreCase(code)) {
+                            detail.dividendPerShare = parseNumber(val);
+                        } else if ("foreignRate".equalsIgnoreCase(code)) {
+                            detail.foreignExhaustionRatio = parseNumber(val);
+                        }
+                    }
+                    return detail;
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Integration detail not found for domestic ticker {}: {}", ticker, e.getMessage());
+        }
+        return null;
+    }
+
+    private StockDetailInfo fetchOverseasStockDetail(String reutersCode, String symbol) {
+        String targetCode = (reutersCode != null && !reutersCode.isBlank()) ? reutersCode : symbol;
+        if (targetCode == null || targetCode.isBlank()) {
+            return null;
+        }
+
+        try {
+            String url = "https://api.stock.naver.com/stock/" + targetCode + "/basic";
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("User-Agent", USER_AGENT);
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                JsonNode root = objectMapper.readTree(response.getBody());
+                JsonNode totalInfos = root.path("stockItemTotalInfos");
+                if (totalInfos.isArray()) {
+                    StockDetailInfo detail = new StockDetailInfo();
+                    for (JsonNode info : totalInfos) {
+                        String code = info.path("code").asText("");
+                        String val = info.path("value").asText(null);
+                        if ("highPriceOf52Weeks".equalsIgnoreCase(code)) {
+                            detail.week52High = parseNumber(val);
+                        } else if ("lowPriceOf52Weeks".equalsIgnoreCase(code)) {
+                            detail.week52Low = parseNumber(val);
+                        } else if ("per".equalsIgnoreCase(code)) {
+                            detail.per = parseNumber(val);
+                        } else if ("eps".equalsIgnoreCase(code)) {
+                            detail.eps = parseNumber(val);
+                        } else if ("pbr".equalsIgnoreCase(code)) {
+                            detail.pbr = parseNumber(val);
+                        } else if ("bps".equalsIgnoreCase(code)) {
+                            detail.bps = parseNumber(val);
+                        } else if ("dividendYieldRatio".equalsIgnoreCase(code)) {
+                            detail.dividendYieldRatio = parseNumber(val);
+                        } else if ("dividend".equalsIgnoreCase(code)) {
+                            detail.dividendPerShare = parseNumber(val);
+                        } else if ("dividendAt".equalsIgnoreCase(code)) {
+                            detail.dividendAt = val;
+                        } else if ("exDividendAt".equalsIgnoreCase(code)) {
+                            detail.exDividendAt = val;
+                        }
+                    }
+                    return detail;
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Basic detail not found for US symbol {}: {}", targetCode, e.getMessage());
+        }
+        return null;
+    }
+
     private double parseNumber(String val) {
         if (val == null || val.isBlank() || "N/A".equalsIgnoreCase(val)) return 0.0;
         try {
-            return Double.parseDouble(val.replace(",", "").replace("+", "").trim());
+            return Double.parseDouble(val.replace(",", "").replace("+", "").replace("%", "").replace("배", "").replace("원", "").replace("USD", "").trim());
         } catch (Exception e) {
             return 0.0;
         }
@@ -337,5 +500,21 @@ public class StockMarketApiItemReader implements ItemReader<StockApiRawItem> {
         long foreignCum20d;
         long instCum20d;
         long retailCum20d;
+    }
+
+    private static class StockDetailInfo {
+        Double week52High;
+        Double week52Low;
+        Double per;
+        Double eps;
+        Double cnsPer;
+        Double cnsEps;
+        Double pbr;
+        Double bps;
+        Double dividendYieldRatio;
+        Double dividendPerShare;
+        String dividendAt;
+        String exDividendAt;
+        Double foreignExhaustionRatio;
     }
 }

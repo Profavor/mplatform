@@ -49,4 +49,31 @@ public class StockApiRawItem {
     private Long retailCumulativeNetBuy20d; // 개인 20일 누적순매수량
     private String investorRelationsUrl;    // IR / 종목상세 URL
     private String businessSummary;         // 기업 개요
+
+    // Comprehensive Market Trading Metrics
+    private Double openPrice;               // 시가
+    private Double highPrice;               // 당일 고가
+    private Double lowPrice;                // 당일 저가
+    private Double changePrice;             // 전일대비 변동금액
+    private Double fluctuationRate;         // 전일대비 등락률(%)
+    private Long accumulatedTradingVolume;  // 당일 누적 거래량
+    private Long accumulatedTradingValue;   // 당일 누적 거래대금
+
+    // Valuation & Financial Metrics
+    private Double per;                     // 주가수익비율 (PER)
+    private Double eps;                     // 주당순이익 (EPS)
+    private Double cnsPer;                  // 추정 PER (Consensus PER)
+    private Double cnsEps;                  // 추정 EPS (Consensus EPS)
+    private Double pbr;                     // 주가순자산비율 (PBR)
+    private Double bps;                     // 주당순자산가치 (BPS)
+
+    // Dividend Metrics
+    private Double dividendYieldRatio;      // 배당수익률(%)
+    private Double dividendPerShare;        // 주당 배당금
+    private String dividendAt;              // 배당지급일
+    private String exDividendAt;            // 배당락일
+
+    // Foreign & Corporate Branding
+    private Double foreignExhaustionRatio;  // 외국인 한도소진율(%)
+    private String logoImageUrl;            // 기업 로고 이미지 URL
 }

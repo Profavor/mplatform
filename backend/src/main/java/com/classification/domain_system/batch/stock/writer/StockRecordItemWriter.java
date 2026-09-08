@@ -85,10 +85,18 @@ public class StockRecordItemWriter implements ItemWriter<Record> {
                         }
                     }
 
+                    Map<String, Object> initialSurvivorMap = new HashMap<>(survivorMap);
+
                     for (Map.Entry<String, Object> entry : incomingMap.entrySet()) {
                         if (entry.getValue() != null) {
                             survivorMap.put(entry.getKey(), entry.getValue());
                         }
+                    }
+
+                    if (isDataIdentical(initialSurvivorMap, survivorMap)) {
+                        log.debug("Record {} (id: {}) data unchanged. Skipping version bump and history recording.",
+                                identifierVal, survivor.getId());
+                        continue;
                     }
 
                     String mergedDataJson = objectMapper.writeValueAsString(survivorMap);
@@ -133,6 +141,30 @@ public class StockRecordItemWriter implements ItemWriter<Record> {
             }
         }
         log.debug("Committed chunk of {} stock records.", chunk.size());
+    }
+
+    private boolean isDataIdentical(Map<String, Object> map1, Map<String, Object> map2) {
+        if (map1 == null && map2 == null) return true;
+        if (map1 == null || map2 == null) return false;
+        if (map1.size() != map2.size()) return false;
+
+        for (Map.Entry<String, Object> entry : map2.entrySet()) {
+            Object v2 = entry.getValue();
+            Object v1 = map1.get(entry.getKey());
+            if (v1 == null && v2 == null) continue;
+            if (v1 == null || v2 == null) return false;
+
+            if (v1 instanceof Number && v2 instanceof Number) {
+                double d1 = ((Number) v1).doubleValue();
+                double d2 = ((Number) v2).doubleValue();
+                if (Double.compare(d1, d2) != 0) {
+                    return false;
+                }
+            } else if (!Objects.equals(String.valueOf(v1), String.valueOf(v2))) {
+                return false;
+            }
+        }
+        return true;
     }
 }
 
