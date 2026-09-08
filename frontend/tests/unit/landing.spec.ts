@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { ref } from 'vue'
 import LandingPage from '../../pages/index.vue'
@@ -177,5 +177,9 @@ describe('Landing Page & Layout (TDD Tests)', () => {
     expect(wrapper.text()).toContain('landing.nav.login')
     expect(wrapper.text()).toContain('landing.nav.start_trial')
     expect(wrapper.text()).toContain('Main Landing Content')
+  })
+
+  afterAll(() => {
+    vi.unstubAllGlobals()
   })
 })

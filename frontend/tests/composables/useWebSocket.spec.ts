@@ -42,7 +42,10 @@ describe('useWebSocket Composable (Singleton TDD)', () => {
     capturedSubscriptions = {}
     mockClientConfig = null
     mockClientInstance = null
-    document.cookie = 'auth_token=; Max-Age=0'
+    document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/'
+    document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC;'
+    document.cookie = 'user_data=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/'
+    document.cookie = 'user_data=; expires=Thu, 01 Jan 1970 00:00:00 UTC;'
 
     // Dynamically import module to test
     const mod = await import('../../composables/useWebSocket')
@@ -54,6 +57,10 @@ describe('useWebSocket Composable (Singleton TDD)', () => {
   })
 
   afterEach(() => {
+    document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/'
+    document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC;'
+    document.cookie = 'user_data=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/'
+    document.cookie = 'user_data=; expires=Thu, 01 Jan 1970 00:00:00 UTC;'
     if (resetWebSocketState) {
       resetWebSocketState()
     }
@@ -129,6 +136,7 @@ describe('useWebSocket Composable (Singleton TDD)', () => {
   })
 
   it('beforeConnect 실행 시 쿠키 또는 토큰이 connectHeaders에 주입되어야 함', () => {
+    document.cookie = 'auth_token=mock-jwt-token-from-cookie; path=/'
     document.cookie = 'auth_token=mock-jwt-token-from-cookie'
     const ws = useWebSocket()
     ws.connect()

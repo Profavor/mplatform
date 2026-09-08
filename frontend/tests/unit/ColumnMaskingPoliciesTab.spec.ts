@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ColumnMaskingPoliciesTab from '../../components/admin/ColumnMaskingPoliciesTab.vue'
 
@@ -120,5 +120,9 @@ describe('ColumnMaskingPoliciesTab.vue (TDD Component Test)', () => {
     }
 
     expect((wrapper.vm as any).showCreateModal).toBe(true)
+  })
+
+  afterAll(() => {
+    vi.unstubAllGlobals()
   })
 })

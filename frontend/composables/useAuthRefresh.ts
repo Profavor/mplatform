@@ -4,6 +4,8 @@ let isRefreshing = false
 let refreshPromise: Promise<string | null> | null = null
 let silentRefreshTimer: ReturnType<typeof setTimeout> | null = null
 
+const memoryCookieStore: Record<string, string> = {}
+
 export function useAuthRefresh(options?: { oidcAuth?: any }) {
   const config = useRuntimeConfig()
   const oidc = options?.oidcAuth || useOidcAuth()
@@ -19,10 +21,15 @@ export function useAuthRefresh(options?: { oidcAuth?: any }) {
       const cv = useCookie(name).value
       if (cv) return cv
     } catch {}
-    return null
+    return memoryCookieStore[name] ?? null
   }
 
   const setAuthCookies = (authToken: string, refreshToken?: string, expSec?: number) => {
+    memoryCookieStore['auth_token'] = authToken
+    if (refreshToken) {
+      memoryCookieStore['refresh_token'] = refreshToken
+    }
+
     let maxAge = accessMaxAge
     if (expSec && expSec > 0) {
       const nowSec = Math.floor(Date.now() / 1000)
@@ -31,13 +38,15 @@ export function useAuthRefresh(options?: { oidcAuth?: any }) {
         maxAge = remaining
       }
     }
-    const isSecure = (typeof window !== 'undefined' && window.location.protocol === 'https:') || process.env.NODE_ENV === 'production'
+    const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:'
     const secureFlag = isSecure ? '; Secure' : ''
 
     if (typeof document !== 'undefined') {
       document.cookie = `auth_token=${authToken}; max-age=${maxAge}; path=/; SameSite=Lax${secureFlag}`
+      document.cookie = `auth_token=${authToken}; max-age=${maxAge}; SameSite=Lax${secureFlag}`
       if (refreshToken) {
         document.cookie = `refresh_token=${refreshToken}; max-age=${refreshMaxAge}; path=/; SameSite=Lax${secureFlag}`
+        document.cookie = `refresh_token=${refreshToken}; max-age=${refreshMaxAge}; SameSite=Lax${secureFlag}`
       }
     }
     try {
@@ -58,13 +67,19 @@ export function useAuthRefresh(options?: { oidcAuth?: any }) {
       clearTimeout(silentRefreshTimer)
       silentRefreshTimer = null
     }
+    delete memoryCookieStore['auth_token']
+    delete memoryCookieStore['refresh_token']
+    delete memoryCookieStore['token']
+    delete memoryCookieStore['user_data']
     const cookies = ['auth_token', 'token', 'refresh_token', 'user_data']
     if (typeof document !== 'undefined') {
       cookies.forEach((c) => {
         document.cookie = `${c}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`
+        document.cookie = `${c}=; expires=Thu, 01 Jan 1970 00:00:00 UTC;`
         try {
           if (typeof window !== 'undefined') {
             document.cookie = `${c}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname};`
+            document.cookie = `${c}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; domain=${window.location.hostname};`
           }
         } catch {}
       })
