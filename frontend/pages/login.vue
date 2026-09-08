@@ -221,16 +221,8 @@ const handleLogin = async () => {
     return
   }
 
-  try {
-    const loginPromise = login('keycloak')
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('TIMEOUT')), 3000)
-    )
-    await Promise.race([loginPromise, timeoutPromise])
-  } catch (e) {
-    console.warn('OIDC client login failed or timed out, falling back to direct login redirect', e)
-    window.location.href = '/auth/keycloak/login'
-  }
+  const target = getSafeRedirectUrl()
+  window.location.href = `/api/auth/oidc/login?client=web&redirect=${encodeURIComponent(target)}`
 }
 </script>
 
