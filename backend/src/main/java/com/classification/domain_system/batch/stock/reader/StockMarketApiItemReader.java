@@ -115,9 +115,16 @@ public class StockMarketApiItemReader implements ItemReader<StockApiRawItem> {
                             double week52Low = (detail != null && detail.week52Low != null && detail.week52Low > 0)
                                     ? detail.week52Low : price;
 
-                            double openPrice = parseNumber(s.path("openPriceRaw").asText(s.path("openPrice").asText("0")));
-                            double highPrice = parseNumber(s.path("highPriceRaw").asText(s.path("highPrice").asText("0")));
-                            double lowPrice = parseNumber(s.path("lowPriceRaw").asText(s.path("lowPrice").asText("0")));
+                            double rawOpen = parseNumber(s.path("openPriceRaw").asText(s.path("openPrice").asText("0")));
+                            double rawHigh = parseNumber(s.path("highPriceRaw").asText(s.path("highPrice").asText("0")));
+                            double rawLow = parseNumber(s.path("lowPriceRaw").asText(s.path("lowPrice").asText("0")));
+
+                            double openPrice = (detail != null && detail.openPrice != null && detail.openPrice > 0)
+                                    ? detail.openPrice : (rawOpen > 0 ? rawOpen : price);
+                            double highPrice = (detail != null && detail.highPrice != null && detail.highPrice > 0)
+                                    ? detail.highPrice : (rawHigh > 0 ? rawHigh : price);
+                            double lowPrice = (detail != null && detail.lowPrice != null && detail.lowPrice > 0)
+                                    ? detail.lowPrice : (rawLow > 0 ? rawLow : price);
                             double changePrice = parseNumber(s.path("compareToPreviousClosePriceRaw").asText(s.path("compareToPreviousClosePrice").asText("0")));
                             double fluctuationRate = parseNumber(s.path("fluctuationsRatioRaw").asText(s.path("fluctuationsRatio").asText("0")));
                             long vol = (long) parseNumber(s.path("accumulatedTradingVolumeRaw").asText(s.path("accumulatedTradingVolume").asText("0")));
@@ -142,9 +149,9 @@ public class StockMarketApiItemReader implements ItemReader<StockApiRawItem> {
                                     .marketCap(mktCap)
                                     .week52High(week52High)
                                     .week52Low(week52Low)
-                                    .openPrice(openPrice > 0 ? openPrice : price)
-                                    .highPrice(highPrice > 0 ? highPrice : price)
-                                    .lowPrice(lowPrice > 0 ? lowPrice : price)
+                                    .openPrice(openPrice)
+                                    .highPrice(highPrice)
+                                    .lowPrice(lowPrice)
                                     .changePrice(changePrice)
                                     .fluctuationRate(fluctuationRate)
                                     .accumulatedTradingVolume(vol)
@@ -216,9 +223,16 @@ public class StockMarketApiItemReader implements ItemReader<StockApiRawItem> {
                             double week52Low = (detail != null && detail.week52Low != null && detail.week52Low > 0)
                                     ? detail.week52Low : price;
 
-                            double openPrice = parseNumber(s.path("openPriceRaw").asText(s.path("openPrice").asText("0")));
-                            double highPrice = parseNumber(s.path("highPriceRaw").asText(s.path("highPrice").asText("0")));
-                            double lowPrice = parseNumber(s.path("lowPriceRaw").asText(s.path("lowPrice").asText("0")));
+                            double rawOpen = parseNumber(s.path("openPriceRaw").asText(s.path("openPrice").asText("0")));
+                            double rawHigh = parseNumber(s.path("highPriceRaw").asText(s.path("highPrice").asText("0")));
+                            double rawLow = parseNumber(s.path("lowPriceRaw").asText(s.path("lowPrice").asText("0")));
+
+                            double openPrice = (detail != null && detail.openPrice != null && detail.openPrice > 0)
+                                    ? detail.openPrice : (rawOpen > 0 ? rawOpen : price);
+                            double highPrice = (detail != null && detail.highPrice != null && detail.highPrice > 0)
+                                    ? detail.highPrice : (rawHigh > 0 ? rawHigh : price);
+                            double lowPrice = (detail != null && detail.lowPrice != null && detail.lowPrice > 0)
+                                    ? detail.lowPrice : (rawLow > 0 ? rawLow : price);
                             double fluctuationRate = parseNumber(s.path("fluctuationsRatioRaw").asText(s.path("fluctuationsRatio").asText("0")));
                             long tradingValue = (long) parseNumber(s.path("accumulatedTradingValueRaw").asText("0"));
                             String logoUrl = s.path("itemLogoUrl").asText(s.path("itemLogoPngUrl").asText(null));
@@ -241,9 +255,9 @@ public class StockMarketApiItemReader implements ItemReader<StockApiRawItem> {
                                     .marketCap(mktCap)
                                     .week52High(week52High)
                                     .week52Low(week52Low)
-                                    .openPrice(openPrice > 0 ? openPrice : price)
-                                    .highPrice(highPrice > 0 ? highPrice : price)
-                                    .lowPrice(lowPrice > 0 ? lowPrice : price)
+                                    .openPrice(openPrice)
+                                    .highPrice(highPrice)
+                                    .lowPrice(lowPrice)
                                     .changePrice(change)
                                     .fluctuationRate(fluctuationRate)
                                     .accumulatedTradingVolume(vol)
@@ -340,6 +354,11 @@ public class StockMarketApiItemReader implements ItemReader<StockApiRawItem> {
                         String name = (String) r.get("stock_name");
                         if (ticker == null || name == null) continue;
 
+                        double curPrice = r.get("current_price") != null ? ((Number) r.get("current_price")).doubleValue() : 0.0;
+                        double opPrice = r.get("open_price") != null ? ((Number) r.get("open_price")).doubleValue() : curPrice;
+                        double hiPrice = r.get("high_price") != null ? ((Number) r.get("high_price")).doubleValue() : curPrice;
+                        double loPrice = r.get("low_price") != null ? ((Number) r.get("low_price")).doubleValue() : curPrice;
+
                         buffer.add(StockApiRawItem.builder()
                                 .marketNodeCode((String) r.get("market_node_code"))
                                 .tickerCode(ticker)
@@ -353,7 +372,10 @@ public class StockMarketApiItemReader implements ItemReader<StockApiRawItem> {
                                 .listedShares(r.get("listed_shares") != null ? ((Number) r.get("listed_shares")).longValue() : 0L)
                                 .capitalAmount(r.get("capital_amount") != null ? ((Number) r.get("capital_amount")).longValue() : 0L)
                                 .currency((String) r.get("currency"))
-                                .currentPrice(r.get("current_price") != null ? ((Number) r.get("current_price")).doubleValue() : 0.0)
+                                .currentPrice(curPrice)
+                                .openPrice(opPrice > 0 ? opPrice : curPrice)
+                                .highPrice(hiPrice > 0 ? hiPrice : curPrice)
+                                .lowPrice(loPrice > 0 ? loPrice : curPrice)
                                 .previousClosePrice(r.get("previous_close_price") != null ? ((Number) r.get("previous_close_price")).doubleValue() : 0.0)
                                 .marketCap(r.get("market_cap") != null ? ((Number) r.get("market_cap")).longValue() : 0L)
                                 .priceBaseDate((String) r.get("price_base_date"))
@@ -402,6 +424,12 @@ public class StockMarketApiItemReader implements ItemReader<StockApiRawItem> {
                             detail.week52High = parseNumber(val);
                         } else if ("lowPriceOf52Weeks".equalsIgnoreCase(code)) {
                             detail.week52Low = parseNumber(val);
+                        } else if ("openPrice".equalsIgnoreCase(code)) {
+                            detail.openPrice = parseNumber(val);
+                        } else if ("highPrice".equalsIgnoreCase(code)) {
+                            detail.highPrice = parseNumber(val);
+                        } else if ("lowPrice".equalsIgnoreCase(code)) {
+                            detail.lowPrice = parseNumber(val);
                         } else if ("per".equalsIgnoreCase(code)) {
                             detail.per = parseNumber(val);
                         } else if ("eps".equalsIgnoreCase(code)) {
@@ -456,6 +484,12 @@ public class StockMarketApiItemReader implements ItemReader<StockApiRawItem> {
                             detail.week52High = parseNumber(val);
                         } else if ("lowPriceOf52Weeks".equalsIgnoreCase(code)) {
                             detail.week52Low = parseNumber(val);
+                        } else if ("openPrice".equalsIgnoreCase(code)) {
+                            detail.openPrice = parseNumber(val);
+                        } else if ("highPrice".equalsIgnoreCase(code)) {
+                            detail.highPrice = parseNumber(val);
+                        } else if ("lowPrice".equalsIgnoreCase(code)) {
+                            detail.lowPrice = parseNumber(val);
                         } else if ("per".equalsIgnoreCase(code)) {
                             detail.per = parseNumber(val);
                         } else if ("eps".equalsIgnoreCase(code)) {
@@ -503,6 +537,9 @@ public class StockMarketApiItemReader implements ItemReader<StockApiRawItem> {
     }
 
     private static class StockDetailInfo {
+        Double openPrice;
+        Double highPrice;
+        Double lowPrice;
         Double week52High;
         Double week52Low;
         Double per;

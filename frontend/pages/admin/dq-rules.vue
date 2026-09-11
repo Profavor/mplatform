@@ -18,12 +18,12 @@
 
     <div class="dq-rules-layout" style="flex: 1; min-height: 0; display: flex; gap: 1.5rem;">
       <!-- Tree Column -->
-      <div class="tree-column" style="width: 350px; flex: 0 0 auto; display: flex; flex-direction: column;">
-        <va-card style="flex: 1; display: flex; flex-direction: column;">
-          <va-card-title>
+      <div class="tree-column" style="width: 350px; flex: 0 0 auto; display: flex; flex-direction: column; height: 100%; min-height: 0;">
+        <va-card style="flex: 1 1 0%; display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden;">
+          <va-card-title style="flex: 0 0 auto;">
             {{ $t('classification_tree') }}
           </va-card-title>
-          <va-card-content style="flex: 1; overflow-y: auto;">
+          <va-card-content style="flex: 1 1 0%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding: 0; height: 100%;">
             <ClassificationTree
               ref="treeRef"
               :selectedNode="selectedNode"

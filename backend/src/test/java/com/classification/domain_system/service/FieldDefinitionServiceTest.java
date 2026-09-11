@@ -470,4 +470,33 @@ class FieldDefinitionServiceTest {
             assertThat(result).isTrue();
         }
     }
+
+    @Nested
+    @DisplayName("updateField 부분 갱신(options만 변경) 검증")
+    class PartialUpdateTest {
+        @Test
+        @DisplayName("updateField - name, key, type이 null인 부분 갱신 시 기존 필드 값 보존")
+        void updateField_PartialUpdate_PreservesExistingValues() {
+            FieldDefinition existing = new FieldDefinition();
+            existing.setId(fieldId);
+            existing.setName(Map.of("ko", "기존이름"));
+            existing.setKey("existing_key");
+            existing.setType("SELECT");
+            existing.setOptions("[\"A\",\"B\"]");
+            existing.setDefinedAtNode(node);
+
+            when(fieldRepository.findById(fieldId)).thenReturn(Optional.of(existing));
+            when(fieldRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+            FieldDefinitionRequest req = new FieldDefinitionRequest();
+            req.setOptions("[\"A\",\"B\",\"C\"]");
+
+            FieldDefinition updated = fieldDefinitionService.updateField(nodeId, fieldId, req);
+
+            assertThat(updated.getName()).isEqualTo(Map.of("ko", "기존이름"));
+            assertThat(updated.getKey()).isEqualTo("existing_key");
+            assertThat(updated.getType()).isEqualTo("SELECT");
+            assertThat(updated.getOptions()).isEqualTo("[\"A\",\"B\",\"C\"]");
+        }
+    }
 }

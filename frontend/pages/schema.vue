@@ -2301,12 +2301,13 @@ onUnmounted(() => {
   overflow: hidden;
 }
 .schema-tree-wrapper {
-  flex: 1 1 auto;
-  min-height: 120px;
-  overflow-y: auto;
-  overflow-x: auto;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0%;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
   padding-right: 0.25rem;
-  overscroll-behavior: contain;
 }
 .schema-tree-actions {
   flex: 0 0 auto;

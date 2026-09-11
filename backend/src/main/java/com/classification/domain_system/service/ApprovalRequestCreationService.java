@@ -87,7 +87,12 @@ public class ApprovalRequestCreationService {
                         log.warn("[ApprovalRequest] Failed to register match candidate: {}", e.getMessage());
                     }
                 }
-                throw new BusinessException(ErrorCode.DEDUPLICATION_FAILED, "Deduplication Failed: " + dup.message);
+                Map<String, Object> details = new HashMap<>();
+                if (dup.duplicateRecordIds != null && !dup.duplicateRecordIds.isEmpty()) {
+                    details.put("existingRecordId", dup.duplicateRecordIds.get(0).toString());
+                    details.put("duplicateRecordIds", dup.duplicateRecordIds.stream().map(Object::toString).toList());
+                }
+                throw new BusinessException(ErrorCode.DEDUPLICATION_FAILED, "Deduplication Failed: " + dup.message, details);
             }
         }
 

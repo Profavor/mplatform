@@ -173,7 +173,7 @@ public class DomainController {
         return ResponseEntity.ok(com.classification.domain_system.dto.FieldDefinitionResponse.from(created));
     }
     
-    @PutMapping("/{domainId}/fields/{fieldId}")
+    @RequestMapping(value = "/{domainId}/fields/{fieldId}", method = {RequestMethod.PUT, RequestMethod.PATCH})
     @PreAuthorize("hasPermission(null, 'domain:write')")
     public ResponseEntity<com.classification.domain_system.dto.FieldDefinitionResponse> updateDomainField(
             @PathVariable UUID domainId,

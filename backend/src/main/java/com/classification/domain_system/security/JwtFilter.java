@@ -236,7 +236,10 @@ public class JwtFilter extends OncePerRequestFilter {
                         tokenSessionId = jwt.getClaimAsString("session_state");
                     }
 
-                    if (tokenSessionId != null) {
+                    String authHeader = request.getHeader("Authorization");
+                    boolean isBearerHeader = authHeader != null && authHeader.startsWith("Bearer ");
+
+                    if (tokenSessionId != null && !isBearerHeader) {
                         Long iatSec = jwt.getIssuedAt() != null ? jwt.getIssuedAt().getEpochSecond() : null;
                         Long authTimeSec = null;
                         Object authTimeObj = jwt.getClaim("auth_time");
@@ -253,20 +256,35 @@ public class JwtFilter extends OncePerRequestFilter {
                         if (activeSessionId == null) {
                             u.setActiveSessionId(tokenSessionId);
                             u.setLastLoginEpochSec(tokenTime > 0 ? tokenTime : nowSec);
-                            repo.saveAndFlush(u);
+                            try {
+                                repo.saveAndFlush(u);
+                            } catch (Exception ex) {
+                                log.debug("Initial activeSessionId concurrent save collision ignored: {}", ex.getMessage());
+                            }
                         } else if (!activeSessionId.equals(tokenSessionId)) {
                             // 토큰 발급 시각이 기존 저장 시각 이상이거나, 최근 1시간(3600초) 이내의 유효 토큰인 경우 새로운 로그인으로 채택
                             if (tokenTime >= storedTime || (nowSec - tokenTime < 3600)) {
                                 sendForceLogout(u);
                                 u.setActiveSessionId(tokenSessionId);
                                 u.setLastLoginEpochSec(Math.max(tokenTime, nowSec));
-                                repo.saveAndFlush(u);
+                                try {
+                                    repo.saveAndFlush(u);
+                                } catch (Exception ex) {
+                                    log.debug("Session update concurrent collision ignored: {}", ex.getMessage());
+                                }
                                 log.info("Keycloak active session switched to newer login for user: {}, sid: {}", preferredUsername, tokenSessionId);
                             } else {
                                 log.warn("Keycloak session invalidated due to older session token for user: {}", preferredUsername);
                                 sendSessionExpiredError(response, "Session expired due to login from another device.");
                                 return true;
                             }
+                        }
+                    } else if (tokenSessionId != null && isBearerHeader && activeSessionId == null) {
+                        u.setActiveSessionId(tokenSessionId);
+                        try {
+                            repo.saveAndFlush(u);
+                        } catch (Exception ex) {
+                            log.debug("Bearer session record collision ignored: {}", ex.getMessage());
                         }
                     }
                 }
