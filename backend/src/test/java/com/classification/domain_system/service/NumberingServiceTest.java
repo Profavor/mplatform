@@ -81,7 +81,7 @@ class NumberingServiceTest extends BaseServiceTest {
             domain.setNumberingPattern("PRD-{SEQ:5}");
             domain.setCurrentSequence(10L);
 
-            given(domainRepository.findWithLockById(domainId)).willReturn(Optional.of(domain));
+            given(domainRepository.findById(domainId)).willReturn(Optional.of(domain));
             given(domainRepository.getCurrentSequenceNative(domainId)).willReturn(11L);
 
             // when

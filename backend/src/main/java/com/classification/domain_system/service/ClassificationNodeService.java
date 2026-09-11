@@ -240,6 +240,13 @@ public class ClassificationNodeService {
     }
 
     @Transactional(readOnly = true)
+    public ClassificationNode getNode(UUID nodeId) {
+        return nodeRepository.findById(nodeId)
+                .filter(n -> !Boolean.TRUE.equals(n.getIsDeleted()))
+                .orElseThrow(() -> new ResourceNotFoundException("Node not found with id: " + nodeId));
+    }
+
+    @Transactional(readOnly = true)
     public java.util.Map<String, Object> getNodeLayout(UUID domainId, UUID nodeId) {
         ClassificationNode node = nodeRepository.findById(nodeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Node not found with id: " + nodeId));

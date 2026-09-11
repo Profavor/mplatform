@@ -149,4 +149,35 @@ class ApprovalRequestCreationServiceTest {
         verify(approvalRepository).save(any());
         verify(notificationFacade).publishApprovalRequestCreated(any());
     }
+
+    @Test
+    @DisplayName("requestRecordCreation - 중복 감지 시 BusinessException 발생 및 details에 existingRecordId와 duplicateRecordIds 포함")
+    void requestRecordCreation_DuplicateDetected_ThrowsBusinessExceptionWithDetails() {
+        when(nodeRepository.findById(nodeId)).thenReturn(Optional.of(mockNode));
+        when(workflowResolver.resolveWorkflow(eq(nodeId), eq("CREATE"))).thenReturn(new WorkflowConfig());
+        DataQualityService.DQResult dq = new DataQualityService.DQResult();
+        dq.isValid = true;
+        dq.errors = List.of();
+        when(dqService.validateData(eq(nodeId), any(), any(), any())).thenReturn(dq);
+
+        UUID existingRecordId = UUID.randomUUID();
+        MatchingService.DuplicateResult dup = new MatchingService.DuplicateResult();
+        dup.hasDuplicates = true;
+        dup.duplicateRecordIds = List.of(existingRecordId);
+        dup.message = "중복 데이터가 존재합니다.";
+        when(matchingService.checkDuplicates(eq(nodeId), any())).thenReturn(dup);
+
+        RecordRequest request = new RecordRequest();
+        request.setData("{\"field_id\":\"123\", \"field_name\":\"홍길동\"}");
+        request.setRequesterId("user1");
+
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+            creationService.requestRecordCreation(nodeId, request)
+        );
+
+        assertEquals(com.classification.domain_system.exception.ErrorCode.DEDUPLICATION_FAILED, ex.getErrorCode());
+        assertNotNull(ex.getDetails());
+        assertEquals(existingRecordId.toString(), ex.getDetails().get("existingRecordId"));
+        assertTrue(ex.getDetails().containsKey("duplicateRecordIds"));
+    }
 }

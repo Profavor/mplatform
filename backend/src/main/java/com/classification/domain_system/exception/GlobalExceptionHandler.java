@@ -26,9 +26,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException ex, HttpServletRequest request) {
         log.warn("Business exception occurred at URI: {}. Code: {}, Message: {}", 
                 request.getRequestURI(), ex.getErrorCode().getCode(), ex.getMessage());
+        ErrorResponse body = ex.getDetails() != null && !ex.getDetails().isEmpty()
+                ? ErrorResponse.of(ex.getErrorCode(), ex.getMessage(), ex.getDetails())
+                : ErrorResponse.of(ex.getErrorCode(), ex.getMessage());
         return ResponseEntity
                 .status(ex.getErrorCode().getStatus())
-                .body(ErrorResponse.of(ex.getErrorCode(), ex.getMessage()));
+                .body(body);
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)

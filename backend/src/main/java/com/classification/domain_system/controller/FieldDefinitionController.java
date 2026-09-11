@@ -62,7 +62,7 @@ public class FieldDefinitionController {
         return ResponseEntity.ok(result);
     }
 
-    @PutMapping("/{fieldId}")
+    @RequestMapping(value = "/{fieldId}", method = {RequestMethod.PUT, RequestMethod.PATCH})
     @PreAuthorize("hasPermission(null, 'field:write')")
     public ResponseEntity<FieldDefinition> updateField(
             @PathVariable UUID nodeId,

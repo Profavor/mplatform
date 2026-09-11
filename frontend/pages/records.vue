@@ -58,9 +58,9 @@
         </template>
       </div>
 
-      <div v-show="showTree" style="flex: 1; overflow-y: auto;">
-        <va-card flat style="border-radius: 0;">
-          <va-card-content style="padding: 0;">
+      <div v-show="showTree" style="flex: 1 1 0%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; height: 100%;">
+        <va-card flat style="border-radius: 0; height: 100%; min-height: 0; display: flex; flex-direction: column; flex: 1 1 0%; overflow: hidden;">
+          <va-card-content style="padding: 0; height: 100%; min-height: 0; display: flex; flex-direction: column; flex: 1 1 0%; overflow: hidden;">
             <ClassificationTree
               ref="treeRef"
               :selectedNode="selectedNode"
@@ -3538,6 +3538,9 @@ const saveRecord = async () => {
   background: var(--va-background-element);
   border-radius: 8px;
   overflow: hidden;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
 }
 .records-tree-column.tree-collapsed {
   width: 48px;

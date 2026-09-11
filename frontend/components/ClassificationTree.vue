@@ -1,5 +1,5 @@
 <template>
-  <div class="classification-tree-root" style="display: flex; flex-direction: column; height: 100%; min-height: 0;">
+  <div class="classification-tree-root" style="display: flex; flex-direction: column; height: 100%; min-height: 0; width: 100%; overflow: hidden;">
     <!-- Axis Selection Dropdown Header -->
     <div v-if="!hideAxisSelect" style="padding: 0.5rem; border-bottom: 1px solid var(--va-background-border); background: var(--va-background-element); flex: 0 0 auto;">
       <va-select
@@ -18,7 +18,7 @@
       </va-select>
     </div>
 
-    <div style="flex: 1 1 auto; overflow-y: auto; min-height: 0;" class="custom-scrollbar">
+    <div class="tree-scroll-container custom-scrollbar" style="flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; min-height: 0; height: 100%; width: 100%;">
       <div v-if="!treeNodes || treeNodes.length === 0" style="padding: 2rem; text-align: center; color: var(--va-text-secondary, #666);">
         {{ emptyMessage }}
       </div>
@@ -210,8 +210,42 @@ defineExpose({
 </script>
 
 <style scoped>
-.schema-tree-wrapper {
-  flex: 1;
+.classification-tree-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+.tree-scroll-container {
+  flex: 1 1 auto;
   overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+  overscroll-behavior: contain;
+}
+
+/* Custom Scrollbar for Tree */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(21, 78, 193, 0.4) transparent;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(21, 78, 193, 0.35);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(21, 78, 193, 0.65);
 }
 </style>

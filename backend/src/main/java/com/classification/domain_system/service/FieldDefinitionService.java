@@ -248,35 +248,45 @@ public class FieldDefinitionService {
     }
     
     private void populateFieldProperties(FieldDefinition field, FieldDefinitionRequest request, boolean isUpdate) {
-        field.setName(request.getName());
-        if (request.getHint() != null) {
-            field.setHint(request.getHint());
-        }
-        
-        if (request.getFieldGroupId() != null) {
-            field.setFieldGroup(fieldGroupRepository.findById(request.getFieldGroupId())
-                .orElseThrow(() -> new RuntimeException("FieldGroup not found")));
-        } else {
-            field.setFieldGroup(null);
-        }
-        
-        field.setKey(request.getKey());
-        field.setType(request.getType());
-        
         if (isUpdate) {
+            if (request.getName() != null) field.setName(request.getName());
+            if (request.getHint() != null) field.setHint(request.getHint());
+            if (request.getKey() != null) field.setKey(request.getKey());
+            if (request.getType() != null) field.setType(request.getType());
+            if (request.getFieldGroupId() != null) {
+                field.setFieldGroup(fieldGroupRepository.findById(request.getFieldGroupId())
+                    .orElseThrow(() -> new RuntimeException("FieldGroup not found")));
+            }
+            if (request.getOptions() != null) {
+                field.setOptions(normalizeJsonStr(request.getOptions()));
+            }
+            if (request.getDefaultValue() != null) {
+                field.setDefaultValue(normalizeJsonStr(request.getDefaultValue()));
+            }
             field.setUnit(request.getUnit() != null ? request.getUnit() : field.getUnit());
             field.setGridWidth(request.getGridWidth() != null ? request.getGridWidth() : field.getGridWidth());
             field.setTableColumnWidth(request.getTableColumnWidth() != null ? request.getTableColumnWidth() : field.getTableColumnWidth());
             field.setIsHighlighted(request.getIsHighlighted() != null ? request.getIsHighlighted() : field.getIsHighlighted());
         } else {
+            field.setName(request.getName());
+            if (request.getHint() != null) {
+                field.setHint(request.getHint());
+            }
+            if (request.getFieldGroupId() != null) {
+                field.setFieldGroup(fieldGroupRepository.findById(request.getFieldGroupId())
+                    .orElseThrow(() -> new RuntimeException("FieldGroup not found")));
+            } else {
+                field.setFieldGroup(null);
+            }
+            field.setKey(request.getKey());
+            field.setType(request.getType());
             field.setGridWidth(request.getGridWidth());
             field.setTableColumnWidth(request.getTableColumnWidth());
             field.setIsHighlighted(request.getIsHighlighted() != null ? request.getIsHighlighted() : false);
             field.setIsRemoved(false);
+            field.setOptions(normalizeJsonStr(request.getOptions()));
+            field.setDefaultValue(normalizeJsonStr(request.getDefaultValue()));
         }
-        
-        field.setOptions(normalizeJsonStr(request.getOptions()));
-        field.setDefaultValue(normalizeJsonStr(request.getDefaultValue()));
         
         field.setRequired(request.getRequired() != null ? request.getRequired() : (isUpdate && field.getRequired() != null ? field.getRequired() : false));
         field.setOrder(request.getOrder() != null ? request.getOrder() : (isUpdate && field.getOrder() != null ? field.getOrder() : 0));
