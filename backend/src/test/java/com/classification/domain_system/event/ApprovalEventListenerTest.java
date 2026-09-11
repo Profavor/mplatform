@@ -38,9 +38,69 @@ class ApprovalEventListenerTest {
     @Mock private com.classification.domain_system.service.NotificationService notificationService;
     @Mock private UserRepository userRepository;
     @Mock private com.classification.domain_system.websocket.WebSocketPublisher webSocketPublisher;
+    @Mock private com.classification.domain_system.service.NumberingService numberingService;
+    @Mock private org.springframework.context.ApplicationEventPublisher applicationEventPublisher;
+    @Mock private DomainRepository domainRepository;
 
     @InjectMocks
     private ApprovalEventListener eventListener;
+
+    @Test
+    @DisplayName("성공 - 결재선이 없을 때 자동 승인 처리되며 번호가 채번되어 record.data와 approval.changes에 저장된다")
+    void successAutoApproveAndNumberingWhenNoSteps() {
+        // given
+        UUID domainId = UUID.randomUUID();
+        UUID nodeId = UUID.randomUUID();
+        UUID recordId = UUID.randomUUID();
+        UUID identifierFieldId = UUID.randomUUID();
+
+        com.classification.domain_system.entity.Domain domain = new com.classification.domain_system.entity.Domain();
+        domain.setId(domainId);
+        domain.setNumberingPattern("BIL-{SEQ:6}");
+        domain.setIdentifierFieldId(identifierFieldId);
+
+        com.classification.domain_system.entity.ClassificationNode node = new com.classification.domain_system.entity.ClassificationNode();
+        node.setId(nodeId);
+        node.setDomain(domain);
+
+        com.classification.domain_system.entity.Record record = new com.classification.domain_system.entity.Record();
+        record.setId(recordId);
+        record.setNode(node);
+        record.setStatus("PENDING_APPROVAL");
+        record.setData("{\"BILL_NO\":\"2208232\"}");
+
+        ApprovalRequest approval = new ApprovalRequest();
+        approval.setId(UUID.randomUUID());
+        approval.setTargetType("RECORD");
+        approval.setTargetId(recordId);
+        approval.setRequesterId("tester");
+        approval.setStatus("PENDING");
+        approval.setChanges("{\"BILL_NO\":\"2208232\"}");
+        approval.setSteps(new ArrayList<>()); // 결재선 0개
+
+        com.classification.domain_system.entity.FieldDefinition idFieldDef = new com.classification.domain_system.entity.FieldDefinition();
+        idFieldDef.setId(identifierFieldId);
+        idFieldDef.setKey("BILL_CODE");
+
+        when(recordRepository.findById(recordId)).thenReturn(Optional.of(record));
+        when(domainRepository.findById(domainId)).thenReturn(Optional.of(domain));
+        when(numberingService.issueNextCode(domainId)).thenReturn("BIL-000001");
+        when(fieldDefinitionService.getEffectiveFields(nodeId)).thenReturn(List.of(idFieldDef));
+        when(calculatedFieldEvaluator.recomputeCalculatedFields(eq(nodeId), any())).thenAnswer(i -> i.getArgument(1));
+        when(recordRepository.saveAndFlush(any())).thenAnswer(i -> i.getArgument(0));
+        when(approvalRepository.saveAndFlush(any())).thenAnswer(i -> i.getArgument(0));
+
+        // when
+        eventListener.onApprovalRequestCreated(new ApprovalRequestCreatedEvent(approval));
+
+        // then
+        assertThat(approval.getStatus()).isEqualTo("APPROVED");
+        assertThat(record.getStatus()).isEqualTo("ACTIVE");
+        assertThat(record.getData()).contains("\"BILL_CODE\":\"BIL-000001\"");
+        assertThat(approval.getChanges()).contains("\"BILL_CODE\":\"BIL-000001\"");
+        org.mockito.Mockito.verify(recordRepository).saveAndFlush(record);
+        org.mockito.Mockito.verify(approvalRepository).saveAndFlush(approval);
+    }
 
     @Test
     @DisplayName("성공 - ApprovalRequestCreatedEvent 발생 시, 1단계와 2단계 결재자가 기안자 본인이면 2단계까지 자동 전결된다")

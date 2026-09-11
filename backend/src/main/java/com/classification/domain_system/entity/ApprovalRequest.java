@@ -53,6 +53,7 @@ public class ApprovalRequest {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "node_id")
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "children", "parent", "domain"})
     private ClassificationNode classificationNode;
 
     @com.fasterxml.jackson.annotation.JsonProperty("domainName")

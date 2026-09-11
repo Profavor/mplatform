@@ -39,7 +39,7 @@ kubectl apply -f "$SCRIPT_DIR/k8s/30-backend.yaml"
 
 echo "==> 5. Restarting backend deployment..."
 kubectl rollout restart deployment backend -n mdm-system
-kubectl rollout status deployment backend -n mdm-system --timeout=120s
+kubectl rollout status deployment backend -n mdm-system --timeout=180s
 
 echo "==> 6. Current Cluster Pod Status:"
 kubectl get pods -n mdm-system
