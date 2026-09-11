@@ -136,6 +136,9 @@ public class ApprovalRequestCreationService {
             stepRepository.saveAll(approval.getSteps());
         }
         notificationFacade.publishApprovalRequestCreated(saved);
+        if (saved.getId() != null) {
+            saved = approvalRepository.findById(saved.getId()).orElse(saved);
+        }
         return saved;
     }
     
@@ -295,6 +298,9 @@ public class ApprovalRequestCreationService {
             stepRepository.saveAll(approval.getSteps());
         }
         notificationFacade.publishApprovalRequestCreated(saved);
+        if (saved.getId() != null) {
+            saved = approvalRepository.findById(saved.getId()).orElse(saved);
+        }
         return saved;
     }
     

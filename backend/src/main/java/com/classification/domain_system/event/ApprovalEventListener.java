@@ -291,7 +291,12 @@ public class ApprovalEventListener {
             record.setStatus(RecordStatus.ACTIVE.name());
             
             String changesJson = approval.getChanges();
-            Domain domain = record.getNode().getDomain();
+            Domain domain = null;
+            if (record.getNode() != null && record.getNode().getDomain() != null) {
+                domain = domainRepository != null 
+                        ? domainRepository.findById(record.getNode().getDomain().getId()).orElse(record.getNode().getDomain())
+                        : record.getNode().getDomain();
+            }
             if (domain != null && domain.getNumberingPattern() != null && !domain.getNumberingPattern().isBlank()) {
                 String issuedCode = numberingService.issueNextCode(domain.getId());
                 if (domain.getIdentifierFieldId() != null && !issuedCode.isBlank()) {
@@ -311,6 +316,10 @@ public class ApprovalEventListener {
 
             String finalData = recomputeCalculatedFields(record.getNode().getId(), changesJson);
             record.setData(finalData);
+            record = recordRepository.saveAndFlush(record);
+            approval.setChanges(finalData);
+            approvalRepository.saveAndFlush(approval);
+
             logHistory(record, "CREATE", approval.getRequesterId(), null, finalData, approval.getId());
             applicationEventPublisher.publishEvent(new MasterDataChangedEvent(this, record.getId(), record.getNode().getId(), "CREATE", finalData));
             if (cartbomOutboundWebhookService != null) {
@@ -342,6 +351,8 @@ public class ApprovalEventListener {
                     record.setData(afterData);
                 }
                 record.setStatus(RecordStatus.ACTIVE.name());
+                record = recordRepository.saveAndFlush(record);
+                approvalRepository.saveAndFlush(approval);
                 logHistory(record, "UPDATE", approval.getRequesterId(), prevData, record.getData(), approval.getId());
                 applicationEventPublisher.publishEvent(new MasterDataChangedEvent(this, record.getId(), record.getNode().getId(), "UPDATE", record.getData()));
                 if (cartbomOutboundWebhookService != null) {
