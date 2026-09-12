@@ -864,7 +864,7 @@ public class FieldDefinitionService {
         } else {
             Domain domain = domainRepository.findById(nodeId).orElse(null);
             if (domain != null) {
-                List<FieldDefinition> domainFields = fieldRepository.findDomainFieldsWithSort(domain.getId());
+                List<FieldDefinition> domainFields = fieldRepository.findAllDomainAndNodeFieldsWithSort(domain.getId());
                 java.util.Map<Object, FieldDefinition> uniqueMap = new java.util.LinkedHashMap<>();
                 if (domainFields != null) {
                     for (FieldDefinition f : domainFields) {

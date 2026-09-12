@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import ApprovalDetailsViewer from '~/components/ApprovalDetailsViewer.vue'
 
 vi.mock('#app', () => ({
@@ -13,7 +13,15 @@ vi.mock('vue-i18n', () => ({
   })
 }))
 
-// Mock global $fetch for component unit tests
+// Mock global customFetch for component unit tests
+export const mockCustomFetch = vi.fn().mockImplementation(() => Promise.resolve([]))
+
+vi.mock('~/composables/useCustomFetch', () => ({
+  useCustomFetch: () => ({
+    customFetch: (url: string, opts?: any) => mockCustomFetch(url, opts)
+  })
+}))
+
 // @ts-ignore
 globalThis.$fetch = vi.fn().mockResolvedValue([])
 
@@ -303,6 +311,74 @@ describe('ApprovalDetailsViewer Component - RECORD_UPDATE Filtering Test', () =>
     expect(text).toContain('12500')
     // 원본 changesObj.before가 그대로 보존되어야 함
     expect(changesObj.before).toBe(rawBefore)
+  })
+
+  it('연계 이력(BATCH_MERGE)에서 변경된 필드 키가 대문자(FOREIGN_OWNERSHIP_RATIO)이더라도 fieldNameMap을 통해 다국어 라벨로 정상 표출되어야 함', async () => {
+    const mockFields = [
+      {
+        id: 'field-uuid-1',
+        key: 'foreign_ownership_ratio',
+        name: { ko: '외국인 지분율(%)', en: 'Foreign Ownership Ratio (%)' },
+        type: 'NUMBER',
+        fieldGroup: {
+          id: 'group-1',
+          name: { ko: '투자자별 매매/지분', en: 'Investor Trading' },
+          sector: { id: 'sector-1', name: { ko: '투자 지표', en: 'Investment Indicators' }, sortOrder: 1 },
+          sortOrder: 1
+        }
+      },
+      {
+        id: 'field-uuid-2',
+        key: 'margin_balance_shares',
+        name: { ko: '신용잔고주수', en: 'Margin Balance Shares' },
+        type: 'NUMBER',
+        fieldGroup: null
+      }
+    ]
+
+    mockCustomFetch.mockImplementation((url: string) => {
+      if (url.includes('/fields/effective')) {
+        return Promise.resolve(mockFields)
+      }
+      return Promise.resolve([])
+    })
+
+    const mockIntegrationRequest = {
+      id: 'req-integration-1',
+      targetType: 'BATCH_MERGE',
+      isIntegration: true,
+      nodeId: 'node-uuid-1',
+      changes: JSON.stringify({
+        before: {
+          FOREIGN_OWNERSHIP_RATIO: 27.16,
+          MARGIN_BALANCE_SHARES: 373348
+        },
+        after: {
+          FOREIGN_OWNERSHIP_RATIO: 27.19,
+          MARGIN_BALANCE_SHARES: 257534
+        },
+        changedFields: ['FOREIGN_OWNERSHIP_RATIO', 'MARGIN_BALANCE_SHARES']
+      }),
+      steps: []
+    }
+
+    const wrapper = mount(ApprovalDetailsViewer, {
+      props: {
+        request: mockIntegrationRequest,
+        nodeId: 'node-uuid-1'
+      },
+      global: {
+        mocks: { $t: (key: string) => key },
+        stubs: { VaIcon: true, VaBadge: true, VaButton: true, VaChip: true, ApprovalSteps: true, VaModal: true, VaInput: true, 'va-modal': true, 'va-input': true }
+      }
+    })
+
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    const text = wrapper.text()
+    expect(text).toContain('외국인 지분율(%)')
+    expect(text).toContain('신용잔고주수')
   })
 })
 

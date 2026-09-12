@@ -65,4 +65,34 @@ describe('ApprovalViewerModal.vue (TDD Component Test)', () => {
     expect(wrapper.emitted('update:modelValue')).toBeTruthy()
     expect(wrapper.emitted('update:modelValue')![0]).toEqual([false])
   })
+
+  it('domainId 및 nodeId prop이 ApprovalDetailsViewer에 정상 전달되어야 함', () => {
+    const mockRequest = createMockRequest()
+    const wrapper = mount(ApprovalViewerModal, {
+      props: {
+        modelValue: true,
+        request: mockRequest,
+        nodeId: 'node-123',
+        domainId: 'domain-456'
+      },
+      global: {
+        stubs: {
+          'va-modal': {
+            template: '<div class="va-modal-stub"><slot name="header" /><slot /></div>'
+          },
+          'va-badge': true,
+          'va-icon': true,
+          ApprovalDetailsViewer: {
+            props: ['request', 'nodeId', 'domainId'],
+            template: '<div class="details-stub" :data-node="nodeId" :data-domain="domainId"></div>'
+          }
+        }
+      }
+    })
+
+    const detailsStub = wrapper.find('.details-stub')
+    expect(detailsStub.exists()).toBe(true)
+    expect(detailsStub.attributes('data-node')).toBe('node-123')
+    expect(detailsStub.attributes('data-domain')).toBe('domain-456')
+  })
 })

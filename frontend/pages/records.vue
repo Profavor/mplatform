@@ -389,7 +389,8 @@
     <ApprovalViewerModal
       v-model="showApprovalHistoryModal"
       :request="selectedApprovalRequest"
-      :node-id="selectedNode?.id || selectedRecordData?.node?.id"
+      :node-id="selectedApprovalRequest?.nodeId || selectedRecordData?.node?.id || (selectedNode?.isDomain ? null : selectedNode?.id)"
+      :domain-id="selectedApprovalRequest?.domainId || selectedDomainId"
       :zIndex="1200"
     />
 
@@ -2594,6 +2595,9 @@ const viewIntegrationHistory = async (row) => {
     }
   }
 
+  const targetNodeId = row.nodeId || selectedRecordData.value?.node?.id || selectedRecordData.value?.nodeId || (selectedNode.value?.isDomain ? null : selectedNode.value?.id)
+  const targetDomainId = row.domainId || selectedRecordData.value?.node?.domainId || selectedRecordData.value?.domainId || selectedDomainId.value || (selectedNode.value?.isDomain ? selectedNode.value?.id : selectedNode.value?.domainId)
+
   try {
     const logs = await customFetch(`/api/admin/integration/logs/by-record/${row.recordId}`)
     const log = logs && logs.length > 0 ? logs[0] : null
@@ -2604,7 +2608,8 @@ const viewIntegrationHistory = async (row) => {
       changes: cleanChanges,
       targetType: targetType,
       targetId: row.recordId,
-      nodeId: selectedNode.value?.id,
+      nodeId: targetNodeId,
+      domainId: targetDomainId,
       requesterName: requesterName,
       integrationLog: log
     }
@@ -2617,7 +2622,8 @@ const viewIntegrationHistory = async (row) => {
       changes: cleanChanges,
       targetType: targetType,
       targetId: row.recordId,
-      nodeId: selectedNode.value?.id,
+      nodeId: targetNodeId,
+      domainId: targetDomainId,
       requesterName: requesterName,
       integrationLog: null
     }

@@ -43,6 +43,7 @@
         v-if="request" 
         :request="request" 
         :node-id="nodeId || request?.nodeId || request?.classificationNode?.id" 
+        :domain-id="domainId || request?.domainId"
         @close="onClose" 
       />
     </div>
@@ -67,6 +68,7 @@ const props = withDefaults(
     modelValue: boolean
     request: any
     nodeId?: string
+    domainId?: string
     zIndex?: number
   }>(),
   {
