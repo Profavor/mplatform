@@ -40,7 +40,6 @@ public class ClassificationNode {
     @JoinColumn(name = "axis_id")
     private ClassificationAxis axis;
 
-    @com.fasterxml.jackson.annotation.JsonIgnore
     @OneToMany(mappedBy = "parent")
     @OrderBy("order ASC")
     @org.hibernate.annotations.SQLRestriction("is_deleted = false")

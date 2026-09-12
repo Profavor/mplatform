@@ -478,18 +478,53 @@ const showSupportModal = computed({
   }
 }
 
+@media (max-width: 768px) {
+  .app-footer {
+    padding: 0.75rem 0.85rem 3.5rem 0.85rem;
+    margin-top: auto;
+    border-top: 1px solid var(--va-background-border, rgba(0, 0, 0, 0.08));
+  }
+  .footer-inner {
+    gap: 0.5rem;
+  }
+  .footer-top-row {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  .footer-meta-section {
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .footer-bottom-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+  }
+  .footer-links-section {
+    font-size: 0.75rem;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+  }
+  .copyright-text {
+    font-size: 0.72rem;
+  }
+}
+
 @media (max-width: 600px) {
   .app-footer {
-    padding: 1rem 1rem 4rem 1rem;
+    padding: 0.65rem 0.75rem 4rem 0.75rem;
   }
   .footer-top-row {
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.6rem;
+    gap: 0.4rem;
   }
   .footer-links-section {
-    font-size: 0.78rem;
-    gap: 0.35rem;
+    font-size: 0.75rem;
+    gap: 0.3rem;
   }
   .footer-modal-body {
     min-width: 260px;

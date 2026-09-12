@@ -845,6 +845,9 @@ body {
   }
   .main-content-body {
     padding: 0.25rem !important;
+    flex: 0 0 auto !important;
+    height: auto !important;
+    min-height: min-content !important;
   }
   .username-text {
     display: none;

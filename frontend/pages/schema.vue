@@ -1,8 +1,8 @@
 <template>
-  <div style="display: flex; flex-direction: column; gap: 1.25rem; height: 100%; min-height: 0;">
+  <div class="schema-page-root">
     <!-- Top Action Bar -->
-    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 1rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04); flex: 0 0 auto;">
-      <div style="display: flex; align-items: center; gap: 0.75rem;">
+    <div class="schema-top-bar">
+      <div class="schema-top-title">
         <va-icon name="schema" size="large" color="primary" />
         <div>
           <h2 style="font-weight: 700; font-size: 1.35rem; margin: 0; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem;">
@@ -15,7 +15,7 @@
         </div>
       </div>
 
-      <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+      <div class="schema-top-actions">
         <va-button preset="outline" color="info" icon="hub" size="small" @click="showOntologyModal = true">
           {{ $t('semantic_ontology') }}
         </va-button>
@@ -34,10 +34,8 @@
         <va-card class="schema-tree-card">
           <va-card-title
             class="schema-tree-card-title"
+            :class="{ 'is-collapsed': !showTree }"
             @click="showTree = !showTree"
-            :style="showTree 
-              ? 'cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center;' 
-              : 'cursor: pointer; user-select: none; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 0.75rem 0.25rem; height: 100%; gap: 1rem; border-bottom: none;'"
           >
             <template v-if="showTree">
               <div style="display: flex; align-items: center; gap: 0.4rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
@@ -63,7 +61,7 @@
                 @click.stop="showTree = true"
               />
               <va-icon name="account_tree" size="small" color="primary" style="opacity: 0.7;" />
-              <div style="writing-mode: vertical-rl; text-orientation: mixed; font-size: 0.75rem; font-weight: 700; color: var(--va-text-secondary); letter-spacing: 2px; margin-top: 0.5rem; text-transform: uppercase;">
+              <div class="tree-collapsed-label" style="writing-mode: vertical-rl; text-orientation: mixed; font-size: 0.75rem; font-weight: 700; color: var(--va-text-secondary); letter-spacing: 2px; margin-top: 0.5rem; text-transform: uppercase;">
                 {{ $t('classification_tree') }}
               </div>
             </template>
@@ -117,7 +115,7 @@
             <!-- Fields Tab -->
             <div v-show="activeTab === 0" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 1rem;">
               <!-- Grid Title & Action Bar -->
-              <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.85rem; margin-bottom: 0; background: var(--va-background-element, #f4f6f9); border: 1px solid var(--va-background-border); border-bottom: none; border-top-left-radius: 8px; border-top-right-radius: 8px;">
+              <div class="schema-grid-toolbar">
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
                   <va-icon name="list_alt" color="primary" size="1.1rem" />
                   <span style="font-weight: 700; font-size: 0.95rem; color: var(--va-text-primary);">
@@ -126,7 +124,7 @@
                   <va-chip size="small" color="primary" style="font-weight: 600;">{{ $t('item_count', { count: fields.length }) }}</va-chip>
                 </div>
 
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <div class="schema-grid-actions">
                   <va-button
                     v-if="hasPermission('field:write') || hasPermission('field:*')"
                     size="small"
@@ -2252,6 +2250,36 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.schema-page-root {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  height: 100%;
+  min-height: 0;
+}
+.schema-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--va-background-primary);
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  border: 1px solid var(--va-background-border);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  flex: 0 0 auto;
+  gap: 0.75rem;
+}
+.schema-top-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.schema-top-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
 .schema-layout {
   display: flex;
   gap: 0.75rem;
@@ -2291,6 +2319,18 @@ onUnmounted(() => {
   font-weight: 700;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+}
+.schema-tree-card-title.is-collapsed {
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0.75rem 0.25rem;
+  height: 100%;
+  gap: 1rem;
+  border-bottom: none;
 }
 :deep(.schema-tree-card-content) {
   flex: 1;
@@ -2323,10 +2363,38 @@ onUnmounted(() => {
   height: 100%;
   min-height: 0;
 }
+.schema-grid-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.85rem;
+  margin-bottom: 0;
+  background: var(--va-background-element, #f4f6f9);
+  border: 1px solid var(--va-background-border);
+  border-bottom: none;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+.schema-grid-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
 .schema-grid-wrapper {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   width: 100%;
   min-height: 400px;
+}
+.schema-grid-wrapper :deep(.ag-root-wrapper) {
+  height: 100% !important;
+  min-height: 400px !important;
+  flex: 1 1 auto !important;
+}
+.schema-grid-wrapper :deep(.ag-root-wrapper-body) {
+  flex: 1 1 auto !important;
+  min-height: 350px !important;
 }
 
 /* Custom Scrollbar */
@@ -2358,35 +2426,131 @@ onUnmounted(() => {
 }
 
 @media (max-width: 768px) {
+  .schema-page-root {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+  .schema-top-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    padding: 0.75rem 1rem !important;
+    gap: 0.75rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+  .schema-top-title {
+    width: 100% !important;
+  }
+  .schema-top-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.4rem !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    width: 100% !important;
+    padding-bottom: 2px !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: thin !important;
+  }
+  .schema-top-actions > * {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+  }
   .schema-layout {
-    flex-direction: column;
-    overflow-y: auto;
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow-y: visible !important;
   }
   .schema-tree-column {
-    width: 100%;
-    max-width: 100%;
-    min-width: 100%;
-    height: auto;
-    flex: 0 0 auto;
-    transition: all 0.2s ease;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 100% !important;
+    height: auto !important;
+    min-height: 280px !important;
+    flex: 0 0 auto !important;
+    margin-bottom: 0.75rem !important;
   }
   .schema-tree-column.tree-collapsed {
-    max-height: 48px;
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    flex: 0 0 44px !important;
+    margin-bottom: 0.75rem !important;
+    cursor: pointer;
+  }
+  .schema-tree-card-title.is-collapsed {
+    flex-direction: row !important;
+    justify-content: flex-start !important;
+    padding: 0.5rem 1rem !important;
+    height: 44px !important;
+    gap: 0.75rem !important;
+  }
+  .tree-collapsed-label {
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+    margin-top: 0 !important;
   }
   .schema-tree-card {
-    height: auto;
+    height: auto !important;
   }
   .schema-tree-wrapper {
-    max-height: 280px;
-    min-height: 160px;
+    height: 220px !important;
+    max-height: 260px !important;
+    min-height: 180px !important;
+    overflow-y: auto !important;
   }
   .schema-detail-column {
-    width: 100%;
-    max-width: 100%;
-    padding: 0.25rem 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 100% !important;
+    flex: 1 0 auto !important;
+    min-height: 450px !important;
+    padding: 0 !important;
+  }
+  .schema-detail-column > .va-card {
+    min-height: 450px !important;
+    flex: 1 0 auto !important;
+    width: 100% !important;
+  }
+  .schema-grid-toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.5rem !important;
+  }
+  .schema-grid-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.4rem !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    width: 100% !important;
+    padding-bottom: 2px !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  .schema-grid-actions > * {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
   }
   .schema-grid-wrapper {
-    height: 400px;
+    display: flex !important;
+    flex-direction: column !important;
+    height: 480px !important;
+    min-height: 420px !important;
+    flex: 0 0 auto !important;
+  }
+  .schema-grid-wrapper :deep(.ag-root-wrapper) {
+    height: 100% !important;
+    min-height: 420px !important;
+    flex: 1 1 auto !important;
+  }
+  .schema-grid-wrapper :deep(.ag-root-wrapper-body) {
+    flex: 1 1 auto !important;
+    min-height: 360px !important;
+  }
+  .schema-grid-wrapper :deep(.ag-paging-panel) {
+    flex: 0 0 auto !important;
+    min-height: 42px !important;
   }
 }
 </style>

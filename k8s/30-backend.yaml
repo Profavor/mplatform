@@ -18,13 +18,13 @@ spec:
       labels:
         app: backend
         app.kubernetes.io/name: backend
-        app.kubernetes.io/version: "1.2.56"
-        version: "1.2.56"
+        app.kubernetes.io/version: "1.2.60"
+        version: "1.2.60"
     spec:
       terminationGracePeriodSeconds: 60
       containers:
       - name: backend
-        image: profavor2/mplatform-backend:1.2.56
+        image: profavor2/mplatform-backend:1.2.60
         imagePullPolicy: IfNotPresent
         resources:
           requests:
@@ -32,7 +32,7 @@ spec:
             memory: 1Gi
           limits:
             cpu: 2
-            memory: 4Gi
+            memory: 3Gi
         ports:
         - containerPort: 8080
         readinessProbe:
@@ -56,7 +56,7 @@ spec:
             name: mdm-secrets
         env:
         - name: JAVA_OPTS
-          value: "-Xms4g -Xmx4g -XX:MaxMetaspaceSize=512m -XX:+UseSerialGC"
+          value: "-Xms2g -Xmx2g -XX:MaxMetaspaceSize=384m -XX:+UseSerialGC"
         - name: PORT
           value: "8080"
         - name: MAIL_CONFIG_PATH

@@ -34,7 +34,7 @@ public class RecordSearchService {
     public RecordSearchDto.SearchResponse searchRecords(RecordSearchDto.SearchRequest request) {
         try {
             return searchWithOpenSearch(request);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             // OpenSearch 장애 시 JPA로 Fallback (JSONB 검색)
             return searchWithJpaFallback(request);
         }

@@ -1,7 +1,7 @@
 <template>
-  <div style="display: flex; flex-direction: column; gap: 1rem; height: 100%; min-height: 0;">
+  <div class="records-page-root">
     <!-- Top Action Bar -->
-    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--va-background-primary); padding: 0.85rem 1.25rem; border-radius: 12px; border: 1px solid var(--va-background-border); box-shadow: 0 2px 8px rgba(0,0,0,0.04); flex: 0 0 auto;">
+    <div class="records-top-bar">
       <div style="display: flex; align-items: center; gap: 0.75rem;">
         <va-icon name="dataset" size="large" color="primary" />
         <div>
@@ -16,15 +16,13 @@
       </div>
     </div>
 
-    <div class="records-container records-layout" style="flex: 1; min-height: 0;">
+    <div class="records-container records-layout">
     <!-- Left Column: Classification Tree -->
     <div class="left-tree records-tree-column" :class="{ 'tree-collapsed': !showTree }">
       <div
         class="tree-header"
+        :class="{ 'is-collapsed': !showTree }"
         @click="showTree = !showTree"
-        :style="showTree 
-          ? 'display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.85rem; border-bottom: 1px solid var(--va-background-border); cursor: pointer; user-select: none; background: var(--va-background-element); border-top-left-radius: 8px; border-top-right-radius: 8px;'
-          : 'display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 0.75rem 0.25rem; cursor: pointer; user-select: none; background: var(--va-background-element); border-radius: 8px; height: 100%; gap: 1rem;'"
       >
         <template v-if="showTree">
           <div style="display: flex; align-items: center; gap: 0.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
@@ -52,7 +50,7 @@
             @click.stop="showTree = true"
           />
           <va-icon name="account_tree" size="small" color="primary" style="opacity: 0.7;" />
-          <div style="writing-mode: vertical-rl; text-orientation: mixed; font-size: 0.75rem; font-weight: 700; color: var(--va-text-secondary); letter-spacing: 2px; margin-top: 0.5rem; text-transform: uppercase;">
+          <div class="tree-collapsed-label" style="writing-mode: vertical-rl; text-orientation: mixed; font-size: 0.75rem; font-weight: 700; color: var(--va-text-secondary); letter-spacing: 2px; margin-top: 0.5rem; text-transform: uppercase;">
             {{ $t('classification_tree') }}
           </div>
         </template>
@@ -76,13 +74,13 @@
     <!-- Right Column: Record List & Data Grid -->
     <div class="right-content records-detail-column">
       <!-- 1. Top Context & Search Chips Header Bar (Wide & spacious) -->
-      <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.55rem 0.85rem; background: var(--va-background-element, #f4f6f9); border: 1px solid var(--va-background-border); border-radius: 8px; margin-bottom: 0.5rem; gap: 0.75rem; flex-wrap: wrap;">
-        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; flex: 1;">
+      <div class="records-top-context-bar">
+        <div class="records-context-left">
           <va-icon name="folder_open" color="primary" size="1.2rem" />
-          <span style="font-weight: 700; font-size: 0.95rem; color: var(--va-text-primary);">
+          <span style="font-weight: 700; font-size: 0.95rem; color: var(--va-text-primary); white-space: nowrap;">
             {{ selectedNode ? formatNodeName(selectedNode.name) : $t('master_data_record_list') }}
           </span>
-          <va-chip v-if="selectedNode" size="small" color="primary" style="font-weight: 600;">
+          <va-chip v-if="selectedNode" size="small" color="primary" style="font-weight: 600; white-space: nowrap; flex-shrink: 0;">
             {{ selectedNode.isDomain ? $t('domain') : $t('node') }}
           </va-chip>
 
@@ -130,7 +128,7 @@
         </div>
 
         <!-- Right Side: Stats Badges, Quick Status Filter, View Mode Toggle, Page Jump -->
-        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+        <div class="records-context-right">
           <!-- Total Records Badge -->
           <va-chip size="small" color="primary" style="font-weight: 700;">
             {{ $t('total_records') }}: {{ (totalRecordsCount || 0).toLocaleString() }}
@@ -158,50 +156,16 @@
             </va-button>
           </va-button-group>
 
-          <!-- View Mode Toggle: Virtual Scroll vs Pagination -->
-          <va-button-group size="small">
-            <va-button
-              :preset="viewMode === 'virtual' ? 'primary' : 'secondary'"
-              icon="view_stream"
-              :title="$t('view_mode_virtual')"
-              @click="toggleViewMode('virtual')"
-            >
-              {{ $t('view_mode_virtual') }}
-            </va-button>
-            <va-button
-              :preset="viewMode === 'pagination' ? 'primary' : 'secondary'"
-              icon="auto_stories"
-              :title="$t('view_mode_pagination')"
-              @click="toggleViewMode('pagination')"
-            >
-              {{ $t('view_mode_pagination') }}
-            </va-button>
-          </va-button-group>
-
-          <!-- Page Jump Controls (only for pagination mode) -->
-          <div
-            v-if="viewMode === 'pagination'"
-            style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; background: var(--va-background-primary); padding: 2px 8px; border-radius: 6px; border: 1px solid var(--va-background-border);"
+          <!-- View Mode: Virtual Scroll Toggle Button (matches adjacent button UI) -->
+          <va-button
+            size="small"
+            :preset="isVirtualScroll ? 'primary' : 'secondary'"
+            icon="view_stream"
+            class="virtual-scroll-toggle-btn"
+            @click="isVirtualScroll = !isVirtualScroll"
           >
-            <span>{{ $t('jump_to_page') }}</span>
-            <input
-              type="number"
-              min="1"
-              :max="totalPages"
-              v-model.number="jumpPageInput"
-              @keydown.enter="jumpToPage"
-              style="width: 48px; text-align: center; border: 1px solid var(--va-background-border); border-radius: 4px; padding: 2px 4px; font-size: 0.8rem; background: var(--va-background-element); color: var(--va-text-primary);"
-            />
-            <span>/ {{ totalPages }}</span>
-            <va-button
-              size="small"
-              preset="plain"
-              @click="jumpToPage"
-              style="padding: 0 4px; min-width: 28px;"
-            >
-              {{ $t('jump_btn') }}
-            </va-button>
-          </div>
+            {{ $t('view_mode_virtual') }}
+          </va-button>
         </div>
       </div>
 
@@ -1462,7 +1426,6 @@ const selectNode = async (node) => {
       await loadDomainReferences(fields)
       columnDefs.value = buildColumnDefs(fields, true)
       currentPage.value = 1
-      jumpPageInput.value = 1
       await fetchRecords()
       updateUrlQuery()
     } catch (e) {
@@ -1492,7 +1455,6 @@ const selectNode = async (node) => {
     }
     
     currentPage.value = 1
-    jumpPageInput.value = 1
     await fetchRecords()
     updateUrlQuery()
   } catch (e) {
@@ -2168,7 +2130,6 @@ const columnDefs = ref([])
 const totalRecordsCount = ref(0)
 const totalPages = ref(1)
 const currentPage = ref(1)
-const jumpPageInput = ref(1)
 const pageSize = ref(50)
 const viewMode = ref('pagination') // 'virtual' | 'pagination'
 const quickStatusFilter = ref('ALL') // 'ALL' | 'ACTIVE' | 'PENDING_APPROVAL'
@@ -2189,12 +2150,10 @@ const toggleViewMode = (mode) => {
   updateUrlQuery()
 }
 
-const jumpToPage = () => {
-  if (!gridApi.value) return
-  const p = parseInt(String(jumpPageInput.value), 10)
-  if (isNaN(p) || p < 1 || p > totalPages.value) return
-  gridApi.value.paginationGoToPage(p - 1)
-}
+const isVirtualScroll = computed({
+  get: () => viewMode.value === 'virtual',
+  set: (val) => toggleViewMode(val ? 'virtual' : 'pagination')
+})
 
 const onPaginationChanged = () => {
   if (!gridApi.value) return
@@ -2203,7 +2162,6 @@ const onPaginationChanged = () => {
     const tp = gridApi.value.paginationGetTotalPages() || 1
     currentPage.value = cp
     totalPages.value = tp
-    jumpPageInput.value = cp
     updateUrlQuery()
   } catch (e) {}
 }
@@ -3521,11 +3479,30 @@ const saveRecord = async () => {
 </script>
 
 <style scoped>
+.records-page-root {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  height: 100%;
+  min-height: 0;
+}
+.records-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--va-background-primary);
+  padding: 0.85rem 1.25rem;
+  border-radius: 12px;
+  border: 1px solid var(--va-background-border);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  flex: 0 0 auto;
+}
 .records-layout {
   display: flex;
   height: 100%;
   width: 100%;
   min-height: 0;
+  flex: 1;
 }
 .records-tree-column {
   width: 300px;
@@ -3548,6 +3525,56 @@ const saveRecord = async () => {
   max-width: 48px;
   cursor: pointer;
 }
+.tree-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--va-background-border);
+  cursor: pointer;
+  user-select: none;
+  background: var(--va-background-element);
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  box-sizing: border-box;
+}
+.tree-header.is-collapsed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0.75rem 0.25rem;
+  border-bottom: none;
+  border-radius: 8px;
+  height: 100%;
+  gap: 1rem;
+}
+.records-top-context-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--va-background-element);
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--va-background-border);
+  min-height: 48px;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.records-context-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  flex: 1;
+}
+.records-context-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
 .records-detail-column {
   flex: 1;
   min-width: 0;
@@ -3557,38 +3584,141 @@ const saveRecord = async () => {
   box-sizing: border-box;
 }
 .records-grid-wrapper {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   width: 100%;
   min-height: 480px;
   height: 100%;
+}
+.records-grid-wrapper :deep(.ag-root-wrapper) {
+  height: 100% !important;
+  min-height: 480px !important;
+  flex: 1 1 auto !important;
+}
+.records-grid-wrapper :deep(.ag-root-wrapper-body) {
+  flex: 1 1 auto !important;
+  min-height: 400px !important;
 }
 .records-grid-wrapper :deep(.ag-row) {
   cursor: pointer;
 }
 
 @media (max-width: 768px) {
+  .records-page-root {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+  .records-top-bar {
+    padding: 0.75rem 1rem !important;
+    margin-bottom: 0.75rem !important;
+  }
   .records-layout {
-    flex-direction: column;
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow-y: visible !important;
   }
   .records-tree-column {
-    width: 100%;
-    min-width: 100%;
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
     border-right: none;
     border-bottom: 1px solid var(--va-background-border);
-    max-height: 320px;
+    height: 280px !important;
+    min-height: 240px !important;
+    max-height: 320px !important;
+    flex: 0 0 auto !important;
+    flex-shrink: 0 !important;
+    margin-bottom: 0.75rem;
   }
   .records-tree-column.tree-collapsed {
-    width: 100%;
-    min-width: 100%;
-    max-height: 48px;
-    height: auto;
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    flex: 0 0 44px !important;
+    cursor: pointer;
+    margin-bottom: 0.75rem;
+  }
+  .tree-header.is-collapsed {
+    flex-direction: row !important;
+    justify-content: flex-start !important;
+    padding: 0.5rem 1rem !important;
+    height: 44px !important;
+    gap: 0.75rem !important;
+  }
+  .tree-collapsed-label {
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+    margin-top: 0 !important;
+  }
+  .records-top-context-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.5rem !important;
+    padding: 0.6rem 0.75rem !important;
+  }
+  .records-context-left {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    flex-wrap: wrap !important;
+    width: 100% !important;
+  }
+  .records-context-right {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    width: 100% !important;
+    padding-bottom: 4px !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: thin !important;
+  }
+  .records-context-right > * {
+    flex-shrink: 0 !important;
+  }
+  .records-context-right :deep(.va-button) {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+  }
+  .records-context-right :deep(.va-button-group) {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+  }
+  .records-context-right :deep(.va-chip) {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
   }
   .records-detail-column {
-    padding: 0.5rem 0 0 0;
+    padding: 0.5rem 0 0 0 !important;
+    flex: 1 0 auto !important;
+    min-height: 500px !important;
   }
   .records-grid-wrapper {
-    min-height: 480px;
-    height: 520px;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 480px !important;
+    height: 520px !important;
+    flex: 0 0 auto !important;
+  }
+  .records-grid-wrapper :deep(.ag-root-wrapper) {
+    height: 100% !important;
+    min-height: 480px !important;
+    flex: 1 1 auto !important;
+  }
+  .records-grid-wrapper :deep(.ag-root-wrapper-body) {
+    flex: 1 1 auto !important;
+    min-height: 420px !important;
+  }
+  .records-grid-wrapper :deep(.ag-paging-panel) {
+    flex: 0 0 auto !important;
+    min-height: 42px !important;
   }
 }
 

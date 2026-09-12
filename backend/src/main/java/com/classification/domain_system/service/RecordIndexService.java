@@ -39,7 +39,7 @@ public class RecordIndexService {
             doc.setSearchableData(record.getSearchableData() != null ? record.getSearchableData() : record.getData());
             elasticsearchOperations.save(doc);
             log.debug("Successfully indexed record: {}", record.getId());
-        } catch (Exception e) {
+        } catch (Throwable e) {
             log.warn("Failed to index record {} to OpenSearch. JpaFallback will be used. Error: {}", record.getId(), e.getMessage());
         }
     }

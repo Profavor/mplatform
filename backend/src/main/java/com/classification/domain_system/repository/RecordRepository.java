@@ -80,8 +80,7 @@ public interface RecordRepository extends JpaRepository<Record, UUID>, CustomRec
     @org.springframework.data.jpa.repository.Query(value = "SELECT r.* FROM record r " +
             "JOIN classification_node n ON r.node_id = n.id " +
             "WHERE n.domain_id = :domainId " +
-            "AND (CAST(r.data AS jsonb) ->> CAST(:fieldKey AS text) = :fieldValue " +
-            "     OR CAST(r.data AS jsonb) ->> LOWER(CAST(:fieldKey AS text)) = :fieldValue) " +
+            "AND r.data ->> CAST(:fieldKey AS text) = :fieldValue " +
             "AND r.status NOT IN ('REJECTED', 'MERGED') " +
             "ORDER BY r.created_at ASC", nativeQuery = true)
     List<Record> findActiveRecordsByDomainAndFieldValue(
@@ -91,8 +90,7 @@ public interface RecordRepository extends JpaRepository<Record, UUID>, CustomRec
 
     @org.springframework.data.jpa.repository.Query(value = "SELECT r.* FROM record r " +
             "WHERE r.node_id = :nodeId " +
-            "AND (CAST(r.data AS jsonb) ->> CAST(:fieldKey AS text) IN (:fieldValues) " +
-            "     OR CAST(r.data AS jsonb) ->> LOWER(CAST(:fieldKey AS text)) IN (:fieldValues)) " +
+            "AND r.data ->> CAST(:fieldKey AS text) IN (:fieldValues) " +
             "AND r.status NOT IN ('REJECTED', 'MERGED')", nativeQuery = true)
     List<Record> findActiveRecordsByNodeAndFieldValues(
             @org.springframework.data.repository.query.Param("nodeId") UUID nodeId,

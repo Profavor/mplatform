@@ -42,6 +42,25 @@ public class DatabaseInitializer implements ApplicationRunner {
                 log.warn("Failed to ensure GIN index on record.data: {}", e.getMessage());
             }
 
+            // Ensure critical performance indexes on approval_request, approval_step, and dq_rule
+            String[] performanceIndexes = {
+                "CREATE INDEX IF NOT EXISTS idx_approval_request_target_status ON approval_request (target_id, status)",
+                "CREATE INDEX IF NOT EXISTS idx_approval_request_status ON approval_request (status)",
+                "CREATE INDEX IF NOT EXISTS idx_approval_request_requester ON approval_request (requester_id)",
+                "CREATE INDEX IF NOT EXISTS idx_approval_request_created_at ON approval_request (created_at DESC)",
+                "CREATE INDEX IF NOT EXISTS idx_approval_step_request_order ON approval_step (request_id, step_order ASC)",
+                "CREATE INDEX IF NOT EXISTS idx_approval_step_assignee_status ON approval_step (assignee_id, status)",
+                "CREATE INDEX IF NOT EXISTS idx_dq_rule_field_active ON dq_rule (field_definition_id, is_active)",
+                "CREATE INDEX IF NOT EXISTS idx_dq_rule_domain_active ON dq_rule (domain_id, is_active)"
+            };
+            for (String indexSql : performanceIndexes) {
+                try {
+                    jdbcTemplate.execute(indexSql);
+                } catch (Exception e) {
+                    log.warn("Failed to ensure performance index: {}", e.getMessage());
+                }
+            }
+
             // Ensure SLA & escalation columns on approval_step table for legacy DB compatibility
             String[] slaColumns = {
                 "ALTER TABLE approval_step ADD COLUMN IF NOT EXISTS is_escalated BOOLEAN NOT NULL DEFAULT FALSE",
