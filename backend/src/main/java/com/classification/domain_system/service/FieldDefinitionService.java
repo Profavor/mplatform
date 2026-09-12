@@ -375,7 +375,8 @@ public class FieldDefinitionService {
         field.setIsSearchable(request.getIsSearchable() != null ? request.getIsSearchable() : false);
         
         FieldDefinition savedField = fieldRepository.save(field);
-        if (Boolean.TRUE.equals(savedField.getIsIndexed()) || Boolean.TRUE.equals(request.getIsSearchable())) {
+        boolean isNowIndexed = Boolean.TRUE.equals(savedField.getIsIndexed()) || Boolean.TRUE.equals(field.getIsIndexed());
+        if (isNowIndexed) {
             manageIndex(savedField.getKey(), savedField.getType(), true);
         }
         
@@ -394,7 +395,8 @@ public class FieldDefinitionService {
         field.setIsSearchable(request.getIsSearchable() != null ? request.getIsSearchable() : false);
         
         FieldDefinition savedField = fieldRepository.save(field);
-        if (Boolean.TRUE.equals(savedField.getIsIndexed()) || Boolean.TRUE.equals(request.getIsSearchable())) {
+        boolean isNowIndexed = Boolean.TRUE.equals(savedField.getIsIndexed()) || Boolean.TRUE.equals(field.getIsIndexed());
+        if (isNowIndexed) {
             manageIndex(savedField.getKey(), savedField.getType(), true);
         }
         
@@ -409,18 +411,19 @@ public class FieldDefinitionService {
 
         Boolean wasEncrypted = field.getIsEncrypted();
         java.util.Map<String, Object> beforeState = toStateMap(field);
-        Boolean wasSearchable = field.getIsSearchable();
-        boolean wasIndexed = Boolean.TRUE.equals(field.getIsIndexed()) || Boolean.TRUE.equals(wasSearchable);
+        boolean wasIndexed = Boolean.TRUE.equals(field.getIsIndexed()) || Boolean.TRUE.equals(field.getIsSearchable());
 
         populateFieldProperties(field, request, true);
         
         Boolean willBeSearchable = request.getIsSearchable() != null ? request.getIsSearchable() : field.getIsSearchable();
         field.setIsSearchable(willBeSearchable);
-        boolean willBeIndexed = Boolean.TRUE.equals(field.getIsIndexed()) || Boolean.TRUE.equals(willBeSearchable);
         
         FieldDefinition savedField = fieldRepository.save(field);
+        boolean willBeIndexed = savedField.getIsIndexed() != null
+                ? Boolean.TRUE.equals(savedField.getIsIndexed())
+                : Boolean.TRUE.equals(field.getIsIndexed());
         
-        // 1. Searchable & DB Index migration
+        // 1. DB Index migration (Create or Drop)
         if (willBeIndexed && !wasIndexed) {
             manageIndex(savedField.getKey(), savedField.getType(), true);
         } else if (!willBeIndexed && wasIndexed) {
@@ -537,7 +540,8 @@ public class FieldDefinitionService {
         field.setIsSearchable(request.getIsSearchable() != null ? request.getIsSearchable() : false);
         
         FieldDefinition savedField = fieldRepository.save(field);
-        if (Boolean.TRUE.equals(savedField.getIsIndexed()) || Boolean.TRUE.equals(request.getIsSearchable())) {
+        boolean isNowIndexed = Boolean.TRUE.equals(savedField.getIsIndexed()) || Boolean.TRUE.equals(field.getIsIndexed());
+        if (isNowIndexed) {
             manageIndex(savedField.getKey(), savedField.getType(), true);
         }
         
@@ -578,7 +582,8 @@ public class FieldDefinitionService {
         field.setIsSearchable(request.getIsSearchable() != null ? request.getIsSearchable() : false);
         
         FieldDefinition savedField = fieldRepository.save(field);
-        if (Boolean.TRUE.equals(savedField.getIsIndexed()) || Boolean.TRUE.equals(request.getIsSearchable())) {
+        boolean isNowIndexed = Boolean.TRUE.equals(savedField.getIsIndexed()) || Boolean.TRUE.equals(field.getIsIndexed());
+        if (isNowIndexed) {
             manageIndex(savedField.getKey(), savedField.getType(), true);
         }
         
@@ -657,16 +662,17 @@ public class FieldDefinitionService {
 
         Boolean wasEncrypted = field.getIsEncrypted();
         java.util.Map<String, Object> beforeState = toStateMap(field);
-        Boolean wasSearchable = field.getIsSearchable();
-        boolean wasIndexed = Boolean.TRUE.equals(field.getIsIndexed()) || Boolean.TRUE.equals(wasSearchable);
+        boolean wasIndexed = Boolean.TRUE.equals(field.getIsIndexed()) || Boolean.TRUE.equals(field.getIsSearchable());
 
         populateFieldProperties(field, request, true);
         
         Boolean willBeSearchable = request.getIsSearchable() != null ? request.getIsSearchable() : field.getIsSearchable();
         field.setIsSearchable(willBeSearchable);
-        boolean willBeIndexed = Boolean.TRUE.equals(field.getIsIndexed()) || Boolean.TRUE.equals(willBeSearchable);
         
         FieldDefinition savedField = fieldRepository.save(field);
+        boolean willBeIndexed = savedField.getIsIndexed() != null
+                ? Boolean.TRUE.equals(savedField.getIsIndexed())
+                : Boolean.TRUE.equals(field.getIsIndexed());
         
         if (willBeIndexed && !wasIndexed) {
             manageIndex(savedField.getKey(), savedField.getType(), true);
@@ -720,16 +726,17 @@ public class FieldDefinitionService {
 
         Boolean wasEncrypted = field.getIsEncrypted();
         java.util.Map<String, Object> beforeState = toStateMap(field);
-        Boolean wasSearchable = field.getIsSearchable();
-        boolean wasIndexed = Boolean.TRUE.equals(field.getIsIndexed()) || Boolean.TRUE.equals(wasSearchable);
+        boolean wasIndexed = Boolean.TRUE.equals(field.getIsIndexed()) || Boolean.TRUE.equals(field.getIsSearchable());
 
         populateFieldProperties(field, request, true);
         
         Boolean willBeSearchable = request.getIsSearchable() != null ? request.getIsSearchable() : field.getIsSearchable();
         field.setIsSearchable(willBeSearchable);
-        boolean willBeIndexed = Boolean.TRUE.equals(field.getIsIndexed()) || Boolean.TRUE.equals(willBeSearchable);
         
         FieldDefinition savedField = fieldRepository.save(field);
+        boolean willBeIndexed = savedField.getIsIndexed() != null
+                ? Boolean.TRUE.equals(savedField.getIsIndexed())
+                : Boolean.TRUE.equals(field.getIsIndexed());
         
         if (willBeIndexed && !wasIndexed) {
             manageIndex(savedField.getKey(), savedField.getType(), true);

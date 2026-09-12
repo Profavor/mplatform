@@ -463,7 +463,10 @@ const triggerSaveFieldWithImpactAnalysis = () => {
   showImpactModal.value = true
 }
 
+let isConfirmingImpact = false
+
 const cancelImpactAnalysisAction = () => {
+  if (isConfirmingImpact) return
   showImpactModal.value = false
   pendingFieldAction.value = null
   if (impactChangeRequest.value?.changeType !== 'DELETE_FIELD') {
@@ -494,11 +497,18 @@ const triggerDeleteFieldWithImpactAnalysis = (fieldData) => {
 }
 
 const confirmImpactAnalysisAction = async () => {
+  isConfirmingImpact = true
   showImpactModal.value = false
   if (pendingFieldAction.value) {
     const action = pendingFieldAction.value
     pendingFieldAction.value = null
-    await action()
+    try {
+      await action()
+    } finally {
+      isConfirmingImpact = false
+    }
+  } else {
+    isConfirmingImpact = false
   }
 }
 
@@ -2111,9 +2121,11 @@ const executePendingFieldSave = async () => {
       fieldGroupId: null,
       key: '', type: 'TEXT', options: '', required: false, isMultiValue: false, isSearchable: true, isIndexed: false, isEncrypted: false, isReadOnly: false, isImmutable: false, isHidden: false, isHighlighted: false, order: 0, reason: ''
     }
+    toast.init({ message: t('field_saved_successfully'), color: 'success' })
     showFieldModal.value = false
     showFieldCommentModal.value = false
     await onNodeSelected(selectedNode.value)
+    await refreshSchemaData()
   } catch (error) {
     showCustomAlert(t('save_field_failed'), t('save_error_title'), t('error'), 'error')
   }
