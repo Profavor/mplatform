@@ -124,5 +124,11 @@ class StockItemProcessorTest {
         assertThat(data.get("ex_dividend_date")).isEqualTo("2023-12-27");
         assertThat(data.get("foreign_exhaustion_ratio")).isEqualTo(56.12);
         assertThat(data.get("logo_image_url")).isEqualTo("https://ssl.pstatic.net/imgstock/images5/logo/KR7005930003.png");
+
+        // 미제공/하드코딩 6개 필드 영구 삭제 검증
+        assertThat(data).doesNotContainKeys(
+                "margin_balance_shares", "margin_balance_ratio", "is_short_selling_overheated",
+                "transfer_agent", "settlement_cycle", "investor_relations_url"
+        );
     }
 }

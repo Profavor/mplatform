@@ -93,6 +93,9 @@ public class FieldDefinition {
     @Column(name = "is_searchable", nullable = false)
     private Boolean isSearchable = false;
 
+    @Column(name = "is_indexed", columnDefinition = "boolean default false")
+    private Boolean isIndexed = false;
+
     @Column(name = "is_read_only", columnDefinition = "boolean default false")
     private Boolean isReadOnly = false;
 

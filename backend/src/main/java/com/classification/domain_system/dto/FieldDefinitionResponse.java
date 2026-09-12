@@ -39,6 +39,7 @@ public class FieldDefinitionResponse {
     private Boolean isTable;
     private Boolean isEncrypted;
     private Boolean isSearchable;
+    private Boolean isIndexed;
     private Boolean isReadOnly;
     private Boolean isImmutable;
     private Boolean isHidden;
@@ -100,6 +101,7 @@ public class FieldDefinitionResponse {
                 .isTable(entity.getIsTable())
                 .isEncrypted(entity.getIsEncrypted())
                 .isSearchable(entity.getIsSearchable())
+                .isIndexed(entity.getIsIndexed())
                 .isReadOnly(entity.getIsReadOnly())
                 .isImmutable(entity.getIsImmutable())
                 .isHidden(entity.getIsHidden())

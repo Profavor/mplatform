@@ -226,25 +226,41 @@ public class FieldDefinitionService {
     }
 
     
-    private void manageIndex(String fieldKey, boolean isSearchable) {
+    public void manageIndex(String fieldKey, String fieldType, boolean isIndexed) {
         if (fieldKey == null || fieldKey.trim().isEmpty()) return;
         String safeKey = fieldKey.replaceAll("[^a-zA-Z0-9_]", "_");
-        String indexName = "idx_record_search_" + safeKey;
-        if (isSearchable) {
-            String sql = "CREATE INDEX IF NOT EXISTS " + indexName + " ON record ((data->>'" + safeKey + "'))";
+        String btreeIndexName = "idx_record_idx_" + safeKey;
+        String legacyIndexName = "idx_record_search_" + safeKey;
+        String trgmIndexName = "idx_record_trgm_" + safeKey;
+        if (isIndexed) {
+            String btreeSql = "CREATE INDEX IF NOT EXISTS " + btreeIndexName + " ON record ((data->>'" + safeKey + "'))";
             try {
-                jdbcTemplate.execute(sql);
+                jdbcTemplate.execute(btreeSql);
             } catch (org.springframework.dao.DataAccessException e) {
-                log.error("Failed to create index {}: {}", indexName, e.getMessage());
+                log.error("Failed to create index {}: {}", btreeIndexName, e.getMessage());
+            }
+
+            if (fieldType == null || "TEXT".equalsIgnoreCase(fieldType) || "STRING".equalsIgnoreCase(fieldType)) {
+                String trgmSql = "CREATE INDEX IF NOT EXISTS " + trgmIndexName + " ON record USING gin ((data->>'" + safeKey + "') gin_trgm_ops)";
+                try {
+                    jdbcTemplate.execute(trgmSql);
+                } catch (org.springframework.dao.DataAccessException e) {
+                    log.warn("Could not create trgm index {} (extension might not be enabled): {}", trgmIndexName, e.getMessage());
+                }
             }
         } else {
-            String sql = "DROP INDEX IF EXISTS " + indexName;
-            try {
-                jdbcTemplate.execute(sql);
-            } catch (org.springframework.dao.DataAccessException e) {
-                log.error("Failed to drop index {}: {}", indexName, e.getMessage());
+            for (String idx : java.util.List.of(btreeIndexName, legacyIndexName, trgmIndexName)) {
+                try {
+                    jdbcTemplate.execute("DROP INDEX IF EXISTS " + idx);
+                } catch (org.springframework.dao.DataAccessException e) {
+                    log.error("Failed to drop index {}: {}", idx, e.getMessage());
+                }
             }
         }
+    }
+
+    public void manageIndex(String fieldKey, boolean isIndexed) {
+        manageIndex(fieldKey, "TEXT", isIndexed);
     }
     
     private void populateFieldProperties(FieldDefinition field, FieldDefinitionRequest request, boolean isUpdate) {
@@ -298,6 +314,18 @@ public class FieldDefinitionService {
         field.setIsHidden(request.getIsHidden() != null ? request.getIsHidden() : (isUpdate && field.getIsHidden() != null ? field.getIsHidden() : false));
         field.setMaskingPattern(request.getMaskingPattern() != null ? request.getMaskingPattern() : (isUpdate ? field.getMaskingPattern() : null));
 
+        Boolean targetIndexed = request.getIsIndexed();
+        if (targetIndexed == null) {
+            if (request.getIsSearchable() != null) {
+                targetIndexed = request.getIsSearchable();
+            } else if (isUpdate && field.getIsIndexed() != null) {
+                targetIndexed = field.getIsIndexed();
+            } else {
+                targetIndexed = false;
+            }
+        }
+        field.setIsIndexed(targetIndexed);
+
         // Node Transfer Logic: Allow moving or specifying field to another Classification Node or Domain Level
         if (Boolean.TRUE.equals(request.getIsDomainField())) {
             Domain currentDomain = field.getDomain() != null ? field.getDomain() : (field.getDefinedAtNode() != null ? field.getDefinedAtNode().getDomain() : null);
@@ -347,8 +375,8 @@ public class FieldDefinitionService {
         field.setIsSearchable(request.getIsSearchable() != null ? request.getIsSearchable() : false);
         
         FieldDefinition savedField = fieldRepository.save(field);
-        if (Boolean.TRUE.equals(request.getIsSearchable())) {
-            manageIndex(savedField.getKey(), true);
+        if (Boolean.TRUE.equals(savedField.getIsIndexed()) || Boolean.TRUE.equals(request.getIsSearchable())) {
+            manageIndex(savedField.getKey(), savedField.getType(), true);
         }
         
         recordSchemaChange(domain.getId(), "FIELD", savedField.getId(), "CREATE", null, toStateMap(savedField));
@@ -366,8 +394,8 @@ public class FieldDefinitionService {
         field.setIsSearchable(request.getIsSearchable() != null ? request.getIsSearchable() : false);
         
         FieldDefinition savedField = fieldRepository.save(field);
-        if (Boolean.TRUE.equals(request.getIsSearchable())) {
-            manageIndex(savedField.getKey(), true);
+        if (Boolean.TRUE.equals(savedField.getIsIndexed()) || Boolean.TRUE.equals(request.getIsSearchable())) {
+            manageIndex(savedField.getKey(), savedField.getType(), true);
         }
         
         recordSchemaChange(domain.getId(), "FIELD", savedField.getId(), "CREATE", null, toStateMap(savedField));
@@ -381,20 +409,22 @@ public class FieldDefinitionService {
 
         Boolean wasEncrypted = field.getIsEncrypted();
         java.util.Map<String, Object> beforeState = toStateMap(field);
+        Boolean wasSearchable = field.getIsSearchable();
+        boolean wasIndexed = Boolean.TRUE.equals(field.getIsIndexed()) || Boolean.TRUE.equals(wasSearchable);
 
         populateFieldProperties(field, request, true);
         
-        Boolean wasSearchable = field.getIsSearchable();
         Boolean willBeSearchable = request.getIsSearchable() != null ? request.getIsSearchable() : field.getIsSearchable();
         field.setIsSearchable(willBeSearchable);
+        boolean willBeIndexed = Boolean.TRUE.equals(field.getIsIndexed()) || Boolean.TRUE.equals(willBeSearchable);
         
         FieldDefinition savedField = fieldRepository.save(field);
         
-        // 1. Searchable index migration
-        if (Boolean.TRUE.equals(willBeSearchable) && !Boolean.TRUE.equals(wasSearchable)) {
-            manageIndex(savedField.getKey(), true);
-        } else if (!Boolean.TRUE.equals(willBeSearchable) && Boolean.TRUE.equals(wasSearchable)) {
-            manageIndex(savedField.getKey(), false);
+        // 1. Searchable & DB Index migration
+        if (willBeIndexed && !wasIndexed) {
+            manageIndex(savedField.getKey(), savedField.getType(), true);
+        } else if (!willBeIndexed && wasIndexed) {
+            manageIndex(savedField.getKey(), savedField.getType(), false);
         }
 
         // 2. Encryption migration for existing records
@@ -507,8 +537,8 @@ public class FieldDefinitionService {
         field.setIsSearchable(request.getIsSearchable() != null ? request.getIsSearchable() : false);
         
         FieldDefinition savedField = fieldRepository.save(field);
-        if (Boolean.TRUE.equals(request.getIsSearchable())) {
-            manageIndex(savedField.getKey(), true);
+        if (Boolean.TRUE.equals(savedField.getIsIndexed()) || Boolean.TRUE.equals(request.getIsSearchable())) {
+            manageIndex(savedField.getKey(), savedField.getType(), true);
         }
         
         recordSchemaChange(domain.getId(), "FIELD", savedField.getId(), "CREATE", null, toStateMap(savedField));
@@ -548,8 +578,8 @@ public class FieldDefinitionService {
         field.setIsSearchable(request.getIsSearchable() != null ? request.getIsSearchable() : false);
         
         FieldDefinition savedField = fieldRepository.save(field);
-        if (Boolean.TRUE.equals(request.getIsSearchable())) {
-            manageIndex(savedField.getKey(), true);
+        if (Boolean.TRUE.equals(savedField.getIsIndexed()) || Boolean.TRUE.equals(request.getIsSearchable())) {
+            manageIndex(savedField.getKey(), savedField.getType(), true);
         }
         
         recordSchemaChange(domain.getId(), "FIELD", savedField.getId(), "CREATE", null, toStateMap(savedField));
@@ -572,6 +602,7 @@ public class FieldDefinitionService {
         map.put("required", field.getRequired());
         map.put("unit", field.getUnit());
         map.put("isSearchable", field.getIsSearchable());
+        map.put("isIndexed", Boolean.TRUE.equals(field.getIsIndexed()));
         map.put("isMultiValue", field.getIsMultiValue());
         map.put("isEncrypted", field.getIsEncrypted());
         map.put("isReadOnly", field.getIsReadOnly());
@@ -603,11 +634,10 @@ public class FieldDefinitionService {
         if (nodeId != null && field.getDefinedAtNode() != null && !field.getDefinedAtNode().getId().equals(nodeId)) {
             throw new RuntimeException("Field does not belong to the specified node");
         }
-        
         ClassificationNode node = field.getDefinedAtNode();
-        Domain domain = node.getDomain();
+        Domain domain = node != null ? node.getDomain() : field.getDomain();
 
-        if (!bypassApproval && hasSchemaApproval(domain.getId())) {
+        if (!bypassApproval && domain != null && hasSchemaApproval(domain.getId())) {
             validateNoPendingFieldApproval(fieldId);
             try {
                 String reason = request.getReason() != null ? request.getReason() : request.getComment();
@@ -627,19 +657,21 @@ public class FieldDefinitionService {
 
         Boolean wasEncrypted = field.getIsEncrypted();
         java.util.Map<String, Object> beforeState = toStateMap(field);
+        Boolean wasSearchable = field.getIsSearchable();
+        boolean wasIndexed = Boolean.TRUE.equals(field.getIsIndexed()) || Boolean.TRUE.equals(wasSearchable);
 
         populateFieldProperties(field, request, true);
         
-        Boolean wasSearchable = field.getIsSearchable();
         Boolean willBeSearchable = request.getIsSearchable() != null ? request.getIsSearchable() : field.getIsSearchable();
         field.setIsSearchable(willBeSearchable);
+        boolean willBeIndexed = Boolean.TRUE.equals(field.getIsIndexed()) || Boolean.TRUE.equals(willBeSearchable);
         
         FieldDefinition savedField = fieldRepository.save(field);
         
-        if (Boolean.TRUE.equals(willBeSearchable) && !Boolean.TRUE.equals(wasSearchable)) {
-            manageIndex(savedField.getKey(), true);
-        } else if (!Boolean.TRUE.equals(willBeSearchable) && Boolean.TRUE.equals(wasSearchable)) {
-            manageIndex(savedField.getKey(), false);
+        if (willBeIndexed && !wasIndexed) {
+            manageIndex(savedField.getKey(), savedField.getType(), true);
+        } else if (!willBeIndexed && wasIndexed) {
+            manageIndex(savedField.getKey(), savedField.getType(), false);
         }
 
         Boolean newEncrypted = savedField.getIsEncrypted();
@@ -647,7 +679,7 @@ public class FieldDefinitionService {
             migrateRecordEncryptionForField(savedField, Boolean.TRUE.equals(newEncrypted));
         }
         
-        recordSchemaChange(domain.getId(), "FIELD", fieldId, "UPDATE", beforeState, toStateMap(savedField));
+        recordSchemaChange(domain != null ? domain.getId() : null, "FIELD", fieldId, "UPDATE", beforeState, toStateMap(savedField));
         return savedField;
     }
     
@@ -688,19 +720,21 @@ public class FieldDefinitionService {
 
         Boolean wasEncrypted = field.getIsEncrypted();
         java.util.Map<String, Object> beforeState = toStateMap(field);
+        Boolean wasSearchable = field.getIsSearchable();
+        boolean wasIndexed = Boolean.TRUE.equals(field.getIsIndexed()) || Boolean.TRUE.equals(wasSearchable);
 
         populateFieldProperties(field, request, true);
         
-        Boolean wasSearchable = field.getIsSearchable();
         Boolean willBeSearchable = request.getIsSearchable() != null ? request.getIsSearchable() : field.getIsSearchable();
         field.setIsSearchable(willBeSearchable);
+        boolean willBeIndexed = Boolean.TRUE.equals(field.getIsIndexed()) || Boolean.TRUE.equals(willBeSearchable);
         
         FieldDefinition savedField = fieldRepository.save(field);
         
-        if (Boolean.TRUE.equals(willBeSearchable) && !Boolean.TRUE.equals(wasSearchable)) {
-            manageIndex(savedField.getKey(), true);
-        } else if (!Boolean.TRUE.equals(willBeSearchable) && Boolean.TRUE.equals(wasSearchable)) {
-            manageIndex(savedField.getKey(), false);
+        if (willBeIndexed && !wasIndexed) {
+            manageIndex(savedField.getKey(), savedField.getType(), true);
+        } else if (!willBeIndexed && wasIndexed) {
+            manageIndex(savedField.getKey(), savedField.getType(), false);
         }
 
         Boolean newEncrypted = savedField.getIsEncrypted();
@@ -751,6 +785,9 @@ public class FieldDefinitionService {
 
         field.setIsRemoved(true);
         fieldRepository.saveAndFlush(field);
+        if (field.getKey() != null) {
+            manageIndex(field.getKey(), field.getType(), false);
+        }
         recordSchemaChange(actualDomainId, "FIELD", fieldId, "DELETE", toStateMap(field), null, changedBy);
     }
 

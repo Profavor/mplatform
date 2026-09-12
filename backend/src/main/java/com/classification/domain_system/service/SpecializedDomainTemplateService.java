@@ -33,6 +33,9 @@ public class SpecializedDomainTemplateService {
     private final FieldGroupRepository fieldGroupRepository;
     private final CodeDetailRepository codeDetailRepository;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private FieldDefinitionService fieldDefinitionService;
+
     private static final Map<String, SpecializedDomainTemplateDto> TEMPLATES = new LinkedHashMap<>();
 
     static {
@@ -499,19 +502,19 @@ public class SpecializedDomainTemplateService {
                                 )).build(),
                         SectorTemplateDto.builder().code("TRADING_GOVERNANCE").name(Map.of("ko", "매매 및 수급 지표", "en", "Trading & Market Metrics")).order(4)
                                 .groups(List.of(
-                                        FieldGroupTemplateDto.builder().code("TRADING_HALT_GROUP").name(Map.of("ko", "거래 제한 및 예탁 기관", "en", "Trading Status & Agent")).order(1).isDefaultOpen(true).build(),
-                                        FieldGroupTemplateDto.builder().code("MARKET_TRADING_METRICS_GROUP").name(Map.of("ko", "신용 및 공매도 지표", "en", "Margin & Short Trading")).order(2).isDefaultOpen(true).build(),
+                                        FieldGroupTemplateDto.builder().code("TRADING_HALT_GROUP").name(Map.of("ko", "거래 상태 및 리스크 관리", "en", "Trading Status & Risk")).order(1).isDefaultOpen(true).build(),
+                                        FieldGroupTemplateDto.builder().code("MARKET_TRADING_METRICS_GROUP").name(Map.of("ko", "공매도 통계 지표", "en", "Short Selling Metrics")).order(2).isDefaultOpen(true).build(),
                                         FieldGroupTemplateDto.builder().code("INVESTOR_TRADING_GROUP").name(Map.of("ko", "투자자별 매매동향 및 외인지분", "en", "Investor Trading Breakdown")).order(3).isDefaultOpen(true).build()
                                 )).build(),
                         SectorTemplateDto.builder().code("CORP_IR").name(Map.of("ko", "IR 및 사업 개요", "en", "IR & Business Summary")).order(5)
                                 .groups(List.of(
-                                        FieldGroupTemplateDto.builder().code("IR_INFO_GROUP").name(Map.of("ko", "투자 정보 및 요약", "en", "IR Information")).order(1).isDefaultOpen(true).build()
+                                        FieldGroupTemplateDto.builder().code("IR_INFO_GROUP").name(Map.of("ko", "기업 개요 및 사업 내용", "en", "Business Summary")).order(1).isDefaultOpen(true).build()
                                 )).build()
                 ))
                 .fields(List.of(
-                        FieldTemplateDto.builder().key("ticker_code").groupCode("TICKER_BASIC_GROUP").name(Map.of("ko", "종목코드(티커)", "en", "Ticker Code")).type("TEXT").required(true).isSearchable(true).isGridVisible(true).gridWidth(3).tableColumnWidth(140).order(1).build(),
-                        FieldTemplateDto.builder().key("isin_code").groupCode("TICKER_BASIC_GROUP").name(Map.of("ko", "ISIN 코드", "en", "ISIN Code")).type("TEXT").required(false).isSearchable(true).isGridVisible(true).gridWidth(3).tableColumnWidth(150).order(2).build(),
-                        FieldTemplateDto.builder().key("stock_name").groupCode("TICKER_BASIC_GROUP").name(Map.of("ko", "종목명(한글)", "en", "Stock Name")).type("TEXT").required(true).isSearchable(true).isGridVisible(true).gridWidth(4).tableColumnWidth(200).order(3).build(),
+                        FieldTemplateDto.builder().key("ticker_code").groupCode("TICKER_BASIC_GROUP").name(Map.of("ko", "종목코드(티커)", "en", "Ticker Code")).type("TEXT").required(true).isSearchable(true).isIndexed(true).isGridVisible(true).gridWidth(3).tableColumnWidth(140).order(1).build(),
+                        FieldTemplateDto.builder().key("isin_code").nodeCode("DOMESTIC_STOCK").groupCode("TICKER_BASIC_GROUP").name(Map.of("ko", "ISIN 코드", "en", "ISIN Code")).type("TEXT").required(false).isSearchable(true).isIndexed(true).isGridVisible(true).gridWidth(3).tableColumnWidth(150).order(2).build(),
+                        FieldTemplateDto.builder().key("stock_name").groupCode("TICKER_BASIC_GROUP").name(Map.of("ko", "종목명(한글)", "en", "Stock Name")).type("TEXT").required(true).isSearchable(true).isIndexed(true).isGridVisible(true).gridWidth(4).tableColumnWidth(200).order(3).build(),
                         FieldTemplateDto.builder().key("stock_name_en").groupCode("TICKER_BASIC_GROUP").name(Map.of("ko", "영문 종목명", "en", "Stock Name (EN)")).type("TEXT").required(false).isGridVisible(true).gridWidth(4).tableColumnWidth(200).order(4).build(),
                         FieldTemplateDto.builder().key("logo_image_url").groupCode("TICKER_BASIC_GROUP").name(Map.of("ko", "기업 로고 URL", "en", "Logo Image URL")).type("MEDIA_LINK").required(false).isGridVisible(false).gridWidth(4).tableColumnWidth(180).order(5).build(),
 
@@ -521,9 +524,9 @@ public class SpecializedDomainTemplateService {
                         FieldTemplateDto.builder().key("security_type").groupCode("MARKET_SECTOR_GROUP").name(Map.of("ko", "증권 종류", "en", "Security Type")).type("SELECT").required(false).isFilterable(true).isGridVisible(true).gridWidth(3).tableColumnWidth(130).order(8)
                                 .options("[{\"key\":\"COMMON\",\"value\":\"COMMON\",\"label\":{\"ko\":\"보통주\",\"en\":\"Common Stock\"}},{\"key\":\"PREFERRED\",\"value\":\"PREFERRED\",\"label\":{\"ko\":\"우선주\",\"en\":\"Preferred Stock\"}},{\"key\":\"ETF\",\"value\":\"ETF\",\"label\":{\"ko\":\"ETF\",\"en\":\"ETF\"}},{\"key\":\"ETN\",\"value\":\"ETN\",\"label\":{\"ko\":\"ETN\",\"en\":\"ETN\"}},{\"key\":\"REIT\",\"value\":\"REIT\",\"label\":{\"ko\":\"리츠(REITs)\",\"en\":\"REITs\"}}]").build(),
 
-                        FieldTemplateDto.builder().key("par_value").groupCode("SHARES_GROUP").name(Map.of("ko", "액면가", "en", "Par Value")).type("NUMBER").unit("KRW").required(false).isGridVisible(true).gridWidth(2).tableColumnWidth(130).order(9).build(),
+                        FieldTemplateDto.builder().key("par_value").nodeCode("DOMESTIC_STOCK").groupCode("SHARES_GROUP").name(Map.of("ko", "액면가", "en", "Par Value")).type("NUMBER").unit("KRW").required(false).isGridVisible(true).gridWidth(2).tableColumnWidth(130).order(9).build(),
                         FieldTemplateDto.builder().key("listed_shares").groupCode("SHARES_GROUP").name(Map.of("ko", "상장주식수", "en", "Listed Shares")).type("NUMBER").required(false).isGridVisible(true).gridWidth(3).tableColumnWidth(150).order(10).build(),
-                        FieldTemplateDto.builder().key("capital_amount").groupCode("SHARES_GROUP").name(Map.of("ko", "자본금", "en", "Capital Amount")).type("NUMBER").unit("KRW").required(false).isGridVisible(true).gridWidth(3).tableColumnWidth(150).order(11).build(),
+                        FieldTemplateDto.builder().key("capital_amount").nodeCode("DOMESTIC_STOCK").groupCode("SHARES_GROUP").name(Map.of("ko", "자본금", "en", "Capital Amount")).type("NUMBER").unit("KRW").required(false).isGridVisible(true).gridWidth(3).tableColumnWidth(150).order(11).build(),
                         FieldTemplateDto.builder().key("currency").groupCode("SHARES_GROUP").name(Map.of("ko", "거래 통화", "en", "Currency")).type("SELECT").required(false).isGridVisible(true).gridWidth(2).tableColumnWidth(110).order(12)
                                 .options("[{\"key\":\"KRW\",\"value\":\"KRW\",\"label\":{\"ko\":\"KRW\",\"en\":\"KRW\"}},{\"key\":\"USD\",\"value\":\"USD\",\"label\":{\"ko\":\"USD\",\"en\":\"USD\"}},{\"key\":\"EUR\",\"value\":\"EUR\",\"label\":{\"ko\":\"EUR\",\"en\":\"EUR\"}},{\"key\":\"JPY\",\"value\":\"JPY\",\"label\":{\"ko\":\"JPY\",\"en\":\"JPY\"}}]").build(),
 
@@ -544,46 +547,38 @@ public class SpecializedDomainTemplateService {
                         // Valuation & Financial Metrics Group
                         FieldTemplateDto.builder().key("per").groupCode("VALUATION_GROUP").name(Map.of("ko", "주가수익비율 (PER)", "en", "PER")).type("NUMBER").unit("배").required(false).isGridVisible(true).gridWidth(2).tableColumnWidth(120).order(26).build(),
                         FieldTemplateDto.builder().key("eps").groupCode("VALUATION_GROUP").name(Map.of("ko", "주당순이익 (EPS)", "en", "EPS")).type("NUMBER").unit("KRW").required(false).isGridVisible(false).gridWidth(3).tableColumnWidth(130).order(27).build(),
-                        FieldTemplateDto.builder().key("cns_per").groupCode("VALUATION_GROUP").name(Map.of("ko", "추정 PER (Consensus)", "en", "Consensus PER")).type("NUMBER").unit("배").required(false).isGridVisible(false).gridWidth(2).tableColumnWidth(120).order(28).build(),
-                        FieldTemplateDto.builder().key("cns_eps").groupCode("VALUATION_GROUP").name(Map.of("ko", "추정 EPS (Consensus)", "en", "Consensus EPS")).type("NUMBER").unit("KRW").required(false).isGridVisible(false).gridWidth(3).tableColumnWidth(130).order(29).build(),
+                        FieldTemplateDto.builder().key("cns_per").nodeCode("DOMESTIC_STOCK").groupCode("VALUATION_GROUP").name(Map.of("ko", "추정 PER (Consensus)", "en", "Consensus PER")).type("NUMBER").unit("배").required(false).isGridVisible(false).gridWidth(2).tableColumnWidth(120).order(28).build(),
+                        FieldTemplateDto.builder().key("cns_eps").nodeCode("DOMESTIC_STOCK").groupCode("VALUATION_GROUP").name(Map.of("ko", "추정 EPS (Consensus)", "en", "Consensus EPS")).type("NUMBER").unit("KRW").required(false).isGridVisible(false).gridWidth(3).tableColumnWidth(130).order(29).build(),
                         FieldTemplateDto.builder().key("pbr").groupCode("VALUATION_GROUP").name(Map.of("ko", "주가순자산비율 (PBR)", "en", "PBR")).type("NUMBER").unit("배").required(false).isGridVisible(true).gridWidth(2).tableColumnWidth(120).order(30).build(),
                         FieldTemplateDto.builder().key("bps").groupCode("VALUATION_GROUP").name(Map.of("ko", "주당순자산가치 (BPS)", "en", "BPS")).type("NUMBER").unit("KRW").required(false).isGridVisible(false).gridWidth(3).tableColumnWidth(130).order(31).build(),
 
                         // Dividend Metrics Group
                         FieldTemplateDto.builder().key("dividend_yield_ratio").groupCode("DIVIDEND_GROUP").name(Map.of("ko", "배당수익률(%)", "en", "Dividend Yield (%)")).type("NUMBER").unit("%").required(false).isGridVisible(true).gridWidth(2).tableColumnWidth(130).order(32).build(),
                         FieldTemplateDto.builder().key("dividend_per_share").groupCode("DIVIDEND_GROUP").name(Map.of("ko", "주당 배당금", "en", "Dividend Per Share")).type("NUMBER").unit("KRW").required(false).isGridVisible(false).gridWidth(3).tableColumnWidth(130).order(33).build(),
-                        FieldTemplateDto.builder().key("dividend_date").groupCode("DIVIDEND_GROUP").name(Map.of("ko", "배당지급일", "en", "Dividend Date")).type("DATE").required(false).isGridVisible(false).gridWidth(3).tableColumnWidth(130).order(34).build(),
-                        FieldTemplateDto.builder().key("ex_dividend_date").groupCode("DIVIDEND_GROUP").name(Map.of("ko", "배당락일", "en", "Ex-Dividend Date")).type("DATE").required(false).isGridVisible(false).gridWidth(3).tableColumnWidth(130).order(35).build(),
+                        FieldTemplateDto.builder().key("dividend_date").nodeCode("GLOBAL_STOCK").groupCode("DIVIDEND_GROUP").name(Map.of("ko", "배당지급일", "en", "Dividend Date")).type("DATE").required(false).isGridVisible(false).gridWidth(3).tableColumnWidth(130).order(34).build(),
+                        FieldTemplateDto.builder().key("ex_dividend_date").nodeCode("GLOBAL_STOCK").groupCode("DIVIDEND_GROUP").name(Map.of("ko", "배당락일", "en", "Ex-Dividend Date")).type("DATE").required(false).isGridVisible(false).gridWidth(3).tableColumnWidth(130).order(35).build(),
 
-                        FieldTemplateDto.builder().key("listing_date").groupCode("LISTING_SCHEDULE_GROUP").name(Map.of("ko", "최초 상장일자", "en", "Listing Date")).type("DATE").required(false).isGridVisible(true).gridWidth(3).tableColumnWidth(130).order(36).build(),
-                        FieldTemplateDto.builder().key("fiscal_month").groupCode("LISTING_SCHEDULE_GROUP").name(Map.of("ko", "결산월", "en", "Fiscal Month")).type("SELECT").required(false).isGridVisible(true).gridWidth(2).tableColumnWidth(110).order(37)
+                        FieldTemplateDto.builder().key("listing_date").nodeCode("DOMESTIC_STOCK").groupCode("LISTING_SCHEDULE_GROUP").name(Map.of("ko", "최초 상장일자", "en", "Listing Date")).type("DATE").required(false).isGridVisible(true).gridWidth(3).tableColumnWidth(130).order(36).build(),
+                        FieldTemplateDto.builder().key("fiscal_month").nodeCode("DOMESTIC_STOCK").groupCode("LISTING_SCHEDULE_GROUP").name(Map.of("ko", "결산월", "en", "Fiscal Month")).type("SELECT").required(false).isGridVisible(true).gridWidth(2).tableColumnWidth(110).order(37)
                                 .options("[{\"key\":\"12\",\"value\":\"12\",\"label\":{\"ko\":\"12월 결산\",\"en\":\"Dec\"}},{\"key\":\"3\",\"value\":\"3\",\"label\":{\"ko\":\"3월 결산\",\"en\":\"Mar\"}},{\"key\":\"6\",\"value\":\"6\",\"label\":{\"ko\":\"6월 결산\",\"en\":\"Jun\"}},{\"key\":\"9\",\"value\":\"9\",\"label\":{\"ko\":\"9월 결산\",\"en\":\"Sep\"}}]").build(),
 
                         FieldTemplateDto.builder().key("is_trading_halt").groupCode("TRADING_HALT_GROUP").name(Map.of("ko", "거래정지 여부", "en", "Is Trading Halt")).type("BOOLEAN").required(false).isFilterable(true).isGridVisible(true).gridWidth(2).tableColumnWidth(120).order(38).build(),
-                        FieldTemplateDto.builder().key("is_delisting_risk").groupCode("TRADING_HALT_GROUP").name(Map.of("ko", "관리/투자주의 종목", "en", "Delisting Risk")).type("BOOLEAN").required(false).isFilterable(true).isGridVisible(true).gridWidth(2).tableColumnWidth(130).order(39).build(),
-                        FieldTemplateDto.builder().key("transfer_agent").groupCode("TRADING_HALT_GROUP").name(Map.of("ko", "명의개서대행기관", "en", "Transfer Agent")).type("SELECT").required(false).isGridVisible(true).gridWidth(3).tableColumnWidth(150).order(40)
-                                .options("[{\"key\":\"KSD\",\"value\":\"KSD\",\"label\":{\"ko\":\"한국예탁결제원\",\"en\":\"KSD\"}},{\"key\":\"KB\",\"value\":\"KB\",\"label\":{\"ko\":\"국민은행\",\"en\":\"KB Bank\"}},{\"key\":\"HANA\",\"value\":\"HANA\",\"label\":{\"ko\":\"하나은행\",\"en\":\"Hana Bank\"}}]").build(),
-                        FieldTemplateDto.builder().key("settlement_cycle").groupCode("TRADING_HALT_GROUP").name(Map.of("ko", "결제주기", "en", "Settlement Cycle")).type("SELECT").required(false).isGridVisible(true).gridWidth(2).tableColumnWidth(120).order(41)
-                                .options("[{\"key\":\"T_PLUS_2\",\"value\":\"T_PLUS_2\",\"label\":{\"ko\":\"T+2일 결제\",\"en\":\"T+2\"}},{\"key\":\"T_PLUS_1\",\"value\":\"T_PLUS_1\",\"label\":{\"ko\":\"T+1일 결제\",\"en\":\"T+1\"}}]").build(),
+                        FieldTemplateDto.builder().key("is_delisting_risk").nodeCode("DOMESTIC_STOCK").groupCode("TRADING_HALT_GROUP").name(Map.of("ko", "관리/투자주의 종목", "en", "Delisting Risk")).type("BOOLEAN").required(false).isFilterable(true).isGridVisible(true).gridWidth(2).tableColumnWidth(130).order(39).build(),
 
-                        FieldTemplateDto.builder().key("margin_balance_shares").groupCode("MARKET_TRADING_METRICS_GROUP").name(Map.of("ko", "누적 신용잔고 수량", "en", "Margin Balance Shares")).type("NUMBER").unit("Shares").required(false).isGridVisible(true).gridWidth(3).tableColumnWidth(150).order(42).build(),
-                        FieldTemplateDto.builder().key("margin_balance_ratio").groupCode("MARKET_TRADING_METRICS_GROUP").name(Map.of("ko", "신용잔고 비율(%)", "en", "Margin Balance Ratio (%)")).type("NUMBER").unit("%").required(false).isGridVisible(true).gridWidth(2).tableColumnWidth(120).order(43).build(),
-                        FieldTemplateDto.builder().key("short_selling_balance_shares").groupCode("MARKET_TRADING_METRICS_GROUP").name(Map.of("ko", "누적 공매도 잔고수량", "en", "Short Selling Balance Shares")).type("NUMBER").unit("Shares").required(false).isGridVisible(true).gridWidth(3).tableColumnWidth(160).order(44).build(),
-                        FieldTemplateDto.builder().key("short_selling_ratio").groupCode("MARKET_TRADING_METRICS_GROUP").name(Map.of("ko", "공매도 잔고비율(%)", "en", "Short Selling Ratio (%)")).type("NUMBER").unit("%").required(false).isGridVisible(true).gridWidth(2).tableColumnWidth(130).order(45).build(),
-                        FieldTemplateDto.builder().key("is_short_selling_overheated").groupCode("MARKET_TRADING_METRICS_GROUP").name(Map.of("ko", "공매도 과열종목 지정 여부", "en", "Short Selling Overheated")).type("BOOLEAN").required(false).isGridVisible(false).gridWidth(2).tableColumnWidth(130).order(46).build(),
+                        FieldTemplateDto.builder().key("short_selling_balance_shares").nodeCode("DOMESTIC_STOCK").groupCode("MARKET_TRADING_METRICS_GROUP").name(Map.of("ko", "누적 공매도 잔고수량", "en", "Short Selling Balance Shares")).type("NUMBER").unit("Shares").required(false).isGridVisible(true).gridWidth(3).tableColumnWidth(160).order(40).build(),
+                        FieldTemplateDto.builder().key("short_selling_ratio").nodeCode("DOMESTIC_STOCK").groupCode("MARKET_TRADING_METRICS_GROUP").name(Map.of("ko", "공매도 잔고비율(%)", "en", "Short Selling Ratio (%)")).type("NUMBER").unit("%").required(false).isGridVisible(true).gridWidth(2).tableColumnWidth(130).order(41).build(),
 
-                        FieldTemplateDto.builder().key("foreign_ownership_ratio").groupCode("INVESTOR_TRADING_GROUP").name(Map.of("ko", "외국인 지분율(%)", "en", "Foreign Ownership Ratio (%)")).type("NUMBER").unit("%").required(false).isGridVisible(true).gridWidth(2).tableColumnWidth(130).order(47).build(),
-                        FieldTemplateDto.builder().key("foreign_exhaustion_ratio").groupCode("INVESTOR_TRADING_GROUP").name(Map.of("ko", "외국인 소진율(%)", "en", "Foreign Exhaustion Ratio (%)")).type("NUMBER").unit("%").required(false).isGridVisible(true).gridWidth(2).tableColumnWidth(130).order(48).build(),
-                        FieldTemplateDto.builder().key("foreign_holding_shares").groupCode("INVESTOR_TRADING_GROUP").name(Map.of("ko", "외국인 보유주식수", "en", "Foreign Holding Shares")).type("NUMBER").unit("Shares").required(false).isGridVisible(false).gridWidth(3).tableColumnWidth(150).order(49).build(),
-                        FieldTemplateDto.builder().key("foreign_daily_net_buy").groupCode("INVESTOR_TRADING_GROUP").name(Map.of("ko", "외국인 당일 순매수", "en", "Foreign Daily Net Buy")).type("NUMBER").unit("Shares").required(false).isGridVisible(true).gridWidth(3).tableColumnWidth(140).order(50).build(),
-                        FieldTemplateDto.builder().key("inst_daily_net_buy").groupCode("INVESTOR_TRADING_GROUP").name(Map.of("ko", "기관 당일 순매수", "en", "Institutional Daily Net Buy")).type("NUMBER").unit("Shares").required(false).isGridVisible(true).gridWidth(3).tableColumnWidth(140).order(51).build(),
-                        FieldTemplateDto.builder().key("retail_daily_net_buy").groupCode("INVESTOR_TRADING_GROUP").name(Map.of("ko", "개인 당일 순매수", "en", "Retail Daily Net Buy")).type("NUMBER").unit("Shares").required(false).isGridVisible(true).gridWidth(3).tableColumnWidth(140).order(52).build(),
-                        FieldTemplateDto.builder().key("foreign_cumulative_net_buy_20d").groupCode("INVESTOR_TRADING_GROUP").name(Map.of("ko", "외국인 20일 누적순매수", "en", "Foreign 20D Net Buy")).type("NUMBER").unit("Shares").required(false).isGridVisible(false).gridWidth(3).tableColumnWidth(150).order(53).build(),
-                        FieldTemplateDto.builder().key("inst_cumulative_net_buy_20d").groupCode("INVESTOR_TRADING_GROUP").name(Map.of("ko", "기관 20일 누적순매수", "en", "Institutional 20D Net Buy")).type("NUMBER").unit("Shares").required(false).isGridVisible(false).gridWidth(3).tableColumnWidth(150).order(54).build(),
-                        FieldTemplateDto.builder().key("retail_cumulative_net_buy_20d").groupCode("INVESTOR_TRADING_GROUP").name(Map.of("ko", "개인 20일 누적순매수", "en", "Retail 20D Net Buy")).type("NUMBER").unit("Shares").required(false).isGridVisible(false).gridWidth(3).tableColumnWidth(150).order(55).build(),
+                        FieldTemplateDto.builder().key("foreign_ownership_ratio").nodeCode("DOMESTIC_STOCK").groupCode("INVESTOR_TRADING_GROUP").name(Map.of("ko", "외국인 지분율(%)", "en", "Foreign Ownership Ratio (%)")).type("NUMBER").unit("%").required(false).isGridVisible(true).gridWidth(2).tableColumnWidth(130).order(42).build(),
+                        FieldTemplateDto.builder().key("foreign_exhaustion_ratio").nodeCode("DOMESTIC_STOCK").groupCode("INVESTOR_TRADING_GROUP").name(Map.of("ko", "외국인 소진율(%)", "en", "Foreign Exhaustion Ratio (%)")).type("NUMBER").unit("%").required(false).isGridVisible(true).gridWidth(2).tableColumnWidth(130).order(43).build(),
+                        FieldTemplateDto.builder().key("foreign_holding_shares").nodeCode("DOMESTIC_STOCK").groupCode("INVESTOR_TRADING_GROUP").name(Map.of("ko", "외국인 보유주식수", "en", "Foreign Holding Shares")).type("NUMBER").unit("Shares").required(false).isGridVisible(false).gridWidth(3).tableColumnWidth(150).order(44).build(),
+                        FieldTemplateDto.builder().key("foreign_daily_net_buy").nodeCode("DOMESTIC_STOCK").groupCode("INVESTOR_TRADING_GROUP").name(Map.of("ko", "외국인 당일 순매수", "en", "Foreign Daily Net Buy")).type("NUMBER").unit("Shares").required(false).isGridVisible(true).gridWidth(3).tableColumnWidth(140).order(45).build(),
+                        FieldTemplateDto.builder().key("inst_daily_net_buy").nodeCode("DOMESTIC_STOCK").groupCode("INVESTOR_TRADING_GROUP").name(Map.of("ko", "기관 당일 순매수", "en", "Institutional Daily Net Buy")).type("NUMBER").unit("Shares").required(false).isGridVisible(true).gridWidth(3).tableColumnWidth(140).order(46).build(),
+                        FieldTemplateDto.builder().key("retail_daily_net_buy").nodeCode("DOMESTIC_STOCK").groupCode("INVESTOR_TRADING_GROUP").name(Map.of("ko", "개인 당일 순매수", "en", "Retail Daily Net Buy")).type("NUMBER").unit("Shares").required(false).isGridVisible(true).gridWidth(3).tableColumnWidth(140).order(47).build(),
+                        FieldTemplateDto.builder().key("foreign_cumulative_net_buy_20d").nodeCode("DOMESTIC_STOCK").groupCode("INVESTOR_TRADING_GROUP").name(Map.of("ko", "외국인 20일 누적순매수", "en", "Foreign 20D Net Buy")).type("NUMBER").unit("Shares").required(false).isGridVisible(false).gridWidth(3).tableColumnWidth(150).order(48).build(),
+                        FieldTemplateDto.builder().key("inst_cumulative_net_buy_20d").nodeCode("DOMESTIC_STOCK").groupCode("INVESTOR_TRADING_GROUP").name(Map.of("ko", "기관 20일 누적순매수", "en", "Institutional 20D Net Buy")).type("NUMBER").unit("Shares").required(false).isGridVisible(false).gridWidth(3).tableColumnWidth(150).order(49).build(),
+                        FieldTemplateDto.builder().key("retail_cumulative_net_buy_20d").nodeCode("DOMESTIC_STOCK").groupCode("INVESTOR_TRADING_GROUP").name(Map.of("ko", "개인 20일 누적순매수", "en", "Retail 20D Net Buy")).type("NUMBER").unit("Shares").required(false).isGridVisible(false).gridWidth(3).tableColumnWidth(150).order(50).build(),
 
-                        FieldTemplateDto.builder().key("investor_relations_url").groupCode("IR_INFO_GROUP").name(Map.of("ko", "IR 웹사이트 링크", "en", "IR URL")).type("TEXT").required(false).isGridVisible(false).gridWidth(4).tableColumnWidth(200).order(56).build(),
-                        FieldTemplateDto.builder().key("business_summary").groupCode("IR_INFO_GROUP").name(Map.of("ko", "주요 사업 내용 및 투자설명", "en", "Business Summary")).type("HTML_TEXT").required(false).isGridVisible(false).gridWidth(8).tableColumnWidth(250).order(57).build()
+                        FieldTemplateDto.builder().key("business_summary").groupCode("IR_INFO_GROUP").name(Map.of("ko", "주요 사업 내용 및 투자설명", "en", "Business Summary")).type("HTML_TEXT").required(false).isGridVisible(false).gridWidth(8).tableColumnWidth(250).order(51).build()
                 ))
                 .dqRules(List.of(
                         DqRuleTemplateDto.builder().fieldKey("stock_name").ruleType("NOT_NULL").severity("ERROR").message(Map.of("ko", "종목명은 필수 입력 항목입니다.", "en", "Stock name is required.")).build(),
@@ -767,7 +762,7 @@ public class SpecializedDomainTemplateService {
         }
 
         // 3. Merge/Create Predefined Child Classification Nodes (No dummy root node)
-        createPredefinedNodes(savedDomain, axis, template);
+        Map<String, ClassificationNode> createdNodes = createPredefinedNodes(savedDomain, axis, template);
 
         // 4. Merge/Create Predefined Sectors & Field Groups
         Map<String, FieldGroup> createdGroups = createSectorsAndFieldGroups(savedDomain, template);
@@ -791,7 +786,11 @@ public class SpecializedDomainTemplateService {
                 FieldDefinition fd = existingFieldMap.getOrDefault(upperKey, new FieldDefinition());
 
                 fd.setDomain(savedDomain);
-                fd.setDefinedAtNode(null); // Global domain field (no dummy root node)
+                if (ft.getNodeCode() != null && createdNodes.containsKey(ft.getNodeCode())) {
+                    fd.setDefinedAtNode(createdNodes.get(ft.getNodeCode()));
+                } else {
+                    fd.setDefinedAtNode(null); // Global domain field (no dummy root node)
+                }
 
                 String upperGroupCode = ft.getGroupCode() != null ? ft.getGroupCode().toUpperCase() : null;
                 if (upperGroupCode != null && createdGroups.containsKey(upperGroupCode)) {
@@ -810,12 +809,17 @@ public class SpecializedDomainTemplateService {
                 fd.setUnit(ft.getUnit());
                 fd.setRequired(Boolean.TRUE.equals(ft.getRequired()));
                 fd.setIsSearchable(Boolean.TRUE.equals(ft.getIsSearchable()));
+                boolean isIndexed = Boolean.TRUE.equals(ft.getIsIndexed()) || Boolean.TRUE.equals(ft.getIsSearchable());
+                fd.setIsIndexed(isIndexed);
                 fd.setGridWidth(ft.getGridWidth() != null ? ft.getGridWidth() : 3);
                 fd.setTableColumnWidth(ft.getTableColumnWidth() != null ? ft.getTableColumnWidth() : 150);
                 fd.setOrder(ft.getOrder() != null ? ft.getOrder() : 0);
                 fd.setOptions(ft.getOptions());
 
                 FieldDefinition savedFd = fieldDefinitionRepository.save(fd);
+                if (fieldDefinitionService != null && isIndexed) {
+                    fieldDefinitionService.manageIndex(savedFd.getKey(), savedFd.getType(), true);
+                }
                 if (fieldKey != null) {
                     createdFields.put(fieldKey.toUpperCase(), savedFd);
                     createdFields.put(fieldKey.toLowerCase(), savedFd);
@@ -873,8 +877,9 @@ public class SpecializedDomainTemplateService {
         return DomainResponse.from(savedDomain);
     }
 
-    public void createPredefinedNodes(Domain domain, ClassificationAxis axis, SpecializedDomainTemplateDto template) {
-        if (template.getNodes() == null || template.getNodes().isEmpty()) return;
+    public Map<String, ClassificationNode> createPredefinedNodes(Domain domain, ClassificationAxis axis, SpecializedDomainTemplateDto template) {
+        Map<String, ClassificationNode> processedNodes = new HashMap<>();
+        if (template.getNodes() == null || template.getNodes().isEmpty()) return processedNodes;
 
         List<ClassificationNode> existingNodes = nodeRepository.findByDomain_Id(domain.getId());
         Map<String, ClassificationNode> existingNodeMap = new HashMap<>();
@@ -889,7 +894,6 @@ public class SpecializedDomainTemplateService {
             }
         }
 
-        Map<String, ClassificationNode> processedNodes = new HashMap<>();
         String axisPath = "/" + (axis.getAxisCode() != null ? axis.getAxisCode().toLowerCase() : "axis");
 
         for (ClassificationNodeTemplateDto nt : template.getNodes()) {
@@ -918,6 +922,7 @@ public class SpecializedDomainTemplateService {
             ClassificationNode savedNode = nodeRepository.save(node);
             processedNodes.put(nt.getCode(), savedNode != null ? savedNode : node);
         }
+        return processedNodes;
     }
 
     public Map<String, FieldGroup> createSectorsAndFieldGroups(Domain domain, SpecializedDomainTemplateDto template) {
