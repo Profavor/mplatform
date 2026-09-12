@@ -694,6 +694,7 @@
     "meBadge": "나",
     "month": "월",
     "noDialogue": "대화가 없습니다.",
+    "noMessagesInRoom": "주고받은 대화 내용이 없습니다. 첫 메시지를 보내보세요.",
     "noRooms": "참여 중인 대화방이 없습니다.",
     "noUserFound": "검색된 사용자가 없습니다.",
     "roomSettings": "대화방 설정",

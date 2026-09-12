@@ -40,7 +40,7 @@ mdm:
     default_source-priority: 999
 
 chat:
-  retention-days: ${CHAT_RETENTION_DAYS:7}
+  retention-days: ${CHAT_RETENTION_DAYS:365}
 
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS}

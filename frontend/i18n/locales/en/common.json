@@ -698,6 +698,7 @@
     "meBadge": "Me",
     "month": " ",
     "noDialogue": "No messages yet.",
+    "noMessagesInRoom": "No conversation history yet. Send your first message.",
     "noRooms": "No active chat rooms.",
     "noUserFound": "No users found.",
     "roomSettings": "Room Settings",

@@ -163,4 +163,40 @@ class ChatMessageServiceTest {
         // superadmin이 creator이자 멤버 2개로 들어왔지만 단 1개의 member로만 저장되어야 함
         verify(memberRepository, org.mockito.Mockito.times(1)).save(any(ChatMessageRoomMember.class));
     }
+
+    @Test
+    @DisplayName("성공 - 7일 이상 경과한 과거 메시지도 보존 기간 내(365일)라면 정상 조회된다")
+    void getRoomMessages_BeyondSevenDays_ReturnsMessages() {
+        UUID roomId = UUID.randomUUID();
+        String userId = "user-1";
+
+        ChatMessageRoom room = new ChatMessageRoom();
+        room.setId(roomId);
+        room.setName("카트봄");
+
+        ChatMessageRoomMember member = new ChatMessageRoomMember();
+        member.setRoom(room);
+        member.setUserId(userId);
+        // 사용자가 30일 전에 방에 참여
+        member.setJoinedAt(LocalDateTime.now().minusDays(30));
+
+        ChatMessage oldMsg = new ChatMessage();
+        oldMsg.setId(UUID.randomUUID());
+        oldMsg.setRoomId(roomId);
+        oldMsg.setSenderId("user-2");
+        oldMsg.setSenderName("staricex");
+        oldMsg.setContent("8일 전 공지 메시지입니다.");
+        oldMsg.setMessageType("TEXT");
+        oldMsg.setCreatedAt(LocalDateTime.now().minusDays(8));
+
+        given(memberRepository.findByRoomId(roomId)).willReturn(List.of(member));
+        given(messageRepository.findByRoomIdAndCreatedAtGreaterThanEqualOrderByCreatedAtAsc(eq(roomId), any(LocalDateTime.class)))
+                .willReturn(List.of(oldMsg));
+
+        List<ChatMessageService.ChatMessageDto> result = chatMessageService.getRoomMessages(roomId, userId);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getContent()).isEqualTo("8일 전 공지 메시지입니다.");
+        assertThat(result.get(0).getSenderName()).isEqualTo("staricex");
+    }
 }

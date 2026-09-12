@@ -43,7 +43,7 @@ data:
   SPRING_KAFKA_CONSUMER_GROUP_ID: "domain-system-group"
   DQ_ENGINE_CUSTOM_SPEL_ENABLED: "true"
   FILE_UPLOAD_DIR: "/app/uploads"
-  CHAT_RETENTION_DAYS: "7"
+  CHAT_RETENTION_DAYS: "365"
   
   # Mail Server Settings
   MAIL_DOMAIN: "mplatform.com"
