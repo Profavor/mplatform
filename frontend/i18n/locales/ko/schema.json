@@ -50,6 +50,8 @@
   "action_type_schema_change_short": "스키마 변경",
   "add_editable_field_placeholder": "+ 작성 가능 필드 추가 선택 (미선택 시 전체)",
   "add_field": "필드 추가",
+  "db_indexed": "DB 인덱스 (초고속 검색)",
+  "index": "인덱스",
   "add_field_to_node": "{name} 필드 추가",
   "field_name_ko": "필드명 (국문)",
   "field_name_en": "필드명 (영문)",

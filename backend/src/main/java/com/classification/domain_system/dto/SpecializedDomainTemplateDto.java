@@ -68,6 +68,7 @@ public class SpecializedDomainTemplateDto {
     @AllArgsConstructor
     public static class FieldTemplateDto {
         private String key;
+        private String nodeCode;
         private Map<String, String> name;
         private Map<String, String> hint;
         private String groupCode;
@@ -75,6 +76,7 @@ public class SpecializedDomainTemplateDto {
         private String unit;
         private Boolean required;
         private Boolean isSearchable;
+        private Boolean isIndexed;
         private Boolean isFilterable;
         private Boolean isGridVisible;
         private Integer gridWidth;

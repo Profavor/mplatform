@@ -293,4 +293,159 @@ class StockMarketApiItemReaderTest {
         assertThat(item.getHighPrice()).isEqualTo(226.18);
         assertThat(item.getLowPrice()).isEqualTo(223.51);
     }
+
+    @Test
+    @DisplayName("국내 주식 조회 시 Daum Quote API와 KRX 공매도 API의 실제 데이터를 정확히 파싱하며 임의 추정/가짜 수식을 적용하지 않는다")
+    void read_DomesticStock_ShouldParseRealDaumQuoteAndKrxShortSellingData() throws Exception {
+        reader = new StockMarketApiItemReader(restTemplate, List.of("KOSPI"));
+
+        String marketValueJson = """
+        {
+          "stocks": [
+            {
+              "itemCode": "034220",
+              "reutersCode": "034220",
+              "stockName": "LG디스플레이",
+              "closePrice": "8,900",
+              "closePriceRaw": "8900",
+              "compareToPreviousClosePriceRaw": "-70",
+              "marketValueRaw": "4450000000000",
+              "accumulatedTradingVolumeRaw": "2571479",
+              "stockExchangeType": { "nameKor": "코스피" },
+              "tradeStopType": { "code": "1" }
+            }
+          ]
+        }
+        """;
+
+        String daumQuoteJson = """
+        {
+          "symbolCode": "A034220",
+          "code": "KR7034220004",
+          "name": "LG디스플레이",
+          "market": "KOSPI",
+          "parValue": 5000.0,
+          "listedShareCount": 500000000,
+          "capitalStock": 2500000000000.0,
+          "wicsSectorName": "디스플레이패널",
+          "listingDate": "2004-07-23",
+          "settleMonth": 12,
+          "foreignRatio": 0.271861526,
+          "foreignOwnShares": 135930763,
+          "companySummary": "동사는 1985년 금성소프트웨어로 설립되었으며...",
+          "stockState": {
+            "isTradingSuspended": false,
+            "isAdministrativeIssue": false
+          }
+        }
+        """;
+
+        String krxShortJson = """
+        {
+          "output": [
+            {
+              "RPT_DUTY_OCCR_DD": "2026/09/09",
+              "BAL_QTY": "3,017,963",
+              "LIST_SHRS": "500,000,000",
+              "BAL_AMT": "27,010,768,850",
+              "BAL_RTO": "0.60"
+            }
+          ]
+        }
+        """;
+
+        String emptyPageJson = """
+        { "stocks": [] }
+        """;
+
+        given(restTemplate.exchange(
+                argThat((String url) -> url != null && url.contains("/stocks/marketValue/KOSPI?page=1")),
+                eq(HttpMethod.GET), any(), eq(String.class)))
+                .willReturn(new ResponseEntity<>(marketValueJson, HttpStatus.OK));
+
+        given(restTemplate.exchange(
+                argThat((String url) -> url != null && url.contains("finance.daum.net/api/quotes/A034220")),
+                eq(HttpMethod.GET), any(), eq(String.class)))
+                .willReturn(new ResponseEntity<>(daumQuoteJson, HttpStatus.OK));
+
+        given(restTemplate.exchange(
+                argThat((String url) -> url != null && url.contains("data.krx.co.kr/comm/bldAttendant/getJsonData.cmd")),
+                eq(HttpMethod.POST), any(), eq(String.class)))
+                .willReturn(new ResponseEntity<>(krxShortJson, HttpStatus.OK));
+
+        given(restTemplate.exchange(
+                argThat((String url) -> url != null && url.contains("/stocks/marketValue/KOSPI?page=2")),
+                eq(HttpMethod.GET), any(), eq(String.class)))
+                .willReturn(new ResponseEntity<>(emptyPageJson, HttpStatus.OK));
+
+        StockApiRawItem item = reader.read();
+
+        assertThat(item).isNotNull();
+        assertThat(item.getTickerCode()).isEqualTo("034220");
+        assertThat(item.getIsinCode()).isEqualTo("KR7034220004");
+        assertThat(item.getParValue()).isEqualTo(5000.0);
+        assertThat(item.getListedShares()).isEqualTo(500000000L);
+        assertThat(item.getCapitalAmount()).isEqualTo(2500000000000L);
+        assertThat(item.getIndustrySector()).isEqualTo("디스플레이패널");
+        assertThat(item.getListingDate()).isEqualTo("2004-07-23");
+        assertThat(item.getFiscalMonth()).isEqualTo("12");
+        assertThat(item.getForeignOwnershipRatio()).isEqualTo(27.19);
+        assertThat(item.getForeignHoldingShares()).isEqualTo(135930763L);
+        assertThat(item.getShortSellingBalanceShares()).isEqualTo(3017963L);
+        assertThat(item.getShortSellingRatio()).isEqualTo(0.60);
+        assertThat(item.getBusinessSummary()).contains("금성소프트웨어");
+
+    }
+
+    @Test
+    @DisplayName("해외 주식(US_MARKET) 조회 시 국내 전용 필드(공매도, 액면가, 자본금, 외국인 지분율 등)는 하드코딩되거나 채워지지 않고 null이어야 한다")
+    void read_OverseasStock_ShouldNotPopulateDomesticFields() throws Exception {
+        reader = new StockMarketApiItemReader(restTemplate, List.of("NASDAQ"));
+
+        String usMarketValueJson = """
+        {
+          "stocks": [
+            {
+              "symbolCode": "AAPL",
+              "reutersCode": "AAPL.O",
+              "stockName": "애플",
+              "stockNameEng": "Apple Inc.",
+              "closePrice": "220.00",
+              "marketValue": "3300000000000",
+              "industryCodeType": { "name": "Technology" }
+            }
+          ]
+        }
+        """;
+
+        String emptyPageJson = """
+        { "stocks": [] }
+        """;
+
+        given(restTemplate.exchange(
+                argThat((String url) -> url != null && url.contains("/exchange/NASDAQ/marketValue?page=1")),
+                eq(HttpMethod.GET), any(), eq(String.class)))
+                .willReturn(new ResponseEntity<>(usMarketValueJson, HttpStatus.OK));
+
+        given(restTemplate.exchange(
+                argThat((String url) -> url != null && url.contains("/exchange/NASDAQ/marketValue?page=2")),
+                eq(HttpMethod.GET), any(), eq(String.class)))
+                .willReturn(new ResponseEntity<>(emptyPageJson, HttpStatus.OK));
+
+        StockApiRawItem item = reader.read();
+
+        assertThat(item).isNotNull();
+        assertThat(item.getTickerCode()).isEqualTo("AAPL");
+        assertThat(item.getMarketNodeCode()).isEqualTo("US_MARKET");
+
+        // 국내 전용 필드에 가짜 수치(parValue=0.001, foreignDailyNetBuy=100000 등)가 들어가지 않아야 함
+        assertThat(item.getParValue()).isNull();
+        assertThat(item.getCapitalAmount()).isNull();
+        assertThat(item.getShortSellingBalanceShares()).isNull();
+        assertThat(item.getShortSellingRatio()).isNull();
+        assertThat(item.getForeignOwnershipRatio()).isNull();
+        assertThat(item.getForeignDailyNetBuy()).isNull();
+        assertThat(item.getInstDailyNetBuy()).isNull();
+        assertThat(item.getRetailDailyNetBuy()).isNull();
+    }
 }

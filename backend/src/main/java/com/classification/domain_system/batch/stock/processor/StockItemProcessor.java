@@ -37,11 +37,11 @@ public class StockItemProcessor implements ItemProcessor<StockApiRawItem, Record
         data.put("stock_name_en", item.getStockNameEn());
         data.put("market_type", item.getMarketType());
         data.put("industry_sector", item.getIndustrySector());
-        data.put("security_type", item.getSecurityType() != null ? item.getSecurityType() : "COMMON");
+        data.put("security_type", item.getSecurityType());
         data.put("par_value", item.getParValue());
         data.put("listed_shares", item.getListedShares());
         data.put("capital_amount", item.getCapitalAmount());
-        data.put("currency", item.getCurrency() != null ? item.getCurrency() : "KRW");
+        data.put("currency", item.getCurrency());
         data.put("current_price", item.getCurrentPrice());
         data.put("previous_close_price", item.getPreviousClosePrice());
         data.put("market_cap", item.getMarketCap());
@@ -50,17 +50,12 @@ public class StockItemProcessor implements ItemProcessor<StockApiRawItem, Record
         data.put("price_base_date", item.getPriceBaseDate());
         data.put("listing_date", item.getListingDate());
         data.put("fiscal_month", item.getFiscalMonth());
-        data.put("is_trading_halt", item.getIsTradingHalt() != null ? item.getIsTradingHalt() : false);
-        data.put("is_delisting_risk", item.getIsDelistingRisk() != null ? item.getIsDelistingRisk() : false);
-        data.put("transfer_agent", item.getTransferAgent() != null ? item.getTransferAgent() : "KSD");
-        data.put("settlement_cycle", item.getSettlementCycle() != null ? item.getSettlementCycle() : "T_PLUS_2");
+        data.put("is_trading_halt", item.getIsTradingHalt());
+        data.put("is_delisting_risk", item.getIsDelistingRisk());
         
         // Exact real investor trading metrics
-        data.put("margin_balance_shares", item.getMarginBalanceShares());
-        data.put("margin_balance_ratio", item.getMarginBalanceRatio());
         data.put("short_selling_balance_shares", item.getShortSellingBalanceShares());
         data.put("short_selling_ratio", item.getShortSellingRatio());
-        data.put("is_short_selling_overheated", item.getIsShortSellingOverheated() != null ? item.getIsShortSellingOverheated() : false);
         data.put("foreign_ownership_ratio", item.getForeignOwnershipRatio());
         data.put("foreign_holding_shares", item.getForeignHoldingShares());
         data.put("foreign_daily_net_buy", item.getForeignDailyNetBuy());
@@ -70,7 +65,7 @@ public class StockItemProcessor implements ItemProcessor<StockApiRawItem, Record
         data.put("inst_cumulative_net_buy_20d", item.getInstCumulativeNetBuy20d());
         data.put("retail_cumulative_net_buy_20d", item.getRetailCumulativeNetBuy20d());
         
-        // Naver Stock API extended metrics
+        // Extended metrics
         data.put("open_price", item.getOpenPrice());
         data.put("high_price", item.getHighPrice());
         data.put("low_price", item.getLowPrice());
@@ -91,7 +86,6 @@ public class StockItemProcessor implements ItemProcessor<StockApiRawItem, Record
         data.put("foreign_exhaustion_ratio", item.getForeignExhaustionRatio());
         data.put("logo_image_url", item.getLogoImageUrl());
 
-        data.put("investor_relations_url", item.getInvestorRelationsUrl());
         data.put("business_summary", item.getBusinessSummary());
 
         String dataJson = objectMapper.writeValueAsString(data);

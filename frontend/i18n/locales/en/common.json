@@ -875,6 +875,8 @@
   "search_keyword": "Search Keyword",
   "search_workflow_placeholder": "Search title or description...",
   "searchable": "Searchable",
+  "db_indexed": "DB Index (Fast Search)",
+  "db_indexed_desc": "Applies a PostgreSQL index for sub-millisecond query performance on large datasets.",
   "sector": "Sector",
   "select": "Select",
   "select_icon": "Select Icon",

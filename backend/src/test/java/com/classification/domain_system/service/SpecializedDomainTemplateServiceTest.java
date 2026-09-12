@@ -15,6 +15,7 @@ import org.mockito.Mock;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -175,12 +176,21 @@ class SpecializedDomainTemplateServiceTest extends BaseServiceTest {
         }
 
         @Test
-        @DisplayName("주식(STOCK) 특화도메인 템플릿에 네이버 API 19개 주요 지표를 포함한 57개 기본 필드와 섹터/그룹이 온전히 구성되어야 한다")
-        void stockTemplateContainsAllDefaultMetricsAndValidMediaLinkType() {
+        @DisplayName("주식(STOCK) 특화도메인 템플릿에 하드코딩/미제공 6개 필드가 삭제되고(51개), 국내/해외 노드별 전용 필드가 분리 정의되어야 한다")
+        void stockTemplateContainsAllDefaultMetricsAndNodeSpecificFields() {
             SpecializedDomainTemplateDto stockTpl = templateService.getTemplate("STOCK");
 
             assertThat(stockTpl).isNotNull();
-            assertThat(stockTpl.getFields()).hasSize(57);
+            assertThat(stockTpl.getFields()).hasSize(51);
+
+            // 6개 미제공/하드코딩 필드 영구 삭제 검증
+            Map<String, SpecializedDomainTemplateDto.FieldTemplateDto> fieldMap = stockTpl.getFields().stream()
+                    .collect(java.util.stream.Collectors.toMap(SpecializedDomainTemplateDto.FieldTemplateDto::getKey, f -> f));
+
+            assertThat(fieldMap).doesNotContainKeys(
+                    "margin_balance_shares", "margin_balance_ratio", "is_short_selling_overheated",
+                    "transfer_agent", "settlement_cycle", "investor_relations_url"
+            );
 
             // 신규 섹터 및 그룹 확인
             List<String> sectorCodes = stockTpl.getSectors().stream()
@@ -197,17 +207,48 @@ class SpecializedDomainTemplateServiceTest extends BaseServiceTest {
                     .toList();
             assertThat(groupCodes).contains("VALUATION_GROUP", "DIVIDEND_GROUP");
 
-            // 19개 신규 지표 필드 키 존재 확인
-            Map<String, SpecializedDomainTemplateDto.FieldTemplateDto> fieldMap = stockTpl.getFields().stream()
-                    .collect(java.util.stream.Collectors.toMap(SpecializedDomainTemplateDto.FieldTemplateDto::getKey, f -> f));
-
+            // 공통 지표 필드 키 존재 확인 (nodeCode is null)
             assertThat(fieldMap).containsKeys(
                     "open_price", "high_price", "low_price", "change_price", "fluctuation_rate",
                     "accumulated_trading_volume", "accumulated_trading_value",
-                    "per", "eps", "pbr", "bps", "cns_per", "cns_eps",
-                    "dividend_yield_ratio", "dividend_per_share", "dividend_date", "ex_dividend_date",
-                    "foreign_exhaustion_ratio", "logo_image_url"
+                    "per", "eps", "pbr", "bps",
+                    "dividend_yield_ratio", "dividend_per_share",
+                    "logo_image_url", "industry_sector", "listed_shares"
             );
+            assertThat(fieldMap.get("ticker_code").getNodeCode()).isNull();
+            assertThat(fieldMap.get("stock_name").getNodeCode()).isNull();
+            assertThat(fieldMap.get("current_price").getNodeCode()).isNull();
+            assertThat(fieldMap.get("industry_sector").getNodeCode()).isNull();
+            assertThat(fieldMap.get("listed_shares").getNodeCode()).isNull();
+
+            // 국내 전용 필드 검증 (nodeCode == DOMESTIC_STOCK)
+            List<String> domesticFields = List.of(
+                    "isin_code", "par_value", "capital_amount", "listing_date", "fiscal_month",
+                    "is_delisting_risk", "short_selling_balance_shares", "short_selling_ratio",
+                    "foreign_ownership_ratio", "foreign_exhaustion_ratio", "foreign_holding_shares",
+                    "foreign_daily_net_buy", "inst_daily_net_buy", "retail_daily_net_buy",
+                    "foreign_cumulative_net_buy_20d", "inst_cumulative_net_buy_20d", "retail_cumulative_net_buy_20d",
+                    "cns_per", "cns_eps"
+            );
+            for (String key : domesticFields) {
+                assertThat(fieldMap.get(key))
+                        .as("국내 전용 필드 [%s]가 존재해야 합니다.", key)
+                        .isNotNull();
+                assertThat(fieldMap.get(key).getNodeCode())
+                        .as("국내 전용 필드 [%s]의 nodeCode는 DOMESTIC_STOCK 이어야 합니다.", key)
+                        .isEqualTo("DOMESTIC_STOCK");
+            }
+
+            // 해외 전용 필드 검증 (nodeCode == GLOBAL_STOCK)
+            List<String> globalFields = List.of("dividend_date", "ex_dividend_date");
+            for (String key : globalFields) {
+                assertThat(fieldMap.get(key))
+                        .as("해외 전용 필드 [%s]가 존재해야 합니다.", key)
+                        .isNotNull();
+                assertThat(fieldMap.get(key).getNodeCode())
+                        .as("해외 전용 필드 [%s]의 nodeCode는 GLOBAL_STOCK 이어야 합니다.", key)
+                        .isEqualTo("GLOBAL_STOCK");
+            }
 
             // 로고 이미지 필드의 타입이 MEDIA_LINK인지 검증
             SpecializedDomainTemplateDto.FieldTemplateDto logoField = fieldMap.get("logo_image_url");
@@ -381,6 +422,96 @@ class SpecializedDomainTemplateServiceTest extends BaseServiceTest {
             verify(axisRepository, never()).save(any(ClassificationAxis.class));
             // 기존 customer_no 필드가 업데이트되고 추가 필드들이 save 되었는지 확인
             verify(fieldDefinitionRepository, atLeast(20)).save(any(FieldDefinition.class));
+        }
+
+        @Test
+        @DisplayName("주식(STOCK) 특화도메인 프로비저닝 시 국내 전용 필드는 DOMESTIC_STOCK 노드, 해외 전용 필드는 GLOBAL_STOCK 노드에 정의된다")
+        void provisionsStockDomainWithNodeSpecificFieldDefinitions() {
+            // given
+            SpecializedDomainProvisionRequest request = SpecializedDomainProvisionRequest.builder()
+                    .category("STOCK")
+                    .build();
+
+            UUID domainId = UUID.randomUUID();
+            Domain savedDomain = new Domain();
+            savedDomain.setId(domainId);
+            savedDomain.setSpecializedCategory("STOCK");
+
+            given(domainRepository.findBySpecializedCategory("STOCK")).willReturn(Optional.empty());
+            given(domainRepository.save(any(Domain.class))).willAnswer(inv -> {
+                Domain d = inv.getArgument(0);
+                d.setId(domainId);
+                return d;
+            });
+            given(axisRepository.findByDomainIdOrderBySortOrderAsc(domainId)).willReturn(Collections.emptyList());
+            given(axisRepository.save(any(ClassificationAxis.class))).willAnswer(inv -> {
+                ClassificationAxis a = inv.getArgument(0);
+                a.setId(UUID.randomUUID());
+                return a;
+            });
+            given(nodeRepository.findByDomain_Id(domainId)).willReturn(Collections.emptyList());
+            given(sectorRepository.findByDomainIdOrderBySortOrderAsc(domainId)).willReturn(Collections.emptyList());
+            given(fieldGroupRepository.findByDomainIdOrderBySortOrderAsc(domainId)).willReturn(Collections.emptyList());
+            given(fieldDefinitionRepository.findByDomain_Id(domainId)).willReturn(Collections.emptyList());
+            given(dqRuleRepository.findByDomainId(domainId)).willReturn(Collections.emptyList());
+
+            Map<String, ClassificationNode> nodeCodeMap = new HashMap<>();
+            given(nodeRepository.save(any(ClassificationNode.class))).willAnswer(inv -> {
+                ClassificationNode n = inv.getArgument(0);
+                if (n.getId() == null) n.setId(UUID.randomUUID());
+                return n;
+            });
+            given(sectorRepository.save(any(Sector.class))).willAnswer(inv -> {
+                Sector s = inv.getArgument(0);
+                if (s.getId() == null) s.setId(UUID.randomUUID());
+                return s;
+            });
+            given(fieldGroupRepository.save(any(FieldGroup.class))).willAnswer(inv -> {
+                FieldGroup fg = inv.getArgument(0);
+                if (fg.getId() == null) fg.setId(UUID.randomUUID());
+                return fg;
+            });
+            given(fieldDefinitionRepository.save(any(FieldDefinition.class))).willAnswer(inv -> {
+                FieldDefinition fd = inv.getArgument(0);
+                if (fd.getId() == null) fd.setId(UUID.randomUUID());
+                return fd;
+            });
+
+            // when
+            DomainResponse response = templateService.provisionDomain(request);
+
+            // then
+            assertThat(response).isNotNull();
+
+            org.mockito.ArgumentCaptor<FieldDefinition> fieldCaptor = org.mockito.ArgumentCaptor.forClass(FieldDefinition.class);
+            verify(fieldDefinitionRepository, atLeast(50)).save(fieldCaptor.capture());
+            List<FieldDefinition> capturedFields = fieldCaptor.getAllValues();
+
+            Map<String, FieldDefinition> savedFieldMap = capturedFields.stream()
+                    .collect(Collectors.toMap(FieldDefinition::getKey, f -> f, (f1, f2) -> f2));
+
+            // 공통 필드는 definedAtNode가 null이어야 함
+            assertThat(savedFieldMap.get("ticker_code").getDefinedAtNode()).isNull();
+            assertThat(savedFieldMap.get("stock_name").getDefinedAtNode()).isNull();
+            assertThat(savedFieldMap.get("current_price").getDefinedAtNode()).isNull();
+            assertThat(savedFieldMap.get("industry_sector").getDefinedAtNode()).isNull();
+            assertThat(savedFieldMap.get("listed_shares").getDefinedAtNode()).isNull();
+
+            // 국내 전용 필드는 DOMESTIC_STOCK 노드에 정의되어야 함
+            FieldDefinition shortSellingFd = savedFieldMap.get("short_selling_balance_shares");
+            assertThat(shortSellingFd).isNotNull();
+            assertThat(shortSellingFd.getDefinedAtNode()).isNotNull();
+            assertThat(shortSellingFd.getDefinedAtNode().getName().get("ko")).isEqualTo("국내 유가증권");
+
+            FieldDefinition isinFd = savedFieldMap.get("isin_code");
+            assertThat(isinFd.getDefinedAtNode()).isNotNull();
+            assertThat(isinFd.getDefinedAtNode().getName().get("ko")).isEqualTo("국내 유가증권");
+
+            // 해외 전용 필드는 GLOBAL_STOCK 노드에 정의되어야 함
+            FieldDefinition divDateFd = savedFieldMap.get("dividend_date");
+            assertThat(divDateFd).isNotNull();
+            assertThat(divDateFd.getDefinedAtNode()).isNotNull();
+            assertThat(divDateFd.getDefinedAtNode().getName().get("ko")).isEqualTo("해외 주식");
         }
     }
 }
