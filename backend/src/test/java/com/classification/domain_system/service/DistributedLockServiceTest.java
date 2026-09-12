@@ -10,6 +10,14 @@ import org.springframework.data.redis.core.ValueOperations;
 
 import java.time.Duration;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -86,4 +94,37 @@ class DistributedLockServiceTest {
         boolean third = localLockService.acquireLock(key, timeout);
         assertThat(third).isTrue();
     }
+
+    @Test
+    @DisplayName("Local 락 동시 다중 스레드 경합 시 오직 1개 스레드만 락을 획득해야 함")
+    void localLock_ConcurrentAccess_OnlyOneAcquires() throws Exception {
+        String key = "concurrent-key";
+        Duration timeout = Duration.ofSeconds(10);
+        int threads = 10;
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicInteger successCount = new AtomicInteger(0);
+
+        List<Future<?>> futures = new ArrayList<>();
+        for (int i = 0; i < threads; i++) {
+            futures.add(executor.submit(() -> {
+                try {
+                    latch.await();
+                    if (localLockService.acquireLock(key, timeout)) {
+                        successCount.incrementAndGet();
+                    }
+                } catch (InterruptedException ignored) {
+                }
+            }));
+        }
+
+        latch.countDown();
+        for (Future<?> f : futures) {
+            f.get();
+        }
+        executor.shutdown();
+
+        assertThat(successCount.get()).isEqualTo(1);
+    }
 }
+

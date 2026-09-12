@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 @Profile("test")
@@ -19,17 +20,18 @@ public class LocalDistributedLockService implements DistributedLockService {
     public boolean acquireLock(String lockKey, Duration lockTimeout) {
         long now = System.currentTimeMillis();
         long expireAt = now + (lockTimeout != null ? lockTimeout.toMillis() : 60000);
+        AtomicBoolean acquired = new AtomicBoolean(false);
 
-        Long currentExpire = localLocks.compute(lockKey, (k, v) -> {
+        localLocks.compute(lockKey, (k, v) -> {
             if (v == null || v < now) {
+                acquired.set(true);
                 return expireAt;
             }
             return v;
         });
 
-        boolean acquired = (currentExpire != null && currentExpire == expireAt);
-        log.info("[LocalDistributedLock] {} lock for key: '{}'", acquired ? "Acquired" : "Could not acquire", lockKey);
-        return acquired;
+        log.info("[LocalDistributedLock] {} lock for key: '{}'", acquired.get() ? "Acquired" : "Could not acquire", lockKey);
+        return acquired.get();
     }
 
     @Override

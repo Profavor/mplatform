@@ -212,16 +212,21 @@ const cleanDomainId = computed(() => {
   return String(props.domainId).replace(/^domain_/, '').replace(/^node_/, '')
 })
 
+const isActionConfirmed = ref(false)
+
 watch(() => props.modelValue, (val) => {
   show.value = val
-  if (val && cleanDomainId.value) {
-    runImpactAnalysis()
+  if (val) {
+    isActionConfirmed.value = false
+    if (cleanDomainId.value) {
+      runImpactAnalysis()
+    }
   }
 })
 
 watch(show, (val) => {
   emit('update:modelValue', val)
-  if (!val) {
+  if (!val && !isActionConfirmed.value) {
     emit('cancel')
   }
 })
@@ -303,12 +308,16 @@ const getRiskColor = (level: string) => {
 }
 
 const confirmChange = () => {
+  isActionConfirmed.value = true
   show.value = false
   emit('confirm')
+  setTimeout(() => { isActionConfirmed.value = false }, 300)
 }
 
 const confirmSubmit = () => {
+  isActionConfirmed.value = true
   show.value = false
   emit('confirm-submit')
+  setTimeout(() => { isActionConfirmed.value = false }, 300)
 }
 </script>
