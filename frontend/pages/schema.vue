@@ -729,6 +729,7 @@ const newField = ref({
   required: false, 
   isMultiValue: false, 
   isSearchable: true, 
+  isIndexed: false,
   isEncrypted: false,
   isReadOnly: false,
   isImmutable: false,
@@ -1182,6 +1183,30 @@ const columnDefs = computed(() => [
       } else {
         span.style.background = '#2c82e0';
         span.innerText = 'No';
+      }
+      return span;
+    }
+  },
+  { 
+    headerName: t('index'), 
+    field: 'isIndexed', 
+    sortable: true,
+    width: 100,
+    cellRenderer: (params) => {
+      if (!params || !params.data) return '';
+      const isIndexed = Boolean(params.data.isIndexed);
+      const span = document.createElement('span');
+      span.style.padding = '2px 8px';
+      span.style.borderRadius = '4px';
+      span.style.color = 'white';
+      span.style.fontSize = '12px';
+      span.style.fontWeight = 'bold';
+      if (isIndexed) {
+        span.style.background = '#28a745';
+        span.innerText = 'INDEX';
+      } else {
+        span.style.background = '#999';
+        span.innerText = '-';
       }
       return span;
     }
@@ -1699,6 +1724,7 @@ const openFieldModal = async (rowData = null) => {
       hint: rowData.hint ? { ...rowData.hint } : { ko: '', en: '' }, 
       type: fType,
       isMultiValue: isMulti,
+      isIndexed: Boolean(rowData.isIndexed),
       formula: rowData.formula || '', 
       unit: rowData.unit || '',
       fieldGroupId: rowData.fieldGroup?.id || null,
@@ -1764,7 +1790,7 @@ const openFieldModal = async (rowData = null) => {
 
     newField.value = { 
       name: {ko:'', en:''}, hint: {ko:'', en:''}, key: '', type: 'TEXT', required: false, order: 0, 
-      fieldGroupId: null, targetDomainId: null, isMultiValue: false, isSearchable: true, 
+      fieldGroupId: null, targetDomainId: null, isMultiValue: false, isSearchable: true, isIndexed: false,
       isEncrypted: false, isReadOnly: false, isImmutable: false, isHidden: false, isHighlighted: false, 
       formula: '', unit: '', gridWidth: null, tableColumnWidth: null, dateFormat: '',
       targetNodeId: initialTargetId,
@@ -2067,6 +2093,7 @@ const executePendingFieldSave = async () => {
       isEncrypted: Boolean(newField.value.isEncrypted),
       maskingPattern: newField.value.isEncrypted ? (newField.value.maskingPattern || 'GENERIC') : (newField.value.maskingPattern || null),
       isSearchable: newField.value.isSearchable,
+      isIndexed: Boolean(newField.value.isIndexed),
       isReadOnly: newField.value.isReadOnly,
       isImmutable: newField.value.isImmutable,
       isHidden: newField.value.isHidden,
@@ -2082,7 +2109,7 @@ const executePendingFieldSave = async () => {
       name: { ko: '', en: '' }, 
       hint: { ko: '', en: '' },
       fieldGroupId: null,
-      key: '', type: 'TEXT', options: '', required: false, isMultiValue: false, isSearchable: true, isEncrypted: false, isReadOnly: false, isImmutable: false, isHidden: false, isHighlighted: false, order: 0, reason: ''
+      key: '', type: 'TEXT', options: '', required: false, isMultiValue: false, isSearchable: true, isIndexed: false, isEncrypted: false, isReadOnly: false, isImmutable: false, isHidden: false, isHighlighted: false, order: 0, reason: ''
     }
     showFieldModal.value = false
     showFieldCommentModal.value = false

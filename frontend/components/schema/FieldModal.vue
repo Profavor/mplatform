@@ -257,6 +257,12 @@
           <span style="flex: 1;">{{ t('searchable') }}</span>
         </div>
 
+        <div class="option-pill" :class="{ active: newField.isIndexed }" @click="newField.isIndexed = !newField.isIndexed" :title="t('db_indexed_desc')">
+          <va-checkbox v-model="newField.isIndexed" @click.stop />
+          <va-icon name="bolt" size="small" :color="newField.isIndexed ? 'success' : 'secondary'" />
+          <span style="flex: 1;">{{ t('db_indexed') }}</span>
+        </div>
+
         <div 
           class="option-pill" 
           :class="{ active: newField.isEncrypted, disabled: !isEncryptableType(newField.type) }" 

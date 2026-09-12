@@ -13,6 +13,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.InputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -140,9 +142,7 @@ public class StockMarketApiItemReader implements ItemReader<StockApiRawItem> {
                                     .marketType(market.toUpperCase())
                                     .industrySector(s.path("industryCodeType").path("name").asText("Technology / US Market"))
                                     .securityType("COMMON")
-                                    .parValue(0.001)
                                     .listedShares(price > 0 ? (long) (mktCap / price) : 0L)
-                                    .capitalAmount((long) (mktCap * 0.01))
                                     .currency("USD")
                                     .currentPrice(price)
                                     .previousClosePrice(price)
@@ -166,19 +166,8 @@ public class StockMarketApiItemReader implements ItemReader<StockApiRawItem> {
                                     .dividendAt(detail != null ? detail.dividendAt : null)
                                     .exDividendAt(detail != null ? detail.exDividendAt : null)
                                     .priceBaseDate(todayStr)
-                                    .listingDate("1990-01-01")
-                                    .fiscalMonth("12")
                                     .isTradingHalt(false)
                                     .isDelistingRisk(false)
-                                    .foreignOwnershipRatio(50.0)
-                                    .foreignHoldingShares(price > 0 ? (long) (mktCap / price * 0.5) : 0L)
-                                    .foreignDailyNetBuy(100000L)
-                                    .instDailyNetBuy(150000L)
-                                    .retailDailyNetBuy(-250000L)
-                                    .foreignCumulativeNetBuy20d(1500000L)
-                                    .instCumulativeNetBuy20d(2000000L)
-                                    .retailCumulativeNetBuy20d(-3500000L)
-                                    .investorRelationsUrl("https://finance.yahoo.com/quote/" + symbol)
                                     .businessSummary("<p><strong>" + symbol + "</strong> is listed on " + market + ".</p>")
                                     .build());
                         }
@@ -209,14 +198,25 @@ public class StockMarketApiItemReader implements ItemReader<StockApiRawItem> {
                             }
                             long vol = (long) parseNumber(s.path("accumulatedTradingVolumeRaw").asText(s.path("accumulatedTradingVolume").asText("0")));
 
-                            // Query exact investor trend and 52-week price detail if available
+                            // 1. Investor trend
                             InvestorTrend trend = fetchInvestorTrend(ticker);
+                            // 2. Integration detail (Naver)
                             StockDetailInfo detail = fetchDomesticStockDetail(ticker);
+                            // 3. Daum Quote detail (ISIN, ParValue, Capital, ListingDate, FiscalMonth, ForeignHolding, BusinessSummary, WICS sector)
+                            DaumQuoteInfo daum = fetchDaumQuoteDetail(ticker);
 
-                            long foreignDaily = trend != null ? trend.foreignDaily : (long) (vol * 0.05);
-                            long instDaily = trend != null ? trend.instDaily : (long) (vol * 0.03);
-                            long retailDaily = trend != null ? trend.retailDaily : -(foreignDaily + instDaily);
-                            double foreignRatio = trend != null ? trend.foreignRatio : 15.0;
+                            String isinCode = (daum != null && daum.isinCode != null && !daum.isinCode.isBlank())
+                                    ? daum.isinCode : ("KR7" + ticker + "000");
+
+                            // 4. KRX Short Selling (Balance Qty & Ratio)
+                            KrxShortSellingInfo krx = fetchKrxShortSelling(isinCode);
+
+                            Long foreignDaily = trend != null ? trend.foreignDaily : null;
+                            Long instDaily = trend != null ? trend.instDaily : null;
+                            Long retailDaily = trend != null ? trend.retailDaily : null;
+                            Double foreignRatio = (daum != null && daum.foreignRatio != null)
+                                    ? daum.foreignRatio
+                                    : (trend != null ? trend.foreignRatio : null);
 
                             double week52High = (detail != null && detail.week52High != null && detail.week52High > 0)
                                     ? detail.week52High : price;
@@ -237,18 +237,43 @@ public class StockMarketApiItemReader implements ItemReader<StockApiRawItem> {
                             long tradingValue = (long) parseNumber(s.path("accumulatedTradingValueRaw").asText("0"));
                             String logoUrl = s.path("itemLogoUrl").asText(s.path("itemLogoPngUrl").asText(null));
 
+                            Double parValue = daum != null ? daum.parValue : null;
+                            Long listedShares = (daum != null && daum.listedShares != null)
+                                    ? daum.listedShares
+                                    : (price > 0 ? (long) (mktCap / price) : null);
+                            Long capitalAmount = daum != null ? daum.capitalAmount : null;
+                            String industrySector = (daum != null && daum.industrySector != null && !daum.industrySector.isBlank())
+                                    ? daum.industrySector
+                                    : s.path("stockExchangeType").path("nameKor").asText(market.toUpperCase());
+                            String listingDate = daum != null ? daum.listingDate : null;
+                            String fiscalMonth = daum != null ? daum.fiscalMonth : null;
+                            Long foreignHoldingShares = (daum != null && daum.foreignHoldingShares != null)
+                                    ? daum.foreignHoldingShares
+                                    : ((foreignRatio != null && listedShares != null) ? (long) (listedShares * (foreignRatio / 100.0)) : null);
+
+                            Boolean isTradingHalt = (daum != null && daum.isTradingSuspended != null)
+                                    ? daum.isTradingSuspended
+                                    : (!"1".equals(s.path("tradeStopType").path("code").asText("1")));
+                            Boolean isDelistingRisk = (daum != null && daum.isAdministrativeIssue != null)
+                                    ? daum.isAdministrativeIssue
+                                    : false;
+
+                            String summary = (daum != null && daum.businessSummary != null && !daum.businessSummary.isBlank())
+                                    ? daum.businessSummary
+                                    : ("<p><strong>" + name + "</strong>(" + ticker + ")은 " + market + " 상장 기업입니다.</p>");
+
                             items.add(StockApiRawItem.builder()
                                     .marketNodeCode(market.toUpperCase())
                                     .tickerCode(ticker)
-                                    .isinCode("KR7" + ticker + "000")
+                                    .isinCode(isinCode)
                                     .stockName(name)
                                     .stockNameEn(s.path("reutersCode").asText(name))
                                     .marketType(market.toUpperCase())
-                                    .industrySector(s.path("stockExchangeType").path("nameKor").asText(market.toUpperCase()))
+                                    .industrySector(industrySector)
                                     .securityType(name.contains("ETF") || name.contains("KODEX") || name.contains("TIGER") ? "ETF" : "COMMON")
-                                    .parValue(500.0)
-                                    .listedShares(price > 0 ? (long) (mktCap / price) : 0L)
-                                    .capitalAmount(price > 0 ? (long) (mktCap / price * 500) : 0L)
+                                    .parValue(parValue)
+                                    .listedShares(listedShares)
+                                    .capitalAmount(capitalAmount)
                                     .currency("KRW")
                                     .currentPrice(price)
                                     .previousClosePrice(price > change ? price - change : price)
@@ -273,25 +298,21 @@ public class StockMarketApiItemReader implements ItemReader<StockApiRawItem> {
                                     .dividendPerShare(detail != null ? detail.dividendPerShare : null)
                                     .foreignExhaustionRatio(detail != null ? detail.foreignExhaustionRatio : null)
                                     .priceBaseDate(todayStr)
-                                    .listingDate("2010-01-01")
-                                    .fiscalMonth("12")
-                                    .isTradingHalt(!"1".equals(s.path("tradeStopType").path("code").asText("1")))
-                                    .isDelistingRisk(false)
-                                    .marginBalanceShares((long) (vol * 0.1))
-                                    .marginBalanceRatio(0.5)
-                                    .shortSellingBalanceShares((long) (vol * 0.2))
-                                    .shortSellingRatio(1.0)
-                                    .isShortSellingOverheated(false)
+                                    .listingDate(listingDate)
+                                    .fiscalMonth(fiscalMonth)
+                                    .isTradingHalt(isTradingHalt)
+                                    .isDelistingRisk(isDelistingRisk)
+                                    .shortSellingBalanceShares(krx != null ? krx.balanceShares : null)
+                                    .shortSellingRatio(krx != null ? krx.balanceRatio : null)
                                     .foreignOwnershipRatio(foreignRatio)
-                                    .foreignHoldingShares(price > 0 ? (long) (mktCap / price * (foreignRatio / 100.0)) : 0L)
+                                    .foreignHoldingShares(foreignHoldingShares)
                                     .foreignDailyNetBuy(foreignDaily)
                                     .instDailyNetBuy(instDaily)
                                     .retailDailyNetBuy(retailDaily)
-                                    .foreignCumulativeNetBuy20d(trend != null ? trend.foreignCum20d : (long) (vol * 0.8))
-                                    .instCumulativeNetBuy20d(trend != null ? trend.instCum20d : (long) (vol * 0.4))
-                                    .retailCumulativeNetBuy20d(trend != null ? trend.retailCum20d : -(trend != null ? trend.foreignCum20d + trend.instCum20d : (long) (vol * 1.2)))
-                                    .investorRelationsUrl("https://finance.naver.com/item/main.naver?code=" + ticker)
-                                    .businessSummary("<p><strong>" + name + "</strong>(" + ticker + ")은 " + market + " 상장 기업입니다.</p>")
+                                    .foreignCumulativeNetBuy20d(trend != null ? trend.foreignCum20d : null)
+                                    .instCumulativeNetBuy20d(trend != null ? trend.instCum20d : null)
+                                    .retailCumulativeNetBuy20d(trend != null ? trend.retailCum20d : null)
+                                    .businessSummary(summary)
                                     .build());
                         }
                     }
@@ -387,12 +408,8 @@ public class StockMarketApiItemReader implements ItemReader<StockApiRawItem> {
                                 .foreignCumulativeNetBuy20d(r.get("foreign_cumulative_net_buy_20d") != null ? ((Number) r.get("foreign_cumulative_net_buy_20d")).longValue() : 0L)
                                 .instCumulativeNetBuy20d(r.get("inst_cumulative_net_buy_20d") != null ? ((Number) r.get("inst_cumulative_net_buy_20d")).longValue() : 0L)
                                 .retailCumulativeNetBuy20d(r.get("retail_cumulative_net_buy_20d") != null ? ((Number) r.get("retail_cumulative_net_buy_20d")).longValue() : 0L)
-                                .marginBalanceShares(r.get("margin_balance_shares") != null ? ((Number) r.get("margin_balance_shares")).longValue() : null)
-                                .marginBalanceRatio(r.get("margin_balance_ratio") != null ? ((Number) r.get("margin_balance_ratio")).doubleValue() : null)
                                 .shortSellingBalanceShares(r.get("short_selling_balance_shares") != null ? ((Number) r.get("short_selling_balance_shares")).longValue() : null)
                                 .shortSellingRatio(r.get("short_selling_ratio") != null ? ((Number) r.get("short_selling_ratio")).doubleValue() : null)
-                                .isShortSellingOverheated(r.get("is_short_selling_overheated") != null ? (Boolean) r.get("is_short_selling_overheated") : false)
-                                .investorRelationsUrl((String) r.get("investor_relations_url"))
                                 .businessSummary((String) r.get("business_summary"))
                                 .build());
                     }
@@ -524,6 +541,129 @@ public class StockMarketApiItemReader implements ItemReader<StockApiRawItem> {
         } catch (Exception e) {
             return 0.0;
         }
+    }
+
+    private DaumQuoteInfo fetchDaumQuoteDetail(String ticker) {
+        try {
+            String url = "https://finance.daum.net/api/quotes/A" + ticker;
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("User-Agent", USER_AGENT);
+            headers.set("Referer", "https://finance.daum.net/quotes/A" + ticker);
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                JsonNode root = objectMapper.readTree(response.getBody());
+                DaumQuoteInfo info = new DaumQuoteInfo();
+                info.isinCode = root.path("code").asText(null);
+                if (root.hasNonNull("parValue")) {
+                    info.parValue = root.path("parValue").asDouble();
+                }
+                if (root.hasNonNull("listedShareCount")) {
+                    info.listedShares = root.path("listedShareCount").asLong();
+                }
+                if (root.hasNonNull("capitalStock")) {
+                    info.capitalAmount = (long) root.path("capitalStock").asDouble();
+                }
+                info.industrySector = root.path("wicsSectorName").asText(null);
+                info.listingDate = root.path("listingDate").asText(null);
+                if (root.hasNonNull("settleMonth")) {
+                    info.fiscalMonth = String.valueOf(root.path("settleMonth").asInt());
+                }
+                if (root.hasNonNull("foreignRatio")) {
+                    double raw = root.path("foreignRatio").asDouble();
+                    info.foreignRatio = Math.round(raw * 10000.0) / 100.0;
+                }
+                if (root.hasNonNull("foreignOwnShares")) {
+                    info.foreignHoldingShares = root.path("foreignOwnShares").asLong();
+                }
+                info.businessSummary = root.path("companySummary").asText(null);
+
+                JsonNode stockState = root.path("stockState");
+                if (!stockState.isMissingNode()) {
+                    if (stockState.has("isAdministrativeIssue")) {
+                        info.isAdministrativeIssue = stockState.path("isAdministrativeIssue").asBoolean();
+                    }
+                    if (stockState.has("isTradingSuspended")) {
+                        info.isTradingSuspended = stockState.path("isTradingSuspended").asBoolean();
+                    }
+                }
+                return info;
+            }
+        } catch (Exception e) {
+            log.debug("Daum quote detail not found for ticker {}: {}", ticker, e.getMessage());
+        }
+        return null;
+    }
+
+    private KrxShortSellingInfo fetchKrxShortSelling(String isinCode) {
+        if (isinCode == null || isinCode.isBlank()) {
+            return null;
+        }
+        try {
+            String url = "https://data.krx.co.kr/comm/bldAttendant/getJsonData.cmd";
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("User-Agent", USER_AGENT);
+            headers.set("Referer", "https://data.krx.co.kr");
+            headers.set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
+
+            LocalDate now = LocalDate.now();
+            String endDd = now.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+            String strtDd = now.minusDays(14).format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+
+            String body = "bld=" + URLEncoder.encode("dbms/MDC_OUT/STAT/srt/MDCSTAT30502_OUT", StandardCharsets.UTF_8)
+                    + "&locale=ko_KR&isuCd=" + URLEncoder.encode(isinCode, StandardCharsets.UTF_8)
+                    + "&strtDd=" + strtDd + "&endDd=" + endDd;
+
+            HttpEntity<String> entity = new HttpEntity<>(body, headers);
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                JsonNode root = objectMapper.readTree(response.getBody());
+                JsonNode output = root.path("output");
+                if (!output.isArray() || output.isEmpty()) {
+                    output = root.path("OutBlock_1");
+                }
+                if (!output.isArray() || output.isEmpty()) {
+                    output = root.path("block1");
+                }
+                if (output.isArray() && output.size() > 0) {
+                    JsonNode latest = output.get(0);
+                    KrxShortSellingInfo info = new KrxShortSellingInfo();
+                    String balQtyStr = latest.path("BAL_QTY").asText(null);
+                    String balRtoStr = latest.path("BAL_RTO").asText(null);
+                    if (balQtyStr != null) {
+                        info.balanceShares = (long) parseNumber(balQtyStr);
+                    }
+                    if (balRtoStr != null) {
+                        info.balanceRatio = parseNumber(balRtoStr);
+                    }
+                    return info;
+                }
+            }
+        } catch (Exception e) {
+            log.debug("KRX short selling info not found for ISIN {}: {}", isinCode, e.getMessage());
+        }
+        return null;
+    }
+
+    private static class DaumQuoteInfo {
+        String isinCode;
+        Double parValue;
+        Long listedShares;
+        Long capitalAmount;
+        String industrySector;
+        String listingDate;
+        String fiscalMonth;
+        Double foreignRatio;
+        Long foreignHoldingShares;
+        String businessSummary;
+        Boolean isAdministrativeIssue;
+        Boolean isTradingSuspended;
+    }
+
+    private static class KrxShortSellingInfo {
+        Long balanceShares;
+        Double balanceRatio;
     }
 
     private static class InvestorTrend {

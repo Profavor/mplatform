@@ -50,6 +50,8 @@
   "action_type_schema_change_short": "Schema Change",
   "add_editable_field_placeholder": "+ Select Editable Fields (Default All)",
   "add_field": "Add Field",
+  "db_indexed": "DB Index (Fast Search)",
+  "index": "Index",
   "add_field_to_node": "Add Field to {name}",
   "field_name_ko": "Field Name (KO)",
   "field_name_en": "Field Name (EN)",

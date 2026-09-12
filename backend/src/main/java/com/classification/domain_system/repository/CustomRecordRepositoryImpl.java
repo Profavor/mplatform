@@ -68,21 +68,23 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                 String op = searchParams.getOrDefault("op_" + key, "EQ");
                 
                 if ("EQ".equals(op) || "CONTAINS".equals(op) || "STARTS_WITH".equals(op) || "ENDS_WITH".equals(op)) {
-                    String pgPrefix = 
-                            "COALESCE(r.searchable_data, r.data) @> CAST(:searchValStr" + paramIndex + " AS jsonb) " +
-                            " OR COALESCE(r.searchable_data, r.data) @> CAST(:searchValStrLower" + paramIndex + " AS jsonb) " +
-                            " OR COALESCE(r.searchable_data, r.data) @> CAST(:searchValNum" + paramIndex + " AS jsonb) " +
-                            " OR COALESCE(r.searchable_data, r.data) @> CAST(:searchValNumLower" + paramIndex + " AS jsonb) OR ";
+                    String directCond = "EQ".equals(op) 
+                        ? "(r.data->>'" + safeKey + "') = :searchValLike" + paramIndex 
+                        : "(r.data->>'" + safeKey + "') ILIKE :searchValLike" + paramIndex;
 
-                    String cond = " AND (" + pgPrefix +
-                            " (NULLIF(COALESCE(r.searchable_data, r.data)->>'" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ") " +
-                            " OR (NULLIF(COALESCE(r.searchable_data, r.data)->>'_mask_" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ") " +
-                            " OR (NULLIF(COALESCE(r.searchable_data, r.data)->>'" + safeKey.toLowerCase() + "', '') ILIKE :searchValLike" + paramIndex + ") " +
-                            " OR (NULLIF(COALESCE(r.searchable_data, r.data)->>'_mask_" + safeKey.toLowerCase() + "', '') ILIKE :searchValLike" + paramIndex + ") " +
-                            " OR (NULLIF(COALESCE(r.searchable_data, r.data)->'" + safeKey + "'->>'ko', '') ILIKE :searchValLike" + paramIndex + ") " +
-                            " OR (NULLIF(COALESCE(r.searchable_data, r.data)->'" + safeKey + "'->>'en', '') ILIKE :searchValLike" + paramIndex + ") " +
-                            " OR (NULLIF(COALESCE(r.searchable_data, r.data)->'" + safeKey.toLowerCase() + "'->>'ko', '') ILIKE :searchValLike" + paramIndex + ") " +
-                            " OR (NULLIF(COALESCE(r.searchable_data, r.data)->'" + safeKey.toLowerCase() + "'->>'en', '') ILIKE :searchValLike" + paramIndex + ")) ";
+                    String pgPrefix = 
+                            "r.data @> CAST(:searchValStr" + paramIndex + " AS jsonb) " +
+                            " OR r.data @> CAST(:searchValStrLower" + paramIndex + " AS jsonb) " +
+                            " OR r.data @> CAST(:searchValNum" + paramIndex + " AS jsonb) " +
+                            " OR r.data @> CAST(:searchValNumLower" + paramIndex + " AS jsonb) " +
+                            " OR (r.searchable_data IS NOT NULL AND (r.searchable_data @> CAST(:searchValStr" + paramIndex + " AS jsonb) OR r.searchable_data @> CAST(:searchValStrLower" + paramIndex + " AS jsonb))) OR ";
+
+                    String cond = " AND (" + directCond + " OR " + pgPrefix +
+                            " (NULLIF(r.data->>'" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ") " +
+                            " OR (NULLIF(r.data->>'_mask_" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ") " +
+                            " OR (NULLIF(r.data->'" + safeKey + "'->>'ko', '') ILIKE :searchValLike" + paramIndex + ") " +
+                            " OR (NULLIF(r.data->'" + safeKey + "'->>'en', '') ILIKE :searchValLike" + paramIndex + ") " +
+                            " OR (r.searchable_data IS NOT NULL AND NULLIF(r.searchable_data->>'" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ")) ";
                     sql.append(cond);
                     countSql.append(cond);
                     paramIndex++;
@@ -265,21 +267,23 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                 String op = searchParams.getOrDefault("op_" + key, "EQ");
                 
                 if ("EQ".equals(op) || "CONTAINS".equals(op) || "STARTS_WITH".equals(op) || "ENDS_WITH".equals(op)) {
-                    String pgPrefix = 
-                            "COALESCE(r.searchable_data, r.data) @> CAST(:searchValStr" + paramIndex + " AS jsonb) " +
-                            " OR COALESCE(r.searchable_data, r.data) @> CAST(:searchValStrLower" + paramIndex + " AS jsonb) " +
-                            " OR COALESCE(r.searchable_data, r.data) @> CAST(:searchValNum" + paramIndex + " AS jsonb) " +
-                            " OR COALESCE(r.searchable_data, r.data) @> CAST(:searchValNumLower" + paramIndex + " AS jsonb) OR ";
+                    String directCond = "EQ".equals(op) 
+                        ? "(r.data->>'" + safeKey + "') = :searchValLike" + paramIndex 
+                        : "(r.data->>'" + safeKey + "') ILIKE :searchValLike" + paramIndex;
 
-                    String cond = " AND (" + pgPrefix +
-                            " (NULLIF(COALESCE(r.searchable_data, r.data)->>'" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ") " +
-                            " OR (NULLIF(COALESCE(r.searchable_data, r.data)->>'_mask_" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ") " +
-                            " OR (NULLIF(COALESCE(r.searchable_data, r.data)->>'" + safeKey.toLowerCase() + "', '') ILIKE :searchValLike" + paramIndex + ") " +
-                            " OR (NULLIF(COALESCE(r.searchable_data, r.data)->>'_mask_" + safeKey.toLowerCase() + "', '') ILIKE :searchValLike" + paramIndex + ") " +
-                            " OR (NULLIF(COALESCE(r.searchable_data, r.data)->'" + safeKey + "'->>'ko', '') ILIKE :searchValLike" + paramIndex + ") " +
-                            " OR (NULLIF(COALESCE(r.searchable_data, r.data)->'" + safeKey + "'->>'en', '') ILIKE :searchValLike" + paramIndex + ") " +
-                            " OR (NULLIF(COALESCE(r.searchable_data, r.data)->'" + safeKey.toLowerCase() + "'->>'ko', '') ILIKE :searchValLike" + paramIndex + ") " +
-                            " OR (NULLIF(COALESCE(r.searchable_data, r.data)->'" + safeKey.toLowerCase() + "'->>'en', '') ILIKE :searchValLike" + paramIndex + ")) ";
+                    String pgPrefix = 
+                            "r.data @> CAST(:searchValStr" + paramIndex + " AS jsonb) " +
+                            " OR r.data @> CAST(:searchValStrLower" + paramIndex + " AS jsonb) " +
+                            " OR r.data @> CAST(:searchValNum" + paramIndex + " AS jsonb) " +
+                            " OR r.data @> CAST(:searchValNumLower" + paramIndex + " AS jsonb) " +
+                            " OR (r.searchable_data IS NOT NULL AND (r.searchable_data @> CAST(:searchValStr" + paramIndex + " AS jsonb) OR r.searchable_data @> CAST(:searchValStrLower" + paramIndex + " AS jsonb))) OR ";
+
+                    String cond = " AND (" + directCond + " OR " + pgPrefix +
+                            " (NULLIF(r.data->>'" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ") " +
+                            " OR (NULLIF(r.data->>'_mask_" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ") " +
+                            " OR (NULLIF(r.data->'" + safeKey + "'->>'ko', '') ILIKE :searchValLike" + paramIndex + ") " +
+                            " OR (NULLIF(r.data->'" + safeKey + "'->>'en', '') ILIKE :searchValLike" + paramIndex + ") " +
+                            " OR (r.searchable_data IS NOT NULL AND NULLIF(r.searchable_data->>'" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ")) ";
                     sql.append(cond);
                     countSql.append(cond);
                     paramIndex++;

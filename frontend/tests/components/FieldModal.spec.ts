@@ -157,4 +157,51 @@ describe('FieldModal.vue - Table Sub-Schema Builder', () => {
     await encPill?.trigger('click')
     expect(fieldObj.isEncrypted).toBe(true)
   })
+
+  it('allows toggling isIndexed (DB index) attribute', async () => {
+    const fieldObj = {
+      name: { ko: '종목코드', en: 'Ticker' },
+      hint: { ko: '', en: '' },
+      key: 'TICKER_CODE',
+      type: 'TEXT',
+      required: false,
+      isIndexed: false,
+      order: 1
+    }
+    const wrapper = mount(FieldModal, {
+      props: {
+        modelValue: true,
+        isEditMode: true,
+        newField: fieldObj,
+        fieldTypes: [{ label: '단문 텍스트', value: 'TEXT' }],
+        maskingPatternOptions: []
+      },
+      global: {
+        mocks: {
+          $t: (k: string) => k
+        },
+        stubs: {
+          'va-modal': {
+            template: '<div><h1>{{ title }}</h1><slot /></div>',
+            props: ['title']
+          },
+          'va-input': true,
+          'va-select': true,
+          'va-checkbox': true,
+          'va-icon': true,
+          'ag-grid-vue': true,
+          'va-alert': true,
+          'va-button': true
+        }
+      }
+    })
+
+    const indexPill = wrapper.findAll('.option-pill').find(p => p.text().includes('db_indexed'))
+    expect(indexPill).toBeDefined()
+    expect(indexPill?.classes()).not.toContain('active')
+
+    await indexPill?.trigger('click')
+    expect(fieldObj.isIndexed).toBe(true)
+  })
 })
+

@@ -27,6 +27,7 @@ public class FieldDefinitionDto {
     private Boolean isTable;
     private Boolean isEncrypted;
     private Boolean isSearchable;
+    private Boolean isIndexed;
     private Boolean isReadOnly;
     private Boolean isImmutable;
     private Boolean isHidden;

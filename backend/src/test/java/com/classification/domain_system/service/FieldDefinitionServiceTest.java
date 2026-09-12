@@ -214,7 +214,27 @@ class FieldDefinitionServiceTest {
 
             fieldDefinitionService.addField(nodeId, req);
 
-            verify(jdbcTemplate).execute(contains("CREATE INDEX"));
+            verify(jdbcTemplate, atLeastOnce()).execute(contains("CREATE INDEX"));
+        }
+
+        @Test
+        @DisplayName("isIndexed=true 이면 index CREATE SQL 실행")
+        void isIndexed_True_CreatesIndex() {
+            when(nodeRepository.findById(nodeId)).thenReturn(Optional.of(node));
+            FieldDefinition saved = new FieldDefinition();
+            saved.setId(UUID.randomUUID());
+            saved.setKey("ticker");
+            saved.setIsIndexed(true);
+            when(fieldRepository.save(any())).thenReturn(saved);
+
+            FieldDefinitionRequest req = new FieldDefinitionRequest();
+            req.setKey("ticker");
+            req.setType("TEXT");
+            req.setIsIndexed(true);
+
+            fieldDefinitionService.addField(nodeId, req);
+
+            verify(jdbcTemplate, atLeastOnce()).execute(contains("CREATE INDEX"));
         }
 
         @Test
@@ -321,7 +341,7 @@ class FieldDefinitionServiceTest {
 
             fieldDefinitionService.updateField(nodeId, fieldId, req);
 
-            verify(jdbcTemplate).execute(contains("CREATE INDEX"));
+            verify(jdbcTemplate, atLeastOnce()).execute(contains("CREATE INDEX"));
         }
 
         @Test
@@ -337,7 +357,43 @@ class FieldDefinitionServiceTest {
 
             fieldDefinitionService.updateField(nodeId, fieldId, req);
 
-            verify(jdbcTemplate).execute(contains("DROP INDEX"));
+            verify(jdbcTemplate, atLeastOnce()).execute(contains("DROP INDEX"));
+        }
+
+        @Test
+        @DisplayName("isIndexed false→true 변경 시 CREATE INDEX 실행")
+        void isIndexed_falseToTrue_CreatesIndex() {
+            FieldDefinition field = existingField(false);
+            field.setIsIndexed(false);
+            when(fieldRepository.findById(fieldId)).thenReturn(Optional.of(field));
+            when(fieldRepository.save(any())).thenReturn(field);
+
+            FieldDefinitionRequest req = new FieldDefinitionRequest();
+            req.setIsIndexed(true);
+            req.setKey("ticker");
+
+            fieldDefinitionService.updateField(nodeId, fieldId, req);
+
+            verify(jdbcTemplate, atLeastOnce()).execute(contains("CREATE INDEX"));
+        }
+
+        @Test
+        @DisplayName("isIndexed true→false 변경 시 DROP INDEX 실행")
+        void isIndexed_trueToFalse_DropsIndex() {
+            FieldDefinition field = existingField(false);
+            field.setIsIndexed(true);
+            field.setIsSearchable(false);
+            when(fieldRepository.findById(fieldId)).thenReturn(Optional.of(field));
+            when(fieldRepository.save(any())).thenReturn(field);
+
+            FieldDefinitionRequest req = new FieldDefinitionRequest();
+            req.setIsIndexed(false);
+            req.setIsSearchable(false);
+            req.setKey("ticker");
+
+            fieldDefinitionService.updateField(nodeId, fieldId, req);
+
+            verify(jdbcTemplate, atLeastOnce()).execute(contains("DROP INDEX"));
         }
 
         @Test

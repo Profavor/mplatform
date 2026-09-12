@@ -875,6 +875,8 @@
   "search_keyword": "키워드 검색",
   "search_workflow_placeholder": "서식명 또는 설명 검색...",
   "searchable": "검색가능",
+  "db_indexed": "DB 인덱스 (초고속 검색)",
+  "db_indexed_desc": "PostgreSQL 인덱스를 적용하여 대량 데이터에서도 수 ms 이내로 검색합니다.",
   "sector": "섹터",
   "select": "선택",
   "select_icon": "아이콘 선택",

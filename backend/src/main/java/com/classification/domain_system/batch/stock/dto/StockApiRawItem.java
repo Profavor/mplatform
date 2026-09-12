@@ -32,13 +32,8 @@ public class StockApiRawItem {
     private String fiscalMonth;      // 결산월
     private Boolean isTradingHalt;   // 거래정지 여부
     private Boolean isDelistingRisk; // 관리/상장폐지 위험 여부
-    private String transferAgent;    // 명의개서대행기관
-    private String settlementCycle;  // 결제주기
-    private Long marginBalanceShares;// 신용잔고수량
-    private Double marginBalanceRatio;// 신용잔고율
     private Long shortSellingBalanceShares; // 공매도잔고수량
     private Double shortSellingRatio;       // 공매도비율
-    private Boolean isShortSellingOverheated;// 공매도과열 여부
     private Double foreignOwnershipRatio;   // 외국인 지분율
     private Long foreignHoldingShares;      // 외국인 보유주식수
     private Long foreignDailyNetBuy;        // 외국인 당일 순매수량
@@ -47,7 +42,6 @@ public class StockApiRawItem {
     private Long foreignCumulativeNetBuy20d;// 외국인 20일 누적순매수량
     private Long instCumulativeNetBuy20d;   // 기관 20일 누적순매수량
     private Long retailCumulativeNetBuy20d; // 개인 20일 누적순매수량
-    private String investorRelationsUrl;    // IR / 종목상세 URL
     private String businessSummary;         // 기업 개요
 
     // Comprehensive Market Trading Metrics
