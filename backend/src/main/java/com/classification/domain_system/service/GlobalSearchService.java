@@ -70,7 +70,7 @@ public class GlobalSearchService {
                 return searchWithJpaFallback(keyword, pageable, allowedDomainIds);
             }
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             log.warn("OpenSearch search failed. Falling back to JPA full-text search. Error: {}", e.getMessage());
             return searchWithJpaFallback(keyword, pageable, allowedDomainIds);
         }

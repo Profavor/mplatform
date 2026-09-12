@@ -6,7 +6,8 @@ server:
       max: 200
       min-spare: 20
     accept-count: 200
-    connection-timeout: 20000
+    connection-timeout: 60000
+    keep-alive-timeout: 65000
     max-connections: 8192
 
 spring:

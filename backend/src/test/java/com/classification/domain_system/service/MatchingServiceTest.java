@@ -89,14 +89,42 @@ class MatchingServiceTest {
             when(nodeRepository.findById(nodeId)).thenReturn(Optional.of(node));
             when(matchingRuleRepository.findByDomainIdAndIsActiveTrue(domainId)).thenReturn(List.of());
             when(fieldDefinitionRepository.findById(idFieldId)).thenReturn(Optional.of(idDef));
-            when(recordRepository.findDynamicRecords(anyList(), isNull(), anyMap(), any(Pageable.class)))
-                    .thenReturn(new PageImpl<>(List.of(dup)));
+            when(recordRepository.findActiveRecordsByDomainAndFieldValue(domainId, "ticker", "006800"))
+                    .thenReturn(List.of(dup));
 
             MatchingService.DuplicateResult result = matchingService.checkDuplicates(nodeId, "{\"ticker\":\"006800\"}");
 
             assertThat(result.hasDuplicates).isTrue();
             assertThat(result.duplicateRecordIds).containsExactly(dup.getId());
             assertThat(result.message).contains("Identifier Field");
+            org.mockito.Mockito.verify(recordRepository, org.mockito.Mockito.never())
+                    .findDynamicRecords(any(), any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("식별자 필드 검사 시 중복이 없으면 findDynamicRecords 풀스캔을 절대 호출하지 않아야 한다")
+        void identifierField_NoDuplicate_DoesNotCallDynamicRecords() {
+            UUID idFieldId = UUID.randomUUID();
+            domain.setIdentifierFieldId(idFieldId);
+
+            FieldDefinition idDef = new FieldDefinition();
+            idDef.setId(idFieldId);
+            idDef.setKey("ticker");
+
+            when(nodeRepository.findById(nodeId)).thenReturn(Optional.of(node));
+            when(matchingRuleRepository.findByDomainIdAndIsActiveTrue(domainId)).thenReturn(List.of());
+            when(fieldDefinitionRepository.findById(idFieldId)).thenReturn(Optional.of(idDef));
+            when(recordRepository.findActiveRecordsByDomainAndFieldValue(domainId, "ticker", "006800"))
+                    .thenReturn(List.of());
+
+            MatchingService.DuplicateResult result = matchingService.checkDuplicates(nodeId, "{\"ticker\":\"006800\"}");
+
+            assertThat(result.hasDuplicates).isFalse();
+            assertThat(result.duplicateRecordIds).isEmpty();
+            org.mockito.Mockito.verify(recordRepository, org.mockito.Mockito.never())
+                    .findDynamicRecords(any(), any(), any(), any());
+            org.mockito.Mockito.verify(recordRepository, org.mockito.Mockito.never())
+                    .findDynamicRecordsByDomain(any(), any(), any());
         }
 
         @Test
@@ -120,6 +148,28 @@ class MatchingServiceTest {
         }
 
         @Test
+        @DisplayName("후보키 검사 시 중복이 없으면 findDynamicRecords 풀스캔을 절대 호출하지 않아야 한다")
+        void candidateKey_NoDuplicate_DoesNotCallDynamicRecords() {
+            domain.setIdentifierFieldId(null);
+
+            FieldDefinition prodIdDef = new FieldDefinition();
+            prodIdDef.setId(UUID.randomUUID());
+            prodIdDef.setKey("PRODUCT_ID");
+
+            when(nodeRepository.findById(nodeId)).thenReturn(Optional.of(node));
+            when(matchingRuleRepository.findByDomainIdAndIsActiveTrue(domainId)).thenReturn(List.of());
+            when(fieldDefinitionRepository.findDomainFieldsWithSort(domainId)).thenReturn(List.of(prodIdDef));
+            when(recordRepository.findActiveRecordsByDomainAndFieldValue(domainId, "PRODUCT_ID", "PID-001"))
+                    .thenReturn(List.of());
+
+            MatchingService.DuplicateResult result = matchingService.checkDuplicates(nodeId, "{\"PRODUCT_ID\":\"PID-001\"}");
+
+            assertThat(result.hasDuplicates).isFalse();
+            org.mockito.Mockito.verify(recordRepository, org.mockito.Mockito.never())
+                    .findDynamicRecords(any(), any(), any(), any());
+        }
+
+        @Test
         @DisplayName("Custom Rule - nodeId=null 규칙은 모든 노드에 적용")
         void customRule_NullNodeId_AppliesToAllNodes() {
             domain.setIdentifierFieldId(null);
@@ -134,8 +184,8 @@ class MatchingServiceTest {
 
             when(nodeRepository.findById(nodeId)).thenReturn(Optional.of(node));
             when(matchingRuleRepository.findByDomainIdAndIsActiveTrue(domainId)).thenReturn(List.of(rule));
-            when(recordRepository.findDynamicRecords(anyList(), isNull(), anyMap(), any(Pageable.class)))
-                    .thenReturn(new PageImpl<>(List.of(dup)));
+            when(recordRepository.findActiveRecordsByDomainAndFieldValue(domainId, "name", "홍길동"))
+                    .thenReturn(List.of(dup));
 
             MatchingService.DuplicateResult result = matchingService.checkDuplicates(nodeId, "{\"name\":\"홍길동\"}");
 
