@@ -380,6 +380,66 @@ describe('ApprovalDetailsViewer Component - RECORD_UPDATE Filtering Test', () =>
     expect(text).toContain('외국인 지분율(%)')
     expect(text).toContain('신용잔고주수')
   })
+
+  it('changedFields가 소문자이고 before/after에 대문자/혼합 키가 존재하더라도 각 속성은 1개 행으로만 렌더링(중복 방지)되어야 함', async () => {
+    const mockFields = [
+      {
+        id: 'field-uuid-1',
+        key: 'current_price',
+        name: { ko: '최근 기준가/종가', en: 'Current Price' },
+        type: 'NUMBER',
+        fieldGroup: null
+      }
+    ]
+
+    mockCustomFetch.mockImplementation((url: string) => {
+      if (url.includes('/fields/effective')) {
+        return Promise.resolve(mockFields)
+      }
+      return Promise.resolve([])
+    })
+
+    const mockRequest = {
+      id: 'req-dup-test-1',
+      targetType: 'BATCH_MERGE',
+      isIntegration: true,
+      nodeId: 'node-uuid-1',
+      changes: JSON.stringify({
+        before: {
+          CURRENT_PRICE: 8970,
+          MARGIN_BALANCE_SHARES: 373348
+        },
+        after: {
+          CURRENT_PRICE: 8900,
+          MARGIN_BALANCE_SHARES: 257534
+        },
+        changedFields: ['current_price', 'margin_balance_shares']
+      }),
+      steps: []
+    }
+
+    const wrapper = mount(ApprovalDetailsViewer, {
+      props: {
+        request: mockRequest,
+        nodeId: 'node-uuid-1'
+      },
+      global: {
+        mocks: { $t: (key: string) => key },
+        stubs: { VaIcon: true, VaBadge: true, VaButton: true, VaChip: true, ApprovalSteps: true, VaModal: true, VaInput: true, 'va-modal': true, 'va-input': true }
+      }
+    })
+
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    // 1. 최근 기준가/종가 라벨이 화면에 정확히 1번만 등장해야 함 (중복 없음)
+    const matchesPrice = wrapper.text().match(/최근 기준가\/종가/g)
+    expect(matchesPrice).toHaveLength(1)
+
+    // 2. margin_balance_shares 또는 MARGIN_BALANCE_SHARES 또한 1번만 등장해야 함
+    const matchesMargin = wrapper.text().match(/margin_balance_shares/gi)
+    expect(matchesMargin).toHaveLength(1)
+  })
 })
 
 

@@ -1426,19 +1426,33 @@ const getGroupedChangesList = (changesString, targetType) => {
   }
 
   const map = new Map()
-  let keysToProcess = []
+  let rawKeys = []
   const changedFieldsList = Array.isArray(parsed.changedFields) ? parsed.changedFields : []
 
   if (isUpdate) {
     const beforeKeys = Object.keys(parsed.before || {})
     const afterKeys = Object.keys(parsed.after || {})
-    keysToProcess = [...new Set([...changedFieldsList, ...beforeKeys, ...afterKeys])]
+    rawKeys = [...changedFieldsList, ...beforeKeys, ...afterKeys]
   } else {
-    keysToProcess = Object.keys(parsed)
+    rawKeys = Object.keys(parsed)
   }
   
-  // Filter out any internal keys
-  keysToProcess = keysToProcess.filter(k => k && !k.startsWith('_'))
+  // Filter out internal keys and deduplicate case-insensitively
+  const seenKeys = new Set()
+  const keysToProcess = []
+  rawKeys.forEach(rawKey => {
+    if (!rawKey || String(rawKey).startsWith('_')) return
+    const lower = String(rawKey).toLowerCase()
+    if (seenKeys.has(lower)) return
+    seenKeys.add(lower)
+
+    const foundField = (fieldNameMap.value && fieldNameMap.value[rawKey])
+      || (fieldNameMap.value && fieldNameMap.value[lower])
+      || (fieldNameMap.value && fieldNameMap.value[String(rawKey).toUpperCase()])
+      || Object.values(fieldNameMap.value || {}).find(field => field && field.key && (String(field.key).toLowerCase() === lower))
+
+    keysToProcess.push(foundField?.key || rawKey)
+  })
 
   const getCaseInsensitiveVal = (obj, targetKey) => {
     if (!obj || typeof obj !== 'object') return undefined;
@@ -1649,7 +1663,22 @@ const getGroupedChangesList = (changesString, targetType) => {
       finalVal = displayValAfter || '-'
     }
     
-    sectorObj.groups.get(gKey).fields.push({ key: f.key || key, label: translate(f.name, key, key), val: finalVal, gridWidth: f.gridWidth, type: f.type, isEncrypted: Boolean(f.isEncrypted), order: f.order || 0, options: f.options })
+    const targetGroup = sectorObj.groups.get(gKey)
+    const existingField = targetGroup.fields.find(field => 
+      String(field.key).toLowerCase() === String(f.key || key).toLowerCase()
+    )
+    if (!existingField) {
+      targetGroup.fields.push({
+        key: f.key || key,
+        label: translate(f.name, key, key),
+        val: finalVal,
+        gridWidth: f.gridWidth,
+        type: f.type,
+        isEncrypted: Boolean(f.isEncrypted),
+        order: f.order || 0,
+        options: f.options
+      })
+    }
   })
   
   const sectorsArray = Array.from(map.values())
