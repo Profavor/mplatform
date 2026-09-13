@@ -813,105 +813,70 @@
                       </va-button>
                     </div>
                   </va-card-title>
-                  <va-card-content v-if="(log.changeType === 'UPDATE' || log.changeType === 'RECORD_UPDATE' || log.changeType === 'INBOUND_MERGE' || log.changeType === 'BATCH_MERGE' || log.changeType === 'MERGED_INTO' || log.changeType === 'RECORD_MERGE' || (log.previousData && log.newData)) && log.previousData && log.newData" style="padding: 1rem; background: var(--va-background-secondary);">
-                    <!-- Inline Diff Rendering -->
-                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                      <div v-for="fieldKey in getChangedKeys(log.previousData, log.newData, log)" :key="fieldKey" style="display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.85rem;">
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                          <span style="font-weight: 700; color: var(--va-text-primary); min-width: 100px;">
-                            {{ getFieldLabelByKey(fieldKey) }}:
+                  <va-card-content v-if="(log.changeType === 'UPDATE' || log.changeType === 'RECORD_UPDATE' || log.changeType === 'INBOUND_MERGE' || log.changeType === 'BATCH_MERGE' || log.changeType === 'MERGED_INTO' || log.changeType === 'RECORD_MERGE' || (log.previousData && log.newData)) && log.previousData && log.newData" style="padding: 0.85rem 1rem; background: var(--va-background-secondary); border-radius: 0 0 6px 6px;">
+                    <div class="history-summary-box" style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.85rem;">
+                      <!-- 1. Source System / Ingestion Channel -->
+                      <div style="display: flex; align-items: center; gap: 0.4rem; color: var(--va-text-primary); font-size: 0.82rem;">
+                        <va-icon name="public" size="small" color="primary" />
+                        <span style="font-weight: 600; color: var(--va-secondary);">{{ t('history_source_system') }}:</span>
+                        <span style="font-weight: 600;">{{ log.sourceSystem || (log.approvalRequestId ? (t('history_approval_source') + ' (' + formatIdentifier(log.approvalRequestId, 'REQ') + ')') : t('history_manual_source')) }}</span>
+                      </div>
+
+                      <!-- 2. Changed Scale & Metric -->
+                      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.4rem;">
+                        <div style="display: flex; align-items: center; gap: 0.4rem; color: var(--va-text-primary); font-size: 0.82rem;">
+                          <va-icon name="insights" size="small" color="info" />
+                          <span style="font-weight: 700;">
+                            {{ getHistoryChangedFieldKeys(log).length > 0
+                                ? t('history_changed_summary', { count: getHistoryChangedFieldKeys(log).length })
+                                : t('history_no_changed_fields') }}
                           </span>
-                          <!-- If NOT JSON and NOT FILE Type -->
-                          <div v-if="getFieldByKey(fieldKey)?.type !== 'JSON' && getFieldByKey(fieldKey)?.type !== 'FILE'" style="display: flex; align-items: center; gap: 0.5rem; flex: 1; flex-wrap: wrap;">
-                            <span style="text-decoration: line-through; color: var(--va-danger); background: rgba(229, 57, 53, 0.1); padding: 0.1rem 0.4rem; border-radius: 4px;">
-                              {{ getDecryptedFieldValue(log.id + '_' + fieldKey + '_prev') || formatDiffValue(fieldKey, getHistoryVal(log.previousData, fieldKey)) }}
-                            </span>
-                            <va-icon name="arrow_forward" size="small" color="secondary" />
-                            <span style="color: var(--va-success); background: rgba(30, 203, 114, 0.1); padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 600;">
-                              {{ getDecryptedFieldValue(log.id + '_' + fieldKey + '_new') || getDecryptedFieldValue(log.id + '_' + fieldKey) || formatDiffValue(fieldKey, getHistoryVal(log.newData, fieldKey)) }}
-                            </span>
-                            <!-- Decrypt Button for History -->
-                            <span v-if="getFieldByKey(fieldKey)?.isEncrypted" style="margin-left:8px; display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; color:#888;">
-                              <va-icon name="lock" size="small" />
-                              <template v-if="getDecryptedFieldValue(log.id + '_' + fieldKey) === undefined">
-                                <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary);" @click.stop="requestDecryptHistoryField(log.id, fieldKey)">
-                                   {{ t('view_original') }}
-                                </span>
-                              </template>
-                              <template v-else>
-                                <span style="cursor:pointer; text-decoration:underline; color:var(--va-primary);" @click.stop="hideDecryptedField(log.id + '_' + fieldKey)">
-                                  {{ t('hide_original') }}
-                                </span>
-                                <span v-if="getDecryptRemainingTime(log.id + '_' + fieldKey)" style="margin-left:4px; font-variant-numeric: tabular-nums;">
-                                  (00:{{ String(getDecryptRemainingTime(log.id + '_' + fieldKey)).padStart(2, '0') }})
-                                </span>
-                              </template>
-                              <va-icon v-if="decryptingFields[log.id + '_' + fieldKey]" name="sync" size="small" spin />
-                            </span>
-                          </div>
-
-                          <!-- If FILE Type: Render Download Links -->
-                          <div v-else-if="getFieldByKey(fieldKey)?.type === 'FILE'" style="display: flex; align-items: center; gap: 0.5rem; flex: 1; flex-wrap: wrap;">
-                            <div v-if="getFilesList(getHistoryVal(log.previousData, fieldKey)).length > 0" style="display: flex; flex-direction: column; gap: 2px;">
-                              <a
-                                v-for="(fUrl, fIdx) in getFilesList(getHistoryVal(log.previousData, fieldKey))"
-                                :key="fIdx"
-                                href="#"
-                                @click.prevent="downloadFileWithAuth(fUrl.url || fUrl, fUrl.name || extractFilename(fUrl.url || fUrl))"
-                                style="color: var(--va-danger); text-decoration: line-through; font-weight: 600; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 4px;"
-                              >
-                                📎 {{ fUrl.name || extractFilename(fUrl.url || fUrl) }}
-                              </a>
-                            </div>
-                            <span v-else style="text-decoration: line-through; color: var(--va-danger); background: rgba(229, 57, 53, 0.1); padding: 0.1rem 0.4rem; border-radius: 4px;">
-                              (null)
-                            </span>
-
-                            <va-icon name="arrow_forward" size="small" color="secondary" />
-
-                            <div v-if="getFilesList(getHistoryVal(log.newData, fieldKey)).length > 0" style="display: flex; flex-direction: column; gap: 2px;">
-                              <a
-                                v-for="(fUrl, fIdx) in getFilesList(getHistoryVal(log.newData, fieldKey))"
-                                :key="fIdx"
-                                href="#"
-                                @click.prevent="downloadFileWithAuth(fUrl.url || fUrl, fUrl.name || extractFilename(fUrl.url || fUrl))"
-                                style="color: var(--va-success); text-decoration: underline; font-weight: 600; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 4px;"
-                              >
-                                📎 {{ fUrl.name || extractFilename(fUrl.url || fUrl) }}
-                              </a>
-                            </div>
-                            <span v-else style="color: var(--va-success); background: rgba(30, 203, 114, 0.1); padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 600;">
-                              (null)
-                            </span>
-                          </div>
                         </div>
 
-                        <!-- If JSON Type: Render Sub-Table Diff -->
-                        <div v-if="getFieldByKey(fieldKey)?.type === 'JSON'" style="margin-top: 0.25rem;">
-                          <div v-if="getTableRows(getHistoryVal(log.newData, fieldKey)).length > 0" style="border: 1px solid var(--va-background-border); border-radius: 6px; overflow: hidden; background: var(--va-background-element);">
-                            <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
-                              <thead>
-                                <tr style="background: var(--va-background-secondary); border-bottom: 1px solid var(--va-background-border);">
-                                  <th style="padding: 0.4rem 0.5rem; width: 35px; text-align: center; color: var(--va-text-secondary);">#</th>
-                                  <th v-for="col in getTableColumns(getFieldByKey(fieldKey), getTableRows(getHistoryVal(log.newData, fieldKey)))" :key="col.key" style="padding: 0.4rem 0.6rem; text-align: left; color: var(--va-text-primary); font-weight: 600;">
-                                    {{ getTranslatedColName(col.name) }}
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                <tr v-for="(row, rIdx) in getTableRows(getHistoryVal(log.newData, fieldKey))" :key="rIdx" style="border-bottom: 1px solid var(--va-background-border);">
-                                  <td style="padding: 0.4rem 0.5rem; text-align: center; color: var(--va-text-secondary); font-size: 0.75rem;">{{ rIdx + 1 }}</td>
-                                  <td v-for="col in getTableColumns(getFieldByKey(fieldKey), getTableRows(getHistoryVal(log.newData, fieldKey)))" :key="col.key" style="padding: 0.4rem 0.6rem; color: var(--va-text-primary);">
-                                    {{ formatTableCellVal(row[col.key], col) }}
-                                  </td>
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
-                          <div v-else style="color: var(--va-text-secondary); font-style: italic; padding: 0.25rem 0.5rem;">
-                            {{ t('none') || '(없음)' }}
-                          </div>
-                        </div>
+                        <!-- Collapse / Expand toggle button if count > 6 -->
+                        <va-button
+                          v-if="getHistoryChangedFieldKeys(log).length > 6"
+                          preset="plain"
+                          size="small"
+                          style="font-size: 0.75rem; padding: 0 4px; min-height: 20px;"
+                          @click="toggleHistoryFieldExpansion(log.id || idx)"
+                        >
+                          {{ isHistoryFieldsExpanded(log.id || idx) ? t('history_collapse_fields') : t('history_more_fields', { count: getHistoryChangedFieldKeys(log).length - 6 }) }}
+                        </va-button>
+                      </div>
+
+                      <!-- 3. Changed Field Chips (Labels only, no values) -->
+                      <div
+                        v-if="getHistoryChangedFieldKeys(log).length > 0"
+                        style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.2rem;"
+                      >
+                        <va-chip
+                          v-for="fieldKey in getVisibleHistoryKeys(log, idx)"
+                          :key="fieldKey"
+                          size="small"
+                          outline
+                          color="primary"
+                          class="history-field-chip"
+                          style="font-size: 0.75rem; padding: 2px 6px; cursor: pointer;"
+                          @click="historyFieldSearchQuery = getFieldLabelByKey(fieldKey)"
+                        >
+                          {{ getFieldLabelByKey(fieldKey) }}
+                        </va-chip>
+                        <va-chip
+                          v-if="!isHistoryFieldsExpanded(log.id || idx) && getHistoryChangedFieldKeys(log).length > 6"
+                          size="small"
+                          preset="secondary"
+                          style="font-size: 0.75rem; padding: 2px 6px; cursor: pointer;"
+                          @click="toggleHistoryFieldExpansion(log.id || idx)"
+                        >
+                          {{ t('history_more_fields', { count: getHistoryChangedFieldKeys(log).length - 6 }) }}
+                        </va-chip>
+                      </div>
+
+                      <!-- 4. Subtle Hint to view full details via snapshot or integration history -->
+                      <div style="margin-top: 0.25rem; font-size: 0.75rem; color: var(--va-secondary); display: flex; align-items: center; gap: 0.3rem;">
+                        <va-icon name="info" size="14px" color="secondary" />
+                        <span>{{ t('history_view_diff_hint') }}</span>
                       </div>
                     </div>
                   </va-card-content>
@@ -1323,6 +1288,33 @@ const filteredHistory = computed(() => {
     return true;
   });
 });
+
+// Option 1: 변경 이력 속성 요약 및 칩 확장 상태 관리
+const expandedHistoryFields = ref({});
+
+const isHistoryFieldsExpanded = (logId) => {
+  return Boolean(expandedHistoryFields.value[String(logId)]);
+};
+
+const toggleHistoryFieldExpansion = (logId) => {
+  const key = String(logId);
+  expandedHistoryFields.value[key] = !expandedHistoryFields.value[key];
+};
+
+const getHistoryChangedFieldKeys = (log) => {
+  if (!log) return [];
+  const keys = getChangedKeys(log.previousData, log.newData, log);
+  return keys.filter((k) => Boolean(getFieldLabelByKey(k)));
+};
+
+const getVisibleHistoryKeys = (log, idx) => {
+  const keys = getHistoryChangedFieldKeys(log);
+  const logId = String(log?.id ?? idx);
+  if (expandedHistoryFields.value[logId] || keys.length <= 6) {
+    return keys;
+  }
+  return keys.slice(0, 6);
+};
 
 const getSelectDisplayLabels = (field) => {
   if (!field) return [];

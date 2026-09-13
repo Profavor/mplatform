@@ -299,6 +299,73 @@ describe('RecordDetailDrawer.vue - Encrypted Masking & Domain Reference', () => 
     expect(changedKeys).not.toContain('deleted_field')
     expect(changedKeys).not.toContain('unmapped_field')
   })
+
+  it('Option 1: renders summary chips, source system, and handles expansion toggle for history items', () => {
+    const fields = [
+      { key: 'stock_code', name: { ko: '종목코드' } },
+      { key: 'current_price', name: { ko: '현재가' } },
+      { key: 'f1', name: { ko: '필드1' } },
+      { key: 'f2', name: { ko: '필드2' } },
+      { key: 'f3', name: { ko: '필드3' } },
+      { key: 'f4', name: { ko: '필드4' } },
+      { key: 'f5', name: { ko: '필드5' } },
+      { key: 'f6', name: { ko: '필드6' } }
+    ]
+
+    const wrapper = mount(RecordDetailDrawer, {
+      props: {
+        show: true,
+        record: { id: 'REC-123' },
+        fields
+      },
+      global: {
+        plugins: [i18n],
+        stubs: {
+          'va-modal': true,
+          'va-tabs': true,
+          'va-tab': true,
+          'va-accordion': true,
+          'va-collapse': true,
+          'va-input': true,
+          'va-icon': true,
+          'va-button': true,
+          'UnmaskReasonModal': true,
+          'UserProfileModal': true,
+          'AgGridVue': true,
+          'RecordLayoutBuilderModal': true,
+          'va-select': true,
+          'va-chip': true
+        }
+      }
+    })
+
+    const vm = wrapper.vm as any
+
+    const log = {
+      id: 'HIST-BATCH-1',
+      changeType: 'BATCH_MERGE',
+      sourceSystem: 'Spring Batch Pipeline [Stock Ingestion Job]',
+      previousData: '{"stock_code":"034220", "current_price":"8950", "f1":"1", "f2":"2", "f3":"3", "f4":"4", "f5":"5", "f6":"6"}',
+      newData: '{"stock_code":"034220", "current_price":"8970", "f1":"10", "f2":"20", "f3":"30", "f4":"40", "f5":"50", "f6":"60"}',
+      changedFields: ['current_price', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6']
+    }
+
+    const allChanged = vm.getHistoryChangedFieldKeys(log)
+    expect(allChanged.length).toBe(7)
+
+    // Initially collapsed: returns only first 6 keys
+    expect(vm.isHistoryFieldsExpanded('HIST-BATCH-1')).toBe(false)
+    const collapsedVisible = vm.getVisibleHistoryKeys(log, 0)
+    expect(collapsedVisible.length).toBe(6)
+
+    // Toggle expansion
+    vm.toggleHistoryFieldExpansion('HIST-BATCH-1')
+    expect(vm.isHistoryFieldsExpanded('HIST-BATCH-1')).toBe(true)
+
+    // Expanded: returns all 7 keys
+    const expandedVisible = vm.getVisibleHistoryKeys(log, 0)
+    expect(expandedVisible.length).toBe(7)
+  })
 })
 
 
