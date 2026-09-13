@@ -1243,12 +1243,13 @@ const getChangedKeys = (prev, curr, log) => {
     const upper = k.toUpperCase();
     if (!keyMap.has(upper)) {
       const matchedField = props.fields?.find(f => f.key && f.key.toUpperCase() === upper);
-      keyMap.set(upper, matchedField ? matchedField.key : k);
+      if (!matchedField || matchedField.isRemoved) continue;
+      keyMap.set(upper, matchedField.key);
     }
   }
 
   const isEncryptedField = (k) => {
-    const f = props.fields?.find(f => f.key === k || (f.key && f.key.toUpperCase() === k.toUpperCase()));
+    const f = props.fields?.find(f => (f.key === k || (f.key && f.key.toUpperCase() === k.toUpperCase())) && !f.isRemoved);
     return Boolean(f?.isEncrypted || f?.encryptionType);
   };
 
@@ -1478,15 +1479,17 @@ const formatDiffValue = (key, val) => {
   return String(val);
 };
 
-const getFieldLabelByKey = (key) => {
-  if (!key) return '';
-  const f = props.fields?.find(f => f.key === key || String(f.id) === String(key) || (f.key && String(f.key).toLowerCase() === String(key).toLowerCase()));
-  return f ? getTranslatedName(f.name) : key;
-};
-
 const getFieldByKey = (key) => {
   if (!key) return null;
-  return props.fields?.find(f => f.key === key || String(f.id) === String(key) || (f.key && String(f.key).toLowerCase() === String(key).toLowerCase()));
+  const f = props.fields?.find(f => f.key === key || String(f.id) === String(key) || (f.key && String(f.key).toLowerCase() === String(key).toLowerCase()));
+  if (!f || f.isRemoved) return null;
+  return f;
+};
+
+const getFieldLabelByKey = (key) => {
+  if (!key) return '';
+  const f = getFieldByKey(key);
+  return f ? getTranslatedName(f.name) : '';
 };
 
 const historyGridColumnDefs = computed(() => {
@@ -2455,10 +2458,10 @@ const groupedFieldsArray = computed(() => {
   const seenIds = new Set()
   const seenKeys = new Set()
 
-  const sortedFields = [...(props.fields || [])].sort((a, b) => (a.order || 0) - (b.order || 0))
+  const sortedFields = [...(props.fields || [])].filter(f => f && !f.isRemoved).sort((a, b) => (a.order || 0) - (b.order || 0))
 
   sortedFields.forEach((f) => {
-    if (!f) return
+    if (!f || f.isRemoved) return
     // ID 또는 Key 기준 대소문자 무시 중복 방어
     const fId = f.id || f.key
     const upperKey = f.key ? String(f.key).toUpperCase() : (fId ? String(fId).toUpperCase() : null)

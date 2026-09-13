@@ -389,6 +389,13 @@ describe('ApprovalDetailsViewer Component - RECORD_UPDATE Filtering Test', () =>
         name: { ko: '최근 기준가/종가', en: 'Current Price' },
         type: 'NUMBER',
         fieldGroup: null
+      },
+      {
+        id: 'field-uuid-2',
+        key: 'margin_balance_shares',
+        name: { ko: '신용잔고주수', en: 'Margin Balance Shares' },
+        type: 'NUMBER',
+        fieldGroup: null
       }
     ]
 
@@ -436,9 +443,79 @@ describe('ApprovalDetailsViewer Component - RECORD_UPDATE Filtering Test', () =>
     const matchesPrice = wrapper.text().match(/최근 기준가\/종가/g)
     expect(matchesPrice).toHaveLength(1)
 
-    // 2. margin_balance_shares 또는 MARGIN_BALANCE_SHARES 또한 1번만 등장해야 함
-    const matchesMargin = wrapper.text().match(/margin_balance_shares/gi)
+    // 2. 신용잔고주수 라벨 또한 정확히 1번만 등장해야 함
+    const matchesMargin = wrapper.text().match(/신용잔고주수/g)
     expect(matchesMargin).toHaveLength(1)
+  })
+
+  it('스키마에서 삭제되었거나(isRemoved: true) 미매핑된 필드는 연계 이력 및 결재 상세 목록에서 완전히 제외되어야 함', async () => {
+    const mockFields = [
+      {
+        id: 'field-uuid-1',
+        key: 'current_price',
+        name: { ko: '최근 기준가/종가', en: 'Current Price' },
+        type: 'NUMBER',
+        fieldGroup: null
+      },
+      {
+        id: 'field-uuid-del',
+        key: 'old_deleted_field',
+        name: { ko: '삭제된 레거시 필드', en: 'Old Deleted Field' },
+        type: 'STRING',
+        isRemoved: true,
+        fieldGroup: null
+      }
+    ]
+
+    mockCustomFetch.mockImplementation((url: string) => {
+      if (url.includes('/fields/effective') || url.includes('/fields')) {
+        return Promise.resolve(mockFields)
+      }
+      return Promise.resolve([])
+    })
+
+    const mockRequest = {
+      id: 'req-filter-deleted-test',
+      targetType: 'RECORD_UPDATE',
+      isIntegration: true,
+      nodeId: 'node-uuid-1',
+      changes: JSON.stringify({
+        before: {
+          current_price: 1000,
+          old_deleted_field: 'LegacyValue',
+          unmapped_raw_code: 'UnknownValue'
+        },
+        after: {
+          current_price: 1200,
+          old_deleted_field: 'LegacyValueNew',
+          unmapped_raw_code: 'UnknownValueNew'
+        },
+        changedFields: ['current_price', 'old_deleted_field', 'unmapped_raw_code']
+      }),
+      steps: []
+    }
+
+    const wrapper = mount(ApprovalDetailsViewer, {
+      props: {
+        request: mockRequest,
+        nodeId: 'node-uuid-1'
+      },
+      global: {
+        mocks: { $t: (key: string) => key },
+        stubs: { VaIcon: true, VaBadge: true, VaButton: true, VaChip: true, ApprovalSteps: true, VaModal: true, VaInput: true, 'va-modal': true, 'va-input': true }
+      }
+    })
+
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    // 1. 유효한 필드(최근 기준가/종가)는 정상 렌더링되어야 함
+    expect(wrapper.text()).toContain('최근 기준가/종가')
+
+    // 2. 삭제된 필드(isRemoved: true) 및 미매핑 필드는 화면에 절대로 노출되지 않아야 함
+    expect(wrapper.text()).not.toContain('삭제된 레거시 필드')
+    expect(wrapper.text()).not.toContain('old_deleted_field')
+    expect(wrapper.text()).not.toContain('unmapped_raw_code')
   })
 })
 

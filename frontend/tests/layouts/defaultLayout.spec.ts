@@ -244,4 +244,38 @@ describe('layouts/default.vue (TDD)', () => {
     const setHeight = document.documentElement.style.getPropertyValue('--app-navbar-height')
     expect(setHeight).toBeDefined()
   })
+
+  it('모바일에서도 상단 네비게이션 바의 테마 버튼이 hide-mobile 클래스 없이 노출되어야 함', async () => {
+    const wrapper = mount(DefaultLayout, {
+      global: {
+        plugins: [i18n],
+        stubs
+      }
+    })
+
+    await nextTick()
+
+    const themeBtn = wrapper.find('.theme-btn')
+    expect(themeBtn.exists()).toBe(true)
+    // 모바일에서 숨겨지지 않도록 hide-mobile 클래스가 없어야 함
+    expect(themeBtn.classes()).not.toContain('hide-mobile')
+  })
+
+  it('사용자 프로필 드롭다운 메뉴 및 사이드바 내에 다크모드/라이트모드 전환 옵션이 존재해야 함', async () => {
+    const wrapper = mount(DefaultLayout, {
+      global: {
+        plugins: [i18n],
+        stubs
+      }
+    })
+
+    await nextTick()
+
+    // 프로필 메뉴 또는 사이드바에 테마 모드 전환 버튼/아이템이 존재하는지 확인
+    const profileDropdownThemeItem = wrapper.find('.profile-theme-toggle-item')
+    const sidebarThemeBtn = wrapper.find('.sidebar-theme-btn')
+
+    expect(profileDropdownThemeItem.exists() || sidebarThemeBtn.exists()).toBe(true)
+  })
 })
+

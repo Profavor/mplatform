@@ -319,12 +319,14 @@ const getOperationLabel = (op: string) => {
 }
 
 const getFieldByKey = (key: string) => {
-  return fieldDefinitions.value.find(f => f.key === key || (f.key && f.key.toLowerCase() === key.toLowerCase()) || String(f.id) === String(key))
+  const f = fieldDefinitions.value.find(f => f.key === key || (f.key && f.key.toLowerCase() === key.toLowerCase()) || String(f.id) === String(key))
+  if (!f || f.isRemoved) return null
+  return f
 }
 
 const getFieldLabel = (key: string): string => {
   const fd = getFieldByKey(key)
-  if (!fd) return key
+  if (!fd) return ''
   if (typeof fd.name === 'object' && fd.name !== null) {
     const loc = localeCookie.value || locale.value || 'ko'
     return fd.name[loc] || fd.name.ko || fd.name.en || fd.key || key
@@ -554,6 +556,9 @@ const diffItems = computed(() => {
 
   const items: any[] = []
   for (const k of allKeys) {
+    const fd = getFieldByKey(k)
+    if (!fd || fd.isRemoved) continue
+
     const bVal = before[k]
     const aVal = after[k]
     const bFormatted = formatValue(bVal, k)

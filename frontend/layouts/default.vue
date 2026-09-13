@@ -36,8 +36,8 @@
                   <va-icon name="radio" size="large" />
                 </va-button>
 
-                <!-- Theme Toggle for Desktop -->
-                <va-button preset="plain" class="mr-2 hide-mobile theme-btn" @click="toggleTheme" style="color: white !important;" :aria-label="isDark ? $t('switch_to_light_mode') : $t('switch_to_dark_mode')" :aria-pressed="isDark">
+                <!-- Theme Toggle (Desktop & Mobile) -->
+                <va-button preset="plain" class="mr-2 theme-btn" @click="toggleTheme" style="color: white !important;" :aria-label="isDark ? $t('switch_to_light_mode') : $t('switch_to_dark_mode')" :aria-pressed="isDark" :title="isDark ? $t('switch_to_light_mode') : $t('switch_to_dark_mode')">
                   <va-icon :name="isDark ? 'light_mode' : 'dark_mode'" size="large" />
                 </va-button>
 
@@ -118,6 +118,18 @@
                           </va-list-item-section>
                         </va-list-item>
 
+                        <!-- Theme Toggle Item in Profile Dropdown -->
+                        <va-list-item @click="toggleTheme" class="dropdown-menu-item profile-theme-toggle-item">
+                          <va-list-item-section icon style="min-width: 32px;">
+                            <div class="menu-icon-box" :style="{ background: isDark ? 'rgba(251, 191, 36, 0.15)' : 'rgba(99, 102, 241, 0.15)' }">
+                              <va-icon :name="isDark ? 'light_mode' : 'dark_mode'" size="small" :color="isDark ? 'warning' : 'primary'" />
+                            </div>
+                          </va-list-item-section>
+                          <va-list-item-section style="font-weight: 600; font-size: 0.9rem;">
+                            {{ isDark ? $t('switch_to_light_mode') : $t('switch_to_dark_mode') }}
+                          </va-list-item-section>
+                        </va-list-item>
+
                         <va-list-item @click="showRequestAccessModal = true" class="dropdown-menu-item">
                           <va-list-item-section icon style="min-width: 32px;">
                             <div class="menu-icon-box">
@@ -165,6 +177,19 @@
       <template #left>
         <va-sidebar v-show="showSidebar" v-model="showSidebar" width="18.5rem" :minimized="false" class="responsive-sidebar" :class="{ 'dark-theme-sidebar': isDark }">
           <SidebarMenuItem v-for="menu in filteredMenus" :key="menu.id" :menu="menu" />
+          <div class="sidebar-theme-toggle-wrap" style="padding: 1rem; margin-top: auto; border-top: 1px solid var(--va-background-border);">
+            <va-button
+              preset="secondary"
+              size="small"
+              class="w-full sidebar-theme-btn"
+              style="width: 100%; border-radius: 8px; justify-content: flex-start; gap: 0.5rem;"
+              :icon="isDark ? 'light_mode' : 'dark_mode'"
+              :color="isDark ? 'warning' : 'primary'"
+              @click="toggleTheme"
+            >
+              {{ isDark ? $t('switch_to_light_mode') : $t('switch_to_dark_mode') }}
+            </va-button>
+          </div>
         </va-sidebar>
         <!-- Mobile Sidebar Backdrop Overlay -->
         <div

@@ -2707,6 +2707,11 @@ const getParsedDiffs = (prev, next) => {
   const keys = [...new Set([...Object.keys(p), ...Object.keys(n)])];
 
   keys.forEach(k => {
+    if (!k || k.startsWith('_')) return;
+
+    const field = nodeFields.value?.find(f => (f.key === k || (f.key && f.key.toLowerCase() === k.toLowerCase()) || getTranslatedName(f.name) === k));
+    if (!field || field.isRemoved) return;
+
     let valBeforeRaw = p[k];
     let valAfterRaw = n[k];
 
@@ -2715,9 +2720,8 @@ const getParsedDiffs = (prev, next) => {
       valBeforeRaw = selectedRecordData.value[k];
     }
 
-    const field = nodeFields.value?.find(f => f.key === k || getTranslatedName(f.name) === k);
-    const fName = field ? getTranslatedName(field.name) : k;
-    const fType = field ? field.type : '';
+    const fName = getTranslatedName(field.name);
+    const fType = field.type || '';
 
     let valBefore = valBeforeRaw;
     let valAfter = valAfterRaw;

@@ -883,7 +883,9 @@ const parseJsonIfNeeded = (val: any) => {
 const getFieldByKey = (key: string) => {
   if (!key) return null
   const combined = [...(props.fields || []), ...internalFields.value]
-  return combined.find((f: any) => f.key === key || String(f.id) === String(key) || (f.key && String(f.key).toLowerCase() === String(key).toLowerCase()))
+  const f = combined.find((f: any) => f.key === key || String(f.id) === String(key) || (f.key && String(f.key).toLowerCase() === String(key).toLowerCase()))
+  if (!f || f.isRemoved) return null
+  return f
 }
 
 const getTableRows = (val: any) => {
@@ -1069,7 +1071,9 @@ const diffRows = computed(() => {
 
   for (const k of allKeys) {
     const f = getFieldByKey(k)
-    const label = f ? (typeof f.name === 'object' ? (f.name[locale?.value || 'ko'] || f.name.ko || f.name.en) : f.name) : k
+    if (!f || f.isRemoved) continue
+
+    const label = typeof f.name === 'object' ? (f.name[locale?.value || 'ko'] || f.name.ko || f.name.en) : f.name
 
     if (String(k).startsWith('_') || String(label).startsWith('_')) continue;
 

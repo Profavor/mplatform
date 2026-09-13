@@ -217,7 +217,9 @@ describe('RecordDetailDrawer.vue - Encrypted Masking & Domain Reference', () => 
       props: {
         show: true,
         record: { id: 'REC-123' },
-        fields: []
+        fields: [
+          { key: 'resident_number', name: { ko: '주민등록번호' }, isEncrypted: true }
+        ]
       },
       global: {
         plugins: [i18n],
@@ -250,6 +252,52 @@ describe('RecordDetailDrawer.vue - Encrypted Masking & Domain Reference', () => 
 
     const changedKeys = vm.getChangedKeys(log.previousData, log.newData, log)
     expect(changedKeys).toEqual(['resident_number'])
+  })
+
+  it('filters out unmapped or deleted (isRemoved: true) fields from getChangedKeys', () => {
+    const wrapper = mount(RecordDetailDrawer, {
+      props: {
+        show: true,
+        record: { id: 'REC-123' },
+        fields: [
+          { key: 'active_field', name: { ko: '활성 필드' } },
+          { key: 'deleted_field', name: { ko: '삭제된 필드' }, isRemoved: true }
+        ]
+      },
+      global: {
+        plugins: [i18n],
+        stubs: {
+          'va-modal': true,
+          'va-tabs': true,
+          'va-tab': true,
+          'va-accordion': true,
+          'va-collapse': true,
+          'va-input': true,
+          'va-icon': true,
+          'va-button': true,
+          'UnmaskReasonModal': true,
+          'UserProfileModal': true,
+          'AgGridVue': true,
+          'RecordLayoutBuilderModal': true,
+          'va-select': true,
+          'va-chip': true
+        }
+      }
+    })
+
+    const vm = wrapper.vm as any
+    const log = {
+      id: 'HIST-2',
+      previousData: '{"active_field":"A", "deleted_field":"Old", "unmapped_field":"Raw1"}',
+      newData: '{"active_field":"B", "deleted_field":"New", "unmapped_field":"Raw2"}',
+      changedFields: ['active_field', 'deleted_field', 'unmapped_field']
+    }
+
+    const changedKeys = vm.getChangedKeys(log.previousData, log.newData, log)
+    // Only active_field must be included. deleted_field and unmapped_field must NOT appear!
+    expect(changedKeys).toEqual(['active_field'])
+    expect(changedKeys).not.toContain('deleted_field')
+    expect(changedKeys).not.toContain('unmapped_field')
   })
 })
 

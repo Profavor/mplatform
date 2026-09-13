@@ -384,17 +384,17 @@ const isCellDifferentFromBaseline = (field, recordIndex) => {
   return baseVal !== currVal
 }
 
+const activeFields = computed(() => (props.fields || []).filter(f => f && !f.isRemoved))
+
 const diffFieldsCount = computed(() => {
-  if (!props.fields) return 0
-  return props.fields.filter(f => isFieldDifferent(f)).length
+  return activeFields.value.filter(f => isFieldDifferent(f)).length
 })
 
 const displayedFields = computed(() => {
-  if (!props.fields) return []
   if (onlyDifferences.value) {
-    return props.fields.filter(f => isFieldDifferent(f))
+    return activeFields.value.filter(f => isFieldDifferent(f))
   }
-  return props.fields
+  return activeFields.value
 })
 
 const buildExcelRows = () => {
@@ -408,8 +408,8 @@ const buildExcelRows = () => {
     header.push(`Record #${idx + 1}: ${getRecordId(rec, idx)}${baseline}`)
   })
 
-  // Data rows - all fields (not just displayed), use raw values for correct comparison
-  const dataRows = (props.fields || []).map(field => {
+  // Data rows - all active fields (not just displayed), use raw values for correct comparison
+  const dataRows = activeFields.value.map(field => {
     const fieldName = getTranslatedName(field.name) || field.key
     const hasDiff = isFieldDifferent(field)
     const row = [hasDiff ? `★ ${fieldName}` : fieldName]

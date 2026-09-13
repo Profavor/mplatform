@@ -1126,7 +1126,7 @@ const loadFieldNamesForRequest = async (req) => {
     }
 
     if (domainId && domainId !== nodeId) {
-      const domainFields = await customFetch(`/api/nodes/${domainId}/fields/effective`).catch(() => [])
+      const domainFields = await customFetch(`/api/domains/${domainId}/fields`).catch(() => [])
       addFieldsToMap(domainFields)
     }
 
@@ -1438,6 +1438,7 @@ const getGroupedChangesList = (changesString, targetType) => {
   }
   
   // Filter out internal keys and deduplicate case-insensitively
+  const hasSchemaFields = Object.keys(fieldNameMap.value || {}).length > 0
   const seenKeys = new Set()
   const keysToProcess = []
   rawKeys.forEach(rawKey => {
@@ -1450,6 +1451,10 @@ const getGroupedChangesList = (changesString, targetType) => {
       || (fieldNameMap.value && fieldNameMap.value[lower])
       || (fieldNameMap.value && fieldNameMap.value[String(rawKey).toUpperCase()])
       || Object.values(fieldNameMap.value || {}).find(field => field && field.key && (String(field.key).toLowerCase() === lower))
+
+    // Exclude unmapped or deleted fields from approval and integration history when schema fields exist
+    if (hasSchemaFields && (!foundField || foundField.isRemoved)) return
+    if (foundField?.isRemoved) return
 
     keysToProcess.push(foundField?.key || rawKey)
   })
@@ -1476,6 +1481,10 @@ const getGroupedChangesList = (changesString, targetType) => {
       || (fieldNameMap.value && fieldNameMap.value[String(key).toLowerCase()])
       || (fieldNameMap.value && fieldNameMap.value[String(key).toUpperCase()])
       || Object.values(fieldNameMap.value || {}).find(field => field && field.key && (String(field.key).toLowerCase() === String(key).toLowerCase()));
+    
+    if (hasSchemaFields && (!foundField || foundField.isRemoved)) return;
+    if (foundField?.isRemoved) return;
+
     let inferredType = foundField ? foundField.type : undefined;
     const strValCheck = String(valAfter || valBefore || '');
     if (!inferredType && (strValCheck.includes('/api/files/download/') || strValCheck.includes('name='))) {
