@@ -62,4 +62,36 @@ describe('SemanticOntologyModal.vue', () => {
     expect(wrapper.exists()).toBe(true)
     expect(wrapper.text()).toContain('semantic_ontology')
   })
+
+  it('formats multilingual node label properly without showing raw JSON', async () => {
+    const wrapper = mount(SemanticOntologyModal, {
+      props: {
+        modelValue: true
+      },
+      global: {
+        mocks: {
+          $t: (k: string) => k
+        },
+        stubs: {
+          'va-modal': {
+            template: '<div><h1>{{ title }}</h1><slot /></div>',
+            props: ['title']
+          },
+          'va-alert': true,
+          'va-input': true,
+          'va-chip': true,
+          'va-inner-loading': {
+            template: '<div><slot /></div>'
+          },
+          'va-badge': true,
+          'va-button': true
+        }
+      }
+    })
+
+    const vm = wrapper.vm as any
+    expect(vm.formatNodeLabel({ ko: '고객 마스터', en: 'Customer Master' })).toBe('고객 마스터')
+    expect(vm.formatNodeLabel('{"ko": "주식 종목", "en": "Stock Items"}')).toBe('주식 종목')
+    expect(vm.formatNodeLabel('일반 텍스트 라벨')).toBe('일반 텍스트 라벨')
+  })
 })

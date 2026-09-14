@@ -33,6 +33,99 @@ pub struct StockDataIngestionJob;
 impl StockDataIngestionJob {
     pub const LOCK_ID: i64 = 100_005;
 
+    pub fn normalize_multilingual_stock_name(
+        stock_name_val: Option<&serde_json::Value>,
+        stock_name_en_val: Option<&serde_json::Value>,
+        ticker: &str,
+    ) -> serde_json::Value {
+        let mut ko = String::new();
+        let mut en = String::new();
+
+        if let Some(val) = stock_name_val {
+            if let Some(obj) = val.as_object() {
+                if let Some(k) = obj.get("ko").and_then(|v| v.as_str()) {
+                    ko = k.to_string();
+                }
+                if let Some(e) = obj.get("en").and_then(|v| v.as_str()) {
+                    en = e.to_string();
+                }
+            } else if let Some(s) = val.as_str() {
+                let trimmed = s.trim();
+                if trimmed.starts_with('{') && trimmed.ends_with('}') {
+                    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(trimmed) {
+                        if let Some(obj) = parsed.as_object() {
+                            if let Some(k) = obj.get("ko").and_then(|v| v.as_str()) {
+                                ko = k.to_string();
+                            }
+                            if let Some(e) = obj.get("en").and_then(|v| v.as_str()) {
+                                en = e.to_string();
+                            }
+                        }
+                    }
+                }
+                if ko.is_empty() {
+                    ko = trimmed.to_string();
+                }
+            }
+        }
+
+        if en.is_empty() {
+            if let Some(val_en) = stock_name_en_val {
+                if let Some(s) = val_en.as_str() {
+                    let trimmed = s.trim();
+                    if !trimmed.is_empty() && trimmed != ticker {
+                        en = trimmed.to_string();
+                    }
+                }
+            }
+        }
+
+        if en.is_empty() {
+            en = ko.clone();
+        }
+
+        if ko.is_empty() {
+            ko = if !en.is_empty() { en.clone() } else { ticker.to_string() };
+        }
+
+        serde_json::json!({
+            "ko": ko,
+            "en": en
+        })
+    }
+
+    pub fn merge_stock_name(
+        prev_val: Option<&serde_json::Value>,
+        incoming_val: &serde_json::Value,
+        ticker: &str,
+    ) -> serde_json::Value {
+        let incoming_norm = Self::normalize_multilingual_stock_name(Some(incoming_val), None, ticker);
+        let prev_norm = prev_val.map(|p| Self::normalize_multilingual_stock_name(Some(p), None, ticker));
+
+        if let Some(prev) = prev_norm {
+            let mut prev_obj = prev.as_object().cloned().unwrap_or_default();
+            let in_obj = incoming_norm.as_object().cloned().unwrap_or_default();
+
+            if let Some(ko) = in_obj.get("ko") {
+                let ko_str = ko.as_str().unwrap_or("");
+                if !ko_str.is_empty() {
+                    prev_obj.insert("ko".to_string(), ko.clone());
+                }
+            }
+            if let Some(en) = in_obj.get("en") {
+                let en_str = en.as_str().unwrap_or("");
+                let ko_str = prev_obj.get("ko").and_then(|v| v.as_str()).unwrap_or("");
+                // Do not overwrite a distinct existing English name with an identical Korean fallback
+                if !en_str.is_empty() && (en_str != ko_str || !prev_obj.contains_key("en")) {
+                    prev_obj.insert("en".to_string(), en.clone());
+                }
+            }
+            serde_json::Value::Object(prev_obj)
+        } else {
+            incoming_norm
+        }
+    }
+
     pub async fn run_ingestion(
         pool: &PgPool,
         req: StockSeedRequest,
@@ -246,9 +339,20 @@ impl StockDataIngestionJob {
                 }
             }
 
-            // Remove market_node_code before saving
+            // Extract raw stock name and stock_name_en before removing
+            let raw_stock_name = row.get("stock_name").cloned();
+            let raw_stock_name_en = row.get("stock_name_en").cloned();
+            let normalized_stock_name = Self::normalize_multilingual_stock_name(
+                raw_stock_name.as_ref(),
+                raw_stock_name_en.as_ref(),
+                &ticker,
+            );
+
+            // Remove market_node_code and deleted field stock_name_en before saving
             if let Some(obj) = row.as_object_mut() {
                 obj.remove("market_node_code");
+                obj.remove("stock_name_en");
+                obj.insert("stock_name".to_string(), normalized_stock_name);
             }
 
             // Check if record exists
@@ -279,10 +383,31 @@ impl StockDataIngestionJob {
                 let original_prev_data = ex.data.clone().unwrap_or(serde_json::json!({}));
                 let mut prev_obj = original_prev_data.as_object().cloned().unwrap_or_default();
 
+                // Clean up deleted field stock_name_en
+                prev_obj.remove("stock_name_en");
+
                 // Merge incoming fields
                 for (k, v) in &row_obj {
+                    if k == "stock_name_en" {
+                        continue;
+                    }
+                    if k == "stock_name" {
+                        let prev_sn = prev_obj.get("stock_name");
+                        let merged_sn = Self::merge_stock_name(prev_sn, v, &ticker);
+                        prev_obj.insert("stock_name".to_string(), merged_sn);
+                        continue;
+                    }
                     prev_obj.insert(k.clone(), v.clone());
                 }
+
+                // Ensure stock_name is a valid multilingual object even if not updated in incoming row
+                if let Some(cur_sn) = prev_obj.get("stock_name") {
+                    if !cur_sn.is_object() {
+                        let converted = Self::normalize_multilingual_stock_name(Some(cur_sn), None, &ticker);
+                        prev_obj.insert("stock_name".to_string(), converted);
+                    }
+                }
+
                 let merged_data = serde_json::Value::Object(prev_obj);
 
                 // Change detection: If completely identical, skip version increment & redundant history
@@ -349,9 +474,18 @@ impl StockDataIngestionJob {
             } else {
                 // INSERT
                 let new_rec_id = Uuid::new_v4();
+                let stock_name_search = match row.get("stock_name") {
+                    Some(serde_json::Value::Object(map)) => {
+                        let ko = map.get("ko").and_then(|v| v.as_str()).unwrap_or("");
+                        let en = map.get("en").and_then(|v| v.as_str()).unwrap_or("");
+                        format!("{} {}", ko, en).trim().to_string()
+                    }
+                    Some(serde_json::Value::String(s)) => s.clone(),
+                    _ => String::new(),
+                };
                 let search_text = format!(
                     "{} {} {}",
-                    row.get("stock_name").and_then(|v| v.as_str()).unwrap_or(""),
+                    stock_name_search,
                     ticker,
                     row.get("industry_sector")
                         .and_then(|v| v.as_str())
@@ -650,7 +784,10 @@ impl StockDataIngestionJob {
                 "price_base_date": if !traded_at.is_empty() { traded_at.chars().take(10).collect::<String>() } else { chrono::Utc::now().naive_utc().format("%Y-%m-%d").to_string() }
             });
             if !name.is_empty() {
-                row["stock_name"] = serde_json::Value::String(name);
+                row["stock_name"] = serde_json::json!({
+                    "ko": name.clone(),
+                    "en": name
+                });
             }
             if !logo.is_empty() {
                 row["logo_image_url"] = serde_json::Value::String(logo);
@@ -713,11 +850,19 @@ impl StockDataIngestionJob {
             if ticker.is_empty() {
                 continue;
             }
-            let name = item
+            let name_ko = item
                 .get("stockName")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
+            let name_en = item
+                .get("stockNameEng")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let ko = if !name_ko.is_empty() { name_ko } else { name_en.clone() };
+            let en = if !name_en.is_empty() { name_en } else { ko.clone() };
+
             let close_price =
                 clean_num(item.get("closePriceRaw").or_else(|| item.get("closePrice")));
             let change_price = clean_num(
@@ -762,8 +907,11 @@ impl StockDataIngestionJob {
                 "market_cap": mkt_cap,
                 "price_base_date": if !traded_at.is_empty() { traded_at.chars().take(10).collect::<String>() } else { chrono::Utc::now().naive_utc().format("%Y-%m-%d").to_string() }
             });
-            if !name.is_empty() {
-                row["stock_name"] = serde_json::Value::String(name);
+            if !ko.is_empty() || !en.is_empty() {
+                row["stock_name"] = serde_json::json!({
+                    "ko": ko,
+                    "en": en
+                });
             }
             if !logo.is_empty() {
                 row["logo_image_url"] = serde_json::Value::String(logo);
@@ -874,7 +1022,10 @@ impl StockDataIngestionJob {
             let row = serde_json::json!({
                 "market_node_code": market_api,
                 "ticker_code": ticker,
-                "stock_name": name,
+                "stock_name": {
+                    "ko": name.clone(),
+                    "en": name
+                },
                 "current_price": close_price as i64,
                 "change_price": change_price,
                 "fluctuation_rate": fluc_rate,
@@ -943,7 +1094,10 @@ impl StockDataIngestionJob {
 
         Ok(serde_json::json!({
             "ticker_code": ticker,
-            "stock_name": name,
+            "stock_name": {
+                "ko": name.clone(),
+                "en": name
+            },
             "current_price": close_price as i64,
             "change_price": change_price,
             "fluctuation_rate": fluc_rate,
@@ -951,3 +1105,50 @@ impl StockDataIngestionJob {
         }))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_normalize_korean_stock_fallback_to_korean() {
+        let name = serde_json::json!("삼성전자");
+        let en_val = serde_json::json!("005930");
+        let res = StockDataIngestionJob::normalize_multilingual_stock_name(
+            Some(&name),
+            Some(&en_val),
+            "005930",
+        );
+        assert_eq!(res["ko"], "삼성전자");
+        assert_eq!(res["en"], "삼성전자");
+    }
+
+    #[test]
+    fn test_normalize_us_stock() {
+        let name = serde_json::json!("엔비디아");
+        let en_val = serde_json::json!("NVIDIA Corporation");
+        let res = StockDataIngestionJob::normalize_multilingual_stock_name(
+            Some(&name),
+            Some(&en_val),
+            "NVDA",
+        );
+        assert_eq!(res["ko"], "엔비디아");
+        assert_eq!(res["en"], "NVIDIA Corporation");
+    }
+
+    #[test]
+    fn test_merge_stock_name_preserves_en() {
+        let prev = serde_json::json!({
+            "ko": "삼성전자",
+            "en": "Samsung Electronics"
+        });
+        let incoming = serde_json::json!({
+            "ko": "삼성전자(수정)",
+            "en": "삼성전자(수정)"
+        });
+        let merged = StockDataIngestionJob::merge_stock_name(Some(&prev), &incoming, "005930");
+        assert_eq!(merged["ko"], "삼성전자(수정)");
+        assert_eq!(merged["en"], "Samsung Electronics");
+    }
+}
+

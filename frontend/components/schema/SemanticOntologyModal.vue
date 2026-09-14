@@ -16,21 +16,21 @@
         <div style="display: flex; gap: 0.5rem; align-items: center;">
           <va-input
             v-model="searchKeyword"
-            placeholder="노드 명칭, 도메인 코드 또는 관계 유형 검색 (예: 고객, PROD, PURCHASED)"
+            :placeholder="$t('ontology_search_placeholder')"
             style="flex: 1;"
             @keydown.enter="searchGraph"
           />
           <va-button size="small" color="primary" icon="search" @click="searchGraph">
-            검색
+            {{ $t('search') }}
           </va-button>
           <va-button preset="secondary" size="small" icon="refresh" @click="resetSearch">
-            초기화
+            {{ $t('reset') }}
           </va-button>
         </div>
 
         <!-- Quick Search Tags (Dynamic from DB Domains) -->
         <div v-if="dynamicKeywords.length > 0" style="display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap;">
-          <span style="font-size: 0.75rem; color: var(--va-text-secondary);">추천 검색:</span>
+          <span style="font-size: 0.75rem; color: var(--va-text-secondary);">{{ $t('recommended_search') }}:</span>
           <va-chip
             v-for="kw in dynamicKeywords"
             :key="kw"
@@ -48,10 +48,10 @@
       <va-inner-loading :loading="loading">
         <div v-if="graphData" style="display: flex; flex-direction: column; gap: 1rem;">
           <!-- Summary Banner -->
-          <div style="padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--va-background-border); background: var(--va-background-element); font-size: 0.85rem; font-weight: 600; display: flex; justify-content: space-between; align-items: center;">
-            <span>{{ graphData.summary }}</span>
+          <div style="padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--va-background-border); background: var(--va-background-element); font-size: 0.85rem; font-weight: 600; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+            <span>{{ graphSummary }}</span>
             <va-badge
-              :text="'노드 ' + (graphData.nodes?.length || 0) + '개 / 관계 ' + (graphData.edges?.length || 0) + '개'"
+              :text="badgeSummaryText"
               color="info"
               size="small"
             />
@@ -64,55 +64,55 @@
           >
             <va-icon name="search_off" size="large" color="secondary" />
             <div style="font-size: 0.9rem; font-weight: 600; color: var(--va-text-primary);">
-              '{{ searchKeyword }}' 검색어와 일치하는 시맨틱 온톨로지 노드가 없습니다.
+              {{ $t('ontology_empty_title', { keyword: searchKeyword }) }}
             </div>
             <div style="font-size: 0.78rem; color: var(--va-text-secondary);">
-              도메인 명칭(고객, 제품, 주문 등)이나 코드(DOM-CUST 등)로 다시 검색해 보세요.
+              {{ $t('ontology_empty_sub') }}
             </div>
             <va-button size="small" color="primary" @click="resetSearch">
-              전체 지식 그래프 보기
+              {{ $t('view_all_knowledge_graph') }}
             </va-button>
           </div>
 
           <!-- Nodes & Relations Grid -->
-          <div v-else style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 1rem;">
+          <div v-else class="ontology-grid">
             <!-- Nodes List -->
-            <div style="max-height: 250px; overflow-y: auto; border: 1px solid var(--va-background-border); border-radius: 8px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem;">
+            <div style="max-height: 280px; overflow-y: auto; border: 1px solid var(--va-background-border); border-radius: 8px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem;">
               <div style="font-weight: 700; font-size: 0.82rem; margin-bottom: 0.2rem; display: flex; justify-content: space-between;">
                 <span>{{ $t('ontology_nodes') }}</span>
-                <span style="color: var(--va-primary);">{{ graphData.nodes.length }}개</span>
+                <span style="color: var(--va-primary);">{{ graphData.nodes.length }}</span>
               </div>
               <div
                 v-for="n in graphData.nodes"
                 :key="n.id"
                 style="padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid var(--va-background-border); background: var(--va-background-card); display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.2s;"
-                @click="searchKeyword = n.label; searchGraph()"
+                @click="onNodeClick(n)"
               >
                 <div>
-                  <div style="font-weight: 700; font-size: 0.82rem;">{{ n.label }}</div>
+                  <div style="font-weight: 700; font-size: 0.82rem;">{{ formatNodeLabel(n.label || n.name) }}</div>
                   <div style="font-size: 0.7rem; color: var(--va-text-secondary); font-family: monospace;">{{ n.id }}</div>
                 </div>
-                <va-badge :text="n.domainCode" color="primary" size="small" />
+                <va-badge :text="n.domainCode || n.id" color="primary" size="small" />
               </div>
             </div>
 
             <!-- Edges/Relations List -->
-            <div style="max-height: 250px; overflow-y: auto; border: 1px solid var(--va-background-border); border-radius: 8px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem;">
+            <div style="max-height: 280px; overflow-y: auto; border: 1px solid var(--va-background-border); border-radius: 8px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem;">
               <div style="font-weight: 700; font-size: 0.82rem; margin-bottom: 0.2rem; display: flex; justify-content: space-between;">
                 <span>{{ $t('ontology_edges') }}</span>
-                <span style="color: var(--va-primary);">{{ graphData.edges.length }}개</span>
+                <span style="color: var(--va-primary);">{{ graphData.edges.length }}</span>
               </div>
               <div
                 v-for="(e, idx) in graphData.edges"
                 :key="idx"
                 style="padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid var(--va-background-border); background: var(--va-background-element); display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem;"
               >
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                  <span style="font-weight: 700;">{{ getNodeLabel(e.sourceId) }}</span>
-                  <span style="color: var(--va-primary); font-family: monospace; font-size: 0.75rem;">──[{{ e.relationType }}]──▶</span>
-                  <span style="font-weight: 700;">{{ getNodeLabel(e.targetId) }}</span>
+                <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+                  <span style="font-weight: 700;">{{ getNodeLabel(e.sourceId || e.source) }}</span>
+                  <span style="color: var(--va-primary); font-family: monospace; font-size: 0.75rem;">──[{{ e.relationType || e.relation }}]──▶</span>
+                  <span style="font-weight: 700;">{{ getNodeLabel(e.targetId || e.target) }}</span>
                 </div>
-                <va-badge :text="'가중치 ' + e.weight" color="info" size="small" />
+                <va-badge :text="($t('weight') || '가중치') + ' ' + (e.weight ?? 1.0)" color="info" size="small" />
               </div>
             </div>
           </div>
@@ -142,7 +142,7 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
 }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { customFetch } = useCustomFetch()
 
 const show = computed({
@@ -155,18 +155,71 @@ const allNodes = ref<any[]>([])
 const searchKeyword = ref('')
 const loading = ref(false)
 
+const formatNodeLabel = (val: any): string => {
+  if (!val) return ''
+  if (typeof val === 'object') {
+    const curLocale = (locale.value || 'ko').startsWith('en') ? 'en' : 'ko'
+    return val[curLocale] || val.ko || val.en || Object.values(val)[0] || ''
+  }
+  if (typeof val === 'string') {
+    const trimmed = val.trim()
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        const curLocale = (locale.value || 'ko').startsWith('en') ? 'en' : 'ko'
+        return parsed[curLocale] || parsed.ko || parsed.en || Object.values(parsed)[0] || val
+      } catch {
+        return val
+      }
+    }
+    return val
+  }
+  return String(val)
+}
+
 const dynamicKeywords = computed(() => {
   const list: string[] = []
   allNodes.value.forEach((n: any) => {
-    if (n.label && !list.includes(n.label)) list.push(n.label)
+    const label = formatNodeLabel(n.label || n.name)
+    if (label && !list.includes(label)) list.push(label)
   })
   return list.slice(0, 8)
 })
 
 const getNodeLabel = (nodeId: string) => {
   if (!graphData.value?.nodes) return nodeId
-  const n = graphData.value.nodes.find((item: any) => item.id === nodeId)
-  return n ? n.label : nodeId
+  const n = graphData.value.nodes.find((item: any) => item.id === nodeId || item.domainCode === nodeId)
+  return n ? formatNodeLabel(n.label || n.name) : nodeId
+}
+
+const badgeSummaryText = computed(() => {
+  const nodesCount = graphData.value?.nodes?.length || 0
+  const edgesCount = graphData.value?.edges?.length || 0
+  const isEn = (locale.value || '').startsWith('en')
+  if (isEn) {
+    return `${nodesCount} Nodes / ${edgesCount} Relations`
+  }
+  return `노드 ${nodesCount}개 / 관계 ${edgesCount}개`
+})
+
+const graphSummary = computed(() => {
+  if (!graphData.value) return ''
+  const nodesCount = graphData.value?.nodes?.length || 0
+  const edgesCount = graphData.value?.edges?.length || 0
+  const isEn = (locale.value || '').startsWith('en')
+  if (isEn) {
+    if (searchKeyword.value.trim()) {
+      return `'${searchKeyword.value.trim()}' Ontology Knowledge Graph (${nodesCount} domains, ${edgesCount} relations)`
+    }
+    return `Enterprise Semantic Ontology Knowledge Graph (${nodesCount} domains, ${edgesCount} relations)`
+  }
+  return graphData.value.summary || `전사 시맨틱 온톨로지 지식 그래프 (${nodesCount}개 도메인, ${edgesCount}개 관계)`
+})
+
+const onNodeClick = (n: any) => {
+  const kw = formatNodeLabel(n.label || n.name)
+  searchKeyword.value = kw
+  loadGraph(kw)
 }
 
 const loadGraph = async (keyword?: string) => {
@@ -214,3 +267,18 @@ onMounted(() => {
   }
 })
 </script>
+
+<style scoped>
+.ontology-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .ontology-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+
