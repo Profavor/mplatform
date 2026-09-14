@@ -4,6 +4,7 @@ use sqlx::FromRow;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MatchingRule {
     pub id: Uuid,
     pub domain_id: Uuid,
@@ -18,6 +19,7 @@ pub struct MatchingRule {
 }
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MatchCandidate {
     pub id: Uuid,
     pub domain_id: Option<Uuid>,
@@ -35,6 +37,7 @@ pub struct MatchCandidate {
 }
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SurvivorshipRule {
     pub id: Uuid,
     pub domain_id: Uuid,
