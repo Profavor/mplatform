@@ -35,8 +35,23 @@ export default defineNuxtPlugin((nuxtApp) => {
   // 재시도 가능한 fetch 래퍼: 401 발생 시 토큰 갱신 후 1회 재시도
   const fetchWithRetry = async (request: any, options: FetchOptions = {}): Promise<any> => {
     const reqUrl = typeof request === 'string' ? request : request?.toString?.() || ''
-    const isAuthUrl = reqUrl.includes('/api/auth/login') || reqUrl.includes('/api/auth/refresh')
-    const skipLoading = (options as any)?.skipLoading || (options as any)?.headers?.['x-skip-loading'] === 'true'
+    const getSkipLoading = (opts: any): boolean => {
+      if (opts?.skipLoading === true) return true
+      const headers = opts?.headers
+      if (!headers) return false
+      if (headers instanceof Headers || typeof headers.get === 'function') {
+        return headers.get('x-skip-loading') === 'true'
+      }
+      if (Array.isArray(headers)) {
+        const found = headers.find(([k]: [string, string]) => k.toLowerCase() === 'x-skip-loading')
+        return found ? found[1] === 'true' : false
+      }
+      if (typeof headers === 'object') {
+        return headers['x-skip-loading'] === 'true' || headers['X-Skip-Loading'] === 'true'
+      }
+      return false
+    }
+    const skipLoading = getSkipLoading(options)
     const { showLoading, hideLoading } = useLoading()
 
     // 최초 요청 시 현재 토큰 헤더 주입

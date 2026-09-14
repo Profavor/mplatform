@@ -131,11 +131,12 @@ impl ChatRepository {
     ) -> Result<Vec<RoomMemberDto>, sqlx::Error> {
         let rows = sqlx::query(
             r#"
-            SELECT user_id, username, joined_at, last_read_at
+            SELECT user_id, username, role, joined_at, last_read_at
             FROM (
                 SELECT DISTINCT ON (COALESCE(u.id, m.user_id))
                        m.user_id,
                        COALESCE(u.username, m.user_id) AS username,
+                       u.role AS role,
                        m.joined_at,
                        m.last_read_at
                 FROM chat_message_room_member m
@@ -155,6 +156,7 @@ impl ChatRepository {
             .map(|r| RoomMemberDto {
                 user_id: r.get("user_id"),
                 username: r.get("username"),
+                role: r.get("role"),
                 joined_at: r.get("joined_at"),
                 last_read_at: r.get("last_read_at"),
             })

@@ -46,17 +46,25 @@
             <div
               v-if="item.type === 'IMAGE'"
               class="image-preview-wrapper"
-              @click="openLightbox(item.url, item.title)"
+              :class="{ 'has-error': isImageError(item.url) }"
+              @click="!isImageError(item.url) && openLightbox(item.url, item.title)"
             >
-              <img
-                :src="item.url"
-                :alt="item.title || $t('media_type_image')"
-                class="media-preview-img"
-                loading="lazy"
-              />
-              <div class="image-zoom-overlay">
-                <va-icon name="zoom_in" size="small" color="#ffffff" />
-                <span>{{ $t('click_to_zoom') }}</span>
+              <template v-if="!isImageError(item.url)">
+                <img
+                  :src="item.url"
+                  :alt="item.title || $t('media_type_image')"
+                  class="media-preview-img"
+                  loading="lazy"
+                  @error="handleImageError(item.url)"
+                />
+                <div class="image-zoom-overlay">
+                  <va-icon name="zoom_in" size="small" color="#ffffff" />
+                  <span>{{ $t('click_to_zoom') }}</span>
+                </div>
+              </template>
+              <div v-else class="no-img-box">
+                <va-icon name="image_not_supported" size="32px" color="secondary" />
+                <span class="no-img-text">NO IMAGE</span>
               </div>
             </div>
 
@@ -151,11 +159,23 @@
               <div
                 v-if="singleMedia.type === 'IMAGE'"
                 class="image-preview-wrapper compact"
-                @click="openLightbox(singleMedia.url)"
+                :class="{ 'has-error': isImageError(singleMedia.url) }"
+                @click="!isImageError(singleMedia.url) && openLightbox(singleMedia.url)"
               >
-                <img :src="singleMedia.url" class="media-preview-img" alt="Preview" />
-                <div class="image-zoom-overlay">
-                  <va-icon name="zoom_in" size="small" color="#ffffff" />
+                <template v-if="!isImageError(singleMedia.url)">
+                  <img
+                    :src="singleMedia.url"
+                    class="media-preview-img"
+                    alt="Preview"
+                    @error="handleImageError(singleMedia.url)"
+                  />
+                  <div class="image-zoom-overlay">
+                    <va-icon name="zoom_in" size="small" color="#ffffff" />
+                  </div>
+                </template>
+                <div v-else class="no-img-box compact">
+                  <va-icon name="image_not_supported" size="22px" color="secondary" />
+                  <span class="no-img-text">NO IMAGE</span>
                 </div>
               </div>
 
@@ -234,13 +254,19 @@
               <span class="media-type-badge small" :class="getTypeBadgeClass(detectItemMedia(urlItem).type)">
                 {{ getTypeLabel(detectItemMedia(urlItem).type) }}
               </span>
-              <img
-                v-if="detectItemMedia(urlItem).type === 'IMAGE' || detectItemMedia(urlItem).thumbnailUrl"
-                :src="detectItemMedia(urlItem).thumbnailUrl || detectItemMedia(urlItem).url"
-                class="multi-thumb-img"
-                alt="Thumbnail"
-                @click="openLightbox(detectItemMedia(urlItem).url)"
-              />
+              <template v-if="detectItemMedia(urlItem).type === 'IMAGE' || detectItemMedia(urlItem).thumbnailUrl">
+                <img
+                  v-if="!isImageError(detectItemMedia(urlItem).thumbnailUrl || detectItemMedia(urlItem).url)"
+                  :src="detectItemMedia(urlItem).thumbnailUrl || detectItemMedia(urlItem).url"
+                  class="multi-thumb-img"
+                  alt="Thumbnail"
+                  @click="openLightbox(detectItemMedia(urlItem).url)"
+                  @error="handleImageError(detectItemMedia(urlItem).thumbnailUrl || detectItemMedia(urlItem).url)"
+                />
+                <div v-else class="multi-thumb-no-img" title="NO IMAGE">
+                  <va-icon name="image_not_supported" size="14px" color="secondary" />
+                </div>
+              </template>
               <span v-else class="multi-preview-text">{{ urlItem }}</span>
             </div>
           </div>
@@ -365,6 +391,20 @@ const removeMultiUrl = (index: number) => {
   const updated = [...multiUrls.value]
   updated.splice(index, 1)
   emit('update:modelValue', updated)
+}
+
+// Image load error tracking for NO IMAGE fallback
+const imageErrors = ref<Record<string, boolean>>({})
+
+const handleImageError = (url?: string) => {
+  if (url) {
+    imageErrors.value = { ...imageErrors.value, [url]: true }
+  }
+}
+
+const isImageError = (url?: string) => {
+  if (!url || !url.trim()) return true
+  return !!imageErrors.value[url]
 }
 
 // Lightbox state
@@ -555,6 +595,51 @@ const copyLink = async (url: string) => {
 
 .image-preview-wrapper.compact {
   max-height: 200px;
+}
+
+.image-preview-wrapper.has-error {
+  cursor: default;
+  background: transparent;
+}
+
+.no-img-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 110px;
+  padding: 1.25rem;
+  background: var(--va-background-element, rgba(0, 0, 0, 0.2));
+  border: 1px dashed var(--va-background-border, #475569);
+  border-radius: 6px;
+  color: var(--va-text-secondary, #94a3b8);
+  box-sizing: border-box;
+}
+
+.no-img-box.compact {
+  min-height: 70px;
+  padding: 0.5rem;
+  gap: 4px;
+}
+
+.no-img-text {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--va-text-secondary, #94a3b8);
+}
+
+.multi-thumb-no-img {
+  width: 24px;
+  height: 24px;
+  border-radius: 3px;
+  background: var(--va-background-element, rgba(0, 0, 0, 0.2));
+  border: 1px dashed var(--va-background-border, #475569);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .media-preview-img {

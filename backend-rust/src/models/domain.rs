@@ -127,3 +127,37 @@ pub struct FieldGroupRequest {
     #[serde(default)]
     pub is_default_open: Option<bool>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BusinessRuleItem {
+    pub rule_id: Option<String>,
+    pub rule_name: String,
+    pub condition_expr: String,
+    pub validation_expr: String,
+    pub error_message: Option<String>,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ViolationItem {
+    pub record_code: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuleEvaluationResult {
+    pub rule_id: String,
+    pub rule_name: String,
+    pub passed: bool,
+    pub violation_count: i32,
+    pub sample_violations: Vec<ViolationItem>,
+}
+

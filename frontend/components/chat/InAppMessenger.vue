@@ -540,7 +540,7 @@
                 <va-badge v-if="isCreator(m)" color="warning" size="small">{{ $t('messenger.creatorBadge') }}</va-badge>
               </div>
               <div style="font-size: 0.75rem; color: var(--va-text-secondary); margin-top: 1px;">
-                {{ m.role || 'ROLE_USER' }}
+                {{ formatMemberRole(m) }}
               </div>
             </div>
           </div>
@@ -737,7 +737,7 @@
             <va-avatar size="small" color="primary">{{ (u.username || 'U').charAt(0).toUpperCase() }}</va-avatar>
             <div>
               <div style="font-weight: 700; font-size: 0.85rem;">{{ u.username }}</div>
-              <div style="font-size: 0.75rem; color: var(--va-text-secondary);">{{ u.role || 'USER' }}</div>
+              <div style="font-size: 0.75rem; color: var(--va-text-secondary);">{{ formatMemberRole(u) }}</div>
             </div>
           </div>
           <va-button size="small" preset="secondary">{{ $t('messenger.contextForward') }}</va-button>
@@ -1518,6 +1518,31 @@ const formatMemberDisplay = (member: any) => {
     return `USER-${rawUsername.substring(0, 8)}`
   }
   return rawUsername
+}
+
+const formatMemberRole = (memberOrUser: any) => {
+  if (!memberOrUser) return t('role_user') || '일반 사용자'
+  let roleRaw = memberOrUser.role
+  if (!roleRaw && (memberOrUser.userId || memberOrUser.id)) {
+    const targetId = memberOrUser.userId || memberOrUser.id
+    const matched = availableUsers.value?.find((u: any) => 
+      u.id === targetId || 
+      u.uuid === targetId || 
+      u.username === targetId || 
+      (memberOrUser.username && u.username === memberOrUser.username)
+    )
+    if (matched?.role) {
+      roleRaw = matched.role
+    }
+  }
+  const r = String(roleRaw || '').toUpperCase()
+  if (!r) return t('role_user') || '일반 사용자'
+  if (r.includes('ADMIN') || r.includes('SUPER')) return t('admin') || '관리자'
+  if (r.includes('STEWARD')) return '데이터 스튜어드'
+  if (r.includes('MANAGER')) return '매니저'
+  if (r.includes('OPERATOR')) return '운영자'
+  if (r.includes('USER')) return t('role_user') || '일반 사용자'
+  return roleRaw
 }
 
 const selectableUsers = computed(() => {

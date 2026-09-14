@@ -433,7 +433,16 @@ const dqSeverityChartOption = computed(() => {
 
   const dataMap = { 'HIGH': 0, 'MEDIUM': 0, 'LOW': 0 }
   ;(rawDqSeverity.value || []).forEach(item => {
-    if (item.severity) dataMap[item.severity] = item.count
+    if (!item.severity) return
+    const rawSev = String(item.severity).toUpperCase().trim()
+    const count = Number(item.count) || 0
+    if (rawSev === 'CRITICAL' || rawSev === 'ERROR' || rawSev === 'HIGH') {
+      dataMap['HIGH'] += count
+    } else if (rawSev === 'WARNING' || rawSev === 'WARN' || rawSev === 'MEDIUM') {
+      dataMap['MEDIUM'] += count
+    } else {
+      dataMap['LOW'] += count
+    }
   })
 
   return {

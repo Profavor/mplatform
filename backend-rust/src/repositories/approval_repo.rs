@@ -74,6 +74,30 @@ impl ApprovalRepository {
         req: CreateApprovalRequest,
         requester: &str,
     ) -> Result<ApprovalRequest, AppError> {
+        // Prevent creating approvals with empty changes
+        if req.changes.is_null()
+            || req.changes == serde_json::json!({})
+            || req.changes == serde_json::json!({"before": {}, "after": {}})
+        {
+            return Err(AppError::BadRequest(
+                "Approval request cannot have empty changes".to_string(),
+            ));
+        }
+
+        // If node_id is not provided, try resolving from target record
+        let resolved_node_id = match req.node_id {
+            Some(nid) => Some(nid),
+            None => {
+                sqlx::query_scalar::<_, Option<Uuid>>("SELECT node_id FROM record WHERE id = $1")
+                    .bind(req.target_id)
+                    .fetch_optional(pool)
+                    .await
+                    .ok()
+                    .flatten()
+                    .flatten()
+            }
+        };
+
         let mut tx = pool.begin().await?;
         let request_id = Uuid::new_v4();
 
@@ -97,7 +121,7 @@ impl ApprovalRepository {
         .bind(requester)
         .bind(req.reason)
         .bind(req.changes)
-        .bind(req.node_id)
+        .bind(resolved_node_id)
         .fetch_one(&mut *tx)
         .await?;
 

@@ -121,4 +121,70 @@ describe('DqScoreTrendCard.vue (TDD Component Test)', () => {
     expect(scoreLabels[0]!.text()).toBe('95%')
     expect(scoreLabels[1]!.text()).toBe('90%')
   })
+
+  it('동일 일자에 여러 번 스캔이 실행된 경우 마지막 실행 스냅샷만 중복 없이 표시되는지 검증', () => {
+    const duplicateDateSnapshots = [
+      {
+        id: 101,
+        score: 70.0,
+        totalRecords: 1000,
+        totalViolations: 30,
+        scanType: 'SCHEDULED',
+        recordedAt: '2026-09-07T01:00:00Z'
+      },
+      {
+        id: 102,
+        score: 85.0,
+        totalRecords: 1000,
+        totalViolations: 15,
+        scanType: 'MANUAL',
+        recordedAt: '2026-09-07T05:30:00Z' // Same day, later time
+      },
+      {
+        id: 103,
+        score: 92.0,
+        totalRecords: 1000,
+        totalViolations: 8,
+        scanType: 'SCHEDULED',
+        recordedAt: '2026-09-08T01:00:00Z'
+      }
+    ]
+
+    const wrapper = mount(DqScoreTrendCard, {
+      props: {
+        recentSnapshots: duplicateDateSnapshots,
+        trendPeriod: 30,
+        scanning: false,
+        avgTrendScore: '88.5',
+        maxTrendScore: '92.0'
+      },
+      global: {
+        stubs: {
+          'va-card': {
+            template: '<div class="va-card-stub"><slot /></div>'
+          },
+          'va-card-content': {
+            template: '<div class="va-card-content-stub"><slot /></div>'
+          },
+          'va-icon': true,
+          'va-button': true,
+          'va-chip': true
+        }
+      }
+    })
+
+    // 09-07 should be deduplicated to 1 item (the 85% one), so total items = 2 (09-07, 09-08)
+    const sparklineItems = wrapper.findAll('.dq-sparkline-item')
+    expect(sparklineItems.length).toBe(2)
+
+    const scoreLabels = wrapper.findAll('.dq-score-label')
+    expect(scoreLabels.length).toBe(2)
+    expect(scoreLabels[0]!.text()).toBe('85%') // 15:30 snapshot kept over 09:00 (70%)
+    expect(scoreLabels[1]!.text()).toBe('92%')
+
+    const dateLabels = wrapper.findAll('.dq-date-label')
+    expect(dateLabels[0]!.text()).toBe('09-07')
+    expect(dateLabels[1]!.text()).toBe('09-08')
+  })
 })
+

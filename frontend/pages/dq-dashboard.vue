@@ -223,6 +223,7 @@ import DqBenchmarkMatrix from '~/components/dq/DqBenchmarkMatrix.vue'
 import DqMultiDomainTrendChart from '~/components/dq/DqMultiDomainTrendChart.vue'
 import { usePageTitle } from '~/composables/usePageTitle'
 import { useCustomFetch } from '~/composables/useCustomFetch'
+import { parseDate } from '~/composables/useTimezoneDate'
 
 const { t, locale } = useI18n()
 const { pageTitle } = usePageTitle('dq_dashboard_title', '데이터 품질 진단 대시보드')
@@ -451,6 +452,26 @@ async function fetchViolations() {
 
 const trendPeriod = ref(30)
 
+function deduplicateSnapshotsByDate(list: any[]): any[] {
+  if (!list || list.length === 0) return []
+  const dateMap = new Map<string, any>()
+  for (const snap of list) {
+    const d = parseDate(snap.recordedAt)
+    const key = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : (snap.recordedAt || '')
+    const existing = dateMap.get(key)
+    if (!existing) {
+      dateMap.set(key, snap)
+    } else {
+      const existingTime = parseDate(existing.recordedAt)?.getTime() || 0
+      const newTime = d?.getTime() || 0
+      if (newTime >= existingTime) {
+        dateMap.set(key, snap)
+      }
+    }
+  }
+  return Array.from(dateMap.values())
+}
+
 async function fetchRecentSnapshots(domainId) {
   try {
     let url = `/api/domains/${domainId}/dq-score/recent`
@@ -462,7 +483,7 @@ async function fetchRecentSnapshots(domainId) {
     }
 
     const list = await customFetch(url)
-    recentSnapshots.value = list || []
+    recentSnapshots.value = deduplicateSnapshotsByDate(list || [])
   } catch (e) {
     console.error('Failed to fetch DQ score trend snapshots:', e)
     recentSnapshots.value = []
