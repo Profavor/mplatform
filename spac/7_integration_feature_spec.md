@@ -16,10 +16,10 @@ graph LR
 
     subgraph OutboundFlow ["아웃바운드 연계"]
         EVT["MasterDataChangedEvent"] --> ROUTER["Dynamic Channel Router"]
-        ROUTER -->|HTTP Webhook| OUT_HTTP["Spring Integration HTTP"]
-        ROUTER -->|Direct SQL| OUT_JDBC["JDBC Adapter (HikariCP)"]
-        ROUTER -->|Kafka Stream| OUT_KAFKA["Spring Kafka Producer"]
-        ROUTER -->|AMQP Message| OUT_RABBIT["RabbitMQ Template"]
+        ROUTER -->|HTTP Webhook| OUT_HTTP["HTTP Webhook Client"]
+        ROUTER -->|Direct SQL| OUT_JDBC["Direct SQL Adapter"]
+        ROUTER -->|Kafka Stream| OUT_KAFKA["Kafka Producer"]
+        ROUTER -->|AMQP Message| OUT_RABBIT["RabbitMQ Client"]
     end
 
     subgraph ErrorHandling ["장애 격리 & DLQ"]
@@ -35,7 +35,7 @@ graph LR
 ## 7.2 지원 프로토콜 및 세부 구현
 
 ### 1. HTTP REST Webhook
-- Spring Integration HTTP Outbound Gateway를 통해 RESTful API 호출 수행.
+- 비동기 HTTP 클라이언트를 통해 RESTful API 호출 수행.
 - 커넥션 타임아웃(`5000ms`), 읽기 타임아웃(`10000ms`) 설정 적용.
 - Custom Header(Bearer Token, Basic Auth, API Key) 주입 지원.
 
@@ -44,14 +44,14 @@ graph LR
 - **보안 & 안정성**:
   - 데이터베이스 접속 자격증명(비밀번호 등)은 AES-256 대칭키로 암호화 저장되며 조회 시 자동 마스킹.
   - 외부 입력 테이블명/컬럼명에 대한 엄격한 식별자 검증 및 DBMS별 Quoting 처리를 통한 SQL Injection 원천 차단.
-  - 채널별 전용 `HikariDataSource` 커넥션 풀(최대 5개)을 동적 생성/관리하여 리소스 고갈 방지.
+  - 채널별 전용 커넥션 풀을 동적 생성/관리하여 리소스 고갈 방지.
 
 ### 3. Apache Kafka (CDC & Event Streaming)
-- Spring Kafka Producer를 이용하여 `MasterDataChangedEvent`를 실시간 토픽으로 스트리밍 전송.
-- 키 직렬화(`StringSerializer`), 값 직렬화(`JsonSerializer`) 적용 및 안전한 트랜잭션 발행.
+- Kafka 비동기 Producer를 이용하여 `MasterDataChangedEvent`를 실시간 토픽으로 스트리밍 전송.
+- 키 직렬화, JSON 직렬화 적용 및 안전한 트랜잭션 발행.
 
 ### 4. RabbitMQ (AMQP)
-- 신뢰성 있는 메시지 큐 전달을 위해 Spring AMQP `RabbitTemplate`을 활용한 메시지 발행 및 승인(Publisher Confirms) 모드 지원.
+- 신뢰성 있는 메시지 큐 전달을 위해 AMQP 클라이언트를 활용한 메시지 발행 및 승인(Publisher Confirms) 모드 지원.
 
 ---
 
@@ -95,11 +95,11 @@ graph LR
 
 ---
 
-## 7.8 스마트 AI 필드 매핑 (`SmartMappingService`) & SpEL 변환
+## 7.8 스마트 AI 필드 매핑 (`SmartMappingService`) & 동적 표현식 변환
 - **스마트 AI 매핑**:
   - 외부 시스템의 JSON/XML 스키마와 내부 MDM 필드 간 의미론적 유사도를 분석하여 최적의 매핑 규칙을 AI가 자동 추천한다.
-- **SpEL 동적 데이터 변환 (`mapping_config_json`)**:
-  - 수/발신 페이로드를 Spring Expression Language(SpEL) 기반으로 동적 변환한다:
+- **동적 데이터 매핑 변환 (`mapping_config_json`)**:
+  - 수/발신 페이로드를 필드 매핑 및 동적 표현식 엔진 기반으로 변환한다:
     ```json
     {
       "customer_no": "#payload.cust_id",

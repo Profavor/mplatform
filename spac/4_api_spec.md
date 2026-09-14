@@ -1,6 +1,6 @@
 # 4. REST API & WebSocket 명세서 (API Specifications)
 
-본 문서는 백엔드(Spring Boot 4.1.0)에 구현된 **97개 컨트롤러의 전체 REST API 및 STOMP WebSocket 엔드포인트**에 대한 종합 명세서이다. (기본 Base URL: `/api`)
+본 문서는 백엔드(Rust Axum 0.8 & Tokio)에 구현된 **전체 REST API 및 WebSocket 엔드포인트**에 대한 종합 명세서이다. (기본 Base URL: `/api`)
 
 ---
 

@@ -19,11 +19,48 @@ Fully replaces the legacy Java 17 / Spring Boot backend with **100% schema and f
 
 ---
 
+## 🔐 세분화된 권한 모델 (Permission-Based Access Control)
+
+본 시스템은 단순 Role(역할) 기반을 넘어, 기능 및 리소스 단위의 **세부 권한(Permission Code)** 기반으로 인가(Authorization)를 수행합니다.
+
+### 1. 와일드카드 지원 권한 체계
+프론트엔드(`usePermission.ts`)와 백엔드(`AuthUser::has_permission`)가 동일한 인가 로직을 공유합니다:
+- **전역 와일드카드 (`*`, `*:*`)**: 최고 관리자 권한으로 모든 기능 인가
+- **리소스 접두사 와일드카드 (`domain:*`, `record:*`)**: 해당 도메인 하위 모든 동작 허용 (`domain:read`, `domain:write`, `domain:delete`)
+- **정확 매칭 (`domain:write`)**: 단일 기능별 최소 권한 원칙(Principle of Least Privilege) 적용
+
+### 2. Rust 핸들러 권한 검증 방식
+```rust
+// Axum Extractor에서 자동 인증 및 퍼미션 로드
+pub async fn delete_domain(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path(id): Path<Uuid>,
+) -> AppResult<Json<ApiResponse<()>>> {
+    // 권한 없으면 403 Forbidden 즉시 반환
+    auth.require_permission("domain:write")?;
+
+    domain_service.delete_domain(&state.db, id).await?;
+    Ok(Json(ApiResponse::success(())))
+}
+```
+
+---
+
+## ⚡ 동시성 실시간 주식 인바운드 배치 파이프라인
+
+기존 Java 스프링 배치의 크롤링 및 수집 파이프라인을 완전 비동기 Rust로 재설계하였습니다:
+- **전체 3,525개 마스터 종목 탑재**: KOSPI(1,500), KOSDAQ(1,823), KONEX(2), 해외 US_MARKET(200)
+- **비동기 병렬 프리페치 (`tokio::task::JoinSet`)**: 총 43개 페이지(약 3,919건)를 약 **0.97초** 만에 병렬 크롤링하여 인메모리 HashMap 구축
+- **$O(1)$ 시세 오버레이 & 지능형 변경 감지(Change Detection)**:
+  - 실제 주가/거래량 변동이 있는 종목(약 1,062건)만 DB 갱신 및 개별 연계 로그 생성
+  - 변동 없는 종목(약 2,463건)은 불필요한 버전 증가 방지를 위해 스킵(Skipped)
+
+---
+
 ## 🏛️ Subsystem Coverage (24 Subsystems, 135+ Routes)
 
-The Rust backend encompasses all 99 controllers and 24 functional domains:
-
-1. **Authentication & Security (`/api/auth`)**: JWT HS256 auth, 2FA TOTP & temp token flow, session management, login logs.
+1. **Authentication & Security (`/api/auth`)**: JWT HS256 auth, Keycloak RS256 JWKS OIDC, 2FA TOTP & temp token flow, session management, login logs.
 2. **Users & Organization (`/api/users`)**: User CRUD, pagination, ID-username map, timezone, org history, password change.
 3. **Roles & Permissions (`/api/roles`, `/api/permissions`)**: Role definitions, permissions mapping, audit logs, seed dump/sync.
 4. **Menus & Navigation (`/api/menus`)**: Hierarchical menu tree (`/api/menus/tree`), role filtering, access logging.
@@ -60,30 +97,22 @@ export RUST_LOG=info,backend_rust=debug
 cargo run --release
 ```
 
-### Run Tests & Parity Check
+### Run Tests & Verification
 ```bash
-# Run test suite against local or cluster endpoint
-API_BASE="http://localhost:8082" python3 ../brain/.../scratch/verify_all_endpoints.py
-
-# Run concurrency and latency benchmark
-python3 ../brain/.../scratch/benchmark_comparison.py
+# Run Rust unit tests
+cargo test --bin backend-rust
 ```
 
 ### Docker Build & Minikube Deployment
 ```bash
-# Build release binary inside Docker or locally
-cargo build --release
-docker build -f Dockerfile.fast -t mplatform-backend-rust:v2 .
+# Set Minikube docker environment
+eval $(minikube docker-env)
 
-# Load image into Minikube
-minikube image load mplatform-backend-rust:v2
+# Build image directly into Minikube
+docker build -t mplatform-backend-rust:v37 .
 
-# Deploy / Apply to Kubernetes
-kubectl apply -f ../k8s/30-backend-rust.yaml
-
-# Cutover ingress traffic to Rust backend
-kubectl patch service backend -n mdm-system -p '{"spec":{"selector":{"app":"backend-rust"}}}'
-
-# Scale down legacy Spring Boot backend
-kubectl scale deployment backend -n mdm-system --replicas=0
+# Update deployment
+kubectl set image deployment/backend-rust backend-rust=mplatform-backend-rust:v37 -n mdm-system
+kubectl rollout status deployment/backend-rust -n mdm-system
 ```
+

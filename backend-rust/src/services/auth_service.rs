@@ -81,9 +81,9 @@ impl AuthService {
         .execute(pool)
         .await;
 
-        let (access_token, refresh_token) = Self::generate_tokens(&user, config)?;
-
         let permissions = Self::get_user_permissions(pool, &user).await;
+        let (access_token, refresh_token) = Self::generate_tokens_with_permissions(&user, Some(permissions.clone()), config)?;
+
         let server_offset = "+09:00".to_string();
 
         Ok(LoginResponse {
@@ -105,6 +105,14 @@ impl AuthService {
     }
 
     pub fn generate_tokens(user: &User, config: &Config) -> Result<(String, String), AppError> {
+        Self::generate_tokens_with_permissions(user, None, config)
+    }
+
+    pub fn generate_tokens_with_permissions(
+        user: &User,
+        permissions: Option<Vec<String>>,
+        config: &Config,
+    ) -> Result<(String, String), AppError> {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -122,6 +130,7 @@ impl AuthService {
             uuid: Some(user.id.clone()),
             session_id: None,
             token_type: None,
+            permissions,
             iat: now,
             exp: access_exp,
         };
@@ -133,6 +142,7 @@ impl AuthService {
             uuid: Some(user.id.clone()),
             session_id: None,
             token_type: Some("REFRESH".to_string()),
+            permissions: None,
             iat: now,
             exp: refresh_exp,
         };

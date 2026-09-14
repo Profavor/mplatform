@@ -11,7 +11,7 @@
 ```mermaid
 graph TD
     subgraph Clients ["다중 클라이언트 계층"]
-        WEB["🌐 Web: Nuxt 3 / Vue 3 (AG-Grid, ECharts)"]
+        WEB["🌐 Web: Nuxt 4 / Vue 3 (AG-Grid, ECharts)"]
         MOB["📱 Mobile: Flutter (Android, iOS, Web)"]
         EXT_API["🔌 External: Inbound Webhook / REST / CDC"]
     end
@@ -19,10 +19,10 @@ graph TD
     subgraph Gateway ["보안 & 인증 & 게이트웨이"]
         KC["🔑 Keycloak 24 (IAM/OIDC & RBAC)"]
         VAULT["🔒 HashiCorp Vault 1.15 (Transit HSM)"]
-        SECAUTH["🛡️ Spring Security + 자체 JWT Hybrid"]
+        SECAUTH["🛡️ Rust Tokio/Axum JWT + 세부 Permission 제어"]
     end
 
-    subgraph CoreEngine ["MDM 코어 비즈니스 엔진"]
+    subgraph CoreEngine ["MDM 코어 비즈니스 엔진 (Rust High-Performance)"]
         S1["🧩 Dynamic Schema & Multi-Axis Engine"]
         S2["⚡ DQ Rule Engine, AI Recommendation & Cleansing"]
         S3["🎯 Matching & Survivorship Merge / Un-merge"]
@@ -70,15 +70,15 @@ graph TD
 
 | 영역 | 기술 / 프레임워크 | 세부 설명 및 버전 |
 |---|---|---|
-| **Backend** | **Spring Boot 4.1.0 (Java 17)** | Maven Artifact `1.2.47`, Spring Data JPA, Spring Data Envers, Spring Integration, Spring Kafka, Spring AMQP, Spring Retry |
-| **Security & Enc** | **Keycloak 24 + Vault 1.15** | OIDC/RBAC, 2FA/OTP (TOTP/Email OTP/Backup Codes), 32바이트 AES 하이브리드 암호화, SHA-256 HMAC Blind Indexing, Vault Transit HSM |
-| **Frontend** | **Nuxt 3 (^3.21.11) + Vue 3** | 버전 `1.5.76`, TypeScript (^5.9.3), Vuestic UI, AG-Grid Vue3 (^34.3.1 Community 가상스크롤 & 무한 서버사이드 페이징), ECharts, STOMP, Tiptap 에디터 |
-| **Mobile** | **Flutter 3.x (Dart)** | Riverpod (상태관리), GoRouter, Dio (타임존/보안 인터셉터), STOMP 실시간 채팅, 2FA 모바일 로그인, Web/iOS/Android |
+| **Backend** | **Rust (Axum + SQLx + Tokio)** | 네이티브 비동기 코어 백엔드 (`mplatform-backend-rust:v37`), **173배 메모리 절감 (~13.3 MB RSS)**, 초고속 기동 (< 50ms), 24개 서브시스템 135+ 라우트 100% 이식, 동시성 주식 인바운드 수집기, 세분화된 퍼미션 제어 |
+| **Security & Auth** | **Keycloak 24 + Vault 1.15 + JWT** | 세분화된 Permission 모델 (`domain:write`, `record:read`, 와일드카드 `*`, `domain:*`), OIDC RS256 JWKS 공개키 검증, 2FA/OTP (TOTP/Email OTP/Backup Codes), 32바이트 AES 하이브리드 암호화, SHA-256 HMAC Blind Indexing, Vault Transit HSM |
+| **Frontend** | **Nuxt 4 + Vue 3** | 버전 `2.0.3`, TypeScript 7 완벽 마이그레이션, Vuestic UI, AG-Grid Vue3 (가상스크롤 & 무한 서버사이드 페이징), ECharts, WebSocket, Tiptap 에디터 |
+| **Mobile** | **Flutter 3.x (Dart)** | Riverpod (상태관리), GoRouter, Dio (타임존/보안 인터셉터), WebSocket 실시간 채팅, 2FA 모바일 로그인, Web/iOS/Android |
 | **Database & Cache** | **PostgreSQL 15 + Redis** | PostGIS 공간 지원, JSONB 메타데이터, 분산 캐시 & Local In-Memory Fallback |
 | **Storage & Search** | **MinIO + OpenSearch 2.11** | S3 호환 오브젝트 스토리지, 다차원 형태소 분석 및 전역 전문 검색 엔진 |
 | **Messaging** | **Kafka + RabbitMQ** | 실시간 CDC 변경 스트리밍, 비동기 배치, 아웃바운드 연계 큐 |
-| **Monitoring** | **Prometheus + Grafana** | Micrometer 기반 JVM/HTTP/DB 커넥션풀 메트릭 수집 및 시각화 대시보드 |
-| **DevOps & Infra** | **Kubernetes & Docker** | 19종 k8s 매니페스트 (Replicas: 2 무중단 롤링 업데이트), Let's Encrypt SSL 자동 갱신, 공인 도메인(`mdm.mplat.store`), 초고속 단독 배포 파이프라인 |
+| **Monitoring** | **Prometheus + Grafana** | 메트릭 수집 및 시각화 대시보드, 시스템 리소스 관제 |
+| **DevOps & Infra** | **Kubernetes & Docker** | 19종 k8s 매니페스트 (Replicas: 2 무중단 롤링 업데이트), Ingress 버퍼 최적화 (`128k`), Let's Encrypt SSL 자동 갱신, 공인 도메인(`mdm.mplat.store`) |
 | **Public Domain** | **`https://mdm.mplat.store`** | 가비아 DNS + Let's Encrypt 자동 갱신 TLS Ingress 라우팅 완비 |
 
 ---

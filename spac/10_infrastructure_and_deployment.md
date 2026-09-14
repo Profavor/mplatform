@@ -12,12 +12,12 @@ graph TD
         ING["Ingress Controller (40-ingress.yaml)"]
         
         subgraph FrontTier ["Frontend Tier"]
-            FE_POD["Nuxt 3 Frontend Pods (31-frontend.yaml)"]
+            FE_POD["Nuxt 4 Frontend Pods (31-frontend.yaml)"]
             MOB_POD["Flutter Mobile Web Pods (32-mobile.yaml)"]
         end
         
         subgraph AppTier ["Application Tier"]
-            BE_POD["Spring Boot Backend Pods (30-backend.yaml)"]
+            BE_POD["Rust Axum Backend Pods (30-backend-rust.yaml)"]
         end
         
         subgraph DataTier ["Data & Middleware Tier (PVC Mounted)"]
@@ -79,8 +79,8 @@ graph TD
 | `18-mailserver.yaml` | Deployment / Service | Docker Mailserver (SMTP, IMAP, SMTPS, IMAPS 메일 서비스) |
 | `20-prometheus.yaml`| Deployment / Service | Prometheus 메트릭 수집 엔진 (Actuator 스크랩) |
 | `21-grafana.yaml` | Deployment / Service | Grafana 모니터링 대시보드 (사전 프로비저닝) |
-| `30-backend.yaml` | Deployment / Service | Spring Boot 백엔드 (Replicas: 2 무중단 롤링, Readiness/Liveness Probe) |
-| `31-frontend.yaml` | Deployment / Service | Nuxt 3 프론트엔드 웹 콘솔 (Replicas: 2 무중단 롤링, Node.js SSR) |
+| `30-backend-rust.yaml` | Deployment / Service | Rust Axum 백엔드 (Replicas: 2 무중단 롤링, Readiness/Liveness Probe) |
+| `31-frontend.yaml` | Deployment / Service | Nuxt 4 프론트엔드 웹 콘솔 (Replicas: 2 무중단 롤링, Node.js SSR) |
 | `32-mobile.yaml` | Deployment / Service | Flutter 모바일 웹 클라이언트 (Nginx 서빙, 80 포트) |
 | `40-ingress.yaml` | Ingress | 공인 도메인(`mdm.mplat.store`) NGINX Ingress 라우팅 (Let's Encrypt TLS, 버퍼 튜닝) |
 
@@ -108,7 +108,7 @@ kubectl apply -f k8s/20-prometheus.yaml
 kubectl apply -f k8s/21-grafana.yaml
 
 # 애플리케이션 및 인그레스 배포 (Replicas: 2 고가용성 롤링 업데이트)
-kubectl apply -f k8s/30-backend.yaml
+kubectl apply -f k8s/30-backend-rust.yaml
 kubectl apply -f k8s/31-frontend.yaml
 kubectl apply -f k8s/32-mobile.yaml
 kubectl apply -f k8s/40-ingress.yaml
@@ -125,9 +125,9 @@ MPlatform은 다운타임 없는 초고속 모듈별 독립 배포 파이프라�
 - **프론트엔드 단독 배포 (`./deploy-frontend.sh`)**:
   - 소요 시간: **~20초**
   - 절차: 호스트 `npm run build` → Docker 이미지 생성 → Minikube 로드 → K8s 롤아웃 재시작.
-- **백엔드 단독 배포 (`./deploy-backend.sh`)**:
+- **백엔드 단독 배포 (Rust Axum ~15초)**:
   - 소요 시간: **~15초**
-  - 절차: 호스트 `mvn clean package -DskipTests` → Docker 이미지 생성 → Minikube 로드 → K8s 롤아웃 재시작.
+  - 절차: `eval $(minikube docker-env)` → `docker build -t mplatform-backend-rust:v37 backend-rust/` → `kubectl apply -f k8s/30-backend-rust.yaml` → `kubectl rollout status deployment/backend-rust -n mdm-system`.
 
 ### 2. 전체 시스템 통합 배포 (`./deploy.sh`):
 전체 서비스 및 인프라를 일괄 배포할 때 사용합니다.
@@ -177,13 +177,12 @@ vault write auth/kubernetes/config \
 
 ## 10.5 Prometheus & Grafana 관제 지표
 
-- **수집 대상 엔드포인트**: `http://<backend>:8080/actuator/prometheus`
+- **수집 대상 엔드포인트**: `http://<backend>:8080/metrics` 및 `http://<backend>:8080/api/health`
 - **핵심 모니터링 메트릭**:
-  - `http_server_requests_seconds_count` / `_max`: 엔드포인트별 요청 처리량 및 응답 지연 (p95, p99).
-  - `jvm_memory_used_bytes` / `jvm_memory_max_bytes`: JVM Heap / Non-Heap 메모리 사용률.
-  - `jvm_gc_pause_seconds_sum`: GC 정지 시간.
-  - `hikaricp_connections_active` / `_idle` / `_pending`: DB 커넥션 풀 상태.
-  - `process_cpu_usage` / `system_cpu_usage`: CPU 사용률.
+  - `process_resident_memory_bytes`: 상주 메모리(RSS) 사용량 (~13.3MB 수준으로 경량화).
+  - `process_cpu_seconds_total`: CPU 누적 소모 시간 및 사용률.
+  - `sqlx_pool_active_connections` / `_idle_connections`: SQLx 커넥션 풀 상태.
+  - `http_requests_total` / latency: 엔드포인트별 요청 처리량 및 응답 지연.
 
 ---
 
@@ -222,8 +221,8 @@ MPlatform은 사내망뿐만 아니라 가비아 공인 도메인(`mdm.mplat.sto
 - **NGINX Ingress Controller**:
   - TLS 종단 처리 및 SSL Redirect 강제.
   - 경로 라우팅:
-    - `/` → 프론트엔드 (Nuxt 3 SSR)
-    - `/api` → 백엔드 코어 (Spring Boot)
+    - `/` → 프론트엔드 (Nuxt 4 SSR)
+    - `/api` → 백엔드 코어 (Rust Axum)
     - `/mobile/` → 모바일 웹 (Flutter Nginx)
     - `/ws-stomp` → 실시간 웹소켓
 

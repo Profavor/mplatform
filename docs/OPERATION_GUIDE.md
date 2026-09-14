@@ -16,9 +16,9 @@ graph TD
     end
 
     subgraph ServiceLayer ["💻 애플리케이션 계층"]
-        WEB["Vue3 / Nuxt3 Frontend (:3000)"]
+        WEB["Vue3 / Nuxt4 Frontend (:3000)"]
         MOB["Flutter Mobile Web/App (:80)"]
-        API["Spring Boot Backend Core (:8080)"]
+        API["Rust Axum Backend Core (:8080)"]
     end
 
     subgraph SecurityLayer ["🔒 보안 & 인증"]
@@ -67,8 +67,8 @@ graph TD
 
 | # | 컴포넌트 | 내부 포트 | 호스트/외부 포트 | 프로토콜 | 용도 및 상태 점검 엔드포인트 |
 |---|---|---|---|---|---|
-| **1** | **Backend** | `8080` | `8080` | HTTP/WS | Spring Boot 코어 API & STOMP (`/api/actuator/health`) |
-| **2** | **Frontend** | `3000` | `3000` | HTTP | Nuxt 3 웹 프론트엔드 UI (`/login`) |
+| **1** | **Backend** | `8080` | `8080` | HTTP/WS | Rust Axum 코어 API & WebSocket (`/api/health`) |
+| **2** | **Frontend** | `3000` | `3000` | HTTP | Nuxt 4 웹 프론트엔드 UI (`/login`) |
 | **3** | **Mobile** | `80` | `8082` | HTTP | Flutter 반응형 웹 클라이언트 (`/mobile/`) |
 | **4** | **Keycloak** | `8080` | `8081` | HTTP | OIDC / OAuth2 인증 및 RBAC (`/realms/mplatform/...`) |
 | **5** | **Vault** | `8200` | `8200` | HTTP | HashiCorp Transit 암호화 엔진 (`/v1/sys/health`) |
@@ -110,7 +110,7 @@ kubectl apply -f k8s/18-mailserver.yaml
 # 3. 모니터링 & 애플리케이션 서비스 기동
 kubectl apply -f k8s/20-prometheus.yaml
 kubectl apply -f k8s/21-grafana.yaml
-kubectl apply -f k8s/30-backend.yaml
+kubectl apply -f k8s/30-backend-rust.yaml
 kubectl apply -f k8s/31-frontend.yaml
 kubectl apply -f k8s/32-mobile.yaml
 kubectl apply -f k8s/40-ingress.yaml
@@ -127,10 +127,13 @@ kubectl get pods -n mdm-system -o wide
   # frontend/package.json 및 k8s/31-frontend.yaml 버전 상향 후
   ./deploy-frontend.sh
   ```
-- **백엔드 배포 (~15초)**:
+- **백엔드 배포 (Rust Axum ~15초)**:
   ```bash
-  # backend/pom.xml 및 k8s/30-backend.yaml 버전 상향 후
-  ./deploy-backend.sh
+  # backend-rust/Cargo.toml 및 k8s/30-backend-rust.yaml 버전 확인 후
+  eval $(minikube docker-env)
+  docker build -t mplatform-backend-rust:v37 backend-rust/
+  kubectl apply -f k8s/30-backend-rust.yaml
+  kubectl rollout status deployment/backend-rust -n mdm-system
   ```
 - **전체 통합 배포**:
   ```bash
@@ -177,6 +180,16 @@ kubectl get pods -n mdm-system -o wide
 - **민감 필드 암호화**: 32바이트 AES 대칭키 또는 Vault Transit을 통해 필드 레벨 암호화 수행.
 - **HMAC Blind Index**: 검색 성능 및 보안을 위해 원본 평문을 복호화하지 않고 `SHA-256 HMAC` 블라인드 인덱스를 생성하여 일치 검색(Exact Search)을 지원.
 
+### 3.5 PBAC (Permission-Based Access Control) 세분화 권한 모델
+- **권한 체계**: 정적 역할(Role) 기반을 탈피하여 리소스 및 행위 단위의 세분화된 문자열 퍼미션(`domain:read`, `system:user:write` 등) 체계 적용.
+- **와일드카드 평가 규칙** (프론트엔드 `usePermission.ts` & 백엔드 `AuthUser::has_permission` 100% 일치):
+  1. **전역 관리자 와일드카드**: `*`, `*:*`, `*:`로 시작하는 경우 모든 권한 허용.
+  2. **완전 일치 (Exact Match)**: 요청된 권한 문자열과 사용자 권한이 대소문자/공백 무관 완전 일치할 때 허용.
+  3. **도메인 접두사 와일드카드**: `domain:*` 보유 시 `domain:read`, `domain:write` 등 하위 권한 일괄 허용.
+- **하이브리드 토큰 통합**:
+  - 자체 HS256 JWT: 토큰 페이로드(`permissions`)에 보유 권한 배열 포함.
+  - Keycloak RS256 OIDC: 토큰 검증 후 DB에서 사용자 권한을 실시간 조회하여 `AuthUser`에 바인딩(관리자 계정의 경우 `*` 자동 부여).
+
 ---
 
 ## 4. 🗄️ 데이터 거버넌스, 백업 및 재해 복구 (Backup & DR)
@@ -200,9 +213,9 @@ mc mirror mdm-minio/mdm-attachments /backup/minio-attachments/
 ## 5. 📊 모니터링, 옵저버빌리티 및 장애 대응 SOP
 
 ### 5.1 주요 모니터링 지표 (Prometheus & Grafana)
-- **JVM & GC**: `jvm_memory_used_bytes`, `jvm_gc_pause_seconds_sum`
-- **HikariCP 커넥션 풀**: `hikaricp_connections_active`, `hikaricp_connections_idle`, `hikaricp_connections_pending`
-- **HTTP 요청 지연 및 에러율**: `http_server_requests_seconds_count`, `http_server_requests_seconds_max` (p95, p99)
+- **Rust 비동기 런타임 & 메모리**: Tokio 비동기 이벤트 루프 기반 초저지연 처리, 상주 메모리(RSS) 약 ~13.3MB (기존 JVM 대비 173배 경량화)
+- **SQLx 커넥션 풀**: `sqlx_pool_active_connections`, `sqlx_pool_idle_connections`
+- **HTTP 요청 지연 및 처리량**: `/api/health`, `/metrics`, 엔드포인트별 지연시간 (p95, p99)
 - **메시지 큐 대기열**: `rabbitmq_queue_messages`, `kafka_consumergroup_lag`
 
 ### 5.2 장애 대응 시나리오 (SOP)
@@ -219,7 +232,7 @@ mc mirror mdm-minio/mdm-attachments /backup/minio-attachments/
 
 ## 6. 📖 Swagger UI 및 OpenAPI 3.0 API 카탈로그 활용
 
-본 플랫폼은 Springdoc OpenAPI 3.0 기반의 자동화된 대화형 API 문서를 제공합니다.
+본 플랫폼은 OpenAPI 3.0 기반의 자동화된 대화형 API 문서를 제공합니다.
 
 ### 6.1 접속 URL
 - **Swagger UI 웹 인터페이스**:

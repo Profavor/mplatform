@@ -15,7 +15,82 @@ pub struct AuthUser {
     pub username: String,
     pub user_id: String,
     pub role: Option<String>,
+    pub permissions: Vec<String>,
     pub claims: Claims,
+}
+
+impl AuthUser {
+    /// Checks whether user has the required permission.
+    /// Matches the frontend usePermission.ts algorithm:
+    /// 1. Global wildcard: '*', '*:*', '*:read' etc.
+    /// 2. Exact match: 'domain:write' === 'domain:write'
+    /// 3. Resource prefix wildcard: 'domain:*' matches 'domain:write', 'domain:read', etc.
+    pub fn has_permission(&self, required_permission: &str) -> bool {
+        if self.permissions.is_empty() {
+            return false;
+        }
+
+        let normalize = |p: &str| p.trim().to_lowercase();
+        let norm_required = normalize(required_permission);
+
+        // 1. Global wildcard
+        for p in &self.permissions {
+            let norm_p = normalize(p);
+            if norm_p == "*" || norm_p == "*:*" || norm_p.starts_with("*:") {
+                return true;
+            }
+        }
+
+        // 2. Exact match
+        for p in &self.permissions {
+            if normalize(p) == norm_required {
+                return true;
+            }
+        }
+
+        // 3. Domain/Resource prefix wildcard ('domain:*' matches 'domain:write')
+        if norm_required.contains(':') {
+            if let Some((prefix, _)) = norm_required.split_once(':') {
+                let domain_wildcard = format!("{}:*", prefix);
+                for p in &self.permissions {
+                    if normalize(p) == domain_wildcard {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        false
+    }
+
+    /// Requires the user to have the specified permission, returning Forbidden error if not.
+    pub fn require_permission(&self, required_permission: &str) -> Result<(), AppError> {
+        if self.has_permission(required_permission) {
+            Ok(())
+        } else {
+            Err(AppError::Forbidden(format!(
+                "필요한 권한이 없습니다: '{}'",
+                required_permission
+            )))
+        }
+    }
+
+    /// Checks whether user has ANY of the specified permissions.
+    pub fn has_any_permission(&self, required_permissions: &[&str]) -> bool {
+        required_permissions.iter().any(|&perm| self.has_permission(perm))
+    }
+
+    /// Requires the user to have ANY of the specified permissions.
+    pub fn require_any_permission(&self, required_permissions: &[&str]) -> Result<(), AppError> {
+        if self.has_any_permission(required_permissions) {
+            Ok(())
+        } else {
+            Err(AppError::Forbidden(format!(
+                "필요한 권한이 없습니다. 다음 중 하나 이상의 권한이 필요합니다: {:?}",
+                required_permissions
+            )))
+        }
+    }
 }
 
 pub type AuthenticatedUser = AuthUser;
@@ -175,8 +250,9 @@ impl FromRequestParts<AppState> for AuthUser {
                         .ok()
                         .flatten();
 
-                    let (user_id, role) = if let Some(u) = user_opt {
-                        (u.id, u.role.unwrap_or_else(|| "ROLE_USER".to_string()))
+                    let (user_id, role, permissions) = if let Some(u) = user_opt {
+                        let perms = crate::services::auth_service::AuthService::get_user_permissions(&state.db, &u).await;
+                        (u.id, u.role.unwrap_or_else(|| "ROLE_USER".to_string()), perms)
                     } else {
                         let is_admin = username == "admin"
                             || username == "superadmin"
@@ -202,7 +278,13 @@ impl FromRequestParts<AppState> for AuthUser {
                             .and_then(|v| v.as_str())
                             .unwrap_or(&username)
                             .to_string();
-                        (sub, r)
+
+                        let mut perms = crate::services::auth_service::AuthService::get_permissions_for_role(Some(&r));
+                        if is_admin && !perms.iter().any(|p| p == "*") {
+                            perms.insert(0, "*".to_string());
+                        }
+
+                        (sub, r, perms)
                     };
 
                     let session_id = payload
@@ -221,6 +303,7 @@ impl FromRequestParts<AppState> for AuthUser {
                         uuid: Some(user_id.clone()),
                         session_id,
                         token_type: Some("Bearer".to_string()),
+                        permissions: Some(permissions.clone()),
                         iat,
                         exp,
                     };
@@ -229,6 +312,7 @@ impl FromRequestParts<AppState> for AuthUser {
                         username,
                         user_id,
                         role: Some(role),
+                        permissions,
                         claims,
                     });
                 }
@@ -249,10 +333,28 @@ impl FromRequestParts<AppState> for AuthUser {
         let user_id = claims.user_id.clone().unwrap_or_else(|| claims.sub.clone());
         let role = claims.role.clone();
 
+        let permissions = if let Some(p) = claims.permissions.clone() {
+            p
+        } else {
+            let u_opt = crate::repositories::user_repo::UserRepository::find_by_username(&state.db, &username).await.ok().flatten();
+            if let Some(u) = u_opt {
+                crate::services::auth_service::AuthService::get_user_permissions(&state.db, &u).await
+            } else {
+                let mut perms = crate::services::auth_service::AuthService::get_permissions_for_role(role.as_deref());
+                if role.as_deref() == Some("ROLE_ADMIN") || role.as_deref() == Some("ADMIN") || username == "admin" || username == "superadmin" {
+                    if !perms.iter().any(|p| p == "*") {
+                        perms.insert(0, "*".to_string());
+                    }
+                }
+                perms
+            }
+        };
+
         Ok(AuthUser {
             username,
             user_id,
             role,
+            permissions,
             claims,
         })
     }
@@ -271,5 +373,82 @@ impl FromRequestParts<AppState> for OptionalAuthUser {
     ) -> Result<Self, Self::Rejection> {
         let auth = AuthUser::from_request_parts(parts, state).await.ok();
         Ok(OptionalAuthUser(auth))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn create_test_user(perms: Vec<&str>) -> AuthUser {
+        AuthUser {
+            username: "tester".to_string(),
+            user_id: "usr-123".to_string(),
+            role: Some("ROLE_USER".to_string()),
+            permissions: perms.into_iter().map(|s| s.to_string()).collect(),
+            claims: Claims {
+                sub: "tester".to_string(),
+                role: Some("ROLE_USER".to_string()),
+                user_id: Some("usr-123".to_string()),
+                uuid: Some("usr-123".to_string()),
+                session_id: None,
+                token_type: None,
+                permissions: None,
+                iat: 0,
+                exp: 0,
+            },
+        }
+    }
+
+    #[test]
+    fn test_exact_permission_match() {
+        let user = create_test_user(vec!["domain:read", "domain:write"]);
+        assert!(user.has_permission("domain:read"));
+        assert!(user.has_permission("domain:write"));
+        assert!(!user.has_permission("domain:delete"));
+        assert!(!user.has_permission("record:read"));
+    }
+
+    #[test]
+    fn test_global_wildcard() {
+        let admin = create_test_user(vec!["*"]);
+        assert!(admin.has_permission("domain:read"));
+        assert!(admin.has_permission("record:write"));
+        assert!(admin.has_permission("anything:really"));
+        assert!(admin.require_permission("system:admin").is_ok());
+
+        let colon_wildcard = create_test_user(vec!["*:*"]);
+        assert!(colon_wildcard.has_permission("domain:write"));
+    }
+
+    #[test]
+    fn test_domain_prefix_wildcard() {
+        let domain_manager = create_test_user(vec!["domain:*"]);
+        assert!(domain_manager.has_permission("domain:read"));
+        assert!(domain_manager.has_permission("domain:write"));
+        assert!(domain_manager.has_permission("domain:delete"));
+        assert!(!domain_manager.has_permission("record:write"));
+        assert!(!domain_manager.has_permission("field:read"));
+    }
+
+    #[test]
+    fn test_case_and_whitespace_insensitivity() {
+        let user = create_test_user(vec!["  DOMAIN:Write  "]);
+        assert!(user.has_permission("domain:write"));
+        assert!(user.has_permission("  DOMAIN:WRITE  "));
+    }
+
+    #[test]
+    fn test_has_any_and_require_permission() {
+        let user = create_test_user(vec!["record:read"]);
+        assert!(user.has_any_permission(&["domain:write", "record:read"]));
+        assert!(!user.has_any_permission(&["domain:write", "integration:write"]));
+
+        assert!(user.require_permission("record:read").is_ok());
+        let err = user.require_permission("record:write").unwrap_err();
+        match err {
+            AppError::Forbidden(msg) => assert!(msg.contains("record:write")),
+            _ => panic!("Expected Forbidden error"),
+        }
     }
 }
