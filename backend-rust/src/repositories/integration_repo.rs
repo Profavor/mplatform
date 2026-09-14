@@ -57,7 +57,18 @@ impl IntegrationRepository {
 
     pub async fn get_logs(pool: &PgPool, limit: i64) -> Result<Vec<IntegrationLog>, sqlx::Error> {
         let logs = sqlx::query_as::<_, IntegrationLog>(
-            "SELECT id, channel_id, record_id, event_type, status, retry_count, error_message, original_payload, mapped_payload, created_at FROM integration_logs ORDER BY created_at DESC LIMIT $1"
+            r#"
+            SELECT 
+                l.id, l.channel_id, l.record_id, l.event_type, l.status, l.retry_count, 
+                l.error_message, l.original_payload, l.mapped_payload, l.created_at,
+                COALESCE(c.direction, CASE WHEN l.event_type ILIKE '%INBOUND%' OR l.event_type ILIKE '%SPRING_BATCH%' OR l.event_type ILIKE '%INGEST%' THEN 'INBOUND' ELSE 'OUTBOUND' END) AS direction,
+                c.name AS channel_name,
+                c.channel_code AS channel_code
+            FROM integration_logs l
+            LEFT JOIN integration_channels c ON l.channel_id = c.id
+            ORDER BY l.created_at DESC 
+            LIMIT $1
+            "#
         )
         .bind(limit)
         .fetch_all(pool)
@@ -84,10 +95,16 @@ impl IntegrationRepository {
 
                 let logs = sqlx::query_as::<_, IntegrationLog>(
                     r#"
-                    SELECT id, channel_id, record_id, event_type, status, retry_count, error_message, original_payload, mapped_payload, created_at
-                    FROM integration_logs
-                    WHERE channel_id = $1 AND status != 'SUCCESS'
-                    ORDER BY created_at DESC
+                    SELECT 
+                        l.id, l.channel_id, l.record_id, l.event_type, l.status, l.retry_count, 
+                        l.error_message, l.original_payload, l.mapped_payload, l.created_at,
+                        COALESCE(c.direction, CASE WHEN l.event_type ILIKE '%INBOUND%' OR l.event_type ILIKE '%SPRING_BATCH%' OR l.event_type ILIKE '%INGEST%' THEN 'INBOUND' ELSE 'OUTBOUND' END) AS direction,
+                        c.name AS channel_name,
+                        c.channel_code AS channel_code
+                    FROM integration_logs l
+                    LEFT JOIN integration_channels c ON l.channel_id = c.id
+                    WHERE l.channel_id = $1 AND l.status != 'SUCCESS'
+                    ORDER BY l.created_at DESC
                     LIMIT $2 OFFSET $3
                     "#
                 )
@@ -109,10 +126,16 @@ impl IntegrationRepository {
 
                 let logs = sqlx::query_as::<_, IntegrationLog>(
                     r#"
-                    SELECT id, channel_id, record_id, event_type, status, retry_count, error_message, original_payload, mapped_payload, created_at
-                    FROM integration_logs
-                    WHERE channel_id = $1
-                    ORDER BY created_at DESC
+                    SELECT 
+                        l.id, l.channel_id, l.record_id, l.event_type, l.status, l.retry_count, 
+                        l.error_message, l.original_payload, l.mapped_payload, l.created_at,
+                        COALESCE(c.direction, CASE WHEN l.event_type ILIKE '%INBOUND%' OR l.event_type ILIKE '%SPRING_BATCH%' OR l.event_type ILIKE '%INGEST%' THEN 'INBOUND' ELSE 'OUTBOUND' END) AS direction,
+                        c.name AS channel_name,
+                        c.channel_code AS channel_code
+                    FROM integration_logs l
+                    LEFT JOIN integration_channels c ON l.channel_id = c.id
+                    WHERE l.channel_id = $1
+                    ORDER BY l.created_at DESC
                     LIMIT $2 OFFSET $3
                     "#
                 )
@@ -133,10 +156,16 @@ impl IntegrationRepository {
 
                 let logs = sqlx::query_as::<_, IntegrationLog>(
                     r#"
-                    SELECT id, channel_id, record_id, event_type, status, retry_count, error_message, original_payload, mapped_payload, created_at
-                    FROM integration_logs
-                    WHERE status != 'SUCCESS'
-                    ORDER BY created_at DESC
+                    SELECT 
+                        l.id, l.channel_id, l.record_id, l.event_type, l.status, l.retry_count, 
+                        l.error_message, l.original_payload, l.mapped_payload, l.created_at,
+                        COALESCE(c.direction, CASE WHEN l.event_type ILIKE '%INBOUND%' OR l.event_type ILIKE '%SPRING_BATCH%' OR l.event_type ILIKE '%INGEST%' THEN 'INBOUND' ELSE 'OUTBOUND' END) AS direction,
+                        c.name AS channel_name,
+                        c.channel_code AS channel_code
+                    FROM integration_logs l
+                    LEFT JOIN integration_channels c ON l.channel_id = c.id
+                    WHERE l.status != 'SUCCESS'
+                    ORDER BY l.created_at DESC
                     LIMIT $1 OFFSET $2
                     "#
                 )
@@ -156,9 +185,15 @@ impl IntegrationRepository {
 
                 let logs = sqlx::query_as::<_, IntegrationLog>(
                     r#"
-                    SELECT id, channel_id, record_id, event_type, status, retry_count, error_message, original_payload, mapped_payload, created_at
-                    FROM integration_logs
-                    ORDER BY created_at DESC
+                    SELECT 
+                        l.id, l.channel_id, l.record_id, l.event_type, l.status, l.retry_count, 
+                        l.error_message, l.original_payload, l.mapped_payload, l.created_at,
+                        COALESCE(c.direction, CASE WHEN l.event_type ILIKE '%INBOUND%' OR l.event_type ILIKE '%SPRING_BATCH%' OR l.event_type ILIKE '%INGEST%' THEN 'INBOUND' ELSE 'OUTBOUND' END) AS direction,
+                        c.name AS channel_name,
+                        c.channel_code AS channel_code
+                    FROM integration_logs l
+                    LEFT JOIN integration_channels c ON l.channel_id = c.id
+                    ORDER BY l.created_at DESC
                     LIMIT $1 OFFSET $2
                     "#
                 )
@@ -180,10 +215,16 @@ impl IntegrationRepository {
     ) -> Result<Vec<IntegrationLog>, sqlx::Error> {
         let logs = sqlx::query_as::<_, IntegrationLog>(
             r#"
-            SELECT id, channel_id, record_id, event_type, status, retry_count, error_message, original_payload, mapped_payload, created_at
-            FROM integration_logs
-            WHERE record_id = $1
-            ORDER BY created_at DESC
+            SELECT 
+                l.id, l.channel_id, l.record_id, l.event_type, l.status, l.retry_count, 
+                l.error_message, l.original_payload, l.mapped_payload, l.created_at,
+                COALESCE(c.direction, CASE WHEN l.event_type ILIKE '%INBOUND%' OR l.event_type ILIKE '%SPRING_BATCH%' OR l.event_type ILIKE '%INGEST%' THEN 'INBOUND' ELSE 'OUTBOUND' END) AS direction,
+                c.name AS channel_name,
+                c.channel_code AS channel_code
+            FROM integration_logs l
+            LEFT JOIN integration_channels c ON l.channel_id = c.id
+            WHERE l.record_id = $1
+            ORDER BY l.created_at DESC
             LIMIT 50
             "#
         )
@@ -191,6 +232,72 @@ impl IntegrationRepository {
         .fetch_all(pool)
         .await?;
 
-        Ok(logs)
+        if !logs.is_empty() {
+            return Ok(logs);
+        }
+
+        // Fallback: Return recent inbound/batch channel logs if no record-specific log was recorded
+        let fallback_logs = sqlx::query_as::<_, IntegrationLog>(
+            r#"
+            SELECT 
+                l.id, l.channel_id, l.record_id, l.event_type, l.status, l.retry_count, 
+                l.error_message, l.original_payload, l.mapped_payload, l.created_at,
+                COALESCE(c.direction, CASE WHEN l.event_type ILIKE '%INBOUND%' OR l.event_type ILIKE '%SPRING_BATCH%' OR l.event_type ILIKE '%INGEST%' THEN 'INBOUND' ELSE 'OUTBOUND' END) AS direction,
+                c.name AS channel_name,
+                c.channel_code AS channel_code
+            FROM integration_logs l
+            LEFT JOIN integration_channels c ON l.channel_id = c.id
+            WHERE l.channel_id IN (
+                SELECT id FROM integration_channels 
+                WHERE channel_code = 'CH-KRX-INBOUND-001' OR type = 'SPRING_BATCH' OR type = 'SYSTEM_BATCH'
+            )
+            ORDER BY l.created_at DESC
+            LIMIT 10
+            "#
+        )
+        .fetch_all(pool)
+        .await?;
+
+        Ok(fallback_logs)
+    }
+
+    pub async fn get_channel_by_id(
+        pool: &PgPool,
+        id: Uuid,
+    ) -> Result<Option<IntegrationChannel>, sqlx::Error> {
+        let channel = sqlx::query_as::<_, IntegrationChannel>(
+            "SELECT * FROM integration_channels WHERE id = $1"
+        )
+        .bind(id)
+        .fetch_optional(pool)
+        .await?;
+
+        Ok(channel)
+    }
+
+    pub async fn get_logs_last_24h(
+        pool: &PgPool,
+        channel_id: Uuid,
+    ) -> Result<Vec<(String, Option<chrono::NaiveDateTime>)>, sqlx::Error> {
+        #[derive(sqlx::FromRow)]
+        struct LogSimpleRow {
+            status: String,
+            created_at: Option<chrono::NaiveDateTime>,
+        }
+
+        let rows = sqlx::query_as::<_, LogSimpleRow>(
+            r#"
+            SELECT status, created_at
+            FROM integration_logs
+            WHERE channel_id = $1
+              AND created_at >= NOW() - INTERVAL '24 hours'
+            ORDER BY created_at ASC
+            "#
+        )
+        .bind(channel_id)
+        .fetch_all(pool)
+        .await?;
+
+        Ok(rows.into_iter().map(|r| (r.status, r.created_at)).collect())
     }
 }

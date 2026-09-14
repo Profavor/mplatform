@@ -23,8 +23,8 @@
             <span class="metric-label">Direction</span>
             <div class="metric-value mt-1">
               <va-badge
-                :text="log.direction === 'INBOUND' ? (t('integration.channels.inbound', 'Inbound')) : (t('integration.channels.outbound', 'Outbound'))"
-                :color="log.direction === 'INBOUND' ? 'warning' : 'info'"
+                :text="isDirectionInbound ? (t('integration.channels.inbound', 'Inbound')) : (t('integration.channels.outbound', 'Outbound'))"
+                :color="isDirectionInbound ? 'warning' : 'info'"
               />
             </div>
           </div>
@@ -138,7 +138,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppModal from '~/components/common/AppModal.vue'
 
@@ -154,6 +154,13 @@ const emit = defineEmits<{
   (e: 'update:modelValue', val: boolean): void
   (e: 'retry', logId: string): void
 }>()
+
+const isDirectionInbound = computed(() => {
+  if (!props.log) return false
+  if (props.log.direction) return props.log.direction === 'INBOUND'
+  const evt = (props.log.eventType || '').toUpperCase()
+  return evt.includes('INBOUND') || evt.includes('SPRING_BATCH') || evt.includes('INGEST')
+})
 
 const copySuccess = ref<string | null>(null)
 

@@ -14,26 +14,26 @@ describe('Nested Modal Z-Index Stacking Management (TDD)', () => {
     modalZIndexStack.splice(0, modalZIndexStack.length)
   })
 
-  it('기본 1차 모달이 열릴 때 기본 z-index(1050)가 할당되어야 한다', () => {
+  it('기본 1차 모달이 열릴 때 기본 z-index(1200)가 할당되어야 한다', () => {
     const isVisible = ref(true)
     const { modalId, activeZIndex } = useModalStack(isVisible)
 
     expect(modalZIndexStack).toContain(modalId)
-    expect(activeZIndex.value).toBe(BASE_MODAL_Z_INDEX) // 1050
+    expect(activeZIndex.value).toBe(BASE_MODAL_Z_INDEX) // 1200
   })
 
-  it('1차 모달이 열린 상태에서 2차 서브 모달이 열리면 더 높은 z-index(1100)가 자동으로 계산되어야 한다', () => {
+  it('1차 모달이 열린 상태에서 2차 서브 모달이 열리면 더 높은 z-index(1250)가 자동으로 계산되어야 한다', () => {
     // 1. 부모 모달(RecordDetailDrawer) 오픈
     const parentVisible = ref(true)
     const parentModal = useModalStack(parentVisible)
 
-    expect(parentModal.activeZIndex.value).toBe(BASE_MODAL_Z_INDEX) // 1050
+    expect(parentModal.activeZIndex.value).toBe(BASE_MODAL_Z_INDEX) // 1200
 
     // 2. 자식 모달(ApprovalViewerModal) 오픈
     const childVisible = ref(true)
     const childModal = useModalStack(childVisible)
 
-    expect(childModal.activeZIndex.value).toBe(BASE_MODAL_Z_INDEX + MODAL_Z_INDEX_STEP) // 1100
+    expect(childModal.activeZIndex.value).toBe(BASE_MODAL_Z_INDEX + MODAL_Z_INDEX_STEP) // 1250
     expect(childModal.activeZIndex.value).toBeGreaterThan(parentModal.activeZIndex.value)
   })
 
@@ -61,9 +61,9 @@ describe('Nested Modal Z-Index Stacking Management (TDD)', () => {
     const modal2 = useModalStack(ref(true))
     const modal3 = useModalStack(ref(true))
 
-    expect(modal1.activeZIndex.value).toBe(1050)
-    expect(modal2.activeZIndex.value).toBe(1100)
-    expect(modal3.activeZIndex.value).toBe(1150)
+    expect(modal1.activeZIndex.value).toBe(BASE_MODAL_Z_INDEX)
+    expect(modal2.activeZIndex.value).toBe(BASE_MODAL_Z_INDEX + MODAL_Z_INDEX_STEP)
+    expect(modal3.activeZIndex.value).toBe(BASE_MODAL_Z_INDEX + 2 * MODAL_Z_INDEX_STEP)
     expect(modal3.activeZIndex.value).toBeGreaterThan(modal2.activeZIndex.value)
     expect(modal2.activeZIndex.value).toBeGreaterThan(modal1.activeZIndex.value)
   })

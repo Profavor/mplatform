@@ -90,9 +90,11 @@
                   required 
                 />
                 <va-input 
-                  v-model="uiConfig.batchBeanClass" 
+                  :model-value="uiConfig.batchBeanClass || 'crate::batch::stock_ingestion::StockDataIngestionJob'" 
                   :label="t('integration.channels.batch_bean_class')" 
                   :placeholder="t('integration.channels.batch_bean_placeholder')" 
+                  readonly
+                  style="opacity: 0.85;"
                 />
               </div>
 

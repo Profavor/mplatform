@@ -129,11 +129,14 @@ impl StockDataIngestionJob {
             tracing::info!("Cleared {} existing stock records for domain [{}]", total_deleted, domain_id);
         }
 
-        // 4. Load Stock Data
+        // 4. Load Master Stock Data (all 3,525 records)
         let stock_rows: Vec<serde_json::Value> = match req.custom_rows {
             Some(rows) if !rows.is_empty() => rows,
             _ => Self::load_dataset_file()?,
         };
+
+        // 5. Pre-fetch Live Market Quotes across KRX and Global exchanges
+        let live_map = Self::fetch_all_live_market_data().await;
 
         let allowed_markets: Option<HashSet<String>> = req.markets.map(|m| {
             m.into_iter().map(|s| s.to_uppercase()).collect()
@@ -141,11 +144,20 @@ impl StockDataIngestionJob {
         let limit_per_market = req.limit_per_market;
 
         let mut seeded_by_market: HashMap<String, i32> = HashMap::new();
-        let mut total_seeded = 0;
-        let mut total_created = 0;
-        let mut total_merged = 0;
+        let mut total_read: i32 = 0;
+        let mut total_seeded: i32 = 0;
+        let mut total_created: i32 = 0;
+        let mut total_merged: i32 = 0;
+
+        let stock_channel_id: Option<Uuid> = sqlx::query_scalar(
+            "SELECT id FROM integration_channels WHERE channel_code = 'CH-KRX-INBOUND-001' OR type = 'SPRING_BATCH' LIMIT 1"
+        )
+        .fetch_optional(pool)
+        .await
+        .unwrap_or(None);
 
         for mut row in stock_rows {
+            total_read += 1;
             let market_code = row.get("market_node_code")
                 .and_then(|v| v.as_str())
                 .unwrap_or("KOSPI")
@@ -177,6 +189,19 @@ impl StockDataIngestionJob {
                 continue;
             }
 
+            // Overlay real-time market quote if available
+            if let Some(live_quote) = live_map.get(&ticker) {
+                if let Some(quote_obj) = live_quote.as_object() {
+                    if let Some(row_obj) = row.as_object_mut() {
+                        for (k, v) in quote_obj {
+                            if !v.is_null() {
+                                row_obj.insert(k.clone(), v.clone());
+                            }
+                        }
+                    }
+                }
+            }
+
             // Remove market_node_code before saving
             if let Some(obj) = row.as_object_mut() {
                 obj.remove("market_node_code");
@@ -203,15 +228,26 @@ impl StockDataIngestionJob {
             .fetch_optional(pool)
             .await?;
 
+            let row_obj = row.as_object().cloned().unwrap_or_default();
+
             if let Some(ex) = existing {
                 // MERGE
-                let mut prev_data: serde_json::Value = ex.data.unwrap_or(serde_json::json!({}));
-                if let (Some(prev_obj), Some(new_obj)) = (prev_data.as_object_mut(), row.as_object()) {
-                    for (k, v) in new_obj {
-                        prev_obj.insert(k.clone(), v.clone());
-                    }
+                let original_prev_data = ex.data.clone().unwrap_or(serde_json::json!({}));
+                let mut prev_obj = original_prev_data.as_object().cloned().unwrap_or_default();
+
+                // Merge incoming fields
+                for (k, v) in &row_obj {
+                    prev_obj.insert(k.clone(), v.clone());
                 }
-                let merged_data = prev_data;
+                let merged_data = serde_json::Value::Object(prev_obj);
+
+                // Change detection: If completely identical, skip version increment & redundant history
+                if original_prev_data == merged_data {
+                    *seeded_by_market.entry(market_code).or_insert(0) += 1;
+                    total_seeded += 1;
+                    continue;
+                }
+
                 let new_version = ex.version + 1;
 
                 sqlx::query(
@@ -228,21 +264,42 @@ impl StockDataIngestionJob {
                 .execute(pool)
                 .await?;
 
-                // Audit History
+                // Audit History with previous_data preserved
                 let history_id = Uuid::new_v4();
                 let _ = sqlx::query(
                     r#"
-                    INSERT INTO record_history (id, record_id, change_type, changed_by, source_system, new_data, version, changed_at)
-                    VALUES ($1, $2, 'INBOUND_MERGE', $3, 'KRX & Global Stock Inbound', $4, $5, NOW())
+                    INSERT INTO record_history (id, record_id, change_type, changed_by, source_system, previous_data, new_data, version, changed_at)
+                    VALUES ($1, $2, 'INBOUND_MERGE', $3, 'KRX & Global Stock Inbound', $4, $5, $6, NOW())
                     "#,
                 )
                 .bind(history_id)
                 .bind(ex.id)
                 .bind(requested_by)
+                .bind(&original_prev_data)
                 .bind(&merged_data)
                 .bind(new_version)
                 .execute(pool)
                 .await;
+
+                // Also record individual integration log if channel exists
+                if let Some(cid) = stock_channel_id {
+                    let log_id = Uuid::new_v4();
+                    let inbound_payload = serde_json::to_string(&row_obj).unwrap_or_default();
+                    let mapped_payload = serde_json::to_string(&merged_data).unwrap_or_default();
+                    let _ = sqlx::query(
+                        r#"
+                        INSERT INTO integration_logs (id, channel_id, record_id, event_type, status, original_payload, mapped_payload, created_at, retry_count)
+                        VALUES ($1, $2, $3, 'INBOUND_MERGE', 'SUCCESS', $4, $5, NOW(), 0)
+                        "#
+                    )
+                    .bind(log_id)
+                    .bind(cid)
+                    .bind(ex.id)
+                    .bind(inbound_payload)
+                    .bind(mapped_payload)
+                    .execute(pool)
+                    .await;
+                }
 
                 total_merged += 1;
             } else {
@@ -272,8 +329,8 @@ impl StockDataIngestionJob {
                 let history_id = Uuid::new_v4();
                 let _ = sqlx::query(
                     r#"
-                    INSERT INTO record_history (id, record_id, change_type, changed_by, source_system, new_data, version, changed_at)
-                    VALUES ($1, $2, 'INBOUND_INGEST', $3, 'KRX & Global Stock Inbound', $4, 1, NOW())
+                    INSERT INTO record_history (id, record_id, change_type, changed_by, source_system, previous_data, new_data, version, changed_at)
+                    VALUES ($1, $2, 'INBOUND_INGEST', $3, 'KRX & Global Stock Inbound', NULL, $4, 1, NOW())
                     "#,
                 )
                 .bind(history_id)
@@ -283,6 +340,26 @@ impl StockDataIngestionJob {
                 .execute(pool)
                 .await;
 
+                // Also record individual integration log if channel exists
+                if let Some(cid) = stock_channel_id {
+                    let log_id = Uuid::new_v4();
+                    let inbound_payload = serde_json::to_string(&row_obj).unwrap_or_default();
+                    let mapped_payload = serde_json::to_string(&row).unwrap_or_default();
+                    let _ = sqlx::query(
+                        r#"
+                        INSERT INTO integration_logs (id, channel_id, record_id, event_type, status, original_payload, mapped_payload, created_at, retry_count)
+                        VALUES ($1, $2, $3, 'INBOUND_INGEST', 'SUCCESS', $4, $5, NOW(), 0)
+                        "#
+                    )
+                    .bind(log_id)
+                    .bind(cid)
+                    .bind(new_rec_id)
+                    .bind(inbound_payload)
+                    .bind(mapped_payload)
+                    .execute(pool)
+                    .await;
+                }
+
                 total_created += 1;
             }
 
@@ -290,34 +367,33 @@ impl StockDataIngestionJob {
             total_seeded += 1;
         }
 
+        let total_written = total_created + total_merged;
+        let total_skipped = total_read.saturating_sub(total_written);
+
         tracing::info!(
-            "✅ Stock data ingestion completed: total={}, created={}, merged={}, markets={:?}",
-            total_seeded,
+            "✅ Stock data ingestion completed: total_read={}, created={}, merged={}, unchanged={}, markets={:?}",
+            total_read,
             total_created,
             total_merged,
+            total_skipped,
             seeded_by_market
         );
 
-        // Record integration log if stock channel exists
-        let stock_channel_id: Option<Uuid> = sqlx::query_scalar(
-            "SELECT id FROM integration_channels WHERE channel_code = 'CH-KRX-INBOUND-001' OR type = 'SPRING_BATCH' LIMIT 1"
-        )
-        .fetch_optional(pool)
-        .await
-        .unwrap_or(None);
-
+        // Record summary integration log if stock channel exists
         if let Some(cid) = stock_channel_id {
             let log_id = Uuid::new_v4();
             let original = format!(
-                "Spring Batch Completed. Read: {}, Written: {}, Skipped: 0",
-                total_seeded,
-                total_created + total_merged
+                "Spring Batch Completed. Read: {}, Written: {}, Skipped: {}",
+                total_read,
+                total_written,
+                total_skipped
             );
             let mapped = serde_json::json!({
-                "readCount": total_seeded,
-                "writeCount": total_created + total_merged,
+                "readCount": total_read,
+                "writeCount": total_written,
                 "createdCount": total_created,
                 "mergedCount": total_merged,
+                "skippedCount": total_skipped,
                 "status": "COMPLETED"
             }).to_string();
 
@@ -338,14 +414,14 @@ impl StockDataIngestionJob {
         Ok(StockSeedResponse {
             domain_id,
             domain_name,
-            total_seeded,
+            total_seeded: total_read,
             total_created,
             total_merged,
             total_deleted,
             seeded_by_market,
             message: format!(
-                "총 {}개의 실제 상장 주식(신규: {}건, 머지: {}건) 데이터가 성공적으로 적재/병합되었습니다.",
-                total_seeded, total_created, total_merged
+                "총 {}개의 실제 상장 주식(신규: {}건, 머지: {}건, 미변경: {}건) 데이터가 성공적으로 적재/병합되었습니다.",
+                total_read, total_created, total_merged, total_skipped
             ),
         })
     }
@@ -353,6 +429,7 @@ impl StockDataIngestionJob {
     fn load_dataset_file() -> anyhow::Result<Vec<serde_json::Value>> {
         let paths = [
             "./data/stock_real_master_data.json",
+            "/app/data/stock_real_master_data.json",
             "../backend/src/main/resources/data/stock_real_master_data.json",
             "/home/profavor/dev/mplatform/backend/src/main/resources/data/stock_real_master_data.json",
         ];
@@ -367,6 +444,307 @@ impl StockDataIngestionJob {
             }
         }
 
-        anyhow::bail!("Stock dataset file not found in search paths")
+        const EMBEDDED_MASTER_DATA: &str = include_str!("../../data/stock_real_master_data.json");
+        let rows: Vec<serde_json::Value> = serde_json::from_str(EMBEDDED_MASTER_DATA)?;
+        tracing::info!("Loaded {} stock records from embedded data", rows.len());
+        Ok(rows)
+    }
+
+    pub async fn fetch_all_live_market_data() -> HashMap<String, serde_json::Value> {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+
+        let mut live_map = HashMap::new();
+        let mut join_set = tokio::task::JoinSet::new();
+
+        // KOSPI: 15 pages (1500 items)
+        for page in 1..=15 {
+            let cl = client.clone();
+            join_set.spawn(async move {
+                Self::fetch_domestic_page(&cl, "KOSPI", page).await
+            });
+        }
+
+        // KOSDAQ: 20 pages (2000 items)
+        for page in 1..=20 {
+            let cl = client.clone();
+            join_set.spawn(async move {
+                Self::fetch_domestic_page(&cl, "KOSDAQ", page).await
+            });
+        }
+
+        // NASDAQ: 3 pages (300 items)
+        for page in 1..=3 {
+            let cl = client.clone();
+            join_set.spawn(async move {
+                Self::fetch_global_page(&cl, "NASDAQ", page).await
+            });
+        }
+
+        // NYSE: 3 pages (300 items)
+        for page in 1..=3 {
+            let cl = client.clone();
+            join_set.spawn(async move {
+                Self::fetch_global_page(&cl, "NYSE", page).await
+            });
+        }
+
+        while let Some(res) = join_set.join_next().await {
+            if let Ok(Ok(items)) = res {
+                for item in items {
+                    if let Some(ticker) = item.get("ticker_code").and_then(|v| v.as_str()) {
+                        if !ticker.is_empty() {
+                            live_map.insert(ticker.to_string(), item);
+                        }
+                    }
+                }
+            }
+        }
+
+        tracing::info!("Pre-fetched {} live market quotes into in-memory map", live_map.len());
+        live_map
+    }
+
+    async fn fetch_domestic_page(client: &reqwest::Client, market: &str, page: usize) -> anyhow::Result<Vec<serde_json::Value>> {
+        let url = format!(
+            "https://m.stock.naver.com/api/stocks/marketValue/{}?page={}&pageSize=100",
+            market, page
+        );
+        let resp = client.get(&url)
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            anyhow::bail!("Failed HTTP {}", resp.status());
+        }
+
+        let json: serde_json::Value = resp.json().await?;
+        let stocks = json.get("stocks").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+
+        let clean_num = |v: Option<&serde_json::Value>| -> f64 {
+            match v {
+                Some(serde_json::Value::Number(n)) => n.as_f64().unwrap_or(0.0),
+                Some(serde_json::Value::String(s)) => {
+                    s.replace(",", "").replace("%", "").trim().parse().unwrap_or(0.0)
+                }
+                _ => 0.0,
+            }
+        };
+
+        let mut results = Vec::new();
+        for item in stocks {
+            let ticker = item.get("itemCode").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            if ticker.is_empty() { continue; }
+            let name = item.get("stockName").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let close_price = clean_num(item.get("closePriceRaw").or_else(|| item.get("closePrice")));
+            let change_price = clean_num(item.get("compareToPreviousClosePriceRaw").or_else(|| item.get("compareToPreviousClosePrice")));
+            let fluc_rate = clean_num(item.get("fluctuationsRatioRaw").or_else(|| item.get("fluctuationsRatio")));
+            let volume = clean_num(item.get("accumulatedTradingVolumeRaw").or_else(|| item.get("accumulatedTradingVolume"))) as i64;
+            let value = clean_num(item.get("accumulatedTradingValueRaw").or_else(|| item.get("accumulatedTradingValue"))) as i64;
+            let mkt_cap = clean_num(item.get("marketValueRaw").or_else(|| item.get("marketValue"))) as i64;
+            let logo = item.get("itemLogoUrl").or_else(|| item.get("itemLogoPngUrl")).and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let traded_at = item.get("localTradedAt").and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+            let mut row = serde_json::json!({
+                "ticker_code": ticker,
+                "current_price": close_price as i64,
+                "change_price": change_price,
+                "fluctuation_rate": fluc_rate,
+                "accumulated_trading_volume": volume,
+                "accumulated_trading_value": value,
+                "market_cap": mkt_cap,
+                "price_base_date": if !traded_at.is_empty() { traded_at.chars().take(10).collect::<String>() } else { chrono::Utc::now().naive_utc().format("%Y-%m-%d").to_string() }
+            });
+            if !name.is_empty() {
+                row["stock_name"] = serde_json::Value::String(name);
+            }
+            if !logo.is_empty() {
+                row["logo_image_url"] = serde_json::Value::String(logo);
+            }
+            results.push(row);
+        }
+        Ok(results)
+    }
+
+    async fn fetch_global_page(client: &reqwest::Client, exchange: &str, page: usize) -> anyhow::Result<Vec<serde_json::Value>> {
+        let url = format!(
+            "https://api.stock.naver.com/stock/exchange/{}/marketValue?page={}&pageSize=100",
+            exchange, page
+        );
+        let resp = client.get(&url)
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            anyhow::bail!("Failed HTTP {}", resp.status());
+        }
+
+        let json: serde_json::Value = resp.json().await?;
+        let stocks = json.get("stocks").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+
+        let clean_num = |v: Option<&serde_json::Value>| -> f64 {
+            match v {
+                Some(serde_json::Value::Number(n)) => n.as_f64().unwrap_or(0.0),
+                Some(serde_json::Value::String(s)) => {
+                    s.replace(",", "").replace("%", "").trim().parse().unwrap_or(0.0)
+                }
+                _ => 0.0,
+            }
+        };
+
+        let mut results = Vec::new();
+        for item in stocks {
+            let ticker = item.get("symbolCode")
+                .or_else(|| item.get("itemCode"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            if ticker.is_empty() { continue; }
+            let name = item.get("stockName").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let close_price = clean_num(item.get("closePriceRaw").or_else(|| item.get("closePrice")));
+            let change_price = clean_num(item.get("compareToPreviousClosePriceRaw").or_else(|| item.get("compareToPreviousClosePrice")));
+            let fluc_rate = clean_num(item.get("fluctuationsRatioRaw").or_else(|| item.get("fluctuationsRatio")));
+            let volume = clean_num(item.get("accumulatedTradingVolumeRaw").or_else(|| item.get("accumulatedTradingVolume"))) as i64;
+            let value = clean_num(item.get("accumulatedTradingValueRaw").or_else(|| item.get("accumulatedTradingValue"))) as i64;
+            let mkt_cap = clean_num(item.get("marketValueRaw").or_else(|| item.get("marketValue"))) as i64;
+            let logo = item.get("itemLogoUrl").or_else(|| item.get("itemLogoPngUrl")).and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let traded_at = item.get("localTradedAt").and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+            let mut row = serde_json::json!({
+                "ticker_code": ticker,
+                "current_price": close_price as i64,
+                "change_price": change_price,
+                "fluctuation_rate": fluc_rate,
+                "accumulated_trading_volume": volume,
+                "accumulated_trading_value": value,
+                "market_cap": mkt_cap,
+                "price_base_date": if !traded_at.is_empty() { traded_at.chars().take(10).collect::<String>() } else { chrono::Utc::now().naive_utc().format("%Y-%m-%d").to_string() }
+            });
+            if !name.is_empty() {
+                row["stock_name"] = serde_json::Value::String(name);
+            }
+            if !logo.is_empty() {
+                row["logo_image_url"] = serde_json::Value::String(logo);
+            }
+            results.push(row);
+        }
+        Ok(results)
+    }
+
+    pub async fn fetch_realtime_market_data(market: &str, page_size: usize) -> anyhow::Result<Vec<serde_json::Value>> {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .build()?;
+
+        let market_api = match market.to_uppercase().as_str() {
+            "KOSDAQ" => "KOSDAQ",
+            "KONEX" => "KONEX",
+            _ => "KOSPI",
+        };
+
+        let url = format!(
+            "https://m.stock.naver.com/api/stocks/marketValue/{}?page=1&pageSize={}",
+            market_api, page_size.min(100)
+        );
+
+        let resp = client.get(&url)
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            anyhow::bail!("Failed to fetch live stock API: HTTP {}", resp.status());
+        }
+
+        let json_body: serde_json::Value = resp.json().await?;
+        let stocks = json_body.get("stocks").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+
+        let clean_num = |v: Option<&serde_json::Value>| -> f64 {
+            match v {
+                Some(serde_json::Value::Number(n)) => n.as_f64().unwrap_or(0.0),
+                Some(serde_json::Value::String(s)) => {
+                    s.replace(",", "").replace("%", "").trim().parse().unwrap_or(0.0)
+                }
+                _ => 0.0,
+            }
+        };
+
+        let mut results = Vec::new();
+        for item in stocks {
+            let ticker = item.get("itemCode").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            if ticker.is_empty() { continue; }
+            let name = item.get("stockName").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let close_price = clean_num(item.get("closePriceRaw").or_else(|| item.get("closePrice")));
+            let change_price = clean_num(item.get("compareToPreviousClosePriceRaw").or_else(|| item.get("compareToPreviousClosePrice")));
+            let fluc_rate = clean_num(item.get("fluctuationsRatio"));
+            let volume = clean_num(item.get("accumulatedTradingVolumeRaw").or_else(|| item.get("accumulatedTradingVolume"))) as i64;
+            let value = clean_num(item.get("accumulatedTradingValueRaw").or_else(|| item.get("accumulatedTradingValue"))) as i64;
+            let mkt_cap = clean_num(item.get("marketValueRaw").or_else(|| item.get("marketValue"))) as i64;
+            let logo = item.get("itemLogoUrl").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let traded_at = item.get("localTradedAt").and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+            let row = serde_json::json!({
+                "market_node_code": market_api,
+                "ticker_code": ticker,
+                "stock_name": name,
+                "current_price": close_price as i64,
+                "change_price": change_price,
+                "fluctuation_rate": fluc_rate,
+                "accumulated_trading_volume": volume,
+                "accumulated_trading_value": value,
+                "market_cap": mkt_cap,
+                "logo_image_url": logo,
+                "price_base_date": if !traded_at.is_empty() { traded_at.chars().take(10).collect::<String>() } else { chrono::Utc::now().naive_utc().format("%Y-%m-%d").to_string() }
+            });
+            results.push(row);
+        }
+        Ok(results)
+    }
+
+    pub async fn fetch_single_stock_realtime(ticker: &str) -> anyhow::Result<serde_json::Value> {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()?;
+
+        let url = format!("https://m.stock.naver.com/api/stock/{}/basic", ticker);
+        let resp = client.get(&url)
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            anyhow::bail!("Failed to fetch live stock {}: HTTP {}", ticker, resp.status());
+        }
+
+        let item: serde_json::Value = resp.json().await?;
+        let name = item.get("stockName").and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+        let clean_num = |v: Option<&serde_json::Value>| -> f64 {
+            match v {
+                Some(serde_json::Value::Number(n)) => n.as_f64().unwrap_or(0.0),
+                Some(serde_json::Value::String(s)) => {
+                    s.replace(",", "").replace("%", "").trim().parse().unwrap_or(0.0)
+                }
+                _ => 0.0,
+            }
+        };
+
+        let close_price = clean_num(item.get("closePrice"));
+        let change_price = clean_num(item.get("compareToPreviousClosePrice"));
+        let fluc_rate = clean_num(item.get("fluctuationsRatio"));
+        let traded_at = item.get("localTradedAt").and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+        Ok(serde_json::json!({
+            "ticker_code": ticker,
+            "stock_name": name,
+            "current_price": close_price as i64,
+            "change_price": change_price,
+            "fluctuation_rate": fluc_rate,
+            "price_base_date": if !traded_at.is_empty() { traded_at.chars().take(10).collect::<String>() } else { chrono::Utc::now().naive_utc().format("%Y-%m-%d").to_string() }
+        }))
     }
 }

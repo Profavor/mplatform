@@ -13,6 +13,7 @@ RUN mkdir src && echo "fn main() {}" > src/main.rs && cargo build --release && r
 
 # Copy real source code and build
 COPY src ./src
+COPY data ./data
 RUN touch src/main.rs && cargo build --release
 
 # ------------------------------------------------------------------------------
@@ -25,6 +26,7 @@ RUN apt-get update && apt-get install -y ca-certificates libssl3 curl && rm -rf 
 WORKDIR /app
 
 COPY --from=builder /usr/src/backend-rust/target/release/backend-rust /app/backend-rust
+COPY data /app/data
 
 ENV PORT=8082
 EXPOSE 8082

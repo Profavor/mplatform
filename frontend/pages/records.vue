@@ -393,7 +393,6 @@
       :request="selectedApprovalRequest"
       :node-id="selectedApprovalRequest?.nodeId || selectedRecordData?.node?.id || (selectedNode?.isDomain ? null : selectedNode?.id)"
       :domain-id="selectedApprovalRequest?.domainId || selectedDomainId"
-      :zIndex="1200"
     />
 
     <RecordsDomainRefModal
@@ -2569,12 +2568,20 @@ const viewIntegrationHistory = async (row) => {
   selectedReflectionTime.value = row.changedAt
   showApprovalHistoryModal.value = true
 
-  const isMergeOrUpdate = Boolean(row.previousData) || ['UPDATE', 'RECORD_UPDATE', 'INBOUND_MERGE', 'BATCH_MERGE', 'MERGED_INTO', 'RECORD_MERGE', 'MERGE'].includes(row.changeType);
+  let prevData = row.previousData;
+  if (!prevData && row.version && Number(row.version) > 1 && Array.isArray(historyLogs.value)) {
+    const prevEntry = historyLogs.value.find(h => Number(h.version) === Number(row.version) - 1);
+    if (prevEntry) {
+      prevData = prevEntry.newData || prevEntry.data;
+    }
+  }
+
+  const isMergeOrUpdate = Boolean(prevData) || ['UPDATE', 'RECORD_UPDATE', 'INBOUND_MERGE', 'BATCH_MERGE', 'MERGED_INTO', 'RECORD_MERGE', 'MERGE'].includes(row.changeType);
   const targetType = row.changeType || (isMergeOrUpdate ? 'RECORD_UPDATE' : (row.changeType === 'DELETE' || row.changeType === 'RECORD_DELETE' ? 'RECORD_DELETE' : 'RECORD_CREATE'));
 
   let formattedChanges = null;
-  if (isMergeOrUpdate && row.previousData) {
-    let beforeObj = row.previousData;
+  if (isMergeOrUpdate && prevData) {
+    let beforeObj = prevData;
     let afterObj = row.newData;
     if (typeof beforeObj === 'string') {
       try { beforeObj = JSON.parse(beforeObj); } catch(e) {}

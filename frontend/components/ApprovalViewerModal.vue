@@ -71,9 +71,7 @@ const props = withDefaults(
     domainId?: string
     zIndex?: number
   }>(),
-  {
-    zIndex: 1200
-  }
+  {}
 )
 
 const emit = defineEmits<{
