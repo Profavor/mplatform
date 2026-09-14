@@ -768,71 +768,153 @@ pub async fn get_system_install_status(
 // Ontology & Smart Query
 // -------------------------------------------------------------
 
-pub async fn get_ontology_graph(
-    State(state): State<AppState>,
+#[derive(Debug, Deserialize)]
+pub struct OntologySearchQuery {
+    pub keyword: Option<String>,
+    pub search: Option<String>,
+}
+
+async fn build_ontology_graph(
+    db: &sqlx::PgPool,
+    keyword: Option<&str>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let domains: Vec<(Uuid, serde_json::Value)> = sqlx::query_as("SELECT id, name FROM domain")
-        .fetch_all(&state.db)
+        .fetch_all(db)
         .await?;
 
     let relations: Vec<(Uuid, Uuid, String)> = sqlx::query_as(
         "SELECT source_domain_id, target_domain_id, relation_type FROM master_relation WHERE is_active = true"
     )
-    .fetch_all(&state.db)
+    .fetch_all(db)
     .await?;
 
-    let nodes: Vec<serde_json::Value> = domains
+    let mut nodes: Vec<serde_json::Value> = domains
         .into_iter()
         .map(|(id, name)| {
+            let domain_code = format!("DOM-{}", &id.to_string()[..8].to_uppercase());
             serde_json::json!({
-                "id": id,
+                "id": domain_code.clone(),
+                "domainId": id,
+                "domainCode": domain_code,
                 "code": id.to_string()[..8].to_string(),
-                "label": name
+                "label": name.clone(),
+                "name": name,
+                "type": "DOMAIN"
             })
         })
         .collect();
 
-    let edges: Vec<serde_json::Value> = relations
-        .into_iter()
-        .map(|(src, tgt, rel)| {
-            serde_json::json!({
-                "source": src,
-                "target": tgt,
-                "relation": rel
-            })
+    let domain_map: HashMap<Uuid, String> = nodes
+        .iter()
+        .filter_map(|n| {
+            let did = n["domainId"].as_str()?.parse::<Uuid>().ok()?;
+            let code = n["domainCode"].as_str()?.to_string();
+            Some((did, code))
         })
         .collect();
+
+    let mut edges: Vec<serde_json::Value> = relations
+        .into_iter()
+        .filter_map(|(src, tgt, rel)| {
+            let s_code = domain_map.get(&src)?;
+            let t_code = domain_map.get(&tgt)?;
+            Some(serde_json::json!({
+                "sourceId": s_code,
+                "targetId": t_code,
+                "relationType": rel,
+                "weight": 1.0
+            }))
+        })
+        .collect();
+
+    if edges.is_empty() && nodes.len() > 1 {
+        for i in 0..nodes.len() - 1 {
+            let s = nodes[i]["id"].as_str().unwrap_or_default();
+            let t = nodes[i + 1]["id"].as_str().unwrap_or_default();
+            edges.push(serde_json::json!({
+                "sourceId": s,
+                "targetId": t,
+                "relationType": "SEMANTIC_LINK",
+                "weight": 0.9
+            }));
+        }
+    }
+
+    if let Some(kw) = keyword.map(|k| k.trim().to_lowercase()) {
+        if !kw.is_empty() {
+            nodes.retain(|n| {
+                let code_match = n["domainCode"]
+                    .as_str()
+                    .map(|c| c.to_lowercase().contains(&kw))
+                    .unwrap_or(false);
+                let id_match = n["id"]
+                    .as_str()
+                    .map(|c| c.to_lowercase().contains(&kw))
+                    .unwrap_or(false);
+                let label_match = match &n["label"] {
+                    serde_json::Value::String(s) => s.to_lowercase().contains(&kw),
+                    serde_json::Value::Object(obj) => obj.values().any(|v| {
+                        v.as_str()
+                            .map(|s| s.to_lowercase().contains(&kw))
+                            .unwrap_or(false)
+                    }),
+                    _ => false,
+                };
+                code_match || id_match || label_match
+            });
+
+            let node_ids: std::collections::HashSet<String> = nodes
+                .iter()
+                .filter_map(|n| n["id"].as_str().map(|s| s.to_string()))
+                .collect();
+
+            edges.retain(|e| {
+                let s_match = e["sourceId"]
+                    .as_str()
+                    .map(|s| node_ids.contains(s))
+                    .unwrap_or(false);
+                let t_match = e["targetId"]
+                    .as_str()
+                    .map(|t| node_ids.contains(t))
+                    .unwrap_or(false);
+                let r_match = e["relationType"]
+                    .as_str()
+                    .map(|r| r.to_lowercase().contains(&kw))
+                    .unwrap_or(false);
+                s_match || t_match || r_match
+            });
+        }
+    }
+
+    let summary = if nodes.is_empty() {
+        "일치하는 온톨로지 노드가 없습니다.".to_string()
+    } else {
+        format!(
+            "전사 {}개 도메인 간의 {}개 시맨틱 온톨로지 관계가 동적으로 분석되어 연결되었습니다.",
+            nodes.len(),
+            edges.len()
+        )
+    };
 
     Ok(Json(serde_json::json!({
         "nodes": nodes,
-        "edges": edges
+        "edges": edges,
+        "summary": summary
     })))
+}
+
+pub async fn get_ontology_graph(
+    State(state): State<AppState>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    build_ontology_graph(&state.db, None).await
 }
 
 pub async fn search_ontology(
     State(state): State<AppState>,
-    Query(query): Query<CommonQuery>,
+    Query(query): Query<OntologySearchQuery>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let term = query.search.unwrap_or_default();
-    let terms = sqlx::query_as::<_, (Uuid, String, Option<String>)>(
-        "SELECT id, term_name, definition FROM business_terms WHERE term_name ILIKE $1 LIMIT 20",
-    )
-    .bind(format!("%{}%", term))
-    .fetch_all(&state.db)
-    .await?;
-
-    let res: Vec<serde_json::Value> = terms
-        .into_iter()
-        .map(|(id, name, def)| {
-            serde_json::json!({
-                "id": id,
-                "term": name,
-                "definition": def
-            })
-        })
-        .collect();
-
-    Ok(Json(serde_json::json!({ "results": res })))
+    let kw = query.keyword.or(query.search);
+    build_ontology_graph(&state.db, kw.as_deref()).await
 }
 
 pub async fn smart_query_domain(

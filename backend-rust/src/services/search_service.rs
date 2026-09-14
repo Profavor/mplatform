@@ -124,8 +124,8 @@ impl SearchService {
               )
             ORDER BY (
                 CASE 
-                    WHEN r.data->>'stock_name' ILIKE $1 THEN 0 
-                    WHEN r.data->>'stock_name' ILIKE $2 THEN 1 
+                    WHEN r.data->'stock_name'->>'ko' ILIKE $1 OR r.data->'stock_name'->>'en' ILIKE $1 OR r.data->>'stock_name' ILIKE $1 THEN 0 
+                    WHEN r.data->'stock_name'->>'ko' ILIKE $2 OR r.data->'stock_name'->>'en' ILIKE $2 OR r.data->>'stock_name' ILIKE $2 THEN 1 
                     WHEN r.data::text ILIKE $1 THEN 2 
                     WHEN r.data::text ILIKE $2 THEN 3 
                     ELSE 4 
