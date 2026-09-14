@@ -10,10 +10,10 @@
     $$E(N) = \bigcup_{p \in \text{Ancestors}(N) \cup \{N\}} \text{Fields}(p) \setminus \text{RemovedOverrides}$$
   - 동일한 키를 가진 필드가 하위 노드에서 재정의된 경우, 하위 노드의 설정(라벨, 옵션, 필수 여부 등)이 상위 노드의 설정을 오버라이드한다.
 - **하이브리드 2중 캐시 (Hybrid Cache Infrastructure)**:
-  - `FieldDefinitionService.getEffectiveFields()` 결과는 Spring Cache(`@Cacheable("effectiveFields")`)를 통해 **Redis 분산 캐시**에 저장된다.
-  - Redis 서버 장애 또는 로컬 개발 환경 시 `LocalCacheConfig`에 의해 **In-Memory ConcurrentMap**으로 자동 전환(Fallback)되어 무중단 성능을 보장한다.
+  - `FieldDefinitionService.getEffectiveFields()` 결과는 고성능 비동기 캐시 계층을 통해 **Redis 분산 캐시**에 저장된다.
+  - Redis 서버 장애 또는 로컬 개발 환경 시 **In-Memory 캐시**로 자동 전환(Fallback)되어 무중단 성능을 보장한다.
 - **캐시 무효화 (Cache Eviction)**:
-  - 필드/노드의 추가·수정·삭제, 스키마 승인 완료 시 `@CacheEvict(value = "effectiveFields", allEntries = true)`가 즉시 트리거되어 데이터 일관성을 유지한다.
+  - 필드/노드의 추가·수정·삭제, 스키마 승인 완료 시 `effectiveFields` 캐시가 즉시 무효화되어 데이터 일관성을 유지한다.
 
 ---
 

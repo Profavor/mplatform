@@ -14,8 +14,8 @@ use crate::repositories::user_repo::UserRepository;
 use crate::state::AppState;
 
 const TRANSPARENT_1X1_GIF: &[u8] = &[
-    0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 1, 0, 1, 0, 0x80, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff,
-    0x21, 0xf9, 4, 1, 0, 0, 0, 0, 0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0, 2, 2, 0x44, 1, 0, 0x3b,
+    0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 1, 0, 1, 0, 0x80, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0x21,
+    0xf9, 4, 1, 0, 0, 0, 0, 0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0, 2, 2, 0x44, 1, 0, 0x3b,
 ];
 
 #[derive(Debug, Deserialize)]
@@ -216,7 +216,20 @@ pub async fn get_inbox_folder_counts(
     .fetch_one(&state.db)
     .await;
 
-    let (inbox_t, inbox_u, sent_t, sent_u, draft_t, draft_u, star_t, star_u, arch_t, arch_u, trash_t, trash_u): (i64, i64, i64, i64, i64, i64, i64, i64, i64, i64, i64, i64) = match row {
+    let (
+        inbox_t,
+        inbox_u,
+        sent_t,
+        sent_u,
+        draft_t,
+        draft_u,
+        star_t,
+        star_u,
+        arch_t,
+        arch_u,
+        trash_t,
+        trash_u,
+    ): (i64, i64, i64, i64, i64, i64, i64, i64, i64, i64, i64, i64) = match row {
         Ok(r) => (
             r.get::<Option<i64>, _>("inbox_total").unwrap_or(0),
             r.get::<Option<i64>, _>("inbox_unread").unwrap_or(0),
@@ -253,7 +266,10 @@ pub async fn get_inbox_messages(
     auth: AuthUser,
 ) -> Result<Json<PageResponse<InboxMessageResponse>>, AppError> {
     let (uid, uname, uemail) = resolve_user_identities(&state.db, &auth).await;
-    let folder = query.folder.unwrap_or_else(|| "INBOX".to_string()).to_uppercase();
+    let folder = query
+        .folder
+        .unwrap_or_else(|| "INBOX".to_string())
+        .to_uppercase();
     let page = query.page.unwrap_or(0).max(0);
     let size = query.size.unwrap_or(20).clamp(1, 100);
     let offset = page * size;
@@ -352,7 +368,7 @@ pub async fn get_inbox_messages(
         FROM inbox_attachment
         WHERE message_id = ANY($1)
         ORDER BY created_at ASC
-        "#
+        "#,
     )
     .bind(&message_ids)
     .fetch_all(&state.db)
@@ -396,7 +412,9 @@ pub async fn get_inbox_messages(
                 let r_recalled: Option<bool> = rr.get("is_recalled");
                 let r_recalled_at: Option<NaiveDateTime> = rr.get("recalled_at");
 
-                let name = r_uname.or_else(|| r_email.clone()).or_else(|| r_uid.clone());
+                let name = r_uname
+                    .or_else(|| r_email.clone())
+                    .or_else(|| r_uid.clone());
                 let info = RecipientInfo {
                     user_id: r_uid,
                     name,
@@ -502,10 +520,12 @@ pub async fn get_inbox_message(
 
     if let Some(r_id) = recipient_id {
         if !is_read {
-            let _ = sqlx::query("UPDATE inbox_recipient SET is_read = true, read_at = NOW() WHERE id = $1")
-                .bind(r_id)
-                .execute(&state.db)
-                .await;
+            let _ = sqlx::query(
+                "UPDATE inbox_recipient SET is_read = true, read_at = NOW() WHERE id = $1",
+            )
+            .bind(r_id)
+            .execute(&state.db)
+            .await;
         }
     }
 
@@ -539,7 +559,9 @@ pub async fn get_inbox_message(
         let r_recalled: Option<bool> = rr.get("is_recalled");
         let r_recalled_at: Option<NaiveDateTime> = rr.get("recalled_at");
 
-        let name = r_uname.or_else(|| r_email.clone()).or_else(|| r_uid.clone());
+        let name = r_uname
+            .or_else(|| r_email.clone())
+            .or_else(|| r_uid.clone());
         let info = RecipientInfo {
             user_id: r_uid,
             name,
@@ -569,7 +591,7 @@ pub async fn get_inbox_message(
         FROM inbox_attachment
         WHERE message_id = $1
         ORDER BY created_at ASC
-        "#
+        "#,
     )
     .bind(id)
     .fetch_all(&state.db)
@@ -600,8 +622,12 @@ pub async fn get_inbox_message(
         sender_email: row.get("sender_email"),
         subject: row.get("subject"),
         body: row.get("body"),
-        importance: row.get::<Option<String>, _>("importance").unwrap_or_else(|| "NORMAL".to_string()),
-        message_type: row.get::<Option<String>, _>("message_type").unwrap_or_else(|| "INTERNAL".to_string()),
+        importance: row
+            .get::<Option<String>, _>("importance")
+            .unwrap_or_else(|| "NORMAL".to_string()),
+        message_type: row
+            .get::<Option<String>, _>("message_type")
+            .unwrap_or_else(|| "INTERNAL".to_string()),
         parent_message_id: row.get("parent_message_id"),
         root_message_id: row.get("root_message_id"),
         related_approval_id: row.get("related_approval_id"),
@@ -665,20 +691,26 @@ async fn process_send_message(
     let (uid, uname, uemail) = resolve_user_identities(pool, auth).await;
     let new_id = Uuid::new_v4();
     let is_draft = payload.is_draft.unwrap_or(false);
-    let subject = payload.subject.filter(|s| !s.trim().is_empty()).unwrap_or_else(|| "(제목 없음)".to_string());
+    let subject = payload
+        .subject
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| "(제목 없음)".to_string());
     let body = payload.body;
     let importance = payload.importance.unwrap_or_else(|| "NORMAL".to_string());
-    let message_type = payload.message_type.unwrap_or_else(|| "INTERNAL".to_string());
+    let message_type = payload
+        .message_type
+        .unwrap_or_else(|| "INTERNAL".to_string());
     let parent_id = forced_parent_id.or(payload.parent_message_id);
 
     // Resolve root message id if parent exists
     let mut root_id = None;
     if let Some(pid) = parent_id {
-        let parent_row: Option<(Option<Uuid>,)> = sqlx::query_as("SELECT root_message_id FROM inbox_message WHERE id = $1")
-            .bind(pid)
-            .fetch_optional(pool)
-            .await
-            .unwrap_or(None);
+        let parent_row: Option<(Option<Uuid>,)> =
+            sqlx::query_as("SELECT root_message_id FROM inbox_message WHERE id = $1")
+                .bind(pid)
+                .fetch_optional(pool)
+                .await
+                .unwrap_or(None);
         if let Some((p_root,)) = parent_row {
             root_id = Some(p_root.unwrap_or(pid));
         } else {
@@ -760,7 +792,9 @@ async fn process_send_message(
                 }
 
                 // Resolve user
-                let user_row: Option<(String, Option<String>, Option<String>)> = if rec.contains('@') {
+                let user_row: Option<(String, Option<String>, Option<String>)> = if rec
+                    .contains('@')
+                {
                     sqlx::query_as("SELECT id, username, email FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1")
                         .bind(rec)
                         .fetch_optional(pool)
@@ -802,7 +836,9 @@ async fn process_send_message(
                 .execute(pool)
                 .await;
 
-                let name = target_uname.or_else(|| target_email.clone()).or_else(|| target_uid.clone());
+                let name = target_uname
+                    .or_else(|| target_email.clone())
+                    .or_else(|| target_uid.clone());
                 let info = RecipientInfo {
                     user_id: target_uid,
                     name,
@@ -851,7 +887,11 @@ async fn process_send_message(
         to_recipients,
         cc_recipients,
         attachments: Vec::new(),
-        sent_at: if is_draft { None } else { Some(chrono::Utc::now().naive_utc()) },
+        sent_at: if is_draft {
+            None
+        } else {
+            Some(chrono::Utc::now().naive_utc())
+        },
         created_at: Some(chrono::Utc::now().naive_utc()),
     }))
 }
@@ -879,7 +919,10 @@ pub async fn update_draft(
         return Err(AppError::Forbidden("Cannot update this draft".to_string()));
     }
 
-    let subject = payload.subject.filter(|s| !s.trim().is_empty()).unwrap_or_else(|| "(제목 없음)".to_string());
+    let subject = payload
+        .subject
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| "(제목 없음)".to_string());
     let body = payload.body;
     let importance = payload.importance.unwrap_or_else(|| "NORMAL".to_string());
 
@@ -954,7 +997,7 @@ pub async fn toggle_read(
         SET is_read = $1, read_at = (CASE WHEN $1 THEN NOW() ELSE NULL END)
         WHERE message_id = $2
           AND (user_id = $3 OR user_id = $4 OR (email IS NOT NULL AND email != '' AND email = $5))
-        "#
+        "#,
     )
     .bind(is_read)
     .bind(id)
@@ -980,7 +1023,7 @@ pub async fn toggle_star(
         SET is_starred = NOT COALESCE(is_starred, false)
         WHERE message_id = $1
           AND (user_id = $2 OR user_id = $3 OR (email IS NOT NULL AND email != '' AND email = $4))
-        "#
+        "#,
     )
     .bind(id)
     .bind(&uid)
@@ -1006,7 +1049,7 @@ pub async fn move_to_folder(
         SET folder = $1, is_deleted = false
         WHERE message_id = $2
           AND (user_id = $3 OR user_id = $4 OR (email IS NOT NULL AND email != '' AND email = $5))
-        "#
+        "#,
     )
     .bind(&payload.folder)
     .bind(id)
@@ -1173,12 +1216,11 @@ pub async fn get_thread(
     let (uid, uname, uemail) = resolve_user_identities(&state.db, &auth).await;
 
     // Find root message id
-    let root_info: Option<(Option<Uuid>,)> = sqlx::query_as(
-        "SELECT COALESCE(root_message_id, id) FROM inbox_message WHERE id = $1"
-    )
-    .bind(id)
-    .fetch_optional(&state.db)
-    .await?;
+    let root_info: Option<(Option<Uuid>,)> =
+        sqlx::query_as("SELECT COALESCE(root_message_id, id) FROM inbox_message WHERE id = $1")
+            .bind(id)
+            .fetch_optional(&state.db)
+            .await?;
 
     let root_id = match root_info {
         Some((Some(r_id),)) => r_id,
@@ -1220,15 +1262,21 @@ pub async fn get_thread(
             sender_email: row.get("sender_email"),
             subject: row.get("subject"),
             body: row.get("body"),
-            importance: row.get::<Option<String>, _>("importance").unwrap_or_else(|| "NORMAL".to_string()),
-            message_type: row.get::<Option<String>, _>("message_type").unwrap_or_else(|| "INTERNAL".to_string()),
+            importance: row
+                .get::<Option<String>, _>("importance")
+                .unwrap_or_else(|| "NORMAL".to_string()),
+            message_type: row
+                .get::<Option<String>, _>("message_type")
+                .unwrap_or_else(|| "INTERNAL".to_string()),
             parent_message_id: row.get("parent_message_id"),
             root_message_id: row.get("root_message_id"),
             related_approval_id: row.get("related_approval_id"),
             is_draft: row.get::<Option<bool>, _>("is_draft").unwrap_or(false),
             is_read: row.get::<Option<bool>, _>("is_read").unwrap_or(false),
             is_starred: row.get::<Option<bool>, _>("is_starred").unwrap_or(false),
-            folder: row.get::<Option<String>, _>("folder").unwrap_or_else(|| "INBOX".to_string()),
+            folder: row
+                .get::<Option<String>, _>("folder")
+                .unwrap_or_else(|| "INBOX".to_string()),
             has_attachments: false,
             attachment_count: 0,
             recipient_count: 0,
@@ -1252,14 +1300,17 @@ pub async fn recall_message(
     let (uid, uname, _) = resolve_user_identities(&state.db, &auth).await;
 
     // Check sender
-    let msg: Option<(Option<String>,)> = sqlx::query_as("SELECT sender_id FROM inbox_message WHERE id = $1")
-        .bind(id)
-        .fetch_optional(&state.db)
-        .await?;
+    let msg: Option<(Option<String>,)> =
+        sqlx::query_as("SELECT sender_id FROM inbox_message WHERE id = $1")
+            .bind(id)
+            .fetch_optional(&state.db)
+            .await?;
 
     let sender = msg.and_then(|m| m.0).unwrap_or_default();
     if sender != uid && sender != uname {
-        return Err(AppError::Forbidden("Only the sender can recall this message".to_string()));
+        return Err(AppError::Forbidden(
+            "Only the sender can recall this message".to_string(),
+        ));
     }
 
     // Recipients
@@ -1270,7 +1321,7 @@ pub async fn recall_message(
         FROM inbox_recipient r
         LEFT JOIN users u ON (r.user_id = u.id OR r.user_id = u.username)
         WHERE r.message_id = $1 AND r.recipient_type != 'FROM'
-        "#
+        "#,
     )
     .bind(id)
     .fetch_all(&state.db)
@@ -1296,14 +1347,18 @@ pub async fn recall_message(
             external_count += 1;
         }
 
-        let name = r_uname.or_else(|| r_email.clone()).or_else(|| r_uid.clone());
+        let name = r_uname
+            .or_else(|| r_email.clone())
+            .or_else(|| r_uid.clone());
 
         if !was_read {
             before_read_count += 1;
-            let _ = sqlx::query("UPDATE inbox_recipient SET is_recalled = true, recalled_at = NOW() WHERE id = $1")
-                .bind(rec_id)
-                .execute(&state.db)
-                .await;
+            let _ = sqlx::query(
+                "UPDATE inbox_recipient SET is_recalled = true, recalled_at = NOW() WHERE id = $1",
+            )
+            .bind(rec_id)
+            .execute(&state.db)
+            .await;
             details.push(RecipientRecallDetail {
                 user_id: r_uid,
                 name,
@@ -1350,5 +1405,8 @@ pub async fn track_open(
     .execute(&state.db)
     .await;
 
-    ([(axum::http::header::CONTENT_TYPE, "image/gif")], TRANSPARENT_1X1_GIF)
+    (
+        [(axum::http::header::CONTENT_TYPE, "image/gif")],
+        TRANSPARENT_1X1_GIF,
+    )
 }

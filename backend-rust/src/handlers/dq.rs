@@ -1,8 +1,3 @@
-use axum::extract::State;
-use axum::extract::Path;
-use axum::http::StatusCode;
-use axum::extract::Query;
-use axum::Json;
 use crate::error::AppError;
 use crate::middleware::auth::AuthUser;
 use crate::models::dq::{
@@ -11,6 +6,11 @@ use crate::models::dq::{
 };
 use crate::services::dq_service::DqService;
 use crate::state::AppState;
+use axum::extract::Path;
+use axum::extract::Query;
+use axum::extract::State;
+use axum::http::StatusCode;
+use axum::Json;
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -65,7 +65,6 @@ pub async fn batch_validate(
     Ok(Json(result))
 }
 
-
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateDqRuleRequest {
@@ -106,11 +105,9 @@ pub async fn delete_rule(
     Path(rule_id): Path<Uuid>,
     _auth: AuthUser,
 ) -> Result<StatusCode, AppError> {
-    sqlx::query("DELETE FROM dq_rule WHERE id = $1").bind(rule_id)
+    sqlx::query("DELETE FROM dq_rule WHERE id = $1")
+        .bind(rule_id)
         .execute(&state.db)
         .await?;
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
-
-
-

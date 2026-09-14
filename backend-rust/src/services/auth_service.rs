@@ -32,11 +32,12 @@ impl AuthService {
             .as_deref()
             .ok_or_else(|| AppError::Unauthorized("Invalid credentials".to_string()))?;
 
-        let password_valid = bcrypt::verify(&req.password, password_hash)
-            .unwrap_or(false);
+        let password_valid = bcrypt::verify(&req.password, password_hash).unwrap_or(false);
 
         if !password_valid {
-            return Err(AppError::Unauthorized("Invalid username or password".to_string()));
+            return Err(AppError::Unauthorized(
+                "Invalid username or password".to_string(),
+            ));
         }
 
         let now_sec = SystemTime::now()
@@ -74,16 +75,17 @@ impl AuthService {
             r#"
             INSERT INTO login_log (username, user_id, login_at, two_factor_status)
             VALUES ($1, $2, NOW(), 'NONE')
-            "#
+            "#,
         )
         .bind(&user.username)
         .bind(&user.id)
         .execute(pool)
         .await;
 
-        let (access_token, refresh_token) = Self::generate_tokens(&user, config)?;
-
         let permissions = Self::get_user_permissions(pool, &user).await;
+        let (access_token, refresh_token) =
+            Self::generate_tokens_with_permissions(&user, Some(permissions.clone()), config)?;
+
         let server_offset = "+09:00".to_string();
 
         Ok(LoginResponse {
@@ -105,6 +107,14 @@ impl AuthService {
     }
 
     pub fn generate_tokens(user: &User, config: &Config) -> Result<(String, String), AppError> {
+        Self::generate_tokens_with_permissions(user, None, config)
+    }
+
+    pub fn generate_tokens_with_permissions(
+        user: &User,
+        permissions: Option<Vec<String>>,
+        config: &Config,
+    ) -> Result<(String, String), AppError> {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -122,6 +132,7 @@ impl AuthService {
             uuid: Some(user.id.clone()),
             session_id: None,
             token_type: None,
+            permissions,
             iat: now,
             exp: access_exp,
         };
@@ -133,6 +144,7 @@ impl AuthService {
             uuid: Some(user.id.clone()),
             session_id: None,
             token_type: Some("REFRESH".to_string()),
+            permissions: None,
             iat: now,
             exp: refresh_exp,
         };
@@ -174,9 +186,7 @@ impl AuthService {
         Self::generate_tokens(&user, config)
     }
 
-    async fn refresh_keycloak_tokens(
-        refresh_token: &str,
-    ) -> Result<(String, String), AppError> {
+    async fn refresh_keycloak_tokens(refresh_token: &str) -> Result<(String, String), AppError> {
         let token_uri = std::env::var("KEYCLOAK_TOKEN_URI").unwrap_or_else(|_| {
             let server = std::env::var("KEYCLOAK_SERVER_URL")
                 .unwrap_or_else(|_| "http://keycloak:8080/auth".to_string());
@@ -214,7 +224,10 @@ impl AuthService {
 
         let resp = client
             .post(&token_uri)
-            .header(reqwest::header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+            .header(
+                reqwest::header::CONTENT_TYPE,
+                "application/x-www-form-urlencoded",
+            )
             .body(body)
             .send()
             .await
@@ -236,7 +249,9 @@ impl AuthService {
             .get("access_token")
             .and_then(|v| v.as_str())
             .ok_or_else(|| {
-                AppError::Unauthorized("Missing access_token in Keycloak refresh response".to_string())
+                AppError::Unauthorized(
+                    "Missing access_token in Keycloak refresh response".to_string(),
+                )
             })?
             .to_string();
 
@@ -249,36 +264,27 @@ impl AuthService {
         Ok((access_token, new_refresh_token))
     }
 
-    pub fn get_permissions_for_role(role: Option<&str>) -> Vec<String> {
-        match role {
-            Some("ROLE_ADMIN") | Some("ADMIN") => vec![
-                "*".to_string(),
-                "admin:read".to_string(),
-                "admin:write".to_string(),
-                "domain:read".to_string(),
-                "domain:write".to_string(),
-                "record:read".to_string(),
-                "record:write".to_string(),
-                "compliance:read".to_string(),
-            ],
-            Some("ROLE_DATA_STEWARD") | Some("DATA_STEWARD") => vec![
-                "domain:read".to_string(),
-                "domain:write".to_string(),
-                "record:read".to_string(),
-                "record:write".to_string(),
-                "compliance:read".to_string(),
-            ],
-            _ => vec![
-                "domain:read".to_string(),
-                "record:read".to_string(),
-            ],
-        }
+    pub async fn get_permissions_for_role_name(pool: &PgPool, role_name: &str) -> Vec<String> {
+        let perms: Vec<String> = sqlx::query_scalar(
+            r#"
+            SELECT rp.permission
+            FROM role r
+            JOIN role_permissions rp ON r.id = rp.role_id
+            WHERE r.name = $1
+               OR r.name = ('ROLE_' || $1)
+               OR ('ROLE_' || r.name) = $1
+            "#,
+        )
+        .bind(role_name)
+        .fetch_all(pool)
+        .await
+        .unwrap_or_default();
+
+        perms
     }
 
     pub async fn get_user_permissions(pool: &PgPool, user: &User) -> Vec<String> {
-        let mut perms_set: std::collections::HashSet<String> = Self::get_permissions_for_role(user.role.as_deref())
-            .into_iter()
-            .collect();
+        let mut perms_set: std::collections::HashSet<String> = std::collections::HashSet::new();
 
         // 1. Check user_role assignments that are NOT expired (expires_at IS NULL OR expires_at > NOW())
         let assigned_perms: Vec<String> = sqlx::query_scalar(
@@ -288,7 +294,7 @@ impl AuthService {
             JOIN role_permissions rp ON ur.role_id = rp.role_id
             WHERE ur.user_id = $1
               AND (ur.expires_at IS NULL OR ur.expires_at > NOW())
-            "#
+            "#,
         )
         .bind(&user.id)
         .fetch_all(pool)
@@ -302,19 +308,37 @@ impl AuthService {
             }
         }
 
-        // 2. Reflect department roles if department_id is set
+        // 2. Reflect permissions for user's assigned role column if present
+        if let Some(ref r) = user.role {
+            let role_perms = Self::get_permissions_for_role_name(pool, r).await;
+            for p in role_perms {
+                let trimmed = p.trim();
+                if !trimmed.is_empty() {
+                    perms_set.insert(trimmed.to_string());
+                }
+            }
+        }
+
+        // 3. Reflect department roles if department_id is set
         if let Some(dept_id) = user.department_id {
-            let dept_roles: Vec<String> = sqlx::query_scalar(
-                "SELECT role_name FROM department_roles WHERE department_id = $1"
+            let dept_perms: Vec<String> = sqlx::query_scalar(
+                r#"
+                SELECT rp.permission
+                FROM department_roles dr
+                JOIN role r ON (r.name = dr.role_name OR r.name = ('ROLE_' || dr.role_name) OR ('ROLE_' || r.name) = dr.role_name)
+                JOIN role_permissions rp ON r.id = rp.role_id
+                WHERE dr.department_id = $1
+                "#
             )
             .bind(dept_id)
             .fetch_all(pool)
             .await
             .unwrap_or_default();
 
-            for dr in dept_roles {
-                for p in Self::get_permissions_for_role(Some(&dr)) {
-                    perms_set.insert(p);
+            for p in dept_perms {
+                let trimmed = p.trim();
+                if !trimmed.is_empty() {
+                    perms_set.insert(trimmed.to_string());
                 }
             }
         }

@@ -87,9 +87,9 @@
   - 프론트엔드 화면(사용자 목록, 레코드 그리드, 결재 모니터링)에 `340a0917-af0b-...` 형태의 원시 UUID 식별자를 날것 그대로 표기하는 것을 엄격히 금지한다.
   - 노출 시 반드시 식별 접두사를 부착한 코드(예: `REC-340a0917`, `REQ-8302f1a2`)나 실제 도메인/명칭 속성으로 가공하여 표출해야 한다.
 - **Zero-Fallback 다국어 원칙**:
-  - 소스코드(Vue, TS, Java) 내에 문자열을 하드코딩하거나 임의의 폴백 텍스트를 삽입하는 행위를 금지하며, 모든 문구는 `@nuxtjs/i18n` 사전(`ko.json`, `en.json`)을 통해 100% 동적으로 바인딩한다.
+  - 소스코드(Vue, TS, Rust) 내에 문자열을 하드코딩하거나 임의의 폴백 텍스트를 삽입하는 행위를 금지하며, 모든 문구는 `@nuxtjs/i18n` 사전(`ko.json`, `en.json`)을 통해 100% 동적으로 바인딩한다.
 - **개인화 타임존 및 GMT 시차 보정**:
-  - 사용자 브라우저의 개인화 타임존 쿠키(`useTimezoneDate()`)를 조회하여 현지 시각으로 변환하며, Spring Boot의 `LocalDateTime` 오프셋 누락에 대비한 `parseDate` 방어 헬퍼 함수를 필수로 거쳐야 한다.
+  - 사용자 브라우저의 개인화 타임존 쿠키(`useTimezoneDate()`)를 조회하여 현지 시각으로 변환하며, 타임존 오프셋 누락에 대비한 `parseDate` 방어 헬퍼 함수를 필수로 거쳐야 한다.
 
 ---
 
@@ -99,15 +99,15 @@
 - **클라이언트 및 시나리오별 인증 경로**:
   1. **자체 로그인(내부 발급 HS256 JWT)**:
      - `/api/auth/login`을 통해 발급되는 자체 서명 토큰(`access_token`, `refresh_token`).
-     - 웹 브라우저 및 모바일 앱의 일반 사용자 인증에 기본 사용.
+     - 토큰 페이로드에 사용자별 세분화 권한(`permissions`)을 포함하여 발급.
   2. **Keycloak OIDC 엔터프라이즈 SSO (JWK 기반 OIDC 토큰)**:
      - 전사 Keycloak/IdP 인증을 통과한 엔터프라이즈 클라이언트 토큰.
-     - `KeycloakJwtConfig`가 JWK Set (`/certs`)을 기반으로 비대칭 서명(RS256)을 검증하고, `realm_access.roles` 및 `resource_access`를 Spring Security의 `GrantedAuthority`(`ROLE_*`)로 매핑.
-- **토큰 판별 우선순위 및 자동 폴백 (`JwtFilter`)**:
+     - JWK Set (`/certs`)을 기반으로 비대칭 서명(RS256)을 검증하고, DB 사용자 권한을 실시간 조회하여 세분화 PBAC 권한(`permissions`)으로 바인딩(관리자 계정의 경우 `*` 와일드카드 부여).
+- **토큰 판별 우선순위 및 자동 폴백 (`auth_middleware`)**:
   1. 클라이언트 요청의 `Authorization: Bearer <token>`, Cookie(`access_token`, `auth_token`, `jwt`), 파라미터(`token`)에서 JWT를 추출.
-  2. `JwtDecoder` 빈이 활성화되어 있을 경우 **Keycloak OIDC 토큰 검증을 최우선 시도**.
-  3. Keycloak 검증 실패 또는 OIDC 미설정 시 **시스템 내부 HS256 JWT(`JwtUtil`) 검증으로 자동 폴백**.
-  4. JWK/Issuer URI 미설정 환경에서는 `JwtDecoder` 빈이 조건부로 비활성화(`@ConditionalOnExpression`)되어 NPE 없이 안전하게 내부 JWT 모드로 구동.
+  2. Keycloak JWK Set이 구성된 경우 **Keycloak OIDC 토큰 검증(RS256)을 최우선 시도**.
+  3. Keycloak 검증 실패 또는 OIDC 미설정 시 **시스템 내부 HS256 JWT 검증으로 자동 폴백**.
+  4. 검증 완료 후 `AuthUser`를 생성하여 Axum 핸들러에 확장 주입하며, 세분화 PBAC 와일드카드 검증(`AuthUser::has_permission`) 지원.
 - **다중 로그인 방지 및 단일 세션 보장 (`activeSessionId`)**:
   - 자체 JWT 및 Keycloak OIDC 인증 모두 사용자의 최신 세션 ID(`sid` / `sessionId`)를 DB `User.activeSessionId`와 대조하여, 타 기기/브라우저에서의 신규 로그인 감지 시 이전 세션을 즉각 무효화(`SESSION_EXPIRED`)하고 SSE/WebSocket을 통해 강제 로그아웃(`FORCE_LOGOUT`) 알림을 브로드캐스팅한다.
 - **2FA / OTP 다중인증 의무화 거버넌스**:

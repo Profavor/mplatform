@@ -30,13 +30,20 @@ pub async fn get_dq_trends(State(state): State<AppState>) -> AppResult<impl Into
     Ok(Json(trends))
 }
 
-pub async fn get_domain_distribution(State(state): State<AppState>) -> AppResult<impl IntoResponse> {
+pub async fn get_domain_distribution(
+    State(state): State<AppState>,
+) -> AppResult<impl IntoResponse> {
     let dist = state.dashboard_service.get_domain_distribution().await?;
     Ok(Json(dist))
 }
 
-pub async fn get_dq_severity_distribution(State(state): State<AppState>) -> AppResult<impl IntoResponse> {
-    let dist = state.dashboard_service.get_dq_severity_distribution().await?;
+pub async fn get_dq_severity_distribution(
+    State(state): State<AppState>,
+) -> AppResult<impl IntoResponse> {
+    let dist = state
+        .dashboard_service
+        .get_dq_severity_distribution()
+        .await?;
     Ok(Json(dist))
 }
 
@@ -44,6 +51,9 @@ pub async fn get_lease_summary(
     State(state): State<AppState>,
     Query(params): Query<LeaseSummaryQuery>,
 ) -> AppResult<impl IntoResponse> {
-    let summary = state.dashboard_service.get_lease_summary(params.organization_id).await?;
+    let summary = state
+        .dashboard_service
+        .get_lease_summary(params.organization_id)
+        .await?;
     Ok(Json(summary))
 }

@@ -77,6 +77,8 @@ pub struct Claims {
     pub session_id: Option<String>,
     #[serde(rename = "tokenType", skip_serializing_if = "Option::is_none")]
     pub token_type: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub permissions: Option<Vec<String>>,
     pub iat: usize,
     pub exp: usize,
 }

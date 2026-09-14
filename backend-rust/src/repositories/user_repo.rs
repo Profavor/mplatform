@@ -41,12 +41,18 @@ impl UserRepository {
         Ok(user)
     }
 
-    pub async fn update_last_login(pool: &PgPool, id: &str, epoch_sec: i64) -> Result<(), AppError> {
-        sqlx::query("UPDATE users SET last_login_epoch_sec = $1, failed_login_count = 0 WHERE id = $2")
-            .bind(epoch_sec)
-            .bind(id)
-            .execute(pool)
-            .await?;
+    pub async fn update_last_login(
+        pool: &PgPool,
+        id: &str,
+        epoch_sec: i64,
+    ) -> Result<(), AppError> {
+        sqlx::query(
+            "UPDATE users SET last_login_epoch_sec = $1, failed_login_count = 0 WHERE id = $2",
+        )
+        .bind(epoch_sec)
+        .bind(id)
+        .execute(pool)
+        .await?;
 
         Ok(())
     }

@@ -41,7 +41,10 @@ struct KeycloakTokenResponse {
 }
 
 fn resolve_scheme(headers: &HeaderMap) -> String {
-    if let Some(proto) = headers.get("x-forwarded-proto").and_then(|v| v.to_str().ok()) {
+    if let Some(proto) = headers
+        .get("x-forwarded-proto")
+        .and_then(|v| v.to_str().ok())
+    {
         if let Some(first) = proto.split(',').next() {
             let s = first.trim();
             if !s.is_empty() {
@@ -67,7 +70,10 @@ fn resolve_scheme(headers: &HeaderMap) -> String {
 }
 
 fn resolve_host(headers: &HeaderMap) -> String {
-    if let Some(h) = headers.get("x-forwarded-host").and_then(|v| v.to_str().ok()) {
+    if let Some(h) = headers
+        .get("x-forwarded-host")
+        .and_then(|v| v.to_str().ok())
+    {
         if let Some(first) = h.split(',').next() {
             let s = first.trim();
             if !s.is_empty() {
@@ -91,8 +97,8 @@ fn build_callback_uri(headers: &HeaderMap) -> String {
 }
 
 fn resolve_auth_endpoint(headers: &HeaderMap) -> String {
-    if let Ok(uri) = std::env::var("KEYCLOAK_AUTH_URI")
-        .or_else(|_| std::env::var("SPRING_KEYCLOAK_AUTH_URI"))
+    if let Ok(uri) =
+        std::env::var("KEYCLOAK_AUTH_URI").or_else(|_| std::env::var("SPRING_KEYCLOAK_AUTH_URI"))
     {
         let trimmed = uri.trim();
         if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
@@ -223,7 +229,8 @@ pub async fn oidc_login(
     let callback_uri = build_callback_uri(&headers);
     let state = build_state(&client, &redirect);
     let auth_endpoint = resolve_auth_endpoint(&headers);
-    let client_id = std::env::var("KEYCLOAK_CLIENT_ID").unwrap_or_else(|_| "mdm-frontend".to_string());
+    let client_id =
+        std::env::var("KEYCLOAK_CLIENT_ID").unwrap_or_else(|_| "mdm-frontend".to_string());
 
     let redirect_url = format!(
         "{}?client_id={}&response_type=code&redirect_uri={}&state={}&scope=openid%20profile%20email",
@@ -296,8 +303,10 @@ pub async fn oidc_callback(
             realm
         )
     });
-    let client_id = std::env::var("KEYCLOAK_CLIENT_ID").unwrap_or_else(|_| "mdm-frontend".to_string());
-    let client_secret = std::env::var("KEYCLOAK_CLIENT_SECRET").unwrap_or_else(|_| "secret".to_string());
+    let client_id =
+        std::env::var("KEYCLOAK_CLIENT_ID").unwrap_or_else(|_| "mdm-frontend".to_string());
+    let client_secret =
+        std::env::var("KEYCLOAK_CLIENT_SECRET").unwrap_or_else(|_| "secret".to_string());
     let callback_uri = build_callback_uri(&headers);
 
     let http_client = reqwest::Client::builder()

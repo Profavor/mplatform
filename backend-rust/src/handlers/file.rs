@@ -1,10 +1,10 @@
-use axum::extract::Query;
-use axum::http::{header, HeaderMap, StatusCode};
 use crate::error::AppError;
 use crate::middleware::auth::{AuthUser, OptionalAuthUser};
 use crate::models::file::{FileInfoResponse, FileUploadResponse};
 use crate::services::file_service::FileService;
 use crate::state::AppState;
+use axum::extract::Query;
+use axum::http::{header, HeaderMap, StatusCode};
 use axum::{
     extract::{Multipart, Path, State},
     response::IntoResponse,
@@ -27,7 +27,9 @@ fn sanitize_filename(name: &str) -> Result<String, AppError> {
         return Err(AppError::BadRequest("Invalid file name".to_string()));
     }
     if clean.is_empty() {
-        return Err(AppError::BadRequest("File name cannot be empty".to_string()));
+        return Err(AppError::BadRequest(
+            "File name cannot be empty".to_string(),
+        ));
     }
     Ok(clean.to_string())
 }
@@ -135,11 +137,9 @@ pub async fn download_file(
     let mut headers = HeaderMap::new();
     headers.insert(
         header::CONTENT_DISPOSITION,
-        format!(
-            "attachment; filename=\"{safe_ascii}\"; filename*=UTF-8''{encoded_utf8}"
-        )
-        .parse()
-        .map_err(|e| AppError::Internal(format!("Invalid Content-Disposition header: {e}")))?,
+        format!("attachment; filename=\"{safe_ascii}\"; filename*=UTF-8''{encoded_utf8}")
+            .parse()
+            .map_err(|e| AppError::Internal(format!("Invalid Content-Disposition header: {e}")))?,
     );
     headers.insert(
         header::CONTENT_TYPE,

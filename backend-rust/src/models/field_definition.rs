@@ -52,7 +52,7 @@ impl Serialize for FieldDefinition {
         map.serialize_entry("id", &self.id)?;
         map.serialize_entry("domainId", &self.domain_id)?;
         map.serialize_entry("definedAtNodeId", &self.defined_at_node_id)?;
-        
+
         let fg_id = self.field_group_id.or_else(|| {
             self.field_group.as_ref().and_then(|fg| {
                 fg.get("id")

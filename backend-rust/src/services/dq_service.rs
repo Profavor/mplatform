@@ -124,9 +124,13 @@ impl DqService {
             "NOT_NULL" => {
                 if value.is_none()
                     || value.unwrap().is_null()
-                    || (value.unwrap().is_string() && value.unwrap().as_str().unwrap().trim().is_empty())
+                    || (value.unwrap().is_string()
+                        && value.unwrap().as_str().unwrap().trim().is_empty())
                 {
-                    return Some(format!("필수 필드 [{}] 값이 누락되었습니다.", rule.field_key));
+                    return Some(format!(
+                        "필수 필드 [{}] 값이 누락되었습니다.",
+                        rule.field_key
+                    ));
                 }
             }
             "LENGTH" => {
@@ -182,7 +186,9 @@ impl DqService {
                 if let Some(val) = value {
                     if let Some(s) = val.as_str() {
                         if let Some(ref params) = rule.params {
-                            if let Some(allowed) = params.get("allowedValues").and_then(|v| v.as_array()) {
+                            if let Some(allowed) =
+                                params.get("allowedValues").and_then(|v| v.as_array())
+                            {
                                 let valid = allowed.iter().any(|a| a.as_str() == Some(s));
                                 if !valid {
                                     return Some(format!(
@@ -306,4 +312,3 @@ mod tests {
         assert!(DqService::validate_corporate_no("123456").is_some());
     }
 }
-

@@ -41,11 +41,21 @@ impl IntegrationService {
         limit: i64,
         offset: i64,
     ) -> AppResult<(Vec<IntegrationLog>, i64)> {
-        let res = IntegrationRepository::get_logs_paged(&self.pool, channel_id, only_dead_letter, limit, offset).await?;
+        let res = IntegrationRepository::get_logs_paged(
+            &self.pool,
+            channel_id,
+            only_dead_letter,
+            limit,
+            offset,
+        )
+        .await?;
         Ok(res)
     }
 
-    pub async fn get_logs_by_record(&self, record_id: uuid::Uuid) -> AppResult<Vec<IntegrationLog>> {
+    pub async fn get_logs_by_record(
+        &self,
+        record_id: uuid::Uuid,
+    ) -> AppResult<Vec<IntegrationLog>> {
         let logs = IntegrationRepository::get_logs_by_record(&self.pool, record_id).await?;
         Ok(logs)
     }
@@ -59,10 +69,15 @@ impl IntegrationService {
         }))
     }
 
-    pub async fn get_channel_metrics(&self, channel_id: uuid::Uuid) -> AppResult<IntegrationMetricsDto> {
+    pub async fn get_channel_metrics(
+        &self,
+        channel_id: uuid::Uuid,
+    ) -> AppResult<IntegrationMetricsDto> {
         let channel = IntegrationRepository::get_channel_by_id(&self.pool, channel_id)
             .await?
-            .ok_or_else(|| crate::error::AppError::NotFound("해당 연동 채널을 찾을 수 없습니다.".to_string()))?;
+            .ok_or_else(|| {
+                crate::error::AppError::NotFound("해당 연동 채널을 찾을 수 없습니다.".to_string())
+            })?;
 
         let logs = IntegrationRepository::get_logs_last_24h(&self.pool, channel_id).await?;
 
@@ -99,7 +114,10 @@ impl IntegrationService {
         // Generate 24 hourly slots in KST (UTC+9)
         let kst = chrono::FixedOffset::east_opt(9 * 3600).unwrap();
         let now_kst = chrono::Utc::now().with_timezone(&kst);
-        let current_hour = now_kst.date_naive().and_hms_opt(now_kst.hour(), 0, 0).unwrap();
+        let current_hour = now_kst
+            .date_naive()
+            .and_hms_opt(now_kst.hour(), 0, 0)
+            .unwrap();
         let start_hour = current_hour - chrono::Duration::hours(23);
 
         let mut hourly_stats = Vec::with_capacity(24);
@@ -164,7 +182,9 @@ impl IntegrationService {
     pub async fn ping_channel(&self, channel_id: uuid::Uuid) -> AppResult<IntegrationMetricsDto> {
         let channel = IntegrationRepository::get_channel_by_id(&self.pool, channel_id)
             .await?
-            .ok_or_else(|| crate::error::AppError::NotFound("해당 연동 채널을 찾을 수 없습니다.".to_string()))?;
+            .ok_or_else(|| {
+                crate::error::AppError::NotFound("해당 연동 채널을 찾을 수 없습니다.".to_string())
+            })?;
 
         let (latency, ping_msg) = match channel.r#type.as_str() {
             "WEB_SERVICE" => {
@@ -173,10 +193,21 @@ impl IntegrationService {
 
                 if let Some(ref cfg_str) = channel.config_json {
                     if let Ok(cfg) = serde_json::from_str::<serde_json::Value>(cfg_str) {
-                        ws_url = cfg.get("wsUrl").or_else(|| cfg.get("url")).and_then(|u| u.as_str()).map(|s| s.to_string());
-                        if let Some(hdrs) = cfg.get("wsHeaders").or_else(|| cfg.get("headers")).and_then(|h| h.as_array()) {
+                        ws_url = cfg
+                            .get("wsUrl")
+                            .or_else(|| cfg.get("url"))
+                            .and_then(|u| u.as_str())
+                            .map(|s| s.to_string());
+                        if let Some(hdrs) = cfg
+                            .get("wsHeaders")
+                            .or_else(|| cfg.get("headers"))
+                            .and_then(|h| h.as_array())
+                        {
                             for h in hdrs {
-                                if let (Some(k), Some(v)) = (h.get("key").and_then(|k| k.as_str()), h.get("value").and_then(|v| v.as_str())) {
+                                if let (Some(k), Some(v)) = (
+                                    h.get("key").and_then(|k| k.as_str()),
+                                    h.get("value").and_then(|v| v.as_str()),
+                                ) {
                                     if !k.trim().is_empty() {
                                         ws_headers.push((k.to_string(), v.to_string()));
                                     }
@@ -202,41 +233,75 @@ impl IntegrationService {
                         Ok(resp) => {
                             let lat = start.elapsed().as_millis() as i64;
                             let status = resp.status();
-                            (lat.max(1), format!("웹서비스 엔드포인트 연결 응답 성공 (HTTP {}, {}ms)", status.as_u16(), lat))
+                            (
+                                lat.max(1),
+                                format!(
+                                    "웹서비스 엔드포인트 연결 응답 성공 (HTTP {}, {}ms)",
+                                    status.as_u16(),
+                                    lat
+                                ),
+                            )
                         }
                         Err(e) => {
                             let lat = start.elapsed().as_millis() as i64;
-                            (lat.max(1), format!("웹서비스 엔드포인트 연결 응답 지연/실패 ({}ms): {}", lat, e))
+                            (
+                                lat.max(1),
+                                format!(
+                                    "웹서비스 엔드포인트 연결 응답 지연/실패 ({}ms): {}",
+                                    lat, e
+                                ),
+                            )
                         }
                     }
                 } else {
                     let start = std::time::Instant::now();
                     let _ = sqlx::query("SELECT 1").execute(&self.pool).await;
                     let lat = (start.elapsed().as_millis() as i64).max(1);
-                    (lat, "웹서비스 엔드포인트 URL 미설정 (내부 채널 상태 정상)".to_string())
+                    (
+                        lat,
+                        "웹서비스 엔드포인트 URL 미설정 (내부 채널 상태 정상)".to_string(),
+                    )
                 }
             }
             "SPRING_BATCH" | "SYSTEM_BATCH" => {
                 let start = std::time::Instant::now();
                 let _ = sqlx::query("SELECT 1").execute(&self.pool).await;
                 let lat = (start.elapsed().as_millis() as i64).max(1);
-                (lat, format!("시스템 배치 파이프라인 엔진 및 DB 상태 정상 (지연시간: {}ms)", lat))
+                (
+                    lat,
+                    format!(
+                        "시스템 배치 파이프라인 엔진 및 DB 상태 정상 (지연시간: {}ms)",
+                        lat
+                    ),
+                )
             }
             "JDBC" => {
                 let start = std::time::Instant::now();
                 let _ = sqlx::query("SELECT 1").execute(&self.pool).await;
                 let lat = (start.elapsed().as_millis() as i64).max(1);
-                (lat, format!("데이터베이스(JDBC) 파이프라인 연결 정상 (지연시간: {}ms)", lat))
+                (
+                    lat,
+                    format!(
+                        "데이터베이스(JDBC) 파이프라인 연결 정상 (지연시간: {}ms)",
+                        lat
+                    ),
+                )
             }
             "MESSAGE_QUEUE" => {
                 let lat = 8i64;
-                (lat, format!("메시지 브로커 파이프라인 상태 정상 (지연시간: {}ms)", lat))
+                (
+                    lat,
+                    format!("메시지 브로커 파이프라인 상태 정상 (지연시간: {}ms)", lat),
+                )
             }
             _ => {
                 let start = std::time::Instant::now();
                 let _ = sqlx::query("SELECT 1").execute(&self.pool).await;
                 let lat = (start.elapsed().as_millis() as i64).max(1);
-                (lat, format!("연계 채널 파이프라인 상태 정상 (지연시간: {}ms)", lat))
+                (
+                    lat,
+                    format!("연계 채널 파이프라인 상태 정상 (지연시간: {}ms)", lat),
+                )
             }
         };
 
@@ -306,7 +371,9 @@ impl IntegrationService {
                 let target_key = &f.field_key;
                 let norm_target = target_key.to_lowercase().replace('_', "").replace('-', "");
 
-                let target_ko_name = f.name.as_ref()
+                let target_ko_name = f
+                    .name
+                    .as_ref()
                     .and_then(|n| n.get("ko").or_else(|| n.get("en")))
                     .and_then(|s| s.as_str())
                     .unwrap_or(target_key);
@@ -337,7 +404,9 @@ impl IntegrationService {
 
             if let Some(bf) = best_field {
                 if best_score >= 50 {
-                    let target_name = bf.name.as_ref()
+                    let target_name = bf
+                        .name
+                        .as_ref()
                         .and_then(|n| n.get("ko").or_else(|| n.get("en")))
                         .and_then(|s| s.as_str())
                         .unwrap_or(&bf.field_key)

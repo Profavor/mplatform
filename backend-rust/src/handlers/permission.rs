@@ -45,13 +45,13 @@ pub async fn get_permission_groups(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<PermissionGroupWithItems>>, AppError> {
     let groups = sqlx::query_as::<_, PermissionGroup>(
-        "SELECT * FROM permission_group ORDER BY sort_order ASC, code ASC"
+        "SELECT * FROM permission_group ORDER BY sort_order ASC, code ASC",
     )
     .fetch_all(&state.db)
     .await?;
 
     let items = sqlx::query_as::<_, PermissionItem>(
-        "SELECT * FROM permission_item ORDER BY sort_order ASC, perm_value ASC"
+        "SELECT * FROM permission_item ORDER BY sort_order ASC, perm_value ASC",
     )
     .fetch_all(&state.db)
     .await?;
@@ -131,13 +131,12 @@ pub async fn update_permission_group(
     Path(id): Path<String>,
     Json(payload): Json<UpdatePermissionGroupRequest>,
 ) -> Result<Json<PermissionGroup>, AppError> {
-    let existing = sqlx::query_as::<_, PermissionGroup>(
-        "SELECT * FROM permission_group WHERE id = $1"
-    )
-    .bind(&id)
-    .fetch_optional(&state.db)
-    .await?
-    .ok_or_else(|| AppError::NotFound(format!("Permission group not found: {}", id)))?;
+    let existing =
+        sqlx::query_as::<_, PermissionGroup>("SELECT * FROM permission_group WHERE id = $1")
+            .bind(&id)
+            .fetch_optional(&state.db)
+            .await?
+            .ok_or_else(|| AppError::NotFound(format!("Permission group not found: {}", id)))?;
 
     let title_ko = payload.title_ko.unwrap_or(existing.title_ko);
     let title_en = payload.title_en.or(existing.title_en);
@@ -152,7 +151,7 @@ pub async fn update_permission_group(
         SET title_ko = $1, title_en = $2, icon = $3, color = $4, chip_class = $5, sort_order = $6
         WHERE id = $7
         RETURNING *
-        "#
+        "#,
     )
     .bind(&title_ko)
     .bind(&title_en)
@@ -204,7 +203,7 @@ pub async fn add_permission_item(
         INSERT INTO permission_item (id, group_id, perm_value, label_ko, label_en, sort_order)
         VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING *
-        "#
+        "#,
     )
     .bind(new_id)
     .bind(&group_id)
@@ -238,7 +237,7 @@ pub async fn get_masking_policies(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<ColumnMaskingPolicy>>, AppError> {
     let policies = sqlx::query_as::<_, ColumnMaskingPolicy>(
-        "SELECT * FROM column_masking_policy WHERE is_active = true ORDER BY created_at DESC"
+        "SELECT * FROM column_masking_policy WHERE is_active = true ORDER BY created_at DESC",
     )
     .fetch_all(&state.db)
     .await?;
@@ -262,7 +261,7 @@ pub async fn create_masking_policy(
             $6, $7, true, $8, NOW(), NOW()
         )
         RETURNING *
-        "#
+        "#,
     )
     .bind(new_id)
     .bind(payload.domain_id)
@@ -299,7 +298,7 @@ pub async fn get_user_scopes(
     Path(user_id): Path<String>,
 ) -> Result<Json<Vec<DataScopePermission>>, AppError> {
     let scopes = sqlx::query_as::<_, DataScopePermission>(
-        "SELECT * FROM data_scope_permission WHERE user_id = $1"
+        "SELECT * FROM data_scope_permission WHERE user_id = $1",
     )
     .bind(user_id)
     .fetch_all(&state.db)
@@ -325,7 +324,7 @@ pub async fn add_user_scope(
             $6, NOW(), NOW()
         )
         RETURNING *
-        "#
+        "#,
     )
     .bind(new_id)
     .bind(&user_id)
@@ -358,11 +357,10 @@ pub async fn delete_user_scope(
 pub async fn get_permissions_users(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<serde_json::Value>>, AppError> {
-    let users: Vec<(String, Option<String>, Option<String>)> = sqlx::query_as(
-        "SELECT id, username, email FROM users ORDER BY username ASC"
-    )
-    .fetch_all(&state.db)
-    .await?;
+    let users: Vec<(String, Option<String>, Option<String>)> =
+        sqlx::query_as("SELECT id, username, email FROM users ORDER BY username ASC")
+            .fetch_all(&state.db)
+            .await?;
 
     let res = users
         .into_iter()
@@ -383,12 +381,11 @@ pub async fn get_user_domains(
     State(state): State<AppState>,
     Path(user_id): Path<String>,
 ) -> Result<Json<Vec<DomainPermission>>, AppError> {
-    let list = sqlx::query_as::<_, DomainPermission>(
-        "SELECT * FROM domain_permission WHERE user_id = $1"
-    )
-    .bind(user_id)
-    .fetch_all(&state.db)
-    .await?;
+    let list =
+        sqlx::query_as::<_, DomainPermission>("SELECT * FROM domain_permission WHERE user_id = $1")
+            .bind(user_id)
+            .fetch_all(&state.db)
+            .await?;
 
     Ok(Json(list))
 }
@@ -396,11 +393,10 @@ pub async fn get_user_domains(
 pub async fn get_available_domains(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<serde_json::Value>>, AppError> {
-    let domains: Vec<(Uuid, serde_json::Value)> = sqlx::query_as(
-        "SELECT id, name FROM domain ORDER BY sort_order ASC"
-    )
-    .fetch_all(&state.db)
-    .await?;
+    let domains: Vec<(Uuid, serde_json::Value)> =
+        sqlx::query_as("SELECT id, name FROM domain ORDER BY sort_order ASC")
+            .fetch_all(&state.db)
+            .await?;
 
     let res = domains
         .into_iter()
@@ -427,7 +423,7 @@ pub async fn assign_user_domain(
         VALUES ($1, $2, $3, NOW())
         ON CONFLICT DO NOTHING
         RETURNING *
-        "#
+        "#,
     )
     .bind(new_id)
     .bind(&user_id)
@@ -462,7 +458,7 @@ pub async fn get_pending_access_requests(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<DomainAccessRequest>>, AppError> {
     let requests = sqlx::query_as::<_, DomainAccessRequest>(
-        "SELECT * FROM domain_access_request WHERE status = 'PENDING' ORDER BY created_at DESC"
+        "SELECT * FROM domain_access_request WHERE status = 'PENDING' ORDER BY created_at DESC",
     )
     .fetch_all(&state.db)
     .await?;
@@ -481,7 +477,7 @@ pub async fn submit_access_request(
         INSERT INTO domain_access_request (id, user_id, domain_id, status, created_at, updated_at)
         VALUES ($1, $2, $3, 'PENDING', NOW(), NOW())
         RETURNING *
-        "#
+        "#,
     )
     .bind(new_id)
     .bind(&auth.claims.sub)
@@ -515,19 +511,25 @@ pub async fn approve_access_request(
     .execute(&state.db)
     .await;
 
-    Ok(Json(serde_json::json!({ "success": true, "status": "APPROVED" })))
+    Ok(Json(
+        serde_json::json!({ "success": true, "status": "APPROVED" }),
+    ))
 }
 
 pub async fn reject_access_request(
     State(state): State<AppState>,
     Path(request_id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    sqlx::query("UPDATE domain_access_request SET status = 'REJECTED', updated_at = NOW() WHERE id = $1")
-        .bind(request_id)
-        .execute(&state.db)
-        .await?;
+    sqlx::query(
+        "UPDATE domain_access_request SET status = 'REJECTED', updated_at = NOW() WHERE id = $1",
+    )
+    .bind(request_id)
+    .execute(&state.db)
+    .await?;
 
-    Ok(Json(serde_json::json!({ "success": true, "status": "REJECTED" })))
+    Ok(Json(
+        serde_json::json!({ "success": true, "status": "REJECTED" }),
+    ))
 }
 
 pub async fn delete_access_request(
@@ -584,7 +586,7 @@ pub async fn get_permission_audit_logs(
         .await?;
 
     let content = sqlx::query_as::<_, PermissionAuditLog>(
-        "SELECT * FROM permission_audit_log ORDER BY changed_at DESC LIMIT $1 OFFSET $2"
+        "SELECT * FROM permission_audit_log ORDER BY changed_at DESC LIMIT $1 OFFSET $2",
     )
     .bind(size)
     .bind(offset)

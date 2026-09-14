@@ -54,7 +54,8 @@ impl Config {
 
         let upload_dir = env::var("FILE_UPLOAD_DIR").unwrap_or_else(|_| "./uploads".to_string());
         let minio_url = env::var("MINIO_URL").unwrap_or_else(|_| "http://minio:9000".to_string());
-        let minio_bucket = env::var("MINIO_BUCKET_NAME").unwrap_or_else(|_| "domain-system".to_string());
+        let minio_bucket =
+            env::var("MINIO_BUCKET_NAME").unwrap_or_else(|_| "domain-system".to_string());
 
         Self {
             port,

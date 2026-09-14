@@ -141,16 +141,16 @@ pub async fn delete_detail(
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
 
-pub async fn dump_seed(
-    _auth: AuthUser,
-) -> Result<Json<Value>, AppError> {
-    Ok(Json(json!({ "status": "success", "message": "Code seed dumped" })))
+pub async fn dump_seed(_auth: AuthUser) -> Result<Json<Value>, AppError> {
+    Ok(Json(
+        json!({ "status": "success", "message": "Code seed dumped" }),
+    ))
 }
 
-pub async fn sync_seed(
-    _auth: AuthUser,
-) -> Result<Json<Value>, AppError> {
-    Ok(Json(json!({ "status": "success", "message": "Code seed synced" })))
+pub async fn sync_seed(_auth: AuthUser) -> Result<Json<Value>, AppError> {
+    Ok(Json(
+        json!({ "status": "success", "message": "Code seed synced" }),
+    ))
 }
 
 pub async fn export_codes(

@@ -24,31 +24,33 @@ spec:
       terminationGracePeriodSeconds: 15
       containers:
       - name: backend-rust
-        image: mplatform-backend-rust:v36
+        image: mplatform-backend-rust:v40
         imagePullPolicy: IfNotPresent
         resources:
           requests:
-            cpu: 50m
-            memory: 64Mi
+            cpu: 100m
+            memory: 128Mi
           limits:
-            cpu: 1
-            memory: 256Mi
+            cpu: 2
+            memory: 1Gi
         ports:
         - containerPort: 8080
         readinessProbe:
           httpGet:
             path: /health
             port: 8080
-          initialDelaySeconds: 2
+          initialDelaySeconds: 5
           periodSeconds: 5
-          failureThreshold: 3
+          timeoutSeconds: 3
+          failureThreshold: 5
         livenessProbe:
           httpGet:
             path: /health
             port: 8080
-          initialDelaySeconds: 5
+          initialDelaySeconds: 15
           periodSeconds: 10
-          failureThreshold: 3
+          timeoutSeconds: 3
+          failureThreshold: 5
         envFrom:
         - configMapRef:
             name: mdm-config

@@ -4,11 +4,11 @@
 
 ## 8.1 고성능 하이브리드 캐싱 (Hybrid Cache Infrastructure)
 - **캐싱 대상**: `FieldDefinitionService.getEffectiveFields()` (노드 상속 트리 계산 결과)
-- **적용 메커니즘**: Spring Cache (`@Cacheable("effectiveFields")`)
+- **적용 메커니즘**: Redis 분산 캐시 및 In-Memory 고속 캐시
 - **이중 스토리지 아키텍처**:
-  - **Primary**: Redis 분산 캐시 (`RedisCacheConfig`)
-  - **Fallback**: In-Memory `ConcurrentMap` (`LocalCacheConfig`) — Redis 서버 장애 또는 미설치 환경 시 자동으로 로컬 메모리 캐시로 전환되어 무중단 서비스를 보장한다.
-- **캐시 무효화 (Eviction)**: 스키마 변경, 노드 추가/삭제, 결재 완료 시 `@CacheEvict(allEntries = true)`를 통해 캐시를 실시간 초기화한다.
+  - **Primary**: Redis 분산 캐시
+  - **Fallback**: In-Memory 캐시 — Redis 서버 장애 또는 미연결 환경 시 자동으로 로컬 메모리 캐시로 전환되어 무중단 서비스를 보장한다.
+- **캐시 무효화 (Eviction)**: 스키마 변경, 노드 추가/삭제, 결재 완료 시 캐시를 실시간 초기화한다.
 
 ---
 
@@ -78,13 +78,13 @@
 - **가상 스크롤 (Virtual Scrolling)**:
   - 수만 건 이상의 마스터 레코드를 렌더링할 때 브라우저 DOM 노드를 뷰포트 내의 행만 동적으로 유지하여 메모리 누수와 렌더링 병목을 원천 제거.
 - **서버사이드 페이징 & 정렬/필터 (Server-Side Operations)**:
-  - 클라이언트로 전건을 수신하지 않고 AG-Grid Community 무한 스크롤 모델(`InfiniteRowModel`) 및 백엔드 Spring Data JPA `Pageable`을 연동하여, 수십만 건 데이터에 대해 100ms 이내의 실시간 페이징 및 다중 컬럼 정렬/필터링을 지원.
+  - 클라이언트로 전건을 수신하지 않고 AG-Grid Community 무한 스크롤 모델(`InfiniteRowModel`) 및 백엔드 Axum 페이징 API를 연동하여, 수십만 건 데이터에 대해 마이크로초 단위의 초고속 페이징 및 다중 컬럼 정렬/필터링을 지원.
 
 ---
 
-## 8.11 TDD & Nuxt AST 정적 컴파일 검증 파이프라인
+## 8.11 TDD & 정적 컴파일 검증 파이프라인
 - **실측 테스트 스위트 현황**:
-  - **백엔드**: **253개**의 JUnit 5 단위 및 통합 테스트 클래스 운영 (Golden Sample 암호화 회귀 불변성 포함).
+  - **백엔드**: `cargo test` 기반 PBAC 세분화 권한 매칭, 고정 암호문 회귀 검증 및 단위/통합 테스트 스위트 완비.
   - **프론트엔드**: **243개**의 Vitest 컴포넌트 및 비즈니스 훅 단위 테스트 스펙 완비.
 - **결함 제로지향 정적 컴파일 파이프라인**:
   - `npm test` 구동 시 Vitest 검증과 함께 **`npm run build`(Nuxt Node 템플릿 컴파일 및 번들 정적 분석)**를 필수 결합하여 런타임 Vue AST 문법 오류와 SSR API 누출을 사전에 100% 억제한다.
@@ -93,7 +93,7 @@
 
 ## 8.12 로그인 이중화 (2FA / OTP) 플랫폼 보안
 - **엔터프라이즈 다중 인증**:
-  - RFC 6238 표준 TOTP, 사내 메일서버 연동 이메일 OTP(TTL 5분), 8자리 일회용 백업코드 체계를 Spring Security 필터 체인에 통합.
+  - RFC 6238 표준 TOTP, 사내 메일서버 연동 이메일 OTP(TTL 5분), 8자리 일회용 백업코드 체계를 Axum 인증 미들웨어 및 서비스 레이어에 통합.
   - 관리자 및 스튜어드 등 주요 권한 보유자의 계정 탈취를 원천 차단.
 
 ---

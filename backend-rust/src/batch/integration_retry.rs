@@ -24,7 +24,10 @@ impl IntegrationRetryJob {
             .unwrap_or(0);
 
         if retried > 0 {
-            tracing::info!("🔄 [Integration Retry Batch] Retried {} failed integration logs", retried);
+            tracing::info!(
+                "🔄 [Integration Retry Batch] Retried {} failed integration logs",
+                retried
+            );
         }
         Ok(retried as u64)
     }

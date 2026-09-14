@@ -26,7 +26,11 @@ impl ExcelService {
         Self { pool }
     }
 
-    async fn get_domain_fields(&self, domain_id: Uuid, node_id: Option<Uuid>) -> AppResult<Vec<FieldInfo>> {
+    async fn get_domain_fields(
+        &self,
+        domain_id: Uuid,
+        node_id: Option<Uuid>,
+    ) -> AppResult<Vec<FieldInfo>> {
         let fields = if let Some(nid) = node_id {
             sqlx::query_as::<_, FieldInfo>(
                 r#"
@@ -34,7 +38,7 @@ impl ExcelService {
                 FROM field_definition
                 WHERE (domain_id = $1 OR defined_at_node_id = $2) AND is_removed = false
                 ORDER BY field_order ASC
-                "#
+                "#,
             )
             .bind(domain_id)
             .bind(nid)
@@ -47,7 +51,7 @@ impl ExcelService {
                 FROM field_definition
                 WHERE domain_id = $1 AND is_removed = false
                 ORDER BY field_order ASC
-                "#
+                "#,
             )
             .bind(domain_id)
             .fetch_all(&self.pool)
@@ -57,7 +61,12 @@ impl ExcelService {
         Ok(fields)
     }
 
-    pub async fn generate_template(&self, domain_id: Uuid, node_id: Option<Uuid>, lang: &str) -> AppResult<Vec<u8>> {
+    pub async fn generate_template(
+        &self,
+        domain_id: Uuid,
+        node_id: Option<Uuid>,
+        lang: &str,
+    ) -> AppResult<Vec<u8>> {
         let fields = self.get_domain_fields(domain_id, node_id).await?;
 
         let mut out = String::from("\u{FEFF}"); // UTF-8 BOM
@@ -66,8 +75,16 @@ impl ExcelService {
         let row1: Vec<String> = fields
             .iter()
             .map(|f| {
-                let name = f.name.get(lang).and_then(|v| v.as_str()).unwrap_or(&f.field_key);
-                let label = if f.required { format!("{}*", name) } else { name.to_string() };
+                let name = f
+                    .name
+                    .get(lang)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(&f.field_key);
+                let label = if f.required {
+                    format!("{}*", name)
+                } else {
+                    name.to_string()
+                };
                 Self::escape_csv(&label)
             })
             .collect();
@@ -75,7 +92,10 @@ impl ExcelService {
         out.push_str("\r\n");
 
         // Row 2: Field Keys
-        let row2: Vec<String> = fields.iter().map(|f| Self::escape_csv(&f.field_key)).collect();
+        let row2: Vec<String> = fields
+            .iter()
+            .map(|f| Self::escape_csv(&f.field_key))
+            .collect();
         out.push_str(&row2.join(","));
         out.push_str("\r\n");
 
@@ -99,7 +119,12 @@ impl ExcelService {
         Ok(out.into_bytes())
     }
 
-    pub async fn export_records_csv(&self, domain_id: Uuid, node_id: Option<Uuid>, lang: &str) -> AppResult<Vec<u8>> {
+    pub async fn export_records_csv(
+        &self,
+        domain_id: Uuid,
+        node_id: Option<Uuid>,
+        lang: &str,
+    ) -> AppResult<Vec<u8>> {
         let fields = self.get_domain_fields(domain_id, node_id).await?;
 
         let rows = if let Some(nid) = node_id {
@@ -116,7 +141,7 @@ impl ExcelService {
                 JOIN classification_axis a ON n.axis_id = a.id
                 WHERE a.domain_id = $1
                 ORDER BY r.created_at DESC
-                "#
+                "#,
             )
             .bind(domain_id)
             .fetch_all(&self.pool)
@@ -129,7 +154,11 @@ impl ExcelService {
         let header: Vec<String> = fields
             .iter()
             .map(|f| {
-                let name = f.name.get(lang).and_then(|v| v.as_str()).unwrap_or(&f.field_key);
+                let name = f
+                    .name
+                    .get(lang)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(&f.field_key);
                 Self::escape_csv(name)
             })
             .collect();
@@ -147,7 +176,11 @@ impl ExcelService {
                         Some(serde_json::Value::String(s)) => s.clone(),
                         Some(serde_json::Value::Number(n)) => n.to_string(),
                         Some(serde_json::Value::Bool(b)) => b.to_string(),
-                        Some(serde_json::Value::Object(o)) => o.get(lang).and_then(|x| x.as_str()).unwrap_or("").to_string(),
+                        Some(serde_json::Value::Object(o)) => o
+                            .get(lang)
+                            .and_then(|x| x.as_str())
+                            .unwrap_or("")
+                            .to_string(),
                         _ => "".to_string(),
                     };
                     Self::escape_csv(&val_str)
@@ -160,7 +193,12 @@ impl ExcelService {
         Ok(out.into_bytes())
     }
 
-    pub async fn export_records_xlsx(&self, domain_id: Uuid, node_id: Option<Uuid>, lang: &str) -> AppResult<Vec<u8>> {
+    pub async fn export_records_xlsx(
+        &self,
+        domain_id: Uuid,
+        node_id: Option<Uuid>,
+        lang: &str,
+    ) -> AppResult<Vec<u8>> {
         let fields = self.get_domain_fields(domain_id, node_id).await?;
 
         let rows = if let Some(nid) = node_id {
@@ -177,7 +215,7 @@ impl ExcelService {
                 JOIN classification_axis a ON n.axis_id = a.id
                 WHERE a.domain_id = $1
                 ORDER BY r.created_at DESC
-                "#
+                "#,
             )
             .bind(domain_id)
             .fetch_all(&self.pool)
@@ -189,8 +227,14 @@ impl ExcelService {
 
         // Write Headers
         for (col, f) in fields.iter().enumerate() {
-            let name = f.name.get(lang).and_then(|v| v.as_str()).unwrap_or(&f.field_key);
-            worksheet.write_string(0, col as u16, name).map_err(|e| AppError::Internal(e.to_string()))?;
+            let name = f
+                .name
+                .get(lang)
+                .and_then(|v| v.as_str())
+                .unwrap_or(&f.field_key);
+            worksheet
+                .write_string(0, col as u16, name)
+                .map_err(|e| AppError::Internal(e.to_string()))?;
         }
 
         // Write Rows
@@ -202,15 +246,22 @@ impl ExcelService {
                     Some(serde_json::Value::String(s)) => s.clone(),
                     Some(serde_json::Value::Number(n)) => n.to_string(),
                     Some(serde_json::Value::Bool(b)) => b.to_string(),
-                    Some(serde_json::Value::Object(o)) => o.get(lang).and_then(|x| x.as_str()).unwrap_or("").to_string(),
+                    Some(serde_json::Value::Object(o)) => o
+                        .get(lang)
+                        .and_then(|x| x.as_str())
+                        .unwrap_or("")
+                        .to_string(),
                     _ => "".to_string(),
                 };
-                worksheet.write_string((row_idx + 1) as u32, col as u16, &val_str)
+                worksheet
+                    .write_string((row_idx + 1) as u32, col as u16, &val_str)
                     .map_err(|e| AppError::Internal(e.to_string()))?;
             }
         }
 
-        let buf = workbook.save_to_buffer().map_err(|e| AppError::Internal(e.to_string()))?;
+        let buf = workbook
+            .save_to_buffer()
+            .map_err(|e| AppError::Internal(e.to_string()))?;
         Ok(buf)
     }
 
@@ -221,7 +272,9 @@ impl ExcelService {
     ) -> AppResult<BulkImportProgress> {
         let job_id = Uuid::new_v4();
         let total_rows = req.rows.len() as i32;
-        let file_name = req.file_name.unwrap_or_else(|| "import_data.csv".to_string());
+        let file_name = req
+            .file_name
+            .unwrap_or_else(|| "import_data.csv".to_string());
         let now = Utc::now();
 
         let mut success_count = 0;
@@ -243,12 +296,16 @@ impl ExcelService {
 
         for (i, row) in req.rows.iter().enumerate() {
             let create_req = CreateRecordRequest {
-                node_id: effective_node_id,
+                node_id: Some(effective_node_id),
                 data: row.clone(),
                 source_system: Some("BULK_IMPORT".to_string()),
             };
 
-            match crate::services::record_service::RecordService::create_record(&self.pool, create_req, created_by).await {
+            match crate::services::record_service::RecordService::create_record(
+                &self.pool, create_req, created_by,
+            )
+            .await
+            {
                 Ok(_) => {
                     success_count += 1;
                 }
@@ -263,7 +320,13 @@ impl ExcelService {
             }
         }
 
-        let status = if error_count == 0 { "COMPLETED" } else if success_count == 0 { "FAILED" } else { "PARTIAL_SUCCESS" };
+        let status = if error_count == 0 {
+            "COMPLETED"
+        } else if success_count == 0 {
+            "FAILED"
+        } else {
+            "PARTIAL_SUCCESS"
+        };
         let progress_pct = 100.0;
         let err_json = serde_json::to_string(&error_details).unwrap_or_default();
 
@@ -275,7 +338,7 @@ impl ExcelService {
                 created_at, completed_at
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-            "#
+            "#,
         )
         .bind(job_id)
         .bind(req.domain_id)
@@ -315,7 +378,7 @@ impl ExcelService {
                    success_count, error_count, error_details_json, created_at, completed_at
             FROM bulk_import_job
             WHERE id = $1
-            "#
+            "#,
         )
         .bind(job_id)
         .fetch_optional(&self.pool)
@@ -353,7 +416,11 @@ impl ExcelService {
 
     fn escape_csv(value: &str) -> String {
         let escaped = value.replace('"', "\"\"");
-        if escaped.contains(',') || escaped.contains('\n') || escaped.contains('\r') || escaped.contains('"') {
+        if escaped.contains(',')
+            || escaped.contains('\n')
+            || escaped.contains('\r')
+            || escaped.contains('"')
+        {
             format!("\"{}\"", escaped)
         } else {
             escaped

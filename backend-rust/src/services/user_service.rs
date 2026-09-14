@@ -1,6 +1,8 @@
 use crate::error::AppError;
 use crate::models::user::User;
-use crate::models::user_mgmt::{AdminUserUpdateDto, ResetPasswordRequest, SelfUserUpdateDto, UserDto};
+use crate::models::user_mgmt::{
+    AdminUserUpdateDto, ResetPasswordRequest, SelfUserUpdateDto, UserDto,
+};
 use crate::repositories::user_repo::UserRepository;
 use sqlx::PgPool;
 
@@ -105,7 +107,9 @@ impl UserService {
                 .unwrap_or(false);
 
             if !valid {
-                return Err(AppError::BadRequest("Current password does not match".to_string()));
+                return Err(AppError::BadRequest(
+                    "Current password does not match".to_string(),
+                ));
             }
 
             let new_hash = bcrypt::hash(new_pw, 10)

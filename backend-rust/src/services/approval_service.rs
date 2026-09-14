@@ -88,13 +88,20 @@ impl ApprovalService {
             }
         }
 
-        let comment_param = if final_comment.is_empty() { None } else { Some(final_comment.as_str()) };
+        let comment_param = if final_comment.is_empty() {
+            None
+        } else {
+            Some(final_comment.as_str())
+        };
         ApprovalRepository::approve_current_step(pool, id, comment_param).await?;
 
         // If target is RECORD, apply changes to record
         if req.target_type == "RECORD" || req.target_type == "RECORD_UPDATE" {
             if let Some(mut record) = RecordRepository::find_by_id(pool, req.target_id).await? {
-                if let (Some(r_obj), Some(c_obj)) = (record.data.as_mut().and_then(|d| d.as_object_mut()), req.changes.as_object()) {
+                if let (Some(r_obj), Some(c_obj)) = (
+                    record.data.as_mut().and_then(|d| d.as_object_mut()),
+                    req.changes.as_object(),
+                ) {
                     for (k, v) in c_obj {
                         r_obj.insert(k.clone(), v.clone());
                     }
@@ -106,7 +113,7 @@ impl ApprovalService {
                         UPDATE record
                         SET data = $1, searchable_data = $1, version = $2, updated_at = NOW()
                         WHERE id = $3
-                        "#
+                        "#,
                     )
                     .bind(&final_data)
                     .bind(new_version)
@@ -123,6 +130,7 @@ impl ApprovalService {
                         None,
                         final_data.clone(),
                         None,
+                        Some(req.id),
                     )
                     .await;
 
@@ -157,7 +165,7 @@ impl ApprovalService {
                 VALUES ($1, $2, $3, $3, 'ACTIVE', 1, NOW(), NOW())
                 ON CONFLICT (id) DO UPDATE
                 SET data = $3, searchable_data = $3, status = 'ACTIVE', updated_at = NOW()
-                "#
+                "#,
             )
             .bind(record_id)
             .bind(node_id)
@@ -174,6 +182,7 @@ impl ApprovalService {
                 None,
                 Some(final_data.clone()),
                 None,
+                Some(req.id),
             )
             .await;
 
@@ -240,7 +249,11 @@ impl ApprovalService {
             }
         }
 
-        let reason_param = if final_reason.is_empty() { None } else { Some(final_reason.as_str()) };
+        let reason_param = if final_reason.is_empty() {
+            None
+        } else {
+            Some(final_reason.as_str())
+        };
         ApprovalRepository::reject_current_step(pool, id, reason_param).await?;
         Self::get_request_detail(pool, id).await
     }

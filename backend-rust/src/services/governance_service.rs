@@ -14,17 +14,26 @@ impl GovernanceService {
         Self { pool }
     }
 
-    pub async fn get_business_terms(&self, domain_id: Option<Uuid>) -> AppResult<Vec<BusinessTerm>> {
+    pub async fn get_business_terms(
+        &self,
+        domain_id: Option<Uuid>,
+    ) -> AppResult<Vec<BusinessTerm>> {
         let terms = GovernanceRepository::get_business_terms(&self.pool, domain_id).await?;
         Ok(terms)
     }
 
-    pub async fn create_business_term(&self, req: CreateBusinessTermRequest) -> AppResult<BusinessTerm> {
+    pub async fn create_business_term(
+        &self,
+        req: CreateBusinessTermRequest,
+    ) -> AppResult<BusinessTerm> {
         let term = GovernanceRepository::create_business_term(&self.pool, req).await?;
         Ok(term)
     }
 
-    pub async fn get_masking_policies(&self, domain_id: Option<Uuid>) -> AppResult<Vec<ColumnMaskingPolicy>> {
+    pub async fn get_masking_policies(
+        &self,
+        domain_id: Option<Uuid>,
+    ) -> AppResult<Vec<ColumnMaskingPolicy>> {
         let policies = GovernanceRepository::get_masking_policies(&self.pool, domain_id).await?;
         Ok(policies)
     }
@@ -34,7 +43,8 @@ impl GovernanceService {
         req: CreateMaskingPolicyRequest,
         created_by: &str,
     ) -> AppResult<ColumnMaskingPolicy> {
-        let policy = GovernanceRepository::create_masking_policy(&self.pool, req, created_by).await?;
+        let policy =
+            GovernanceRepository::create_masking_policy(&self.pool, req, created_by).await?;
         Ok(policy)
     }
 

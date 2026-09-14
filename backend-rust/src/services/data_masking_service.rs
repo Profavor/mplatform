@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use regex::Regex;
 use serde_json::Value;
+use std::collections::HashMap;
 
 use crate::models::field_definition::FieldDefinition;
 
@@ -155,7 +155,14 @@ impl DataMaskingService {
     /// Masks change payload (which may contain nested before/after/data maps)
     pub fn mask_changes_json(changes: &mut Value, fields: &[FieldDefinition], can_unmask: bool) {
         if let Some(obj) = changes.as_object_mut() {
-            for sub_key in &["data", "newData", "previousData", "changes", "before", "after"] {
+            for sub_key in &[
+                "data",
+                "newData",
+                "previousData",
+                "changes",
+                "before",
+                "after",
+            ] {
                 if let Some(sub_val) = obj.get_mut(*sub_key) {
                     if sub_val.is_object() {
                         Self::mask_json_data(sub_val, fields, can_unmask);
@@ -173,14 +180,26 @@ mod tests {
 
     #[test]
     fn test_mask_email() {
-        assert_eq!(DataMaskingService::mask_email("rofavor@naver.com"), "r***@naver.com");
-        assert_eq!(DataMaskingService::mask_email("a@example.com"), "a***@example.com");
+        assert_eq!(
+            DataMaskingService::mask_email("rofavor@naver.com"),
+            "r***@naver.com"
+        );
+        assert_eq!(
+            DataMaskingService::mask_email("a@example.com"),
+            "a***@example.com"
+        );
     }
 
     #[test]
     fn test_mask_phone() {
-        assert_eq!(DataMaskingService::mask_phone("010-1234-5678"), "010-****-5678");
-        assert_eq!(DataMaskingService::mask_phone("02-123-4567"), "02-****-4567");
+        assert_eq!(
+            DataMaskingService::mask_phone("010-1234-5678"),
+            "010-****-5678"
+        );
+        assert_eq!(
+            DataMaskingService::mask_phone("02-123-4567"),
+            "02-****-4567"
+        );
     }
 
     #[test]

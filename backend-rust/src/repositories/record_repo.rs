@@ -158,16 +158,17 @@ impl RecordRepository {
         previous_data: Option<serde_json::Value>,
         new_data: Option<serde_json::Value>,
         source_system: Option<&str>,
+        approval_request_id: Option<Uuid>,
     ) -> Result<RecordHistory, AppError> {
         let history = sqlx::query_as::<_, RecordHistory>(
             r#"
             INSERT INTO record_history (
                 id, record_id, version, change_type, changed_by,
-                previous_data, new_data, source_system, changed_at
+                previous_data, new_data, source_system, approval_request_id, changed_at
             )
             VALUES (
                 gen_random_uuid(), $1, $2, $3, $4,
-                $5, $6, $7, NOW()
+                $5, $6, $7, $8, NOW()
             )
             RETURNING
                 id, record_id, version, change_type, changed_by,
@@ -181,6 +182,7 @@ impl RecordRepository {
         .bind(previous_data)
         .bind(new_data)
         .bind(source_system)
+        .bind(approval_request_id)
         .fetch_one(pool)
         .await?;
 
@@ -208,10 +210,7 @@ impl RecordRepository {
     }
 }
 
-fn init_query_builder<'a>(
-    q: &'a DynamicRecordQuery,
-    is_count: bool,
-) -> QueryBuilder<'a, Postgres> {
+fn init_query_builder<'a>(q: &'a DynamicRecordQuery, is_count: bool) -> QueryBuilder<'a, Postgres> {
     let mut builder: QueryBuilder<'a, Postgres> = QueryBuilder::new("");
 
     if let Some(node_id) = q.node_id {
@@ -268,7 +267,9 @@ fn init_query_builder<'a>(
         }
     } else if let Some(domain_id) = q.domain_id {
         if is_count {
-            builder.push("SELECT COUNT(r.id) FROM record r JOIN classification_node n ON r.node_id = n.id ");
+            builder.push(
+                "SELECT COUNT(r.id) FROM record r JOIN classification_node n ON r.node_id = n.id ",
+            );
         } else {
             builder.push(
                 r#"
@@ -303,10 +304,7 @@ fn init_query_builder<'a>(
     builder
 }
 
-fn apply_filters<'a>(
-    builder: &mut QueryBuilder<'a, Postgres>,
-    q: &'a DynamicRecordQuery,
-) {
+fn apply_filters<'a>(builder: &mut QueryBuilder<'a, Postgres>, q: &'a DynamicRecordQuery) {
     if let Some(ref st) = q.status {
         builder.push(" AND r.status = ");
         builder.push_bind(st.as_str());
@@ -357,7 +355,13 @@ fn apply_filters<'a>(
                         }
                         let safe_f: String = f
                             .chars()
-                            .map(|c| if c.is_ascii_alphanumeric() || c == '_' { c } else { '_' })
+                            .map(|c| {
+                                if c.is_ascii_alphanumeric() || c == '_' {
+                                    c
+                                } else {
+                                    '_'
+                                }
+                            })
                             .collect();
                         builder.push(format!("(r.data->>'{safe_f}') ILIKE "));
                         builder.push_bind(pattern.clone());
@@ -374,7 +378,13 @@ fn apply_filters<'a>(
 
         let safe_key: String = k
             .chars()
-            .map(|c| if c.is_ascii_alphanumeric() || c == '_' { c } else { '_' })
+            .map(|c| {
+                if c.is_ascii_alphanumeric() || c == '_' {
+                    c
+                } else {
+                    '_'
+                }
+            })
             .collect();
         let safe_lower = safe_key.to_lowercase();
         let safe_upper = safe_key.to_uppercase();
@@ -538,10 +548,7 @@ fn apply_filters<'a>(
     }
 }
 
-fn apply_order_by<'a>(
-    builder: &mut QueryBuilder<'a, Postgres>,
-    q: &'a DynamicRecordQuery,
-) {
+fn apply_order_by<'a>(builder: &mut QueryBuilder<'a, Postgres>, q: &'a DynamicRecordQuery) {
     let (field, is_desc) = if let Some(ref sf) = q.sort_field {
         let is_desc = q
             .sort_order
@@ -589,7 +596,13 @@ fn apply_order_by<'a>(
         custom => {
             let safe: String = custom
                 .chars()
-                .map(|c| if c.is_ascii_alphanumeric() || c == '_' { c } else { '_' })
+                .map(|c| {
+                    if c.is_ascii_alphanumeric() || c == '_' {
+                        c
+                    } else {
+                        '_'
+                    }
+                })
                 .collect();
             builder.push(format!(
                 " ORDER BY (r.data->>'{safe}') {dir} NULLS LAST, r.created_at DESC "
@@ -597,4 +610,3 @@ fn apply_order_by<'a>(
         }
     }
 }
-

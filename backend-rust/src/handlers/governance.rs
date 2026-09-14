@@ -21,7 +21,10 @@ pub async fn get_business_terms(
     Query(params): Query<DomainQuery>,
     _auth: AuthUser,
 ) -> AppResult<impl IntoResponse> {
-    let terms = state.governance_service.get_business_terms(params.domain_id).await?;
+    let terms = state
+        .governance_service
+        .get_business_terms(params.domain_id)
+        .await?;
     Ok(Json(terms))
 }
 
@@ -39,7 +42,10 @@ pub async fn get_masking_policies(
     Query(params): Query<DomainQuery>,
     _auth: AuthUser,
 ) -> AppResult<impl IntoResponse> {
-    let policies = state.governance_service.get_masking_policies(params.domain_id).await?;
+    let policies = state
+        .governance_service
+        .get_masking_policies(params.domain_id)
+        .await?;
     Ok(Json(policies))
 }
 

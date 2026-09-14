@@ -1,5 +1,3 @@
-use std::sync::Arc;
-use std::time::{Duration, Instant};
 use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
 use base64::engine::general_purpose::STANDARD as BASE64;
@@ -7,6 +5,8 @@ use base64::Engine;
 use hmac::{Hmac, Mac};
 use rand::RngCore;
 use sha2::{Digest, Sha256};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 
@@ -38,12 +38,12 @@ impl FieldEncryptionService {
             .unwrap_or_else(|_| "KUBERNETES".to_string())
             .to_uppercase();
         let vault_token = std::env::var("VAULT_TOKEN").ok();
-        let vault_k8s_role = std::env::var("VAULT_K8S_ROLE")
-            .unwrap_or_else(|_| "mdm-role".to_string());
+        let vault_k8s_role =
+            std::env::var("VAULT_K8S_ROLE").unwrap_or_else(|_| "mdm-role".to_string());
         let vault_k8s_jwt_path = std::env::var("VAULT_K8S_JWT_PATH")
             .unwrap_or_else(|_| "/var/run/secrets/kubernetes.io/serviceaccount/token".to_string());
-        let vault_key_name = std::env::var("VAULT_KEY_NAME")
-            .unwrap_or_else(|_| "mdm-field-key".to_string());
+        let vault_key_name =
+            std::env::var("VAULT_KEY_NAME").unwrap_or_else(|_| "mdm-field-key".to_string());
         let encryption_type = std::env::var("ENCRYPTION_TYPE")
             .unwrap_or_else(|_| "VAULT".to_string())
             .to_uppercase();
@@ -130,12 +130,17 @@ impl FieldEncryptionService {
                     match self.http_client.post(&login_url).json(&body).send().await {
                         Ok(res) if res.status().is_success() => {
                             if let Ok(json) = res.json::<serde_json::Value>().await {
-                                if let Some(client_token) = json.pointer("/auth/client_token").and_then(|t| t.as_str()) {
-                                    let lease_duration = json.pointer("/auth/lease_duration")
+                                if let Some(client_token) =
+                                    json.pointer("/auth/client_token").and_then(|t| t.as_str())
+                                {
+                                    let lease_duration = json
+                                        .pointer("/auth/lease_duration")
                                         .and_then(|d| d.as_u64())
                                         .unwrap_or(3600);
-                                    let valid_sec = std::cmp::max(60, lease_duration.saturating_sub(60));
-                                    let expiration = Instant::now() + Duration::from_secs(valid_sec);
+                                    let valid_sec =
+                                        std::cmp::max(60, lease_duration.saturating_sub(60));
+                                    let expiration =
+                                        Instant::now() + Duration::from_secs(valid_sec);
                                     let token_str = client_token.to_string();
                                     *guard = Some((token_str.clone(), expiration));
                                     info!("Authenticated with Vault via Kubernetes Auth. Valid for {}s", valid_sec);
@@ -144,7 +149,11 @@ impl FieldEncryptionService {
                             }
                         }
                         Ok(res) => {
-                            warn!("Vault k8s login failed with status {}: {:?}", res.status(), res.text().await);
+                            warn!(
+                                "Vault k8s login failed with status {}: {:?}",
+                                res.status(),
+                                res.text().await
+                            );
                         }
                         Err(e) => {
                             warn!("Failed to communicate with Vault k8s login: {}", e);
@@ -152,7 +161,10 @@ impl FieldEncryptionService {
                     }
                 }
                 Err(e) => {
-                    warn!("ServiceAccount token file not readable at {}: {}", self.vault_k8s_jwt_path, e);
+                    warn!(
+                        "ServiceAccount token file not readable at {}: {}",
+                        self.vault_k8s_jwt_path, e
+                    );
                 }
             }
         }
@@ -176,12 +188,17 @@ impl FieldEncryptionService {
         if Self::is_vault_encrypted(trimmed) {
             match self.get_vault_token().await {
                 Ok(token) => {
-                    let url = format!("{}/v1/transit/decrypt/{}", self.vault_uri, self.vault_key_name);
+                    let url = format!(
+                        "{}/v1/transit/decrypt/{}",
+                        self.vault_uri, self.vault_key_name
+                    );
                     let body = serde_json::json!({
                         "ciphertext": trimmed
                     });
 
-                    match self.http_client.post(&url)
+                    match self
+                        .http_client
+                        .post(&url)
                         .header("X-Vault-Token", &token)
                         .json(&body)
                         .send()
@@ -189,7 +206,9 @@ impl FieldEncryptionService {
                     {
                         Ok(res) if res.status().is_success() => {
                             if let Ok(json) = res.json::<serde_json::Value>().await {
-                                if let Some(b64) = json.pointer("/data/plaintext").and_then(|p| p.as_str()) {
+                                if let Some(b64) =
+                                    json.pointer("/data/plaintext").and_then(|p| p.as_str())
+                                {
                                     if let Ok(bytes) = BASE64.decode(b64) {
                                         if let Ok(plain) = String::from_utf8(bytes) {
                                             return Ok(plain);
@@ -202,7 +221,10 @@ impl FieldEncryptionService {
                         Ok(res) => {
                             let status = res.status();
                             let text = res.text().await.unwrap_or_default();
-                            warn!("Vault Transit decrypt failed with status {}: {}", status, text);
+                            warn!(
+                                "Vault Transit decrypt failed with status {}: {}",
+                                status, text
+                            );
                         }
                         Err(e) => {
                             error!("Vault Transit decrypt request failed: {}", e);
@@ -254,13 +276,18 @@ impl FieldEncryptionService {
 
         if self.encryption_type == "VAULT" {
             let token = self.get_vault_token().await?;
-            let url = format!("{}/v1/transit/encrypt/{}", self.vault_uri, self.vault_key_name);
+            let url = format!(
+                "{}/v1/transit/encrypt/{}",
+                self.vault_uri, self.vault_key_name
+            );
             let b64_plain = BASE64.encode(plain_text.as_bytes());
             let body = serde_json::json!({
                 "plaintext": b64_plain
             });
 
-            let res = self.http_client.post(&url)
+            let res = self
+                .http_client
+                .post(&url)
                 .header("X-Vault-Token", token)
                 .json(&body)
                 .send()
@@ -281,7 +308,8 @@ impl FieldEncryptionService {
         let cipher = Aes256Gcm::new_from_slice(&self.aes_key)
             .map_err(|e| AppError::Internal(format!("AES key init failed: {}", e)))?;
         let nonce = Nonce::from_slice(&iv);
-        let ciphertext = cipher.encrypt(nonce, plain_text.as_bytes())
+        let ciphertext = cipher
+            .encrypt(nonce, plain_text.as_bytes())
             .map_err(|e| AppError::Internal(format!("AES encryption failed: {}", e)))?;
 
         let mut combined = Vec::with_capacity(12 + ciphertext.len());
@@ -304,7 +332,9 @@ impl FieldEncryptionService {
                     "input": b64_plain
                 });
 
-                if let Ok(res) = self.http_client.post(&url)
+                if let Ok(res) = self
+                    .http_client
+                    .post(&url)
                     .header("X-Vault-Token", token)
                     .json(&body)
                     .send()
@@ -312,7 +342,8 @@ impl FieldEncryptionService {
                 {
                     if res.status().is_success() {
                         if let Ok(json) = res.json::<serde_json::Value>().await {
-                            if let Some(hmac) = json.pointer("/data/hmac").and_then(|h| h.as_str()) {
+                            if let Some(hmac) = json.pointer("/data/hmac").and_then(|h| h.as_str())
+                            {
                                 return Ok(hmac.to_string());
                             }
                         }

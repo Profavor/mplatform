@@ -127,4 +127,3 @@ pub struct FieldGroupRequest {
     #[serde(default)]
     pub is_default_open: Option<bool>,
 }
-

@@ -6,10 +6,7 @@ use uuid::Uuid;
 pub struct NotificationRepository;
 
 impl NotificationRepository {
-    pub async fn find_by_user(
-        pool: &PgPool,
-        user_id: &str,
-    ) -> Result<Vec<Notification>, AppError> {
+    pub async fn find_by_user(pool: &PgPool, user_id: &str) -> Result<Vec<Notification>, AppError> {
         let notifs = sqlx::query_as::<_, Notification>(
             r#"
             SELECT id, user_id, type, title, message, link_url, is_read, created_at
@@ -41,11 +38,7 @@ impl NotificationRepository {
         Ok(count_row.0)
     }
 
-    pub async fn mark_read(
-        pool: &PgPool,
-        id: Uuid,
-        user_id: &str,
-    ) -> Result<bool, AppError> {
+    pub async fn mark_read(pool: &PgPool, id: Uuid, user_id: &str) -> Result<bool, AppError> {
         let result = sqlx::query(
             r#"
             UPDATE notifications

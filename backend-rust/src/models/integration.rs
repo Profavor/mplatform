@@ -70,10 +70,18 @@ pub struct IntegrationLog {
     pub channel_code: Option<String>,
 }
 
-fn default_direction() -> String { "OUTBOUND".to_string() }
-fn default_true() -> bool { true }
-fn default_three() -> i32 { 3 }
-fn default_backoff() -> i64 { 1000 }
+fn default_direction() -> String {
+    "OUTBOUND".to_string()
+}
+fn default_true() -> bool {
+    true
+}
+fn default_three() -> i32 {
+    3
+}
+fn default_backoff() -> i64 {
+    1000
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

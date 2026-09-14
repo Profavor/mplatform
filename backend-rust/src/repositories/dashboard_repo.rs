@@ -1,7 +1,7 @@
 use crate::models::dashboard::*;
+use chrono::Utc;
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
-use chrono::Utc;
 
 pub struct DashboardRepository;
 
@@ -12,35 +12,41 @@ impl DashboardRepository {
             .await
             .unwrap_or(0);
 
-        let pending_approvals: i64 = sqlx::query_scalar("SELECT count(*) FROM approval_request WHERE status = 'PENDING'")
-            .fetch_one(pool)
-            .await
-            .unwrap_or(0);
+        let pending_approvals: i64 =
+            sqlx::query_scalar("SELECT count(*) FROM approval_request WHERE status = 'PENDING'")
+                .fetch_one(pool)
+                .await
+                .unwrap_or(0);
 
-        let approved_approvals: i64 = sqlx::query_scalar("SELECT count(*) FROM approval_request WHERE status = 'APPROVED'")
-            .fetch_one(pool)
-            .await
-            .unwrap_or(0);
+        let approved_approvals: i64 =
+            sqlx::query_scalar("SELECT count(*) FROM approval_request WHERE status = 'APPROVED'")
+                .fetch_one(pool)
+                .await
+                .unwrap_or(0);
 
-        let rejected_approvals: i64 = sqlx::query_scalar("SELECT count(*) FROM approval_request WHERE status = 'REJECTED'")
-            .fetch_one(pool)
-            .await
-            .unwrap_or(0);
+        let rejected_approvals: i64 =
+            sqlx::query_scalar("SELECT count(*) FROM approval_request WHERE status = 'REJECTED'")
+                .fetch_one(pool)
+                .await
+                .unwrap_or(0);
 
-        let active_records: i64 = sqlx::query_scalar("SELECT count(*) FROM record WHERE status = 'ACTIVE'")
-            .fetch_one(pool)
-            .await
-            .unwrap_or(0);
+        let active_records: i64 =
+            sqlx::query_scalar("SELECT count(*) FROM record WHERE status = 'ACTIVE'")
+                .fetch_one(pool)
+                .await
+                .unwrap_or(0);
 
-        let pending_matches: i64 = sqlx::query_scalar("SELECT count(*) FROM match_candidate WHERE status = 'PENDING'")
-            .fetch_one(pool)
-            .await
-            .unwrap_or(0);
+        let pending_matches: i64 =
+            sqlx::query_scalar("SELECT count(*) FROM match_candidate WHERE status = 'PENDING'")
+                .fetch_one(pool)
+                .await
+                .unwrap_or(0);
 
-        let open_dq_violations: i64 = sqlx::query_scalar("SELECT count(*) FROM dq_violation WHERE resolved = false")
-            .fetch_one(pool)
-            .await
-            .unwrap_or(0);
+        let open_dq_violations: i64 =
+            sqlx::query_scalar("SELECT count(*) FROM dq_violation WHERE resolved = false")
+                .fetch_one(pool)
+                .await
+                .unwrap_or(0);
 
         Ok(DashboardStats {
             total_domains,
@@ -75,10 +81,13 @@ impl DashboardRepository {
         .fetch_all(pool)
         .await?;
 
-        let trends = rows.into_iter().map(|r| TrendItem {
-            date: r.get::<String, _>("dt"),
-            count: r.get::<i64, _>("cnt"),
-        }).collect();
+        let trends = rows
+            .into_iter()
+            .map(|r| TrendItem {
+                date: r.get::<String, _>("dt"),
+                count: r.get::<i64, _>("cnt"),
+            })
+            .collect();
 
         Ok(trends)
     }
@@ -105,15 +114,20 @@ impl DashboardRepository {
         .fetch_all(pool)
         .await?;
 
-        let trends = rows.into_iter().map(|r| TrendItem {
-            date: r.get::<String, _>("dt"),
-            count: r.get::<i64, _>("cnt"),
-        }).collect();
+        let trends = rows
+            .into_iter()
+            .map(|r| TrendItem {
+                date: r.get::<String, _>("dt"),
+                count: r.get::<i64, _>("cnt"),
+            })
+            .collect();
 
         Ok(trends)
     }
 
-    pub async fn get_domain_distribution(pool: &PgPool) -> Result<Vec<DomainDistributionItem>, sqlx::Error> {
+    pub async fn get_domain_distribution(
+        pool: &PgPool,
+    ) -> Result<Vec<DomainDistributionItem>, sqlx::Error> {
         let rows = sqlx::query(
             r#"
             SELECT d.id, d.name, count(r.id) as record_count
@@ -124,21 +138,26 @@ impl DashboardRepository {
             GROUP BY d.id, d.name
             ORDER BY record_count DESC
             LIMIT 20
-            "#
+            "#,
         )
         .fetch_all(pool)
         .await?;
 
-        let items = rows.into_iter().map(|r| DomainDistributionItem {
-            domain_id: r.get::<Uuid, _>("id"),
-            domain_name: r.get::<serde_json::Value, _>("name"),
-            record_count: r.get::<i64, _>("record_count"),
-        }).collect();
+        let items = rows
+            .into_iter()
+            .map(|r| DomainDistributionItem {
+                domain_id: r.get::<Uuid, _>("id"),
+                domain_name: r.get::<serde_json::Value, _>("name"),
+                record_count: r.get::<i64, _>("record_count"),
+            })
+            .collect();
 
         Ok(items)
     }
 
-    pub async fn get_dq_severity_distribution(pool: &PgPool) -> Result<Vec<DqSeverityItem>, sqlx::Error> {
+    pub async fn get_dq_severity_distribution(
+        pool: &PgPool,
+    ) -> Result<Vec<DqSeverityItem>, sqlx::Error> {
         let rows = sqlx::query(
             r#"
             SELECT COALESCE(severity, 'UNKNOWN') as severity, count(*) as count
@@ -146,20 +165,26 @@ impl DashboardRepository {
             WHERE resolved = false
             GROUP BY severity
             ORDER BY count DESC
-            "#
+            "#,
         )
         .fetch_all(pool)
         .await?;
 
-        let items = rows.into_iter().map(|r| DqSeverityItem {
-            severity: r.get::<String, _>("severity"),
-            count: r.get::<i64, _>("count"),
-        }).collect();
+        let items = rows
+            .into_iter()
+            .map(|r| DqSeverityItem {
+                severity: r.get::<String, _>("severity"),
+                count: r.get::<i64, _>("count"),
+            })
+            .collect();
 
         Ok(items)
     }
 
-    pub async fn get_lease_summary(pool: &PgPool, org_id: Option<Uuid>) -> Result<LeaseSummaryDto, sqlx::Error> {
+    pub async fn get_lease_summary(
+        pool: &PgPool,
+        org_id: Option<Uuid>,
+    ) -> Result<LeaseSummaryDto, sqlx::Error> {
         // Find lease contract domain
         let domain_row = if let Some(oid) = org_id {
             sqlx::query("SELECT id, name FROM domain WHERE specialized_category = 'LEASE_CONTRACT' AND organization_id = $1 LIMIT 1")
@@ -167,18 +192,24 @@ impl DashboardRepository {
                 .fetch_optional(pool)
                 .await?
         } else {
-            sqlx::query("SELECT id, name FROM domain WHERE specialized_category = 'LEASE_CONTRACT' LIMIT 1")
-                .fetch_optional(pool)
-                .await?
+            sqlx::query(
+                "SELECT id, name FROM domain WHERE specialized_category = 'LEASE_CONTRACT' LIMIT 1",
+            )
+            .fetch_optional(pool)
+            .await?
         };
 
         let (domain_id, domain_name_str) = match domain_row {
             Some(r) => {
                 let id: Uuid = r.get("id");
                 let name_val: serde_json::Value = r.get("name");
-                let name_str = name_val.get("ko").and_then(|v| v.as_str()).unwrap_or("부동산 임대차 마스터").to_string();
+                let name_str = name_val
+                    .get("ko")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("부동산 임대차 마스터")
+                    .to_string();
                 (id, name_str)
-            },
+            }
             None => {
                 return Ok(LeaseSummaryDto {
                     has_lease_domain: false,
@@ -204,7 +235,7 @@ impl DashboardRepository {
             JOIN classification_node n ON r.node_id = n.id
             JOIN classification_axis a ON n.axis_id = a.id
             WHERE a.domain_id = $1
-            "#
+            "#,
         )
         .bind(domain_id)
         .fetch_all(pool)
@@ -225,33 +256,70 @@ impl DashboardRepository {
             let rid: Uuid = r.get("id");
             let data_val: serde_json::Value = r.get("data");
 
-            let contract_no = data_val.get("contract_no").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let building_name = data_val.get("building_name").and_then(|v| v.as_str()).map(|s| s.to_string());
-            let unit_number = data_val.get("unit_number").and_then(|v| v.as_str()).map(|s| s.to_string());
-            let tenant_name = data_val.get("tenant_name").and_then(|v| v.as_str()).map(|s| s.to_string());
-            let tenant_contact = data_val.get("tenant_contact").and_then(|v| v.as_str()).map(|s| s.to_string());
-            let end_date_str = data_val.get("contract_end_date").and_then(|v| v.as_str()).map(|s| s.to_string());
-            let contract_status = data_val.get("contract_status").and_then(|v| v.as_str()).unwrap_or("");
+            let contract_no = data_val
+                .get("contract_no")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let building_name = data_val
+                .get("building_name")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let unit_number = data_val
+                .get("unit_number")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let tenant_name = data_val
+                .get("tenant_name")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let tenant_contact = data_val
+                .get("tenant_contact")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let end_date_str = data_val
+                .get("contract_end_date")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let contract_status = data_val
+                .get("contract_status")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
 
-            let deposit = data_val.get("deposit_amount").and_then(|v| v.as_i64()).unwrap_or(0);
-            let rent = data_val.get("monthly_rent").and_then(|v| v.as_i64()).unwrap_or(0);
-            let debt_ratio = data_val.get("debt_ratio").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let deposit = data_val
+                .get("deposit_amount")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0);
+            let rent = data_val
+                .get("monthly_rent")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0);
+            let debt_ratio = data_val
+                .get("debt_ratio")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0);
 
             total_deposit_amount += deposit;
             total_monthly_rent += rent;
 
             let is_overdue = contract_status.eq_ignore_ascii_case("OVERDUE");
-            if is_overdue { overdue_count += 1; }
+            if is_overdue {
+                overdue_count += 1;
+            }
 
             let is_high_debt = debt_ratio >= 80.0;
-            if is_high_debt { high_debt_ratio_count += 1; }
+            if is_high_debt {
+                high_debt_ratio_count += 1;
+            }
 
             let mut days_remaining: Option<i64> = None;
             let mut is_expiring_soon = false;
             let mut is_expired = false;
 
             if let Some(ref ed_str) = end_date_str {
-                if let Ok(ed) = chrono::NaiveDate::parse_from_str(&ed_str[..10.min(ed_str.len())], "%Y-%m-%d") {
+                if let Ok(ed) =
+                    chrono::NaiveDate::parse_from_str(&ed_str[..10.min(ed_str.len())], "%Y-%m-%d")
+                {
                     let diff = (ed - today).num_days();
                     days_remaining = Some(diff);
                     if diff < 0 {
@@ -277,7 +345,11 @@ impl DashboardRepository {
 
                 alerts.push(UrgentAlertDto {
                     record_id: rid,
-                    contract_no: if contract_no.is_empty() { format!("LEASE-{}", &rid.to_string()[..8]) } else { contract_no },
+                    contract_no: if contract_no.is_empty() {
+                        format!("LEASE-{}", &rid.to_string()[..8])
+                    } else {
+                        contract_no
+                    },
                     building_name,
                     unit_number,
                     tenant_name,

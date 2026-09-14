@@ -6,7 +6,10 @@ use uuid::Uuid;
 pub struct ClassificationRepository;
 
 impl ClassificationRepository {
-    pub async fn find_axes(pool: &PgPool, domain_id: Option<Uuid>) -> Result<Vec<ClassificationAxis>, AppError> {
+    pub async fn find_axes(
+        pool: &PgPool,
+        domain_id: Option<Uuid>,
+    ) -> Result<Vec<ClassificationAxis>, AppError> {
         let axes = if let Some(did) = domain_id {
             sqlx::query_as::<_, ClassificationAxis>(
                 r#"
@@ -34,7 +37,10 @@ impl ClassificationRepository {
         Ok(axes)
     }
 
-    pub async fn find_nodes(pool: &PgPool, domain_id: Option<Uuid>) -> Result<Vec<ClassificationNode>, AppError> {
+    pub async fn find_nodes(
+        pool: &PgPool,
+        domain_id: Option<Uuid>,
+    ) -> Result<Vec<ClassificationNode>, AppError> {
         let nodes = if let Some(did) = domain_id {
             sqlx::query_as::<_, ClassificationNode>(
                 r#"
@@ -66,7 +72,10 @@ impl ClassificationRepository {
         Ok(nodes)
     }
 
-    pub async fn find_node_by_id(pool: &PgPool, id: Uuid) -> Result<Option<ClassificationNode>, AppError> {
+    pub async fn find_node_by_id(
+        pool: &PgPool,
+        id: Uuid,
+    ) -> Result<Option<ClassificationNode>, AppError> {
         let node = sqlx::query_as::<_, ClassificationNode>(
             r#"
             SELECT id, domain_id, axis_id, parent_id, name, depth, node_order,

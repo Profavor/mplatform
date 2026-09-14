@@ -52,7 +52,10 @@ const FIELD_SELECT_SQL: &str = r#"
     LEFT JOIN sector s ON fg.sector_id = s.id
 "#;
 
-async fn fetch_field_by_id(db: &sqlx::PgPool, id: Uuid) -> Result<Option<FieldDefinition>, AppError> {
+async fn fetch_field_by_id(
+    db: &sqlx::PgPool,
+    id: Uuid,
+) -> Result<Option<FieldDefinition>, AppError> {
     let query_str = format!("{} WHERE fd.id = $1", FIELD_SELECT_SQL);
     let field = sqlx::query_as::<_, FieldDefinition>(&query_str)
         .bind(id)
@@ -163,8 +166,14 @@ pub async fn add_field(
     Json(payload): Json<FieldDefinitionRequest>,
 ) -> Result<Json<FieldDefinition>, AppError> {
     let new_id = Uuid::new_v4();
-    let key = payload.field_key.clone().unwrap_or_else(|| format!("field_{}", &new_id.to_string()[..8]));
-    let ftype = payload.field_type.clone().unwrap_or_else(|| "STRING".to_string());
+    let key = payload
+        .field_key
+        .clone()
+        .unwrap_or_else(|| format!("field_{}", &new_id.to_string()[..8]));
+    let ftype = payload
+        .field_type
+        .clone()
+        .unwrap_or_else(|| "STRING".to_string());
     let req = payload.required.unwrap_or(false);
     let searchable = payload.is_searchable.unwrap_or(true);
     let multi = payload.is_multi_value.unwrap_or(false);
@@ -175,12 +184,11 @@ pub async fn add_field(
     let col_w = payload.table_column_width.unwrap_or(150);
     let group_id = payload.resolved_group_id();
 
-    let domain_id: Option<Uuid> = sqlx::query_scalar(
-        "SELECT domain_id FROM classification_node WHERE id = $1"
-    )
-    .bind(node_id)
-    .fetch_optional(&state.db)
-    .await?;
+    let domain_id: Option<Uuid> =
+        sqlx::query_scalar("SELECT domain_id FROM classification_node WHERE id = $1")
+            .bind(node_id)
+            .fetch_optional(&state.db)
+            .await?;
 
     sqlx::query(
         r#"
@@ -195,7 +203,7 @@ pub async fn add_field(
             false, $13, $14, $15, $16,
             NOW(), NOW()
         )
-        "#
+        "#,
     )
     .bind(new_id)
     .bind(domain_id)
@@ -247,7 +255,7 @@ async fn do_update_field(
             field_group_id = COALESCE($12, field_group_id),
             updated_at = NOW()
         WHERE id = $13
-        "#
+        "#,
     )
     .bind(payload.name)
     .bind(payload.hint)
@@ -375,8 +383,14 @@ pub async fn add_domain_field(
     Json(payload): Json<FieldDefinitionRequest>,
 ) -> Result<Json<FieldDefinition>, AppError> {
     let new_id = Uuid::new_v4();
-    let key = payload.field_key.clone().unwrap_or_else(|| format!("field_{}", &new_id.to_string()[..8]));
-    let ftype = payload.field_type.clone().unwrap_or_else(|| "STRING".to_string());
+    let key = payload
+        .field_key
+        .clone()
+        .unwrap_or_else(|| format!("field_{}", &new_id.to_string()[..8]));
+    let ftype = payload
+        .field_type
+        .clone()
+        .unwrap_or_else(|| "STRING".to_string());
     let req = payload.required.unwrap_or(false);
     let searchable = payload.is_searchable.unwrap_or(true);
     let multi = payload.is_multi_value.unwrap_or(false);
@@ -400,7 +414,7 @@ pub async fn add_domain_field(
             false, $12, $13, $14, $15,
             NOW(), NOW()
         )
-        "#
+        "#,
     )
     .bind(new_id)
     .bind(domain_id)
@@ -463,7 +477,7 @@ pub async fn get_node_by_id(
         SELECT id, domain_id, parent_id, name, path, depth, node_order, icon
         FROM classification_node
         WHERE id = $1 AND is_deleted = false
-        "#
+        "#,
     )
     .bind(node_id)
     .fetch_optional(&state.db)
@@ -485,12 +499,11 @@ pub async fn get_node_info(
     .fetch_one(&state.db)
     .await?;
 
-    let record_count: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM record WHERE node_id = $1 AND status != 'DELETED'"
-    )
-    .bind(node_id)
-    .fetch_one(&state.db)
-    .await?;
+    let record_count: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM record WHERE node_id = $1 AND status != 'DELETED'")
+            .bind(node_id)
+            .fetch_one(&state.db)
+            .await?;
 
     Ok(Json(serde_json::json!({
         "node": node,
@@ -553,7 +566,11 @@ fn build_node_tree(nodes: &[NodeRow], target_root_ids: &[Uuid]) -> Vec<NodeTreeN
     fn attach(node: &NodeRow, children_map: &HashMap<Uuid, Vec<&NodeRow>>) -> NodeTreeNode {
         let child_nodes = children_map
             .get(&node.id)
-            .map(|list| list.iter().map(|child| attach(child, children_map)).collect())
+            .map(|list| {
+                list.iter()
+                    .map(|child| attach(child, children_map))
+                    .collect()
+            })
             .unwrap_or_default();
 
         NodeTreeNode {
@@ -614,7 +631,7 @@ pub async fn get_domain_nodes_tree(
         }
     } else {
         let default_axis: Option<(Uuid,)> = sqlx::query_as(
-            "SELECT id FROM classification_axis WHERE domain_id = $1 AND is_default = true LIMIT 1"
+            "SELECT id FROM classification_axis WHERE domain_id = $1 AND is_default = true LIMIT 1",
         )
         .bind(domain_id)
         .fetch_optional(&state.db)
@@ -676,10 +693,8 @@ pub async fn get_all_nodes_tree(
         return Ok(Json(Vec::new()));
     }
 
-    let mut root_nodes: Vec<&NodeRow> = all_nodes
-        .iter()
-        .filter(|n| n.parent_id.is_none())
-        .collect();
+    let mut root_nodes: Vec<&NodeRow> =
+        all_nodes.iter().filter(|n| n.parent_id.is_none()).collect();
     root_nodes.sort_by_key(|n| (n.domain_id, n.node_order));
     let root_ids: Vec<Uuid> = root_nodes.iter().map(|n| n.id).collect();
 
@@ -697,7 +712,7 @@ pub async fn get_field_dq_rules(
         SELECT id, rule_name, rule_type, rule_value
         FROM dq_rule
         WHERE field_definition_id = $1
-        "#
+        "#,
     )
     .bind(field_id)
     .fetch_all(&state.db)
@@ -730,9 +745,18 @@ pub async fn save_field_dq_rules(
         .await?;
 
     for rule in &payload {
-        let name = rule.get("ruleName").and_then(|v| v.as_str()).unwrap_or("Custom Rule");
-        let rtype = rule.get("ruleType").and_then(|v| v.as_str()).unwrap_or("REGEX");
-        let val = rule.get("ruleValue").cloned().unwrap_or(serde_json::json!({}));
+        let name = rule
+            .get("ruleName")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Custom Rule");
+        let rtype = rule
+            .get("ruleType")
+            .and_then(|v| v.as_str())
+            .unwrap_or("REGEX");
+        let val = rule
+            .get("ruleValue")
+            .cloned()
+            .unwrap_or(serde_json::json!({}));
         let new_id = Uuid::new_v4();
 
         sqlx::query(
@@ -750,7 +774,9 @@ pub async fn save_field_dq_rules(
         .await?;
     }
 
-    Ok(Json(serde_json::json!({ "success": true, "count": payload.len() })))
+    Ok(Json(
+        serde_json::json!({ "success": true, "count": payload.len() }),
+    ))
 }
 
 fn ftype_or_default(rtype: &str) -> &str {

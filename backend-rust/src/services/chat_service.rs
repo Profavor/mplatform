@@ -29,7 +29,8 @@ impl ChatService {
         creator_id: &str,
         member_ids: &[String],
     ) -> AppResult<ChatMessageRoom> {
-        let room = ChatRepository::create_room(&self.pool, name, is_group, creator_id, member_ids).await?;
+        let room =
+            ChatRepository::create_room(&self.pool, name, is_group, creator_id, member_ids).await?;
         Ok(room)
     }
 
@@ -38,7 +39,11 @@ impl ChatService {
         Ok(members)
     }
 
-    pub async fn get_room_messages(&self, room_id: Uuid, user_id: &str) -> AppResult<Vec<ChatMessage>> {
+    pub async fn get_room_messages(
+        &self,
+        room_id: Uuid,
+        user_id: &str,
+    ) -> AppResult<Vec<ChatMessage>> {
         let messages = ChatRepository::get_room_messages(&self.pool, room_id, user_id).await?;
         Ok(messages)
     }

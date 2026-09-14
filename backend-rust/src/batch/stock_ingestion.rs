@@ -45,14 +45,18 @@ impl StockDataIngestionJob {
             FROM domain
             WHERE specialized_category = 'STOCK' OR name::text ILIKE '%주식%'
             LIMIT 1
-            "#
+            "#,
         )
         .fetch_optional(pool)
         .await?;
 
         let (domain_id, domain_name) = match domain_row {
             Some((id, name)) => {
-                let name_str = name.get("ko").and_then(|v| v.as_str()).unwrap_or("주식 종목 마스터").to_string();
+                let name_str = name
+                    .get("ko")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("주식 종목 마스터")
+                    .to_string();
                 (id, name_str)
             }
             None => {
@@ -93,20 +97,51 @@ impl StockDataIngestionJob {
         let mut node_map: HashMap<String, Uuid> = HashMap::new();
         for n in &nodes {
             let path_upper = n.path.as_deref().unwrap_or("").to_uppercase();
-            let ko_name = n.name.get("ko").and_then(|v| v.as_str()).unwrap_or("").to_uppercase();
-            let en_name = n.name.get("en").and_then(|v| v.as_str()).unwrap_or("").to_uppercase();
+            let ko_name = n
+                .name
+                .get("ko")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_uppercase();
+            let en_name = n
+                .name
+                .get("en")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_uppercase();
 
-            if path_upper.contains("KOSPI") || ko_name.contains("KOSPI") || en_name.contains("KOSPI") {
+            if path_upper.contains("KOSPI")
+                || ko_name.contains("KOSPI")
+                || en_name.contains("KOSPI")
+            {
                 node_map.insert("KOSPI".to_string(), n.id);
-            } else if path_upper.contains("KOSDAQ") || ko_name.contains("KOSDAQ") || en_name.contains("KOSDAQ") {
+            } else if path_upper.contains("KOSDAQ")
+                || ko_name.contains("KOSDAQ")
+                || en_name.contains("KOSDAQ")
+            {
                 node_map.insert("KOSDAQ".to_string(), n.id);
-            } else if path_upper.contains("KONEX") || ko_name.contains("KONEX") || en_name.contains("KONEX") {
+            } else if path_upper.contains("KONEX")
+                || ko_name.contains("KONEX")
+                || en_name.contains("KONEX")
+            {
                 node_map.insert("KONEX".to_string(), n.id);
-            } else if path_upper.contains("미국") || path_upper.contains("US") || ko_name.contains("미국") || en_name.contains("US") {
+            } else if path_upper.contains("미국")
+                || path_upper.contains("US")
+                || ko_name.contains("미국")
+                || en_name.contains("US")
+            {
                 node_map.insert("US_MARKET".to_string(), n.id);
-            } else if path_upper.contains("아시아") || path_upper.contains("ASIA") || ko_name.contains("아시아") || en_name.contains("ASIA") {
+            } else if path_upper.contains("아시아")
+                || path_upper.contains("ASIA")
+                || ko_name.contains("아시아")
+                || en_name.contains("ASIA")
+            {
                 node_map.insert("ASIA_MARKET".to_string(), n.id);
-            } else if path_upper.contains("유럽") || path_upper.contains("EUROPE") || ko_name.contains("유럽") || en_name.contains("EUROPE") {
+            } else if path_upper.contains("유럽")
+                || path_upper.contains("EUROPE")
+                || ko_name.contains("유럽")
+                || en_name.contains("EUROPE")
+            {
                 node_map.insert("EUROPE_MARKET".to_string(), n.id);
             }
         }
@@ -126,7 +161,11 @@ impl StockDataIngestionJob {
             .execute(pool)
             .await?;
             total_deleted = del_res.rows_affected() as i32;
-            tracing::info!("Cleared {} existing stock records for domain [{}]", total_deleted, domain_id);
+            tracing::info!(
+                "Cleared {} existing stock records for domain [{}]",
+                total_deleted,
+                domain_id
+            );
         }
 
         // 4. Load Master Stock Data (all 3,525 records)
@@ -138,9 +177,9 @@ impl StockDataIngestionJob {
         // 5. Pre-fetch Live Market Quotes across KRX and Global exchanges
         let live_map = Self::fetch_all_live_market_data().await;
 
-        let allowed_markets: Option<HashSet<String>> = req.markets.map(|m| {
-            m.into_iter().map(|s| s.to_uppercase()).collect()
-        });
+        let allowed_markets: Option<HashSet<String>> = req
+            .markets
+            .map(|m| m.into_iter().map(|s| s.to_uppercase()).collect());
         let limit_per_market = req.limit_per_market;
 
         let mut seeded_by_market: HashMap<String, i32> = HashMap::new();
@@ -158,7 +197,8 @@ impl StockDataIngestionJob {
 
         for mut row in stock_rows {
             total_read += 1;
-            let market_code = row.get("market_node_code")
+            let market_code = row
+                .get("market_node_code")
                 .and_then(|v| v.as_str())
                 .unwrap_or("KOSPI")
                 .to_uppercase();
@@ -176,10 +216,14 @@ impl StockDataIngestionJob {
                 }
             }
 
-            let target_node_id = node_map.get(&market_code).copied().unwrap_or(default_node_id);
+            let target_node_id = node_map
+                .get(&market_code)
+                .copied()
+                .unwrap_or(default_node_id);
 
             // Extract identifier
-            let ticker = row.get("ticker_code")
+            let ticker = row
+                .get("ticker_code")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .trim()
@@ -305,10 +349,13 @@ impl StockDataIngestionJob {
             } else {
                 // INSERT
                 let new_rec_id = Uuid::new_v4();
-                let search_text = format!("{} {} {}", 
+                let search_text = format!(
+                    "{} {} {}",
                     row.get("stock_name").and_then(|v| v.as_str()).unwrap_or(""),
                     ticker,
-                    row.get("industry_sector").and_then(|v| v.as_str()).unwrap_or("")
+                    row.get("industry_sector")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
                 );
                 let search_val = serde_json::Value::String(search_text);
 
@@ -384,9 +431,7 @@ impl StockDataIngestionJob {
             let log_id = Uuid::new_v4();
             let original = format!(
                 "Spring Batch Completed. Read: {}, Written: {}, Skipped: {}",
-                total_read,
-                total_written,
-                total_skipped
+                total_read, total_written, total_skipped
             );
             let mapped = serde_json::json!({
                 "readCount": total_read,
@@ -395,7 +440,8 @@ impl StockDataIngestionJob {
                 "mergedCount": total_merged,
                 "skippedCount": total_skipped,
                 "status": "COMPLETED"
-            }).to_string();
+            })
+            .to_string();
 
             let _ = sqlx::query(
                 r#"
@@ -462,33 +508,25 @@ impl StockDataIngestionJob {
         // KOSPI: 15 pages (1500 items)
         for page in 1..=15 {
             let cl = client.clone();
-            join_set.spawn(async move {
-                Self::fetch_domestic_page(&cl, "KOSPI", page).await
-            });
+            join_set.spawn(async move { Self::fetch_domestic_page(&cl, "KOSPI", page).await });
         }
 
         // KOSDAQ: 20 pages (2000 items)
         for page in 1..=20 {
             let cl = client.clone();
-            join_set.spawn(async move {
-                Self::fetch_domestic_page(&cl, "KOSDAQ", page).await
-            });
+            join_set.spawn(async move { Self::fetch_domestic_page(&cl, "KOSDAQ", page).await });
         }
 
         // NASDAQ: 3 pages (300 items)
         for page in 1..=3 {
             let cl = client.clone();
-            join_set.spawn(async move {
-                Self::fetch_global_page(&cl, "NASDAQ", page).await
-            });
+            join_set.spawn(async move { Self::fetch_global_page(&cl, "NASDAQ", page).await });
         }
 
         // NYSE: 3 pages (300 items)
         for page in 1..=3 {
             let cl = client.clone();
-            join_set.spawn(async move {
-                Self::fetch_global_page(&cl, "NYSE", page).await
-            });
+            join_set.spawn(async move { Self::fetch_global_page(&cl, "NYSE", page).await });
         }
 
         while let Some(res) = join_set.join_next().await {
@@ -503,17 +541,28 @@ impl StockDataIngestionJob {
             }
         }
 
-        tracing::info!("Pre-fetched {} live market quotes into in-memory map", live_map.len());
+        tracing::info!(
+            "Pre-fetched {} live market quotes into in-memory map",
+            live_map.len()
+        );
         live_map
     }
 
-    async fn fetch_domestic_page(client: &reqwest::Client, market: &str, page: usize) -> anyhow::Result<Vec<serde_json::Value>> {
+    async fn fetch_domestic_page(
+        client: &reqwest::Client,
+        market: &str,
+        page: usize,
+    ) -> anyhow::Result<Vec<serde_json::Value>> {
         let url = format!(
             "https://m.stock.naver.com/api/stocks/marketValue/{}?page={}&pageSize=100",
             market, page
         );
-        let resp = client.get(&url)
-            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        let resp = client
+            .get(&url)
+            .header(
+                "User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            )
             .send()
             .await?;
 
@@ -522,31 +571,73 @@ impl StockDataIngestionJob {
         }
 
         let json: serde_json::Value = resp.json().await?;
-        let stocks = json.get("stocks").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+        let stocks = json
+            .get("stocks")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
 
         let clean_num = |v: Option<&serde_json::Value>| -> f64 {
             match v {
                 Some(serde_json::Value::Number(n)) => n.as_f64().unwrap_or(0.0),
-                Some(serde_json::Value::String(s)) => {
-                    s.replace(",", "").replace("%", "").trim().parse().unwrap_or(0.0)
-                }
+                Some(serde_json::Value::String(s)) => s
+                    .replace(",", "")
+                    .replace("%", "")
+                    .trim()
+                    .parse()
+                    .unwrap_or(0.0),
                 _ => 0.0,
             }
         };
 
         let mut results = Vec::new();
         for item in stocks {
-            let ticker = item.get("itemCode").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            if ticker.is_empty() { continue; }
-            let name = item.get("stockName").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let close_price = clean_num(item.get("closePriceRaw").or_else(|| item.get("closePrice")));
-            let change_price = clean_num(item.get("compareToPreviousClosePriceRaw").or_else(|| item.get("compareToPreviousClosePrice")));
-            let fluc_rate = clean_num(item.get("fluctuationsRatioRaw").or_else(|| item.get("fluctuationsRatio")));
-            let volume = clean_num(item.get("accumulatedTradingVolumeRaw").or_else(|| item.get("accumulatedTradingVolume"))) as i64;
-            let value = clean_num(item.get("accumulatedTradingValueRaw").or_else(|| item.get("accumulatedTradingValue"))) as i64;
-            let mkt_cap = clean_num(item.get("marketValueRaw").or_else(|| item.get("marketValue"))) as i64;
-            let logo = item.get("itemLogoUrl").or_else(|| item.get("itemLogoPngUrl")).and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let traded_at = item.get("localTradedAt").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let ticker = item
+                .get("itemCode")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            if ticker.is_empty() {
+                continue;
+            }
+            let name = item
+                .get("stockName")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let close_price =
+                clean_num(item.get("closePriceRaw").or_else(|| item.get("closePrice")));
+            let change_price = clean_num(
+                item.get("compareToPreviousClosePriceRaw")
+                    .or_else(|| item.get("compareToPreviousClosePrice")),
+            );
+            let fluc_rate = clean_num(
+                item.get("fluctuationsRatioRaw")
+                    .or_else(|| item.get("fluctuationsRatio")),
+            );
+            let volume = clean_num(
+                item.get("accumulatedTradingVolumeRaw")
+                    .or_else(|| item.get("accumulatedTradingVolume")),
+            ) as i64;
+            let value = clean_num(
+                item.get("accumulatedTradingValueRaw")
+                    .or_else(|| item.get("accumulatedTradingValue")),
+            ) as i64;
+            let mkt_cap = clean_num(
+                item.get("marketValueRaw")
+                    .or_else(|| item.get("marketValue")),
+            ) as i64;
+            let logo = item
+                .get("itemLogoUrl")
+                .or_else(|| item.get("itemLogoPngUrl"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let traded_at = item
+                .get("localTradedAt")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
 
             let mut row = serde_json::json!({
                 "ticker_code": ticker,
@@ -569,13 +660,21 @@ impl StockDataIngestionJob {
         Ok(results)
     }
 
-    async fn fetch_global_page(client: &reqwest::Client, exchange: &str, page: usize) -> anyhow::Result<Vec<serde_json::Value>> {
+    async fn fetch_global_page(
+        client: &reqwest::Client,
+        exchange: &str,
+        page: usize,
+    ) -> anyhow::Result<Vec<serde_json::Value>> {
         let url = format!(
             "https://api.stock.naver.com/stock/exchange/{}/marketValue?page={}&pageSize=100",
             exchange, page
         );
-        let resp = client.get(&url)
-            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        let resp = client
+            .get(&url)
+            .header(
+                "User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            )
             .send()
             .await?;
 
@@ -584,35 +683,74 @@ impl StockDataIngestionJob {
         }
 
         let json: serde_json::Value = resp.json().await?;
-        let stocks = json.get("stocks").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+        let stocks = json
+            .get("stocks")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
 
         let clean_num = |v: Option<&serde_json::Value>| -> f64 {
             match v {
                 Some(serde_json::Value::Number(n)) => n.as_f64().unwrap_or(0.0),
-                Some(serde_json::Value::String(s)) => {
-                    s.replace(",", "").replace("%", "").trim().parse().unwrap_or(0.0)
-                }
+                Some(serde_json::Value::String(s)) => s
+                    .replace(",", "")
+                    .replace("%", "")
+                    .trim()
+                    .parse()
+                    .unwrap_or(0.0),
                 _ => 0.0,
             }
         };
 
         let mut results = Vec::new();
         for item in stocks {
-            let ticker = item.get("symbolCode")
+            let ticker = item
+                .get("symbolCode")
                 .or_else(|| item.get("itemCode"))
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
-            if ticker.is_empty() { continue; }
-            let name = item.get("stockName").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let close_price = clean_num(item.get("closePriceRaw").or_else(|| item.get("closePrice")));
-            let change_price = clean_num(item.get("compareToPreviousClosePriceRaw").or_else(|| item.get("compareToPreviousClosePrice")));
-            let fluc_rate = clean_num(item.get("fluctuationsRatioRaw").or_else(|| item.get("fluctuationsRatio")));
-            let volume = clean_num(item.get("accumulatedTradingVolumeRaw").or_else(|| item.get("accumulatedTradingVolume"))) as i64;
-            let value = clean_num(item.get("accumulatedTradingValueRaw").or_else(|| item.get("accumulatedTradingValue"))) as i64;
-            let mkt_cap = clean_num(item.get("marketValueRaw").or_else(|| item.get("marketValue"))) as i64;
-            let logo = item.get("itemLogoUrl").or_else(|| item.get("itemLogoPngUrl")).and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let traded_at = item.get("localTradedAt").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            if ticker.is_empty() {
+                continue;
+            }
+            let name = item
+                .get("stockName")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let close_price =
+                clean_num(item.get("closePriceRaw").or_else(|| item.get("closePrice")));
+            let change_price = clean_num(
+                item.get("compareToPreviousClosePriceRaw")
+                    .or_else(|| item.get("compareToPreviousClosePrice")),
+            );
+            let fluc_rate = clean_num(
+                item.get("fluctuationsRatioRaw")
+                    .or_else(|| item.get("fluctuationsRatio")),
+            );
+            let volume = clean_num(
+                item.get("accumulatedTradingVolumeRaw")
+                    .or_else(|| item.get("accumulatedTradingVolume")),
+            ) as i64;
+            let value = clean_num(
+                item.get("accumulatedTradingValueRaw")
+                    .or_else(|| item.get("accumulatedTradingValue")),
+            ) as i64;
+            let mkt_cap = clean_num(
+                item.get("marketValueRaw")
+                    .or_else(|| item.get("marketValue")),
+            ) as i64;
+            let logo = item
+                .get("itemLogoUrl")
+                .or_else(|| item.get("itemLogoPngUrl"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let traded_at = item
+                .get("localTradedAt")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
 
             let mut row = serde_json::json!({
                 "ticker_code": ticker,
@@ -635,7 +773,10 @@ impl StockDataIngestionJob {
         Ok(results)
     }
 
-    pub async fn fetch_realtime_market_data(market: &str, page_size: usize) -> anyhow::Result<Vec<serde_json::Value>> {
+    pub async fn fetch_realtime_market_data(
+        market: &str,
+        page_size: usize,
+    ) -> anyhow::Result<Vec<serde_json::Value>> {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(10))
             .build()?;
@@ -648,11 +789,16 @@ impl StockDataIngestionJob {
 
         let url = format!(
             "https://m.stock.naver.com/api/stocks/marketValue/{}?page=1&pageSize={}",
-            market_api, page_size.min(100)
+            market_api,
+            page_size.min(100)
         );
 
-        let resp = client.get(&url)
-            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        let resp = client
+            .get(&url)
+            .header(
+                "User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            )
             .send()
             .await?;
 
@@ -661,31 +807,69 @@ impl StockDataIngestionJob {
         }
 
         let json_body: serde_json::Value = resp.json().await?;
-        let stocks = json_body.get("stocks").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+        let stocks = json_body
+            .get("stocks")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
 
         let clean_num = |v: Option<&serde_json::Value>| -> f64 {
             match v {
                 Some(serde_json::Value::Number(n)) => n.as_f64().unwrap_or(0.0),
-                Some(serde_json::Value::String(s)) => {
-                    s.replace(",", "").replace("%", "").trim().parse().unwrap_or(0.0)
-                }
+                Some(serde_json::Value::String(s)) => s
+                    .replace(",", "")
+                    .replace("%", "")
+                    .trim()
+                    .parse()
+                    .unwrap_or(0.0),
                 _ => 0.0,
             }
         };
 
         let mut results = Vec::new();
         for item in stocks {
-            let ticker = item.get("itemCode").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            if ticker.is_empty() { continue; }
-            let name = item.get("stockName").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let close_price = clean_num(item.get("closePriceRaw").or_else(|| item.get("closePrice")));
-            let change_price = clean_num(item.get("compareToPreviousClosePriceRaw").or_else(|| item.get("compareToPreviousClosePrice")));
+            let ticker = item
+                .get("itemCode")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            if ticker.is_empty() {
+                continue;
+            }
+            let name = item
+                .get("stockName")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let close_price =
+                clean_num(item.get("closePriceRaw").or_else(|| item.get("closePrice")));
+            let change_price = clean_num(
+                item.get("compareToPreviousClosePriceRaw")
+                    .or_else(|| item.get("compareToPreviousClosePrice")),
+            );
             let fluc_rate = clean_num(item.get("fluctuationsRatio"));
-            let volume = clean_num(item.get("accumulatedTradingVolumeRaw").or_else(|| item.get("accumulatedTradingVolume"))) as i64;
-            let value = clean_num(item.get("accumulatedTradingValueRaw").or_else(|| item.get("accumulatedTradingValue"))) as i64;
-            let mkt_cap = clean_num(item.get("marketValueRaw").or_else(|| item.get("marketValue"))) as i64;
-            let logo = item.get("itemLogoUrl").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let traded_at = item.get("localTradedAt").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let volume = clean_num(
+                item.get("accumulatedTradingVolumeRaw")
+                    .or_else(|| item.get("accumulatedTradingVolume")),
+            ) as i64;
+            let value = clean_num(
+                item.get("accumulatedTradingValueRaw")
+                    .or_else(|| item.get("accumulatedTradingValue")),
+            ) as i64;
+            let mkt_cap = clean_num(
+                item.get("marketValueRaw")
+                    .or_else(|| item.get("marketValue")),
+            ) as i64;
+            let logo = item
+                .get("itemLogoUrl")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let traded_at = item
+                .get("localTradedAt")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
 
             let row = serde_json::json!({
                 "market_node_code": market_api,
@@ -711,24 +895,39 @@ impl StockDataIngestionJob {
             .build()?;
 
         let url = format!("https://m.stock.naver.com/api/stock/{}/basic", ticker);
-        let resp = client.get(&url)
-            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        let resp = client
+            .get(&url)
+            .header(
+                "User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            )
             .send()
             .await?;
 
         if !resp.status().is_success() {
-            anyhow::bail!("Failed to fetch live stock {}: HTTP {}", ticker, resp.status());
+            anyhow::bail!(
+                "Failed to fetch live stock {}: HTTP {}",
+                ticker,
+                resp.status()
+            );
         }
 
         let item: serde_json::Value = resp.json().await?;
-        let name = item.get("stockName").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let name = item
+            .get("stockName")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
 
         let clean_num = |v: Option<&serde_json::Value>| -> f64 {
             match v {
                 Some(serde_json::Value::Number(n)) => n.as_f64().unwrap_or(0.0),
-                Some(serde_json::Value::String(s)) => {
-                    s.replace(",", "").replace("%", "").trim().parse().unwrap_or(0.0)
-                }
+                Some(serde_json::Value::String(s)) => s
+                    .replace(",", "")
+                    .replace("%", "")
+                    .trim()
+                    .parse()
+                    .unwrap_or(0.0),
                 _ => 0.0,
             }
         };
@@ -736,7 +935,11 @@ impl StockDataIngestionJob {
         let close_price = clean_num(item.get("closePrice"));
         let change_price = clean_num(item.get("compareToPreviousClosePrice"));
         let fluc_rate = clean_num(item.get("fluctuationsRatio"));
-        let traded_at = item.get("localTradedAt").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let traded_at = item
+            .get("localTradedAt")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
 
         Ok(serde_json::json!({
             "ticker_code": ticker,
