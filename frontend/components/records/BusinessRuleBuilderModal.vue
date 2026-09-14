@@ -103,12 +103,17 @@ const loadRules = async () => {
   if (!props.domainId) return
   loading.value = true
   try {
-    const res = await useCustomFetch(`/domains/${props.domainId}/business-rules`)
-    if (res.data?.value) {
+    const res = await useCustomFetch(`/domains/${props.domainId}/business-rules`, { silent: true }).catch(() => null)
+    if (res?.data?.value) {
       rules.value = res.data.value
+    } else if (Array.isArray(res)) {
+      rules.value = res
+    } else {
+      rules.value = []
     }
   } catch (e: any) {
     console.error('Failed to load business rules', e)
+    rules.value = []
   } finally {
     loading.value = false
   }
@@ -126,9 +131,10 @@ const saveRule = async () => {
         validationExpr: newValidationExpr.value.trim(),
         errorMessage: '비즈니스 유효성 검증 실패',
         enabled: true
-      }
-    })
-    if (res.data?.value) {
+      },
+      silent: true
+    }).catch(() => null)
+    if (res?.data?.value || res) {
       newRuleName.value = ''
       newConditionExpr.value = ''
       newValidationExpr.value = ''
@@ -146,11 +152,13 @@ const evaluateRules = async () => {
   evaluating.value = true
   try {
     const res = await useCustomFetch(`/domains/${props.domainId}/business-rules/evaluate`, {
-      method: 'POST'
-    })
-    if (res.data?.value) {
+      method: 'POST',
+      silent: true
+    }).catch(() => null)
+    const list = res?.data?.value || (Array.isArray(res) ? res : null)
+    if (list) {
       const map: Record<string, any> = {}
-      for (const item of res.data.value) {
+      for (const item of list) {
         map[item.ruleId] = item
       }
       evalResultsMap.value = map

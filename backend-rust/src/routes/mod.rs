@@ -338,6 +338,14 @@ pub fn create_router(state: AppState) -> Router {
             "/api/records/domains/:domain_id/survivorship-rules",
             get(matching::get_survivorship_rules).put(matching::update_survivorship_rules),
         )
+        .route(
+            "/api/domains/:domain_id/business-rules",
+            get(domain::get_business_rules).post(domain::save_business_rule),
+        )
+        .route(
+            "/api/domains/:domain_id/business-rules/evaluate",
+            post(domain::evaluate_business_rules),
+        )
         // 10. Multi-step Approval Workflow & Approval-Requests
         .route(
             "/api/approvals",

@@ -400,7 +400,11 @@ onBeforeUnmount(() => {
 const fetchNodeFieldDefinitions = async (nodeId) => {
   if (!nodeId || nodeFieldDefsCache.has(nodeId)) return
   try {
-    const fields = await customFetch(`/api/nodes/${nodeId}/fields/effective`).catch(() => [])
+    const fields = await customFetch(`/api/nodes/${nodeId}/fields/effective`, {
+      headers: { 'x-skip-loading': 'true' },
+      skipLoading: true,
+      silent: true
+    }).catch(() => [])
     if (Array.isArray(fields)) {
       nodeFieldDefsCache.set(nodeId, fields)
     }
@@ -418,7 +422,11 @@ const performSearch = async () => {
   
   isSearching.value = true
   try {
-    const res = await customFetch(`/api/v1/search?q=${encodeURIComponent(searchQuery.value.trim())}&size=6`)
+    const res = await customFetch(`/api/v1/search?q=${encodeURIComponent(searchQuery.value.trim())}&size=6`, {
+      headers: { 'x-skip-loading': 'true' },
+      skipLoading: true,
+      silent: true
+    })
     let items = []
     if (res && res.content && Array.isArray(res.content)) {
       items = res.content

@@ -1109,7 +1109,8 @@ const columnDefs = computed(() => [
     headerName: 'Status', 
     field: 'approvalStatus', 
     sortable: true,
-    width: 150,
+    width: 140,
+    minWidth: 120,
     cellRenderer: (params) => {
       if (!params || !params.data) return '';
       const isPending = pendingFieldIds.value.includes(params.data.id) || params.data.approvalStatus === 'PENDING_APPROVAL' || params.data.isPendingApproval;
@@ -1131,7 +1132,9 @@ const columnDefs = computed(() => [
     headerName: 'Name', 
     field: 'name', 
     sortable: true,
-    flex: 1,
+    width: 200,
+    minWidth: 160,
+    flex: 1.5,
     valueGetter: (params) => {
       if (!params || !params.data) return '';
       const pName = typeof params.data.name === 'string' ? JSON.parse(params.data.name || '{}') : params.data.name;
@@ -1142,7 +1145,8 @@ const columnDefs = computed(() => [
     headerName: 'Sector', 
     field: 'fieldGroup', 
     sortable: true,
-    width: 150,
+    width: 120,
+    minWidth: 100,
     valueGetter: (params) => {
       let fg = params.data?.fieldGroup;
       if (!fg && (params.data?.fieldGroupId || params.data?.field_group_id)) {
@@ -1158,7 +1162,8 @@ const columnDefs = computed(() => [
     headerName: 'Group', 
     field: 'fieldGroup', 
     sortable: true,
-    width: 150,
+    width: 120,
+    minWidth: 100,
     valueGetter: (params) => {
       let fg = params.data?.fieldGroup;
       if (!fg && (params.data?.fieldGroupId || params.data?.field_group_id)) {
@@ -1170,15 +1175,16 @@ const columnDefs = computed(() => [
       return gName?.[currentLocale.value] || gName?.ko || gName?.en || '';
     }
   },
-  { headerName: 'Key', field: 'key', sortable: true, flex: 1 },
-  { headerName: 'Order', field: 'order', sortable: true, width: 90 },
-  { headerName: 'Grid Width', field: 'gridWidth', sortable: true, width: 120 },
-  { headerName: 'AG-Grid Width', field: 'tableColumnWidth', sortable: true, width: 130 },
+  { headerName: 'Key', field: 'key', sortable: true, width: 180, minWidth: 140, flex: 1.2 },
+  { headerName: 'Order', field: 'order', sortable: true, width: 80, minWidth: 70 },
+  { headerName: 'Grid Width', field: 'gridWidth', sortable: true, width: 95, minWidth: 80 },
+  { headerName: 'AG-Grid Width', field: 'tableColumnWidth', sortable: true, width: 105, minWidth: 90 },
   { 
     headerName: 'Type', 
     field: 'type', 
     sortable: true, 
-    width: 170,
+    width: 140,
+    minWidth: 120,
     valueGetter: (params) => {
       if (!params.data || !params.data.type) return '';
       return codeStore.getCodeName('FIELD_TYPE', params.data.type, params.data.type);
@@ -1187,8 +1193,9 @@ const columnDefs = computed(() => [
   { 
     headerName: 'Required', 
     field: 'required', 
-    sortable: true,
-    width: 110,
+    sortable: true, 
+    width: 100,
+    minWidth: 85,
     cellRenderer: (params) => {
       if (!params || params.value === undefined) return '';
       const span = document.createElement('span');
@@ -1211,7 +1218,8 @@ const columnDefs = computed(() => [
     headerName: t('index'), 
     field: 'isIndexed', 
     sortable: true,
-    width: 100,
+    width: 90,
+    minWidth: 80,
     cellRenderer: (params) => {
       if (!params || !params.data) return '';
       const isIndexed = Boolean(params.data.isIndexed);

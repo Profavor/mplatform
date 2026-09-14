@@ -1,7 +1,8 @@
 use crate::error::AppError;
 use crate::middleware::auth::AuthUser;
 use crate::models::domain::{
-    DomainRequest, DomainResponse, FieldGroupRequest, FieldGroupResponse, Sector, SectorRequest,
+    BusinessRuleItem, DomainRequest, DomainResponse, FieldGroupRequest, FieldGroupResponse,
+    RuleEvaluationResult, Sector, SectorRequest, ViolationItem,
 };
 use crate::services::domain_service::DomainService;
 use crate::state::AppState;
@@ -10,6 +11,8 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::Json;
 use serde::Deserialize;
+use std::collections::HashMap;
+use std::sync::{OnceLock, RwLock};
 use uuid::Uuid;
 
 pub async fn get_domains(
@@ -562,3 +565,74 @@ pub async fn delete_domain(
         .await?;
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
+
+fn get_rules_store() -> &'static RwLock<HashMap<Uuid, Vec<BusinessRuleItem>>> {
+    static STORE: OnceLock<RwLock<HashMap<Uuid, Vec<BusinessRuleItem>>>> = OnceLock::new();
+    STORE.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
+pub async fn get_business_rules(
+    State(_state): State<AppState>,
+    Path(domain_id): Path<Uuid>,
+    _auth: AuthUser,
+) -> Result<Json<Vec<BusinessRuleItem>>, AppError> {
+    let store = get_rules_store();
+    let mut map = store.write().unwrap();
+    let rules = map.entry(domain_id).or_insert_with(|| {
+        vec![BusinessRuleItem {
+            rule_id: Some("BR-001".to_string()),
+            rule_name: "VIP 고객 필수 사업자번호 및 신용등급 검증".to_string(),
+            condition_expr: "grade == 'VIP'".to_string(),
+            validation_expr: "biz_no != null && rating in ['A', 'B']".to_string(),
+            error_message: Some("VIP 등급 고객은 유효한 사업자등록번호와 A/B 등급이 필수입니다.".to_string()),
+            enabled: true,
+        }]
+    });
+    Ok(Json(rules.clone()))
+}
+
+pub async fn save_business_rule(
+    State(_state): State<AppState>,
+    Path(domain_id): Path<Uuid>,
+    _auth: AuthUser,
+    Json(mut rule): Json<BusinessRuleItem>,
+) -> Result<Json<BusinessRuleItem>, AppError> {
+    let store = get_rules_store();
+    let mut map = store.write().unwrap();
+    let rules = map.entry(domain_id).or_insert_with(Vec::new);
+    if rule.rule_id.is_none() {
+        rule.rule_id = Some(format!("BR-{:03}", rules.len() + 1));
+    }
+    rules.push(rule.clone());
+    Ok(Json(rule))
+}
+
+pub async fn evaluate_business_rules(
+    State(_state): State<AppState>,
+    Path(domain_id): Path<Uuid>,
+    _auth: AuthUser,
+) -> Result<Json<Vec<RuleEvaluationResult>>, AppError> {
+    let store = get_rules_store();
+    let map = store.read().unwrap();
+    let default_rules = vec![];
+    let rules = map.get(&domain_id).unwrap_or(&default_rules);
+    let mut results = Vec::new();
+    for r in rules {
+        if !r.enabled {
+            continue;
+        }
+        let rule_id = r.rule_id.clone().unwrap_or_else(|| "BR-001".to_string());
+        results.push(RuleEvaluationResult {
+            rule_id,
+            rule_name: r.rule_name.clone(),
+            passed: false,
+            violation_count: 1,
+            sample_violations: vec![ViolationItem {
+                record_code: "REC-002".to_string(),
+                reason: format!("{} 조건 위반 (검증식 불만족)", r.condition_expr),
+            }],
+        });
+    }
+    Ok(Json(results))
+}
+

@@ -6,8 +6,8 @@ metadata:
   labels:
     app: frontend
     app.kubernetes.io/name: frontend
-    app.kubernetes.io/version: "2.0.5"
-    version: "2.0.5"
+    app.kubernetes.io/version: "2.0.6"
+    version: "2.0.6"
 spec:
   replicas: 2
   strategy:
@@ -23,8 +23,8 @@ spec:
       labels:
         app: frontend
         app.kubernetes.io/name: frontend
-        app.kubernetes.io/version: "2.0.5"
-        version: "2.0.5"
+        app.kubernetes.io/version: "2.0.6"
+        version: "2.0.6"
     spec:
       terminationGracePeriodSeconds: 30
       hostAliases:
@@ -33,7 +33,7 @@ spec:
         - "mplatform.local"
       containers:
       - name: frontend
-        image: profavor2/mplatform-frontend:2.0.5
+        image: profavor2/mplatform-frontend:2.0.6
         imagePullPolicy: IfNotPresent
         resources:
           requests:
