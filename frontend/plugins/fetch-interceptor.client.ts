@@ -35,6 +35,7 @@ export default defineNuxtPlugin((nuxtApp) => {
   // 재시도 가능한 fetch 래퍼: 401 발생 시 토큰 갱신 후 1회 재시도
   const fetchWithRetry = async (request: any, options: FetchOptions = {}): Promise<any> => {
     const reqUrl = typeof request === 'string' ? request : request?.toString?.() || ''
+    const isAuthUrl = reqUrl.includes('/api/auth/login') || reqUrl.includes('/api/auth/refresh')
     const getSkipLoading = (opts: any): boolean => {
       if (opts?.skipLoading === true) return true
       const headers = opts?.headers
