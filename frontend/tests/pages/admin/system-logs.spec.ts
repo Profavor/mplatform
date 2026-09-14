@@ -207,7 +207,7 @@ describe('System Logs Page with AG-Grid Community Infinite Model', () => {
 
     const agGrids = wrapper.findAllComponents(AgGridVueStub)
     expect(agGrids.length).toBeGreaterThan(0)
-    const errorGrid = agGrids[0]
+    const errorGrid = agGrids[0]!
 
     // Verify errorColumnDefs has loggedAt formatted with timezone
     const colDefs = errorGrid.props('columnDefs')
@@ -302,7 +302,7 @@ describe('System Logs Page with AG-Grid Community Infinite Model', () => {
 
     const agGrids = wrapper.findAllComponents(AgGridVueStub)
     expect(agGrids.length).toBeGreaterThan(0)
-    const loginGrid = agGrids[0]
+    const loginGrid = agGrids[0]!
 
     // Verify userId formatter produces USR- prefix
     const colDefs = loginGrid.props('columnDefs')

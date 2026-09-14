@@ -62,7 +62,7 @@ describe('InboxFolderSidebar', () => {
 
     const folderItems = wrapper.findAll('.folder-item')
     if (folderItems.length > 1) {
-      await folderItems[1].trigger('click')
+      await folderItems[1]!.trigger('click')
       expect(wrapper.emitted('select-folder')).toBeTruthy()
     }
   })

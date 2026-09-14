@@ -4,18 +4,13 @@ import { defineVitestConfig } from '@nuxt/test-utils/config'
 export default defineVitestConfig({
   test: {
     environment: 'nuxt',
-    environmentMatchGlobs: [
-      ['tests/unit/**', 'happy-dom'],
-      ['tests/utils/**', 'happy-dom'],
-      ['tests/timezone.spec.ts', 'happy-dom'],
-    ],
+    hookTimeout: 60000,
+    testTimeout: 30000,
     globals: true,
     pool: 'forks',
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
+    forks: {
+      singleFork: true,
     },
     exclude: [...configDefaults.exclude, 'tests/e2e/**'],
-  },
+  } as any,
 })

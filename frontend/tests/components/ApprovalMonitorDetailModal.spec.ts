@@ -89,7 +89,7 @@ describe('ApprovalMonitorDetailModal.vue (TDD Component Test)', () => {
 
     const buttons = wrapper.findAll('.va-btn-stub')
     expect(buttons.length).toBeGreaterThanOrEqual(2)
-    await buttons[0].trigger('click')
+    await buttons[0]!.trigger('click')
 
     expect(wrapper.emitted('proxy-approve')).toBeTruthy()
     expect(wrapper.emitted('proxy-approve')![0]).toEqual(['step-2'])
@@ -120,7 +120,7 @@ describe('ApprovalMonitorDetailModal.vue (TDD Component Test)', () => {
 
     const buttons = wrapper.findAll('.va-btn-stub')
     expect(buttons.length).toBeGreaterThanOrEqual(2)
-    await buttons[1].trigger('click')
+    await buttons[1]!.trigger('click')
 
     expect(wrapper.emitted('proxy-reject')).toBeTruthy()
     expect(wrapper.emitted('proxy-reject')![0]).toEqual(['step-2'])

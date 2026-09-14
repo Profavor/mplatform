@@ -56,7 +56,7 @@ describe('CodeGroupModal.vue (TDD Component Test)', () => {
 
   it('저장 버튼 클릭 시 save 이벤트 방출', async () => {
     const groupForm = createMockGroupForm()
-    const wrapper = mount(CodeGroupModal, {
+    const wrapper: any = mount(CodeGroupModal, {
       props: {
         modelValue: true,
         groupForm: groupForm,
@@ -80,7 +80,7 @@ describe('CodeGroupModal.vue (TDD Component Test)', () => {
       }
     })
 
-    wrapper.vm.onSave()
+    ;(wrapper.vm as any).onSave()
     expect(wrapper.emitted('save')).toBeTruthy()
   })
 })

@@ -15,7 +15,7 @@ const i18n = createI18n({
       empty_tree: '트리 데이터가 없습니다.'
     }
   }
-})
+} as any)
 
 // Mock custom fetch & cookie
 vi.mock('~/composables/useCustomFetch', () => ({

@@ -95,7 +95,7 @@ describe('MatchingRuleModal.vue (TDD Component Test)', () => {
     // 취소, 저장 버튼
     expect(buttons.length).toBeGreaterThanOrEqual(2)
     const saveBtn = buttons[buttons.length - 1]
-    await saveBtn.trigger('click')
+    await saveBtn!.trigger('click')
 
     expect(wrapper.emitted('save')).toBeTruthy()
   })
@@ -134,7 +134,7 @@ describe('MatchingRuleModal.vue (TDD Component Test)', () => {
 
     const buttons = wrapper.findAll('.va-btn-stub')
     const cancelBtn = buttons[buttons.length - 2]
-    await cancelBtn.trigger('click')
+    await cancelBtn!.trigger('click')
 
     expect(wrapper.emitted('update:modelValue') || wrapper.emitted('close')).toBeTruthy()
   })

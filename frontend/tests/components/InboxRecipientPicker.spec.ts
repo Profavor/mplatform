@@ -75,7 +75,7 @@ describe('InboxRecipientPicker', () => {
     if (modal.exists()) {
       modal.vm.$emit('confirm', ['user-1', 'user-2'])
       expect(wrapper.emitted('update:modelValue')).toBeTruthy()
-      expect(wrapper.emitted('update:modelValue')![0][0]).toEqual(['user-1', 'user-2', 'external@example.com'])
+      expect(wrapper.emitted('update:modelValue')![0]![0]).toEqual(['user-1', 'user-2', 'external@example.com'])
     }
   })
 })

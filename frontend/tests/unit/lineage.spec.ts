@@ -16,6 +16,6 @@ describe('Data Lineage Helper & Parser', () => {
 
     expect(mockData.nodes.length).toBe(2)
     expect(mockData.edges.length).toBe(1)
-    expect(mockData.edges[0].relationship).toBe('CREATED_FROM')
+    expect(mockData.edges[0]!.relationship).toBe('CREATED_FROM')
   })
 })

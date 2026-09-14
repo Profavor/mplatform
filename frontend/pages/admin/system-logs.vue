@@ -376,7 +376,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch, onMounted, computed } from 'vue'
 import { AgGridVue } from 'ag-grid-vue3'
 import { use } from 'echarts/core'

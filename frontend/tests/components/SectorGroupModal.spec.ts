@@ -56,7 +56,7 @@ describe('components/schema/SectorGroupModal.vue (TDD)', () => {
     
     const tabs = wrapper.findAll('.va-tab')
     expect(tabs.length).toBeGreaterThanOrEqual(2)
-    expect(tabs[0].text()).toBe('섹터')
-    expect(tabs[1].text()).toBe('그룹')
+    expect(tabs[0]!.text()).toBe('섹터')
+    expect(tabs[1]!.text()).toBe('그룹')
   })
 })

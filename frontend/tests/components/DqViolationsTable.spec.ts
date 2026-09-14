@@ -24,7 +24,7 @@ const i18n = createI18n({
       'dq_dashboard.pagination_summary': '총 {total}건 중 {start} - {end}건 표시'
     }
   }
-})
+} as any)
 
 describe('DqViolationsTable.vue Component', () => {
   it('레코드 식별자에 HTML 태그가 포함되어 있어도 텍스트만 깔끔하게 정제되어 렌더링되어야 한다', () => {

@@ -17,14 +17,18 @@ vi.mock('vue-i18n', () => ({
   })
 }))
 
-vi.mock('#app', () => ({
-  useCookie: (name: string) => {
-    if (name === 'auth_token') return mockAuthTokenCookie
-    if (name === 'refresh_token') return mockRefreshTokenCookie
-    return { value: '' }
-  },
-  navigateTo: vi.fn()
-}))
+vi.mock('#app', async (importOriginal) => {
+  const actual = await importOriginal<any>()
+  return {
+    ...actual,
+    useCookie: (name: string) => {
+      if (name === 'auth_token') return mockAuthTokenCookie
+      if (name === 'refresh_token') return mockRefreshTokenCookie
+      return { value: '' }
+    },
+    navigateTo: vi.fn()
+  }
+})
 
 vi.mock('~/composables/useCustomFetch', () => ({
   useCustomFetch: () => ({
@@ -96,7 +100,7 @@ describe('TwoFactorVerifyModal.vue', () => {
     const input = wrapper.find('.va-input-stub')
     await input.setValue('123456')
 
-    await wrapper.vm.handleVerify()
+    await (wrapper.vm as any).handleVerify()
 
     expect(mockCustomFetch).toHaveBeenCalledWith('/api/auth/2fa/verify', expect.objectContaining({
       method: 'POST',
@@ -120,10 +124,10 @@ describe('TwoFactorVerifyModal.vue', () => {
     })
 
     const wrapper = createWrapper()
-    wrapper.vm.activeTab = 'EMAIL'
+    ;(wrapper.vm as any).activeTab = 'EMAIL'
     await wrapper.vm.$nextTick()
 
-    await wrapper.vm.handleSendEmailOtp()
+    await (wrapper.vm as any).handleSendEmailOtp()
 
     expect(mockCustomFetch).toHaveBeenCalledWith('/api/auth/2fa/send-email', expect.objectContaining({
       method: 'POST',
@@ -141,13 +145,13 @@ describe('TwoFactorVerifyModal.vue', () => {
     })
 
     const wrapper = createWrapper()
-    wrapper.vm.activeTab = 'BACKUP_CODE'
+    ;(wrapper.vm as any).activeTab = 'BACKUP_CODE'
     await wrapper.vm.$nextTick()
 
     const input = wrapper.find('.va-input-stub')
     await input.setValue('ABCD1234')
 
-    await wrapper.vm.handleVerify()
+    await (wrapper.vm as any).handleVerify()
 
     expect(mockCustomFetch).toHaveBeenCalledWith('/api/auth/2fa/verify', expect.objectContaining({
       method: 'POST',
@@ -169,7 +173,7 @@ describe('TwoFactorVerifyModal.vue', () => {
     const input = wrapper.find('.va-input-stub')
     await input.setValue('000000')
 
-    await wrapper.vm.handleVerify()
+    await (wrapper.vm as any).handleVerify()
 
     expect(wrapper.vm.errorMessage).toBe('two_factor_invalid_code')
     expect(mockAuthTokenCookie.value).toBe('')
@@ -177,7 +181,7 @@ describe('TwoFactorVerifyModal.vue', () => {
 
   it('emits skip event when clicking skip grace period button', async () => {
     const wrapper = createWrapper({ gracePeriodRemainingDays: 3 })
-    await wrapper.vm.handleSkip()
+    await (wrapper.vm as any).handleSkip()
     expect(wrapper.emitted('skip')).toBeTruthy()
   })
 })

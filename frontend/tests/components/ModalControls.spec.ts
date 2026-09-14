@@ -13,7 +13,7 @@ const i18n = createI18n({
       btn_close: '닫기'
     }
   }
-})
+} as any)
 
 describe('ModalControls.vue (Common Window Controls)', () => {
   it('renders maximize and close buttons by default with white icon color', () => {

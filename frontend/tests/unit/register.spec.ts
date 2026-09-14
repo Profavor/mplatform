@@ -9,7 +9,11 @@ const navigateToMock = vi.fn()
 vi.mock('vue-router', () => ({
   useRouter: () => ({
     replace: replaceMock,
-    push: vi.fn()
+    push: vi.fn(),
+    afterEach: vi.fn(),
+    beforeEach: vi.fn(),
+    beforeResolve: vi.fn(),
+    currentRoute: { value: { path: '/', query: {}, params: {} } }
   }),
   useRoute: () => ({
     query: {}
@@ -19,23 +23,35 @@ vi.mock('vue-router', () => ({
 // Mock Nuxt #app
 let mockAuthToken: string | null = null
 let mockRefreshToken: string | null = null
-vi.mock('#app', () => ({
-  useRoute: () => ({ query: {} }),
-  useCookie: (name: string) => ({
-    get value() {
-      if (name === 'auth_token') return mockAuthToken
-      if (name === 'refresh_token') return mockRefreshToken
-      return null
-    },
-    set value(val) {
-      if (name === 'auth_token') mockAuthToken = val
-      if (name === 'refresh_token') mockRefreshToken = val
-    }
-  }),
-  navigateTo: (path: string) => navigateToMock(path),
-  useHead: vi.fn(),
-  definePageMeta: vi.fn()
-}))
+vi.mock('#app', async (importOriginal) => {
+  const actual = await importOriginal<any>()
+  return {
+    ...actual,
+    useRoute: () => ({ query: {} }),
+    useCookie: (name: string) => ({
+      get value() {
+        if (name === 'auth_token') return mockAuthToken
+        if (name === 'refresh_token') return mockRefreshToken
+        return null
+      },
+      set value(val) {
+        if (name === 'auth_token') mockAuthToken = val
+        if (name === 'refresh_token') mockRefreshToken = val
+      }
+    }),
+    navigateTo: (path: string) => navigateToMock(path),
+    useHead: vi.fn(),
+    definePageMeta: vi.fn(),
+    useRouter: () => ({
+      push: vi.fn(),
+      replace: vi.fn(),
+      afterEach: vi.fn(),
+      beforeEach: vi.fn(),
+      beforeResolve: vi.fn(),
+      currentRoute: { value: { path: '/', query: {}, params: {} } }
+    })
+  }
+})
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({

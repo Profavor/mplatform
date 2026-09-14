@@ -117,7 +117,7 @@ describe('ApprovalRouteBuilder.vue', () => {
       await addParallelBtn.trigger('click')
       const emits = wrapper.emitted('update:modelValue')
       expect(emits).toBeTruthy()
-      const lastEmit = emits![emits!.length - 1][0] as any
+      const lastEmit = emits![emits!.length - 1]![0] as any
       expect(lastEmit.steps.length).toBe(2)
       expect(lastEmit.steps[0].stepOrder).toBe(1)
       expect(lastEmit.steps[1].stepOrder).toBe(1)

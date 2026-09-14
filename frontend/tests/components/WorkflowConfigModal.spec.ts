@@ -123,10 +123,10 @@ describe('WorkflowConfigModal.vue (TDD Component Test)', () => {
     const initialStepCount = modalData.steps.length
 
     // 컴포넌트 내부의 addPermissionRule 및 addApprovalStep 메서드 호출 또는 버튼 클릭
-    wrapper.vm.addPermissionRule()
+    ;(wrapper.vm as any).addPermissionRule()
     expect(modalData.permissions.length).toBe(initialPermCount + 1)
 
-    wrapper.vm.addApprovalStep()
+    ;(wrapper.vm as any).addApprovalStep()
     expect(modalData.steps.length).toBe(initialStepCount + 1)
   })
 
@@ -164,7 +164,7 @@ describe('WorkflowConfigModal.vue (TDD Component Test)', () => {
       }
     })
 
-    wrapper.vm.onSave()
+    ;(wrapper.vm as any).onSave()
     expect(wrapper.emitted('save')).toBeTruthy()
   })
 })

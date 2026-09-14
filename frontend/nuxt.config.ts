@@ -8,12 +8,15 @@ import pkg from './package.json'
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  compatibilityDate: '2026-08-11',
+  srcDir: '.',
+  compatibilityDate: '2026-09-14',
   experimental: {
-    scanPageMeta: true
+    scanPageMeta: 'after-resolve'
+  },
+  typescript: {
+    strict: true
   },
   devtools: { enabled: false },
-  unhead: { legacy: true },
   modules: ['@pinia/nuxt', '@vuestic/nuxt', 'nuxt-oidc-auth', '@nuxtjs/i18n'],
   css: ['~/assets/main.css'],
   vuestic: {
@@ -81,11 +84,7 @@ export default defineNuxtConfig({
     ],
     defaultLocale: 'ko',
     strategy: 'no_prefix',
-    lazy: true,
-    langDir: 'locales',
-    bundle: {
-      optimizeTranslationDirective: false
-    }
+    langDir: 'locales'
   },
   oidc: {
     defaultProvider: 'keycloak',
@@ -125,7 +124,7 @@ export default defineNuxtConfig({
   app: {
     head: {
       title: 'Domain Governance System',
-      titleTemplate: (titleChunk?: string) => (!titleChunk || titleChunk === 'Domain Governance System') ? 'Domain Governance System' : `${titleChunk} | Domain Governance System`,
+      titleTemplate: ((titleChunk?: string) => (!titleChunk || titleChunk === 'Domain Governance System') ? 'Domain Governance System' : `${titleChunk} | Domain Governance System`) as any,
       charset: 'utf-8',
       viewport: 'width=device-width, initial-scale=1',
       meta: [
@@ -182,7 +181,6 @@ export default defineNuxtConfig({
     }
   },
   nitro: {
-    hidePoweredBy: true,
     externals: {
       inline: [
         'undio',

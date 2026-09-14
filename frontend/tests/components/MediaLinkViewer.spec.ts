@@ -23,7 +23,7 @@ const i18n = createI18n({
       click_to_zoom: '클릭하여 확대'
     }
   }
-})
+} as any)
 
 describe('MediaLinkViewer.vue (TDD Component Test)', () => {
   it('이미지 URL이 주어지면 img 태그를 렌더링한다', async () => {

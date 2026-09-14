@@ -78,7 +78,7 @@ describe('Workflow Admin API Contract Regression Test (TDD)', () => {
     })
 
     expect(options[0]).toEqual({ value: 'ROLE_ADMIN', text: '시스템 관리자' })
-    expect(options[0].text).not.toContain('{')
+    expect(options[0]!.text).not.toContain('{')
     expect(map['ROLE_ADMIN']).toBe('시스템 관리자')
   })
 
@@ -141,8 +141,8 @@ describe('Workflow Admin API Contract Regression Test (TDD)', () => {
     const payload = buildPayload('domain-123')
     expect(payload).toHaveLength(3)
 
-    const createConfig = JSON.parse(payload[0].stepsConfig)
-    const updateConfig = JSON.parse(payload[1].stepsConfig)
+    const createConfig = JSON.parse(payload[0]!.stepsConfig)
+    const updateConfig = JSON.parse(payload[1]!.stepsConfig)
 
     expect(createConfig.permissions[0].editableFields).toEqual(['empNo', 'name'])
     expect(updateConfig.permissions[0].editableFields).toEqual(['dept'])

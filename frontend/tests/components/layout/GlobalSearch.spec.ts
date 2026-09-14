@@ -15,7 +15,7 @@ const i18n = createI18n({
       close: '닫기'
     }
   }
-})
+} as any)
 
 const mockPush = vi.fn()
 vi.mock('vue-router', () => ({
@@ -129,10 +129,11 @@ describe('GlobalSearch.vue (Desktop & Mobile Support)', () => {
     })
 
     await nextTick()
-    wrapper.vm.openMobileSearch()
+    const vm = wrapper.vm as any
+    vm.openMobileSearch()
     await nextTick()
 
-    wrapper.vm.results = [
+    vm.results = [
       {
         id: 'test-record-uuid',
         data: '{"title":"모바일 테스트"}',
@@ -188,13 +189,14 @@ describe('GlobalSearch.vue (Desktop & Mobile Support)', () => {
     })
 
     await nextTick()
-    wrapper.vm.searchQuery = 'LG디스플레이'
-    await wrapper.vm.performSearch()
+    const vm = wrapper.vm as any
+    vm.searchQuery = 'LG디스플레이'
+    await vm.performSearch()
     await nextTick()
 
     // records 배열이 results에 매핑되었는지 검증
-    expect(wrapper.vm.results.length).toBe(1)
-    const primary = wrapper.vm.getPrimaryField(wrapper.vm.results[0])
+    expect(vm.results.length).toBe(1)
+    const primary = vm.getPrimaryField(vm.results[0])
     expect(primary.rawKey).toBe('stock_name')
     expect(primary.val).toBe('LG디스플레이')
   })

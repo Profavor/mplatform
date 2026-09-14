@@ -2,12 +2,12 @@ import { defineEventHandler, deleteCookie, sendRedirect, useSession } from 'h3'
 
 export default defineEventHandler(async (event) => {
   try {
-    const session = await useSession(event, { name: 'nuxt-oidc-auth' })
+    const session = await useSession(event, { name: 'nuxt-oidc-auth', password: '' })
     await session.clear()
   } catch (e) {}
 
   try {
-    const oidcSession = await useSession(event, { name: 'oidc' })
+    const oidcSession = await useSession(event, { name: 'oidc', password: '' })
     await oidcSession.clear()
   } catch (e) {}
 

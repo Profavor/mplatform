@@ -21,7 +21,7 @@ describe('MatchCandidateReviewNotification - #148 중복 검토 인박스 알림
   const parseReviewRoute = (msgBody: string): { path: string; candidateId: string | null } => {
     const match = msgBody.match(/href='(\/admin\/match-review\?candidateId=([a-zA-Z0-9-]+))'/)
     if (match) {
-      return { path: match[1], candidateId: match[2] }
+      return { path: match[1]!, candidateId: match[2]! }
     }
     return { path: '/admin/match-review', candidateId: null }
   }

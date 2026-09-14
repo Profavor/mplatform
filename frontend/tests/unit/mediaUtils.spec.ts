@@ -115,22 +115,22 @@ describe('mediaUtils (TDD)', () => {
     it('단일 URL 문자열을 요소 1개의 미디어 정보 배열로 반환한다', () => {
       const list = parseMediaList('https://example.com/test.mp4')
       expect(list.length).toBe(1)
-      expect(list[0].type).toBe('VIDEO')
+      expect(list[0]!.type).toBe('VIDEO')
     })
 
     it('콤마로 구분된 여러 URL을 각각 파싱한다', () => {
       const list = parseMediaList('https://example.com/a.jpg, https://youtu.be/dQw4w9WgXcQ')
       expect(list.length).toBe(2)
-      expect(list[0].type).toBe('IMAGE')
-      expect(list[1].type).toBe('YOUTUBE')
+      expect(list[0]!.type).toBe('IMAGE')
+      expect(list[1]!.type).toBe('YOUTUBE')
     })
 
     it('JSON 문자열 배열이나 객체 배열을 정상 파싱한다', () => {
       const jsonArr = '["https://example.com/photo.png", "https://example.com/video.mp4"]'
       const list = parseMediaList(jsonArr)
       expect(list.length).toBe(2)
-      expect(list[0].type).toBe('IMAGE')
-      expect(list[1].type).toBe('VIDEO')
+      expect(list[0]!.type).toBe('IMAGE')
+      expect(list[1]!.type).toBe('VIDEO')
     })
   })
 

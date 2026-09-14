@@ -108,7 +108,7 @@ export const useApprovalEnricher = () => {
       try {
         const fields = await customFetch(`/api/nodes/${nodeId}/fields/effective`)
         fieldSchemas.value[nodeId] = fields || []
-        return fieldSchemas.value[nodeId]
+        return fieldSchemas.value[nodeId] ?? []
       } catch (e) {
         console.error(`Failed to fetch fields for node ${nodeId}`, e)
         return []
@@ -117,7 +117,7 @@ export const useApprovalEnricher = () => {
       }
     })()
 
-    return await inFlightNodeRequests[nodeId]
+    return (await inFlightNodeRequests[nodeId]) ?? []
   }
   
   const getTranslatedName = (nameObj: any): string => {
@@ -306,9 +306,9 @@ export const useApprovalEnricher = () => {
     span.style.borderRadius = '9999px'
     span.style.fontSize = '0.75rem'
     span.style.fontWeight = '600'
-    span.style.backgroundColor = theme.bg
-    span.style.color = theme.text
-    span.style.border = `1px solid ${theme.border}`
+    span.style.backgroundColor = theme!.bg
+    span.style.color = theme!.text
+    span.style.border = `1px solid ${theme!.border}`
     span.style.whiteSpace = 'nowrap'
     span.style.letterSpacing = '-0.01em'
     span.innerText = label

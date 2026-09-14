@@ -92,7 +92,7 @@ describe('ExcelUploader.vue (Bulk Import & Validation & Error Extraction)', () =
     await vm.downloadCsvTemplate()
 
     expect(mockSaveAs).toHaveBeenCalledTimes(1)
-    const [blob, filename] = mockSaveAs.mock.calls[0]
+    const [blob, filename] = mockSaveAs.mock.calls[0]!
     expect(filename).toContain('.csv')
     expect(blob.type).toContain('text/csv')
   })
@@ -141,7 +141,7 @@ describe('ExcelUploader.vue (Bulk Import & Validation & Error Extraction)', () =
     await vm.downloadErrorRowsCsv()
 
     expect(mockSaveAs).toHaveBeenCalledTimes(1)
-    const [blob, filename] = mockSaveAs.mock.calls[0]
+    const [blob, filename] = mockSaveAs.mock.calls[0]!
     expect(filename).toContain('error_rows')
   })
 
@@ -193,7 +193,7 @@ describe('ExcelUploader.vue (Bulk Import & Validation & Error Extraction)', () =
     await vm.proceedUpload()
 
     expect(mockCustomFetch).toHaveBeenCalledTimes(1)
-    const [url, options] = mockCustomFetch.mock.calls[0]
+    const [url, options] = mockCustomFetch.mock.calls[0]!
     expect(url).toContain('/batch-upsert')
     expect(options.method).toBe('POST')
     expect(options.body.autoApprove).toBe(true)

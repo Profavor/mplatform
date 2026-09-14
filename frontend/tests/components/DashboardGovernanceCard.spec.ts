@@ -68,6 +68,6 @@ describe('DashboardGovernanceCard.vue (TDD Component Test)', () => {
       }
     })
 
-    expect(wrapper.vm.getApprovalRate()).toBe(0)
+    expect((wrapper.vm as any).getApprovalRate()).toBe(0)
   })
 })

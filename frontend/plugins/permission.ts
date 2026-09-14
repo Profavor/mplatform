@@ -10,7 +10,7 @@ export default defineNuxtPlugin((nuxtApp) => {
       const permissions = userCookie.permissions || []
       const role = userCookie.role || ''
 
-      const allowed = hasPermission(requiredPerm, permissions, role)
+      const allowed = hasPermission(requiredPerm, permissions)
       if (!allowed) {
         el.parentNode?.removeChild(el)
       }

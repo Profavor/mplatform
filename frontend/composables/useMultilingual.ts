@@ -11,7 +11,7 @@ const getLocaleFromCookie = (): string => {
   }
   if (typeof document !== 'undefined') {
     const match = document.cookie.match(/(?:^|; )locale=([^;]*)/)
-    if (match) return decodeURIComponent(match[1])
+    if (match) return decodeURIComponent(match[1]!)
   }
   return 'ko'
 }
@@ -26,7 +26,7 @@ export const formatMultilingual = (val: any, targetLocale?: string): string => {
     if (val.ko) return String(val.ko)
     if (val.en) return String(val.en)
     const keys = Object.keys(val)
-    if (keys.length > 0 && val[keys[0]] !== undefined) return String(val[keys[0]])
+    if (keys.length > 0 && val[keys[0]!] !== undefined) return String(val[keys[0]!])
     return JSON.stringify(val)
   }
 
@@ -41,7 +41,7 @@ export const formatMultilingual = (val: any, targetLocale?: string): string => {
           if (parsed.ko) return String(parsed.ko)
           if (parsed.en) return String(parsed.en)
           const keys = Object.keys(parsed)
-          if (keys.length > 0 && parsed[keys[0]] !== undefined) return String(parsed[keys[0]])
+          if (keys.length > 0 && parsed[keys[0]!] !== undefined) return String(parsed[keys[0]!])
         }
       } catch (e) {}
     }

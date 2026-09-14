@@ -12,7 +12,7 @@ export function resolveDynamicOrigin(options: DynamicUrlOptions): string {
     proto = host.includes('localhost') || host.includes('127.0.0.1') ? 'http' : 'https'
   }
   if (proto.includes(',')) {
-    proto = proto.split(',')[0].trim()
+    proto = proto.split(',')[0]!.trim()
   }
   return `${proto}://${host}`
 }

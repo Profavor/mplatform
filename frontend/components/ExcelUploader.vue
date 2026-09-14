@@ -390,7 +390,7 @@
   </AppModal>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed } from 'vue';
 import ExcelJS from 'exceljs';
 import fileSaver from 'file-saver';

@@ -48,7 +48,7 @@ const i18n = createI18n({
       editor_code_copied: '코드가 복사되었습니다.'
     }
   }
-})
+} as any)
 
 describe('HtmlEditor.vue (TDD Component Test)', () => {
   it('renders editor and toolbar properly with initial modelValue', async () => {

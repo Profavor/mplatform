@@ -9,10 +9,14 @@ vi.mock('vue-i18n', () => ({
   })
 }))
 
-vi.mock('#app', () => ({
-  useHead: vi.fn(),
-  useCookie: () => ({ value: 'test-token' })
-}))
+vi.mock('#app', async (importOriginal) => {
+  const actual = await importOriginal<any>()
+  return {
+    ...actual,
+    useHead: vi.fn(),
+    useCookie: () => ({ value: 'test-token' })
+  }
+})
 
 vi.mock('~/composables/usePermission', () => ({
   usePermission: () => ({

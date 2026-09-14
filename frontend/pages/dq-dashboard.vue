@@ -212,7 +212,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useToast } from 'vuestic-ui'
 import AiDqRecommendations from '~/components/dq/AiDqRecommendations.vue'

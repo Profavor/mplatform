@@ -32,7 +32,7 @@ describe('SchemaTreeNode.vue', () => {
     await deleteBtn.trigger('click')
 
     expect(wrapper.emitted('delete')).toBeTruthy()
-    expect(wrapper.emitted('delete')?.[0][0]).toEqual(expect.objectContaining({
+    expect(wrapper.emitted('delete')![0]![0]).toEqual(expect.objectContaining({
       id: 'node-123',
       label: '정규직'
     }))
@@ -65,7 +65,7 @@ describe('SchemaTreeNode.vue', () => {
     await deleteBtn.trigger('click')
 
     expect(wrapper.emitted('delete')).toBeTruthy()
-    expect(wrapper.emitted('delete')?.[0][0]).toEqual(expect.objectContaining({
+    expect(wrapper.emitted('delete')![0]![0]).toEqual(expect.objectContaining({
       id: 'domain-123',
       label: '임직원 (Domain)',
       isDomain: true

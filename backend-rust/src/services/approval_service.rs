@@ -98,19 +98,96 @@ impl ApprovalService {
                     for (k, v) in c_obj {
                         r_obj.insert(k.clone(), v.clone());
                     }
+                    let new_version = record.version + 1;
+                    let final_data = record.data.clone();
+
+                    let _ = sqlx::query(
+                        r#"
+                        UPDATE record
+                        SET data = $1, searchable_data = $1, version = $2, updated_at = NOW()
+                        WHERE id = $3
+                        "#
+                    )
+                    .bind(&final_data)
+                    .bind(new_version)
+                    .bind(record.id)
+                    .execute(pool)
+                    .await;
+
                     let _ = RecordRepository::insert_history(
                         pool,
                         record.id,
-                        record.version + 1,
+                        new_version,
                         "APPROVAL_APPLY",
                         actor,
                         None,
-                        record.data.clone(),
+                        final_data.clone(),
                         None,
                     )
                     .await;
+
+                    if let Some(ref d) = final_data {
+                        let pool_clone = pool.clone();
+                        let rec_id = record.id;
+                        let node_id = record.node_id;
+                        let d_clone = d.clone();
+                        tokio::spawn(async move {
+                            let _ = crate::services::outbound_service::OutboundService::dispatch_record_change(
+                                &pool_clone,
+                                rec_id,
+                                node_id,
+                                "UPDATE",
+                                &d_clone,
+                            )
+                            .await;
+                        });
+                    }
                 }
             }
+        } else if req.target_type == "RECORD_CREATE" {
+            let record_id = req.target_id;
+            let node_id = req.node_id.unwrap_or(req.target_id);
+            let final_data = req.changes.clone();
+
+            let _ = sqlx::query(
+                r#"
+                INSERT INTO record (
+                    id, node_id, data, searchable_data, status, version, created_at, updated_at
+                )
+                VALUES ($1, $2, $3, $3, 'ACTIVE', 1, NOW(), NOW())
+                ON CONFLICT (id) DO UPDATE
+                SET data = $3, searchable_data = $3, status = 'ACTIVE', updated_at = NOW()
+                "#
+            )
+            .bind(record_id)
+            .bind(node_id)
+            .bind(&final_data)
+            .execute(pool)
+            .await;
+
+            let _ = RecordRepository::insert_history(
+                pool,
+                record_id,
+                1,
+                "CREATE",
+                actor,
+                None,
+                Some(final_data.clone()),
+                None,
+            )
+            .await;
+
+            let pool_clone = pool.clone();
+            tokio::spawn(async move {
+                let _ = crate::services::outbound_service::OutboundService::dispatch_record_change(
+                    &pool_clone,
+                    record_id,
+                    node_id,
+                    "CREATE",
+                    &final_data,
+                )
+                .await;
+            });
         }
 
         Self::get_request_detail(pool, id).await

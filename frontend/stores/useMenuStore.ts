@@ -96,7 +96,7 @@ export const useMenuStore = defineStore('menu', () => {
     fetchPromise = (async () => {
       try {
         const { customFetch } = useCustomFetch()
-        const res = await customFetch<MenuItem[]>('/api/menus/tree')
+        const res = await customFetch('/api/menus/tree')
         menuTree.value = res || []
         flatMenuList.value = flattenTree(menuTree.value)
         isInitialized.value = true

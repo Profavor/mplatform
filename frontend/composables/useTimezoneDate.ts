@@ -16,7 +16,7 @@ function getServerOffset(): string {
     }
   } else if (typeof document !== 'undefined') {
     const match = document.cookie.match(/(?:^|; )server_offset=([^;]*)/)
-    return match ? decodeURIComponent(match[1]) : '+09:00'
+    return match ? decodeURIComponent(match[1]!) : '+09:00'
   }
   return '+09:00'
 }
@@ -96,7 +96,7 @@ export function formatWithTimezone(
       }
     } else if (typeof document !== 'undefined') {
       const match = document.cookie.match(/(?:^|; )timezone=([^;]*)/)
-      timeZone = match ? decodeURIComponent(match[1]) : 'Asia/Seoul'
+      timeZone = match ? decodeURIComponent(match[1]!) : 'Asia/Seoul'
     } else {
       timeZone = 'Asia/Seoul'
     }

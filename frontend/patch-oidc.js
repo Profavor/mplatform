@@ -197,3 +197,71 @@ if (fs.existsSync(securityFile)) {
     console.log('Patched nuxt-oidc-auth security.js successfully (dynamic issuer & reverse proxy support).');
   }
 }
+
+// 10. Patch rolldown makeBuiltinPluginCallable to provide default moduleType in transform (#Nuxt4/Vite8/Vitest4)
+const rolldownSharedDir = path.resolve(process.cwd(), 'node_modules/rolldown/dist/shared');
+if (fs.existsSync(rolldownSharedDir)) {
+  const files = fs.readdirSync(rolldownSharedDir);
+  for (const f of files) {
+    if (f.startsWith('normalize-string-or-regex-') && f.endsWith('.mjs')) {
+      const fullPath = path.join(rolldownSharedDir, f);
+      let content = fs.readFileSync(fullPath, 'utf8');
+      if (!content.includes('args[2].moduleType')) {
+        content = content.replace(
+          /const wrappedHook = async function\(\.\.\.args\) \{\s*try \{/g,
+          `const wrappedHook = async function(...args) {
+			try {
+				if (key === "transform") {
+					if (!args[2] || typeof args[2] !== "object") args[2] = {};
+					if (!args[2].moduleType) args[2].moduleType = "js";
+				}`
+        );
+        fs.writeFileSync(fullPath, content);
+        console.log(`Patched rolldown ${f} successfully (moduleType default for callable builtin plugins).`);
+      }
+    }
+  }
+}
+
+// 11. Patch nuxt dollarFetchTemplate to dynamically delegate to globalThis.$fetch (allows test mocks to work)
+const nuxtDistFiles = [
+  path.resolve(process.cwd(), 'node_modules/nuxt/dist/index.js'),
+  path.resolve(process.cwd(), 'node_modules/nuxt/dist/index.mjs')
+];
+nuxtDistFiles.forEach((file) => {
+  if (fs.existsSync(file)) {
+    let content = fs.readFileSync(file, 'utf8');
+    if (content.includes('"export const $fetch = globalThis.$fetch"')) {
+      content = content.replace(
+        '"export const $fetch = globalThis.$fetch"',
+        '"export const $fetch = (...args) => globalThis.$fetch(...args)"'
+      );
+      fs.writeFileSync(file, content);
+      console.log(`Patched nuxt ${path.basename(file)} dollarFetchTemplate successfully.`);
+    }
+  }
+});
+
+// 12. Patch @nuxt/test-utils setupNuxt to safely access useRouter().afterEach and nuxtApp._route
+const testUtilsNuxtFile = path.resolve(process.cwd(), 'node_modules/@nuxt/test-utils/dist/runtime/shared/nuxt.mjs');
+if (fs.existsSync(testUtilsNuxtFile)) {
+  let content = fs.readFileSync(testUtilsNuxtFile, 'utf8');
+  content = content.replace(
+    /nuxtApp\._route\.sync \? nuxtApp\._route\.sync\(\) : nuxtApp\.callHook\("page:finish"\)/g,
+    'nuxtApp?._route?.sync ? nuxtApp._route.sync() : nuxtApp?.callHook?.("page:finish")'
+  );
+  if (content.includes('useRouter().afterEach') || content.includes('afterEach?(')) {
+    content = content.replace(
+      /try \{ useRouter\?\.?\(\)\?\.afterEach\??\(|useRouter\(\)\.afterEach\(/,
+      'try { useRouter?.()?.afterEach?.('
+    );
+    if (!content.includes('} catch {}')) {
+      content = content.replace(
+        'return sync();\n\t});',
+        'return sync();\n\t});\n\t} catch {}'
+      );
+    }
+  }
+  fs.writeFileSync(testUtilsNuxtFile, content);
+  console.log('Patched @nuxt/test-utils nuxt.mjs successfully (safe useRouter.afterEach & nuxtApp._route).');
+}

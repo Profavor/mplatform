@@ -59,7 +59,7 @@ export default defineNuxtPlugin((nuxtApp) => {
         let localeStr = null
         const i18n = nuxtApp.vueApp.config.globalProperties.$i18n
         if (i18n && i18n.locale) {
-          localeStr = typeof i18n.locale === 'string' ? i18n.locale : (i18n.locale.value || null)
+          localeStr = typeof i18n.locale === 'string' ? i18n.locale : ((i18n.locale as any)?.value || null)
         }
         if (!localeStr) {
           localeStr = getCookieValue('i18n_redirected')
@@ -144,7 +144,7 @@ export default defineNuxtPlugin((nuxtApp) => {
 
   const translateError = (err: any) => {
     try {
-      const i18n = nuxtApp.vueApp.config.globalProperties.$i18n
+      const i18n = nuxtApp.vueApp.config.globalProperties.$i18n as any
       if (!i18n?.t) return
       const t = (key: string, params?: any) => i18n.t(key, params)
       const data = err?.response?._data
@@ -165,7 +165,7 @@ export default defineNuxtPlugin((nuxtApp) => {
       // 에러 번역만 담당 (401 재시도는 fetchWithRetry에서 처리)
       if (response.status === 401) return
       try {
-        const i18n = nuxtApp.vueApp.config.globalProperties.$i18n
+        const i18n = nuxtApp.vueApp.config.globalProperties.$i18n as any
         if (!i18n?.t) return
         const t = (key: string, params?: any) => i18n.t(key, params)
         if (response._data) {

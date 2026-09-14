@@ -14,7 +14,7 @@
   </span>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useRoles } from '~/composables/useRoles'
 

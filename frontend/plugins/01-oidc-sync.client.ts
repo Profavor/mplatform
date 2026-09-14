@@ -18,7 +18,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     if (typeof document === 'undefined') return
     if (loggedIn.value && user.value) {
       const accessToken = user.value.accessToken
-      const refToken = user.value.refreshToken || (user.value as any)?.providerInfo?.refreshToken
+      const refToken = (user.value as any).refreshToken || (user.value as any)?.providerInfo?.refreshToken
       if (accessToken) {
         const exp = parseJwtExp(accessToken)
         setAuthCookies(accessToken, refToken, exp || undefined)

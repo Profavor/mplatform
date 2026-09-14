@@ -5,18 +5,34 @@ import RoiCalculatorPage from '../../pages/roi-calculator.vue'
 vi.mock('vue-router', () => ({
   useRouter: () => ({
     push: vi.fn(),
-    replace: vi.fn()
+    replace: vi.fn(),
+    afterEach: vi.fn(),
+    beforeEach: vi.fn(),
+    beforeResolve: vi.fn(),
+    currentRoute: { value: { path: '/', query: {}, params: {} } }
   }),
   useRoute: () => ({ query: {} })
 }))
 
-vi.mock('#app', () => ({
-  useRoute: () => ({ query: {} }),
-  useCookie: () => ({ value: null }),
-  navigateTo: vi.fn(),
-  useHead: vi.fn(),
-  definePageMeta: vi.fn()
-}))
+vi.mock('#app', async (importOriginal) => {
+  const actual = await importOriginal<any>()
+  return {
+    ...actual,
+    useRoute: () => ({ query: {} }),
+    useCookie: () => ({ value: null }),
+    navigateTo: vi.fn(),
+    useHead: vi.fn(),
+    definePageMeta: vi.fn(),
+    useRouter: () => ({
+      push: vi.fn(),
+      replace: vi.fn(),
+      afterEach: vi.fn(),
+      beforeEach: vi.fn(),
+      beforeResolve: vi.fn(),
+      currentRoute: { value: { path: '/', query: {}, params: {} } }
+    })
+  }
+})
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({

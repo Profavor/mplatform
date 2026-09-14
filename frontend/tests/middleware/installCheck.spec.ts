@@ -71,7 +71,7 @@ describe('00.install-check.global middleware', () => {
   it('시스템 설치가 완료되지 않은 경우 /install 이 아닌 모든 경로는 /install 로 리다이렉트된다', async () => {
     mockFetch.mockResolvedValueOnce({ isInstalled: false, hasAdminAccount: false })
 
-    const result = await middlewareFn({ path: '/records' }, { path: '/' })
+    const result = await middlewareFn({ path: '/records' } as any, { path: '/' } as any)
     expect(mockNavigateTo).toHaveBeenCalledWith('/install')
     expect(result).toBe('navigated-to-/install')
   })
@@ -79,7 +79,7 @@ describe('00.install-check.global middleware', () => {
   it('시스템 설치가 완료되지 않은 상태에서 /install 접근 시 리다이렉트 없이 진행된다', async () => {
     mockFetch.mockResolvedValueOnce({ isInstalled: false, hasAdminAccount: false })
 
-    const result = await middlewareFn({ path: '/install' }, { path: '/' })
+    const result = await middlewareFn({ path: '/install' } as any, { path: '/' } as any)
     expect(mockNavigateTo).not.toHaveBeenCalled()
     expect(result).toBeUndefined()
   })
@@ -88,7 +88,7 @@ describe('00.install-check.global middleware', () => {
     mockFetch.mockResolvedValueOnce({ isInstalled: true, hasAdminAccount: true })
     useCookie('auth_token').value = 'valid-jwt-token'
 
-    const result = await middlewareFn({ path: '/install' }, { path: '/' })
+    const result = await middlewareFn({ path: '/install' } as any, { path: '/' } as any)
     expect(mockNavigateTo).toHaveBeenCalledWith('/')
     expect(result).toBe('navigated-to-/')
   })
@@ -98,7 +98,7 @@ describe('00.install-check.global middleware', () => {
     mockState.cookieVal = null
     mockState.loggedIn = false
 
-    const result = await middlewareFn({ path: '/install' }, { path: '/' })
+    const result = await middlewareFn({ path: '/install' } as any, { path: '/' } as any)
     expect(mockNavigateTo).toHaveBeenCalledWith('/')
     expect(result).toBe('navigated-to-/')
   })
@@ -108,7 +108,7 @@ describe('00.install-check.global middleware', () => {
     mockState.cookieVal = 'valid-jwt-token'
     mockState.loggedIn = true
 
-    const result = await middlewareFn({ path: '/records' }, { path: '/' })
+    const result = await middlewareFn({ path: '/records' } as any, { path: '/' } as any)
     expect(mockNavigateTo).not.toHaveBeenCalled()
     expect(result).toBeUndefined()
   })

@@ -51,7 +51,7 @@ describe('IntegrationLogDetailModal.vue (TDD Component Test)', () => {
   })
 
   it('재시도 버튼 클릭 시 retry 이벤트 방출', async () => {
-    const wrapper = mount(IntegrationLogDetailModal, {
+    const wrapper: any = mount(IntegrationLogDetailModal, {
       props: {
         modelValue: true,
         log: mockLog,
@@ -71,7 +71,7 @@ describe('IntegrationLogDetailModal.vue (TDD Component Test)', () => {
       }
     })
 
-    wrapper.vm.onRetry()
+    ;(wrapper.vm as any).onRetry()
     expect(wrapper.emitted('retry')).toBeTruthy()
     expect(wrapper.emitted('retry')![0]).toEqual(['log-101'])
   })
@@ -107,7 +107,7 @@ describe('IntegrationLogDetailModal.vue (TDD Component Test)', () => {
       }
     })
 
-    await wrapper.vm.copyPayload(mockLog.originalPayload, 'original')
+    await (wrapper.vm as any).copyPayload(mockLog.originalPayload, 'original')
     expect(writeTextMock).toHaveBeenCalledWith(mockLog.originalPayload)
     expect(wrapper.vm.copySuccess).toBe('original')
   })

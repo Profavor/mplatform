@@ -1,7 +1,7 @@
 # 🌐 MDM Enterprise Web Console (Frontend)
 
 엔터프라이즈 마스터 데이터 관리(MDM) 플랫폼의 공식 웹 프론트엔드 콘솔(`classification-front`)입니다.
-Nuxt 3 및 Vue 3 기반으로 구축되었으며, 대용량 엔터프라이즈 마스터 데이터의 실시간 시각화, 다축 분류, 데이터 품질(DQ) 자율 정제, 결재 워크플로우, 데이터 계보(Lineage) 추적 및 B2B 온보딩 퍼널을 제공합니다.
+Nuxt 4 및 Vue 3 기반으로 구축되었으며, 대용량 엔터프라이즈 마스터 데이터의 실시간 시각화, 다축 분류, 데이터 품질(DQ) 자율 정제, 결재 워크플로우, 데이터 계보(Lineage) 추적 및 B2B 온보딩 퍼널을 제공합니다.
 
 ---
 
@@ -9,8 +9,8 @@ Nuxt 3 및 Vue 3 기반으로 구축되었으며, 대용량 엔터프라이즈 �
 
 | 영역 | 기술 / 라이브러리 | 버전 / 세부 사양 |
 |---|---|---|
-| **Framework** | **Nuxt 3 + Vue 3** | Nuxt `^3.21.11`, Vue `3.5.x`, SSR & SPA 하이브리드 모드 |
-| **Language** | **TypeScript** | TypeScript `^5.9.3`, 엄격 타입 검사 |
+| **Framework** | **Nuxt 4 + Vue 3** | Nuxt `^4.5.2`, Vue `3.5.x`, SSR & SPA 하이브리드 모드 |
+| **Language** | **TypeScript** | TypeScript `^7.0.2`, 초고속 네이티브 컴파일러, 엄격 타입 검사 |
 | **UI Library** | **Vuestic UI** | 반응형 모던 컴포넌트, 맞춤 CSS 토큰 시스템 |
 | **Grid Engine** | **AG-Grid Vue3** | AG-Grid Community `^34.3.1` (가상 스크롤, 서버사이드 페이징/정렬/필터) |
 | **Data Viz** | **Apache ECharts** | DQ 시계열 트렌드, 리스크 레이더, 데이터 계보 파이프라인 그래프 |

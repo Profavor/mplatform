@@ -34,7 +34,7 @@
   </AppModal>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import AppModal from '~/components/common/AppModal.vue'
 defineProps({
   modelValue: {

@@ -96,7 +96,7 @@ describe('useWebSocket Composable (Singleton TDD)', () => {
     expect(capturedSubscriptions['/topic/chat/presence']).toBeDefined()
     const presenceHandler = capturedSubscriptions['/topic/chat/presence']
 
-    presenceHandler({
+    presenceHandler!({
       body: JSON.stringify({ type: 'PRESENCE_UPDATE', username: 'user1', status: 'ONLINE' })
     })
 
@@ -164,7 +164,7 @@ describe('useWebSocket Composable (Singleton TDD)', () => {
     expect(capturedSubscriptions['/topic/notifications/tester1']).toBeDefined()
 
     const notifHandler = capturedSubscriptions['/topic/notifications/user-abc-123']
-    notifHandler({
+    notifHandler!({
       body: JSON.stringify({ eventType: 'INBOX_MESSAGE', type: 'NEW_MESSAGE', subject: 'New Mail' })
     })
 

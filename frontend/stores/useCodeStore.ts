@@ -56,8 +56,8 @@ export const useCodeStore = defineStore('code', () => {
     if (!group) return []
     
     return Object.values(group)
-      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
-      .map(detail => {
+      .sort((a: any, b: any) => (a.sortOrder || 0) - (b.sortOrder || 0))
+      .map((detail: any) => {
         const nameObj = detail.name
         let text = detail.detailCode
         if (nameObj) {

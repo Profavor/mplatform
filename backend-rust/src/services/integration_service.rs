@@ -28,6 +28,22 @@ impl IntegrationService {
         Ok(logs)
     }
 
+    pub async fn get_logs_paged(
+        &self,
+        channel_id: Option<uuid::Uuid>,
+        only_dead_letter: bool,
+        limit: i64,
+        offset: i64,
+    ) -> AppResult<(Vec<IntegrationLog>, i64)> {
+        let res = IntegrationRepository::get_logs_paged(&self.pool, channel_id, only_dead_letter, limit, offset).await?;
+        Ok(res)
+    }
+
+    pub async fn get_logs_by_record(&self, record_id: uuid::Uuid) -> AppResult<Vec<IntegrationLog>> {
+        let logs = IntegrationRepository::get_logs_by_record(&self.pool, record_id).await?;
+        Ok(logs)
+    }
+
     pub async fn test_channel(&self, channel_id: uuid::Uuid) -> AppResult<serde_json::Value> {
         Ok(serde_json::json!({
             "channelId": channel_id,

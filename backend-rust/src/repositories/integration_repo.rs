@@ -65,4 +65,132 @@ impl IntegrationRepository {
 
         Ok(logs)
     }
+
+    pub async fn get_logs_paged(
+        pool: &PgPool,
+        channel_id: Option<Uuid>,
+        only_dead_letter: bool,
+        limit: i64,
+        offset: i64,
+    ) -> Result<(Vec<IntegrationLog>, i64), sqlx::Error> {
+        let (total, logs) = match (channel_id, only_dead_letter) {
+            (Some(cid), true) => {
+                let total: i64 = sqlx::query_scalar(
+                    "SELECT COUNT(*) FROM integration_logs WHERE channel_id = $1 AND status != 'SUCCESS'"
+                )
+                .bind(cid)
+                .fetch_one(pool)
+                .await?;
+
+                let logs = sqlx::query_as::<_, IntegrationLog>(
+                    r#"
+                    SELECT id, channel_id, record_id, event_type, status, retry_count, error_message, original_payload, mapped_payload, created_at
+                    FROM integration_logs
+                    WHERE channel_id = $1 AND status != 'SUCCESS'
+                    ORDER BY created_at DESC
+                    LIMIT $2 OFFSET $3
+                    "#
+                )
+                .bind(cid)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(pool)
+                .await?;
+
+                (total, logs)
+            }
+            (Some(cid), false) => {
+                let total: i64 = sqlx::query_scalar(
+                    "SELECT COUNT(*) FROM integration_logs WHERE channel_id = $1"
+                )
+                .bind(cid)
+                .fetch_one(pool)
+                .await?;
+
+                let logs = sqlx::query_as::<_, IntegrationLog>(
+                    r#"
+                    SELECT id, channel_id, record_id, event_type, status, retry_count, error_message, original_payload, mapped_payload, created_at
+                    FROM integration_logs
+                    WHERE channel_id = $1
+                    ORDER BY created_at DESC
+                    LIMIT $2 OFFSET $3
+                    "#
+                )
+                .bind(cid)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(pool)
+                .await?;
+
+                (total, logs)
+            }
+            (None, true) => {
+                let total: i64 = sqlx::query_scalar(
+                    "SELECT COUNT(*) FROM integration_logs WHERE status != 'SUCCESS'"
+                )
+                .fetch_one(pool)
+                .await?;
+
+                let logs = sqlx::query_as::<_, IntegrationLog>(
+                    r#"
+                    SELECT id, channel_id, record_id, event_type, status, retry_count, error_message, original_payload, mapped_payload, created_at
+                    FROM integration_logs
+                    WHERE status != 'SUCCESS'
+                    ORDER BY created_at DESC
+                    LIMIT $1 OFFSET $2
+                    "#
+                )
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(pool)
+                .await?;
+
+                (total, logs)
+            }
+            (None, false) => {
+                let total: i64 = sqlx::query_scalar(
+                    "SELECT COUNT(*) FROM integration_logs"
+                )
+                .fetch_one(pool)
+                .await?;
+
+                let logs = sqlx::query_as::<_, IntegrationLog>(
+                    r#"
+                    SELECT id, channel_id, record_id, event_type, status, retry_count, error_message, original_payload, mapped_payload, created_at
+                    FROM integration_logs
+                    ORDER BY created_at DESC
+                    LIMIT $1 OFFSET $2
+                    "#
+                )
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(pool)
+                .await?;
+
+                (total, logs)
+            }
+        };
+
+        Ok((logs, total))
+    }
+
+    pub async fn get_logs_by_record(
+        pool: &PgPool,
+        record_id: Uuid,
+    ) -> Result<Vec<IntegrationLog>, sqlx::Error> {
+        let logs = sqlx::query_as::<_, IntegrationLog>(
+            r#"
+            SELECT id, channel_id, record_id, event_type, status, retry_count, error_message, original_payload, mapped_payload, created_at
+            FROM integration_logs
+            WHERE record_id = $1
+            ORDER BY created_at DESC
+            LIMIT 50
+            "#
+        )
+        .bind(record_id)
+        .fetch_all(pool)
+        .await?;
+
+        Ok(logs)
+    }
 }

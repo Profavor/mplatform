@@ -21,8 +21,8 @@ describe('useSearchPresetStore (TDD)', () => {
 
     const presets = store.getPresetsByDomain(domainId)
     expect(presets).toHaveLength(1)
-    expect(presets[0].name).toBe('VIP 고객 검색')
-    expect(presets[0].filters[0].value).toBe('VIP')
+    expect(presets[0]!.name).toBe('VIP 고객 검색')
+    expect(presets[0]!.filters[0]!.value).toBe('VIP')
   })
 
   it('프리셋 ID로 특정 프리셋을 삭제할 수 있다', () => {

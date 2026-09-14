@@ -92,7 +92,7 @@ describe('ChannelConfigModal.vue (TDD Component Test)', () => {
     const formData = createMockFormData()
     const uiConfig = createMockUiConfig()
 
-    const wrapper = mount(ChannelConfigModal, {
+    const wrapper: any = mount(ChannelConfigModal, {
       props: {
         modelValue: true,
         isEdit: false,
@@ -139,7 +139,7 @@ describe('ChannelConfigModal.vue (TDD Component Test)', () => {
       }
     })
 
-    wrapper.vm.onSubmit()
+    ;(wrapper.vm as any).onSubmit()
     expect(wrapper.emitted('submit')).toBeTruthy()
   })
 

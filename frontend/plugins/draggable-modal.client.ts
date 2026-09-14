@@ -17,9 +17,9 @@ export default defineNuxtPlugin(() => {
     if (matrix === 'none' || !matrix) {
       return { x: 0, y: 0 }
     }
-    const values = matrix.match(/matrix.*\((.+)\)/)?.[1].split(', ')
+    const values = matrix.match(/matrix.*\((.+)\)/)?.[1]?.split(', ')
     if (values && values.length >= 6) {
-      return { x: parseFloat(values[4]), y: parseFloat(values[5]) }
+      return { x: parseFloat(values[4]!), y: parseFloat(values[5]!) }
     }
     return { x: 0, y: 0 }
   }

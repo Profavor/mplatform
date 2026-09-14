@@ -15,7 +15,7 @@ export function useAuthRefresh(options?: { oidcAuth?: any }) {
   const getCookieValue = (name: string): string | null => {
     if (typeof document !== 'undefined' && document.cookie) {
       const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'))
-      if (match) return decodeURIComponent(match[2])
+      if (match) return decodeURIComponent(match[2]!)
     }
     try {
       const cv = useCookie(name).value
@@ -111,7 +111,7 @@ export function useAuthRefresh(options?: { oidcAuth?: any }) {
       if (!token || typeof token !== 'string') return null
       const parts = token.split('.')
       if (parts.length < 2) return null
-      let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+      let base64 = parts[1]!.replace(/-/g, '+').replace(/_/g, '/')
       while (base64.length % 4 !== 0) {
         base64 += '='
       }
@@ -203,7 +203,7 @@ export function useAuthRefresh(options?: { oidcAuth?: any }) {
         let internalRefreshToken = getCookieValue('refresh_token')
         if (!internalRefreshToken) {
           try {
-            internalRefreshToken = useCookie('refresh_token').value
+            internalRefreshToken = useCookie('refresh_token').value ?? null
           } catch {}
         }
         if (internalRefreshToken && process.client) {

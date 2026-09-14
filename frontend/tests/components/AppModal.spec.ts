@@ -16,7 +16,7 @@ const i18n = createI18n({
       }
     }
   }
-})
+} as any)
 
 describe('AppModal.vue (Global Standard Modal)', () => {
   const defaultGlobal = {

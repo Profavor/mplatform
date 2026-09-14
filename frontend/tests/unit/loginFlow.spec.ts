@@ -50,24 +50,52 @@ const { mockState, navigateToMock, createMockOidc, createMockCookie } = vi.hoist
   return { mockState, navigateToMock, createMockOidc, createMockCookie }
 })
 
-vi.mock('#app', () => ({
-  defineNuxtRouteMiddleware: (fn: any) => fn,
-  navigateTo: (path: any) => navigateToMock(path),
-  useCookie: (name: string) => createMockCookie(name),
-  useOidcAuth: createMockOidc
-}))
+vi.mock('#app', async (importOriginal) => {
+  const actual = await importOriginal<any>()
+  return {
+    ...actual,
+    defineNuxtRouteMiddleware: (fn: any) => fn,
+    navigateTo: (path: any) => navigateToMock(path),
+    useCookie: (name: string) => createMockCookie(name),
+    useOidcAuth: createMockOidc
+  }
+})
 
-vi.mock('#imports', () => ({
-  defineNuxtRouteMiddleware: (fn: any) => fn,
-  navigateTo: (path: any) => navigateToMock(path),
-  useCookie: (name: string) => createMockCookie(name),
-  useOidcAuth: createMockOidc
-}))
+vi.mock('#imports', async (importOriginal) => {
+  const actual = await importOriginal<any>()
+  return {
+    ...actual,
+    defineNuxtRouteMiddleware: (fn: any) => fn,
+    navigateTo: (path: any) => navigateToMock(path),
+    useCookie: (name: string) => createMockCookie(name),
+    useOidcAuth: createMockOidc,
+    useRouter: () => ({
+      push: navigateToMock,
+      replace: navigateToMock,
+      afterEach: vi.fn(),
+      beforeEach: vi.fn(),
+      beforeResolve: vi.fn(),
+      currentRoute: { value: { path: '/', query: {}, params: {} } }
+    })
+  }
+})
 
-vi.mock('#app/composables/router', () => ({
-  defineNuxtRouteMiddleware: (fn: any) => fn,
-  navigateTo: (path: any) => navigateToMock(path)
-}))
+vi.mock('#app/composables/router', async (importOriginal) => {
+  const actual = await importOriginal<any>()
+  return {
+    ...actual,
+    defineNuxtRouteMiddleware: (fn: any) => fn,
+    navigateTo: (path: any) => navigateToMock(path),
+    useRouter: () => ({
+      push: navigateToMock,
+      replace: navigateToMock,
+      afterEach: vi.fn(),
+      beforeEach: vi.fn(),
+      beforeResolve: vi.fn(),
+      currentRoute: { value: { path: '/', query: {}, params: {} } }
+    })
+  }
+})
 
 vi.mock('#app/composables/cookie', () => ({
   useCookie: (name: string) => createMockCookie(name)

@@ -21,7 +21,7 @@ const i18n = createI18n({
       }
     }
   }
-})
+} as any)
 
 describe('DynamicRecordLayoutRenderer - 암호화 필드 보안 마스킹 및 복호화 UI (TDD)', () => {
   const sampleLayout = {

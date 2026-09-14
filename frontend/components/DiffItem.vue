@@ -35,7 +35,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 const props = defineProps({
   label: { type: String, required: true },
   before: { type: [String, Number, Object, Array, Boolean], default: null },

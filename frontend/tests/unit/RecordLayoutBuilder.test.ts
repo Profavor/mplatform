@@ -176,8 +176,8 @@ describe('Record 2D Grid Layout Builder & Renderer Logic', () => {
       others.sort((a, b) => a.y - b.y || a.x - b.x)
       for (let i = 0; i < others.length; i++) {
         for (let j = i + 1; j < others.length; j++) {
-          if (isOverlapping(others[i], others[j])) {
-            others[j].y = others[i].y + others[i].h
+          if (isOverlapping(others[i]!, others[j]!)) {
+            others[j]!.y = others[i]!.y + others[i]!.h
             changed = true
           }
         }
@@ -358,13 +358,13 @@ describe('Record 2D Grid Layout Builder & Renderer Logic', () => {
     undo(): any[] | null {
       if (!this.canUndo()) return null
       this.index--
-      return JSON.parse(JSON.stringify(this.stack[this.index].widgets))
+      return JSON.parse(JSON.stringify(this.stack[this.index]!.widgets))
     }
 
     redo(): any[] | null {
       if (!this.canRedo()) return null
       this.index++
-      return JSON.parse(JSON.stringify(this.stack[this.index].widgets))
+      return JSON.parse(JSON.stringify(this.stack[this.index]!.widgets))
     }
   }
 

@@ -29,7 +29,7 @@ const i18n = createI18n({
       }
     }
   }
-})
+} as any)
 
 // Mock useRuntimeConfig
 vi.stubGlobal('useRuntimeConfig', () => ({
