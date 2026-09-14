@@ -20,7 +20,7 @@ const i18n = createI18n({
       uploading_image: '이미지 업로드 중...'
     }
   }
-})
+} as any)
 
 describe('ImageUploader.vue (TDD Component Test)', () => {
   it('renders single image thumbnail properly', async () => {
@@ -43,7 +43,7 @@ describe('ImageUploader.vue (TDD Component Test)', () => {
     expect(wrapper.exists()).toBe(true)
     const imgs = wrapper.findAll('.thumbnail-img')
     expect(imgs.length).toBe(1)
-    expect(imgs[0].attributes('src')).toBeDefined()
+    expect(imgs[0]!.attributes('src')).toBeDefined()
   })
 
   it('renders multi-image gallery thumbnails properly with multiple=true', async () => {

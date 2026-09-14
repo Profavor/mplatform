@@ -92,7 +92,7 @@ describe('GitHub Issues UI/UX Fixes - Round 2 (TDD Tests)', () => {
         if (row?.userName) return row.userName
         const id = row?.userId
         if (id) {
-          const name = userStoreMock.getUserName(id)
+          const name = userStoreMock.getUserName()
           if (name && name !== id && name !== '-') return name
         }
         if (row?.email) {

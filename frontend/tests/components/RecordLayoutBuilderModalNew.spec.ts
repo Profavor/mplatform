@@ -69,7 +69,7 @@ const i18n = createI18n({
       layout_manage_title: '레이아웃 관리'
     }
   }
-})
+} as any)
 
 const mockCustomFetch = vi.fn()
 vi.mock('~/composables/useCustomFetch', () => ({
@@ -215,8 +215,8 @@ describe('RecordLayoutBuilderModal Overhaul (TDD)', () => {
 
     // 1) UI 위젯 탭 선택
     const widgetTabBtn = wrapper.findAll('.palette-tab-btn')[1]
-    expect(widgetTabBtn.exists()).toBe(true)
-    await widgetTabBtn.trigger('click')
+    expect(widgetTabBtn!.exists()).toBe(true)
+    await widgetTabBtn!.trigger('click')
     await wrapper.vm.$nextTick()
 
     expect(vm.activePaletteTab).toBe('widgets')

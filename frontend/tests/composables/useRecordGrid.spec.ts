@@ -53,8 +53,8 @@ describe('useRecordGrid', () => {
     const cols = grid.generateColumnDefs(fields, 'ko')
 
     expect(cols.length).toBeGreaterThanOrEqual(2)
-    expect(cols[0].field).toBe('data.field1')
-    expect(cols[0].headerName).toBe('필드1')
-    expect(cols[0].width).toBe(150)
+    expect(cols[0]!.field).toBe('data.field1')
+    expect(cols[0]!.headerName).toBe('필드1')
+    expect(cols[0]!.width).toBe(150)
   })
 })

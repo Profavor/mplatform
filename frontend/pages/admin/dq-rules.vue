@@ -99,7 +99,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { AgGridVue } from 'ag-grid-vue3'
 import { useAgGridTheme } from '~/composables/useAgGridTheme'

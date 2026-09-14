@@ -83,7 +83,7 @@ describe('DqScoreTrendCard.vue (TDD Component Test)', () => {
     expect(wrapper.text()).toContain('92.5')
     expect(wrapper.text()).toContain('95.0')
 
-    wrapper.vm.onTriggerScan()
+    ;(wrapper.vm as any).onTriggerScan()
     expect(wrapper.emitted('trigger-scan')).toBeTruthy()
   })
 
@@ -118,7 +118,7 @@ describe('DqScoreTrendCard.vue (TDD Component Test)', () => {
 
     const scoreLabels = wrapper.findAll('.dq-score-label')
     expect(scoreLabels.length).toBe(2)
-    expect(scoreLabels[0].text()).toBe('95%')
-    expect(scoreLabels[1].text()).toBe('90%')
+    expect(scoreLabels[0]!.text()).toBe('95%')
+    expect(scoreLabels[1]!.text()).toBe('90%')
   })
 })

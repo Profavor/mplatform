@@ -7,7 +7,7 @@ export default defineNuxtPlugin(() => {
       const token = useCookie('auth_token')
       
       try {
-        const blob: Blob = await $fetch(url, {
+        const blob: Blob = await ($fetch as any)(url, {
           headers: { Authorization: `Bearer ${token.value}` },
           responseType: 'blob'
         })
@@ -15,7 +15,7 @@ export default defineNuxtPlugin(() => {
         let fileName = defaultName || ''
         if (!fileName) {
           if (url.includes('?name=')) {
-            fileName = decodeURIComponent(url.split('?name=')[1].split('&')[0])
+            fileName = decodeURIComponent(url.split('?name=')[1]!.split('&')[0]!)
           } else {
             fileName = decodeURIComponent(url.split('/').pop()?.split('?')[0] || '') || 'download'
           }

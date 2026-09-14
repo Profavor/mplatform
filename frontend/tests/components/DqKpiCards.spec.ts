@@ -55,14 +55,14 @@ describe('DqKpiCards.vue (TDD Component Test)', () => {
       }
     })
 
-    expect(wrapper.vm.getGradeLabel(95)).toBe('Grade A (우수)')
-    expect(wrapper.vm.getGradeLabel(85)).toBe('Grade B (양호)')
-    expect(wrapper.vm.getGradeLabel(75)).toBe('Grade C (보통)')
-    expect(wrapper.vm.getGradeLabel(50)).toBe('Grade D (주의)')
+    expect((wrapper.vm as any).getGradeLabel(95)).toBe('Grade A (우수)')
+    expect((wrapper.vm as any).getGradeLabel(85)).toBe('Grade B (양호)')
+    expect((wrapper.vm as any).getGradeLabel(75)).toBe('Grade C (보통)')
+    expect((wrapper.vm as any).getGradeLabel(50)).toBe('Grade D (주의)')
 
-    expect(wrapper.vm.getScoreColor(95)).toBe('success')
-    expect(wrapper.vm.getScoreColor(85)).toBe('primary')
-    expect(wrapper.vm.getScoreColor(75)).toBe('warning')
-    expect(wrapper.vm.getScoreColor(50)).toBe('danger')
+    expect((wrapper.vm as any).getScoreColor(95)).toBe('success')
+    expect((wrapper.vm as any).getScoreColor(85)).toBe('primary')
+    expect((wrapper.vm as any).getScoreColor(75)).toBe('warning')
+    expect((wrapper.vm as any).getScoreColor(50)).toBe('danger')
   })
 })

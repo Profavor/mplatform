@@ -53,7 +53,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, h } from 'vue'
 import { useCookie } from '#app'
 import { AgGridVue } from 'ag-grid-vue3'

@@ -14,7 +14,7 @@ const i18n = createI18n({
       btn_close: '닫기'
     }
   }
-})
+} as any)
 
 const mockCustomFetch = vi.fn().mockResolvedValue({
   id: 'REC-001',

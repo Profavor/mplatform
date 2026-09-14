@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import ColumnMaskingPoliciesTab from '../../components/admin/ColumnMaskingPoliciesTab.vue'
 
 vi.mock('vue-i18n', () => ({
@@ -75,7 +75,7 @@ describe('ColumnMaskingPoliciesTab.vue (TDD Component Test)', () => {
     })
 
     // Wait for fetchPolicies
-    await new Promise(resolve => setTimeout(resolve, 50))
+    await flushPromises()
     await wrapper.vm.$nextTick()
 
     expect(wrapper.text()).toContain('POL-9999aaaa')

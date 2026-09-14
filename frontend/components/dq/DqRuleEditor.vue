@@ -100,7 +100,7 @@
   </AppModal>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, watch, computed } from 'vue'
 import AppModal from '~/components/common/AppModal.vue'
 

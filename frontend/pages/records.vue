@@ -448,7 +448,7 @@
 </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useCookie } from '#app'
 import { AgGridVue } from 'ag-grid-vue3'

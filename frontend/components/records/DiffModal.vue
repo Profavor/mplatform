@@ -63,7 +63,7 @@
   </AppModal>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import AppModal from '~/components/common/AppModal.vue'
 const props = defineProps({
   modelValue: {

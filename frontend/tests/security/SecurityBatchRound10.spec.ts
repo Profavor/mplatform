@@ -14,7 +14,7 @@ describe('Security Batch Round 10 - Frontend Hardening & Data Protection', () =>
       const match = nuxtConfigContent.match(publicConfigRegex)
 
       if (match) {
-        const publicSection = match[1]
+        const publicSection = match[1]!
         expect(publicSection.includes('agGridLicense')).toBe(false)
       }
     })

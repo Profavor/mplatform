@@ -57,7 +57,7 @@ describe('CreateUserModal.vue (TDD Component Test)', () => {
 
   it('중복확인 및 사용자 생성 이벤트 방출 검증', async () => {
     const newUser = createMockNewUser()
-    const wrapper = mount(CreateUserModal, {
+    const wrapper: any = mount(CreateUserModal, {
       props: {
         modelValue: true,
         newUser: newUser,
@@ -83,10 +83,10 @@ describe('CreateUserModal.vue (TDD Component Test)', () => {
       }
     })
 
-    wrapper.vm.onCheckDuplicate()
+    ;(wrapper.vm as any).onCheckDuplicate()
     expect(wrapper.emitted('check-username')).toBeTruthy()
 
-    wrapper.vm.onCreate()
+    ;(wrapper.vm as any).onCreate()
     expect(wrapper.emitted('create')).toBeTruthy()
   })
 

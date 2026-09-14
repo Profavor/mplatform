@@ -7,7 +7,7 @@ export function getUserTimezone(): string {
   
   const match = document.cookie.match(new RegExp('(^| )user_timezone=([^;]+)'))
   if (match) {
-    return decodeURIComponent(match[2])
+    return decodeURIComponent(match[2]!)
   }
   
   try {

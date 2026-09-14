@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import UserDataScopesTab from '../../components/admin/UserDataScopesTab.vue'
 
 vi.mock('vue-i18n', () => ({
@@ -74,7 +74,7 @@ describe('UserDataScopesTab.vue (TDD Component Test)', () => {
     })
 
     // Wait for fetchScopes
-    await new Promise(resolve => setTimeout(resolve, 50))
+    await flushPromises()
     await wrapper.vm.$nextTick()
 
     expect(wrapper.text()).toContain('SCP-12345678')

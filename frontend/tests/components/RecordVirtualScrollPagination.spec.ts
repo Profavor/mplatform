@@ -79,14 +79,14 @@ export function parseAgGridSortModel(sortModel: Array<{ colId: string; sort: str
     return `${col},${item.sort.toLowerCase()}`;
   });
 
-  let primaryCol = sortModel[0].colId;
+  let primaryCol = sortModel[0]!.colId;
   if (primaryCol.startsWith('data.')) primaryCol = primaryCol.substring(5);
   else if (primaryCol === 'sys_record_status') primaryCol = 'status';
   else if (primaryCol === 'sys_node_name') primaryCol = 'nodeName';
 
   return {
     sortField: primaryCol,
-    sortOrder: sortModel[0].sort.toUpperCase(),
+    sortOrder: sortModel[0]!.sort.toUpperCase(),
     sort: parts.join(';')
   };
 }

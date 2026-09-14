@@ -72,7 +72,7 @@
   </AppModal>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch, nextTick } from 'vue'
 import { AgGridVue } from 'ag-grid-vue3'
 import { useI18n } from 'vue-i18n'

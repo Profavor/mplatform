@@ -21,3 +21,4 @@ pub mod two_factor_service;
 pub mod user_service;
 pub mod data_masking_service;
 pub mod field_encryption_service;
+pub mod outbound_service;

@@ -60,10 +60,10 @@ describe('MenuEditForm.vue (TDD Component Test)', () => {
     expect(wrapper.text()).toContain('edit_menu')
     expect(wrapper.text()).toContain('menu_children_role_union_notice')
 
-    wrapper.vm.onOpenIconPicker()
+    ;(wrapper.vm as any).onOpenIconPicker()
     expect(wrapper.emitted('open-icon-picker')).toBeTruthy()
 
-    wrapper.vm.onSave()
+    ;(wrapper.vm as any).onSave()
     expect(wrapper.emitted('save')).toBeTruthy()
   })
 })

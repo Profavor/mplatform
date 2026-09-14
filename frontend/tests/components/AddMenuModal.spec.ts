@@ -46,7 +46,7 @@ describe('AddMenuModal.vue (TDD Component Test)', () => {
 
   it('아이콘 선택 및 저장 이벤트 방출 검증', async () => {
     const newMenu = createMockNewMenu()
-    const wrapper = mount(AddMenuModal, {
+    const wrapper: any = mount(AddMenuModal, {
       props: {
         modelValue: true,
         newMenu: newMenu,
@@ -69,10 +69,10 @@ describe('AddMenuModal.vue (TDD Component Test)', () => {
       }
     })
 
-    wrapper.vm.onOpenIconPicker()
+    ;(wrapper.vm as any).onOpenIconPicker()
     expect(wrapper.emitted('open-icon-picker')).toBeTruthy()
 
-    wrapper.vm.onSave()
+    ;(wrapper.vm as any).onSave()
     expect(wrapper.emitted('save')).toBeTruthy()
   })
 })

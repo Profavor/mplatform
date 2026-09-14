@@ -17,7 +17,7 @@ const i18n = createI18n({
       widget_type_specialized_summary: '도메인 헤더 요약 위젯'
     }
   }
-})
+} as any)
 
 const mockCustomFetch = vi.fn()
 vi.mock('~/composables/useCustomFetch', () => ({

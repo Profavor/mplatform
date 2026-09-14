@@ -8,9 +8,9 @@ export const useFileDownloader = () => {
     let fileName = defaultName || ''
     if (!fileName) {
       if (url.includes('?name=')) {
-        fileName = decodeURIComponent(url.split('?name=')[1].split('&')[0])
+        fileName = decodeURIComponent(url.split('?name=')[1]!.split('&')[0]!)
       } else if (url.includes('?fileName=')) {
-        fileName = decodeURIComponent(url.split('?fileName=')[1].split('&')[0])
+        fileName = decodeURIComponent(url.split('?fileName=')[1]!.split('&')[0]!)
       } else {
         const lastSegment = url.split('/').pop()?.split('?')[0] || ''
         fileName = decodeURIComponent(lastSegment) || 'download'

@@ -146,7 +146,7 @@ describe('DqBenchmarkMatrix.vue', () => {
     })
 
     const firstRow = wrapper.findAll('.benchmark-row')[0]
-    await firstRow.trigger('click')
+    await firstRow!.trigger('click')
 
     expect(wrapper.emitted('select-domain')).toBeTruthy()
     expect(wrapper.emitted('select-domain')![0]).toEqual(['domain-uuid-1'])
@@ -203,7 +203,7 @@ describe('DqMultiDomainTrendChart.vue', () => {
     expect(periodBtns.length).toBeGreaterThanOrEqual(3)
 
     // Click '최근 7일' button (value: 7)
-    await periodBtns[0].trigger('click')
+    await periodBtns[0]!.trigger('click')
     expect(wrapper.emitted('change-days')).toBeTruthy()
     expect(wrapper.emitted('change-days')![0]).toEqual([7])
   })

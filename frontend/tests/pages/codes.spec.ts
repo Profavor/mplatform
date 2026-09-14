@@ -83,15 +83,15 @@ describe('Codes Management Page with AG-Grid', () => {
     
     const agGrid = wrapper.findComponent(AgGridVue)
     expect(agGrid.exists()).toBe(true)
-    expect(agGrid.props('rowModelType')).toBe('infinite')
+    expect((agGrid as any).props('rowModelType')).toBe('infinite')
 
     // Trigger grid-ready
-    agGrid.vm.$emit('grid-ready', { api: mockGridApi })
+    ;(agGrid as any).vm.$emit('grid-ready', { api: mockGridApi })
     expect(mockGridApi.setGridOption).toHaveBeenCalledWith('datasource', expect.any(Object))
 
     // Test datasource getRows
     const lastCall = mockGridApi.setGridOption.mock.calls.find((c: any[]) => c[0] === 'datasource')
-    const datasource = lastCall[1]
+    const datasource = lastCall![1]
     expect(datasource).toBeDefined()
 
     const successCallback = vi.fn()

@@ -140,7 +140,7 @@ describe('DashboardLeaseRiskWidget.vue (TDD Component Test)', () => {
 
     const buttons = wrapper.findAll('button')
     if (buttons.length > 0) {
-      await buttons[0].trigger('click')
+      await buttons[0]!.trigger('click')
       expect(wrapper.emitted('navigate-record')).toBeTruthy()
     }
   })

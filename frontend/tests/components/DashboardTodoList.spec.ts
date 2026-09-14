@@ -90,7 +90,7 @@ describe('DashboardTodoList.vue (TDD Component Test)', () => {
     expect(wrapper.text()).toContain('홍길동')
     expect(wrapper.text()).toContain('CUST-001')
 
-    wrapper.vm.onGoToApprovals(todos[0])
+    ;(wrapper.vm as any).onGoToApprovals(todos[0])
     expect(wrapper.emitted('review')).toBeTruthy()
     expect(wrapper.emitted('review')![0]).toEqual([todos[0]])
   })

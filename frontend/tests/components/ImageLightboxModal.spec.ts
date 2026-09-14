@@ -20,7 +20,7 @@ const i18n = createI18n({
       image_carousel_next: '다음'
     }
   }
-})
+} as any)
 
 describe('ImageLightboxModal.vue (TDD Component Test)', () => {
   it('renders modal with images list properly', async () => {
@@ -77,7 +77,7 @@ describe('ImageLightboxModal.vue (TDD Component Test)', () => {
     await nextBtn.trigger('click')
     
     const thumbs = wrapper.findAll('.strip-thumb')
-    expect(thumbs[1].classes()).toContain('is-active')
+    expect(thumbs[1]!.classes()).toContain('is-active')
     wrapper.unmount()
   })
 })

@@ -23,7 +23,7 @@ export const useUserStore = defineStore('user', () => {
     userMapPromise = (async () => {
       try {
         const headers = token.value ? { Authorization: `Bearer ${token.value}` } : {}
-        const res = await $fetch<Record<string, string>>('/api/users/map', { headers })
+        const res = await $fetch<Record<string, string>>('/api/users/map', { headers: headers as Record<string, string> })
         if (res && typeof res === 'object' && !Array.isArray(res)) {
           userMap.value = res
           isInitialized.value = true

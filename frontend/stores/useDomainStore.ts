@@ -56,7 +56,7 @@ export const useDomainStore = defineStore('domain', () => {
     domainsPromise = (async () => {
       try {
         const { customFetch } = useCustomFetch()
-        const res = await customFetch<any>('/api/domains')
+        const res = await customFetch('/api/domains')
         const list = Array.isArray(res) ? res : (res?.content || [])
 
         if (Array.isArray(list)) {

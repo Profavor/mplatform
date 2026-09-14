@@ -73,7 +73,7 @@ describe('CandidateDetailSidebar.vue (TDD Component Test)', () => {
     const buttons = wrapper.findAll('.va-btn-stub')
     expect(buttons.length).toBe(2)
     // 거절 버튼
-    await buttons[0].trigger('click')
+    await buttons[0]!.trigger('click')
 
     expect(wrapper.emitted('reject')).toBeTruthy()
     expect(wrapper.emitted('reject')![0]).toEqual([mockCandidate])
@@ -102,7 +102,7 @@ describe('CandidateDetailSidebar.vue (TDD Component Test)', () => {
     const buttons = wrapper.findAll('.va-btn-stub')
     expect(buttons.length).toBe(2)
     // 병합 승인 버튼
-    await buttons[1].trigger('click')
+    await buttons[1]!.trigger('click')
 
     expect(wrapper.emitted('merge')).toBeTruthy()
     expect(wrapper.emitted('merge')![0]).toEqual([mockCandidate])

@@ -28,7 +28,7 @@
   </AppModal>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import AppModal from '~/components/common/AppModal.vue'
 const { t } = useI18n()

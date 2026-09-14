@@ -51,7 +51,7 @@ describe('ChangePasswordForm.vue', () => {
   it('calls customFetch with password payload on submit', async () => {
     mockCustomFetch.mockResolvedValueOnce({ success: true })
 
-    const wrapper = mount(ChangePasswordForm, {
+    const wrapper: any = mount(ChangePasswordForm, {
       props: {
         forceMode: false
       },
@@ -68,11 +68,11 @@ describe('ChangePasswordForm.vue', () => {
       }
     })
 
-    wrapper.vm.oldPassword = 'OldPassword1!'
-    wrapper.vm.newPassword = 'NewPassword1!'
-    wrapper.vm.confirmPassword = 'NewPassword1!'
+    ;(wrapper.vm as any).oldPassword = 'OldPassword1!'
+    ;(wrapper.vm as any).newPassword = 'NewPassword1!'
+    ;(wrapper.vm as any).confirmPassword = 'NewPassword1!'
 
-    await wrapper.vm.handleSubmit()
+    await (wrapper.vm as any).handleSubmit()
 
     expect(mockCustomFetch).toHaveBeenCalledWith('/api/users/me/password', {
       method: 'PUT',

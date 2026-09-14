@@ -180,6 +180,77 @@ pub async fn get_record_lineage(
         }));
     }
 
+    // Outbound Pipeline & Downstream Consumers (Stage 4 & 5)
+    #[derive(sqlx::FromRow)]
+    struct OutboundLineageChannel {
+        id: Uuid,
+        name: String,
+        channel_code: Option<String>,
+        mapping_config_json: Option<String>,
+    }
+
+    let outbound_channels = sqlx::query_as::<_, OutboundLineageChannel>(
+        r#"
+        SELECT id, name, channel_code, mapping_config_json
+        FROM integration_channels
+        WHERE is_active = true AND direction = 'OUTBOUND'
+          AND (node_id = $1 OR node_id IS NULL)
+        "#
+    )
+    .bind(rec.node_id)
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default();
+
+    for ch in outbound_channels {
+        let ch_name = if let Ok(val) = serde_json::from_str::<serde_json::Value>(&ch.name) {
+            val.get("ko").or_else(|| val.get("en")).and_then(|v| v.as_str()).unwrap_or(&ch.name).to_string()
+        } else {
+            ch.name.clone()
+        };
+
+        let log_status: Option<(String,)> = sqlx::query_as(
+            "SELECT status FROM integration_logs WHERE channel_id = $1 AND record_id = $2 ORDER BY created_at DESC LIMIT 1"
+        )
+        .bind(ch.id)
+        .bind(id)
+        .fetch_optional(&state.db)
+        .await
+        .unwrap_or(None);
+
+        let out_id = format!("out_{}", ch.id);
+        let cns_id = format!("cns_{}", ch.id);
+        let node_status = log_status.as_ref().map(|s| s.0.as_str()).unwrap_or("HEALTHY");
+
+        nodes.push(serde_json::json!({
+            "id": out_id,
+            "name": format!("Outbound: {}", ch_name),
+            "type": "OUTBOUND",
+            "stage": "OUTBOUND_PIPELINE",
+            "status": node_status
+        }));
+
+        links.push(serde_json::json!({
+            "source": rec_node_id,
+            "target": out_id,
+            "relation": "DISPATCHES_TO"
+        }));
+
+        nodes.push(serde_json::json!({
+            "id": cns_id,
+            "name": format!("Consumer: {}", ch_name),
+            "type": "CONSUMER",
+            "stage": "DOWNSTREAM_CONSUMER",
+            "status": node_status
+        }));
+
+        links.push(serde_json::json!({
+            "source": out_id,
+            "target": cns_id,
+            "relation": "CONSUMED_BY"
+        }));
+    }
+
     Ok(Json(serde_json::json!({
         "recordId": id,
         "nodes": nodes,

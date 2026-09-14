@@ -44,12 +44,12 @@ describe('CreateOrgModal.vue (TDD Component Test)', () => {
 
     expect(wrapper.text()).toContain('create_new_org')
 
-    wrapper.vm.onSave()
+    ;(wrapper.vm as any).onSave()
     expect(wrapper.emitted('save')).toBeTruthy()
   })
 
   it('취소 버튼 클릭 시 모달 닫기 이벤트 방출 검증', async () => {
-    const wrapper = mount(CreateOrgModal, {
+    const wrapper: any = mount(CreateOrgModal, {
       props: {
         modelValue: true,
         form: { name: '', displayNameKo: '', displayNameEn: '', descriptionKo: '', descriptionEn: '' }
@@ -67,7 +67,7 @@ describe('CreateOrgModal.vue (TDD Component Test)', () => {
       }
     })
 
-    wrapper.vm.onCancel()
+    ;(wrapper.vm as any).onCancel()
     expect(wrapper.emitted('update:modelValue')).toBeTruthy()
     expect(wrapper.emitted('update:modelValue')![0]).toEqual([false])
   })

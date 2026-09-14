@@ -29,7 +29,7 @@ export function tokenize(input: string): Token[] {
   const len = input.length
 
   while (i < len) {
-    const ch = input[i]
+    const ch = input[i]!
 
     // Skip whitespace
     if (/\s/.test(ch)) {
@@ -40,7 +40,7 @@ export function tokenize(input: string): Token[] {
     // Numbers (integer or float)
     if (/[0-9]/.test(ch)) {
       let numStr = ''
-      while (i < len && (/[0-9]/.test(input[i]) || input[i] === '.')) {
+      while (i < len && (/[0-9]/.test(input[i]!) || input[i] === '.')) {
         numStr += input[i]
         i++
       }
@@ -138,7 +138,7 @@ export function tokenize(input: string): Token[] {
     // Identifiers: keywords / functions / forbidden identifiers
     if (/[a-zA-Z_]/.test(ch)) {
       let ident = ''
-      while (i < len && /[a-zA-Z0-9_]/.test(input[i])) {
+      while (i < len && /[a-zA-Z0-9_]/.test(input[i]!)) {
         ident += input[i]
         i++
       }

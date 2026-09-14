@@ -31,14 +31,14 @@ describe('IconPickerModal.vue (TDD Component Test)', () => {
     expect(wrapper.text()).toContain('cancel')
     expect(wrapper.text()).toContain('confirm')
 
-    wrapper.vm.onConfirm()
+    ;(wrapper.vm as any).onConfirm()
     expect(wrapper.emitted('confirm')).toBeTruthy()
     expect(wrapper.emitted('update:modelValue')).toBeTruthy()
     expect(wrapper.emitted('update:modelValue')![0]).toEqual([false])
   })
 
   it('취소 버튼 클릭 시 모달 닫기 이벤트 방출 검증', async () => {
-    const wrapper = mount(IconPickerModal, {
+    const wrapper: any = mount(IconPickerModal, {
       props: {
         modelValue: true,
         icon: 'star'
@@ -56,7 +56,7 @@ describe('IconPickerModal.vue (TDD Component Test)', () => {
       }
     })
 
-    wrapper.vm.onCancel()
+    ;(wrapper.vm as any).onCancel()
     expect(wrapper.emitted('update:modelValue')).toBeTruthy()
     expect(wrapper.emitted('update:modelValue')![0]).toEqual([false])
   })

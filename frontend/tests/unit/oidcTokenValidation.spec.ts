@@ -22,7 +22,7 @@ describe('OIDC Token Validation with Reverse Proxy & Multi-Issuer Support (TDD)'
     
     // JWT 토큰 파싱 (비서명 디코딩)
     const [headerB64, payloadB64] = token.split('.')
-    const payload = JSON.parse(Buffer.from(payloadB64, 'base64').toString('utf8'))
+    const payload = JSON.parse(Buffer.from(payloadB64 as any, 'base64').toString('utf8'))
     const parsedTokenIss = payload?.iss
 
     let allowedIssuers: string[] = []

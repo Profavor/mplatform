@@ -12,10 +12,14 @@ vi.mock('vue-i18n', () => ({
   })
 }))
 
-vi.mock('#app', () => ({
-  useCookie: () => ({ value: null }),
-  navigateTo: vi.fn()
-}))
+vi.mock('#app', async (importOriginal) => {
+  const actual = await importOriginal<any>()
+  return {
+    ...actual,
+    useCookie: () => ({ value: null }),
+    navigateTo: vi.fn()
+  }
+})
 
 vi.mock('~/composables/useCustomFetch', () => ({
   useCustomFetch: () => ({
@@ -69,7 +73,7 @@ describe('TwoFactorSetupModal.vue', () => {
     })
 
     const wrapper = createWrapper()
-    await wrapper.vm.loadSetupData()
+    await (wrapper.vm as any).loadSetupData()
 
     expect(mockCustomFetch).toHaveBeenCalledWith('/api/auth/2fa/setup', expect.objectContaining({
       method: 'POST',
@@ -86,10 +90,10 @@ describe('TwoFactorSetupModal.vue', () => {
     })
 
     const wrapper = createWrapper()
-    wrapper.vm.secret = 'SECRET123'
-    wrapper.vm.verificationCode = '123456'
+    ;(wrapper.vm as any).secret = 'SECRET123'
+    ;(wrapper.vm as any).verificationCode = '123456'
 
-    await wrapper.vm.handleEnable()
+    await (wrapper.vm as any).handleEnable()
 
     expect(mockCustomFetch).toHaveBeenCalledWith('/api/auth/2fa/enable', expect.objectContaining({
       method: 'POST',
@@ -112,7 +116,7 @@ describe('TwoFactorSetupModal.vue', () => {
     })
 
     const wrapper = createWrapper({ isAlreadyEnabled: true })
-    await wrapper.vm.handleDisable()
+    await (wrapper.vm as any).handleDisable()
 
     expect(mockCustomFetch).toHaveBeenCalledWith('/api/auth/2fa/disable', expect.objectContaining({
       method: 'POST',

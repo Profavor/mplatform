@@ -65,7 +65,7 @@ export const useRoleStore = defineStore('role', () => {
       try {
         const endpoint = targetOrgId ? `/api/roles/org/${targetOrgId}` : '/api/roles'
         const headers = currentToken ? { Authorization: `Bearer ${currentToken}` } : {}
-        const list = await $fetch<RoleInfo[]>(endpoint, { headers })
+        const list = await $fetch<RoleInfo[]>(endpoint, { headers: headers as Record<string, string> })
 
         if (Array.isArray(list)) {
           rolesList.value = list
@@ -143,7 +143,7 @@ export const useRoleStore = defineStore('role', () => {
       isLoading.value = true
       const endpoint = orgId ? `/api/roles/org/${orgId}/sync-defaults` : '/api/roles/sync-defaults'
       const headers = token.value ? { Authorization: `Bearer ${token.value}` } : {}
-      await $fetch(endpoint, { method: 'POST', headers })
+      await $fetch(endpoint, { method: 'POST', headers: headers as Record<string, string> })
       await fetchRolesForOrg(orgId, true)
       return true
     } catch (e) {
@@ -159,7 +159,7 @@ export const useRoleStore = defineStore('role', () => {
       isLoading.value = true
       const headers = token.value ? { Authorization: `Bearer ${token.value}` } : {}
       const url = orgId ? `/api/roles/dump-seed?orgId=${orgId}` : '/api/roles/dump-seed'
-      await $fetch(url, { method: 'POST', headers })
+      await $fetch(url, { method: 'POST', headers: headers as Record<string, string> })
       return true
     } catch (e) {
       console.error('Failed to dump seed files:', e)
@@ -188,7 +188,7 @@ export const useRoleStore = defineStore('role', () => {
         for (let i = 0; i < norm.length; i++) {
           hash = norm.charCodeAt(i) + ((hash << 5) - hash)
         }
-        return colors[Math.abs(hash) % colors.length]
+        return colors[Math.abs(hash) % colors.length]!
       }
     }
   }

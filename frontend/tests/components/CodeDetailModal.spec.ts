@@ -55,7 +55,7 @@ describe('CodeDetailModal.vue (TDD Component Test)', () => {
 
   it('저장 버튼 클릭 시 save 이벤트 방출', async () => {
     const detailForm = createMockDetailForm()
-    const wrapper = mount(CodeDetailModal, {
+    const wrapper: any = mount(CodeDetailModal, {
       props: {
         modelValue: true,
         detailForm: detailForm,
@@ -79,7 +79,7 @@ describe('CodeDetailModal.vue (TDD Component Test)', () => {
       }
     })
 
-    wrapper.vm.onSave()
+    ;(wrapper.vm as any).onSave()
     expect(wrapper.emitted('save')).toBeTruthy()
   })
 })

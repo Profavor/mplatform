@@ -48,7 +48,7 @@ describe('DqRuleModal.vue (TDD Component Test)', () => {
 
   it('저장 및 취소 이벤트 방출 검증', async () => {
     const formData = createMockFormData()
-    const wrapper = mount(DqRuleModal, {
+    const wrapper: any = mount(DqRuleModal, {
       props: {
         modelValue: true,
         isEdit: true,
@@ -68,10 +68,10 @@ describe('DqRuleModal.vue (TDD Component Test)', () => {
       }
     })
 
-    wrapper.vm.onSave()
+    ;(wrapper.vm as any).onSave()
     expect(wrapper.emitted('save')).toBeTruthy()
 
-    wrapper.vm.onCancel()
+    ;(wrapper.vm as any).onCancel()
     expect(wrapper.emitted('update:modelValue')).toBeTruthy()
     expect(wrapper.emitted('update:modelValue')![0]).toEqual([false])
   })

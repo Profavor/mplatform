@@ -24,7 +24,7 @@ const i18n = createI18n({
       force_password_change: '비밀번호 강제 변경'
     }
   }
-})
+} as any)
 
 vi.mock('#app', () => ({
   useCookie: (name: string, opts?: any) => {
@@ -216,9 +216,9 @@ describe('layouts/default.vue (TDD)', () => {
       }
     })
 
-    await nextTick()
+    await nextTick();
 
-    wrapper.vm.showSidebar = true
+    ;(wrapper.vm as any).showSidebar = true
     await nextTick()
 
     const backdrop = wrapper.find('.sidebar-mobile-backdrop')
@@ -240,7 +240,7 @@ describe('layouts/default.vue (TDD)', () => {
     await nextTick()
 
     expect(typeof wrapper.vm.updateNavbarHeight).toBe('function')
-    wrapper.vm.updateNavbarHeight()
+    ;(wrapper.vm as any).updateNavbarHeight()
     const setHeight = document.documentElement.style.getPropertyValue('--app-navbar-height')
     expect(setHeight).toBeDefined()
   })

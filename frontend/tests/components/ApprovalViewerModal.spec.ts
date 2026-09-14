@@ -44,7 +44,7 @@ describe('ApprovalViewerModal.vue (TDD Component Test)', () => {
 
   it('닫기 이벤트 방출 검증', async () => {
     const mockRequest = createMockRequest()
-    const wrapper = mount(ApprovalViewerModal, {
+    const wrapper: any = mount(ApprovalViewerModal, {
       props: {
         modelValue: true,
         request: mockRequest
@@ -61,7 +61,7 @@ describe('ApprovalViewerModal.vue (TDD Component Test)', () => {
       }
     })
 
-    wrapper.vm.onClose()
+    ;(wrapper.vm as any).onClose()
     expect(wrapper.emitted('update:modelValue')).toBeTruthy()
     expect(wrapper.emitted('update:modelValue')![0]).toEqual([false])
   })

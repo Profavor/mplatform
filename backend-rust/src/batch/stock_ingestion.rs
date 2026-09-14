@@ -298,6 +298,43 @@ impl StockDataIngestionJob {
             seeded_by_market
         );
 
+        // Record integration log if stock channel exists
+        let stock_channel_id: Option<Uuid> = sqlx::query_scalar(
+            "SELECT id FROM integration_channels WHERE channel_code = 'CH-KRX-INBOUND-001' OR type = 'SPRING_BATCH' LIMIT 1"
+        )
+        .fetch_optional(pool)
+        .await
+        .unwrap_or(None);
+
+        if let Some(cid) = stock_channel_id {
+            let log_id = Uuid::new_v4();
+            let original = format!(
+                "Spring Batch Completed. Read: {}, Written: {}, Skipped: 0",
+                total_seeded,
+                total_created + total_merged
+            );
+            let mapped = serde_json::json!({
+                "readCount": total_seeded,
+                "writeCount": total_created + total_merged,
+                "createdCount": total_created,
+                "mergedCount": total_merged,
+                "status": "COMPLETED"
+            }).to_string();
+
+            let _ = sqlx::query(
+                r#"
+                INSERT INTO integration_logs (id, channel_id, event_type, status, original_payload, mapped_payload, created_at, retry_count)
+                VALUES ($1, $2, 'SPRING_BATCH_STOCK_INGESTION', 'SUCCESS', $3, $4, NOW(), 0)
+                "#
+            )
+            .bind(log_id)
+            .bind(cid)
+            .bind(original)
+            .bind(mapped)
+            .execute(pool)
+            .await;
+        }
+
         Ok(StockSeedResponse {
             domain_id,
             domain_name,

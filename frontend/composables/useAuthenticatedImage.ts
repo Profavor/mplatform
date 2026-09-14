@@ -84,7 +84,7 @@ export const useAuthenticatedImage = () => {
     while ((match = imgRegex.exec(html)) !== null) {
       const src = match[3]
       if (src && src.includes('/api/files/download')) {
-        matches.push({ fullTag: match[0], prefix: match[1], src, suffix: match[4] })
+        matches.push({ fullTag: match[0], prefix: match[1] ?? '', src, suffix: match[4] ?? '' })
       }
     }
 

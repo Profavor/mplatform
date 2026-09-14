@@ -35,7 +35,7 @@ export const useAuthUser = defineStore('authUser', () => {
 
     isLoadingUser.value = true
     try {
-      const data = await customFetch<AuthUser>('/api/auth/me')
+      const data = (await customFetch('/api/auth/me')) as AuthUser
       if (data) {
         currentUserState.value = data
         if (data.timezone) {

@@ -1,5 +1,4 @@
-import { defineNuxtRouteMiddleware, navigateTo } from '#app'
-import { useCookie, useOidcAuth, useRequestFetch } from '#imports'
+import { useCookie, useOidcAuth, useRequestFetch, navigateTo } from '#imports'
 
 export default defineNuxtRouteMiddleware(async (to, from) => {
   try {

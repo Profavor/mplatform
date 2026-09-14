@@ -58,7 +58,7 @@ describe('NodeModal.vue', () => {
     await deleteBtn?.trigger('click')
 
     expect(wrapper.emitted('delete')).toBeTruthy()
-    expect(wrapper.emitted('delete')?.[0][0]).toEqual(selectedNode)
+    expect(wrapper.emitted('delete')![0]![0]).toEqual(selectedNode)
   })
 
   it('renders create mode without delete button', () => {

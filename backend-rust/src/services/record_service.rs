@@ -135,10 +135,26 @@ impl RecordService {
             "CREATE",
             actor,
             None,
-            Some(req.data),
+            Some(req.data.clone()),
             req.source_system.as_deref(),
         )
         .await?;
+
+        // Dispatch to active outbound integration channels
+        let pool_clone = pool.clone();
+        let rec_id = record.id;
+        let node_id = record.node_id;
+        let data_clone = req.data;
+        tokio::spawn(async move {
+            let _ = crate::services::outbound_service::OutboundService::dispatch_record_change(
+                &pool_clone,
+                rec_id,
+                node_id,
+                "CREATE",
+                &data_clone,
+            )
+            .await;
+        });
 
         let mut masked_record = record;
         Self::prepare_record_for_read(pool, &mut masked_record, false).await?;

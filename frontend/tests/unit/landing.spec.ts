@@ -9,7 +9,11 @@ const replaceMock = vi.fn()
 vi.mock('vue-router', () => ({
   useRouter: () => ({
     replace: replaceMock,
-    push: vi.fn()
+    push: vi.fn(),
+    afterEach: vi.fn(),
+    beforeEach: vi.fn(),
+    beforeResolve: vi.fn(),
+    currentRoute: { value: { path: '/', query: {}, params: {} } }
   })
 }))
 
@@ -24,22 +28,46 @@ const createCookieMock = (name: string) => ({
   }
 })
 
-vi.mock('#app', () => ({
-  useCookie: (name: string) => createCookieMock(name),
-  definePageMeta: vi.fn()
-}))
+vi.mock('#app', async (importOriginal) => {
+  const actual = await importOriginal<any>()
+  return {
+    ...actual,
+    useCookie: (name: string) => createCookieMock(name),
+    definePageMeta: vi.fn(),
+    useRouter: () => ({
+      push: vi.fn(),
+      replace: vi.fn(),
+      afterEach: vi.fn(),
+      beforeEach: vi.fn(),
+      beforeResolve: vi.fn(),
+      currentRoute: { value: { path: '/', query: {}, params: {} } }
+    })
+  }
+})
 
 vi.mock('#app/composables/cookie', () => ({
   useCookie: (name: string) => createCookieMock(name)
 }))
 
-vi.mock('#imports', () => ({
-  useCookie: (name: string) => createCookieMock(name),
-  definePageMeta: vi.fn(),
-  useOidcAuth: () => ({
-    loggedIn: { value: false }
-  })
-}))
+vi.mock('#imports', async (importOriginal) => {
+  const actual = await importOriginal<any>()
+  return {
+    ...actual,
+    useCookie: (name: string) => createCookieMock(name),
+    definePageMeta: vi.fn(),
+    useOidcAuth: () => ({
+      loggedIn: { value: false }
+    }),
+    useRouter: () => ({
+      replace: replaceMock,
+      push: vi.fn(),
+      afterEach: vi.fn(),
+      beforeEach: vi.fn(),
+      beforeResolve: vi.fn(),
+      currentRoute: { value: { path: '/', query: {}, params: {} } }
+    })
+  }
+})
 
 vi.stubGlobal('useCookie', (name: string) => createCookieMock(name))
 

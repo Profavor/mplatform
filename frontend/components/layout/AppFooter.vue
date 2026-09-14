@@ -170,7 +170,7 @@
   </footer>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useColors } from 'vuestic-ui'
 import AppModal from '~/components/common/AppModal.vue'
