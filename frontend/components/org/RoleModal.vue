@@ -4,7 +4,8 @@
     :title="mode === 'create' ? t('create_role_title') : t('edit_role_title')"
     icon="admin_panel_settings"
     hide-default-actions
-    size="medium"
+    size="large"
+    style="--va-modal-max-width: 900px;"
     @update:model-value="$emit('update:modelValue', $event)"
   >
     <div style="padding: 0.5rem 0; display: flex; flex-direction: column; gap: 1.1rem;">
@@ -41,6 +42,13 @@
           </va-textarea>
         </div>
       </div>
+      <div style="border-top: 1px solid var(--va-background-border); padding-top: 0.75rem; max-height: 380px; overflow-y: auto;">
+        <PermissionMatrix
+          v-model="roleForm.permissions"
+          :groups="groups"
+          :editable="false"
+        />
+      </div>
       <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
         <va-button preset="secondary" @click="$emit('update:modelValue', false)">{{ t('cancel') }}</va-button>
         <va-button color="primary" :loading="loading" @click="$emit('save')">{{ mode === 'create' ? t('save_role') : t('save') }}</va-button>
@@ -52,11 +60,13 @@
 <script setup>
 import { useI18n } from 'vue-i18n'
 import AppModal from '~/components/common/AppModal.vue'
+import PermissionMatrix from '~/components/PermissionMatrix.vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   mode: { type: String, default: 'create' }, // 'create' | 'edit'
   roleForm: { type: Object, required: true },
+  groups: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false }
 })
 

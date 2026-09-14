@@ -302,6 +302,27 @@ class FieldDefinitionServiceTest {
                     .isInstanceOf(RuntimeException.class)
                     .hasMessageContaining("Node not found");
         }
+
+        @Test
+        @DisplayName("도메인 ID로 getEffectiveFields 호출 시 도메인 및 산하 노드 전체 필드 반환")
+        void domainId_ReturnsAllDomainAndNodeFields() {
+            FieldDefinition domainField = new FieldDefinition();
+            domainField.setId(UUID.randomUUID());
+            domainField.setKey("domain_field");
+            FieldDefinition nodeField = new FieldDefinition();
+            nodeField.setId(UUID.randomUUID());
+            nodeField.setKey("node_field");
+
+            when(nodeRepository.findById(domainId)).thenReturn(Optional.empty());
+            when(domainRepository.findById(domainId)).thenReturn(Optional.of(domain));
+            when(fieldRepository.findAllDomainAndNodeFieldsWithSort(domainId)).thenReturn(List.of(domainField, nodeField));
+
+            List<FieldDefinition> result = fieldDefinitionService.getEffectiveFields(domainId);
+
+            assertThat(result).hasSize(2);
+            assertThat(result.get(0).getKey()).isEqualTo("domain_field");
+            assertThat(result.get(1).getKey()).isEqualTo("node_field");
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────

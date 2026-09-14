@@ -23,8 +23,11 @@ export default defineEventHandler(async (event) => {
   cookiesToClear.forEach((name) => {
     try {
       deleteCookie(event, name, { path: '/' })
+      deleteCookie(event, name, { path: '' })
+      deleteCookie(event, name, { path: '/', secure: true })
+      deleteCookie(event, name, { path: '', secure: true })
     } catch {}
   })
 
-  return sendRedirect(event, '/login', 302)
+  return sendRedirect(event, '/login?logout=true', 302)
 })

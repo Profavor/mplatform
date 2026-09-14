@@ -244,4 +244,59 @@ describe('layouts/default.vue (TDD)', () => {
     const setHeight = document.documentElement.style.getPropertyValue('--app-navbar-height')
     expect(setHeight).toBeDefined()
   })
+
+  it('상단 네비게이션 바에서 테마 버튼이 제거되고 프로필 드롭다운 메뉴 및 사이드바에 테마 모드 전환이 유지되어야 함', async () => {
+    const wrapper = mount(DefaultLayout, {
+      global: {
+        plugins: [i18n],
+        stubs
+      }
+    })
+
+    await nextTick()
+
+    // 상단 네비게이션 바에서 테마 버튼 제거 확인
+    const themeBtn = wrapper.find('.theme-btn')
+    expect(themeBtn.exists()).toBe(false)
+  })
+
+  it('사용자 프로필 드롭다운 메뉴 및 사이드바 내에 다크모드/라이트모드 전환 옵션이 존재해야 함', async () => {
+    const wrapper = mount(DefaultLayout, {
+      global: {
+        plugins: [i18n],
+        stubs
+      }
+    })
+
+    await nextTick()
+
+    // 프로필 메뉴 또는 사이드바에 테마 모드 전환 버튼/아이템이 존재하는지 확인
+    const profileDropdownThemeItem = wrapper.find('.profile-theme-toggle-item')
+    const sidebarThemeBtn = wrapper.find('.sidebar-theme-btn')
+
+    expect(profileDropdownThemeItem.exists() || sidebarThemeBtn.exists()).toBe(true)
+  })
+
+  it('상단 네비게이션 바의 아이콘 버튼들이 일관된 규격과 간격을 가지며 불균형한 개별 mr-2 마진이 정리되어야 함', async () => {
+    const wrapper = mount(DefaultLayout, {
+      global: {
+        plugins: [i18n],
+        stubs
+      }
+    })
+
+    await nextTick()
+
+    const radioBtn = wrapper.find('button[aria-label="radio_dj_panel"]')
+    if (radioBtn.exists()) {
+      expect(radioBtn.classes()).toContain('nav-icon-btn')
+      expect(radioBtn.classes()).not.toContain('mr-2')
+    }
+
+    const notificationBellStub = wrapper.findComponent({ name: 'NotificationBell' })
+    if (notificationBellStub.exists()) {
+      expect(notificationBellStub.classes()).not.toContain('mr-2')
+    }
+  })
 })
+

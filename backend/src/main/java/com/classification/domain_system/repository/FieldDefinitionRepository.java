@@ -15,6 +15,9 @@ public interface FieldDefinitionRepository extends JpaRepository<FieldDefinition
     @org.springframework.data.jpa.repository.Query("SELECT f FROM FieldDefinition f LEFT JOIN FETCH f.fieldGroup fg LEFT JOIN FETCH fg.sector s WHERE f.domain.id = :domainId AND f.definedAtNode IS NULL AND (f.isRemoved = false OR f.isRemoved IS NULL) ORDER BY COALESCE(s.sortOrder, 9999) ASC, COALESCE(fg.sortOrder, 9999) ASC, f.order ASC")
     List<FieldDefinition> findDomainFieldsWithSort(@org.springframework.data.repository.query.Param("domainId") UUID domainId);
 
+    @org.springframework.data.jpa.repository.Query("SELECT f FROM FieldDefinition f LEFT JOIN FETCH f.fieldGroup fg LEFT JOIN FETCH fg.sector s WHERE f.domain.id = :domainId AND (f.isRemoved = false OR f.isRemoved IS NULL) ORDER BY CASE WHEN f.definedAtNode IS NULL THEN 0 ELSE 1 END ASC, COALESCE(s.sortOrder, 9999) ASC, COALESCE(fg.sortOrder, 9999) ASC, f.order ASC")
+    List<FieldDefinition> findAllDomainAndNodeFieldsWithSort(@org.springframework.data.repository.query.Param("domainId") UUID domainId);
+
     @org.springframework.data.jpa.repository.Query("SELECT f FROM FieldDefinition f LEFT JOIN FETCH f.fieldGroup fg LEFT JOIN FETCH fg.sector s WHERE f.definedAtNode.id IN :nodeIds AND (f.isRemoved = false OR f.isRemoved IS NULL)")
     List<FieldDefinition> findByDefinedAtNode_IdIn(@org.springframework.data.repository.query.Param("nodeIds") List<UUID> nodeIds);
 

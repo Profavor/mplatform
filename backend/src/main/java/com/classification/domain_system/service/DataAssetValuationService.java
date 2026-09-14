@@ -20,6 +20,7 @@ public class DataAssetValuationService {
     private final DomainRepository domainRepository;
     private final RecordRepository recordRepository;
 
+    @org.springframework.cache.annotation.Cacheable(value = "dataAssetValuation")
     @Transactional(readOnly = true)
     public DataAssetDto.DataAssetSummaryResponse evaluateDataAssets() {
         List<Domain> domains = domainRepository.findAll();
@@ -29,7 +30,7 @@ public class DataAssetValuationService {
         double sumQuality = 0;
 
         for (Domain d : domains) {
-            int recordCount = recordRepository.findAllByDomainId(d.getId()).size();
+            int recordCount = (int) recordRepository.countByDomainId(d.getId());
             int usageScore = Math.min(100, Math.max(50, recordCount * 5));
             double dqScore = 96.5; // Benchmark standard
             int channels = 3;

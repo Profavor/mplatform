@@ -107,6 +107,26 @@
           </va-input>
         </div>
       </div>
+
+      <div style="display: flex; justify-content: flex-end; align-items: center; gap: 0.75rem; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px dashed var(--va-background-border);">
+        <va-button
+          preset="secondary"
+          color="secondary"
+          size="small"
+          icon="clear_all"
+          @click="$emit('reset')"
+        >
+          {{ t('reset_all') }}
+        </va-button>
+        <va-button
+          color="primary"
+          size="small"
+          icon="search"
+          @click="$emit('search')"
+        >
+          {{ t('search') }}
+        </va-button>
+      </div>
     </va-card-content>
   </va-card>
 </template>
@@ -129,6 +149,8 @@ const emit = defineEmits<{
   (e: 'update:draftFiltersOp', val: Record<string, string>): void
   (e: 'update:draftFiltersMax', val: Record<string, any>): void
   (e: 'filterKeydown', event: KeyboardEvent): void
+  (e: 'search'): void
+  (e: 'reset'): void
 }>()
 
 const { t } = useI18n()

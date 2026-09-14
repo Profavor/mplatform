@@ -68,23 +68,9 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                 String op = searchParams.getOrDefault("op_" + key, "EQ");
                 
                 if ("EQ".equals(op) || "CONTAINS".equals(op) || "STARTS_WITH".equals(op) || "ENDS_WITH".equals(op)) {
-                    String directCond = "EQ".equals(op) 
-                        ? "(r.data->>'" + safeKey + "') = :searchValLike" + paramIndex 
-                        : "(r.data->>'" + safeKey + "') ILIKE :searchValLike" + paramIndex;
-
-                    String pgPrefix = 
-                            "r.data @> CAST(:searchValStr" + paramIndex + " AS jsonb) " +
-                            " OR r.data @> CAST(:searchValStrLower" + paramIndex + " AS jsonb) " +
-                            " OR r.data @> CAST(:searchValNum" + paramIndex + " AS jsonb) " +
-                            " OR r.data @> CAST(:searchValNumLower" + paramIndex + " AS jsonb) " +
-                            " OR (r.searchable_data IS NOT NULL AND (r.searchable_data @> CAST(:searchValStr" + paramIndex + " AS jsonb) OR r.searchable_data @> CAST(:searchValStrLower" + paramIndex + " AS jsonb))) OR ";
-
-                    String cond = " AND (" + directCond + " OR " + pgPrefix +
-                            " (NULLIF(r.data->>'" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ") " +
-                            " OR (NULLIF(r.data->>'_mask_" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ") " +
-                            " OR (NULLIF(r.data->'" + safeKey + "'->>'ko', '') ILIKE :searchValLike" + paramIndex + ") " +
-                            " OR (NULLIF(r.data->'" + safeKey + "'->>'en', '') ILIKE :searchValLike" + paramIndex + ") " +
-                            " OR (r.searchable_data IS NOT NULL AND NULLIF(r.searchable_data->>'" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ")) ";
+                    String cond = "EQ".equals(op)
+                        ? " AND (r.data->>'" + safeKey + "') = :searchValLike" + paramIndex + " "
+                        : " AND (r.data->>'" + safeKey + "') ILIKE :searchValLike" + paramIndex + " ";
                     sql.append(cond);
                     countSql.append(cond);
                     paramIndex++;
@@ -145,12 +131,6 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                 String safeKey = key.replaceAll("[^a-zA-Z0-9_]", "_");
                 
                 if ("EQ".equals(op) || "CONTAINS".equals(op) || "STARTS_WITH".equals(op) || "ENDS_WITH".equals(op)) {
-                        String strVal = "{\"" + safeKey + "\": \"" + val.replace("\"", "\\\"") + "\"}";
-                        String strValLower = "{\"" + safeKey.toLowerCase() + "\": \"" + val.replace("\"", "\\\"") + "\"}";
-                        query.setParameter("searchValStr" + paramIndex, strVal);
-                        countQuery.setParameter("searchValStr" + paramIndex, strVal);
-                        query.setParameter("searchValStrLower" + paramIndex, strValLower);
-                        countQuery.setParameter("searchValStrLower" + paramIndex, strValLower);
                     String likeVal = switch (op) {
                         case "EQ" -> val;
                         case "STARTS_WITH" -> val + "%";
@@ -159,28 +139,6 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                     };
                     query.setParameter("searchValLike" + paramIndex, likeVal);
                     countQuery.setParameter("searchValLike" + paramIndex, likeVal);
-                        if (val != null && val.matches("-?(0|[1-9]\\d*)(\\.\\d+)?")) {
-                            String numVal = "{\"" + safeKey + "\": " + val + "}";
-                            String numValLower = "{\"" + safeKey.toLowerCase() + "\": " + val + "}";
-                            query.setParameter("searchValNum" + paramIndex, numVal);
-                            countQuery.setParameter("searchValNum" + paramIndex, numVal);
-                            query.setParameter("searchValNumLower" + paramIndex, numValLower);
-                            countQuery.setParameter("searchValNumLower" + paramIndex, numValLower);
-                        } else if ("true".equalsIgnoreCase(val) || "false".equalsIgnoreCase(val)) {
-                            String numVal = "{\"" + safeKey + "\": " + (val != null ? val.toLowerCase() : "false") + "}";
-                            String numValLower = "{\"" + safeKey.toLowerCase() + "\": " + (val != null ? val.toLowerCase() : "false") + "}";
-                            query.setParameter("searchValNum" + paramIndex, numVal);
-                            countQuery.setParameter("searchValNum" + paramIndex, numVal);
-                            query.setParameter("searchValNumLower" + paramIndex, numValLower);
-                            countQuery.setParameter("searchValNumLower" + paramIndex, numValLower);
-                        } else {
-                            String numVal = "{\"" + safeKey + "\": null}";
-                            String numValLower = "{\"" + safeKey.toLowerCase() + "\": null}";
-                            query.setParameter("searchValNum" + paramIndex, numVal);
-                            countQuery.setParameter("searchValNum" + paramIndex, numVal);
-                            query.setParameter("searchValNumLower" + paramIndex, numValLower);
-                            countQuery.setParameter("searchValNumLower" + paramIndex, numValLower);
-                        }
                 } else if ("BETWEEN".equals(op)) {
                     String maxVal = searchParams.get(key + "_max");
                     double vMin = Double.parseDouble(val);
@@ -267,23 +225,9 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                 String op = searchParams.getOrDefault("op_" + key, "EQ");
                 
                 if ("EQ".equals(op) || "CONTAINS".equals(op) || "STARTS_WITH".equals(op) || "ENDS_WITH".equals(op)) {
-                    String directCond = "EQ".equals(op) 
-                        ? "(r.data->>'" + safeKey + "') = :searchValLike" + paramIndex 
-                        : "(r.data->>'" + safeKey + "') ILIKE :searchValLike" + paramIndex;
-
-                    String pgPrefix = 
-                            "r.data @> CAST(:searchValStr" + paramIndex + " AS jsonb) " +
-                            " OR r.data @> CAST(:searchValStrLower" + paramIndex + " AS jsonb) " +
-                            " OR r.data @> CAST(:searchValNum" + paramIndex + " AS jsonb) " +
-                            " OR r.data @> CAST(:searchValNumLower" + paramIndex + " AS jsonb) " +
-                            " OR (r.searchable_data IS NOT NULL AND (r.searchable_data @> CAST(:searchValStr" + paramIndex + " AS jsonb) OR r.searchable_data @> CAST(:searchValStrLower" + paramIndex + " AS jsonb))) OR ";
-
-                    String cond = " AND (" + directCond + " OR " + pgPrefix +
-                            " (NULLIF(r.data->>'" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ") " +
-                            " OR (NULLIF(r.data->>'_mask_" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ") " +
-                            " OR (NULLIF(r.data->'" + safeKey + "'->>'ko', '') ILIKE :searchValLike" + paramIndex + ") " +
-                            " OR (NULLIF(r.data->'" + safeKey + "'->>'en', '') ILIKE :searchValLike" + paramIndex + ") " +
-                            " OR (r.searchable_data IS NOT NULL AND NULLIF(r.searchable_data->>'" + safeKey + "', '') ILIKE :searchValLike" + paramIndex + ")) ";
+                    String cond = "EQ".equals(op)
+                        ? " AND (r.data->>'" + safeKey + "') = :searchValLike" + paramIndex + " "
+                        : " AND (r.data->>'" + safeKey + "') ILIKE :searchValLike" + paramIndex + " ";
                     sql.append(cond);
                     countSql.append(cond);
                     paramIndex++;
@@ -353,12 +297,6 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                 String safeKey = key.replaceAll("[^a-zA-Z0-9_]", "_");
                 
                 if ("EQ".equals(op) || "CONTAINS".equals(op) || "STARTS_WITH".equals(op) || "ENDS_WITH".equals(op)) {
-                        String strVal = "{\"" + safeKey + "\": \"" + val.replace("\"", "\\\"") + "\"}";
-                        String strValLower = "{\"" + safeKey.toLowerCase() + "\": \"" + val.replace("\"", "\\\"") + "\"}";
-                        query.setParameter("searchValStr" + paramIndex, strVal);
-                        countQuery.setParameter("searchValStr" + paramIndex, strVal);
-                        query.setParameter("searchValStrLower" + paramIndex, strValLower);
-                        countQuery.setParameter("searchValStrLower" + paramIndex, strValLower);
                     String likeVal = switch (op) {
                         case "EQ" -> val;
                         case "STARTS_WITH" -> val + "%";
@@ -367,28 +305,6 @@ public class CustomRecordRepositoryImpl implements CustomRecordRepository {
                     };
                     query.setParameter("searchValLike" + paramIndex, likeVal);
                     countQuery.setParameter("searchValLike" + paramIndex, likeVal);
-                        if (val != null && val.matches("-?(0|[1-9]\\d*)(\\.\\d+)?")) {
-                            String numVal = "{\"" + safeKey + "\": " + val + "}";
-                            String numValLower = "{\"" + safeKey.toLowerCase() + "\": " + val + "}";
-                            query.setParameter("searchValNum" + paramIndex, numVal);
-                            countQuery.setParameter("searchValNum" + paramIndex, numVal);
-                            query.setParameter("searchValNumLower" + paramIndex, numValLower);
-                            countQuery.setParameter("searchValNumLower" + paramIndex, numValLower);
-                        } else if ("true".equalsIgnoreCase(val) || "false".equalsIgnoreCase(val)) {
-                            String numVal = "{\"" + safeKey + "\": " + (val != null ? val.toLowerCase() : "false") + "}";
-                            String numValLower = "{\"" + safeKey.toLowerCase() + "\": " + (val != null ? val.toLowerCase() : "false") + "}";
-                            query.setParameter("searchValNum" + paramIndex, numVal);
-                            countQuery.setParameter("searchValNum" + paramIndex, numVal);
-                            query.setParameter("searchValNumLower" + paramIndex, numValLower);
-                            countQuery.setParameter("searchValNumLower" + paramIndex, numValLower);
-                        } else {
-                            String numVal = "{\"" + safeKey + "\": null}";
-                            String numValLower = "{\"" + safeKey.toLowerCase() + "\": null}";
-                            query.setParameter("searchValNum" + paramIndex, numVal);
-                            countQuery.setParameter("searchValNum" + paramIndex, numVal);
-                            query.setParameter("searchValNumLower" + paramIndex, numValLower);
-                            countQuery.setParameter("searchValNumLower" + paramIndex, numValLower);
-                        }
                 } else if ("BETWEEN".equals(op)) {
                     String maxVal = searchParams.get(key + "_max");
                     double vMin = Double.parseDouble(val);

@@ -557,6 +557,14 @@ const props = defineProps({
   request: {
     type: Object,
     required: true
+  },
+  nodeId: {
+    type: String,
+    default: null
+  },
+  domainId: {
+    type: String,
+    default: null
   }
 })
 
@@ -1080,41 +1088,61 @@ const loadFieldNamesForRequest = async (req) => {
   }
   try {
     let nodeId = req.nodeId || props.nodeId;
-    if (!nodeId && req.targetId) {
+    let domainId = req.domainId || props.domainId;
+
+    if ((!nodeId || !domainId) && req.targetId) {
       try {
         const record = await customFetch(`/api/records/${req.targetId}`).catch(() => null)
-        nodeId = record?.node?.id || record?.nodeId;
+        if (record) {
+          if (!nodeId) nodeId = record?.node?.id || record?.nodeId;
+          if (!domainId) domainId = record?.node?.domainId || record?.domainId;
+        }
       } catch (e) {}
     }
     if (!nodeId && req.integrationLog?.channelId) {
       try {
         const ch = await customFetch(`/api/admin/integration/channels/${req.integrationLog.channelId}`)
         nodeId = ch?.nodeId;
+        domainId = domainId || ch?.domainId;
       } catch (e) {}
     }
-    if (nodeId) {
-      const fields = await customFetch(`/api/nodes/${nodeId}/fields/effective`)
-      if (fields && fields.length > 0) {
-        const map = {}
+
+    const map = { ...(fieldNameMap.value || {}) }
+    const addFieldsToMap = (fields) => {
+      if (Array.isArray(fields)) {
         fields.forEach(f => {
-          if (f.key) {
+          if (f && f.key) {
             map[f.key] = f
-            map[f.key.toUpperCase()] = f
-            map[f.key.toLowerCase()] = f
+            map[String(f.key).toUpperCase()] = f
+            map[String(f.key).toLowerCase()] = f
           }
         })
-        fieldNameMap.value = map
       }
     }
+
+    if (nodeId) {
+      const nodeFields = await customFetch(`/api/nodes/${nodeId}/fields/effective`).catch(() => [])
+      addFieldsToMap(nodeFields)
+    }
+
+    if (domainId && domainId !== nodeId) {
+      const domainFields = await customFetch(`/api/domains/${domainId}/fields`).catch(() => [])
+      addFieldsToMap(domainFields)
+    }
+
+    fieldNameMap.value = map
   } catch (e) {
     console.error('Error loading field names for request:', e)
   }
 }
 
-watch(() => [props.request, props.nodeId], async ([newReq]) => {
+watch(() => [props.request, props.nodeId, props.domainId], async ([newReq]) => {
   if (newReq) {
-    await Promise.all([loadRoleMap(), loadUserMap()]);
-    await loadFieldNamesForRequest(newReq);
+    await Promise.all([
+      loadRoleMap().catch(() => {}),
+      loadUserMap().catch(() => {}),
+      loadFieldNamesForRequest(newReq).catch(() => {})
+    ]);
   }
 }, { immediate: true })
 
@@ -1398,31 +1426,65 @@ const getGroupedChangesList = (changesString, targetType) => {
   }
 
   const map = new Map()
-  let keysToProcess = []
+  let rawKeys = []
   const changedFieldsList = Array.isArray(parsed.changedFields) ? parsed.changedFields : []
 
   if (isUpdate) {
     const beforeKeys = Object.keys(parsed.before || {})
     const afterKeys = Object.keys(parsed.after || {})
-    keysToProcess = [...new Set([...changedFieldsList.map(k => k.toUpperCase()), ...beforeKeys, ...afterKeys])]
+    rawKeys = [...changedFieldsList, ...beforeKeys, ...afterKeys]
   } else {
-    keysToProcess = Object.keys(parsed)
+    rawKeys = Object.keys(parsed)
   }
   
-  // Filter out any internal keys
-  keysToProcess = keysToProcess.filter(k => k && !k.startsWith('_'))
+  // Filter out internal keys and deduplicate case-insensitively
+  const hasSchemaFields = Object.keys(fieldNameMap.value || {}).length > 0
+  const seenKeys = new Set()
+  const keysToProcess = []
+  rawKeys.forEach(rawKey => {
+    if (!rawKey || String(rawKey).startsWith('_')) return
+    const lower = String(rawKey).toLowerCase()
+    if (seenKeys.has(lower)) return
+    seenKeys.add(lower)
+
+    const foundField = (fieldNameMap.value && fieldNameMap.value[rawKey])
+      || (fieldNameMap.value && fieldNameMap.value[lower])
+      || (fieldNameMap.value && fieldNameMap.value[String(rawKey).toUpperCase()])
+      || Object.values(fieldNameMap.value || {}).find(field => field && field.key && (String(field.key).toLowerCase() === lower))
+
+    // Exclude unmapped or deleted fields from approval and integration history when schema fields exist
+    if (hasSchemaFields && (!foundField || foundField.isRemoved)) return
+    if (foundField?.isRemoved) return
+
+    keysToProcess.push(foundField?.key || rawKey)
+  })
+
+  const getCaseInsensitiveVal = (obj, targetKey) => {
+    if (!obj || typeof obj !== 'object') return undefined;
+    if (targetKey in obj) return obj[targetKey];
+    const lower = String(targetKey).toLowerCase();
+    const foundKey = Object.keys(obj).find(k => k.toLowerCase() === lower);
+    return foundKey ? obj[foundKey] : undefined;
+  };
   
   keysToProcess.forEach(key => {
     let valBefore = null
     let valAfter = null
     if (isUpdate) {
-      valBefore = (parsed.before || {})[key]
-      valAfter = (parsed.after || {})[key]
+      valBefore = getCaseInsensitiveVal(parsed.before, key)
+      valAfter = getCaseInsensitiveVal(parsed.after, key)
     } else {
       valAfter = parsed[key]
     }
     
-    const foundField = Object.values(fieldNameMap.value || {}).find(field => field && field.key && (String(field.key).toUpperCase() === String(key).toUpperCase()))
+    const foundField = (fieldNameMap.value && fieldNameMap.value[key])
+      || (fieldNameMap.value && fieldNameMap.value[String(key).toLowerCase()])
+      || (fieldNameMap.value && fieldNameMap.value[String(key).toUpperCase()])
+      || Object.values(fieldNameMap.value || {}).find(field => field && field.key && (String(field.key).toLowerCase() === String(key).toLowerCase()));
+    
+    if (hasSchemaFields && (!foundField || foundField.isRemoved)) return;
+    if (foundField?.isRemoved) return;
+
     let inferredType = foundField ? foundField.type : undefined;
     const strValCheck = String(valAfter || valBefore || '');
     if (!inferredType && (strValCheck.includes('/api/files/download/') || strValCheck.includes('name='))) {
@@ -1610,7 +1672,22 @@ const getGroupedChangesList = (changesString, targetType) => {
       finalVal = displayValAfter || '-'
     }
     
-    sectorObj.groups.get(gKey).fields.push({ key: f.key || key, label: translate(f.name, key, key), val: finalVal, gridWidth: f.gridWidth, type: f.type, isEncrypted: Boolean(f.isEncrypted), order: f.order || 0, options: f.options })
+    const targetGroup = sectorObj.groups.get(gKey)
+    const existingField = targetGroup.fields.find(field => 
+      String(field.key).toLowerCase() === String(f.key || key).toLowerCase()
+    )
+    if (!existingField) {
+      targetGroup.fields.push({
+        key: f.key || key,
+        label: translate(f.name, key, key),
+        val: finalVal,
+        gridWidth: f.gridWidth,
+        type: f.type,
+        isEncrypted: Boolean(f.isEncrypted),
+        order: f.order || 0,
+        options: f.options
+      })
+    }
   })
   
   const sectorsArray = Array.from(map.values())

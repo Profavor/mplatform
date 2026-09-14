@@ -1,0 +1,17 @@
+FROM ubuntu:24.04
+
+RUN apt-get update && apt-get install -y ca-certificates libssl3 curl && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY target/release/backend-rust /app/backend-rust
+COPY data/ /app/data/
+RUN chmod +x /app/backend-rust
+
+ENV PORT=8080
+EXPOSE 8080
+
+HEALTHCHECK --interval=10s --timeout=3s --retries=3 \
+  CMD curl -f http://localhost:8080/health || exit 1
+
+ENTRYPOINT ["/app/backend-rust"]

@@ -178,6 +178,8 @@
         v-model:draft-filters-max="draftFiltersMax"
         :active-filters="activeFilters"
         @filter-keydown="onFilterKeydown"
+        @search="applyFilters"
+        @reset="clearFilters"
       />
       
       <!-- 3. Grid Container with RecordToolbar directly on top of AG-Grid -->
@@ -389,7 +391,8 @@
     <ApprovalViewerModal
       v-model="showApprovalHistoryModal"
       :request="selectedApprovalRequest"
-      :node-id="selectedNode?.id || selectedRecordData?.node?.id"
+      :node-id="selectedApprovalRequest?.nodeId || selectedRecordData?.node?.id || (selectedNode?.isDomain ? null : selectedNode?.id)"
+      :domain-id="selectedApprovalRequest?.domainId || selectedDomainId"
       :zIndex="1200"
     />
 
@@ -1060,11 +1063,12 @@ const processRecordDataWithFields = (rawDataObj, fields) => {
   })
 
   fieldsToProcess.forEach(f => {
-    if (!f || !f.key) return
-    const fKeyUpper = f.key.trim().toUpperCase()
+    const fKey = f?.key || f?.fieldKey || f?.field_key
+    if (!f || !fKey) return
+    const fKeyUpper = fKey.trim().toUpperCase()
     
-    let rawVal = data[f.key] !== undefined 
-      ? data[f.key] 
+    let rawVal = data[fKey] !== undefined 
+      ? data[fKey] 
       : (rawDataUpperMap.has(fKeyUpper) ? rawDataUpperMap.get(fKeyUpper) : undefined)
 
     if (rawVal === undefined) {
@@ -1077,9 +1081,9 @@ const processRecordDataWithFields = (rawDataObj, fields) => {
     }
     
     if (rawVal === undefined) {
-      const keyLower = f.key.toLowerCase();
+      const keyLower = fKey.toLowerCase();
       if (keyLower.includes('en') || keyLower.includes('eng')) {
-        const baseKey = f.key.replace(/_?en(g(lish)?)?$/i, '').replace(/^en(g(lish)?)?_?/i, '');
+        const baseKey = fKey.replace(/_?en(g(lish)?)?$/i, '').replace(/^en(g(lish)?)?_?/i, '');
         if (baseKey && data[baseKey]) {
           const parentVal = data[baseKey];
           if (parentVal && typeof parentVal === 'object' && parentVal.en) {
@@ -1563,7 +1567,8 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
   const seenColIds = new Set(['sys_record_id', 'sys_node_name', 'sys_record_status'])
 
   ;(fields || []).forEach((f, idx) => {
-    let rawColId = f.key || `field_${idx}`
+    const fieldKey = f.key || f.fieldKey || f.field_key || `field_${idx}`
+    let rawColId = fieldKey
     let uniqueColId = rawColId
     if (seenColIds.has(uniqueColId)) {
       uniqueColId = `${rawColId}_${f.id || idx}`
@@ -1574,20 +1579,20 @@ const buildColumnDefs = (fields, showNodeColumn = false) => {
 
     const colDef = {
       headerName: getTranslatedName(f.name),
-      field: `data.${f.key}`,
+      field: `data.${fieldKey}`,
       colId: uniqueColId,
       valueGetter: (params) => {
         if (!params.data || !params.data.data) return null;
         const d = params.data.data;
-        if (d[f.key] !== undefined && d[f.key] !== null && d[f.key] !== '') return d[f.key];
-        const lowerKey = String(f.key).toLowerCase();
+        if (d[fieldKey] !== undefined && d[fieldKey] !== null && d[fieldKey] !== '') return d[fieldKey];
+        const lowerKey = String(fieldKey).toLowerCase();
         if (d[lowerKey] !== undefined && d[lowerKey] !== null && d[lowerKey] !== '') return d[lowerKey];
-        const upperKey = String(f.key).toUpperCase();
+        const upperKey = String(fieldKey).toUpperCase();
         if (d[upperKey] !== undefined && d[upperKey] !== null && d[upperKey] !== '') return d[upperKey];
         
         // English field fallback (e.g. f.key is name_en, englishName, etc.)
         if (lowerKey.includes('en') || lowerKey.includes('eng')) {
-          const baseKey = f.key.replace(/_?en(g(lish)?)?$/i, '').replace(/^en(g(lish)?)?_?/i, '');
+          const baseKey = fieldKey.replace(/_?en(g(lish)?)?$/i, '').replace(/^en(g(lish)?)?_?/i, '');
           if (baseKey && d[baseKey]) {
             const parentVal = d[baseKey];
             if (parentVal && typeof parentVal === 'object' && parentVal.en) {
@@ -2295,6 +2300,7 @@ const applyFilters = () => {
   activeFilters.value = { ...draftFilters.value }
   activeFiltersOp.value = { ...draftFiltersOp.value }
   activeFiltersMax.value = { ...draftFiltersMax.value }
+  currentPage.value = 1
   fetchRecords()
   updateUrlQuery()
 }
@@ -2306,6 +2312,7 @@ const clearFilters = () => {
   activeFilters.value = {}
   activeFiltersOp.value = {}
   activeFiltersMax.value = {}
+  currentPage.value = 1
   fetchRecords()
   updateUrlQuery()
 }
@@ -2335,6 +2342,7 @@ const removeFilter = (key) => {
   delete nextActiveMax[key]
   activeFiltersMax.value = nextActiveMax
 
+  currentPage.value = 1
   fetchRecords()
   updateUrlQuery()
 }
@@ -2594,6 +2602,9 @@ const viewIntegrationHistory = async (row) => {
     }
   }
 
+  const targetNodeId = row.nodeId || selectedRecordData.value?.node?.id || selectedRecordData.value?.nodeId || (selectedNode.value?.isDomain ? null : selectedNode.value?.id)
+  const targetDomainId = row.domainId || selectedRecordData.value?.node?.domainId || selectedRecordData.value?.domainId || selectedDomainId.value || (selectedNode.value?.isDomain ? selectedNode.value?.id : selectedNode.value?.domainId)
+
   try {
     const logs = await customFetch(`/api/admin/integration/logs/by-record/${row.recordId}`)
     const log = logs && logs.length > 0 ? logs[0] : null
@@ -2604,7 +2615,8 @@ const viewIntegrationHistory = async (row) => {
       changes: cleanChanges,
       targetType: targetType,
       targetId: row.recordId,
-      nodeId: selectedNode.value?.id,
+      nodeId: targetNodeId,
+      domainId: targetDomainId,
       requesterName: requesterName,
       integrationLog: log
     }
@@ -2617,7 +2629,8 @@ const viewIntegrationHistory = async (row) => {
       changes: cleanChanges,
       targetType: targetType,
       targetId: row.recordId,
-      nodeId: selectedNode.value?.id,
+      nodeId: targetNodeId,
+      domainId: targetDomainId,
       requesterName: requesterName,
       integrationLog: null
     }
@@ -2701,6 +2714,11 @@ const getParsedDiffs = (prev, next) => {
   const keys = [...new Set([...Object.keys(p), ...Object.keys(n)])];
 
   keys.forEach(k => {
+    if (!k || k.startsWith('_')) return;
+
+    const field = nodeFields.value?.find(f => (f.key === k || (f.key && f.key.toLowerCase() === k.toLowerCase()) || getTranslatedName(f.name) === k));
+    if (!field || field.isRemoved) return;
+
     let valBeforeRaw = p[k];
     let valAfterRaw = n[k];
 
@@ -2709,9 +2727,8 @@ const getParsedDiffs = (prev, next) => {
       valBeforeRaw = selectedRecordData.value[k];
     }
 
-    const field = nodeFields.value?.find(f => f.key === k || getTranslatedName(f.name) === k);
-    const fName = field ? getTranslatedName(field.name) : k;
-    const fType = field ? field.type : '';
+    const fName = getTranslatedName(field.name);
+    const fType = field.type || '';
 
     let valBefore = valBeforeRaw;
     let valAfter = valAfterRaw;

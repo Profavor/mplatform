@@ -138,6 +138,14 @@
       <div v-else class="chat-room-view" style="flex: 1; display: flex; flex-direction: column; overflow-x: hidden; overflow-y: hidden; width: 100%;">
         <!-- Messages Area (block layout for continuous text selection like KakaoTalk) -->
         <div ref="msgContainer" class="messages-area" style="flex: 1; overflow-y: auto; overflow-x: hidden; padding: 14px; display: block; width: 100%;" @dragover.prevent @drop.prevent="handleDrop" @mousedown="onMsgAreaMouseDown" @mousemove="onMsgAreaMouseMove" @mouseup="onMsgAreaMouseUp">
+          <!-- Empty State when no messages in room -->
+          <div v-if="messages.length === 0" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; min-height: 200px; color: var(--va-text-secondary); text-align: center; user-select: none;">
+            <va-icon name="chat_bubble_outline" size="48px" style="opacity: 0.4; margin-bottom: 12px;" />
+            <div style="font-size: 0.88rem; font-weight: 600;">
+              {{ $t('messenger.noMessagesInRoom') }}
+            </div>
+          </div>
+
           <template v-for="(msg, idx) in messages" :key="msg.id">
             <!-- Date Separator (KakaoTalk style, clickable to open calendar) -->
             <div v-if="shouldShowDateSeparator(idx)" class="msg-date-separator" :data-date="getDateKey(msg.createdAt)" style="display: flex; align-items: center; justify-content: center; margin: 16px 0 12px 0; user-select: none; gap: 10px; cursor: pointer;" @click.stop="openCalendarDialog(msg.createdAt)">

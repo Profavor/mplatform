@@ -86,11 +86,14 @@ public class RecordHistoryController {
             map.put("changedUserProfile", prof);
             
             UUID nodeId = (h.getRecord() != null && h.getRecord().getNode() != null) ? h.getRecord().getNode().getId() : null;
+            UUID domainId = (h.getRecord() != null && h.getRecord().getNode() != null && h.getRecord().getNode().getDomain() != null) ? h.getRecord().getNode().getDomain().getId() : null;
             String rawPrev = h.getPreviousData();
             String rawNew = h.getNewData();
 
             List<String> changedFields = recordService.computeChangedFieldKeys(rawPrev, rawNew);
             map.put("changedFields", changedFields);
+            map.put("nodeId", nodeId);
+            map.put("domainId", domainId);
 
             if (nodeId != null) {
                 map.put("previousData", recordService.processDataForRead(nodeId, rawPrev));

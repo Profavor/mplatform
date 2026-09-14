@@ -158,7 +158,7 @@ mdm:
     default_source-priority: 999
 
 chat:
-  retention-days: ${CHAT_RETENTION_DAYS}
+  retention-days: ${CHAT_RETENTION_DAYS:365}
 
 mail:
   domain: ${MAIL_DOMAIN:mplatform.com}

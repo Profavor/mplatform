@@ -23,6 +23,7 @@ public class DataFreshnessHeatmapService {
     private final DomainRepository domainRepository;
     private final RecordRepository recordRepository;
 
+    @org.springframework.cache.annotation.Cacheable(value = "dataFreshnessHeatmap")
     @Transactional(readOnly = true)
     public DataFreshnessHeatmapDto.FreshnessHeatmapResponse getFreshnessHeatmap() {
         List<DataFreshnessHeatmapDto.DomainFreshnessItem> items = new ArrayList<>();
@@ -35,12 +36,10 @@ public class DataFreshnessHeatmapService {
                     : "도메인";
             String domCode = "DOM-" + (d.getId() != null ? d.getId().toString().substring(0, 8).toUpperCase() : "00000000");
 
-            List<Record> records = recordRepository.findAllByDomainId(d.getId());
-            LocalDateTime lastUpdated = d.getUpdatedAt() != null ? d.getUpdatedAt() : (d.getCreatedAt() != null ? d.getCreatedAt() : now);
-
-            if (!records.isEmpty() && records.get(0).getCreatedAt() != null) {
-                lastUpdated = records.get(0).getCreatedAt();
-            }
+            LocalDateTime latestCreatedAt = recordRepository.findLatestCreatedAtByDomainId(d.getId());
+            LocalDateTime lastUpdated = latestCreatedAt != null 
+                    ? latestCreatedAt 
+                    : (d.getUpdatedAt() != null ? d.getUpdatedAt() : (d.getCreatedAt() != null ? d.getCreatedAt() : now));
 
             long delayMins = Math.max(1, Duration.between(lastUpdated, now).toMinutes());
             int slaMinutes = 60; // 기본 1시간 SLA

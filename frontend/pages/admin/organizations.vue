@@ -107,6 +107,7 @@
       v-model="showCreateRoleModalFlag"
       mode="create"
       :role-form="newRoleForm"
+      :groups="customPermissionGroups"
       :loading="isCreatingRole"
       @save="saveNewRole"
     />
@@ -116,6 +117,7 @@
       v-model="showEditRoleModalFlag"
       mode="edit"
       :role-form="editRoleForm"
+      :groups="customPermissionGroups"
       :loading="isUpdatingRole"
       @save="saveEditRole"
     />
@@ -1391,21 +1393,24 @@ const fetchPermissionMasterGroups = async () => {
   try {
     const list = await customFetch('/api/permissions/groups')
     if (Array.isArray(list) && list.length > 0) {
-      customPermissionGroups.value = list.map(g => ({
-        id: g.id,
-        code: g.code,
-        title: g.titleKo,
-        titleEn: g.titleEn || g.titleKo,
-        icon: g.icon || '⚙️',
-        color: g.color || '#3b82f6',
-        chipClass: g.chipClass || '',
-        permissions: (g.items || []).map(i => ({
-          id: i.id,
-          label: i.labelKo,
-          labelEn: i.labelEn || i.labelKo,
-          value: i.permValue
-        }))
-      }))
+      customPermissionGroups.value = list.map(g => {
+        const grp = g.group || g
+        return {
+          id: grp.id,
+          code: grp.code,
+          title: grp.titleKo,
+          titleEn: grp.titleEn || grp.titleKo,
+          icon: grp.icon || '⚙️',
+          color: grp.color || '#3b82f6',
+          chipClass: grp.chipClass || '',
+          permissions: (g.items || grp.items || []).map(i => ({
+            id: i.id,
+            label: i.labelKo,
+            labelEn: i.labelEn || i.labelKo,
+            value: i.permValue
+          }))
+        }
+      })
     }
   } catch (e) {
     console.error('Failed to fetch DB permission groups:', e)

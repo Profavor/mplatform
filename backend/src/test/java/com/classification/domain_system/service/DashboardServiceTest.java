@@ -1,27 +1,25 @@
 package com.classification.domain_system.service;
 
 import com.classification.domain_system.entity.ApprovalRequest;
-import com.classification.domain_system.repository.ApprovalRequestRepository;
-import com.classification.domain_system.repository.DomainRepository;
-import com.classification.domain_system.repository.RecordRepository;
-import com.classification.domain_system.repository.MatchCandidateRepository;
-import com.classification.domain_system.repository.DqViolationRepository;
+import com.classification.domain_system.entity.DqViolation;
+import com.classification.domain_system.repository.*;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class DashboardServiceTest {
@@ -45,32 +43,68 @@ class DashboardServiceTest {
     private DashboardService dashboardService;
 
     @Test
-    @DisplayName("getStats - 도메인, 승인, 레코드, 매칭, 품질위반 집계 검증")
-    void getStats_ValidatesCounts() {
-        // given
-        when(domainRepository.count()).thenReturn(10L);
-
+    @DisplayName("getApprovalTrends - 7일간의 결재 요청 트렌드를 일자별로 반환한다")
+    void getApprovalTrends_CalculatesDailyCounts() {
         ApprovalRequest req1 = new ApprovalRequest();
-        when(approvalRepository.findByStatusOrderByCreatedAtDesc(eq("PENDING"), any(Pageable.class)))
-                .thenReturn(new PageImpl<>(List.of(req1, req1, req1)));
-        when(approvalRepository.findByStatusOrderByCreatedAtDesc(eq("APPROVED"), any(Pageable.class)))
-                .thenReturn(new PageImpl<>(List.of(req1)));
-        when(approvalRepository.findByStatusOrderByCreatedAtDesc(eq("REJECTED"), any(Pageable.class)))
-                .thenReturn(new PageImpl<>(List.of()));
+        req1.setCreatedAt(LocalDateTime.now().minusDays(1));
 
-        when(recordRepository.countByStatus("ACTIVE")).thenReturn(2L);
-        when(matchCandidateRepository.countByStatus("PENDING")).thenReturn(5L);
-        when(dqViolationRepository.countByResolvedFalse()).thenReturn(1L);
+        ApprovalRequest req2 = new ApprovalRequest();
+        req2.setCreatedAt(LocalDateTime.now().minusDays(1));
 
-        // when
-        Map<String, Object> stats = dashboardService.getStats();
+        when(approvalRepository.findByCreatedAtAfter(any(LocalDateTime.class)))
+                .thenReturn(List.of(req1, req2));
 
-        // then
-        assertThat(stats.get("totalDomains")).isEqualTo(10L);
-        assertThat(stats.get("pendingApprovals")).isEqualTo(3L);
-        assertThat(stats.get("approvedApprovals")).isEqualTo(1L);
-        assertThat(stats.get("activeRecords")).isEqualTo(2L);
-        assertThat(stats.get("pendingMatches")).isEqualTo(5L);
-        assertThat(stats.get("openDqViolations")).isEqualTo(1L);
+        List<Map<String, Object>> trends = dashboardService.getApprovalTrends();
+
+        assertThat(trends).hasSize(7);
+        LocalDate yesterday = LocalDate.now().minusDays(1);
+        Map<String, Object> yesterdayTrend = trends.stream()
+                .filter(t -> yesterday.toString().equals(t.get("date")))
+                .findFirst()
+                .orElse(null);
+
+        assertThat(yesterdayTrend).isNotNull();
+        assertThat(yesterdayTrend.get("count")).isEqualTo(2L);
+    }
+
+    @Test
+    @DisplayName("getDqTrends - findAll 풀스캔 대신 findByCheckedAtAfter를 사용하여 기간 내 위반만 조회한다")
+    void getDqTrends_UsesOptimizedDateFilteredQuery() {
+        DqViolation v1 = new DqViolation();
+        v1.setCheckedAt(LocalDateTime.now().minusDays(2));
+
+        when(dqViolationRepository.findByCheckedAtAfter(any(LocalDateTime.class)))
+                .thenReturn(List.of(v1));
+
+        List<Map<String, Object>> trends = dashboardService.getDqTrends();
+
+        assertThat(trends).hasSize(7);
+        verify(dqViolationRepository, never()).findAll();
+        verify(dqViolationRepository, times(1)).findByCheckedAtAfter(any(LocalDateTime.class));
+    }
+
+    @Test
+    @DisplayName("getDqSeverityDistribution - findAll 풀스캔 대신 findByResolvedFalse를 사용하여 미해결 건만 조회한다")
+    void getDqSeverityDistribution_UsesOptimizedUnresolvedQuery() {
+        DqViolation v1 = new DqViolation();
+        v1.setSeverity("HIGH");
+        v1.setResolved(false);
+
+        DqViolation v2 = new DqViolation();
+        v2.setSeverity("HIGH");
+        v2.setResolved(false);
+
+        DqViolation v3 = new DqViolation();
+        v3.setSeverity("LOW");
+        v3.setResolved(false);
+
+        when(dqViolationRepository.findByResolvedFalse())
+                .thenReturn(List.of(v1, v2, v3));
+
+        List<Map<String, Object>> distribution = dashboardService.getDqSeverityDistribution();
+
+        assertThat(distribution).hasSize(2);
+        verify(dqViolationRepository, never()).findAll();
+        verify(dqViolationRepository, times(1)).findByResolvedFalse();
     }
 }

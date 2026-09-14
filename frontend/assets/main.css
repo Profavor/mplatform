@@ -1,13 +1,20 @@
 /* AG Grid v34 uses JavaScript Theming API - no CSS imports needed */
 
-/* Seamless Luxury Modal & Minimal Close Button Styles */
-.va-modal__dialog {
+/* Ensure modals and overlays are always stacked above page layout */
+.va-modal {
+  z-index: 1200 !important;
+}
+.va-modal .va-modal__overlay {
+  z-index: 1200 !important;
+}
+.va-modal .va-modal__dialog {
   border-radius: 16px !important;
   overflow: hidden !important;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
   background: var(--va-card-background, var(--va-background-element, #ffffff)) !important;
   position: relative !important;
   border: none !important;
+  z-index: 1201 !important;
 }
 
 /* Modal Header Area: Integrated & Drag Friendly */

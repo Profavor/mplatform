@@ -30,8 +30,8 @@ import org.springframework.beans.factory.annotation.Value;
 @RequiredArgsConstructor
 public class ChatMessageService {
 
-    @Value("${chat.retention-days}")
-    private int retentionDays = 7;
+    @Value("${chat.retention-days:365}")
+    private int retentionDays = 365;
 
     private final ChatMessageRoomRepository roomRepository;
     private final ChatMessageRoomMemberRepository memberRepository;
@@ -404,20 +404,26 @@ public class ChatMessageService {
 
     @Transactional(readOnly = true)
     public List<ChatMessageDto> getRoomMessages(UUID roomId, String userId) {
-        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+        LocalDateTime retentionCutoff = LocalDateTime.now().minusDays(retentionDays > 0 ? retentionDays : 365);
         List<ChatMessageRoomMember> members = memberRepository.findByRoomId(roomId);
         
-        LocalDateTime userJoinedAt = sevenDaysAgo;
+        LocalDateTime userJoinedAt = null;
         if (userId != null) {
             for (ChatMessageRoomMember m : members) {
                 if (isSameUser(m.getUserId(), userId, null)) {
-                    userJoinedAt = m.getJoinedAt() != null ? m.getJoinedAt() : sevenDaysAgo;
+                    userJoinedAt = m.getJoinedAt();
                     break;
                 }
             }
         }
         
-        LocalDateTime fetchAfter = userJoinedAt.isAfter(sevenDaysAgo) ? userJoinedAt : sevenDaysAgo;
+        LocalDateTime fetchAfter;
+        if (userJoinedAt != null) {
+            LocalDateTime effectiveJoined = userJoinedAt.minusMinutes(5);
+            fetchAfter = effectiveJoined.isBefore(retentionCutoff) ? retentionCutoff : effectiveJoined;
+        } else {
+            fetchAfter = retentionCutoff;
+        }
         
         List<ChatMessage> msgs = messageRepository.findByRoomIdAndCreatedAtGreaterThanEqualOrderByCreatedAtAsc(roomId, fetchAfter);
 

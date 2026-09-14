@@ -17,6 +17,10 @@ public interface DqViolationRepository extends JpaRepository<DqViolation, UUID> 
 
     List<DqViolation> findByRecordIdAndResolvedFalse(UUID recordId);
 
+    List<DqViolation> findByCheckedAtAfter(java.time.LocalDateTime checkedAt);
+
+    List<DqViolation> findByResolvedFalse();
+
     long countByRecordIdAndResolvedFalse(UUID recordId);
     long countByResolvedFalse();
 

@@ -85,6 +85,17 @@ class RecordHistoryControllerTest {
         user.setUsername("홍길동");
         user.setRole("ADMIN");
 
+        com.classification.domain_system.entity.Record record = new com.classification.domain_system.entity.Record();
+        com.classification.domain_system.entity.ClassificationNode node = new com.classification.domain_system.entity.ClassificationNode();
+        UUID nodeId = UUID.randomUUID();
+        node.setId(nodeId);
+        com.classification.domain_system.entity.Domain domain = new com.classification.domain_system.entity.Domain();
+        UUID domainId = UUID.randomUUID();
+        domain.setId(domainId);
+        node.setDomain(domain);
+        record.setNode(node);
+        history.setRecord(record);
+
         when(recordHistoryRepository.findByRecordIdOrderByChangedAtDesc(recordId)).thenReturn(List.of(history));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 
@@ -94,6 +105,8 @@ class RecordHistoryControllerTest {
                 .andExpect(jsonPath("$[0].changedBy").value(userId))
                 .andExpect(jsonPath("$[0].changedByName").value("홍길동"))
                 .andExpect(jsonPath("$[0].changedUserProfile.username").value("홍길동"))
-                .andExpect(jsonPath("$[0].changedUserProfile.role").value("ADMIN"));
+                .andExpect(jsonPath("$[0].changedUserProfile.role").value("ADMIN"))
+                .andExpect(jsonPath("$[0].nodeId").value(nodeId.toString()))
+                .andExpect(jsonPath("$[0].domainId").value(domainId.toString()));
     }
 }

@@ -17,28 +17,23 @@
           <template #right>
             <va-navbar-item class="text-white">
               <div class="navbar-right">
-                <!-- Global Search -->
-                <GlobalSearch class="hide-mobile" />
+                <!-- Global Search (Desktop & Mobile) -->
+                <GlobalSearch />
                 
                 <!-- Notification Bell -->
-                <NotificationBell class="mr-2" />
+                <NotificationBell />
 
                 <!-- Radio DJ Control Button for Admins -->
                 <va-button
                   v-if="effectiveRoles.includes('ROLE_ADMIN')"
                   preset="plain"
-                  class="mr-2"
-                  style="color: white !important;"
+                  class="nav-icon-btn"
+                  style="color: white !important; padding: 0.4rem; border-radius: 50%; min-width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center;"
                   :title="$t('radio_dj_panel')"
                   :aria-label="$t('radio_dj_panel')"
                   @click="showRadioDjModal = true"
                 >
-                  <va-icon name="radio" size="large" />
-                </va-button>
-
-                <!-- Theme Toggle for Desktop -->
-                <va-button preset="plain" class="mr-2 hide-mobile theme-btn" @click="toggleTheme" style="color: white !important;" :aria-label="isDark ? $t('switch_to_light_mode') : $t('switch_to_dark_mode')" :aria-pressed="isDark">
-                  <va-icon :name="isDark ? 'light_mode' : 'dark_mode'" size="large" />
+                  <va-icon name="radio" size="24px" />
                 </va-button>
 
                 <!-- User Profile Dropdown -->
@@ -118,6 +113,18 @@
                           </va-list-item-section>
                         </va-list-item>
 
+                        <!-- Theme Toggle Item in Profile Dropdown -->
+                        <va-list-item @click="toggleTheme" class="dropdown-menu-item profile-theme-toggle-item">
+                          <va-list-item-section icon style="min-width: 32px;">
+                            <div class="menu-icon-box" :style="{ background: isDark ? 'rgba(251, 191, 36, 0.15)' : 'rgba(99, 102, 241, 0.15)' }">
+                              <va-icon :name="isDark ? 'light_mode' : 'dark_mode'" size="small" :color="isDark ? 'warning' : 'primary'" />
+                            </div>
+                          </va-list-item-section>
+                          <va-list-item-section style="font-weight: 600; font-size: 0.9rem;">
+                            {{ isDark ? $t('switch_to_light_mode') : $t('switch_to_dark_mode') }}
+                          </va-list-item-section>
+                        </va-list-item>
+
                         <va-list-item @click="showRequestAccessModal = true" class="dropdown-menu-item">
                           <va-list-item-section icon style="min-width: 32px;">
                             <div class="menu-icon-box">
@@ -165,6 +172,19 @@
       <template #left>
         <va-sidebar v-show="showSidebar" v-model="showSidebar" width="18.5rem" :minimized="false" class="responsive-sidebar" :class="{ 'dark-theme-sidebar': isDark }">
           <SidebarMenuItem v-for="menu in filteredMenus" :key="menu.id" :menu="menu" />
+          <div class="sidebar-theme-toggle-wrap" style="padding: 1rem; margin-top: auto; border-top: 1px solid var(--va-background-border);">
+            <va-button
+              preset="secondary"
+              size="small"
+              class="w-full sidebar-theme-btn"
+              style="width: 100%; border-radius: 8px; justify-content: flex-start; gap: 0.5rem;"
+              :icon="isDark ? 'light_mode' : 'dark_mode'"
+              :color="isDark ? 'warning' : 'primary'"
+              @click="toggleTheme"
+            >
+              {{ isDark ? $t('switch_to_light_mode') : $t('switch_to_dark_mode') }}
+            </va-button>
+          </div>
         </va-sidebar>
         <!-- Mobile Sidebar Backdrop Overlay -->
         <div
@@ -650,6 +670,11 @@ const handleLogout = async () => {
   userCookie.value = null
 
   try {
+    const { customFetch } = useCustomFetch()
+    await customFetch('/api/auth/logout', { method: 'POST' }).catch(() => {})
+  } catch (e) {}
+
+  try {
     const { clear } = useOidcAuth()
     await clear()
   } catch (e) {
@@ -657,9 +682,15 @@ const handleLogout = async () => {
   }
 
   if (process.client) {
-    window.location.href = '/login'
+    try {
+      localStorage.removeItem('auth_token')
+      localStorage.removeItem('token')
+      localStorage.removeItem('user_data')
+      sessionStorage.clear()
+    } catch (e) {}
+    window.location.href = '/auth/logout'
   } else {
-    router.push('/login')
+    router.push('/auth/logout')
   }
 }
 </script>
@@ -685,6 +716,24 @@ body {
   align-items: center; 
   white-space: nowrap; 
   padding-right: 1.5rem;
+  gap: 0.5rem;
+}
+.nav-icon-btn {
+  color: white !important;
+  padding: 0.4rem !important;
+  border-radius: 50% !important;
+  min-width: 40px !important;
+  width: 40px !important;
+  height: 40px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+.nav-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+  transform: scale(1.05);
 }
 .profile-btn {
   text-transform: none !important;
@@ -854,6 +903,7 @@ body {
   }
   .navbar-right {
     padding-right: 0.75rem;
+    gap: 0.375rem;
   }
   .responsive-sidebar {
     position: fixed !important;

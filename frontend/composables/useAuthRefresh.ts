@@ -71,21 +71,36 @@ export function useAuthRefresh(options?: { oidcAuth?: any }) {
     delete memoryCookieStore['refresh_token']
     delete memoryCookieStore['token']
     delete memoryCookieStore['user_data']
-    const cookies = ['auth_token', 'token', 'refresh_token', 'user_data']
+    const cookies = ['auth_token', 'token', 'refresh_token', 'user_data', 'nuxt-oidc-auth', 'oidc']
     if (typeof document !== 'undefined') {
+      const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:'
+      const secVariants = isHttps ? ['', '; Secure'] : ['']
+      const sameSiteVariants = ['', '; SameSite=Lax', '; SameSite=None']
+      const pathVariants = ['/', '']
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
+
       cookies.forEach((c) => {
-        document.cookie = `${c}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`
-        document.cookie = `${c}=; expires=Thu, 01 Jan 1970 00:00:00 UTC;`
-        try {
-          if (typeof window !== 'undefined') {
-            document.cookie = `${c}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname};`
-            document.cookie = `${c}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; domain=${window.location.hostname};`
-          }
-        } catch {}
+        secVariants.forEach((sec) => {
+          sameSiteVariants.forEach((ss) => {
+            pathVariants.forEach((p) => {
+              const pStr = p ? `; path=${p}` : ''
+              document.cookie = `${c}=; expires=Thu, 01 Jan 1970 00:00:00 UTC${pStr}${sec}${ss};`
+              document.cookie = `${c}=; max-age=0${pStr}${sec}${ss};`
+              if (hostname) {
+                document.cookie = `${c}=; expires=Thu, 01 Jan 1970 00:00:00 UTC${pStr}; domain=${hostname}${sec}${ss};`
+                document.cookie = `${c}=; max-age=0${pStr}; domain=${hostname}${sec}${ss};`
+              }
+            })
+          })
+        })
       })
+      try {
+        sessionStorage.clear()
+      } catch {}
     }
     cookies.forEach((c) => {
       try {
+        useCookie(c, { path: '/' }).value = null
         useCookie(c).value = null
       } catch {}
     })
@@ -191,7 +206,7 @@ export function useAuthRefresh(options?: { oidcAuth?: any }) {
             internalRefreshToken = useCookie('refresh_token').value
           } catch {}
         }
-        if (internalRefreshToken) {
+        if (internalRefreshToken && process.client) {
           try {
             const res = await fetch('/api/auth/refresh', {
               method: 'POST',

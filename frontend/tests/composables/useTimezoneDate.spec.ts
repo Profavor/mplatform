@@ -54,5 +54,22 @@ describe('useTimezoneDate Composable (TDD)', () => {
       expect(formatWithTimezone(null, 'Asia/Seoul')).toBe('-')
       expect(formatWithTimezone('invalid', 'Asia/Seoul')).toBe('-')
     })
+
+    it('서버에서 반환된 오프셋 없는 ISO 타임스탬프(+09:00 서버 기준)를 개인화 타임존(Asia/Seoul vs UTC)에 맞게 정확히 변환해야 함', () => {
+      const serverTimestamp = '2026-09-14T09:30:38.287571'
+      
+      const formattedKst = formatWithTimezone(serverTimestamp, 'Asia/Seoul')
+      const formattedUtc = formatWithTimezone(serverTimestamp, 'UTC')
+
+      expect(formattedKst).toContain('2026')
+      expect(formattedKst).toContain('09:30:38')
+      expect(formattedUtc).toContain('00:30:38')
+    })
+
+    it('레거시 공백 구분 타임스탬프(2026-08-28 18:51:05)도 개인화 타임존으로 정확히 포맷팅해야 함', () => {
+      const legacyTimestamp = '2026-08-28 18:51:05.727885'
+      const formattedKst = formatWithTimezone(legacyTimestamp, 'Asia/Seoul')
+      expect(formattedKst).toContain('18:51:05')
+    })
   })
 })
