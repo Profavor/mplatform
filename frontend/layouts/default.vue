@@ -17,28 +17,23 @@
           <template #right>
             <va-navbar-item class="text-white">
               <div class="navbar-right">
-                <!-- Global Search -->
-                <GlobalSearch class="hide-mobile" />
+                <!-- Global Search (Desktop & Mobile) -->
+                <GlobalSearch />
                 
                 <!-- Notification Bell -->
-                <NotificationBell class="mr-2" />
+                <NotificationBell />
 
                 <!-- Radio DJ Control Button for Admins -->
                 <va-button
                   v-if="effectiveRoles.includes('ROLE_ADMIN')"
                   preset="plain"
-                  class="mr-2"
-                  style="color: white !important;"
+                  class="nav-icon-btn"
+                  style="color: white !important; padding: 0.4rem; border-radius: 50%; min-width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center;"
                   :title="$t('radio_dj_panel')"
                   :aria-label="$t('radio_dj_panel')"
                   @click="showRadioDjModal = true"
                 >
-                  <va-icon name="radio" size="large" />
-                </va-button>
-
-                <!-- Theme Toggle (Desktop & Mobile) -->
-                <va-button preset="plain" class="mr-2 theme-btn" @click="toggleTheme" style="color: white !important;" :aria-label="isDark ? $t('switch_to_light_mode') : $t('switch_to_dark_mode')" :aria-pressed="isDark" :title="isDark ? $t('switch_to_light_mode') : $t('switch_to_dark_mode')">
-                  <va-icon :name="isDark ? 'light_mode' : 'dark_mode'" size="large" />
+                  <va-icon name="radio" size="24px" />
                 </va-button>
 
                 <!-- User Profile Dropdown -->
@@ -675,6 +670,11 @@ const handleLogout = async () => {
   userCookie.value = null
 
   try {
+    const { customFetch } = useCustomFetch()
+    await customFetch('/api/auth/logout', { method: 'POST' }).catch(() => {})
+  } catch (e) {}
+
+  try {
     const { clear } = useOidcAuth()
     await clear()
   } catch (e) {
@@ -682,9 +682,15 @@ const handleLogout = async () => {
   }
 
   if (process.client) {
-    window.location.href = '/login'
+    try {
+      localStorage.removeItem('auth_token')
+      localStorage.removeItem('token')
+      localStorage.removeItem('user_data')
+      sessionStorage.clear()
+    } catch (e) {}
+    window.location.href = '/auth/logout'
   } else {
-    router.push('/login')
+    router.push('/auth/logout')
   }
 }
 </script>
@@ -710,6 +716,24 @@ body {
   align-items: center; 
   white-space: nowrap; 
   padding-right: 1.5rem;
+  gap: 0.5rem;
+}
+.nav-icon-btn {
+  color: white !important;
+  padding: 0.4rem !important;
+  border-radius: 50% !important;
+  min-width: 40px !important;
+  width: 40px !important;
+  height: 40px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+.nav-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+  transform: scale(1.05);
 }
 .profile-btn {
   text-transform: none !important;
@@ -879,6 +903,7 @@ body {
   }
   .navbar-right {
     padding-right: 0.75rem;
+    gap: 0.375rem;
   }
   .responsive-sidebar {
     position: fixed !important;

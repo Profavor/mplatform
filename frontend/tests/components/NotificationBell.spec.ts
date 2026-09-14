@@ -418,4 +418,28 @@ describe('NotificationBell Component', () => {
 
     expect((wrapper.vm as any).notifications.length).toBe(0)
   })
+
+  it('notification-bell-wrapper가 적절한 flex 간격 클래스를 가지며 메일과 알림 버튼이 일관된 크기 규격(nav-icon-btn)을 가져야 함', () => {
+    const wrapper = mount(NotificationBell, {
+      global: {
+        mocks: { $t: (key: string) => key },
+        stubs: {
+          'va-dropdown': { template: '<div><slot name="anchor" /><slot /></div>' },
+          'va-dropdown-content': { template: '<div><slot /></div>' },
+          'va-badge': { template: '<div><slot /></div>' },
+          'va-button': { template: '<button><slot /></button>' },
+          'va-icon': { template: '<i><slot /></i>' },
+          'va-divider': { template: '<hr />' },
+          'va-modal': { template: '<div><slot name="header" /><slot /><slot name="footer" /></div>' },
+          'ApprovalDetailsViewer': { template: '<div></div>' },
+          'InboxModal': true
+        }
+      }
+    })
+
+    const rootWrapper = wrapper.find('.notification-bell-wrapper')
+    expect(rootWrapper.exists()).toBe(true)
+    const iconButtons = wrapper.findAll('.nav-icon-btn')
+    expect(iconButtons.length).toBeGreaterThanOrEqual(2)
+  })
 })

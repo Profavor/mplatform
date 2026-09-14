@@ -62,6 +62,9 @@ public interface RecordRepository extends JpaRepository<Record, UUID>, CustomRec
     @org.springframework.data.jpa.repository.Query("SELECT COUNT(r) FROM Record r WHERE r.node.domain.id = :domainId")
     long countByDomainId(@org.springframework.data.repository.query.Param("domainId") UUID domainId);
 
+    @org.springframework.data.jpa.repository.Query("SELECT MAX(r.createdAt) FROM Record r WHERE r.node.domain.id = :domainId")
+    java.time.LocalDateTime findLatestCreatedAtByDomainId(@org.springframework.data.repository.query.Param("domainId") UUID domainId);
+
     List<Record> findByNode_Domain_Id(UUID domainId);
 
     @org.springframework.data.jpa.repository.Query("SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END FROM Record r WHERE r.node.domain.id = :domainId AND cast(r.data as String) LIKE %:searchText%")

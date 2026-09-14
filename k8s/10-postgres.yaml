@@ -31,6 +31,8 @@ spec:
             configMapKeyRef:
               name: mdm-config
               key: DB_NAME
+        - name: TZ
+          value: "Asia/Seoul"
         ports:
         - containerPort: 5432
         volumeMounts:

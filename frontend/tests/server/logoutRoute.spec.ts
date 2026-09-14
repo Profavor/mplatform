@@ -41,8 +41,8 @@ describe('Server Route: GET /auth/logout (TDD Unit Test)', () => {
     expect(deletedCookieNames).toContain('user_data')
     expect(deletedCookieNames).toContain('token')
 
-    // /login 리다이렉트 응답 검증 (404 방지)
-    expect(mockSendRedirect).toHaveBeenCalledWith(mockEvent, '/login', 302)
-    expect(res).toEqual({ redirectedTo: '/login', statusCode: 302 })
+    // /login?logout=true 리다이렉트 응답 검증 (404 방지)
+    expect(mockSendRedirect).toHaveBeenCalledWith(mockEvent, '/login?logout=true', 302)
+    expect(res).toEqual({ redirectedTo: '/login?logout=true', statusCode: 302 })
   })
 })

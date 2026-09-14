@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-rust
+  namespace: mdm-system
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: backend-rust
+  template:
+    metadata:
+      labels:
+        app: backend-rust
+        app.kubernetes.io/name: backend-rust
+        app.kubernetes.io/version: "0.1.0"
+        version: "0.1.0"
+    spec:
+      terminationGracePeriodSeconds: 15
+      containers:
+      - name: backend-rust
+        image: mplatform-backend-rust:v27
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 1
+            memory: 256Mi
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 2
+          periodSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          failureThreshold: 3
+        envFrom:
+        - configMapRef:
+            name: mdm-config
+        - secretRef:
+            name: mdm-secrets
+        env:
+        - name: HOST
+          value: "0.0.0.0"
+        - name: PORT
+          value: "8080"
+        - name: DATABASE_URL
+          value: "postgres://postgres:password@postgres:5432/domain_system"
+        - name: RUST_LOG
+          value: "info,backend_rust=debug"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-rust
+  namespace: mdm-system
+spec:
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http
+  selector:
+    app: backend-rust

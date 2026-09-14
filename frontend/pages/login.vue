@@ -146,6 +146,21 @@ const redirectToDashboard = () => {
 }
 
 const checkAuthentication = async () => {
+  const isLogout = route.query.logout === 'true' || route.query.logout === '1' || route.query.logout !== undefined
+  if (isLogout) {
+    const { clearAuthCookies } = useAuthRefresh()
+    clearAuthCookies()
+    authToken.value = null
+    if (loggedIn.value) {
+      try {
+        const { clear } = useOidcAuth()
+        await clear()
+      } catch (e) {}
+    }
+    isCheckingAuth.value = false
+    return
+  }
+
   const token = authToken.value
   const isExpired = route.query.expired === '1' || route.query.expired === 'true' || route.query.reason === 'expired'
   const isError = Boolean(route.query.error)
@@ -178,6 +193,10 @@ const checkAuthentication = async () => {
 
 // Keycloak 콜백 복귀 시 비동기로 세션 및 토큰이 채워지는 즉시 감지하여 대시보드로 이동
 watch([loggedIn, () => authToken.value], ([isLoggedIn, currentToken]) => {
+  const isLogout = route.query.logout === 'true' || route.query.logout === '1' || route.query.logout !== undefined
+  if (isLogout) {
+    return
+  }
   if (isLoggedIn || currentToken) {
     redirectToDashboard()
   }
@@ -186,6 +205,14 @@ watch([loggedIn, () => authToken.value], ([isLoggedIn, currentToken]) => {
 onMounted(async () => {
   if (typeof document !== 'undefined') {
     document.documentElement.lang = (locale?.value || 'ko').startsWith('en') ? 'en-US' : 'ko-KR'
+  }
+  const isLogout = route.query.logout === 'true' || route.query.logout === '1' || route.query.logout !== undefined
+  if (isLogout) {
+    const { clearAuthCookies } = useAuthRefresh()
+    clearAuthCookies()
+    authToken.value = null
+    isCheckingAuth.value = false
+    return
   }
   if (route.query.temp_token && route.query.username) {
     twoFactorUsername.value = String(route.query.username)

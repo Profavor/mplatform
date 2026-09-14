@@ -41,6 +41,10 @@ export const useAuthUser = defineStore('authUser', () => {
         if (data.timezone) {
           timezoneCookie.value = data.timezone
         }
+        if ((data as any).serverOffset) {
+          const serverOffsetCookie = useCookie('server_offset', { default: () => '+09:00' })
+          serverOffsetCookie.value = (data as any).serverOffset
+        }
         const userCookie = useCookie('user_data', { maxAge: 1800, path: '/' })
         userCookie.value = JSON.stringify(data)
       }
@@ -62,6 +66,10 @@ export const useAuthUser = defineStore('authUser', () => {
     if (user) {
       if (user.timezone) {
         timezoneCookie.value = user.timezone
+      }
+      if ((user as any).serverOffset) {
+        const serverOffsetCookie = useCookie('server_offset', { default: () => '+09:00' })
+        serverOffsetCookie.value = (user as any).serverOffset
       }
       userCookie.value = JSON.stringify(user)
     } else {

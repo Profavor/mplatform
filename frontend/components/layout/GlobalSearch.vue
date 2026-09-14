@@ -4,7 +4,7 @@
       v-model="searchQuery"
       :placeholder="t('global_search_placeholder')"
       :aria-label="t('global_search_placeholder')"
-      class="global-search-input"
+      class="global-search-input desktop-search-input"
       :style="{ width: isFocused ? '360px' : '220px', transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }"
       @focus="isFocused = true"
       @blur="handleBlur"
@@ -20,9 +20,20 @@
         <va-icon name="close" size="small" class="cursor-pointer" @click="clearSearch" />
       </template>
     </va-input>
+
+    <!-- Mobile Search Trigger Button (<= 768px) -->
+    <va-button
+      preset="plain"
+      class="nav-icon-btn mobile-search-btn"
+      :title="t('global_search_placeholder')"
+      :aria-label="t('global_search_placeholder')"
+      @click="openMobileSearch"
+    >
+      <va-icon name="search" size="24px" />
+    </va-button>
     
-    <!-- Search Results Dropdown (Card UI) -->
-    <div class="search-dropdown" v-if="isFocused && searchQuery.trim() !== ''">
+    <!-- Search Results Dropdown (Desktop Card UI) -->
+    <div class="search-dropdown desktop-search-dropdown" v-if="isFocused && !isMobileSearchOpen && searchQuery.trim() !== ''">
       <va-inner-loading :loading="isSearching">
         <div v-if="results.length > 0" class="search-results-list">
           <div
@@ -141,6 +152,154 @@
       </va-inner-loading>
     </div>
 
+    <!-- Mobile Full-screen Search Overlay -->
+    <Teleport to="body">
+      <Transition name="search-overlay-fade">
+        <div
+          v-if="isMobileSearchOpen"
+          class="mobile-search-overlay"
+          role="dialog"
+          aria-modal="true"
+          :aria-label="t('global_search_placeholder')"
+        >
+          <!-- Mobile Header Bar -->
+          <div class="mobile-search-header">
+            <va-button
+              preset="plain"
+              class="mobile-search-back-btn"
+              @click="closeMobileSearch"
+              :aria-label="t('close')"
+            >
+              <va-icon name="arrow_back" size="24px" />
+            </va-button>
+            <div class="mobile-search-input-box">
+              <va-input
+                ref="mobileInputRef"
+                v-model="searchQuery"
+                :placeholder="t('global_search_placeholder')"
+                :aria-label="t('global_search_placeholder')"
+                class="mobile-search-inner-input"
+                autofocus
+                @keydown.enter.prevent="handleEnterKey"
+                @keydown.esc="closeMobileSearch"
+              >
+                <template #prependInner>
+                  <va-icon name="search" color="primary" />
+                </template>
+                <template #appendInner v-if="searchQuery">
+                  <va-icon name="close" size="small" class="cursor-pointer" @click="clearSearch" />
+                </template>
+              </va-input>
+            </div>
+          </div>
+
+          <!-- Mobile Search Body -->
+          <div class="mobile-search-body">
+            <va-inner-loading :loading="isSearching">
+              <div v-if="results.length > 0" class="search-results-list">
+                <div
+                  v-for="(res, rIdx) in results"
+                  :key="res.id"
+                  class="search-card-item"
+                  @click="goToRecord(res)"
+                >
+                  <!-- Card Header: Domain & Classification Node Badges + Status -->
+                  <div class="card-header-row">
+                    <div class="card-path-badges">
+                      <span v-if="getDomainName(res)" class="card-domain-badge">
+                        <va-icon name="apartment" size="13px" class="mr-1" />
+                        <span>{{ getDomainName(res) }}</span>
+                      </span>
+                      <span v-if="getDomainName(res) && getNodeName(res)" class="path-separator">›</span>
+                      <span v-if="getNodeName(res)" class="card-node-badge">
+                        <va-icon name="folder" size="13px" class="mr-1" />
+                        <span>{{ getNodeName(res) }}</span>
+                      </span>
+                      <span v-if="!getDomainName(res) && !getNodeName(res)" class="card-node-badge placeholder-badge">
+                        <va-icon name="description" size="13px" class="mr-1" />
+                        <span>{{ t('record_item') }}</span>
+                      </span>
+                    </div>
+
+                    <va-badge
+                      v-if="res.status"
+                      :text="res.status"
+                      :color="getStatusColor(res.status)"
+                      size="small"
+                      class="status-badge"
+                    />
+                  </div>
+
+                  <!-- Card Body: Primary Title & Key Fields -->
+                  <div class="card-body-content">
+                    <div class="card-primary-title">
+                      <span class="title-field-label">{{ getPrimaryField(res).label }}:</span>
+                      <span class="title-field-val">{{ getPrimaryField(res).val }}</span>
+                    </div>
+                    
+                    <div class="card-field-chips" v-if="getPreviewFields(res).length > 0">
+                      <div
+                        v-for="(field, fIdx) in getPreviewFields(res)"
+                        :key="fIdx"
+                        class="field-chip"
+                        :class="{ 
+                          'is-clickable-chip': field.type === 'image' || field.type === 'file',
+                          'is-image-chip': field.type === 'image',
+                          'is-file-chip': field.type === 'file'
+                        }"
+                        @click.stop="handleFieldAction(field)"
+                        :title="field.type === 'image' ? t('preview_image') : (field.type === 'file' ? t('download_file') : '')"
+                      >
+                        <span class="chip-key">{{ field.label }}:</span>
+                        <span v-if="field.type === 'image'" class="chip-val chip-media-val">
+                          <va-icon name="image" size="13px" color="primary" class="mr-1" />
+                          <span>{{ field.val }}</span>
+                          <va-icon name="zoom_in" size="13px" class="ml-1 opacity-70" />
+                        </span>
+                        <span v-else-if="field.type === 'file'" class="chip-val chip-media-val">
+                          <va-icon name="attach_file" size="13px" color="info" class="mr-1" />
+                          <span>{{ field.val }}</span>
+                          <va-icon name="download" size="13px" class="ml-1 opacity-70" />
+                        </span>
+                        <span v-else-if="field.type === 'reference'" class="chip-val chip-ref-val">
+                          {{ field.val }}
+                        </span>
+                        <span v-else class="chip-val">
+                          {{ field.val }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Card Footer -->
+                  <div class="card-footer-row">
+                    <div class="card-meta-left">
+                      <span class="record-code-tag">{{ formatRecordCode(res.id) }}</span>
+                      <span class="meta-date" v-if="res.createdAt">{{ formatWithTimezone(res.createdAt) }}</span>
+                    </div>
+                    <div class="card-action-hint">
+                      <va-icon name="arrow_forward" size="16px" color="primary" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div v-else-if="searchQuery.trim().length < 2" class="search-empty-state">
+                <va-icon name="info" color="secondary" size="large" class="mb-2" />
+                <div>{{ t('search_min_length') }}</div>
+              </div>
+
+              <div v-else-if="!isSearching" class="search-empty-state">
+                <va-icon name="search_off" color="secondary" size="large" class="mb-2" />
+                <div class="font-bold">{{ t('search_no_results') }}</div>
+                <div class="text-xs text-secondary mt-1">"{{ searchQuery }}"</div>
+              </div>
+            </va-inner-loading>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <!-- Image Lightbox Modal for Card Image Preview -->
     <ImageLightboxModal
       v-model="isViewerModalOpen"
@@ -169,6 +328,23 @@ const isSearching = ref(false)
 const results = ref([])
 const searchContainer = ref(null)
 const selectedIndex = ref(-1)
+
+// Mobile Search Overlay State
+const isMobileSearchOpen = ref(false)
+const mobileInputRef = ref(null)
+
+const openMobileSearch = () => {
+  isMobileSearchOpen.value = true
+  isFocused.value = true
+  setTimeout(() => {
+    mobileInputRef.value?.focus?.()
+  }, 100)
+}
+
+const closeMobileSearch = () => {
+  isMobileSearchOpen.value = false
+  isFocused.value = false
+}
 
 const navigateDown = () => {
   if (!results.value || results.value.length === 0) return
@@ -199,9 +375,10 @@ let debounceTimer = null
 
 // Close dropdown only when clicked strictly outside the search container
 const onDocumentClick = (e) => {
+  if (isMobileSearchOpen.value) return
   if (searchContainer.value && !searchContainer.value.contains(e.target)) {
     // If clicking on a modal or portal outside, also keep or close based on target
-    const isModalContent = e.target.closest('.va-modal') || e.target.closest('.custom-record-modal')
+    const isModalContent = e.target.closest('.va-modal') || e.target.closest('.custom-record-modal') || e.target.closest('.mobile-search-overlay')
     if (!isModalContent) {
       isFocused.value = false
     }
@@ -243,8 +420,10 @@ const performSearch = async () => {
   try {
     const res = await customFetch(`/api/v1/search?q=${encodeURIComponent(searchQuery.value.trim())}&size=6`)
     let items = []
-    if (res && res.content) {
+    if (res && res.content && Array.isArray(res.content)) {
       items = res.content
+    } else if (res && res.records && Array.isArray(res.records)) {
+      items = res.records
     } else if (Array.isArray(res)) {
       items = res
     }
@@ -280,7 +459,9 @@ const closeDropdown = () => {
 const clearSearch = () => {
   searchQuery.value = ''
   results.value = []
-  isFocused.value = false
+  if (!isMobileSearchOpen.value) {
+    isFocused.value = false
+  }
 }
 
 const parseDataObj = (dataStr) => {
@@ -471,7 +652,7 @@ const getPrimaryField = (res) => {
   if (keys.length === 0) return { label: t('record_item'), val: t('search_no_data') }
 
   // Prioritize primary name / title keys
-  const nameKeys = ['EP_NAME', 'NAME', 'TITLE', 'ITEM_NAME', 'PRODUCT_NAME', 'LABEL', 'USER_NAME']
+  const nameKeys = ['STOCK_NAME', 'STOCK_NAME_EN', 'COMPANY_NAME', 'EP_NAME', 'NAME', 'TITLE', 'ITEM_NAME', 'PRODUCT_NAME', 'LABEL', 'USER_NAME']
   const matchedKey = keys.find(k => nameKeys.includes(k.toUpperCase())) || keys[0]
   
   const label = getLocalizedFieldLabel(matchedKey, res)
@@ -489,7 +670,7 @@ const getPreviewFields = (res) => {
   const keys = Object.keys(obj).filter(k => !k.startsWith('_'))
   if (keys.length <= 1) return []
 
-  const nameKeys = ['EP_NAME', 'NAME', 'TITLE', 'ITEM_NAME', 'PRODUCT_NAME', 'LABEL', 'USER_NAME']
+  const nameKeys = ['STOCK_NAME', 'STOCK_NAME_EN', 'COMPANY_NAME', 'EP_NAME', 'NAME', 'TITLE', 'ITEM_NAME', 'PRODUCT_NAME', 'LABEL', 'USER_NAME']
   const primaryKey = keys.find(k => nameKeys.includes(k.toUpperCase())) || keys[0]
   const otherKeys = keys.filter(k => k !== primaryKey).slice(0, 3)
 
@@ -565,6 +746,8 @@ const downloadFile = async (url, fileName) => {
 
 const goToRecord = (record) => {
   if (!record) return
+  closeMobileSearch()
+  isFocused.value = false
   const id = typeof record === 'object' ? record.id : record
   const nodeId = typeof record === 'object' && record.node ? record.node.id : null
   const domainId = typeof record === 'object' && record.node?.domain ? record.node.domain.id : null
@@ -855,6 +1038,105 @@ const goToRecord = (record) => {
   text-align: center;
   color: var(--va-text-secondary, #94a3b8);
   font-size: 13px;
+}
+
+/* Responsive visibility */
+.mobile-search-btn {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .global-search-container {
+    margin-right: 0 !important;
+  }
+  .desktop-search-input {
+    display: none !important;
+  }
+  .desktop-search-dropdown {
+    display: none !important;
+  }
+  .mobile-search-btn {
+    display: inline-flex !important;
+    color: white !important;
+    padding: 0.4rem !important;
+    border-radius: 50% !important;
+    min-width: 40px !important;
+    width: 40px !important;
+    height: 40px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+  }
+  .mobile-search-btn:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+    transform: scale(1.05);
+  }
+}
+
+/* Mobile Search Overlay */
+.mobile-search-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  z-index: 999999;
+  background: var(--va-background-primary, #0f172a);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.mobile-search-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--va-background-secondary, #1e293b);
+  border-bottom: 1px solid var(--va-background-border, rgba(255, 255, 255, 0.1));
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+}
+
+.mobile-search-back-btn {
+  color: var(--va-text-primary, #ffffff) !important;
+  min-width: 38px !important;
+  width: 38px !important;
+  height: 38px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+}
+
+.mobile-search-input-box {
+  flex: 1;
+}
+
+.mobile-search-inner-input {
+  width: 100% !important;
+}
+
+.mobile-search-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px;
+}
+
+.search-overlay-fade-enter-active,
+.search-overlay-fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.search-overlay-fade-enter-from,
+.search-overlay-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 </style>
 

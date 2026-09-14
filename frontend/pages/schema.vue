@@ -1144,8 +1144,13 @@ const columnDefs = computed(() => [
     sortable: true,
     width: 150,
     valueGetter: (params) => {
-      if (!params.data || !params.data.fieldGroup || !params.data.fieldGroup.sector) return '';
-      const sName = params.data.fieldGroup.sector.name;
+      let fg = params.data?.fieldGroup;
+      if (!fg && (params.data?.fieldGroupId || params.data?.field_group_id)) {
+        const targetGid = params.data.fieldGroupId || params.data.field_group_id;
+        fg = domainGroups.value?.find(g => g.id === targetGid);
+      }
+      if (!fg || !fg.sector) return '';
+      const sName = fg.sector.name;
       return sName?.[currentLocale.value] || sName?.ko || sName?.en || '';
     }
   },
@@ -1155,8 +1160,13 @@ const columnDefs = computed(() => [
     sortable: true,
     width: 150,
     valueGetter: (params) => {
-      if (!params.data || !params.data.fieldGroup) return '';
-      const gName = params.data.fieldGroup.name;
+      let fg = params.data?.fieldGroup;
+      if (!fg && (params.data?.fieldGroupId || params.data?.field_group_id)) {
+        const targetGid = params.data.fieldGroupId || params.data.field_group_id;
+        fg = domainGroups.value?.find(g => g.id === targetGid);
+      }
+      if (!fg) return '';
+      const gName = fg.name;
       return gName?.[currentLocale.value] || gName?.ko || gName?.en || '';
     }
   },
@@ -1512,10 +1522,10 @@ const onNodeSelected = async (nodes) => {
     const wfUrl = node.isDomain ? `/api/workflow-configs/domain/${node.id}` : `/api/workflow-configs/node/${node.id}`
     const fieldUrl = node.isDomain ? `/api/domains/${node.id}/fields` : `/api/nodes/${node.id}/fields/effective`
     const [sData, gData, wfData, fData] = await Promise.all([
-      customFetch(`/api/domains/${dId}/sectors`).catch(() => []),
-      customFetch(`/api/domains/${dId}/groups`).catch(() => []),
-      customFetch(wfUrl).catch(() => []),
-      customFetch(fieldUrl).catch(() => [])
+      customFetch(`/api/domains/${dId}/sectors`, { silent: true }).catch(() => []),
+      customFetch(`/api/domains/${dId}/groups`, { silent: true }).catch(() => []),
+      customFetch(wfUrl, { silent: true }).catch(() => []),
+      customFetch(fieldUrl, { silent: true }).catch(() => [])
     ])
     domainSectors.value = sData || []
     domainGroups.value = gData || []
@@ -1634,20 +1644,29 @@ const handleNodeEdit = async (node) => {
     } catch (e) {
       domainFieldOptions.value = []
     }
-    const rawDomain = targetNode.originalData || {}
+    let rawDomain = targetNode.originalData || {}
+    try {
+      const fetched = await customFetch(`/api/domains/${targetNode.id}`, { silent: true })
+      if (fetched) {
+        rawDomain = { ...rawDomain, ...fetched }
+      }
+    } catch (e) {
+      console.warn('Failed to fetch fresh domain data:', e)
+    }
     const pDesc = parseName(rawDomain.description)
     newDomain.value = { 
       ...targetNode, 
-      name: { ...(targetNode.originalNameMap || parseName(targetNode.name)) },
+      ...rawDomain,
+      name: { ...(targetNode.originalNameMap || parseName(rawDomain.name || targetNode.name)) },
       description: { ko: pDesc?.ko || '', en: pDesc?.en || '' },
-      identifierFieldId: rawDomain.identifierFieldId || null,
-      displayNameFieldId: rawDomain.displayNameFieldId || null,
-      descriptionFieldId: rawDomain.descriptionFieldId || null,
-      imageFieldId: rawDomain.imageFieldId || null,
+      identifierFieldId: rawDomain.identifierFieldId || rawDomain.identifier_field_id || null,
+      displayNameFieldId: rawDomain.displayNameFieldId || rawDomain.display_name_field_id || null,
+      descriptionFieldId: rawDomain.descriptionFieldId || rawDomain.description_field_id || null,
+      imageFieldId: rawDomain.imageFieldId || rawDomain.image_field_id || null,
       icon: rawDomain.icon || '',
-      sortOrder: rawDomain.sortOrder || 0,
-      numberingPattern: rawDomain.numberingPattern || '',
-      autoDqScanEnabled: rawDomain.autoDqScanEnabled || false
+      sortOrder: rawDomain.sortOrder ?? rawDomain.sort_order ?? 0,
+      numberingPattern: rawDomain.numberingPattern || rawDomain.numbering_pattern || '',
+      autoDqScanEnabled: Boolean(rawDomain.autoDqScanEnabled ?? rawDomain.auto_dq_scan_enabled)
     }
     showDomainModal.value = true
   } else {
@@ -1737,7 +1756,7 @@ const openFieldModal = async (rowData = null) => {
       isIndexed: Boolean(rowData.isIndexed),
       formula: rowData.formula || '', 
       unit: rowData.unit || '',
-      fieldGroupId: rowData.fieldGroup?.id || null,
+      fieldGroupId: rowData.fieldGroup?.id || rowData.fieldGroupId || rowData.field_group_id || null,
       targetNodeId: initialTargetId,
       isDomainField: isDomain,
       gridWidth: rowData.gridWidth || null,
@@ -1817,8 +1836,13 @@ const saveDomain = async () => {
     const url = isEditMode.value ? `/api/domains/${newDomain.value.id}` : `/api/domains`
     const extractId = (val) => {
       if (!val) return null
-      if (typeof val === 'string') return val
-      if (typeof val === 'object' && val.value) return val.value
+      if (typeof val === 'object' && val !== null) {
+        val = val.value || val.id || null
+      }
+      if (typeof val === 'string') {
+        const trimmed = val.trim()
+        return trimmed === '' || trimmed === 'null' || trimmed === 'undefined' ? null : trimmed
+      }
       return null
     }
 
@@ -1837,7 +1861,7 @@ const saveDomain = async () => {
       imageFieldId: extractId(newDomain.value.imageFieldId),
       icon: newDomain.value.icon || '',
       sortOrder: parseInt(newDomain.value.sortOrder) || 0,
-      numberingPattern: newDomain.value.numberingPattern || '',
+      numberingPattern: newDomain.value.numberingPattern ? newDomain.value.numberingPattern.trim() : null,
       autoDqScanEnabled: Boolean(newDomain.value.autoDqScanEnabled)
     }
 

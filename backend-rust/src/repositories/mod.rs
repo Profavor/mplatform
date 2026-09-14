@@ -1,0 +1,16 @@
+pub mod approval_repo;
+pub mod chat_repo;
+pub mod classification_repo;
+pub mod code_repo;
+pub mod dashboard_repo;
+pub mod domain_repo;
+pub mod dq_repo;
+pub mod governance_repo;
+pub mod integration_repo;
+pub mod matching_repo;
+pub mod menu_repo;
+pub mod notification_repo;
+pub mod organization_repo;
+pub mod record_repo;
+pub mod system_repo;
+pub mod user_repo;

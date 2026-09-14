@@ -1718,7 +1718,7 @@ const fetchCustomLayout = async () => {
     const url = nodeId
       ? `/api/domains/${domainId}/nodes/${nodeId}/layout`
       : `/api/domains/${domainId}/layout`
-    const res = await customFetch(url)
+    const res = await customFetch(url, { silent: true })
     if (res && res.layouts && Array.isArray(res.layouts) && res.layouts.length > 0) {
       customLayouts.value = res.layouts
     } else if (res && res.widgets && Array.isArray(res.widgets) && res.widgets.length > 0) {

@@ -1,5 +1,5 @@
 <template>
-  <div class="notification-bell-wrapper" style="display: inline-flex; align-items: center; gap: 0.25rem;">
+  <div class="notification-bell-wrapper">
     <!-- Mail Inbox Shortcut Button -->
     <div
       style="position: relative; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;"
@@ -7,13 +7,13 @@
     >
       <va-button
         preset="plain"
-        class="notification-bell-btn"
+        class="notification-bell-btn nav-icon-btn"
         style="color: white !important; padding: 0.4rem; border-radius: 50%; min-width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;"
         :aria-label="$t('inbox.title')"
         :title="$t('inbox.title')"
         @click.stop="openInbox()"
       >
-        <va-icon name="mail" size="22px" />
+        <va-icon name="mail" size="24px" />
       </va-button>
       <span
         v-if="inboxUnreadCount > 0"
@@ -28,7 +28,7 @@
         <div style="position: relative; display: inline-flex; align-items: center; justify-content: center;">
           <va-button
             preset="plain"
-            class="notification-bell-btn"
+            class="notification-bell-btn nav-icon-btn"
             style="color: white !important; padding: 0.4rem; border-radius: 50%; min-width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center;"
             :aria-label="$t('notifications.title')"
           >
@@ -881,6 +881,34 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.notification-bell-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .notification-bell-wrapper {
+    gap: 0.375rem;
+  }
+}
+
+.nav-icon-btn,
+.notification-bell-btn {
+  color: white !important;
+  padding: 0.4rem !important;
+  border-radius: 50% !important;
+  min-width: 40px !important;
+  width: 40px !important;
+  height: 40px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.nav-icon-btn:hover,
 .notification-bell-btn:hover {
   background: rgba(255, 255, 255, 0.2) !important;
   transform: scale(1.05);

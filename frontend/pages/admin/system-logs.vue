@@ -933,14 +933,17 @@ const loginDatasource = {
         }
       })
       
+      const content = Array.isArray(response) ? response : (response?.content || [])
+      const totalElements = response?.totalElements ?? (Array.isArray(response) ? response.length : 0)
+
       let lastRow = -1
-      if (response.content.length < size) {
-        lastRow = (params.startRow || 0) + response.content.length
-      } else if (response.totalElements) {
-        lastRow = response.totalElements
+      if (typeof totalElements === 'number' && totalElements >= 0) {
+        lastRow = totalElements
+      } else if (content.length < size) {
+        lastRow = (params.startRow || 0) + content.length
       }
       
-      params.successCallback(response.content || [], lastRow)
+      params.successCallback(content, lastRow)
       updateLoginChart()
     } catch (error) {
       console.error('Failed to fetch login logs:', error)
@@ -956,8 +959,9 @@ const updateLoginChart = async () => {
         params: { page: 0, size: 200 }
      })
      
+     const content = Array.isArray(response) ? response : (response?.content || [])
      const dateCounts = {}
-     response.content.forEach(log => {
+     content.forEach(log => {
        if (log.loginAt) {
          let key = log.loginAt.substring(0, 10) // default daily
          if (loginChartPeriod.value === 'monthly') {
@@ -1003,10 +1007,7 @@ const errorColumnDefs = ref([
     field: 'loggedAt', 
     headerName: 'Logged At', 
     flex: 1.2,
-    valueFormatter: (params) => {
-      if (!params.value) return ''
-      return new Date(params.value).toLocaleString(locale.value === 'ko' ? 'ko-KR' : 'en-US')
-    }
+    valueFormatter: (params) => formatWithTimezone(params.value)
   }
 ])
 
@@ -1028,14 +1029,17 @@ const errorDatasource = {
         }
       })
       
+      const content = Array.isArray(response) ? response : (response?.content || [])
+      const totalElements = response?.totalElements ?? (Array.isArray(response) ? response.length : 0)
+
       let lastRow = -1
-      if (response.content.length < size) {
-        lastRow = (params.startRow || 0) + response.content.length
-      } else if (response.totalElements) {
-        lastRow = response.totalElements
+      if (typeof totalElements === 'number' && totalElements >= 0) {
+        lastRow = totalElements
+      } else if (content.length < size) {
+        lastRow = (params.startRow || 0) + content.length
       }
       
-      params.successCallback(response.content || [], lastRow)
+      params.successCallback(content, lastRow)
     } catch (error) {
       console.error('Failed to fetch error logs:', error)
       params.failCallback()

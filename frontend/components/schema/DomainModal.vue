@@ -61,7 +61,7 @@
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem;">
           <va-select
             v-model="newDomain.identifierFieldId"
-            :options="domainFieldOptions.filter(o => ['TEXT', 'STRING', 'AUTO_INCREMENT'].includes(o.type))"
+            :options="identifierFieldOptions"
             value-by="value"
             text-by="text"
             :label="`${$t('id_attribute')}*`"
@@ -71,7 +71,7 @@
           />
           <va-select
             v-model="newDomain.displayNameFieldId"
-            :options="domainFieldOptions.filter(o => ['MULTILINGUAL', 'MULTILINGUAL_TEXT', 'I18N'].includes(o.type))"
+            :options="displayNameFieldOptions"
             value-by="value"
             text-by="text"
             :label="`${$t('name_attribute')}*`"
@@ -81,7 +81,7 @@
           />
           <va-select
             v-model="newDomain.descriptionFieldId"
-            :options="domainFieldOptions.filter(o => ['MULTILINGUAL', 'MULTILINGUAL_TEXT', 'I18N', 'MULTILINGUAL_HTML'].includes(o.type))"
+            :options="descriptionFieldOptions"
             value-by="value"
             text-by="text"
             :label="$t('description')"
@@ -90,7 +90,7 @@
           />
           <va-select
             v-model="newDomain.imageFieldId"
-            :options="domainFieldOptions.filter(o => ['IMAGE', 'IMAGE_FILE', 'FILE'].includes(o.type))"
+            :options="imageFieldOptions"
             value-by="value"
             text-by="text"
             label="Image"
@@ -210,7 +210,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppModal from '~/components/common/AppModal.vue'
 import { useCustomFetch } from '~/composables/useCustomFetch'
@@ -247,6 +247,53 @@ const activeTab = ref('general')
 const templateList = ref([])
 const selectedTemplate = ref(null)
 const provisioning = ref(false)
+
+watch(
+  () => props.newDomain,
+  (val) => {
+    if (val) {
+      if (!val.name || typeof val.name !== 'object') {
+        val.name = { ko: '', en: '' }
+      }
+      if (!val.description || typeof val.description !== 'object') {
+        val.description = { ko: '', en: '' }
+      }
+    }
+  },
+  { immediate: true, deep: true }
+)
+
+const identifierFieldOptions = computed(() => {
+  const allowed = ['TEXT', 'STRING', 'AUTO_INCREMENT', 'NUMBER', 'KEY', 'UUID']
+  return props.domainFieldOptions.filter(o => 
+    (o.type && allowed.includes(String(o.type).toUpperCase())) ||
+    o.value === props.newDomain?.identifierFieldId
+  )
+})
+
+const displayNameFieldOptions = computed(() => {
+  const allowed = ['MULTILINGUAL', 'MULTILINGUAL_TEXT', 'I18N', 'TEXT', 'STRING']
+  return props.domainFieldOptions.filter(o => 
+    (o.type && allowed.includes(String(o.type).toUpperCase())) ||
+    o.value === props.newDomain?.displayNameFieldId
+  )
+})
+
+const descriptionFieldOptions = computed(() => {
+  const allowed = ['MULTILINGUAL', 'MULTILINGUAL_TEXT', 'I18N', 'MULTILINGUAL_HTML', 'TEXT', 'STRING', 'HTML_TEXT']
+  return props.domainFieldOptions.filter(o => 
+    (o.type && allowed.includes(String(o.type).toUpperCase())) ||
+    o.value === props.newDomain?.descriptionFieldId
+  )
+})
+
+const imageFieldOptions = computed(() => {
+  const allowed = ['IMAGE', 'IMAGE_FILE', 'FILE']
+  return props.domainFieldOptions.filter(o => 
+    (o.type && allowed.includes(String(o.type).toUpperCase())) ||
+    o.value === props.newDomain?.imageFieldId
+  )
+})
 
 const tplForm = ref({
   category: '',
