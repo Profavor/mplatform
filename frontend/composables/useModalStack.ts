@@ -1,6 +1,6 @@
 import { shallowReactive, computed, onBeforeUnmount, watch, getCurrentInstance, type Ref } from 'vue'
 
-export const BASE_MODAL_Z_INDEX = 1050
+export const BASE_MODAL_Z_INDEX = 1200
 export const MODAL_Z_INDEX_STEP = 50
 
 // 전역 모달 스택 (열려 있는 모달들의 인스턴스 ID 목록)
@@ -15,12 +15,13 @@ export function calculateModalZIndex(
   modalId: string,
   explicitZIndex?: number | string | null
 ): number {
-  if (explicitZIndex !== undefined && explicitZIndex !== null && !isNaN(Number(explicitZIndex)) && Number(explicitZIndex) > 0) {
-    return Number(explicitZIndex)
-  }
   const index = modalZIndexStack.indexOf(modalId)
   const level = index === -1 ? modalZIndexStack.length : index
-  return BASE_MODAL_Z_INDEX + level * MODAL_Z_INDEX_STEP
+  const baseFromStack = BASE_MODAL_Z_INDEX + level * MODAL_Z_INDEX_STEP
+  if (explicitZIndex !== undefined && explicitZIndex !== null && !isNaN(Number(explicitZIndex)) && Number(explicitZIndex) > 0) {
+    return Math.max(Number(explicitZIndex) + level * MODAL_Z_INDEX_STEP, baseFromStack)
+  }
+  return baseFromStack
 }
 
 export function useModalStack(

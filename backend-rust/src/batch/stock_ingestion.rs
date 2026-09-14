@@ -129,10 +129,30 @@ impl StockDataIngestionJob {
             tracing::info!("Cleared {} existing stock records for domain [{}]", total_deleted, domain_id);
         }
 
-        // 4. Load Stock Data
+        // 4. Load Stock Data from External Real-Time API (with dataset fallback)
         let stock_rows: Vec<serde_json::Value> = match req.custom_rows {
             Some(rows) if !rows.is_empty() => rows,
-            _ => Self::load_dataset_file()?,
+            _ => {
+                let mut live_items = Vec::new();
+                for mkt in &["KOSPI", "KOSDAQ"] {
+                    match Self::fetch_realtime_market_data(mkt, 50).await {
+                        Ok(items) if !items.is_empty() => {
+                            tracing::info!("Fetched {} live real-time stock records for {}", items.len(), mkt);
+                            live_items.extend(items);
+                        }
+                        Ok(_) => {}
+                        Err(e) => {
+                            tracing::warn!("Could not fetch live {} market data: {}", mkt, e);
+                        }
+                    }
+                }
+                if !live_items.is_empty() {
+                    live_items
+                } else {
+                    tracing::info!("Using master dataset file as fallback");
+                    Self::load_dataset_file()?
+                }
+            }
         };
 
         let allowed_markets: Option<HashSet<String>> = req.markets.map(|m| {
@@ -144,6 +164,13 @@ impl StockDataIngestionJob {
         let mut total_seeded = 0;
         let mut total_created = 0;
         let mut total_merged = 0;
+
+        let stock_channel_id: Option<Uuid> = sqlx::query_scalar(
+            "SELECT id FROM integration_channels WHERE channel_code = 'CH-KRX-INBOUND-001' OR type = 'SPRING_BATCH' LIMIT 1"
+        )
+        .fetch_optional(pool)
+        .await
+        .unwrap_or(None);
 
         for mut row in stock_rows {
             let market_code = row.get("market_node_code")
@@ -203,15 +230,37 @@ impl StockDataIngestionJob {
             .fetch_optional(pool)
             .await?;
 
+            let mut row_obj = row.as_object().cloned().unwrap_or_default();
+
             if let Some(ex) = existing {
                 // MERGE
-                let mut prev_data: serde_json::Value = ex.data.unwrap_or(serde_json::json!({}));
-                if let (Some(prev_obj), Some(new_obj)) = (prev_data.as_object_mut(), row.as_object()) {
-                    for (k, v) in new_obj {
-                        prev_obj.insert(k.clone(), v.clone());
+                let original_prev_data = ex.data.clone().unwrap_or(serde_json::json!({}));
+                let mut prev_obj = original_prev_data.as_object().cloned().unwrap_or_default();
+
+                // Fetch real-time live stock quote directly from external API for this ticker
+                if let Ok(live_quote) = Self::fetch_single_stock_realtime(&ticker).await {
+                    if let Some(quote_obj) = live_quote.as_object() {
+                        for (k, v) in quote_obj {
+                            if !v.is_null() {
+                                row_obj.insert(k.clone(), v.clone());
+                            }
+                        }
                     }
                 }
-                let merged_data = prev_data;
+
+                // Merge incoming fields
+                for (k, v) in &row_obj {
+                    prev_obj.insert(k.clone(), v.clone());
+                }
+                let merged_data = serde_json::Value::Object(prev_obj);
+
+                // Change detection: If completely identical, skip version increment & redundant history
+                if original_prev_data == merged_data {
+                    *seeded_by_market.entry(market_code).or_insert(0) += 1;
+                    total_seeded += 1;
+                    continue;
+                }
+
                 let new_version = ex.version + 1;
 
                 sqlx::query(
@@ -228,21 +277,42 @@ impl StockDataIngestionJob {
                 .execute(pool)
                 .await?;
 
-                // Audit History
+                // Audit History with previous_data preserved
                 let history_id = Uuid::new_v4();
                 let _ = sqlx::query(
                     r#"
-                    INSERT INTO record_history (id, record_id, change_type, changed_by, source_system, new_data, version, changed_at)
-                    VALUES ($1, $2, 'INBOUND_MERGE', $3, 'KRX & Global Stock Inbound', $4, $5, NOW())
+                    INSERT INTO record_history (id, record_id, change_type, changed_by, source_system, previous_data, new_data, version, changed_at)
+                    VALUES ($1, $2, 'INBOUND_MERGE', $3, 'KRX & Global Stock Inbound', $4, $5, $6, NOW())
                     "#,
                 )
                 .bind(history_id)
                 .bind(ex.id)
                 .bind(requested_by)
+                .bind(&original_prev_data)
                 .bind(&merged_data)
                 .bind(new_version)
                 .execute(pool)
                 .await;
+
+                // Also record individual integration log if channel exists
+                if let Some(cid) = stock_channel_id {
+                    let log_id = Uuid::new_v4();
+                    let inbound_payload = serde_json::to_string(&row_obj).unwrap_or_default();
+                    let mapped_payload = serde_json::to_string(&merged_data).unwrap_or_default();
+                    let _ = sqlx::query(
+                        r#"
+                        INSERT INTO integration_logs (id, channel_id, record_id, event_type, status, original_payload, mapped_payload, created_at, retry_count)
+                        VALUES ($1, $2, $3, 'INBOUND_MERGE', 'SUCCESS', $4, $5, NOW(), 0)
+                        "#
+                    )
+                    .bind(log_id)
+                    .bind(cid)
+                    .bind(ex.id)
+                    .bind(inbound_payload)
+                    .bind(mapped_payload)
+                    .execute(pool)
+                    .await;
+                }
 
                 total_merged += 1;
             } else {
@@ -272,8 +342,8 @@ impl StockDataIngestionJob {
                 let history_id = Uuid::new_v4();
                 let _ = sqlx::query(
                     r#"
-                    INSERT INTO record_history (id, record_id, change_type, changed_by, source_system, new_data, version, changed_at)
-                    VALUES ($1, $2, 'INBOUND_INGEST', $3, 'KRX & Global Stock Inbound', $4, 1, NOW())
+                    INSERT INTO record_history (id, record_id, change_type, changed_by, source_system, previous_data, new_data, version, changed_at)
+                    VALUES ($1, $2, 'INBOUND_INGEST', $3, 'KRX & Global Stock Inbound', NULL, $4, 1, NOW())
                     "#,
                 )
                 .bind(history_id)
@@ -282,6 +352,26 @@ impl StockDataIngestionJob {
                 .bind(&row)
                 .execute(pool)
                 .await;
+
+                // Also record individual integration log if channel exists
+                if let Some(cid) = stock_channel_id {
+                    let log_id = Uuid::new_v4();
+                    let inbound_payload = serde_json::to_string(&row_obj).unwrap_or_default();
+                    let mapped_payload = serde_json::to_string(&row).unwrap_or_default();
+                    let _ = sqlx::query(
+                        r#"
+                        INSERT INTO integration_logs (id, channel_id, record_id, event_type, status, original_payload, mapped_payload, created_at, retry_count)
+                        VALUES ($1, $2, $3, 'INBOUND_INGEST', 'SUCCESS', $4, $5, NOW(), 0)
+                        "#
+                    )
+                    .bind(log_id)
+                    .bind(cid)
+                    .bind(new_rec_id)
+                    .bind(inbound_payload)
+                    .bind(mapped_payload)
+                    .execute(pool)
+                    .await;
+                }
 
                 total_created += 1;
             }
@@ -298,14 +388,7 @@ impl StockDataIngestionJob {
             seeded_by_market
         );
 
-        // Record integration log if stock channel exists
-        let stock_channel_id: Option<Uuid> = sqlx::query_scalar(
-            "SELECT id FROM integration_channels WHERE channel_code = 'CH-KRX-INBOUND-001' OR type = 'SPRING_BATCH' LIMIT 1"
-        )
-        .fetch_optional(pool)
-        .await
-        .unwrap_or(None);
-
+        // Record summary integration log if stock channel exists
         if let Some(cid) = stock_channel_id {
             let log_id = Uuid::new_v4();
             let original = format!(
@@ -368,5 +451,118 @@ impl StockDataIngestionJob {
         }
 
         anyhow::bail!("Stock dataset file not found in search paths")
+    }
+
+    pub async fn fetch_realtime_market_data(market: &str, page_size: usize) -> anyhow::Result<Vec<serde_json::Value>> {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .build()?;
+
+        let market_api = match market.to_uppercase().as_str() {
+            "KOSDAQ" => "KOSDAQ",
+            "KONEX" => "KONEX",
+            _ => "KOSPI",
+        };
+
+        let url = format!(
+            "https://m.stock.naver.com/api/stocks/marketValue/{}?page=1&pageSize={}",
+            market_api, page_size.min(100)
+        );
+
+        let resp = client.get(&url)
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            anyhow::bail!("Failed to fetch live stock API: HTTP {}", resp.status());
+        }
+
+        let json_body: serde_json::Value = resp.json().await?;
+        let stocks = json_body.get("stocks").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+
+        let clean_num = |v: Option<&serde_json::Value>| -> f64 {
+            match v {
+                Some(serde_json::Value::Number(n)) => n.as_f64().unwrap_or(0.0),
+                Some(serde_json::Value::String(s)) => {
+                    s.replace(",", "").replace("%", "").trim().parse().unwrap_or(0.0)
+                }
+                _ => 0.0,
+            }
+        };
+
+        let mut results = Vec::new();
+        for item in stocks {
+            let ticker = item.get("itemCode").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            if ticker.is_empty() { continue; }
+            let name = item.get("stockName").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let close_price = clean_num(item.get("closePriceRaw").or_else(|| item.get("closePrice")));
+            let change_price = clean_num(item.get("compareToPreviousClosePriceRaw").or_else(|| item.get("compareToPreviousClosePrice")));
+            let fluc_rate = clean_num(item.get("fluctuationsRatio"));
+            let volume = clean_num(item.get("accumulatedTradingVolumeRaw").or_else(|| item.get("accumulatedTradingVolume"))) as i64;
+            let value = clean_num(item.get("accumulatedTradingValueRaw").or_else(|| item.get("accumulatedTradingValue"))) as i64;
+            let mkt_cap = clean_num(item.get("marketValueRaw").or_else(|| item.get("marketValue"))) as i64;
+            let logo = item.get("itemLogoUrl").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let traded_at = item.get("localTradedAt").and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+            let row = serde_json::json!({
+                "market_node_code": market_api,
+                "ticker_code": ticker,
+                "stock_name": name,
+                "current_price": close_price as i64,
+                "change_price": change_price,
+                "fluctuation_rate": fluc_rate,
+                "accumulated_trading_volume": volume,
+                "accumulated_trading_value": value,
+                "market_cap": mkt_cap,
+                "logo_image_url": logo,
+                "price_base_date": if !traded_at.is_empty() { traded_at.chars().take(10).collect::<String>() } else { chrono::Utc::now().naive_utc().format("%Y-%m-%d").to_string() }
+            });
+            results.push(row);
+        }
+        Ok(results)
+    }
+
+    pub async fn fetch_single_stock_realtime(ticker: &str) -> anyhow::Result<serde_json::Value> {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()?;
+
+        let url = format!("https://m.stock.naver.com/api/stock/{}/basic", ticker);
+        let resp = client.get(&url)
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            anyhow::bail!("Failed to fetch live stock {}: HTTP {}", ticker, resp.status());
+        }
+
+        let item: serde_json::Value = resp.json().await?;
+        let name = item.get("stockName").and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+        let clean_num = |v: Option<&serde_json::Value>| -> f64 {
+            match v {
+                Some(serde_json::Value::Number(n)) => n.as_f64().unwrap_or(0.0),
+                Some(serde_json::Value::String(s)) => {
+                    s.replace(",", "").replace("%", "").trim().parse().unwrap_or(0.0)
+                }
+                _ => 0.0,
+            }
+        };
+
+        let close_price = clean_num(item.get("closePrice"));
+        let change_price = clean_num(item.get("compareToPreviousClosePrice"));
+        let fluc_rate = clean_num(item.get("fluctuationsRatio"));
+        let traded_at = item.get("localTradedAt").and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+        Ok(serde_json::json!({
+            "ticker_code": ticker,
+            "stock_name": name,
+            "current_price": close_price as i64,
+            "change_price": change_price,
+            "fluctuation_rate": fluc_rate,
+            "price_base_date": if !traded_at.is_empty() { traded_at.chars().take(10).collect::<String>() } else { chrono::Utc::now().naive_utc().format("%Y-%m-%d").to_string() }
+        }))
     }
 }

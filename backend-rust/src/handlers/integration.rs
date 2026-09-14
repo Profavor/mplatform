@@ -34,6 +34,39 @@ pub async fn create_channel(
     Ok(Json(channel))
 }
 
+pub async fn get_channel_by_id(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> AppResult<impl IntoResponse> {
+    let channel = state.integration_service.get_channel_by_id(id).await?
+        .ok_or_else(|| AppError::NotFound("해당 연동 채널을 찾을 수 없습니다.".to_string()))?;
+    Ok(Json(channel))
+}
+
+pub async fn get_channel_metrics(
+    State(state): State<AppState>,
+    Path(channel_id): Path<Uuid>,
+) -> AppResult<impl IntoResponse> {
+    let metrics = state.integration_service.get_channel_metrics(channel_id).await?;
+    Ok(Json(metrics))
+}
+
+pub async fn ping_channel(
+    State(state): State<AppState>,
+    Path(channel_id): Path<Uuid>,
+) -> AppResult<impl IntoResponse> {
+    let metrics = state.integration_service.ping_channel(channel_id).await?;
+    Ok(Json(metrics))
+}
+
+pub async fn smart_mapping_recommend(
+    State(state): State<AppState>,
+    Json(req): Json<SmartMappingRecommendRequest>,
+) -> AppResult<impl IntoResponse> {
+    let res = state.integration_service.smart_mapping_recommend(req.domain_id, &req.sample_payload).await?;
+    Ok(Json(res))
+}
+
 pub async fn get_logs(
     State(state): State<AppState>,
     Query(params): Query<LogQuery>,
@@ -411,33 +444,43 @@ pub async fn trigger_batch(
             retry_backoff_ms: channel.retry_backoff_ms,
         };
 
-        for (rec_id, data, _node_id) in records {
-            if let Some(d) = data {
-                match crate::services::outbound_service::OutboundService::dispatch_single_channel(
-                    &state.db,
-                    &out_channel,
-                    Some(rec_id),
-                    "MANUAL_DISPATCH",
-                    &d,
-                ).await {
-                    Ok(_) => success_count += 1,
-                    Err(_) => fail_count += 1,
+        let pool = state.db.clone();
+        let total = records.len();
+        let execution_id = Uuid::new_v4();
+        let out_code = out_channel.channel_code.clone().unwrap_or_else(|| "OUTBOUND".to_string());
+
+        tokio::spawn(async move {
+            tracing::info!("🚀 [Outbound Batch Async] Started manual dispatch for {} records on channel {}", total, out_code);
+            let mut success_count = 0;
+            let mut fail_count = 0;
+
+            for (rec_id, data, _node_id) in records {
+                if let Some(d) = data {
+                    match crate::services::outbound_service::OutboundService::dispatch_single_channel(
+                        &pool,
+                        &out_channel,
+                        Some(rec_id),
+                        "MANUAL_DISPATCH",
+                        &d,
+                    ).await {
+                        Ok(_) => success_count += 1,
+                        Err(_) => fail_count += 1,
+                    }
                 }
             }
-        }
 
-        let log_id = Uuid::new_v4();
+            tracing::info!("✅ [Outbound Batch Async] Finished manual dispatch: total {}, success {}, fail {}", total, success_count, fail_count);
+        });
+
         return Ok(Json(serde_json::json!({
-            "jobExecutionId": log_id,
-            "status": "COMPLETED",
-            "message": format!("아웃바운드 수동 전파 완료: 대상 {}건 (성공 {}건, 실패 {}건)", total, success_count, fail_count),
+            "jobExecutionId": execution_id,
+            "status": "ACCEPTED",
+            "message": format!("아웃바운드 전파 작업이 백그라운드에서 비동기(Async)로 기동되었습니다. (대상: {}건)", total),
             "totalDispatched": total,
-            "successCount": success_count,
-            "failCount": fail_count,
         })));
     }
 
-    // Branch: If INBOUND channel, run stock ingestion
+    // Branch: If INBOUND channel, run stock ingestion asynchronously
     let markets_vec: Option<Vec<String>> = match req.markets {
         Some(serde_json::Value::Array(arr)) => {
             Some(arr.into_iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
@@ -455,24 +498,35 @@ pub async fn trigger_batch(
         custom_rows: None,
     };
 
-    let res = crate::batch::stock_ingestion::StockDataIngestionJob::run_ingestion(
-        &state.db,
-        seed_req,
-        "MANUAL_TRIGGER",
-    )
-    .await
-    .map_err(|e| AppError::Internal(format!("주식 배치 실행 실패: {}", e)))?;
+    let execution_id = Uuid::new_v4();
+    let pool = state.db.clone();
+    let channel_code_str = channel.channel_code.clone().unwrap_or_else(|| "INBOUND".to_string());
 
-    let log_id = Uuid::new_v4();
+    tokio::spawn(async move {
+        tracing::info!("🚀 [Inbound Batch Async] Starting background stock ingestion for channel {}", channel_code_str);
+        if crate::batch::lock::AdvisoryLock::try_acquire(&pool, crate::batch::stock_ingestion::StockDataIngestionJob::LOCK_ID).await {
+            match crate::batch::stock_ingestion::StockDataIngestionJob::run_ingestion(
+                &pool,
+                seed_req,
+                "MANUAL_TRIGGER",
+            ).await {
+                Ok(res) => {
+                    tracing::info!("✅ [Inbound Batch Async] Completed successfully for {}: {}", channel_code_str, res.message);
+                }
+                Err(e) => {
+                    tracing::error!("❌ [Inbound Batch Async] Execution failed for {}: {}", channel_code_str, e);
+                }
+            }
+            crate::batch::lock::AdvisoryLock::release(&pool, crate::batch::stock_ingestion::StockDataIngestionJob::LOCK_ID).await;
+        } else {
+            tracing::warn!("⚠️ [Inbound Batch Async] Could not acquire lock for {}, another batch is currently in progress.", channel_code_str);
+        }
+    });
 
     Ok(Json(serde_json::json!({
-        "jobExecutionId": log_id,
-        "status": "COMPLETED",
-        "message": res.message,
-        "totalSeeded": res.total_seeded,
-        "totalCreated": res.total_created,
-        "totalMerged": res.total_merged,
-        "seededByMarket": res.seeded_by_market
+        "jobExecutionId": execution_id,
+        "status": "ACCEPTED",
+        "message": "인바운드 수집 배치 작업이 백그라운드에서 비동기(Async)로 기동되었습니다. 진행 상황은 연계 로그에서 실시간으로 확인하실 수 있습니다."
     })))
 }
 

@@ -65,3 +65,52 @@ fn default_direction() -> String { "OUTBOUND".to_string() }
 fn default_true() -> bool { true }
 fn default_three() -> i32 { 3 }
 fn default_backoff() -> i64 { 1000 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IntegrationMetricsDto {
+    pub channel_id: Uuid,
+    pub channel_name: String,
+    pub channel_type: String,
+    pub health_status: String, // HEALTHY, DEGRADED, UNHEALTHY
+    pub total_requests: i64,
+    pub success_count: i64,
+    pub fail_count: i64,
+    pub dlq_count: i64,
+    pub success_rate: f64,
+    pub avg_latency_ms: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_ping_latency_ms: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_ping_at: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_ping_message: Option<String>,
+    pub hourly_stats: Vec<HourlyStat>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HourlyStat {
+    pub time_slot: String,
+    pub success_count: i64,
+    pub fail_count: i64,
+    pub dlq_count: i64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SmartMappingRecommendRequest {
+    pub domain_id: Uuid,
+    pub sample_payload: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SmartMappingRecommendationDto {
+    pub source_field: String,
+    pub target_field_key: String,
+    pub target_field_name: String,
+    pub confidence_score: i32,
+    pub match_reason: String,
+    pub recommended_spel: String,
+}

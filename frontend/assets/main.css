@@ -2,10 +2,10 @@
 
 /* Ensure modals and overlays are always stacked above page layout */
 .va-modal {
-  z-index: 1200 !important;
+  z-index: var(--va-modal-z-index, var(--app-modal-z-index, 1200)) !important;
 }
 .va-modal .va-modal__overlay {
-  z-index: 1200 !important;
+  z-index: calc(var(--va-modal-z-index, var(--app-modal-z-index, 1200)) - 1) !important;
 }
 .va-modal .va-modal__dialog {
   border-radius: 16px !important;
@@ -14,7 +14,7 @@
   background: var(--va-card-background, var(--va-background-element, #ffffff)) !important;
   position: relative !important;
   border: none !important;
-  z-index: 1201 !important;
+  z-index: var(--va-modal-z-index, var(--app-modal-z-index, 1201)) !important;
 }
 
 /* Modal Header Area: Integrated & Drag Friendly */

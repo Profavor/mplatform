@@ -553,7 +553,7 @@ const uiConfig = ref({
   mqBroker: '', mqTopic: '',
   inboundAuthType: 'BEARER_TOKEN', inboundSecretToken: '',
   batchJobName: 'stockMarketIngestionJob',
-  batchBeanClass: 'com.classification.domain_system.batch.stock.config.StockBatchConfig',
+  batchBeanClass: 'crate::batch::stock_ingestion::StockDataIngestionJob',
   batchCron: '0 0 16 * * MON-FRI',
   batchParams: '{\n  "markets": "KOSPI,KOSDAQ,KONEX,NASDAQ,NYSE",\n  "chunkSize": 100\n}',
   clearExisting: false
@@ -874,7 +874,7 @@ const deserializeUiData = (row) => {
     mqBroker: '', mqTopic: '',
     inboundAuthType: 'BEARER_TOKEN', inboundSecretToken: '',
     batchJobName: 'stockMarketIngestionJob',
-    batchBeanClass: 'com.classification.domain_system.batch.stock.config.StockBatchConfig',
+    batchBeanClass: 'crate::batch::stock_ingestion::StockDataIngestionJob',
     batchCron: '0 0 16 * * MON-FRI',
     batchParams: '{\n  "markets": "KOSPI,KOSDAQ,KONEX,NASDAQ,NYSE",\n  "chunkSize": 100\n}',
     clearExisting: false
@@ -927,7 +927,9 @@ const deserializeUiData = (row) => {
       uiConfig.value.mqTopic = config.topic || ''
     } else if (row.type === 'SPRING_BATCH') {
       uiConfig.value.batchJobName = config.batchJobName || 'stockMarketIngestionJob'
-      uiConfig.value.batchBeanClass = config.batchBeanClass || ''
+      uiConfig.value.batchBeanClass = (config.batchBeanClass && !config.batchBeanClass.startsWith('com.')) 
+        ? config.batchBeanClass 
+        : 'crate::batch::stock_ingestion::StockDataIngestionJob'
       uiConfig.value.batchCron = config.cron || '0 0 16 * * MON-FRI'
       uiConfig.value.batchParams = config.batchParams || (config.markets ? JSON.stringify({ markets: config.markets, chunkSize: config.chunkSize || 100 }, null, 2) : '')
       uiConfig.value.clearExisting = Boolean(config.clearExisting)

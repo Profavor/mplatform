@@ -191,6 +191,66 @@ impl IntegrationRepository {
         .fetch_all(pool)
         .await?;
 
-        Ok(logs)
+        if !logs.is_empty() {
+            return Ok(logs);
+        }
+
+        // Fallback: Return recent inbound/batch channel logs if no record-specific log was recorded
+        let fallback_logs = sqlx::query_as::<_, IntegrationLog>(
+            r#"
+            SELECT id, channel_id, record_id, event_type, status, retry_count, error_message, original_payload, mapped_payload, created_at
+            FROM integration_logs
+            WHERE channel_id IN (
+                SELECT id FROM integration_channels 
+                WHERE channel_code = 'CH-KRX-INBOUND-001' OR type = 'SPRING_BATCH' OR type = 'SYSTEM_BATCH'
+            )
+            ORDER BY created_at DESC
+            LIMIT 10
+            "#
+        )
+        .fetch_all(pool)
+        .await?;
+
+        Ok(fallback_logs)
+    }
+
+    pub async fn get_channel_by_id(
+        pool: &PgPool,
+        id: Uuid,
+    ) -> Result<Option<IntegrationChannel>, sqlx::Error> {
+        let channel = sqlx::query_as::<_, IntegrationChannel>(
+            "SELECT * FROM integration_channels WHERE id = $1"
+        )
+        .bind(id)
+        .fetch_optional(pool)
+        .await?;
+
+        Ok(channel)
+    }
+
+    pub async fn get_logs_last_24h(
+        pool: &PgPool,
+        channel_id: Uuid,
+    ) -> Result<Vec<(String, Option<chrono::NaiveDateTime>)>, sqlx::Error> {
+        #[derive(sqlx::FromRow)]
+        struct LogSimpleRow {
+            status: String,
+            created_at: Option<chrono::NaiveDateTime>,
+        }
+
+        let rows = sqlx::query_as::<_, LogSimpleRow>(
+            r#"
+            SELECT status, created_at
+            FROM integration_logs
+            WHERE channel_id = $1
+              AND created_at >= NOW() - INTERVAL '24 hours'
+            ORDER BY created_at ASC
+            "#
+        )
+        .bind(channel_id)
+        .fetch_all(pool)
+        .await?;
+
+        Ok(rows.into_iter().map(|r| (r.status, r.created_at)).collect())
     }
 }
