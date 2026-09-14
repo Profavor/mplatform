@@ -61,6 +61,7 @@ pub struct SendMessageRequest {
 pub struct RoomMemberDto {
     pub user_id: String,
     pub username: Option<String>,
+    pub role: Option<String>,
     pub joined_at: Option<NaiveDateTime>,
     pub last_read_at: Option<NaiveDateTime>,
 }

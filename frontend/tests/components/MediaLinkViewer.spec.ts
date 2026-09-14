@@ -135,4 +135,34 @@ describe('MediaLinkViewer.vue (TDD Component Test)', () => {
 
     expect(wrapper.find('.empty-media-placeholder').exists()).toBe(true)
   })
+
+  it('이미지 로드 실패 시(@error) 깨진 이미지 대신 NO IMAGE 플레이스홀더를 표시한다', async () => {
+    const wrapper = mount(MediaLinkViewer, {
+      props: {
+        modelValue: 'https://example.com/broken-image.png',
+        readonly: true
+      },
+      global: {
+        plugins: [i18n],
+        stubs: {
+          VaIcon: true,
+          VaButton: true,
+          ImageLightboxModal: true
+        }
+      }
+    })
+
+    const img = wrapper.find('img.media-preview-img')
+    expect(img.exists()).toBe(true)
+
+    // Trigger @error on the image element
+    await img.trigger('error')
+
+    // After error, img should be replaced by .no-img-box with NO IMAGE text
+    expect(wrapper.find('img.media-preview-img').exists()).toBe(false)
+    const noImgBox = wrapper.find('.no-img-box')
+    expect(noImgBox.exists()).toBe(true)
+    expect(noImgBox.text()).toContain('NO IMAGE')
+  })
 })
+

@@ -6,8 +6,8 @@
         <span style="font-size: 1.05rem; font-weight: 700; color: var(--va-text-primary); font-family: 'Pretendard', 'Inter', sans-serif;">
           {{ t('dq_dashboard.score_trend_title') }}
         </span>
-        <va-chip v-if="recentSnapshots.length > 0" size="small" color="primary" style="font-weight: 600;">
-          {{ t('dq_dashboard.snapshot_count', { count: recentSnapshots.length }) }}
+        <va-chip v-if="displaySnapshots.length > 0" size="small" color="primary" style="font-weight: 600;">
+          {{ t('dq_dashboard.snapshot_count', { count: displaySnapshots.length }) }}
         </va-chip>
       </div>
 
@@ -53,7 +53,7 @@
 
     <va-card-content style="padding: 1.25rem; background: var(--va-background-primary);">
       <!-- Empty State -->
-      <div v-if="recentSnapshots.length === 0" style="padding: 2.5rem 1rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; text-align: center;">
+      <div v-if="displaySnapshots.length === 0" style="padding: 2.5rem 1rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; text-align: center;">
         <div style="width: 54px; height: 54px; border-radius: 16px; background: rgba(25, 118, 210, 0.12); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.2);">
           <va-icon name="insights" size="large" color="primary" />
         </div>
@@ -96,7 +96,7 @@
           style="display: flex; align-items: flex-end; gap: 0.6rem; height: 160px; padding: 1.25rem 0.75rem 0.5rem 0.75rem; border-bottom: 1px solid var(--va-background-border); overflow-x: auto; box-sizing: border-box; -webkit-overflow-scrolling: touch;"
         >
           <div
-            v-for="(snap, idx) in recentSnapshots"
+            v-for="(snap, idx) in displaySnapshots"
             :key="snap.id || idx"
             style="flex: 1; min-width: 56px; display: flex; flex-direction: column; align-items: center; gap: 0.35rem; position: relative;"
             class="dq-sparkline-item cursor-pointer"
@@ -162,11 +162,31 @@ const props = defineProps<{
   maxTrendScore: string | number
 }>()
 
+const displaySnapshots = computed(() => {
+  if (!props.recentSnapshots || props.recentSnapshots.length === 0) return []
+  const dateMap = new Map<string, any>()
+  for (const snap of props.recentSnapshots) {
+    const d = parseDate(snap.recordedAt)
+    const key = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : (snap.recordedAt || '')
+    const existing = dateMap.get(key)
+    if (!existing) {
+      dateMap.set(key, snap)
+    } else {
+      const existingTime = parseDate(existing.recordedAt)?.getTime() || 0
+      const newTime = d?.getTime() || 0
+      if (newTime >= existingTime) {
+        dateMap.set(key, snap)
+      }
+    }
+  }
+  return Array.from(dateMap.values())
+})
+
 const latestSnapshotDate = computed(() => {
-  if (!props.recentSnapshots || props.recentSnapshots.length === 0) return ''
-  const sorted = [...props.recentSnapshots].sort((a, b) => {
-    const timeA = new Date(a.recordedAt || 0).getTime()
-    const timeB = new Date(b.recordedAt || 0).getTime()
+  if (!displaySnapshots.value || displaySnapshots.value.length === 0) return ''
+  const sorted = [...displaySnapshots.value].sort((a, b) => {
+    const timeA = parseDate(a.recordedAt)?.getTime() || 0
+    const timeB = parseDate(b.recordedAt)?.getTime() || 0
     return timeB - timeA
   })
   return sorted[0]?.recordedAt || ''

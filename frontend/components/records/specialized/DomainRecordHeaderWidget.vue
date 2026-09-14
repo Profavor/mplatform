@@ -9,10 +9,11 @@
         <!-- 이미지/아바타 -->
         <div class="avatar-area">
           <va-avatar
-            v-if="imageValue"
+            v-if="imageValue && !imageLoadError"
             :src="imageValue"
             :size="54"
             class="record-avatar"
+            @error="imageLoadError = true"
           />
           <va-avatar
             v-else
@@ -94,7 +95,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { formatOptionLabel } from '~/utils/optionParser'
 import { formatMultilingual } from '~/composables/useMultilingual'
 
@@ -198,6 +199,10 @@ const idValue = computed(() => resolveValue(idKey.value))
 const nameValue = computed(() => resolveValue(nameKey.value))
 const descValue = computed(() => resolveValue(descKey.value))
 const imageValue = computed(() => resolveValue(imageKey.value))
+const imageLoadError = ref(false)
+watch(imageValue, () => {
+  imageLoadError.value = false
+})
 
 /** 커스텀 추가 속성 필드들의 명칭 및 값 목록 */
 const customSubFields = computed(() => {

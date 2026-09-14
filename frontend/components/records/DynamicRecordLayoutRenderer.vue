@@ -258,13 +258,14 @@
                 :readonly="!isEditing || widget.options?.readOnly"
               />
               <div v-else class="image-view-wrapper">
-                <template v-if="record[widget.fieldKey]">
+                <template v-if="record[widget.fieldKey] && !recordImageErrors[getImageUrl(record[widget.fieldKey])]">
                   <img
                     :src="getImageUrl(record[widget.fieldKey])"
                     :alt="getWidgetTitle(widget) || 'Record Image'"
                     class="preview-img"
                     :style="{ objectFit: widget.options?.objectFit || 'cover' }"
                     @click="openImageLightbox(record[widget.fieldKey], getWidgetTitle(widget))"
+                    @error="recordImageErrors[getImageUrl(record[widget.fieldKey])] = true"
                   />
                   <div class="image-zoom-overlay" @click="openImageLightbox(record[widget.fieldKey], getWidgetTitle(widget))">
                     <va-icon name="zoom_in" size="small" color="#fff" />
@@ -273,7 +274,7 @@
                 </template>
                 <div v-else class="empty-image-placeholder">
                   <va-icon name="image_not_supported" size="large" color="secondary" />
-                  <span class="empty-text">{{ $t('no_image_data') }}</span>
+                  <span class="empty-text">NO IMAGE</span>
                 </div>
               </div>
             </div>
@@ -929,6 +930,7 @@ const emit = defineEmits(['update:record', 'openDomainRef', 'requestDecrypt', 'h
 const { t, locale } = useI18n()
 
 const showLightbox = ref(false)
+const recordImageErrors = ref<Record<string, boolean>>({})
 const lightboxImages = ref<{ url: string; name?: string }[]>([])
 const lightboxIndex = ref(0)
 

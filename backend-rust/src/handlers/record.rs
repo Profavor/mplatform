@@ -373,6 +373,15 @@ pub async fn request_record_update(
         "after": processed_data
     });
 
+    if prev_data == processed_data {
+        tracing::info!("Record {} update skipped: no data changes detected", record.id);
+        return Ok(Json(serde_json::json!({
+            "success": true,
+            "message": "No changes detected, update skipped",
+            "recordId": record.id
+        })));
+    }
+
     // Resolve workflow config for UPDATE
     let workflow_config = if let Some(w_id) = payload.workflow_config_id {
         sqlx::query_as::<_, WorkflowConfig>(
