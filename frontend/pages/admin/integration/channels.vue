@@ -1218,6 +1218,8 @@ const recentLogColumnDefs = computed(() => [
     width: 140,
     valueGetter: (params) => {
       if (params.data?.direction) return params.data.direction
+      const evt = (params.data?.eventType || '').toUpperCase()
+      if (evt.includes('INBOUND') || evt.includes('SPRING_BATCH') || evt.includes('INGEST')) return 'INBOUND'
       if (params.data?.channel?.direction) return params.data.channel.direction
       const ch = channels.value.find(c => c.id === params.data?.channelId)
       return ch?.direction || 'OUTBOUND'

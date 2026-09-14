@@ -59,6 +59,15 @@ pub struct IntegrationLog {
     pub original_payload: Option<String>,
     pub mapped_payload: Option<String>,
     pub created_at: Option<NaiveDateTime>,
+    #[sqlx(default)]
+    #[serde(default)]
+    pub direction: Option<String>,
+    #[sqlx(default)]
+    #[serde(default)]
+    pub channel_name: Option<String>,
+    #[sqlx(default)]
+    #[serde(default)]
+    pub channel_code: Option<String>,
 }
 
 fn default_direction() -> String { "OUTBOUND".to_string() }

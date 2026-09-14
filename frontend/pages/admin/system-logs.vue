@@ -1072,16 +1072,31 @@ const showIntegrationDetailsModal = ref(false)
 const selectedIntegrationLog = ref(null)
 const rawChannels = ref([])
 
+const enrichLogWithDirection = (log: any) => {
+  if (!log) return null
+  let dir = log.direction
+  if (!dir) {
+    const evt = (log.eventType || '').toUpperCase()
+    if (evt.includes('INBOUND') || evt.includes('SPRING_BATCH') || evt.includes('INGEST')) {
+      dir = 'INBOUND'
+    } else {
+      const channel = rawChannels.value.find(c => c.id === log.channelId)
+      dir = channel?.direction || 'OUTBOUND'
+    }
+  }
+  return { ...log, direction: dir }
+}
+
 // 더블클릭 → 상세 모달
 const onIntegrationRowDoubleClicked = (event) => {
   if (event.data) {
-    selectedIntegrationLog.value = event.data
+    selectedIntegrationLog.value = enrichLogWithDirection(event.data)
     showIntegrationDetailsModal.value = true
   }
 }
 
 const viewIntegrationDetails = (log) => {
-  selectedIntegrationLog.value = log
+  selectedIntegrationLog.value = enrichLogWithDirection(log)
   showIntegrationDetailsModal.value = true
 }
 
@@ -1107,8 +1122,11 @@ const integrationColumnDefs = ref([
     width: 110,
     valueGetter: (params) => {
       if (!params.data) return ''
+      if (params.data.direction) return params.data.direction
+      const evt = (params.data.eventType || '').toUpperCase()
+      if (evt.includes('INBOUND') || evt.includes('SPRING_BATCH') || evt.includes('INGEST')) return 'INBOUND'
       const channel = rawChannels.value.find(c => c.id === params.data.channelId)
-      return channel?.direction || params.data.direction || 'OUTBOUND'
+      return channel?.direction || 'OUTBOUND'
     },
     cellRenderer: (params) => {
       if (!params.value) return ''

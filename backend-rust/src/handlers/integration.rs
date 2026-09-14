@@ -427,8 +427,6 @@ pub async fn trigger_batch(
         .await?;
 
         let total = records.len();
-        let mut success_count = 0;
-        let mut fail_count = 0;
 
         let out_channel = crate::services::outbound_service::OutboundChannel {
             id: channel.id,

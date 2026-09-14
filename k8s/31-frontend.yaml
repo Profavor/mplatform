@@ -33,7 +33,7 @@ spec:
         - "mplatform.local"
       containers:
       - name: frontend
-        image: profavor2/mplatform-frontend:2.0.2
+        image: profavor2/mplatform-frontend:2.0.3
         imagePullPolicy: IfNotPresent
         resources:
           requests:
