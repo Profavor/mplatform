@@ -11,13 +11,20 @@ pub struct ApprovalRequest {
     pub target_type: String,
     pub status: String,
     pub requester_id: String,
+    #[sqlx(default)]
     pub reason: Option<String>,
     pub changes: serde_json::Value,
+    #[sqlx(default)]
     pub observer_ids: Option<serde_json::Value>,
+    #[sqlx(default)]
     pub node_id: Option<Uuid>,
+    #[sqlx(default)]
     pub current_step_order: Option<i32>,
+    #[sqlx(default)]
     pub version: i64,
+    #[sqlx(default)]
     pub created_at: Option<NaiveDateTime>,
+    #[sqlx(default)]
     pub updated_at: Option<NaiveDateTime>,
 }
 
@@ -29,16 +36,27 @@ pub struct ApprovalStep {
     pub step_order: i32,
     pub step_type: String,
     pub status: String,
+    #[sqlx(default)]
     pub assignee_id: Option<String>,
+    #[sqlx(default)]
     pub assignee_role: Option<String>,
+    #[sqlx(default)]
     pub comment: Option<String>,
+    #[sqlx(default)]
     pub sla_hours: Option<i32>,
+    #[sqlx(default)]
     pub sla_due_at: Option<NaiveDateTime>,
+    #[sqlx(default)]
     pub is_escalated: bool,
+    #[sqlx(default)]
     pub escalated_from_user_id: Option<String>,
+    #[sqlx(default)]
     pub escalated_at: Option<NaiveDateTime>,
+    #[sqlx(default)]
     pub version: i64,
+    #[sqlx(default)]
     pub created_at: Option<NaiveDateTime>,
+    #[sqlx(default)]
     pub updated_at: Option<NaiveDateTime>,
 }
 

@@ -54,8 +54,9 @@ impl ApprovalRepository {
         let steps = sqlx::query_as::<_, ApprovalStep>(
             r#"
             SELECT id, request_id, step_order, step_type, assignee_id,
-                   assignee_role, status, comment, is_escalated, version,
-                   created_at, updated_at
+                   assignee_role, status, comment, sla_hours, sla_due_at,
+                   is_escalated, escalated_from_user_id, escalated_at,
+                   version, created_at, updated_at
             FROM approval_step
             WHERE request_id = $1
             ORDER BY step_order ASC
