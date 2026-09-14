@@ -58,6 +58,8 @@ pub struct ApprovalStep {
     pub created_at: Option<NaiveDateTime>,
     #[sqlx(default)]
     pub updated_at: Option<NaiveDateTime>,
+    #[sqlx(skip)]
+    pub approval_request: Option<ApprovalRequest>,
 }
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
@@ -161,11 +163,45 @@ pub struct CreateDelegationDto {
     pub end_date: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApprovalDetailResponse {
     pub request: ApprovalRequest,
     pub steps: Vec<ApprovalStep>,
+}
+
+impl Serialize for ApprovalDetailResponse {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(None)?;
+
+        // Top-level fields expected by frontend enrichRequest and detail modal
+        map.serialize_entry("id", &self.request.id)?;
+        map.serialize_entry("targetId", &self.request.target_id)?;
+        map.serialize_entry("targetType", &self.request.target_type)?;
+        map.serialize_entry("status", &self.request.status)?;
+        map.serialize_entry("requesterId", &self.request.requester_id)?;
+        map.serialize_entry("reason", &self.request.reason)?;
+        map.serialize_entry("changes", &self.request.changes)?;
+        map.serialize_entry("observerIds", &self.request.observer_ids)?;
+        map.serialize_entry("nodeId", &self.request.node_id)?;
+        map.serialize_entry("classificationNodeId", &self.request.node_id)?;
+        map.serialize_entry("currentStepOrder", &self.request.current_step_order)?;
+        map.serialize_entry("version", &self.request.version)?;
+        map.serialize_entry("createdAt", &self.request.created_at)?;
+        map.serialize_entry("updatedAt", &self.request.updated_at)?;
+
+        // Array of approval steps
+        map.serialize_entry("steps", &self.steps)?;
+
+        // Nested request object for backward compatibility
+        map.serialize_entry("request", &self.request)?;
+
+        map.end()
+    }
 }
 
 pub type CreateApprovalRequest = CreateApprovalRequestDto;

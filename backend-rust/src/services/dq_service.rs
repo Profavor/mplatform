@@ -76,14 +76,25 @@ impl DqService {
 
     pub async fn scan_domain(pool: &PgPool, domain_id: Uuid) -> Result<DqScanResult, AppError> {
         let rules = DqRepository::find_rules_with_fields_by_domain(pool, domain_id).await?;
-        let records = RecordRepository::find_paginated(pool, None, Some("ACTIVE"), 0, 1000).await?;
+        let records: Vec<(Uuid, Option<serde_json::Value>)> = sqlx::query_as(
+            r#"
+            SELECT r.id, r.data
+            FROM record r
+            JOIN classification_node cn ON r.node_id = cn.id
+            WHERE cn.domain_id = $1 AND (r.status = 'ACTIVE' OR r.status IS NULL)
+            LIMIT 2000
+            "#,
+        )
+        .bind(domain_id)
+        .fetch_all(pool)
+        .await?;
 
         let mut violation_count = 0;
-        let scanned = records.content.len();
+        let scanned = records.len();
 
-        for record in records.content {
-            if let Some(ref data) = record.data {
-                let _ = DqRepository::delete_violations_for_record(pool, record.id).await;
+        for (record_id, data_opt) in records {
+            if let Some(ref data) = data_opt {
+                let _ = DqRepository::delete_violations_for_record(pool, record_id).await;
 
                 for rule in &rules {
                     if let Some(err_msg) = Self::evaluate_rule(rule, data) {
@@ -94,7 +105,7 @@ impl DqService {
 
                         let _ = DqRepository::insert_violation(
                             pool,
-                            record.id,
+                            record_id,
                             Some(rule.id),
                             &rule.field_key,
                             &rule.severity,

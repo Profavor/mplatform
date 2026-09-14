@@ -17,7 +17,13 @@
     </div>
 
     <!-- Pending Approvals -->
-    <div class="kpi-card">
+    <div
+      class="kpi-card clickable"
+      role="button"
+      tabindex="0"
+      @click="goToPendingApprovals"
+      @keydown.enter="goToPendingApprovals"
+    >
       <div class="kpi-card-header">
         <span class="kpi-title">{{ t('pending_approvals', '미결 결재') }}</span>
         <div class="kpi-icon-pill red-pill">
@@ -70,8 +76,14 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 
 const { t } = useI18n()
+const router = useRouter()
+
+const goToPendingApprovals = () => {
+  router.push('/approvals?scope=all')
+}
 
 defineProps<{
   stats?: {
@@ -100,6 +112,16 @@ defineProps<{
   flex-direction: column;
   justify-content: space-between;
   min-height: 140px;
+}
+
+.kpi-card.clickable {
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.kpi-card.clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.06);
 }
 
 .kpi-card-header {

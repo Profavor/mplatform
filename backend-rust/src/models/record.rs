@@ -203,6 +203,7 @@ pub struct PageResponse<T> {
     pub number: i64,
     pub first: bool,
     pub last: bool,
+    pub empty: bool,
 }
 
 impl<T> PageResponse<T> {
@@ -214,6 +215,7 @@ impl<T> PageResponse<T> {
         };
         let first = page == 0;
         let last = page >= total_pages - 1;
+        let empty = content.is_empty();
 
         Self {
             content,
@@ -225,6 +227,7 @@ impl<T> PageResponse<T> {
             number: page,
             first,
             last,
+            empty,
         }
     }
 }

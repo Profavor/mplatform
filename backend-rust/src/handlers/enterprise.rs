@@ -946,16 +946,169 @@ pub async fn save_youtube_config(
 // Mail Server & Mailing Lists
 // -------------------------------------------------------------
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateMailAccountRequest {
+    pub email: String,
+    pub password: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateMailPasswordRequest {
+    pub password: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MailingListPayload {
+    pub name: Option<String>,
+    pub group_name: Option<String>,
+    pub email: String,
+    pub description: Option<serde_json::Value>,
+    pub member_user_ids: Option<Vec<String>>,
+    pub member_external_emails: Option<Vec<String>>,
+}
+
 pub async fn get_mail_accounts(
-    State(_state): State<AppState>,
-) -> Result<Json<Vec<serde_json::Value>>, AppError> {
-    Ok(Json(vec![serde_json::json!({
-        "id": "mail-primary",
-        "host": "smtp.domain.internal",
-        "port": 587,
-        "username": "notification@domain.internal",
-        "isDefault": true
-    })]))
+    State(state): State<AppState>,
+    Query(params): Query<CommonQuery>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let page = params.page.unwrap_or(0);
+    let size = params.size.unwrap_or(20);
+    let offset = page * size;
+
+    let count_row: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM users WHERE email IS NOT NULL AND TRIM(email) != ''"
+    )
+    .fetch_one(&state.db)
+    .await?;
+
+    let rows: Vec<(String, String, Option<String>, Option<bool>)> = sqlx::query_as(
+        r#"
+        SELECT id, username, email, is_active
+        FROM users
+        WHERE email IS NOT NULL AND TRIM(email) != ''
+        ORDER BY username ASC
+        LIMIT $1 OFFSET $2
+        "#
+    )
+    .bind(size)
+    .bind(offset)
+    .fetch_all(&state.db)
+    .await?;
+
+    let content: Vec<serde_json::Value> = rows.into_iter().map(|(id, username, email, is_active)| {
+        let act = is_active.unwrap_or(true);
+        serde_json::json!({
+            "email": email.unwrap_or_default(),
+            "userName": username,
+            "userId": id,
+            "isActive": act,
+            "active": act,
+            "quotaUsed": 0,
+            "quotaLimit": "UNLIMITED"
+        })
+    }).collect();
+
+    Ok(Json(serde_json::json!({
+        "content": content,
+        "totalElements": count_row.0,
+        "totalPages": ((count_row.0 as f64) / (size as f64)).ceil() as i64,
+        "number": page,
+        "size": size,
+        "first": page == 0,
+        "last": offset + size >= count_row.0,
+        "empty": content.is_empty()
+    })))
+}
+
+pub async fn create_mail_account(
+    State(state): State<AppState>,
+    _auth: AuthUser,
+    Json(payload): Json<CreateMailAccountRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let email = payload.email.trim();
+    if email.is_empty() {
+        return Err(AppError::BadRequest("Email is required".into()));
+    }
+    let username = email.split('@').next().unwrap_or(email);
+    let hashed_password = bcrypt::hash(&payload.password, bcrypt::DEFAULT_COST)
+        .map_err(|e| AppError::Internal(format!("Password hashing failed: {e}")))?;
+
+    let existing: Option<(String,)> = sqlx::query_as(
+        "SELECT id FROM users WHERE email = $1 OR username = $2 LIMIT 1"
+    )
+    .bind(email)
+    .bind(username)
+    .fetch_optional(&state.db)
+    .await?;
+
+    if let Some((id,)) = existing {
+        sqlx::query(
+            "UPDATE users SET email = $1, password = $2, is_active = true WHERE id = $3"
+        )
+        .bind(email)
+        .bind(hashed_password)
+        .bind(id)
+        .execute(&state.db)
+        .await?;
+    } else {
+        let new_id = Uuid::new_v4().to_string();
+        sqlx::query(
+            r#"
+            INSERT INTO users (id, username, email, password, role, is_active)
+            VALUES ($1, $2, $3, $4, 'USER', true)
+            "#
+        )
+        .bind(new_id)
+        .bind(username)
+        .bind(email)
+        .bind(hashed_password)
+        .execute(&state.db)
+        .await?;
+    }
+
+    Ok(Json(serde_json::json!({ "status": "SUCCESS" })))
+}
+
+pub async fn update_mail_password(
+    State(state): State<AppState>,
+    Path(email): Path<String>,
+    _auth: AuthUser,
+    Json(payload): Json<UpdateMailPasswordRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let hashed_password = bcrypt::hash(&payload.password, bcrypt::DEFAULT_COST)
+        .map_err(|e| AppError::Internal(format!("Password hashing failed: {e}")))?;
+
+    let username = email.split('@').next().unwrap_or(&email);
+    sqlx::query(
+        "UPDATE users SET password = $1 WHERE email = $2 OR username = $3"
+    )
+    .bind(hashed_password)
+    .bind(&email)
+    .bind(username)
+    .execute(&state.db)
+    .await?;
+
+    Ok(Json(serde_json::json!({ "status": "SUCCESS" })))
+}
+
+pub async fn delete_mail_account(
+    State(state): State<AppState>,
+    Path(email): Path<String>,
+    _auth: AuthUser,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let username = email.split('@').next().unwrap_or(&email);
+    sqlx::query(
+        "UPDATE users SET is_active = false, email = NULL WHERE email = $1 OR username = $2"
+    )
+    .bind(&email)
+    .bind(username)
+    .execute(&state.db)
+    .await?;
+
+    Ok(Json(serde_json::json!({ "status": "SUCCESS" })))
 }
 
 pub async fn sync_mail_accounts(
@@ -968,34 +1121,263 @@ pub async fn sync_mail_accounts(
 
 pub async fn get_mail_status(_state: State<AppState>) -> Result<Json<serde_json::Value>, AppError> {
     Ok(Json(serde_json::json!({
-        "status": "UP",
+        "status": "ok",
         "connected": true,
+        "domain": "mplatform.com",
         "queueLength": 0,
-        "sentToday": 42
+        "sentToday": 0
     })))
 }
 
 pub async fn get_mailing_lists(
     State(state): State<AppState>,
-) -> Result<Json<Vec<serde_json::Value>>, AppError> {
-    let rows: Vec<(Uuid, String, Option<String>)> =
-        sqlx::query_as("SELECT id, list_name, description FROM mailing_list")
-            .fetch_all(&state.db)
-            .await
-            .unwrap_or_default();
+    Query(params): Query<CommonQuery>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let page = params.page.unwrap_or(0);
+    let size = params.size.unwrap_or(20);
+    let offset = page * size;
 
-    let res = rows
-        .into_iter()
-        .map(|(id, name, desc)| {
-            serde_json::json!({
-                "id": id,
-                "listName": name,
-                "description": desc
-            })
+    let count_row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM mailing_list")
+        .fetch_one(&state.db)
+        .await?;
+
+    let rows: Vec<(Uuid, String, String, Option<serde_json::Value>, Option<bool>, i64)> =
+        sqlx::query_as(
+            r#"
+            SELECT m.id, m.name, m.email, m.description, m.is_active, COUNT(mem.id) as member_count
+            FROM mailing_list m
+            LEFT JOIN mailing_list_member mem ON m.id = mem.mailing_list_id
+            GROUP BY m.id, m.name, m.email, m.description, m.is_active
+            ORDER BY m.name ASC
+            LIMIT $1 OFFSET $2
+            "#
+        )
+        .bind(size)
+        .bind(offset)
+        .fetch_all(&state.db)
+        .await?;
+
+    let content: Vec<serde_json::Value> = rows.into_iter().map(|(id, name, email, desc, is_active, member_count)| {
+        let act = is_active.unwrap_or(true);
+        serde_json::json!({
+            "id": id,
+            "name": name.clone(),
+            "groupName": name,
+            "email": email,
+            "description": desc.unwrap_or_else(|| serde_json::json!({ "ko": "", "en": "" })),
+            "isActive": act,
+            "active": act,
+            "memberCount": member_count
         })
+    }).collect();
+
+    Ok(Json(serde_json::json!({
+        "content": content,
+        "totalElements": count_row.0,
+        "totalPages": ((count_row.0 as f64) / (size as f64)).ceil() as i64,
+        "number": page,
+        "size": size,
+        "first": page == 0,
+        "last": offset + size >= count_row.0,
+        "empty": content.is_empty()
+    })))
+}
+
+pub async fn get_mailing_list_by_id(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+    _auth: AuthUser,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let row: Option<(Uuid, String, String, Option<serde_json::Value>, Option<bool>)> =
+        sqlx::query_as("SELECT id, name, email, description, is_active FROM mailing_list WHERE id = $1")
+            .bind(id)
+            .fetch_optional(&state.db)
+            .await?;
+
+    let (id, name, email, desc, is_active) = match row {
+        Some(r) => r,
+        None => return Err(AppError::NotFound(format!("Mailing list not found: {id}"))),
+    };
+
+    let members: Vec<(Option<String>, Option<String>)> = sqlx::query_as(
+        "SELECT user_id, external_email FROM mailing_list_member WHERE mailing_list_id = $1"
+    )
+    .bind(id)
+    .fetch_all(&state.db)
+    .await?;
+
+    let member_list: Vec<String> = members
+        .into_iter()
+        .filter_map(|(uid, ext)| ext.or(uid))
         .collect();
 
-    Ok(Json(res))
+    Ok(Json(serde_json::json!({
+        "id": id,
+        "name": name.clone(),
+        "groupName": name,
+        "email": email,
+        "description": desc.unwrap_or_else(|| serde_json::json!({ "ko": "", "en": "" })),
+        "isActive": is_active.unwrap_or(true),
+        "members": member_list
+    })))
+}
+
+pub async fn create_mailing_list(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Json(payload): Json<MailingListPayload>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let name = payload.name.or(payload.group_name).unwrap_or_default();
+    let email = payload.email.trim();
+    if name.is_empty() || email.is_empty() {
+        return Err(AppError::BadRequest("Name and email are required".into()));
+    }
+
+    let mut tx = state.db.begin().await?;
+    let id = Uuid::new_v4();
+    let desc = payload.description.unwrap_or_else(|| serde_json::json!({ "ko": "", "en": "" }));
+
+    sqlx::query(
+        r#"
+        INSERT INTO mailing_list (id, name, email, description, is_active, version, created_at, updated_at, created_by)
+        VALUES ($1, $2, $3, $4, true, 0, NOW(), NOW(), $5)
+        "#
+    )
+    .bind(id)
+    .bind(&name)
+    .bind(email)
+    .bind(&desc)
+    .bind(&auth.claims.sub)
+    .execute(&mut *tx)
+    .await?;
+
+    if let Some(user_ids) = payload.member_user_ids {
+        for uid in user_ids {
+            if !uid.trim().is_empty() {
+                sqlx::query(
+                    r#"
+                    INSERT INTO mailing_list_member (id, mailing_list_id, user_id, joined_at)
+                    VALUES ($1, $2, $3, NOW())
+                    "#
+                )
+                .bind(Uuid::new_v4())
+                .bind(id)
+                .bind(uid.trim())
+                .execute(&mut *tx)
+                .await?;
+            }
+        }
+    }
+
+    if let Some(ext_emails) = payload.member_external_emails {
+        for ext in ext_emails {
+            if !ext.trim().is_empty() {
+                sqlx::query(
+                    r#"
+                    INSERT INTO mailing_list_member (id, mailing_list_id, external_email, joined_at)
+                    VALUES ($1, $2, $3, NOW())
+                    "#
+                )
+                .bind(Uuid::new_v4())
+                .bind(id)
+                .bind(ext.trim())
+                .execute(&mut *tx)
+                .await?;
+            }
+        }
+    }
+
+    tx.commit().await?;
+    Ok(Json(serde_json::json!({ "id": id, "status": "SUCCESS" })))
+}
+
+pub async fn update_mailing_list(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+    _auth: AuthUser,
+    Json(payload): Json<MailingListPayload>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let name = payload.name.or(payload.group_name).unwrap_or_default();
+    let email = payload.email.trim();
+    let desc = payload.description.unwrap_or_else(|| serde_json::json!({ "ko": "", "en": "" }));
+
+    let mut tx = state.db.begin().await?;
+
+    sqlx::query(
+        r#"
+        UPDATE mailing_list
+        SET name = $1, email = $2, description = $3, updated_at = NOW()
+        WHERE id = $4
+        "#
+    )
+    .bind(&name)
+    .bind(email)
+    .bind(&desc)
+    .bind(id)
+    .execute(&mut *tx)
+    .await?;
+
+    sqlx::query("DELETE FROM mailing_list_member WHERE mailing_list_id = $1")
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+
+    if let Some(user_ids) = payload.member_user_ids {
+        for uid in user_ids {
+            if !uid.trim().is_empty() {
+                sqlx::query(
+                    r#"
+                    INSERT INTO mailing_list_member (id, mailing_list_id, user_id, joined_at)
+                    VALUES ($1, $2, $3, NOW())
+                    "#
+                )
+                .bind(Uuid::new_v4())
+                .bind(id)
+                .bind(uid.trim())
+                .execute(&mut *tx)
+                .await?;
+            }
+        }
+    }
+
+    if let Some(ext_emails) = payload.member_external_emails {
+        for ext in ext_emails {
+            if !ext.trim().is_empty() {
+                sqlx::query(
+                    r#"
+                    INSERT INTO mailing_list_member (id, mailing_list_id, external_email, joined_at)
+                    VALUES ($1, $2, $3, NOW())
+                    "#
+                )
+                .bind(Uuid::new_v4())
+                .bind(id)
+                .bind(ext.trim())
+                .execute(&mut *tx)
+                .await?;
+            }
+        }
+    }
+
+    tx.commit().await?;
+    Ok(Json(serde_json::json!({ "id": id, "status": "SUCCESS" })))
+}
+
+pub async fn delete_mailing_list(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+    _auth: AuthUser,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let mut tx = state.db.begin().await?;
+    sqlx::query("DELETE FROM mailing_list_member WHERE mailing_list_id = $1")
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query("DELETE FROM mailing_list WHERE id = $1")
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+    tx.commit().await?;
+    Ok(Json(serde_json::json!({ "status": "SUCCESS" })))
 }
 
 pub async fn sync_mailing_list_aliases(

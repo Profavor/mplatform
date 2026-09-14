@@ -576,9 +576,10 @@ const isStarterRecommended = computed(() => {
 /* Results KPI Card */
 .results-kpi-card {
   border-radius: 16px;
-  background: linear-gradient(145deg, #1e293b, #0f172a);
-  color: #ffffff;
-  box-shadow: 0 15px 30px rgba(15, 23, 42, 0.25);
+  background: var(--va-background-primary, #ffffff);
+  border: 1px solid var(--va-background-border, rgba(0, 0, 0, 0.08));
+  color: var(--va-text-primary, #0f172a);
+  box-shadow: 0 15px 30px rgba(15, 23, 42, 0.08);
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -606,19 +607,19 @@ const isStarterRecommended = computed(() => {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-weight: 700;
-  color: #94a3b8;
+  color: var(--va-text-secondary, #64748b);
 }
 
 .payback-pill {
   display: flex;
   align-items: center;
-  background-color: rgba(34, 197, 94, 0.2);
-  color: #4ade80;
+  background-color: rgba(34, 197, 94, 0.15);
+  color: #16a34a;
   padding: 4px 12px;
   border-radius: 999px;
   font-size: 0.82rem;
   font-weight: 600;
-  border: 1px solid rgba(74, 222, 128, 0.3);
+  border: 1px solid rgba(22, 163, 74, 0.3);
 }
 
 .primary-metric {
@@ -627,7 +628,8 @@ const isStarterRecommended = computed(() => {
 
 .metric-label {
   font-size: 0.95rem;
-  color: #cbd5e1;
+  font-weight: 600;
+  color: var(--va-text-secondary, #64748b);
   margin-bottom: 6px;
 }
 
@@ -640,14 +642,14 @@ const isStarterRecommended = computed(() => {
 .metric-number {
   font-size: 2.8rem;
   font-weight: 800;
-  color: #38bdf8;
+  color: var(--va-primary, #2563eb);
   line-height: 1;
 }
 
 .metric-unit {
   font-size: 1.3rem;
   font-weight: 600;
-  color: #94a3b8;
+  color: var(--va-text-primary, #1e293b);
 }
 
 .sub-metrics-grid {
@@ -658,26 +660,27 @@ const isStarterRecommended = computed(() => {
 }
 
 .sub-metric-box {
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: var(--va-background-secondary, #f8fafc);
   padding: 14px 16px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--va-background-border, rgba(0, 0, 0, 0.06));
 }
 
 .sub-label {
-  font-size: 0.8rem;
-  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--va-text-secondary, #64748b);
   margin-bottom: 4px;
 }
 
 .sub-value {
   font-size: 1.15rem;
   font-weight: 700;
-  color: #f8fafc;
+  color: var(--va-text-primary, #0f172a);
 }
 
 .highlight-roi {
-  color: #facc15;
+  color: #d97706;
 }
 
 .kpi-cta-wrap {
@@ -697,7 +700,7 @@ const isStarterRecommended = computed(() => {
   gap: 16px;
   margin-top: 10px;
   font-size: 0.78rem;
-  color: #94a3b8;
+  color: var(--va-text-secondary, #64748b);
 }
 
 /* Section Title */

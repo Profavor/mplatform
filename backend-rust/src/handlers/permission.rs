@@ -354,27 +354,73 @@ pub async fn delete_user_scope(
 // Domain Permissions & Access Requests
 // -------------------------------------------------------------
 
+#[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PermissionUserItem {
+    pub id: String,
+    pub username: String,
+    pub email: Option<String>,
+    pub role: Option<String>,
+    pub organization_id: Option<Uuid>,
+    pub department_id: Option<Uuid>,
+    pub team_id: Option<Uuid>,
+    pub timezone: Option<String>,
+    pub is_active: Option<bool>,
+    pub must_change_password: Option<bool>,
+}
+
 pub async fn get_permissions_users(
     State(state): State<AppState>,
-) -> Result<Json<Vec<serde_json::Value>>, AppError> {
-    let users: Vec<(String, Option<String>, Option<String>)> =
-        sqlx::query_as("SELECT id, username, email FROM users ORDER BY username ASC")
-            .fetch_all(&state.db)
+    Query(params): Query<PermQuery>,
+) -> Result<Json<PageResponse<PermissionUserItem>>, AppError> {
+    let page = params.page.unwrap_or(0);
+    let size = params.size.unwrap_or(100);
+    let offset = page * size;
+
+    let search_filter = params.search.as_deref().unwrap_or("").trim();
+    let (total, users) = if search_filter.is_empty() {
+        let count_row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users")
+            .fetch_one(&state.db)
             .await?;
+        let items = sqlx::query_as::<_, PermissionUserItem>(
+            r#"
+            SELECT id, username, email, role, organization_id, department_id, team_id, timezone, is_active, must_change_password
+            FROM users
+            ORDER BY username ASC
+            LIMIT $1 OFFSET $2
+            "#
+        )
+        .bind(size)
+        .bind(offset)
+        .fetch_all(&state.db)
+        .await?;
+        (count_row.0, items)
+    } else {
+        let pattern = format!("%{}%", search_filter);
+        let count_row: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM users WHERE username ILIKE $1 OR email ILIKE $1 OR role ILIKE $1"
+        )
+        .bind(&pattern)
+        .fetch_one(&state.db)
+        .await?;
+        let items = sqlx::query_as::<_, PermissionUserItem>(
+            r#"
+            SELECT id, username, email, role, organization_id, department_id, team_id, timezone, is_active, must_change_password
+            FROM users
+            WHERE username ILIKE $1 OR email ILIKE $1 OR role ILIKE $1
+            ORDER BY username ASC
+            LIMIT $2 OFFSET $3
+            "#
+        )
+        .bind(&pattern)
+        .bind(size)
+        .bind(offset)
+        .fetch_all(&state.db)
+        .await?;
+        (count_row.0, items)
+    };
 
-    let res = users
-        .into_iter()
-        .map(|(id, username, email)| {
-            serde_json::json!({
-                "id": id,
-                "username": username.clone(),
-                "name": username,
-                "email": email
-            })
-        })
-        .collect();
-
-    Ok(Json(res))
+    Ok(Json(PageResponse::new(users, total, page, size)))
 }
 
 pub async fn get_user_domains(

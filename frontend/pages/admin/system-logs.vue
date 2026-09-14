@@ -742,12 +742,17 @@ const columnDefs = ref([
 const chartOption = ref({
   tooltip: {
     trigger: 'axis',
-    axisPointer: { type: 'shadow' }
+    axisPointer: { type: 'shadow' },
+    formatter: (params) => {
+      if (!params || !params[0]) return ''
+      const p = params[0]
+      return `<div style="padding: 4px 8px; font-weight: 600;">${p.name}</div><div style="padding: 0 8px; color: #3b82f6;">${p.seriesName}: <b>${p.value}</b></div>`
+    }
   },
   grid: {
     left: '3%',
     right: '4%',
-    bottom: '3%',
+    bottom: '12%',
     containLabel: true
   },
   xAxis: [
@@ -756,11 +761,11 @@ const chartOption = ref({
       data: [],
       axisTick: { alignWithLabel: true },
       axisLabel: {
-        interval: 'auto',
-        rotate: 45,
-        width: 80,
+        interval: 0,
+        rotate: 35,
+        width: 140,
         overflow: 'truncate',
-        formatter: (val) => val && val.length > 8 ? val.substring(0, 7) + '…' : val
+        formatter: (val) => val && val.length > 16 ? val.substring(0, 15) + '…' : val
       }
     }
   ],
@@ -771,7 +776,7 @@ const chartOption = ref({
     {
       name: 'Access Count',
       type: 'bar',
-      barWidth: '60%',
+      barWidth: '50%',
       data: []
     }
   ]

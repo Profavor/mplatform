@@ -278,12 +278,53 @@ pub fn create_router(state: AppState) -> Router {
             "/api/dq/violations/:record_id",
             get(dq::get_record_violations),
         )
+        // Domain DQ Dashboard
+        .route(
+            "/api/domains/:domain_id/dq-score",
+            get(dq::get_domain_dq_score),
+        )
+        .route(
+            "/api/domains/:domain_id/dq-rules-count",
+            get(dq::get_domain_dq_rules_count),
+        )
+        .route(
+            "/api/domains/:domain_id/dq-violations",
+            get(dq::get_domain_dq_violations),
+        )
+        .route(
+            "/api/domains/:domain_id/dq-score/recent",
+            get(dq::get_domain_dq_score_snapshots),
+        )
+        .route(
+            "/api/domains/:domain_id/dq-score/trend",
+            get(dq::get_domain_dq_score_snapshots),
+        )
+        .route(
+            "/api/domains/:domain_id/dq-scan",
+            post(dq::trigger_domain_dq_scan),
+        )
+        .route(
+            "/api/v1/dq/recommendations/:domain_id",
+            get(dq::get_dq_recommendations),
+        )
+        .route(
+            "/api/dq/recommendations/:domain_id",
+            get(dq::get_dq_recommendations),
+        )
+        .route(
+            "/api/domains/:domain_id/dq/recommendations",
+            get(dq::get_dq_recommendations),
+        )
         // 9. Matching & Golden Record
         .route("/api/matching-rules", get(matching::get_matching_rules))
         .route("/api/match-candidates", get(matching::get_candidates))
         .route(
             "/api/domains/:domain_id/matching-rules",
-            get(matching::get_matching_rules).post(matching::create_matching_rule),
+            get(matching::get_domain_matching_rules).post(matching::create_matching_rule),
+        )
+        .route(
+            "/api/domains/:domain_id/matching-rules/feedback-summary",
+            get(matching::get_feedback_summary),
         )
         .route(
             "/api/domains/:domain_id/matching-rules/:rule_id",
@@ -291,11 +332,11 @@ pub fn create_router(state: AppState) -> Router {
         )
         .route(
             "/api/domains/:domain_id/survivorship-rules",
-            get(matching::get_survivorship_rules),
+            get(matching::get_survivorship_rules).put(matching::update_survivorship_rules),
         )
         .route(
             "/api/records/domains/:domain_id/survivorship-rules",
-            get(matching::get_survivorship_rules),
+            get(matching::get_survivorship_rules).put(matching::update_survivorship_rules),
         )
         // 10. Multi-step Approval Workflow & Approval-Requests
         .route(
@@ -678,7 +719,15 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/admin/mail", get(enterprise::get_mail_accounts))
         .route(
             "/api/admin/mail/accounts",
-            get(enterprise::get_mail_accounts),
+            get(enterprise::get_mail_accounts).post(enterprise::create_mail_account),
+        )
+        .route(
+            "/api/admin/mail/accounts/:email/password",
+            put(enterprise::update_mail_password),
+        )
+        .route(
+            "/api/admin/mail/accounts/:email",
+            delete(enterprise::delete_mail_account),
         )
         .route(
             "/api/admin/mail/accounts/sync",
@@ -687,7 +736,13 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/admin/mail/status", get(enterprise::get_mail_status))
         .route(
             "/api/admin/mailing-lists",
-            get(enterprise::get_mailing_lists),
+            get(enterprise::get_mailing_lists).post(enterprise::create_mailing_list),
+        )
+        .route(
+            "/api/admin/mailing-lists/:id",
+            get(enterprise::get_mailing_list_by_id)
+                .put(enterprise::update_mailing_list)
+                .delete(enterprise::delete_mailing_list),
         )
         .route(
             "/api/admin/mailing-lists/sync-aliases",
