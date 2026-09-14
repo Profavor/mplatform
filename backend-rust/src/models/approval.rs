@@ -58,6 +58,8 @@ pub struct ApprovalStep {
     pub created_at: Option<NaiveDateTime>,
     #[sqlx(default)]
     pub updated_at: Option<NaiveDateTime>,
+    #[sqlx(skip)]
+    pub approval_request: Option<ApprovalRequest>,
 }
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]

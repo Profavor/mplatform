@@ -461,3 +461,127 @@ pub async fn trigger_domain_dq_scan(
         "violationsByField": violations_by_field
     })))
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiDqRecommendationItem {
+    pub id: String,
+    pub field_name: String,
+    pub recommended_rule_type: String,
+    pub confidence_score: i32,
+    pub reason: String,
+    pub suggested_parameter: Option<String>,
+}
+
+pub async fn get_dq_recommendations(
+    State(state): State<AppState>,
+    Path(domain_id): Path<Uuid>,
+    _auth: AuthUser,
+) -> Result<Json<Vec<AiDqRecommendationItem>>, AppError> {
+    // 1. Fetch existing active rules for this domain
+    let existing_rules: Vec<(Option<Uuid>, String)> = sqlx::query_as(
+        r#"
+        SELECT field_definition_id, rule_type
+        FROM dq_rule
+        WHERE domain_id = $1 AND is_active = true
+        "#,
+    )
+    .bind(domain_id)
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default();
+
+    // 2. Fetch field definitions for this domain
+    let fields: Vec<(Uuid, String, serde_json::Value, String, bool)> = sqlx::query_as(
+        r#"
+        SELECT id, field_key, name, type, required
+        FROM field_definition
+        WHERE domain_id = $1
+        ORDER BY field_order ASC, created_at ASC
+        LIMIT 20
+        "#,
+    )
+    .bind(domain_id)
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default();
+
+    let mut recommendations = Vec::new();
+
+    for (field_id, field_key, name_val, field_type, required) in fields {
+        let field_display = name_val
+            .get("ko")
+            .or_else(|| name_val.get("en"))
+            .and_then(|v| v.as_str())
+            .unwrap_or(&field_key)
+            .to_string();
+
+        let has_not_null = existing_rules
+            .iter()
+            .any(|(fid, rtype)| fid == &Some(field_id) && rtype == "NOT_NULL");
+        let has_rule = existing_rules.iter().any(|(fid, _)| fid == &Some(field_id));
+
+        let upper_key = field_key.to_uppercase();
+
+        if required && !has_not_null {
+            recommendations.push(AiDqRecommendationItem {
+                id: format!("rec-nn-{}", field_id),
+                field_name: field_display.clone(),
+                recommended_rule_type: "NOT_NULL".to_string(),
+                confidence_score: 95,
+                reason: format!("'{}' 필드는 필수 속성이나 현재 품질 검증 규칙이 설정되어 있지 않습니다. 데이터 누락 방지를 위해 NOT_NULL 검증 규칙을 권장합니다.", field_display),
+                suggested_parameter: None,
+            });
+        } else if !has_rule {
+            if upper_key.contains("EMAIL") {
+                recommendations.push(AiDqRecommendationItem {
+                    id: format!("rec-email-{}", field_id),
+                    field_name: field_display.clone(),
+                    recommended_rule_type: "REGEX".to_string(),
+                    confidence_score: 92,
+                    reason: format!("'{}' 필드는 이메일 형식 데이터를 담고 있습니다. 올바른 메일 주소 형식인지 확인하는 정규식 검증을 추천합니다.", field_display),
+                    suggested_parameter: Some(r#"^[^@\s]+@[^@\s]+\.[^@\s]+$"#.to_string()),
+                });
+            } else if upper_key.contains("PHONE") || upper_key.contains("TEL") {
+                recommendations.push(AiDqRecommendationItem {
+                    id: format!("rec-phone-{}", field_id),
+                    field_name: field_display.clone(),
+                    recommended_rule_type: "REGEX".to_string(),
+                    confidence_score: 90,
+                    reason: format!("'{}' 필드는 연락처 정보를 포함합니다. 전화번호 표준 규격(010-XXXX-XXXX 등) 검증을 추천합니다.", field_display),
+                    suggested_parameter: Some(r#"^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$"#.to_string()),
+                });
+            } else if upper_key.contains("BIZ") || upper_key.contains("BUSINESS") {
+                recommendations.push(AiDqRecommendationItem {
+                    id: format!("rec-biz-{}", field_id),
+                    field_name: field_display.clone(),
+                    recommended_rule_type: "BUSINESS_NO_CHECKSUM".to_string(),
+                    confidence_score: 96,
+                    reason: format!("'{}' 필드는 사업자등록번호 속성입니다. 국세청 체크섬 알고리즘 유효성 검증을 추천합니다.", field_display),
+                    suggested_parameter: None,
+                });
+            } else if field_type == "NUMBER" || field_type == "INTEGER" || field_type == "DECIMAL" {
+                recommendations.push(AiDqRecommendationItem {
+                    id: format!("rec-range-{}", field_id),
+                    field_name: field_display.clone(),
+                    recommended_rule_type: "VALUE_RANGE".to_string(),
+                    confidence_score: 85,
+                    reason: format!("'{}' 필드는 수치형 데이터입니다. 음수 방지 및 허용 범위(최솟값 0 이상) 검증 설정을 추천합니다.", field_display),
+                    suggested_parameter: Some("min: 0".to_string()),
+                });
+            } else if field_type == "DATE" {
+                recommendations.push(AiDqRecommendationItem {
+                    id: format!("rec-date-{}", field_id),
+                    field_name: field_display.clone(),
+                    recommended_rule_type: "DATE_FORMAT".to_string(),
+                    confidence_score: 88,
+                    reason: format!("'{}' 필드는 일자 데이터입니다. 표준 YYYY-MM-DD 규격 형식 검증을 추천합니다.", field_display),
+                    suggested_parameter: Some("YYYY-MM-DD".to_string()),
+                });
+            }
+        }
+    }
+
+    Ok(Json(recommendations))
+}
+

@@ -1,5 +1,7 @@
 use crate::error::AppError;
-use crate::models::approval::{ApprovalDetailResponse, ApprovalRequest, CreateApprovalRequest};
+use crate::models::approval::{
+    ApprovalDetailResponse, ApprovalRequest, ApprovalStep, CreateApprovalRequest,
+};
 use crate::repositories::approval_repo::ApprovalRepository;
 use crate::repositories::record_repo::RecordRepository;
 use sqlx::PgPool;
@@ -43,15 +45,37 @@ impl ApprovalService {
         comment: Option<&str>,
         actor: &str,
     ) -> Result<ApprovalDetailResponse, AppError> {
-        let req = ApprovalRepository::find_by_id(pool, id)
-            .await?
-            .ok_or_else(|| AppError::NotFound(format!("Approval request not found: {id}")))?;
+        let (request_id, req) = match ApprovalRepository::find_by_id(pool, id).await? {
+            Some(req) => (id, req),
+            None => {
+                let step: Option<ApprovalStep> =
+                    sqlx::query_as("SELECT * FROM approval_step WHERE id = $1")
+                        .bind(id)
+                        .fetch_optional(pool)
+                        .await?;
+                if let Some(step) = step {
+                    let req = ApprovalRepository::find_by_id(pool, step.request_id)
+                        .await?
+                        .ok_or_else(|| {
+                            AppError::NotFound(format!(
+                                "Approval request not found: {}",
+                                step.request_id
+                            ))
+                        })?;
+                    (step.request_id, req)
+                } else {
+                    return Err(AppError::NotFound(format!(
+                        "Approval request or step not found: {id}"
+                    )));
+                }
+            }
+        };
 
         // Check if actor is an active delegated approver during valid delegation period
         let step_assignee: Option<(Option<String>,)> = sqlx::query_as(
             "SELECT assignee_id FROM approval_step WHERE request_id = $1 AND status = 'PENDING' LIMIT 1"
         )
-        .bind(id)
+        .bind(request_id)
         .fetch_optional(pool)
         .await
         .unwrap_or(None);
@@ -93,7 +117,7 @@ impl ApprovalService {
         } else {
             Some(final_comment.as_str())
         };
-        ApprovalRepository::approve_current_step(pool, id, comment_param).await?;
+        ApprovalRepository::approve_current_step(pool, request_id, comment_param).await?;
 
         // If target is RECORD, apply changes to record
         if req.target_type == "RECORD" || req.target_type == "RECORD_UPDATE" {
@@ -199,7 +223,7 @@ impl ApprovalService {
             });
         }
 
-        Self::get_request_detail(pool, id).await
+        Self::get_request_detail(pool, request_id).await
     }
 
     pub async fn reject(
@@ -208,11 +232,37 @@ impl ApprovalService {
         reason: Option<&str>,
         actor: &str,
     ) -> Result<ApprovalDetailResponse, AppError> {
+        let (request_id, _req) = match ApprovalRepository::find_by_id(pool, id).await? {
+            Some(req) => (id, req),
+            None => {
+                let step: Option<ApprovalStep> =
+                    sqlx::query_as("SELECT * FROM approval_step WHERE id = $1")
+                        .bind(id)
+                        .fetch_optional(pool)
+                        .await?;
+                if let Some(step) = step {
+                    let req = ApprovalRepository::find_by_id(pool, step.request_id)
+                        .await?
+                        .ok_or_else(|| {
+                            AppError::NotFound(format!(
+                                "Approval request not found: {}",
+                                step.request_id
+                            ))
+                        })?;
+                    (step.request_id, req)
+                } else {
+                    return Err(AppError::NotFound(format!(
+                        "Approval request or step not found: {id}"
+                    )));
+                }
+            }
+        };
+
         // Check if actor is an active delegated approver during valid delegation period
         let step_assignee: Option<(Option<String>,)> = sqlx::query_as(
             "SELECT assignee_id FROM approval_step WHERE request_id = $1 AND status = 'PENDING' LIMIT 1"
         )
-        .bind(id)
+        .bind(request_id)
         .fetch_optional(pool)
         .await
         .unwrap_or(None);
@@ -254,7 +304,7 @@ impl ApprovalService {
         } else {
             Some(final_reason.as_str())
         };
-        ApprovalRepository::reject_current_step(pool, id, reason_param).await?;
-        Self::get_request_detail(pool, id).await
+        ApprovalRepository::reject_current_step(pool, request_id, reason_param).await?;
+        Self::get_request_detail(pool, request_id).await
     }
 }

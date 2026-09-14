@@ -77,10 +77,10 @@ const fetchRecommendations = async () => {
   
   loading.value = true
   try {
-    const res = await customFetch(`/api/v1/dq/recommendations/${props.domainId}`)
-    recommendations.value = res || []
+    const res = await customFetch(`/api/v1/dq/recommendations/${props.domainId}`, { silent: true })
+    recommendations.value = Array.isArray(res) ? res : []
   } catch (e) {
-    console.error('Failed to fetch AI recommendations', e)
+    console.warn('Failed to fetch AI recommendations, falling back to empty state:', e)
     recommendations.value = []
   } finally {
     loading.value = false

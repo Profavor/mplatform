@@ -303,6 +303,18 @@ pub fn create_router(state: AppState) -> Router {
             "/api/domains/:domain_id/dq-scan",
             post(dq::trigger_domain_dq_scan),
         )
+        .route(
+            "/api/v1/dq/recommendations/:domain_id",
+            get(dq::get_dq_recommendations),
+        )
+        .route(
+            "/api/dq/recommendations/:domain_id",
+            get(dq::get_dq_recommendations),
+        )
+        .route(
+            "/api/domains/:domain_id/dq/recommendations",
+            get(dq::get_dq_recommendations),
+        )
         // 9. Matching & Golden Record
         .route("/api/matching-rules", get(matching::get_matching_rules))
         .route("/api/match-candidates", get(matching::get_candidates))

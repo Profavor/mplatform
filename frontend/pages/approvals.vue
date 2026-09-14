@@ -30,6 +30,42 @@
           <span style="font-size: 1.05rem; font-weight: 700; color: var(--va-text-primary); font-family: 'Pretendard', 'Inter', sans-serif;">
             {{ t('pending_approvals') }}
           </span>
+          <div style="display: inline-flex; border-radius: 6px; background: var(--va-background-primary); padding: 2px; border: 1px solid var(--va-background-border); margin-left: 0.25rem;">
+            <button
+              type="button"
+              :style="{
+                padding: '3px 10px',
+                borderRadius: '4px',
+                fontSize: '0.78rem',
+                fontWeight: pendingScope === 'my' ? '700' : '500',
+                border: 'none',
+                cursor: 'pointer',
+                background: pendingScope === 'my' ? 'var(--va-primary)' : 'transparent',
+                color: pendingScope === 'my' ? '#fff' : 'var(--va-text-secondary)',
+                transition: 'all 0.15s ease'
+              }"
+              @click="changePendingScope('my')"
+            >
+              {{ t('pending_scope_my', '내 할당 건') }}
+            </button>
+            <button
+              type="button"
+              :style="{
+                padding: '3px 10px',
+                borderRadius: '4px',
+                fontSize: '0.78rem',
+                fontWeight: pendingScope === 'all' ? '700' : '500',
+                border: 'none',
+                cursor: 'pointer',
+                background: pendingScope === 'all' ? 'var(--va-primary)' : 'transparent',
+                color: pendingScope === 'all' ? '#fff' : 'var(--va-text-secondary)',
+                transition: 'all 0.15s ease'
+              }"
+              @click="changePendingScope('all')"
+            >
+              {{ t('pending_scope_all', '전체 대기열') }}
+            </button>
+          </div>
           <va-chip v-if="isLoadingPendingRequests" size="small" color="secondary" style="font-weight: 600;">
             <va-icon name="loop" spin size="small" class="mr-1" />{{ t('loading', '불러오는 중...') }}
           </va-chip>
@@ -154,6 +190,12 @@ const { gridTheme, autoSizeStrategy } = useAgGridTheme()
 const { customFetch } = useCustomFetch()
 
 const { init } = useToast()
+const pendingScope = ref((route.query.scope as string) || 'all')
+const changePendingScope = (scope: 'my' | 'all') => {
+  if (pendingScope.value === scope) return
+  pendingScope.value = scope
+  refreshPendingRequests()
+}
 const pendingSteps = ref([])
 const showActionModal = ref(false)
 const selectedPendingStep = ref(null)
@@ -337,7 +379,7 @@ const onMyRequestsGridReady = (params) => {
 
 const pendingGridOptions = ref({
   rowModelType: 'infinite',
-  cacheBlockSize: 100,
+  cacheBlockSize: 20,
   columnDefs: getPendingColumnDefs(),
   defaultColDef: {
     resizable: true,
@@ -534,7 +576,7 @@ watch(locale, () => {
 
 const myRequestsGridOptions = ref({
   rowModelType: 'infinite',
-  cacheBlockSize: 100,
+  cacheBlockSize: 20,
   columnDefs: getMyRequestsColumnDefs(),
   defaultColDef: {
     resizable: true,
@@ -1143,36 +1185,26 @@ const createPendingDatasource = () => {
       const page = Math.floor(params.startRow / size);
       
       try {
-        const assigneeParam = myUuid.value ? `&assigneeId=${encodeURIComponent(myUuid.value)}` : '';
-        const pageData = await $fetch(`/api/approval-requests/todos?page=${page}&size=${size}${assigneeParam}`, {
-          headers: { Authorization: `Bearer ${token.value}` }
+        const scopeParam = `&scope=${pendingScope.value}`;
+        const assigneeParam = (pendingScope.value === 'my' && myUuid.value) ? `&assigneeId=${encodeURIComponent(myUuid.value)}` : '';
+        const pageData = await $fetch(`/api/approval-requests/todos?page=${page}&size=${size}${scopeParam}${assigneeParam}`, {
+          headers: { 
+            Authorization: `Bearer ${token.value}`,
+            'x-skip-loading': 'true'
+          }
         });
         
         let validContent = [];
         if (pageData && pageData.content) {
           validContent = pageData.content.filter(step => step && step.id);
-          for (const step of validContent) {
-            if (step.approvalRequest && !step.approvalRequest.steps) {
-              try {
-                const fullReq = await $fetch(`/api/approval-requests/${step.approvalRequest.id}`, { headers: { Authorization: `Bearer ${token.value}` } });
-                step.approvalRequest.steps = fullReq.steps;
-                step.approvalRequest.observerIds = fullReq.observerIds;
-              } catch (e) {}
+          await Promise.all(validContent.map(async (step) => {
+            if (step.approvalRequest) {
+              step.approvalRequest = await enrichRequest(step.approvalRequest);
             }
-          }
+          }));
           
           pendingSteps.value = validContent;
           pendingTotalCount.value = pageData.totalElements || 0;
-          for (const step of validContent) {
-             if (step.approvalRequest) {
-               step.approvalRequest = await enrichRequest(step.approvalRequest)
-             }
-             if (['RECORD', 'RECORD_UPDATE', 'RECORD_DELETE'].includes(step.approvalRequest?.targetType) && step.approvalRequest.targetId) {
-                 const tId = step.approvalRequest.targetId;
-                 const nId = step.approvalRequest.classificationNode?.id || step.approvalRequest.classificationNodeId;
-                 await loadFieldNamesForRecord(tId, nId);
-             }
-          }
         }
         
         params.successCallback(validContent, pageData?.totalElements || 0);
@@ -1196,7 +1228,10 @@ const createMyRequestsDatasource = () => {
       try {
         const requesterParam = myUuid.value ? `&requesterId=${encodeURIComponent(myUuid.value)}` : '';
         const pageData = await $fetch(`/api/approval-requests/my-requests?page=${page}&size=${size}${requesterParam}`, {
-          headers: { Authorization: `Bearer ${token.value}` }
+          headers: { 
+            Authorization: `Bearer ${token.value}`,
+            'x-skip-loading': 'true'
+          }
         });
         
         let validContent = [];
@@ -1205,12 +1240,6 @@ const createMyRequestsDatasource = () => {
           myRequests.value = validContent;
           myRequestsTotalCount.value = pageData.totalElements || 0;
           validContent = await Promise.all(validContent.map(req => enrichRequest(req)));
-          for (const req of validContent) {
-            if (['RECORD', 'RECORD_UPDATE', 'RECORD_DELETE'].includes(req.targetType) && req.targetId) {
-              const nId = req.classificationNode?.id || req.classificationNodeId;
-              await loadFieldNamesForRecord(req.targetId, nId);
-            }
-          }
         }
         
         params.successCallback(validContent, pageData?.totalElements || 0);
@@ -1294,12 +1323,16 @@ const loadFieldNamesForRecord = async (targetId, nodeId = null) => {
   try {
     let effectiveNodeId = nodeId;
     if (!effectiveNodeId && targetId) {
-      const record = await $fetch(`/api/records/${targetId}`, { headers: { Authorization: `Bearer ${token.value}` } }).catch(() => null);
+      const record = await $fetch(`/api/records/${targetId}`, {
+        headers: { Authorization: `Bearer ${token.value}`, 'x-skip-loading': 'true' }
+      }).catch(() => null);
       effectiveNodeId = record?.node?.id || record?.nodeId;
     }
     if (effectiveNodeId && !loadedEffectiveNodes.has(effectiveNodeId)) {
       loadedEffectiveNodes.add(effectiveNodeId);
-      const fields = await $fetch(`/api/nodes/${effectiveNodeId}/fields/effective`, { headers: { Authorization: `Bearer ${token.value}` } }).catch(() => []);
+      const fields = await $fetch(`/api/nodes/${effectiveNodeId}/fields/effective`, {
+        headers: { Authorization: `Bearer ${token.value}`, 'x-skip-loading': 'true' }
+      }).catch(() => []);
       if (fields && fields.length > 0) {
         fields.forEach(f => {
           fieldNameMap.value[f.key] = f

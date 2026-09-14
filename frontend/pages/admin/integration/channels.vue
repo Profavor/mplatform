@@ -107,7 +107,7 @@
             :pagination="true"
             :pagination-page-size="10"
             :pagination-page-size-selector="[5, 10, 20, 50]"
-            :row-height="54"
+            :row-height="58"
             :header-height="46"
             :suppress-cell-focus="true"
           />
@@ -1014,7 +1014,8 @@ const channelColumnDefs = computed(() => [
   {
     field: 'channelCode',
     headerName: t('integration.channels.channel_code'),
-    width: 140,
+    width: 190,
+    minWidth: 180,
     cellRenderer: (params) => {
       const div = document.createElement('div')
       div.style.cssText = 'display: flex; align-items: center; height: 100%;'
@@ -1028,7 +1029,8 @@ const channelColumnDefs = computed(() => [
   {
     field: 'type',
     headerName: t('integration.channels.type', '연동 방식'),
-    width: 170,
+    width: 200,
+    minWidth: 190,
     cellRenderer: (params) => {
       const div = document.createElement('div')
       div.style.cssText = 'display: flex; flex-direction: column; justify-content: center; height: 100%; gap: 2px;'
@@ -1055,7 +1057,7 @@ const channelColumnDefs = computed(() => [
           const cfg = JSON.parse(params.data.configJson)
           if (cfg.cron) {
             const cronSpan = document.createElement('span')
-            cronSpan.style.cssText = 'font-size: 0.7rem; color: var(--va-text-secondary); font-family: monospace; padding-left: 2px;'
+            cronSpan.style.cssText = 'font-size: 0.7rem; color: var(--va-text-secondary); font-family: monospace; padding-left: 2px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block;'
             cronSpan.textContent = `⏱️ ${cfg.cron}`
             div.appendChild(cronSpan)
           }

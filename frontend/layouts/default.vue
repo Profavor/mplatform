@@ -772,8 +772,9 @@ body {
 }
 .main-content-body {
   padding: 1rem;
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 1 0 auto;
+  flex-shrink: 0;
+  min-height: fit-content;
   width: 100%;
   box-sizing: border-box;
   display: flex;

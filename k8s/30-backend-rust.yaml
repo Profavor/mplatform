@@ -24,7 +24,7 @@ spec:
       terminationGracePeriodSeconds: 15
       containers:
       - name: backend-rust
-        image: mplatform-backend-rust:v42
+        image: mplatform-backend-rust:v43
         imagePullPolicy: IfNotPresent
         resources:
           requests:

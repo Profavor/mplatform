@@ -27,6 +27,7 @@ pub struct ApprovalQuery {
     pub requester_id: Option<String>,
     pub search: Option<String>,
     pub assignee_id: Option<String>,
+    pub scope: Option<String>,
     pub page: Option<i64>,
     pub size: Option<i64>,
     pub sort: Option<String>,
@@ -173,8 +174,79 @@ pub async fn get_my_todos(
     auth: AuthUser,
 ) -> Result<Json<PageResponse<ApprovalStep>>, AppError> {
     let page = query.page.unwrap_or(0);
-    let size = query.size.unwrap_or(100);
+    let size = query.size.unwrap_or(20);
     let offset = page * size;
+
+    if query.scope.as_deref() == Some("all") || query.assignee_id.as_deref() == Some("ALL") {
+        let total: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM approval_request WHERE status = 'PENDING'",
+        )
+        .fetch_one(&state.db)
+        .await?;
+
+        let requests = sqlx::query_as::<_, ApprovalRequest>(
+            r#"
+            SELECT * FROM approval_request 
+            WHERE status = 'PENDING'
+            ORDER BY created_at DESC
+            LIMIT $1 OFFSET $2
+            "#,
+        )
+        .bind(size)
+        .bind(offset)
+        .fetch_all(&state.db)
+        .await?;
+
+        let mut steps = Vec::new();
+        if !requests.is_empty() {
+            let req_ids: Vec<Uuid> = requests.iter().map(|r| r.id).collect();
+            let existing_steps = sqlx::query_as::<_, ApprovalStep>(
+                r#"
+                SELECT * FROM approval_step
+                WHERE request_id = ANY($1) AND status = 'PENDING'
+                "#,
+            )
+            .bind(&req_ids)
+            .fetch_all(&state.db)
+            .await?;
+
+            let mut step_map: std::collections::HashMap<Uuid, ApprovalStep> = existing_steps
+                .into_iter()
+                .map(|s| (s.request_id, s))
+                .collect();
+
+            for req in requests {
+                let mut step = if let Some(existing) = step_map.remove(&req.id) {
+                    existing
+                } else {
+                    ApprovalStep {
+                        id: req.id,
+                        request_id: req.id,
+                        step_order: req.current_step_order.unwrap_or(1),
+                        step_type: "APPROVE".to_string(),
+                        status: req.status.clone(),
+                        assignee_id: None,
+                        assignee_role: None,
+                        comment: None,
+                        sla_hours: None,
+                        sla_due_at: None,
+                        is_escalated: false,
+                        escalated_from_user_id: None,
+                        escalated_at: None,
+                        version: req.version,
+                        created_at: req.created_at,
+                        updated_at: req.updated_at,
+                        approval_request: None,
+                    }
+                };
+                step.approval_request = Some(req);
+                steps.push(step);
+            }
+        }
+
+        return Ok(Json(PageResponse::new(steps, total.0, page, size)));
+    }
+
     let user_id = query.assignee_id.unwrap_or_else(|| auth.claims.sub.clone());
     let auth_uid = auth
         .claims
@@ -214,7 +286,7 @@ pub async fn get_my_todos(
     .fetch_one(&state.db)
     .await?;
 
-    let content = sqlx::query_as::<_, ApprovalStep>(
+    let mut content = sqlx::query_as::<_, ApprovalStep>(
         r#"
         SELECT * FROM approval_step 
         WHERE status = 'PENDING' 
@@ -250,6 +322,28 @@ pub async fn get_my_todos(
     .fetch_all(&state.db)
     .await?;
 
+    if !content.is_empty() {
+        let req_ids: Vec<Uuid> = content.iter().map(|s| s.request_id).collect();
+        let requests = sqlx::query_as::<_, ApprovalRequest>(
+            r#"
+            SELECT * FROM approval_request
+            WHERE id = ANY($1)
+            "#,
+        )
+        .bind(&req_ids)
+        .fetch_all(&state.db)
+        .await?;
+
+        let mut req_map: std::collections::HashMap<Uuid, ApprovalRequest> = requests
+            .into_iter()
+            .map(|r| (r.id, r))
+            .collect();
+
+        for step in content.iter_mut() {
+            step.approval_request = req_map.remove(&step.request_id);
+        }
+    }
+
     Ok(Json(PageResponse::new(content, total.0, page, size)))
 }
 
@@ -259,7 +353,7 @@ pub async fn get_my_requests(
     auth: AuthUser,
 ) -> Result<Json<PageResponse<ApprovalRequest>>, AppError> {
     let page = query.page.unwrap_or(0);
-    let size = query.size.unwrap_or(100);
+    let size = query.size.unwrap_or(20);
     let offset = page * size;
     let user_id = query.requester_id.unwrap_or(auth.claims.sub);
 

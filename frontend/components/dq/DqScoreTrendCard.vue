@@ -150,7 +150,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { formatWithTimezone } from '~/composables/useTimezoneDate'
+import { formatWithTimezone, parseDate } from '~/composables/useTimezoneDate'
 
 const { t } = useI18n()
 
@@ -194,7 +194,11 @@ const formatDateTime = (dateStr?: string) => {
 const formatDateShort = (dateStr?: string) => {
   if (!dateStr) return ''
   try {
-    return formatWithTimezone(dateStr, 'MM/DD')
+    const d = parseDate(dateStr)
+    if (!d) return ''
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${m}-${day}`
   } catch (e) {
     return ''
   }
