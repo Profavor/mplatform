@@ -68,10 +68,7 @@ impl SearchService {
         let alt_pattern = format!("%{alt_query}%");
 
         // Sub-tokenization (by whitespace or ASCII/Hangul script boundary)
-        let mut tokens: Vec<String> = clean
-            .split_whitespace()
-            .map(|s| s.to_string())
-            .collect();
+        let mut tokens: Vec<String> = clean.split_whitespace().map(|s| s.to_string()).collect();
 
         if tokens.len() == 1 {
             let s = &tokens[0];
@@ -93,8 +90,14 @@ impl SearchService {
             }
         }
 
-        let token1_pattern = tokens.get(0).map(|t| format!("%{t}%")).unwrap_or_else(|| exact_pattern.clone());
-        let token2_pattern = tokens.get(1).map(|t| format!("%{t}%")).unwrap_or_else(|| exact_pattern.clone());
+        let token1_pattern = tokens
+            .get(0)
+            .map(|t| format!("%{t}%"))
+            .unwrap_or_else(|| exact_pattern.clone());
+        let token2_pattern = tokens
+            .get(1)
+            .map(|t| format!("%{t}%"))
+            .unwrap_or_else(|| exact_pattern.clone());
 
         // 3. Search records across JSONB data + JOIN classification_node & domain
         let records = sqlx::query_as::<_, Record>(

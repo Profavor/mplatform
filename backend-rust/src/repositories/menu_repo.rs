@@ -27,12 +27,10 @@ impl MenuRepository {
     }
 
     pub async fn get_menu_roles(pool: &PgPool) -> Result<HashMap<i64, Vec<String>>, AppError> {
-        let rows: Vec<(i64, String)> = sqlx::query_as(
-            "SELECT menu_id, role_name FROM menu_roles"
-        )
-        .fetch_all(pool)
-        .await
-        .unwrap_or_default();
+        let rows: Vec<(i64, String)> = sqlx::query_as("SELECT menu_id, role_name FROM menu_roles")
+            .fetch_all(pool)
+            .await
+            .unwrap_or_default();
 
         let mut map: HashMap<i64, Vec<String>> = HashMap::new();
         for (menu_id, role) in rows {
@@ -70,7 +68,15 @@ impl MenuRepository {
         pool: &PgPool,
         user_id: &str,
     ) -> Result<Vec<serde_json::Value>, AppError> {
-        let rows: Vec<(i64, Option<i64>, Option<String>, String, Option<String>, Option<String>, chrono::NaiveDateTime)> = sqlx::query_as(
+        let rows: Vec<(
+            i64,
+            Option<i64>,
+            Option<String>,
+            String,
+            Option<String>,
+            Option<String>,
+            chrono::NaiveDateTime,
+        )> = sqlx::query_as(
             r#"
             SELECT id, menu_id, menu_path, user_id, user_agent, client_ip, accessed_at
             FROM menu_access_log
@@ -106,7 +112,15 @@ impl MenuRepository {
         size: i64,
     ) -> Result<serde_json::Value, AppError> {
         let offset = page * size;
-        let rows: Vec<(i64, Option<i64>, Option<String>, String, Option<String>, Option<String>, chrono::NaiveDateTime)> = sqlx::query_as(
+        let rows: Vec<(
+            i64,
+            Option<i64>,
+            Option<String>,
+            String,
+            Option<String>,
+            Option<String>,
+            chrono::NaiveDateTime,
+        )> = sqlx::query_as(
             r#"
             SELECT id, menu_id, menu_path, user_id, user_agent, client_ip, accessed_at
             FROM menu_access_log

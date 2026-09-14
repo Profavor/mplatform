@@ -70,41 +70,58 @@ pub async fn verify(
         .validate_and_consume_temp_token(&req.temp_token, &req.username)
         .await
     {
-        return Err(AppError::Unauthorized("Invalid or expired temporary 2FA token".to_string()));
+        return Err(AppError::Unauthorized(
+            "Invalid or expired temporary 2FA token".to_string(),
+        ));
     }
 
     let user = UserRepository::find_by_username(&state.pool, &req.username)
         .await?
         .ok_or_else(|| AppError::Unauthorized("User not found".to_string()))?;
 
-    let auth_type = req.auth_type.unwrap_or_else(|| "TOTP".to_string()).to_uppercase();
+    let auth_type = req
+        .auth_type
+        .unwrap_or_else(|| "TOTP".to_string())
+        .to_uppercase();
     let is_valid = match auth_type.as_str() {
         "TOTP" => {
             let secret = user.two_factor_secret.as_deref().unwrap_or("");
             state.two_factor_service.verify_totp(secret, &req.code)
         }
         "EMAIL" => {
-            state.two_factor_service.verify_email_otp(&user.username.clone().unwrap_or_default(), &req.code).await
+            state
+                .two_factor_service
+                .verify_email_otp(&user.username.clone().unwrap_or_default(), &req.code)
+                .await
         }
         "BACKUP_CODE" => {
-            state.two_factor_service.verify_backup_code(&user, &req.code).await?
+            state
+                .two_factor_service
+                .verify_backup_code(&user, &req.code)
+                .await?
         }
         _ => false,
     };
 
     if !is_valid {
-        return Err(AppError::Unauthorized("Invalid 2FA verification code".to_string()));
+        return Err(AppError::Unauthorized(
+            "Invalid 2FA verification code".to_string(),
+        ));
     }
 
     let permissions = AuthService::get_user_permissions(&state.pool, &user).await;
-    let (access_token, refresh_token) = AuthService::generate_tokens_with_permissions(&user, Some(permissions.clone()), &state.config)?;
+    let (access_token, refresh_token) = AuthService::generate_tokens_with_permissions(
+        &user,
+        Some(permissions.clone()),
+        &state.config,
+    )?;
 
     // Record login log
     let _ = sqlx::query(
         r#"
         INSERT INTO login_log (username, user_id, login_at, two_factor_status, two_factor_type)
         VALUES ($1, $2, NOW(), 'SUCCESS', $3)
-        "#
+        "#,
     )
     .bind(&user.username)
     .bind(&user.id)
@@ -134,7 +151,9 @@ pub async fn send_email_otp(
     State(state): State<AppState>,
     Json(req): Json<TwoFactorSendEmailRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let username = req.username.ok_or_else(|| AppError::BadRequest("Username is required".to_string()))?;
+    let username = req
+        .username
+        .ok_or_else(|| AppError::BadRequest("Username is required".to_string()))?;
     state.two_factor_service.send_email_otp(&username).await?;
 
     Ok(Json(serde_json::json!({

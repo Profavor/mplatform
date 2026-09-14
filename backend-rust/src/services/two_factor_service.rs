@@ -41,8 +41,14 @@ impl TwoFactorService {
 
     pub fn is_mandatory_role(role: Option<&str>) -> bool {
         match role {
-            Some("ROLE_ADMIN") | Some("ADMIN") | Some("ROLE_SYSTEM_ADMIN") | Some("SYSTEM_ADMIN")
-            | Some("ROLE_ORG_ADMIN") | Some("ORG_ADMIN") | Some("DATA_STEWARD") | Some("ROLE_DATA_STEWARD") => true,
+            Some("ROLE_ADMIN")
+            | Some("ADMIN")
+            | Some("ROLE_SYSTEM_ADMIN")
+            | Some("SYSTEM_ADMIN")
+            | Some("ROLE_ORG_ADMIN")
+            | Some("ORG_ADMIN")
+            | Some("DATA_STEWARD")
+            | Some("ROLE_DATA_STEWARD") => true,
             _ => false,
         }
     }
@@ -66,20 +72,29 @@ impl TwoFactorService {
 
     pub async fn create_temp_token(&self, username: &str) -> String {
         let token = uuid::Uuid::new_v4().to_string();
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
         let mut map = self.temp_tokens.write().await;
         // Purge expired tokens > 300s
         map.retain(|_, v| now - v.created_at < 300);
-        map.insert(token.clone(), TempTokenInfo {
-            username: username.to_string(),
-            created_at: now,
-        });
+        map.insert(
+            token.clone(),
+            TempTokenInfo {
+                username: username.to_string(),
+                created_at: now,
+            },
+        );
         token
     }
 
     pub async fn validate_and_consume_temp_token(&self, token: &str, username: &str) -> bool {
         let mut map = self.temp_tokens.write().await;
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
         if let Some(info) = map.get(token) {
             if info.username == username && now - info.created_at < 300 {
                 map.remove(token);
@@ -118,7 +133,10 @@ impl TwoFactorService {
             Err(_) => return false,
         };
 
-        let now_sec = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+        let now_sec = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
         let current_step = (now_sec / 30) as i64;
 
         for step_offset in [-1, 0, 1] {
@@ -207,7 +225,11 @@ impl TwoFactorService {
         let grace_days = user.two_factor_grace_until.map(|g| (g - now).num_days());
         let masked_email = user.email.as_ref().map(|e| {
             if let Some((local, domain)) = e.split_once('@') {
-                let mask_prefix = if local.len() <= 2 { local.to_string() } else { format!("{}***", &local[..2]) };
+                let mask_prefix = if local.len() <= 2 {
+                    local.to_string()
+                } else {
+                    format!("{}***", &local[..2])
+                };
                 format!("{mask_prefix}@{domain}")
             } else {
                 e.clone()
@@ -231,7 +253,10 @@ impl TwoFactorService {
 
     pub async fn setup(&self, username: &str) -> AppResult<TwoFactorSetupResponse> {
         let secret = Self::generate_base32_secret();
-        let qr_code_url = format!("otpauth://totp/MDM%20Platform:{}?secret={}&issuer=MDM%20Platform", username, secret);
+        let qr_code_url = format!(
+            "otpauth://totp/MDM%20Platform:{}?secret={}&issuer=MDM%20Platform",
+            username, secret
+        );
         let backup_codes = Self::generate_backup_codes(10);
 
         Ok(TwoFactorSetupResponse {
@@ -241,13 +266,19 @@ impl TwoFactorService {
         })
     }
 
-    pub async fn enable(&self, username: &str, req: TwoFactorEnableRequest) -> AppResult<TwoFactorEnableResponse> {
+    pub async fn enable(
+        &self,
+        username: &str,
+        req: TwoFactorEnableRequest,
+    ) -> AppResult<TwoFactorEnableResponse> {
         let user = UserRepository::find_by_username(&self.pool, username)
             .await?
             .ok_or_else(|| AppError::NotFound(format!("User {username} not found")))?;
 
         if !self.verify_totp(&req.secret, &req.code) {
-            return Err(AppError::BadRequest("Invalid 2FA verification code".to_string()));
+            return Err(AppError::BadRequest(
+                "Invalid 2FA verification code".to_string(),
+            ));
         }
 
         let backup_codes = Self::generate_backup_codes(10);
@@ -269,7 +300,7 @@ impl TwoFactorService {
                 backup_codes = $3,
                 two_factor_grace_until = NULL
             WHERE id = $4
-            "#
+            "#,
         )
         .bind(&req.secret)
         .bind(&auth_type)
@@ -298,7 +329,7 @@ impl TwoFactorService {
                 two_factor_type = NULL,
                 backup_codes = NULL
             WHERE id = $1
-            "#
+            "#,
         )
         .bind(&user.id)
         .execute(&self.pool)
@@ -321,7 +352,11 @@ impl TwoFactorService {
                 list.remove(i);
                 let remaining = list.join(",");
                 let _ = sqlx::query("UPDATE users SET backup_codes = $1 WHERE id = $2")
-                    .bind(if remaining.is_empty() { None } else { Some(remaining) })
+                    .bind(if remaining.is_empty() {
+                        None
+                    } else {
+                        Some(remaining)
+                    })
                     .bind(&user.id)
                     .execute(&self.pool)
                     .await;
@@ -338,7 +373,10 @@ impl TwoFactorService {
             let num: u32 = rng.gen_range(100_000..=999_999);
             num.to_string()
         };
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
 
         let mut map = self.email_otps.write().await;
         map.insert(username.to_string(), (code.clone(), now));
@@ -348,7 +386,10 @@ impl TwoFactorService {
 
     pub async fn verify_email_otp(&self, username: &str, code: &str) -> bool {
         let mut map = self.email_otps.write().await;
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
         if let Some((stored_code, created_at)) = map.get(username) {
             if stored_code == code.trim() && now - created_at < 300 {
                 map.remove(username);

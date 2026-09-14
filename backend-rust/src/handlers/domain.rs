@@ -1,15 +1,15 @@
-use axum::extract::Path;
-use axum::extract::State;
-use serde::Deserialize;
 use crate::error::AppError;
 use crate::middleware::auth::AuthUser;
-use crate::models::domain::{DomainRequest, DomainResponse, FieldGroupRequest, FieldGroupResponse, Sector, SectorRequest};
+use crate::models::domain::{
+    DomainRequest, DomainResponse, FieldGroupRequest, FieldGroupResponse, Sector, SectorRequest,
+};
 use crate::services::domain_service::DomainService;
 use crate::state::AppState;
+use axum::extract::Path;
+use axum::extract::State;
 use axum::http::StatusCode;
-use axum::{
-    Json,
-};
+use axum::Json;
+use serde::Deserialize;
 use uuid::Uuid;
 
 pub async fn get_domains(
@@ -251,15 +251,19 @@ pub async fn get_groups(
 
     let res = rows
         .into_iter()
-        .map(|(id, domain_id, sector_id, name, sort_order, is_default_open, sector)| FieldGroupResponse {
-            id,
-            domain_id,
-            sector_id,
-            name,
-            sort_order,
-            is_default_open,
-            sector,
-        })
+        .map(
+            |(id, domain_id, sector_id, name, sort_order, is_default_open, sector)| {
+                FieldGroupResponse {
+                    id,
+                    domain_id,
+                    sector_id,
+                    name,
+                    sort_order,
+                    is_default_open,
+                    sector,
+                }
+            },
+        )
         .collect();
 
     Ok(Json(res))
@@ -272,7 +276,9 @@ pub async fn create_group(
     Json(req): Json<FieldGroupRequest>,
 ) -> Result<Json<FieldGroupResponse>, AppError> {
     let new_id = Uuid::new_v4();
-    let sector_id = req.sector_id.ok_or_else(|| AppError::BadRequest("sectorId is required".to_string()))?;
+    let sector_id = req
+        .sector_id
+        .ok_or_else(|| AppError::BadRequest("sectorId is required".to_string()))?;
     let sort_order = req.sort_order.unwrap_or(0);
     let is_default_open = req.is_default_open.unwrap_or(true);
 
@@ -374,10 +380,19 @@ fn wrap_layout_config(mut config: serde_json::Value) -> serde_json::Value {
         return serde_json::json!({});
     }
     if config.get("layouts").is_none() && config.get("widgets").is_some() {
-        let widgets = config.get("widgets").cloned().unwrap_or(serde_json::json!([]));
+        let widgets = config
+            .get("widgets")
+            .cloned()
+            .unwrap_or(serde_json::json!([]));
         let cols = config.get("cols").cloned().unwrap_or(serde_json::json!(12));
-        let row_height = config.get("rowHeight").cloned().unwrap_or(serde_json::json!(42));
-        let options = config.get("options").cloned().unwrap_or(serde_json::json!({}));
+        let row_height = config
+            .get("rowHeight")
+            .cloned()
+            .unwrap_or(serde_json::json!(42));
+        let options = config
+            .get("options")
+            .cloned()
+            .unwrap_or(serde_json::json!({}));
         let default_layout = serde_json::json!({
             "id": "layout_default",
             "name": { "ko": "기본 레이아웃", "en": "Default Layout" },
@@ -389,7 +404,10 @@ fn wrap_layout_config(mut config: serde_json::Value) -> serde_json::Value {
         });
         if let Some(obj) = config.as_object_mut() {
             obj.insert("layouts".to_string(), serde_json::json!([default_layout]));
-            obj.insert("activeLayoutId".to_string(), serde_json::json!("layout_default"));
+            obj.insert(
+                "activeLayoutId".to_string(),
+                serde_json::json!("layout_default"),
+            );
         }
     }
     config
@@ -400,13 +418,12 @@ pub async fn get_domain_layout(
     Path(domain_id): Path<Uuid>,
     _auth: AuthUser,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let cfg: Option<serde_json::Value> = sqlx::query_scalar(
-        "SELECT detail_layout_config FROM domain WHERE id = $1"
-    )
-    .bind(domain_id)
-    .fetch_optional(&state.db)
-    .await?
-    .flatten();
+    let cfg: Option<serde_json::Value> =
+        sqlx::query_scalar("SELECT detail_layout_config FROM domain WHERE id = $1")
+            .bind(domain_id)
+            .fetch_optional(&state.db)
+            .await?
+            .flatten();
 
     let res = wrap_layout_config(cfg.unwrap_or(serde_json::json!({})));
     Ok(Json(res))
@@ -492,7 +509,7 @@ async fn get_node_layout_internal(
         SELECT detail_layout_config, domain_id FROM node_path
         WHERE detail_layout_config IS NOT NULL AND detail_layout_config != '{}'::jsonb
         ORDER BY depth ASC LIMIT 1;
-        "#
+        "#,
     )
     .bind(node_id)
     .fetch_optional(&state.db)
@@ -517,13 +534,12 @@ async fn get_node_layout_internal(
     };
 
     if let Some(did) = target_domain_id {
-        let domain_cfg: Option<serde_json::Value> = sqlx::query_scalar(
-            "SELECT detail_layout_config FROM domain WHERE id = $1"
-        )
-        .bind(did)
-        .fetch_optional(&state.db)
-        .await?
-        .flatten();
+        let domain_cfg: Option<serde_json::Value> =
+            sqlx::query_scalar("SELECT detail_layout_config FROM domain WHERE id = $1")
+                .bind(did)
+                .fetch_optional(&state.db)
+                .await?
+                .flatten();
 
         if let Some(dc) = domain_cfg {
             if !dc.is_null() && dc != serde_json::json!({}) {
@@ -534,7 +550,6 @@ async fn get_node_layout_internal(
 
     Ok(Json(serde_json::json!({})))
 }
-
 
 pub async fn delete_domain(
     State(state): State<AppState>,
@@ -547,4 +562,3 @@ pub async fn delete_domain(
         .await?;
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
-

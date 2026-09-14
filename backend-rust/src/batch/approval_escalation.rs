@@ -26,7 +26,10 @@ impl ApprovalEscalationJob {
         let res = sqlx::query(query).execute(pool).await?;
         let rows = res.rows_affected();
         if rows > 0 {
-            tracing::info!("🔔 [Approval Escalation Batch] Escalated {} pending steps exceeding SLA", rows);
+            tracing::info!(
+                "🔔 [Approval Escalation Batch] Escalated {} pending steps exceeding SLA",
+                rows
+            );
         }
         Ok(rows)
     }

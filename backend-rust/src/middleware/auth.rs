@@ -1,11 +1,7 @@
 use crate::error::AppError;
 use crate::models::user::Claims;
 use crate::state::AppState;
-use axum::{
-    async_trait,
-    extract::FromRequestParts,
-    http::request::Parts,
-};
+use axum::{async_trait, extract::FromRequestParts, http::request::Parts};
 use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use std::collections::HashMap;
 use std::sync::{OnceLock, RwLock};
@@ -77,7 +73,9 @@ impl AuthUser {
 
     /// Checks whether user has ANY of the specified permissions.
     pub fn has_any_permission(&self, required_permissions: &[&str]) -> bool {
-        required_permissions.iter().any(|&perm| self.has_permission(perm))
+        required_permissions
+            .iter()
+            .any(|&perm| self.has_permission(perm))
     }
 
     /// Requires the user to have ANY of the specified permissions.
@@ -210,8 +208,9 @@ impl FromRequestParts<AppState> for AuthUser {
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        let token = extract_token(parts)
-            .ok_or_else(|| AppError::Unauthorized("Missing Authorization header or auth token cookie".to_string()))?;
+        let token = extract_token(parts).ok_or_else(|| {
+            AppError::Unauthorized("Missing Authorization header or auth token cookie".to_string())
+        })?;
 
         // 1. Check if token is Keycloak RS256 token
         if let Ok(header) = decode_header(&token) {
@@ -233,26 +232,41 @@ impl FromRequestParts<AppState> for AuthUser {
                     } else {
                         cache.values().next().cloned()
                     }
-                    .ok_or_else(|| AppError::Unauthorized("No matching Keycloak public key found".to_string()))?
+                    .ok_or_else(|| {
+                        AppError::Unauthorized("No matching Keycloak public key found".to_string())
+                    })?
                 };
 
                 let mut validation = Validation::new(Algorithm::RS256);
                 validation.validate_exp = true;
                 validation.validate_aud = false;
 
-                if let Ok(token_data) = decode::<serde_json::Value>(&token, &decoding_key, &validation) {
+                if let Ok(token_data) =
+                    decode::<serde_json::Value>(&token, &decoding_key, &validation)
+                {
                     let payload = token_data.claims;
                     let username = extract_username_from_payload(&payload)
                         .unwrap_or_else(|| "unknown".to_string());
 
-                    let user_opt = crate::repositories::user_repo::UserRepository::find_by_username(&state.db, &username)
+                    let user_opt =
+                        crate::repositories::user_repo::UserRepository::find_by_username(
+                            &state.db, &username,
+                        )
                         .await
                         .ok()
                         .flatten();
 
                     let (user_id, role, permissions) = if let Some(u) = user_opt {
-                        let perms = crate::services::auth_service::AuthService::get_user_permissions(&state.db, &u).await;
-                        (u.id, u.role.unwrap_or_else(|| "ROLE_USER".to_string()), perms)
+                        let perms =
+                            crate::services::auth_service::AuthService::get_user_permissions(
+                                &state.db, &u,
+                            )
+                            .await;
+                        (
+                            u.id,
+                            u.role.unwrap_or_else(|| "ROLE_USER".to_string()),
+                            perms,
+                        )
                     } else {
                         let is_admin = username == "admin"
                             || username == "superadmin"
@@ -336,12 +350,26 @@ impl FromRequestParts<AppState> for AuthUser {
         let permissions = if let Some(p) = claims.permissions.clone() {
             p
         } else {
-            let u_opt = crate::repositories::user_repo::UserRepository::find_by_username(&state.db, &username).await.ok().flatten();
+            let u_opt = crate::repositories::user_repo::UserRepository::find_by_username(
+                &state.db, &username,
+            )
+            .await
+            .ok()
+            .flatten();
             if let Some(u) = u_opt {
-                crate::services::auth_service::AuthService::get_user_permissions(&state.db, &u).await
+                crate::services::auth_service::AuthService::get_user_permissions(&state.db, &u)
+                    .await
             } else if let Some(ref r) = role {
-                let mut perms = crate::services::auth_service::AuthService::get_permissions_for_role_name(&state.db, r).await;
-                if r == "ROLE_ADMIN" || r == "ADMIN" || username == "admin" || username == "superadmin" {
+                let mut perms =
+                    crate::services::auth_service::AuthService::get_permissions_for_role_name(
+                        &state.db, r,
+                    )
+                    .await;
+                if r == "ROLE_ADMIN"
+                    || r == "ADMIN"
+                    || username == "admin"
+                    || username == "superadmin"
+                {
                     if !perms.iter().any(|p| p == "*") {
                         perms.insert(0, "*".to_string());
                     }

@@ -1,5 +1,7 @@
 use crate::error::AppError;
-use crate::models::matching::{MatchCandidate, MatchingRule, MergeRequest, MergeResult, SurvivorshipRule};
+use crate::models::matching::{
+    MatchCandidate, MatchingRule, MergeRequest, MergeResult, SurvivorshipRule,
+};
 use crate::repositories::matching_repo::MatchingRepository;
 use crate::repositories::record_repo::RecordRepository;
 use sqlx::PgPool;
@@ -37,7 +39,12 @@ impl MatchingService {
     ) -> Result<MergeResult, AppError> {
         let survivor = RecordRepository::find_by_id(pool, req.survivor_record_id)
             .await?
-            .ok_or_else(|| AppError::NotFound(format!("Survivor record not found: {}", req.survivor_record_id)))?;
+            .ok_or_else(|| {
+                AppError::NotFound(format!(
+                    "Survivor record not found: {}",
+                    req.survivor_record_id
+                ))
+            })?;
 
         let mut golden_data = survivor.data.unwrap_or(serde_json::json!({}));
 
@@ -45,10 +52,14 @@ impl MatchingService {
         for &mid in &req.merged_record_ids {
             if let Some(merged_rec) = RecordRepository::find_by_id(pool, mid).await? {
                 if let Some(mdata) = merged_rec.data {
-                    if let (Some(g_obj), Some(m_obj)) = (golden_data.as_object_mut(), mdata.as_object()) {
+                    if let (Some(g_obj), Some(m_obj)) =
+                        (golden_data.as_object_mut(), mdata.as_object())
+                    {
                         for (k, v) in m_obj {
                             // Fill missing/null fields from secondary records
-                            if !g_obj.contains_key(k) || g_obj.get(k).map(|x| x.is_null()).unwrap_or(true) {
+                            if !g_obj.contains_key(k)
+                                || g_obj.get(k).map(|x| x.is_null()).unwrap_or(true)
+                            {
                                 g_obj.insert(k.clone(), v.clone());
                             }
                         }
@@ -59,7 +70,8 @@ impl MatchingService {
 
         // Apply custom manual overrides if provided
         if let Some(overrides) = req.custom_overrides {
-            if let (Some(g_obj), Some(o_obj)) = (golden_data.as_object_mut(), overrides.as_object()) {
+            if let (Some(g_obj), Some(o_obj)) = (golden_data.as_object_mut(), overrides.as_object())
+            {
                 for (k, v) in o_obj {
                     g_obj.insert(k.clone(), v.clone());
                 }
@@ -85,6 +97,7 @@ impl MatchingService {
             None,
             Some(golden_data),
             None,
+            None,
         )
         .await;
 
@@ -104,14 +117,7 @@ impl MatchingService {
 
         // Write history for unmerge
         let _ = RecordRepository::insert_history(
-            pool,
-            record_id,
-            1,
-            "UNMERGE",
-            actor,
-            None,
-            None,
-            None,
+            pool, record_id, 1, "UNMERGE", actor, None, None, None, None,
         )
         .await;
 

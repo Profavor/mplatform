@@ -6,7 +6,10 @@ use uuid::Uuid;
 pub struct GovernanceRepository;
 
 impl GovernanceRepository {
-    pub async fn get_business_terms(pool: &PgPool, domain_id: Option<Uuid>) -> Result<Vec<BusinessTerm>, sqlx::Error> {
+    pub async fn get_business_terms(
+        pool: &PgPool,
+        domain_id: Option<Uuid>,
+    ) -> Result<Vec<BusinessTerm>, sqlx::Error> {
         let terms = if let Some(did) = domain_id {
             sqlx::query_as::<_, BusinessTerm>(
                 "SELECT * FROM business_terms WHERE domain_id = $1 OR domain_id IS NULL ORDER BY term_code ASC"
@@ -38,7 +41,7 @@ impl GovernanceRepository {
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING *
-            "#
+            "#,
         )
         .bind(id)
         .bind(req.term_code)
@@ -69,7 +72,7 @@ impl GovernanceRepository {
             .await?
         } else {
             sqlx::query_as::<_, ColumnMaskingPolicy>(
-                "SELECT * FROM column_masking_policy ORDER BY created_at DESC"
+                "SELECT * FROM column_masking_policy ORDER BY created_at DESC",
             )
             .fetch_all(pool)
             .await?
@@ -95,7 +98,7 @@ impl GovernanceRepository {
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
             RETURNING *
-            "#
+            "#,
         )
         .bind(id)
         .bind(req.domain_id)

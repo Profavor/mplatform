@@ -1,9 +1,9 @@
-use axum::extract::{Path, Query, State};
-use axum::http::StatusCode;
-use axum::{response::IntoResponse, Json};
 use crate::error::AppError;
 use crate::middleware::auth::AuthUser;
 use crate::state::AppState;
+use axum::extract::{Path, Query, State};
+use axum::http::StatusCode;
+use axum::{response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -72,7 +72,8 @@ pub async fn approve_step(
     auth: AuthUser,
     Json(req): Json<ApproveStepRequest>,
 ) -> Result<Json<ApprovalDetailResponse>, AppError> {
-    let detail = ApprovalService::approve(&state.db, id, req.comment.as_deref(), &auth.claims.sub).await?;
+    let detail =
+        ApprovalService::approve(&state.db, id, req.comment.as_deref(), &auth.claims.sub).await?;
     Ok(Json(detail))
 }
 
@@ -82,7 +83,8 @@ pub async fn reject_step(
     auth: AuthUser,
     Json(req): Json<RejectStepRequest>,
 ) -> Result<Json<ApprovalDetailResponse>, AppError> {
-    let detail = ApprovalService::reject(&state.db, id, req.reason.as_deref(), &auth.claims.sub).await?;
+    let detail =
+        ApprovalService::reject(&state.db, id, req.reason.as_deref(), &auth.claims.sub).await?;
     Ok(Json(detail))
 }
 
@@ -99,11 +101,10 @@ pub async fn get_pending_requests(
     let size = query.size.unwrap_or(100);
     let offset = page * size;
 
-    let total: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM approval_request WHERE status = 'PENDING'"
-    )
-    .fetch_one(&state.db)
-    .await?;
+    let total: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM approval_request WHERE status = 'PENDING'")
+            .fetch_one(&state.db)
+            .await?;
 
     let content = sqlx::query_as::<_, ApprovalRequest>(
         r#"
@@ -111,7 +112,7 @@ pub async fn get_pending_requests(
         WHERE status = 'PENDING'
         ORDER BY created_at DESC
         LIMIT $1 OFFSET $2
-        "#
+        "#,
     )
     .bind(size)
     .bind(offset)
@@ -143,7 +144,11 @@ pub async fn get_all_requests(
 
     if let Some(search) = &query.search {
         if !search.is_empty() {
-            let filter = format!(" AND (requester_id ILIKE '%{}%' OR reason ILIKE '%{}%')", search.replace('\'', "''"), search.replace('\'', "''"));
+            let filter = format!(
+                " AND (requester_id ILIKE '%{}%' OR reason ILIKE '%{}%')",
+                search.replace('\'', "''"),
+                search.replace('\'', "''")
+            );
             sql.push_str(&filter);
             count_sql.push_str(&filter);
         }
@@ -151,8 +156,13 @@ pub async fn get_all_requests(
 
     let total: (i64,) = sqlx::query_as(&count_sql).fetch_one(&state.db).await?;
 
-    sql.push_str(&format!(" ORDER BY created_at DESC LIMIT {} OFFSET {}", size, offset));
-    let content = sqlx::query_as::<_, ApprovalRequest>(&sql).fetch_all(&state.db).await?;
+    sql.push_str(&format!(
+        " ORDER BY created_at DESC LIMIT {} OFFSET {}",
+        size, offset
+    ));
+    let content = sqlx::query_as::<_, ApprovalRequest>(&sql)
+        .fetch_all(&state.db)
+        .await?;
 
     Ok(Json(PageResponse::new(content, total.0, page, size)))
 }
@@ -166,7 +176,11 @@ pub async fn get_my_todos(
     let size = query.size.unwrap_or(100);
     let offset = page * size;
     let user_id = query.assignee_id.unwrap_or_else(|| auth.claims.sub.clone());
-    let auth_uid = auth.claims.user_id.clone().unwrap_or_else(|| auth.claims.sub.clone());
+    let auth_uid = auth
+        .claims
+        .user_id
+        .clone()
+        .unwrap_or_else(|| auth.claims.sub.clone());
 
     let total: (i64,) = sqlx::query_as(
         r#"
@@ -193,7 +207,7 @@ pub async fn get_my_todos(
                     AND ad.end_date >= NOW()
               )
           )
-        "#
+        "#,
     )
     .bind(&user_id)
     .bind(&auth_uid)
@@ -227,7 +241,7 @@ pub async fn get_my_todos(
           )
         ORDER BY created_at DESC
         LIMIT $3 OFFSET $4
-        "#
+        "#,
     )
     .bind(&user_id)
     .bind(&auth_uid)
@@ -249,12 +263,11 @@ pub async fn get_my_requests(
     let offset = page * size;
     let user_id = query.requester_id.unwrap_or(auth.claims.sub);
 
-    let total: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM approval_request WHERE requester_id = $1"
-    )
-    .bind(&user_id)
-    .fetch_one(&state.db)
-    .await?;
+    let total: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM approval_request WHERE requester_id = $1")
+            .bind(&user_id)
+            .fetch_one(&state.db)
+            .await?;
 
     let content = sqlx::query_as::<_, ApprovalRequest>(
         r#"
@@ -262,7 +275,7 @@ pub async fn get_my_requests(
         WHERE requester_id = $1
         ORDER BY created_at DESC
         LIMIT $2 OFFSET $3
-        "#
+        "#,
     )
     .bind(&user_id)
     .bind(size)
@@ -278,17 +291,21 @@ pub async fn cancel_request(
     Path(id): Path<Uuid>,
     _auth: AuthUser,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    sqlx::query("UPDATE approval_request SET status = 'CANCELLED', updated_at = NOW() WHERE id = $1")
-        .bind(id)
-        .execute(&state.db)
-        .await?;
+    sqlx::query(
+        "UPDATE approval_request SET status = 'CANCELLED', updated_at = NOW() WHERE id = $1",
+    )
+    .bind(id)
+    .execute(&state.db)
+    .await?;
 
     sqlx::query("UPDATE approval_step SET status = 'CANCELLED', updated_at = NOW() WHERE request_id = $1 AND status = 'PENDING'")
         .bind(id)
         .execute(&state.db)
         .await?;
 
-    Ok(Json(serde_json::json!({ "success": true, "requestId": id, "status": "CANCELLED" })))
+    Ok(Json(
+        serde_json::json!({ "success": true, "requestId": id, "status": "CANCELLED" }),
+    ))
 }
 
 pub async fn add_memo(
@@ -305,7 +322,7 @@ pub async fn add_memo(
             $1, $2, 999, 'MEMO', 'RECORDED', $3,
             false, 0, NOW(), NOW()
         )
-        "#
+        "#,
     )
     .bind(new_id)
     .bind(payload.request_id)
@@ -313,7 +330,9 @@ pub async fn add_memo(
     .execute(&state.db)
     .await?;
 
-    Ok(Json(serde_json::json!({ "success": true, "memoId": new_id })))
+    Ok(Json(
+        serde_json::json!({ "success": true, "memoId": new_id }),
+    ))
 }
 
 // Effective workflow and permissions
@@ -322,7 +341,7 @@ pub async fn get_effective_workflow(
     Path(node_id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let config = sqlx::query_as::<_, WorkflowConfig>(
-        "SELECT * FROM workflow_config WHERE node_id = $1 AND is_active = true LIMIT 1"
+        "SELECT * FROM workflow_config WHERE node_id = $1 AND is_active = true LIMIT 1",
     )
     .bind(node_id)
     .fetch_optional(&state.db)
@@ -347,7 +366,7 @@ pub async fn get_pending_schema_status(
     State(state): State<AppState>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let pending_count: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM approval_request WHERE target_type = 'SCHEMA' AND status = 'PENDING'"
+        "SELECT COUNT(*) FROM approval_request WHERE target_type = 'SCHEMA' AND status = 'PENDING'",
     )
     .fetch_one(&state.db)
     .await?;
@@ -499,13 +518,19 @@ pub async fn create_delegation(
     Json(payload): Json<CreateDelegationDto>,
 ) -> Result<Json<ApprovalDelegation>, AppError> {
     let delegator_sub = auth.claims.sub.clone();
-    let delegator_uid = auth.claims.user_id.clone().unwrap_or_else(|| delegator_sub.clone());
+    let delegator_uid = auth
+        .claims
+        .user_id
+        .clone()
+        .unwrap_or_else(|| delegator_sub.clone());
 
     if payload.delegatee_user_id.trim().is_empty() {
         return Err(AppError::BadRequest("Delegatee user ID is required".into()));
     }
     if payload.delegatee_user_id == delegator_sub || payload.delegatee_user_id == delegator_uid {
-        return Err(AppError::BadRequest("Cannot delegate approvals to yourself".into()));
+        return Err(AppError::BadRequest(
+            "Cannot delegate approvals to yourself".into(),
+        ));
     }
 
     let now = chrono::Utc::now().naive_utc();
@@ -521,7 +546,9 @@ pub async fn create_delegation(
         .unwrap_or(now + chrono::Duration::days(30));
 
     if end_date < start_date {
-        return Err(AppError::BadRequest("End date cannot be before start date".into()));
+        return Err(AppError::BadRequest(
+            "End date cannot be before start date".into(),
+        ));
     }
 
     let new_id = Uuid::new_v4();
@@ -553,10 +580,12 @@ pub async fn delete_delegation(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    sqlx::query("UPDATE approval_delegations SET is_active = false, updated_at = NOW() WHERE id = $1")
-        .bind(id)
-        .execute(&state.db)
-        .await?;
+    sqlx::query(
+        "UPDATE approval_delegations SET is_active = false, updated_at = NOW() WHERE id = $1",
+    )
+    .bind(id)
+    .execute(&state.db)
+    .await?;
 
     Ok(Json(serde_json::json!({
         "success": true,
@@ -574,7 +603,7 @@ pub async fn scan_escalations(
         SET is_escalated = true, escalated_at = NOW(), updated_at = NOW()
         WHERE status = 'PENDING' AND sla_due_at < NOW() AND is_escalated = false
         RETURNING id
-        "#
+        "#,
     )
     .fetch_all(&state.db)
     .await?;
@@ -590,13 +619,11 @@ pub async fn get_sandbox_preview(
     State(state): State<AppState>,
     Path(request_id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let req = sqlx::query_as::<_, ApprovalRequest>(
-        "SELECT * FROM approval_request WHERE id = $1"
-    )
-    .bind(request_id)
-    .fetch_optional(&state.db)
-    .await?
-    .ok_or_else(|| AppError::NotFound("Approval request not found".to_string()))?;
+    let req = sqlx::query_as::<_, ApprovalRequest>("SELECT * FROM approval_request WHERE id = $1")
+        .bind(request_id)
+        .fetch_optional(&state.db)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Approval request not found".to_string()))?;
 
     Ok(Json(serde_json::json!({
         "requestId": req.id,
@@ -610,11 +637,10 @@ pub async fn get_sandbox_preview(
 pub async fn get_rejection_analytics(
     State(state): State<AppState>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let rejections: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM approval_step WHERE status = 'REJECTED'"
-    )
-    .fetch_one(&state.db)
-    .await?;
+    let rejections: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM approval_step WHERE status = 'REJECTED'")
+            .fetch_one(&state.db)
+            .await?;
 
     Ok(Json(serde_json::json!({
         "totalRejections": rejections.0,
@@ -631,7 +657,7 @@ pub async fn get_routing_templates(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<ApprovalRoutingTemplate>>, AppError> {
     let list = sqlx::query_as::<_, ApprovalRoutingTemplate>(
-        "SELECT * FROM approval_routing_templates ORDER BY created_at DESC"
+        "SELECT * FROM approval_routing_templates ORDER BY created_at DESC",
     )
     .fetch_all(&state.db)
     .await?;
@@ -654,7 +680,7 @@ pub async fn create_routing_template(
             $6, $7, NOW()
         )
         RETURNING *
-        "#
+        "#,
     )
     .bind(new_id)
     .bind(payload.domain_id)
@@ -674,7 +700,7 @@ pub async fn get_workflow_configs(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<WorkflowConfig>>, AppError> {
     let configs = sqlx::query_as::<_, WorkflowConfig>(
-        "SELECT * FROM workflow_config ORDER BY created_at DESC"
+        "SELECT * FROM workflow_config ORDER BY created_at DESC",
     )
     .fetch_all(&state.db)
     .await?;
@@ -686,13 +712,11 @@ pub async fn get_workflow_config_by_id(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<WorkflowConfig>, AppError> {
-    let config = sqlx::query_as::<_, WorkflowConfig>(
-        "SELECT * FROM workflow_config WHERE id = $1"
-    )
-    .bind(id)
-    .fetch_optional(&state.db)
-    .await?
-    .ok_or_else(|| AppError::NotFound("Workflow config not found".to_string()))?;
+    let config = sqlx::query_as::<_, WorkflowConfig>("SELECT * FROM workflow_config WHERE id = $1")
+        .bind(id)
+        .fetch_optional(&state.db)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Workflow config not found".to_string()))?;
 
     Ok(Json(config))
 }
@@ -702,7 +726,7 @@ pub async fn get_node_workflow_configs(
     Path(node_id): Path<Uuid>,
 ) -> Result<Json<Vec<WorkflowConfig>>, AppError> {
     let configs = sqlx::query_as::<_, WorkflowConfig>(
-        "SELECT * FROM workflow_config WHERE node_id = $1 OR domain_id = $1"
+        "SELECT * FROM workflow_config WHERE node_id = $1 OR domain_id = $1",
     )
     .bind(node_id)
     .fetch_all(&state.db)
@@ -724,7 +748,7 @@ pub async fn get_workflow_configs_page(
         .await?;
 
     let content = sqlx::query_as::<_, WorkflowConfig>(
-        "SELECT * FROM workflow_config ORDER BY created_at DESC LIMIT $1 OFFSET $2"
+        "SELECT * FROM workflow_config ORDER BY created_at DESC LIMIT $1 OFFSET $2",
     )
     .bind(size)
     .bind(offset)
@@ -733,7 +757,6 @@ pub async fn get_workflow_configs_page(
 
     Ok(Json(PageResponse::new(content, total.0, page, size)))
 }
-
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -794,11 +817,9 @@ pub async fn delete_workflow_config(
     Path(id): Path<Uuid>,
     _auth: AuthUser,
 ) -> Result<StatusCode, AppError> {
-    sqlx::query("DELETE FROM workflow_config WHERE id = $1").bind(id)
+    sqlx::query("DELETE FROM workflow_config WHERE id = $1")
+        .bind(id)
         .execute(&state.db)
         .await?;
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
-
-
-

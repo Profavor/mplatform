@@ -15,7 +15,8 @@ pub async fn login(
     State(state): State<AppState>,
     Json(req): Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, AppError> {
-    let response = AuthService::login(&state.db, &state.config, &state.two_factor_service, req).await?;
+    let response =
+        AuthService::login(&state.db, &state.config, &state.two_factor_service, req).await?;
     Ok(Json(response))
 }
 
@@ -104,7 +105,10 @@ pub async fn record_login(
         "127.0.0.1".to_string()
     });
     let ua = req.user_agent.filter(|s| !s.is_empty()).or_else(|| {
-        headers.get(axum::http::header::USER_AGENT).and_then(|v| v.to_str().ok()).map(|s| s.to_string())
+        headers
+            .get(axum::http::header::USER_AGENT)
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string())
     });
 
     let user_id = UserRepository::find_by_username(&state.db, &username)
@@ -146,7 +150,17 @@ pub async fn get_login_logs(
     let size = params.size.unwrap_or(20);
     let offset = page * size;
 
-    let rows: Vec<serde_json::Value> = sqlx::query_as::<_, (i64, Option<String>, String, Option<String>, Option<String>, chrono::NaiveDateTime)>(
+    let rows: Vec<serde_json::Value> = sqlx::query_as::<
+        _,
+        (
+            i64,
+            Option<String>,
+            String,
+            Option<String>,
+            Option<String>,
+            chrono::NaiveDateTime,
+        ),
+    >(
         r#"
         SELECT id, user_id, username, client_ip, user_agent, login_at
         FROM login_log
@@ -177,7 +191,11 @@ pub async fn get_login_logs(
         .await
         .unwrap_or((0,));
 
-    let total_pages = if size > 0 { (total.0 + size - 1) / size } else { 0 };
+    let total_pages = if size > 0 {
+        (total.0 + size - 1) / size
+    } else {
+        0
+    };
 
     Ok(Json(serde_json::json!({
         "content": rows,

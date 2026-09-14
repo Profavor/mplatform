@@ -1,14 +1,14 @@
-use axum::extract::Query;
-use axum::http::HeaderMap;
-use axum::extract::State;
-use axum::extract::Path;
-use axum::http::StatusCode;
-use axum::Json;
 use crate::error::AppError;
 use crate::middleware::auth::{AuthUser, OptionalAuthUser};
 use crate::models::menu::Menu;
 use crate::services::menu_service::MenuService;
 use crate::state::AppState;
+use axum::extract::Path;
+use axum::extract::Query;
+use axum::extract::State;
+use axum::http::HeaderMap;
+use axum::http::StatusCode;
+use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use uuid::Uuid;
@@ -51,18 +51,39 @@ pub async fn log_menu_access(
     auth: OptionalAuthUser,
     Json(req): Json<LogAccessRequest>,
 ) -> Result<StatusCode, AppError> {
-    let user_id = auth.0.map(|a| a.username).unwrap_or_else(|| "anonymous".to_string());
+    let user_id = auth
+        .0
+        .map(|a| a.username)
+        .unwrap_or_else(|| "anonymous".to_string());
     let ip = if let Some(xff) = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()) {
-        xff.split(',').next().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+        xff.split(',')
+            .next()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
     } else if let Some(rip) = headers.get("x-real-ip").and_then(|v| v.to_str().ok()) {
         let s = rip.trim();
-        if !s.is_empty() { Some(s.to_string()) } else { None }
+        if !s.is_empty() {
+            Some(s.to_string())
+        } else {
+            None
+        }
     } else {
         None
     };
-    let ua = headers.get(axum::http::header::USER_AGENT).and_then(|v| v.to_str().ok()).map(|s| s.to_string());
+    let ua = headers
+        .get(axum::http::header::USER_AGENT)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
 
-    MenuService::log_access(&state.db, req.menu_id, req.menu_path.as_deref(), &user_id, ua.as_deref(), ip.as_deref()).await?;
+    MenuService::log_access(
+        &state.db,
+        req.menu_id,
+        req.menu_path.as_deref(),
+        &user_id,
+        ua.as_deref(),
+        ip.as_deref(),
+    )
+    .await?;
     Ok(axum::http::StatusCode::OK)
 }
 
@@ -70,7 +91,10 @@ pub async fn get_my_recent_access(
     State(state): State<AppState>,
     auth: OptionalAuthUser,
 ) -> Result<Json<Vec<Value>>, AppError> {
-    let user_id = auth.0.map(|a| a.username).unwrap_or_else(|| "anonymous".to_string());
+    let user_id = auth
+        .0
+        .map(|a| a.username)
+        .unwrap_or_else(|| "anonymous".to_string());
     let logs = MenuService::get_my_recent_access(&state.db, &user_id).await?;
     Ok(Json(logs))
 }
@@ -97,13 +121,16 @@ pub async fn get_access_logs(
 }
 
 pub async fn dump_seed(_auth: AuthUser) -> Result<Json<Value>, AppError> {
-    Ok(Json(json!({ "status": "success", "message": "Menu seed dumped" })))
+    Ok(Json(
+        json!({ "status": "success", "message": "Menu seed dumped" }),
+    ))
 }
 
 pub async fn sync_seed(_auth: AuthUser) -> Result<Json<Value>, AppError> {
-    Ok(Json(json!({ "status": "success", "message": "Menu seed synced" })))
+    Ok(Json(
+        json!({ "status": "success", "message": "Menu seed synced" }),
+    ))
 }
-
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -183,10 +210,9 @@ pub async fn delete_menu(
     Path(id): Path<Uuid>,
     _auth: AuthUser,
 ) -> Result<StatusCode, AppError> {
-    sqlx::query("DELETE FROM menu WHERE id = $1").bind(id)
+    sqlx::query("DELETE FROM menu WHERE id = $1")
+        .bind(id)
         .execute(&state.db)
         .await?;
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
-
-

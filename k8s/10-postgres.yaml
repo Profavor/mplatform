@@ -15,6 +15,7 @@ spec:
       containers:
       - name: postgres
         image: postgis/postgis:15-3.3-alpine
+        args: ["-c", "max_connections=300"]
         env:
         - name: POSTGRES_USER
           valueFrom:

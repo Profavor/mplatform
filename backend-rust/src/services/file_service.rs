@@ -104,11 +104,7 @@ impl FileService {
             {
                 Ok(resp) => {
                     if !resp.status().is_success() {
-                        tracing::warn!(
-                            "MinIO upload returned status {}: {}",
-                            resp.status(),
-                            url
-                        );
+                        tracing::warn!("MinIO upload returned status {}: {}", resp.status(), url);
                     }
                 }
                 Err(err) => {

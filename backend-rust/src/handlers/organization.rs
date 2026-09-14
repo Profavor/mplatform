@@ -51,18 +51,24 @@ pub async fn get_roles_by_org(
 }
 
 pub async fn dump_role_seed(_auth: AuthUser) -> Result<Json<serde_json::Value>, AppError> {
-    Ok(Json(serde_json::json!({ "status": "success", "message": "Role seed dumped" })))
+    Ok(Json(
+        serde_json::json!({ "status": "success", "message": "Role seed dumped" }),
+    ))
 }
 
 pub async fn sync_role_defaults(_auth: AuthUser) -> Result<Json<serde_json::Value>, AppError> {
-    Ok(Json(serde_json::json!({ "status": "success", "message": "Default roles synchronized" })))
+    Ok(Json(
+        serde_json::json!({ "status": "success", "message": "Default roles synchronized" }),
+    ))
 }
 
 pub async fn sync_role_defaults_for_org(
     Path(_org_id): Path<Uuid>,
     _auth: AuthUser,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    Ok(Json(serde_json::json!({ "status": "success", "message": "Default roles synchronized for org" })))
+    Ok(Json(
+        serde_json::json!({ "status": "success", "message": "Default roles synchronized for org" }),
+    ))
 }
 
 // --------------------------------------------------------------------
@@ -242,12 +248,14 @@ pub async fn create_role(
         }
     }
 
-    let perms: Vec<String> = sqlx::query_scalar("SELECT permission FROM role_permissions WHERE role_id = $1")
-        .bind(role.id)
-        .fetch_all(&state.db)
-        .await
-        .unwrap_or_default();
-    let mut role_json = serde_json::to_value(&role).map_err(|e| AppError::Internal(e.to_string()))?;
+    let perms: Vec<String> =
+        sqlx::query_scalar("SELECT permission FROM role_permissions WHERE role_id = $1")
+            .bind(role.id)
+            .fetch_all(&state.db)
+            .await
+            .unwrap_or_default();
+    let mut role_json =
+        serde_json::to_value(&role).map_err(|e| AppError::Internal(e.to_string()))?;
     role_json["permissions"] = serde_json::json!(perms);
     Ok(Json(role_json))
 }
@@ -291,12 +299,14 @@ pub async fn update_role(
         }
     }
 
-    let perms: Vec<String> = sqlx::query_scalar("SELECT permission FROM role_permissions WHERE role_id = $1")
-        .bind(role.id)
-        .fetch_all(&state.db)
-        .await
-        .unwrap_or_default();
-    let mut role_json = serde_json::to_value(&role).map_err(|e| AppError::Internal(e.to_string()))?;
+    let perms: Vec<String> =
+        sqlx::query_scalar("SELECT permission FROM role_permissions WHERE role_id = $1")
+            .bind(role.id)
+            .fetch_all(&state.db)
+            .await
+            .unwrap_or_default();
+    let mut role_json =
+        serde_json::to_value(&role).map_err(|e| AppError::Internal(e.to_string()))?;
     role_json["permissions"] = serde_json::json!(perms);
     Ok(Json(role_json))
 }
@@ -318,7 +328,7 @@ pub async fn delete_role(
         .bind(id)
         .execute(&state.db)
         .await?;
-    
+
     Ok(axum::http::StatusCode::OK)
 }
 
@@ -395,7 +405,7 @@ pub async fn delete_organization(
         .bind(id)
         .execute(&state.db)
         .await?;
-    
+
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
 
@@ -429,4 +439,3 @@ pub async fn create_team(
 
     Ok(Json(team))
 }
-

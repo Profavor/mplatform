@@ -36,7 +36,7 @@ pub async fn get_record_history(
         SELECT * FROM record_history 
         WHERE record_id = $1 
         ORDER BY version DESC, changed_at DESC
-        "#
+        "#,
     )
     .bind(id)
     .fetch_all(&state.db)
@@ -48,13 +48,19 @@ pub async fn get_record_history(
         .await?;
 
     if let Some((node_id,)) = rec_node {
-        if let Ok(fields) = crate::handlers::field_definition::fetch_effective_fields(&state.db, node_id).await {
+        if let Ok(fields) =
+            crate::handlers::field_definition::fetch_effective_fields(&state.db, node_id).await
+        {
             for h in history.iter_mut() {
                 if let Some(prev) = h.previous_data.as_mut() {
-                    crate::services::data_masking_service::DataMaskingService::mask_json_data(prev, &fields, false);
+                    crate::services::data_masking_service::DataMaskingService::mask_json_data(
+                        prev, &fields, false,
+                    );
                 }
                 if let Some(new_d) = h.new_data.as_mut() {
-                    crate::services::data_masking_service::DataMaskingService::mask_json_data(new_d, &fields, false);
+                    crate::services::data_masking_service::DataMaskingService::mask_json_data(
+                        new_d, &fields, false,
+                    );
                 }
             }
         }
@@ -70,13 +76,18 @@ pub async fn rollback_record(
     Json(payload): Json<RollbackRequest>,
 ) -> Result<Json<Record>, AppError> {
     let target_history = sqlx::query_as::<_, RecordHistory>(
-        "SELECT * FROM record_history WHERE record_id = $1 AND version = $2"
+        "SELECT * FROM record_history WHERE record_id = $1 AND version = $2",
     )
     .bind(id)
     .bind(payload.target_version)
     .fetch_optional(&state.db)
     .await?
-    .ok_or_else(|| AppError::NotFound(format!("Version {} not found for rollback", payload.target_version)))?;
+    .ok_or_else(|| {
+        AppError::NotFound(format!(
+            "Version {} not found for rollback",
+            payload.target_version
+        ))
+    })?;
 
     let restored_data = target_history.new_data.unwrap_or(serde_json::json!({}));
 
@@ -87,7 +98,7 @@ pub async fn rollback_record(
         SET data = $1, version = version + 1, updated_at = NOW()
         WHERE id = $2
         RETURNING *
-        "#
+        "#,
     )
     .bind(&restored_data)
     .bind(id)
@@ -96,7 +107,9 @@ pub async fn rollback_record(
 
     // Record rollback history
     let new_hid = Uuid::new_v4();
-    let reason = payload.reason.unwrap_or_else(|| format!("Rollback to version {}", payload.target_version));
+    let reason = payload
+        .reason
+        .unwrap_or_else(|| format!("Rollback to version {}", payload.target_version));
     sqlx::query(
         r#"
         INSERT INTO record_history (
@@ -106,7 +119,7 @@ pub async fn rollback_record(
             $1, $2, $3, 'ROLLBACK', $4,
             $5, $6, NOW()
         )
-        "#
+        "#,
     )
     .bind(new_hid)
     .bind(id)
@@ -132,7 +145,7 @@ pub async fn get_record_lineage(
         .ok_or_else(|| AppError::NotFound("Record not found".to_string()))?;
 
     let history = sqlx::query_as::<_, RecordHistory>(
-        "SELECT * FROM record_history WHERE record_id = $1 ORDER BY version ASC"
+        "SELECT * FROM record_history WHERE record_id = $1 ORDER BY version ASC",
     )
     .bind(id)
     .fetch_all(&state.db)
@@ -195,7 +208,7 @@ pub async fn get_record_lineage(
         FROM integration_channels
         WHERE is_active = true AND direction = 'OUTBOUND'
           AND (node_id = $1 OR node_id IS NULL)
-        "#
+        "#,
     )
     .bind(rec.node_id)
     .fetch_all(&state.db)
@@ -204,7 +217,11 @@ pub async fn get_record_lineage(
 
     for ch in outbound_channels {
         let ch_name = if let Ok(val) = serde_json::from_str::<serde_json::Value>(&ch.name) {
-            val.get("ko").or_else(|| val.get("en")).and_then(|v| v.as_str()).unwrap_or(&ch.name).to_string()
+            val.get("ko")
+                .or_else(|| val.get("en"))
+                .and_then(|v| v.as_str())
+                .unwrap_or(&ch.name)
+                .to_string()
         } else {
             ch.name.clone()
         };
@@ -220,7 +237,10 @@ pub async fn get_record_lineage(
 
         let out_id = format!("out_{}", ch.id);
         let cns_id = format!("cns_{}", ch.id);
-        let node_status = log_status.as_ref().map(|s| s.0.as_str()).unwrap_or("HEALTHY");
+        let node_status = log_status
+            .as_ref()
+            .map(|s| s.0.as_str())
+            .unwrap_or("HEALTHY");
 
         nodes.push(serde_json::json!({
             "id": out_id,
@@ -268,7 +288,7 @@ pub async fn get_record_timemachine_diff(
     let to_v = query.to_version.unwrap_or(2);
 
     let h1 = sqlx::query_as::<_, RecordHistory>(
-        "SELECT * FROM record_history WHERE record_id = $1 AND version = $2"
+        "SELECT * FROM record_history WHERE record_id = $1 AND version = $2",
     )
     .bind(id)
     .bind(from_v)
@@ -276,7 +296,7 @@ pub async fn get_record_timemachine_diff(
     .await?;
 
     let h2 = sqlx::query_as::<_, RecordHistory>(
-        "SELECT * FROM record_history WHERE record_id = $1 AND version = $2"
+        "SELECT * FROM record_history WHERE record_id = $1 AND version = $2",
     )
     .bind(id)
     .bind(to_v)
@@ -337,7 +357,10 @@ fn mask_json(mut val: serde_json::Value) -> serde_json::Value {
             let k_lower = k.to_lowercase();
             if k_lower.contains("ssn") || k_lower.contains("resident") || k_lower.contains("rrn") {
                 *v = serde_json::json!("******-*******");
-            } else if k_lower.contains("phone") || k_lower.contains("tel") || k_lower.contains("mobile") {
+            } else if k_lower.contains("phone")
+                || k_lower.contains("tel")
+                || k_lower.contains("mobile")
+            {
                 *v = serde_json::json!("010-****-****");
             } else if k_lower.contains("email") {
                 *v = serde_json::json!("***@***.com");

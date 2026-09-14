@@ -55,7 +55,11 @@ pub async fn get_error_logs(
     let page = params.page.unwrap_or(0);
     let size = params.size.or(params.limit).unwrap_or(20);
     let (logs, total) = state.system_service.get_error_logs(page, size).await?;
-    let total_pages = if size > 0 { (total + size - 1) / size } else { 0 };
+    let total_pages = if size > 0 {
+        (total + size - 1) / size
+    } else {
+        0
+    };
 
     Ok(Json(serde_json::json!({
         "content": logs,

@@ -28,19 +28,42 @@ async fn main() -> anyhow::Result<()> {
 
     // 2. Load configuration
     let config = Config::from_env();
-    tracing::info!("🚀 Starting MDM Platform Rust Backend v{}", env!("CARGO_PKG_VERSION"));
+    tracing::info!(
+        "🚀 Starting MDM Platform Rust Backend v{}",
+        env!("CARGO_PKG_VERSION")
+    );
     tracing::info!("📡 Configured Port: {}", config.port);
 
     // 3. Setup PostgreSQL Connection Pool
-    tracing::info!("🔌 Connecting to PostgreSQL...");
+    let max_connections: u32 = std::env::var("DATABASE_POOL_MAX")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(50);
+    let min_connections: u32 = std::env::var("DATABASE_POOL_MIN")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(10);
+    let acquire_timeout_secs: u64 = std::env::var("DATABASE_POOL_TIMEOUT_SECS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(15);
+
+    tracing::info!(
+        "🔌 Connecting to PostgreSQL (pool: {}-{}, timeout: {}s)...",
+        min_connections,
+        max_connections,
+        acquire_timeout_secs
+    );
     let pool = PgPoolOptions::new()
-        .max_connections(25)
-        .min_connections(5)
-        .acquire_timeout(Duration::from_secs(5))
+        .max_connections(max_connections)
+        .min_connections(min_connections)
+        .acquire_timeout(Duration::from_secs(acquire_timeout_secs))
         .idle_timeout(Duration::from_secs(300))
         .after_connect(|conn, _meta| {
             Box::pin(async move {
-                sqlx::query("SET timezone = 'Asia/Seoul';").execute(conn).await?;
+                sqlx::query("SET timezone = 'Asia/Seoul';")
+                    .execute(conn)
+                    .await?;
                 Ok(())
             })
         })

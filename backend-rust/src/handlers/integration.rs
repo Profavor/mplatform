@@ -1,12 +1,12 @@
-use axum::extract::State;
-use axum::extract::Path;
-use axum::http::StatusCode;
-use axum::extract::Query;
-use axum::{response::IntoResponse, Json};
 use crate::error::{AppError, AppResult};
 use crate::middleware::auth::AuthUser;
 use crate::models::integration::*;
 use crate::state::AppState;
+use axum::extract::Path;
+use axum::extract::Query;
+use axum::extract::State;
+use axum::http::StatusCode;
+use axum::{response::IntoResponse, Json};
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -38,7 +38,10 @@ pub async fn get_channel_by_id(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> AppResult<impl IntoResponse> {
-    let channel = state.integration_service.get_channel_by_id(id).await?
+    let channel = state
+        .integration_service
+        .get_channel_by_id(id)
+        .await?
         .ok_or_else(|| AppError::NotFound("해당 연동 채널을 찾을 수 없습니다.".to_string()))?;
     Ok(Json(channel))
 }
@@ -47,7 +50,10 @@ pub async fn get_channel_metrics(
     State(state): State<AppState>,
     Path(channel_id): Path<Uuid>,
 ) -> AppResult<impl IntoResponse> {
-    let metrics = state.integration_service.get_channel_metrics(channel_id).await?;
+    let metrics = state
+        .integration_service
+        .get_channel_metrics(channel_id)
+        .await?;
     Ok(Json(metrics))
 }
 
@@ -63,7 +69,10 @@ pub async fn smart_mapping_recommend(
     State(state): State<AppState>,
     Json(req): Json<SmartMappingRecommendRequest>,
 ) -> AppResult<impl IntoResponse> {
-    let res = state.integration_service.smart_mapping_recommend(req.domain_id, &req.sample_payload).await?;
+    let res = state
+        .integration_service
+        .smart_mapping_recommend(req.domain_id, &req.sample_payload)
+        .await?;
     Ok(Json(res))
 }
 
@@ -75,8 +84,15 @@ pub async fn get_logs(
     let page = params.page.unwrap_or(0).max(0);
     let offset = page * limit;
 
-    let (logs, total) = state.integration_service.get_logs_paged(params.channel_id, false, limit, offset).await?;
-    let total_pages = if total == 0 { 0 } else { (total as f64 / limit as f64).ceil() as i64 };
+    let (logs, total) = state
+        .integration_service
+        .get_logs_paged(params.channel_id, false, limit, offset)
+        .await?;
+    let total_pages = if total == 0 {
+        0
+    } else {
+        (total as f64 / limit as f64).ceil() as i64
+    };
 
     Ok(Json(serde_json::json!({
         "content": logs,
@@ -95,8 +111,15 @@ pub async fn get_dead_letter_logs(
     let page = params.page.unwrap_or(0).max(0);
     let offset = page * limit;
 
-    let (logs, total) = state.integration_service.get_logs_paged(params.channel_id, true, limit, offset).await?;
-    let total_pages = if total == 0 { 0 } else { (total as f64 / limit as f64).ceil() as i64 };
+    let (logs, total) = state
+        .integration_service
+        .get_logs_paged(params.channel_id, true, limit, offset)
+        .await?;
+    let total_pages = if total == 0 {
+        0
+    } else {
+        (total as f64 / limit as f64).ceil() as i64
+    };
 
     Ok(Json(serde_json::json!({
         "content": logs,
@@ -111,7 +134,10 @@ pub async fn get_logs_by_record(
     State(state): State<AppState>,
     Path(record_id): Path<Uuid>,
 ) -> AppResult<impl IntoResponse> {
-    let logs = state.integration_service.get_logs_by_record(record_id).await?;
+    let logs = state
+        .integration_service
+        .get_logs_by_record(record_id)
+        .await?;
     Ok(Json(logs))
 }
 
@@ -123,9 +149,7 @@ pub async fn test_channel(
     Ok(Json(res))
 }
 
-pub async fn get_channel_stats(
-    State(state): State<AppState>,
-) -> AppResult<impl IntoResponse> {
+pub async fn get_channel_stats(State(state): State<AppState>) -> AppResult<impl IntoResponse> {
     #[derive(sqlx::FromRow)]
     struct StatRow {
         channel_id: Uuid,
@@ -142,7 +166,7 @@ pub async fn get_channel_stats(
         FROM integration_channels c
         LEFT JOIN integration_logs l ON c.id = l.channel_id
         GROUP BY c.id
-        "#
+        "#,
     )
     .fetch_all(&state.db)
     .await?;
@@ -181,13 +205,16 @@ pub async fn test_channel_connection(
     _state: State<AppState>,
     Json(body): Json<serde_json::Value>,
 ) -> AppResult<impl IntoResponse> {
-    let url_opt = body.get("wsUrl")
+    let url_opt = body
+        .get("wsUrl")
         .or_else(|| body.get("url"))
         .and_then(|v| v.as_str());
 
     if let Some(url) = url_opt {
         if url.trim().is_empty() {
-            return Err(AppError::BadRequest("연결 테스트를 위한 URL이 입력되지 않았습니다.".to_string()));
+            return Err(AppError::BadRequest(
+                "연결 테스트를 위한 URL이 입력되지 않았습니다.".to_string(),
+            ));
         }
 
         let start = std::time::Instant::now();
@@ -197,9 +224,16 @@ pub async fn test_channel_connection(
             .map_err(|e| AppError::Internal(format!("HTTP 클라이언트 초기화 실패: {}", e)))?;
 
         let mut req = client.get(url);
-        if let Some(headers) = body.get("wsHeaders").or_else(|| body.get("headers")).and_then(|v| v.as_array()) {
+        if let Some(headers) = body
+            .get("wsHeaders")
+            .or_else(|| body.get("headers"))
+            .and_then(|v| v.as_array())
+        {
             for h in headers {
-                if let (Some(k), Some(v)) = (h.get("key").and_then(|k| k.as_str()), h.get("value").and_then(|v| v.as_str())) {
+                if let (Some(k), Some(v)) = (
+                    h.get("key").and_then(|k| k.as_str()),
+                    h.get("value").and_then(|v| v.as_str()),
+                ) {
                     if !k.trim().is_empty() {
                         req = req.header(k, v);
                     }
@@ -238,15 +272,13 @@ pub async fn test_channel_connection(
     }
 }
 
-pub async fn retry_all_dead_letters(
-    State(state): State<AppState>,
-) -> AppResult<impl IntoResponse> {
+pub async fn retry_all_dead_letters(State(state): State<AppState>) -> AppResult<impl IntoResponse> {
     let rows_affected = sqlx::query(
         r#"
         UPDATE integration_logs
         SET status = 'PENDING', retry_count = 0, next_retry_at = NOW()
         WHERE status IN ('DEAD_LETTER', 'FAIL')
-        "#
+        "#,
     )
     .execute(&state.db)
     .await?
@@ -280,24 +312,21 @@ pub async fn retry_log(
         let _ = crate::services::outbound_service::OutboundService::retry_failed_logs(&pool).await;
     });
 
-    Ok(Json(serde_json::json!({ "success": true, "message": "재시도 요청이 등록되었습니다." })))
+    Ok(Json(
+        serde_json::json!({ "success": true, "message": "재시도 요청이 등록되었습니다." }),
+    ))
 }
 
-pub async fn get_routing_rules(
-    _state: State<AppState>,
-) -> AppResult<impl IntoResponse> {
-    let rules = vec![
-        serde_json::json!({
-            "id": "rule-default",
-            "name": "Default Organization Direct Route",
-            "priority": 1,
-            "targetQueue": "q.mdm.events",
-            "active": true
-        })
-    ];
+pub async fn get_routing_rules(_state: State<AppState>) -> AppResult<impl IntoResponse> {
+    let rules = vec![serde_json::json!({
+        "id": "rule-default",
+        "name": "Default Organization Direct Route",
+        "priority": 1,
+        "targetQueue": "q.mdm.events",
+        "active": true
+    })];
     Ok(Json(rules))
 }
-
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -407,7 +436,10 @@ pub async fn trigger_batch(
     .ok_or_else(|| AppError::NotFound("연계 채널을 찾을 수 없습니다.".to_string()))?;
 
     if !channel.is_active {
-        return Err(AppError::BadRequest(format!("비활성화된 연계 채널입니다. ({})", channel.name)));
+        return Err(AppError::BadRequest(format!(
+            "비활성화된 연계 채널입니다. ({})",
+            channel.name
+        )));
     }
 
     // Branch: If OUTBOUND channel, dispatch current active records for this channel
@@ -420,7 +452,7 @@ pub async fn trigger_batch(
               AND r.status = 'ACTIVE'
             ORDER BY r.updated_at DESC
             LIMIT 50
-            "#
+            "#,
         )
         .bind(channel.node_id)
         .fetch_all(&state.db)
@@ -445,10 +477,17 @@ pub async fn trigger_batch(
         let pool = state.db.clone();
         let total = records.len();
         let execution_id = Uuid::new_v4();
-        let out_code = out_channel.channel_code.clone().unwrap_or_else(|| "OUTBOUND".to_string());
+        let out_code = out_channel
+            .channel_code
+            .clone()
+            .unwrap_or_else(|| "OUTBOUND".to_string());
 
         tokio::spawn(async move {
-            tracing::info!("🚀 [Outbound Batch Async] Started manual dispatch for {} records on channel {}", total, out_code);
+            tracing::info!(
+                "🚀 [Outbound Batch Async] Started manual dispatch for {} records on channel {}",
+                total,
+                out_code
+            );
             let mut success_count = 0;
             let mut fail_count = 0;
 
@@ -467,7 +506,12 @@ pub async fn trigger_batch(
                 }
             }
 
-            tracing::info!("✅ [Outbound Batch Async] Finished manual dispatch: total {}, success {}, fail {}", total, success_count, fail_count);
+            tracing::info!(
+                "✅ [Outbound Batch Async] Finished manual dispatch: total {}, success {}, fail {}",
+                total,
+                success_count,
+                fail_count
+            );
         });
 
         return Ok(Json(serde_json::json!({
@@ -480,12 +524,17 @@ pub async fn trigger_batch(
 
     // Branch: If INBOUND channel, run stock ingestion asynchronously
     let markets_vec: Option<Vec<String>> = match req.markets {
-        Some(serde_json::Value::Array(arr)) => {
-            Some(arr.into_iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
-        }
-        Some(serde_json::Value::String(s)) => {
-            Some(s.split(',').map(|m| m.trim().to_string()).filter(|m| !m.is_empty()).collect())
-        }
+        Some(serde_json::Value::Array(arr)) => Some(
+            arr.into_iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect(),
+        ),
+        Some(serde_json::Value::String(s)) => Some(
+            s.split(',')
+                .map(|m| m.trim().to_string())
+                .filter(|m| !m.is_empty())
+                .collect(),
+        ),
         _ => None,
     };
 
@@ -498,24 +547,49 @@ pub async fn trigger_batch(
 
     let execution_id = Uuid::new_v4();
     let pool = state.db.clone();
-    let channel_code_str = channel.channel_code.clone().unwrap_or_else(|| "INBOUND".to_string());
+    let channel_code_str = channel
+        .channel_code
+        .clone()
+        .unwrap_or_else(|| "INBOUND".to_string());
 
     tokio::spawn(async move {
-        tracing::info!("🚀 [Inbound Batch Async] Starting background stock ingestion for channel {}", channel_code_str);
-        if crate::batch::lock::AdvisoryLock::try_acquire(&pool, crate::batch::stock_ingestion::StockDataIngestionJob::LOCK_ID).await {
+        tracing::info!(
+            "🚀 [Inbound Batch Async] Starting background stock ingestion for channel {}",
+            channel_code_str
+        );
+        if crate::batch::lock::AdvisoryLock::try_acquire(
+            &pool,
+            crate::batch::stock_ingestion::StockDataIngestionJob::LOCK_ID,
+        )
+        .await
+        {
             match crate::batch::stock_ingestion::StockDataIngestionJob::run_ingestion(
                 &pool,
                 seed_req,
                 "MANUAL_TRIGGER",
-            ).await {
+            )
+            .await
+            {
                 Ok(res) => {
-                    tracing::info!("✅ [Inbound Batch Async] Completed successfully for {}: {}", channel_code_str, res.message);
+                    tracing::info!(
+                        "✅ [Inbound Batch Async] Completed successfully for {}: {}",
+                        channel_code_str,
+                        res.message
+                    );
                 }
                 Err(e) => {
-                    tracing::error!("❌ [Inbound Batch Async] Execution failed for {}: {}", channel_code_str, e);
+                    tracing::error!(
+                        "❌ [Inbound Batch Async] Execution failed for {}: {}",
+                        channel_code_str,
+                        e
+                    );
                 }
             }
-            crate::batch::lock::AdvisoryLock::release(&pool, crate::batch::stock_ingestion::StockDataIngestionJob::LOCK_ID).await;
+            crate::batch::lock::AdvisoryLock::release(
+                &pool,
+                crate::batch::stock_ingestion::StockDataIngestionJob::LOCK_ID,
+            )
+            .await;
         } else {
             tracing::warn!("⚠️ [Inbound Batch Async] Could not acquire lock for {}, another batch is currently in progress.", channel_code_str);
         }
@@ -553,28 +627,48 @@ pub async fn handle_inbound(
     .ok_or_else(|| AppError::NotFound("연계 채널을 찾을 수 없습니다.".to_string()))?;
 
     if !channel.is_active {
-        return Err(AppError::BadRequest("비활성화된 연계 채널입니다.".to_string()));
+        return Err(AppError::BadRequest(
+            "비활성화된 연계 채널입니다.".to_string(),
+        ));
     }
     if !channel.direction.eq_ignore_ascii_case("INBOUND") {
-        return Err(AppError::BadRequest("인바운드 연계 채널이 아닙니다.".to_string()));
+        return Err(AppError::BadRequest(
+            "인바운드 연계 채널이 아닙니다.".to_string(),
+        ));
     }
 
     // Check authentication if configured in config_json
     if let Some(ref cfg_str) = channel.config_json {
         if let Ok(cfg) = serde_json::from_str::<serde_json::Value>(cfg_str) {
-            let auth_type = cfg.get("authType").and_then(|v| v.as_str()).unwrap_or("NONE");
-            let secret_token = cfg.get("secretToken").and_then(|v| v.as_str()).unwrap_or("");
+            let auth_type = cfg
+                .get("authType")
+                .and_then(|v| v.as_str())
+                .unwrap_or("NONE");
+            let secret_token = cfg
+                .get("secretToken")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
             if !secret_token.is_empty() {
                 if auth_type == "BEARER_TOKEN" {
-                    let auth_val = headers.get("authorization").and_then(|v| v.to_str().ok()).unwrap_or("");
+                    let auth_val = headers
+                        .get("authorization")
+                        .and_then(|v| v.to_str().ok())
+                        .unwrap_or("");
                     let expected = format!("Bearer {}", secret_token);
                     if auth_val != expected && auth_val != secret_token {
-                        return Err(AppError::Unauthorized("인바운드 연계 인증 토큰이 일치하지 않습니다.".to_string()));
+                        return Err(AppError::Unauthorized(
+                            "인바운드 연계 인증 토큰이 일치하지 않습니다.".to_string(),
+                        ));
                     }
                 } else if auth_type == "API_KEY" {
-                    let api_key = headers.get("x-api-key").and_then(|v| v.to_str().ok()).unwrap_or("");
+                    let api_key = headers
+                        .get("x-api-key")
+                        .and_then(|v| v.to_str().ok())
+                        .unwrap_or("");
                     if api_key != secret_token {
-                        return Err(AppError::Unauthorized("인바운드 연계 인증 토큰이 일치하지 않습니다.".to_string()));
+                        return Err(AppError::Unauthorized(
+                            "인바운드 연계 인증 토큰이 일치하지 않습니다.".to_string(),
+                        ));
                     }
                 }
             }
@@ -590,7 +684,9 @@ pub async fn handle_inbound(
             )
             .fetch_optional(&state.db)
             .await?;
-            fallback.ok_or_else(|| AppError::BadRequest("연계 대상 분류 노드가 지정되지 않았습니다.".to_string()))?
+            fallback.ok_or_else(|| {
+                AppError::BadRequest("연계 대상 분류 노드가 지정되지 않았습니다.".to_string())
+            })?
         }
     };
 
@@ -647,6 +743,3 @@ pub async fn handle_inbound(
         "recordId": new_rec_id
     })))
 }
-
-
-

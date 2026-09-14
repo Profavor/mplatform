@@ -1,13 +1,15 @@
-use axum::extract::State;
-use axum::extract::Path;
-use axum::http::StatusCode;
-use axum::extract::Query;
-use axum::Json;
 use crate::error::AppError;
 use crate::middleware::auth::AuthUser;
-use crate::models::matching::{MatchCandidate, MatchingRule, MergeRequest, MergeResult, SurvivorshipRule};
+use crate::models::matching::{
+    MatchCandidate, MatchingRule, MergeRequest, MergeResult, SurvivorshipRule,
+};
 use crate::services::matching_service::MatchingService;
 use crate::state::AppState;
+use axum::extract::Path;
+use axum::extract::Query;
+use axum::extract::State;
+use axum::http::StatusCode;
+use axum::Json;
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -38,7 +40,9 @@ pub async fn get_candidates(
     Query(query): Query<CandidateQuery>,
     _auth: AuthUser,
 ) -> Result<Json<Vec<MatchCandidate>>, AppError> {
-    let candidates = MatchingService::get_candidates(&state.db, query.domain_id, query.status.as_deref()).await?;
+    let candidates =
+        MatchingService::get_candidates(&state.db, query.domain_id, query.status.as_deref())
+            .await?;
     Ok(Json(candidates))
 }
 
@@ -71,7 +75,6 @@ pub async fn unmerge_record(
         "recordId": record_id
     })))
 }
-
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -139,11 +142,9 @@ pub async fn delete_matching_rule(
     Path((_domain_id, rule_id)): Path<(Uuid, Uuid)>,
     _auth: AuthUser,
 ) -> Result<StatusCode, AppError> {
-    sqlx::query("DELETE FROM matching_rule WHERE id = $1").bind(rule_id)
+    sqlx::query("DELETE FROM matching_rule WHERE id = $1")
+        .bind(rule_id)
         .execute(&state.db)
         .await?;
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
-
-
-

@@ -48,13 +48,12 @@ impl OrganizationRepository {
         .await?;
 
         for role in &mut roles {
-            let perm_rows: Vec<(String,)> = sqlx::query_as(
-                "SELECT permission FROM role_permissions WHERE role_id = $1"
-            )
-            .bind(role.id)
-            .fetch_all(pool)
-            .await
-            .unwrap_or_default();
+            let perm_rows: Vec<(String,)> =
+                sqlx::query_as("SELECT permission FROM role_permissions WHERE role_id = $1")
+                    .bind(role.id)
+                    .fetch_all(pool)
+                    .await
+                    .unwrap_or_default();
 
             role.permissions = Some(perm_rows.into_iter().map(|(p,)| p).collect());
         }
@@ -76,13 +75,12 @@ impl OrganizationRepository {
         .await?;
 
         for role in &mut roles {
-            let perm_rows: Vec<(String,)> = sqlx::query_as(
-                "SELECT permission FROM role_permissions WHERE role_id = $1"
-            )
-            .bind(role.id)
-            .fetch_all(pool)
-            .await
-            .unwrap_or_default();
+            let perm_rows: Vec<(String,)> =
+                sqlx::query_as("SELECT permission FROM role_permissions WHERE role_id = $1")
+                    .bind(role.id)
+                    .fetch_all(pool)
+                    .await
+                    .unwrap_or_default();
 
             role.permissions = Some(perm_rows.into_iter().map(|(p,)| p).collect());
         }
@@ -107,13 +105,12 @@ impl OrganizationRepository {
         .await?;
 
         for dept in &mut depts {
-            let role_rows: Vec<(Option<String>,)> = sqlx::query_as(
-                "SELECT role_name FROM department_roles WHERE department_id = $1"
-            )
-            .bind(dept.id)
-            .fetch_all(pool)
-            .await
-            .unwrap_or_default();
+            let role_rows: Vec<(Option<String>,)> =
+                sqlx::query_as("SELECT role_name FROM department_roles WHERE department_id = $1")
+                    .bind(dept.id)
+                    .fetch_all(pool)
+                    .await
+                    .unwrap_or_default();
 
             dept.roles = Some(role_rows.into_iter().filter_map(|(r,)| r).collect());
         }

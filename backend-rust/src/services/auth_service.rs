@@ -32,11 +32,12 @@ impl AuthService {
             .as_deref()
             .ok_or_else(|| AppError::Unauthorized("Invalid credentials".to_string()))?;
 
-        let password_valid = bcrypt::verify(&req.password, password_hash)
-            .unwrap_or(false);
+        let password_valid = bcrypt::verify(&req.password, password_hash).unwrap_or(false);
 
         if !password_valid {
-            return Err(AppError::Unauthorized("Invalid username or password".to_string()));
+            return Err(AppError::Unauthorized(
+                "Invalid username or password".to_string(),
+            ));
         }
 
         let now_sec = SystemTime::now()
@@ -74,7 +75,7 @@ impl AuthService {
             r#"
             INSERT INTO login_log (username, user_id, login_at, two_factor_status)
             VALUES ($1, $2, NOW(), 'NONE')
-            "#
+            "#,
         )
         .bind(&user.username)
         .bind(&user.id)
@@ -82,7 +83,8 @@ impl AuthService {
         .await;
 
         let permissions = Self::get_user_permissions(pool, &user).await;
-        let (access_token, refresh_token) = Self::generate_tokens_with_permissions(&user, Some(permissions.clone()), config)?;
+        let (access_token, refresh_token) =
+            Self::generate_tokens_with_permissions(&user, Some(permissions.clone()), config)?;
 
         let server_offset = "+09:00".to_string();
 
@@ -184,9 +186,7 @@ impl AuthService {
         Self::generate_tokens(&user, config)
     }
 
-    async fn refresh_keycloak_tokens(
-        refresh_token: &str,
-    ) -> Result<(String, String), AppError> {
+    async fn refresh_keycloak_tokens(refresh_token: &str) -> Result<(String, String), AppError> {
         let token_uri = std::env::var("KEYCLOAK_TOKEN_URI").unwrap_or_else(|_| {
             let server = std::env::var("KEYCLOAK_SERVER_URL")
                 .unwrap_or_else(|_| "http://keycloak:8080/auth".to_string());
@@ -224,7 +224,10 @@ impl AuthService {
 
         let resp = client
             .post(&token_uri)
-            .header(reqwest::header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+            .header(
+                reqwest::header::CONTENT_TYPE,
+                "application/x-www-form-urlencoded",
+            )
             .body(body)
             .send()
             .await
@@ -246,7 +249,9 @@ impl AuthService {
             .get("access_token")
             .and_then(|v| v.as_str())
             .ok_or_else(|| {
-                AppError::Unauthorized("Missing access_token in Keycloak refresh response".to_string())
+                AppError::Unauthorized(
+                    "Missing access_token in Keycloak refresh response".to_string(),
+                )
             })?
             .to_string();
 
@@ -268,7 +273,7 @@ impl AuthService {
             WHERE r.name = $1
                OR r.name = ('ROLE_' || $1)
                OR ('ROLE_' || r.name) = $1
-            "#
+            "#,
         )
         .bind(role_name)
         .fetch_all(pool)
@@ -289,7 +294,7 @@ impl AuthService {
             JOIN role_permissions rp ON ur.role_id = rp.role_id
             WHERE ur.user_id = $1
               AND (ur.expires_at IS NULL OR ur.expires_at > NOW())
-            "#
+            "#,
         )
         .bind(&user.id)
         .fetch_all(pool)

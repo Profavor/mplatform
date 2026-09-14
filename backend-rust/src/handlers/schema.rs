@@ -1,20 +1,18 @@
-use axum::extract::State;
-use axum::extract::Path;
-use axum::http::StatusCode;
-use axum::extract::Query;
-use axum::{response::IntoResponse, Json};
 use crate::error::AppError;
 use crate::middleware::auth::AuthUser;
 use crate::state::AppState;
+use axum::extract::Path;
+use axum::extract::Query;
+use axum::extract::State;
+use axum::http::StatusCode;
+use axum::{response::IntoResponse, Json};
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{
-    models::{
-        record::PageResponse,
-        schema::{DomainSnapshot, MasterRelation, SchemaHistory, TaxonomyVersion},
-    },
+use crate::models::{
+    record::PageResponse,
+    schema::{DomainSnapshot, MasterRelation, SchemaHistory, TaxonomyVersion},
 };
 
 #[derive(Debug, Deserialize)]
@@ -32,12 +30,10 @@ pub async fn get_schema_history(
     let size = query.size.unwrap_or(50);
     let offset = page * size;
 
-    let total: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM schema_history WHERE domain_id = $1"
-    )
-    .bind(domain_id)
-    .fetch_one(&state.db)
-    .await?;
+    let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM schema_history WHERE domain_id = $1")
+        .bind(domain_id)
+        .fetch_one(&state.db)
+        .await?;
 
     let content = sqlx::query_as::<_, SchemaHistory>(
         r#"
@@ -45,7 +41,7 @@ pub async fn get_schema_history(
         WHERE domain_id = $1
         ORDER BY changed_at DESC
         LIMIT $2 OFFSET $3
-        "#
+        "#,
     )
     .bind(domain_id)
     .bind(size)
@@ -99,19 +95,19 @@ pub async fn analyze_impact(
     Json(payload): Json<ImpactAnalysisRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     // 1. Resolve actual domain_id in case a node_id was passed
-    let actual_domain_id: Uuid = if let Ok(Some((d_id,))) = sqlx::query_as::<_, (Uuid,)>(
-        "SELECT id FROM domain WHERE id = $1"
-    )
-    .bind(domain_id)
-    .fetch_optional(&state.db)
-    .await {
+    let actual_domain_id: Uuid = if let Ok(Some((d_id,))) =
+        sqlx::query_as::<_, (Uuid,)>("SELECT id FROM domain WHERE id = $1")
+            .bind(domain_id)
+            .fetch_optional(&state.db)
+            .await
+    {
         d_id
-    } else if let Ok(Some((d_id,))) = sqlx::query_as::<_, (Uuid,)>(
-        "SELECT domain_id FROM classification_node WHERE id = $1"
-    )
-    .bind(domain_id)
-    .fetch_optional(&state.db)
-    .await {
+    } else if let Ok(Some((d_id,))) =
+        sqlx::query_as::<_, (Uuid,)>("SELECT domain_id FROM classification_node WHERE id = $1")
+            .bind(domain_id)
+            .fetch_optional(&state.db)
+            .await
+    {
         d_id
     } else {
         domain_id
@@ -122,13 +118,12 @@ pub async fn analyze_impact(
     let mut target_field_name_json: Option<serde_json::Value> = None;
 
     if let Some(fid) = payload.field_definition_id {
-        let field_row: Option<(String, Option<serde_json::Value>)> = sqlx::query_as(
-            "SELECT field_key, name FROM field_definition WHERE id = $1"
-        )
-        .bind(fid)
-        .fetch_optional(&state.db)
-        .await
-        .unwrap_or(None);
+        let field_row: Option<(String, Option<serde_json::Value>)> =
+            sqlx::query_as("SELECT field_key, name FROM field_definition WHERE id = $1")
+                .bind(fid)
+                .fetch_optional(&state.db)
+                .await
+                .unwrap_or(None);
 
         if let Some((k, n)) = field_row {
             target_field_key = Some(k);
@@ -145,10 +140,16 @@ pub async fn analyze_impact(
         } else if let Some(en) = j.get("en").and_then(|v| v.as_str()) {
             en.to_string()
         } else {
-            payload.field_name.clone().unwrap_or_else(|| field_key_str.clone())
+            payload
+                .field_name
+                .clone()
+                .unwrap_or_else(|| field_key_str.clone())
         }
     } else {
-        payload.field_name.clone().unwrap_or_else(|| field_key_str.clone())
+        payload
+            .field_name
+            .clone()
+            .unwrap_or_else(|| field_key_str.clone())
     };
 
     // 3. Dynamic header fields for table display
@@ -158,7 +159,7 @@ pub async fn analyze_impact(
         FROM field_definition
         WHERE domain_id = $1 AND is_removed = false
         ORDER BY field_order ASC
-        "#
+        "#,
     )
     .bind(actual_domain_id)
     .fetch_all(&state.db)
@@ -170,10 +171,21 @@ pub async fn analyze_impact(
 
     for (k, n, is_hl) in &domain_fields {
         let ku = k.to_uppercase();
-        if id_header_name.is_none() && (is_hl.unwrap_or(false) || ku.contains("ID") || ku.contains("CODE") || ku.contains("KEY") || ku.contains("NO")) {
+        if id_header_name.is_none()
+            && (is_hl.unwrap_or(false)
+                || ku.contains("ID")
+                || ku.contains("CODE")
+                || ku.contains("KEY")
+                || ku.contains("NO"))
+        {
             id_header_name = n.clone();
         }
-        if name_header_name.is_none() && (ku.contains("NAME") || ku.contains("TITLE") || ku.contains("LABEL") || ku.contains("NM")) {
+        if name_header_name.is_none()
+            && (ku.contains("NAME")
+                || ku.contains("TITLE")
+                || ku.contains("LABEL")
+                || ku.contains("NM"))
+        {
             name_header_name = n.clone();
         }
     }
@@ -186,7 +198,12 @@ pub async fn analyze_impact(
     }
 
     // 4. Query records in this domain
-    let records: Vec<(Uuid, Option<serde_json::Value>, Option<NaiveDateTime>, Option<serde_json::Value>)> = sqlx::query_as(
+    let records: Vec<(
+        Uuid,
+        Option<serde_json::Value>,
+        Option<NaiveDateTime>,
+        Option<serde_json::Value>,
+    )> = sqlx::query_as(
         r#"
         SELECT r.id, r.data, r.updated_at, n.name as node_name
         FROM record r
@@ -194,7 +211,7 @@ pub async fn analyze_impact(
         WHERE n.domain_id = $1 AND r.status != 'DELETED'
         ORDER BY r.updated_at DESC NULLS LAST
         LIMIT 200
-        "#
+        "#,
     )
     .bind(actual_domain_id)
     .fetch_all(&state.db)
@@ -206,7 +223,7 @@ pub async fn analyze_impact(
         SELECT COUNT(r.id) FROM record r
         JOIN classification_node n ON r.node_id = n.id
         WHERE n.domain_id = $1 AND r.status = 'ACTIVE'
-        "#
+        "#,
     )
     .bind(actual_domain_id)
     .fetch_one(&state.db)
@@ -236,15 +253,39 @@ pub async fn analyze_impact(
                 let rec_code = format!("REC-{}", &r_id.to_string()[..8]);
 
                 let id_attr = [
-                    "EMP_NO", "ID", "CODE", "KEY", "RECORD_ID", "record_id", "emp_no", "id", "code", "ticker_code"
-                ].iter()
-                .find_map(|k| data_obj.and_then(|obj| obj.get(*k)).and_then(|v| v.as_str()))
+                    "EMP_NO",
+                    "ID",
+                    "CODE",
+                    "KEY",
+                    "RECORD_ID",
+                    "record_id",
+                    "emp_no",
+                    "id",
+                    "code",
+                    "ticker_code",
+                ]
+                .iter()
+                .find_map(|k| {
+                    data_obj
+                        .and_then(|obj| obj.get(*k))
+                        .and_then(|v| v.as_str())
+                })
                 .map(|s| s.to_string())
                 .unwrap_or_else(|| rec_code.clone());
 
                 let name_attr = [
-                    "STOCK_NAME", "NAME", "TITLE", "LABEL", "EMP_NAME", "stock_name", "name", "title", "label", "emp_name"
-                ].iter()
+                    "STOCK_NAME",
+                    "NAME",
+                    "TITLE",
+                    "LABEL",
+                    "EMP_NAME",
+                    "stock_name",
+                    "name",
+                    "title",
+                    "label",
+                    "emp_name",
+                ]
+                .iter()
                 .find_map(|k| {
                     data_obj.and_then(|obj| obj.get(*k)).map(|v| {
                         if let Some(s) = v.as_str() {
@@ -282,7 +323,9 @@ pub async fn analyze_impact(
                     "-".to_string()
                 };
 
-                let time_str = r_updated_at.map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string()).unwrap_or_default();
+                let time_str = r_updated_at
+                    .map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string())
+                    .unwrap_or_default();
 
                 samples.push(serde_json::json!({
                     "recordCode": rec_code,
@@ -305,7 +348,7 @@ pub async fn analyze_impact(
 
     // 5. Affected integration channels
     let channels: Vec<(String, Option<String>)> = sqlx::query_as(
-        "SELECT name, mapping_config_json FROM integration_channels WHERE is_active = true"
+        "SELECT name, mapping_config_json FROM integration_channels WHERE is_active = true",
     )
     .fetch_all(&state.db)
     .await
@@ -323,7 +366,7 @@ pub async fn analyze_impact(
     // 6. Affected DQ rules
     let dq_rules: Vec<(String,)> = if let Some(fid) = payload.field_definition_id {
         sqlx::query_as(
-            "SELECT rule_type FROM dq_rule WHERE field_definition_id = $1 AND is_active = true"
+            "SELECT rule_type FROM dq_rule WHERE field_definition_id = $1 AND is_active = true",
         )
         .bind(fid)
         .fetch_all(&state.db)
@@ -347,7 +390,11 @@ pub async fn analyze_impact(
         };
         (risk, 0)
     } else if change_type.to_uppercase().contains("MODIFY") {
-        let risk = if effective_affected > 100 { "HIGH" } else { "LOW" };
+        let risk = if effective_affected > 100 {
+            "HIGH"
+        } else {
+            "LOW"
+        };
         let dq = (effective_affected as f64 * 0.05).round() as i64;
         (risk, dq)
     } else {
@@ -386,7 +433,7 @@ pub async fn simulate_field_impact(
         SELECT COUNT(r.id) FROM record r
         JOIN classification_node n ON r.node_id = n.id
         WHERE n.domain_id = $1 AND r.status != 'DELETED'
-        "#
+        "#,
     )
     .bind(domain_id)
     .fetch_one(&state.db)
@@ -411,7 +458,7 @@ pub async fn get_taxonomy_versions(
     Path(domain_id): Path<Uuid>,
 ) -> Result<Json<Vec<TaxonomyVersion>>, AppError> {
     let list = sqlx::query_as::<_, TaxonomyVersion>(
-        "SELECT * FROM taxonomy_version WHERE domain_id = $1 ORDER BY created_at DESC"
+        "SELECT * FROM taxonomy_version WHERE domain_id = $1 ORDER BY created_at DESC",
     )
     .bind(domain_id)
     .fetch_all(&state.db)
@@ -461,7 +508,7 @@ pub async fn create_taxonomy_version(
             $5, NOW(), NOW()
         )
         RETURNING *
-        "#
+        "#,
     )
     .bind(new_id)
     .bind(domain_id)
@@ -482,7 +529,7 @@ pub async fn get_domain_snapshots(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<DomainSnapshot>>, AppError> {
     let snapshots = sqlx::query_as::<_, DomainSnapshot>(
-        "SELECT * FROM domain_snapshots ORDER BY created_at DESC"
+        "SELECT * FROM domain_snapshots ORDER BY created_at DESC",
     )
     .fetch_all(&state.db)
     .await?;
@@ -510,7 +557,7 @@ pub async fn create_domain_snapshot(
         SELECT COUNT(r.id) FROM record r
         JOIN classification_node n ON r.node_id = n.id
         WHERE n.domain_id = $1 AND r.status != 'DELETED'
-        "#
+        "#,
     )
     .bind(payload.domain_id)
     .fetch_one(&state.db)
@@ -526,7 +573,7 @@ pub async fn create_domain_snapshot(
             '{}', $6, NOW()
         )
         RETURNING *
-        "#
+        "#,
     )
     .bind(new_id)
     .bind(payload.domain_id)
@@ -568,7 +615,7 @@ pub async fn check_domain_integrity(
         r#"
         SELECT COUNT(r.id) FROM record r
         WHERE r.node_id NOT IN (SELECT id FROM classification_node)
-        "#
+        "#,
     )
     .fetch_one(&state.db)
     .await?;
@@ -590,7 +637,7 @@ pub async fn get_master_relations(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<MasterRelation>>, AppError> {
     let relations = sqlx::query_as::<_, MasterRelation>(
-        "SELECT * FROM master_relation WHERE is_active = true ORDER BY created_at DESC"
+        "SELECT * FROM master_relation WHERE is_active = true ORDER BY created_at DESC",
     )
     .fetch_all(&state.db)
     .await?;
@@ -613,7 +660,7 @@ pub async fn create_master_relation(
             $5, $6, true, NOW(), NOW()
         )
         RETURNING *
-        "#
+        "#,
     )
     .bind(new_id)
     .bind(payload.source_domain_id)
@@ -638,7 +685,6 @@ pub async fn delete_master_relation(
 
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
-
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -676,6 +722,3 @@ pub async fn update_master_relation(
 
     Ok(Json(serde_json::json!({})))
 }
-
-
-

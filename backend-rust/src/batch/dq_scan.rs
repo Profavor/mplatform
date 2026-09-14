@@ -72,7 +72,10 @@ impl DqScanJob {
         }
 
         if scanned > 0 {
-            tracing::info!("🔍 [DQ Scheduled Scan Batch] Completed DQ scan for {} domains", scanned);
+            tracing::info!(
+                "🔍 [DQ Scheduled Scan Batch] Completed DQ scan for {} domains",
+                scanned
+            );
         }
         Ok(scanned)
     }

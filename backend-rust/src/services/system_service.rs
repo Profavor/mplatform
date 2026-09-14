@@ -28,7 +28,11 @@ impl SystemService {
         Ok(config)
     }
 
-    pub async fn get_error_logs(&self, page: i64, size: i64) -> AppResult<(Vec<ErrorLogItem>, i64)> {
+    pub async fn get_error_logs(
+        &self,
+        page: i64,
+        size: i64,
+    ) -> AppResult<(Vec<ErrorLogItem>, i64)> {
         let (logs, total) = SystemRepository::get_error_logs(&self.pool, page, size).await?;
         Ok((logs, total))
     }
@@ -43,7 +47,11 @@ impl SystemService {
         // Approximate RSS via /proc/self/statm on Linux
         let rss_mb = match std::fs::read_to_string("/proc/self/statm") {
             Ok(s) => {
-                let pages: f64 = s.split_whitespace().nth(1).and_then(|p| p.parse().ok()).unwrap_or(0.0);
+                let pages: f64 = s
+                    .split_whitespace()
+                    .nth(1)
+                    .and_then(|p| p.parse().ok())
+                    .unwrap_or(0.0);
                 (pages * 4096.0) / (1024.0 * 1024.0)
             }
             Err(_) => 18.5,

@@ -8,7 +8,7 @@ pub struct IntegrationRepository;
 impl IntegrationRepository {
     pub async fn get_channels(pool: &PgPool) -> Result<Vec<IntegrationChannel>, sqlx::Error> {
         let channels = sqlx::query_as::<_, IntegrationChannel>(
-            "SELECT * FROM integration_channels ORDER BY created_at DESC"
+            "SELECT * FROM integration_channels ORDER BY created_at DESC",
         )
         .fetch_all(pool)
         .await?;
@@ -33,7 +33,7 @@ impl IntegrationRepository {
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $14)
             RETURNING *
-            "#
+            "#,
         )
         .bind(id)
         .bind(req.name)
@@ -118,7 +118,7 @@ impl IntegrationRepository {
             }
             (Some(cid), false) => {
                 let total: i64 = sqlx::query_scalar(
-                    "SELECT COUNT(*) FROM integration_logs WHERE channel_id = $1"
+                    "SELECT COUNT(*) FROM integration_logs WHERE channel_id = $1",
                 )
                 .bind(cid)
                 .fetch_one(pool)
@@ -149,7 +149,7 @@ impl IntegrationRepository {
             }
             (None, true) => {
                 let total: i64 = sqlx::query_scalar(
-                    "SELECT COUNT(*) FROM integration_logs WHERE status != 'SUCCESS'"
+                    "SELECT COUNT(*) FROM integration_logs WHERE status != 'SUCCESS'",
                 )
                 .fetch_one(pool)
                 .await?;
@@ -177,11 +177,9 @@ impl IntegrationRepository {
                 (total, logs)
             }
             (None, false) => {
-                let total: i64 = sqlx::query_scalar(
-                    "SELECT COUNT(*) FROM integration_logs"
-                )
-                .fetch_one(pool)
-                .await?;
+                let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM integration_logs")
+                    .fetch_one(pool)
+                    .await?;
 
                 let logs = sqlx::query_as::<_, IntegrationLog>(
                     r#"
@@ -266,7 +264,7 @@ impl IntegrationRepository {
         id: Uuid,
     ) -> Result<Option<IntegrationChannel>, sqlx::Error> {
         let channel = sqlx::query_as::<_, IntegrationChannel>(
-            "SELECT * FROM integration_channels WHERE id = $1"
+            "SELECT * FROM integration_channels WHERE id = $1",
         )
         .bind(id)
         .fetch_optional(pool)
@@ -292,7 +290,7 @@ impl IntegrationRepository {
             WHERE channel_id = $1
               AND created_at >= NOW() - INTERVAL '24 hours'
             ORDER BY created_at ASC
-            "#
+            "#,
         )
         .bind(channel_id)
         .fetch_all(pool)

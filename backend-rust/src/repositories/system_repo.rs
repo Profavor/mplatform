@@ -6,7 +6,7 @@ pub struct SystemRepository;
 impl SystemRepository {
     pub async fn get_features(pool: &PgPool) -> Result<Vec<SystemFeature>, sqlx::Error> {
         let features = sqlx::query_as::<_, SystemFeature>(
-            "SELECT * FROM system_features ORDER BY feature_no ASC"
+            "SELECT * FROM system_features ORDER BY feature_no ASC",
         )
         .fetch_all(pool)
         .await?;
@@ -16,7 +16,7 @@ impl SystemRepository {
 
     pub async fn get_config(pool: &PgPool) -> Result<Vec<SystemConfigItem>, sqlx::Error> {
         let config = sqlx::query_as::<_, SystemConfigItem>(
-            "SELECT * FROM system_config ORDER BY config_key ASC"
+            "SELECT * FROM system_config ORDER BY config_key ASC",
         )
         .fetch_all(pool)
         .await?;
@@ -24,10 +24,14 @@ impl SystemRepository {
         Ok(config)
     }
 
-    pub async fn get_error_logs(pool: &PgPool, page: i64, size: i64) -> Result<(Vec<ErrorLogItem>, i64), sqlx::Error> {
+    pub async fn get_error_logs(
+        pool: &PgPool,
+        page: i64,
+        size: i64,
+    ) -> Result<(Vec<ErrorLogItem>, i64), sqlx::Error> {
         let offset = page * size;
         let logs = sqlx::query_as::<_, ErrorLogItem>(
-            "SELECT * FROM error_log ORDER BY logged_at DESC LIMIT $1 OFFSET $2"
+            "SELECT * FROM error_log ORDER BY logged_at DESC LIMIT $1 OFFSET $2",
         )
         .bind(size)
         .bind(offset)

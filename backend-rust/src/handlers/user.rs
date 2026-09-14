@@ -1,6 +1,8 @@
 use crate::error::AppError;
 use crate::middleware::auth::AuthUser;
-use crate::models::user_mgmt::{AdminUserUpdateDto, ResetPasswordRequest, SelfUserUpdateDto, UserDto};
+use crate::models::user_mgmt::{
+    AdminUserUpdateDto, ResetPasswordRequest, SelfUserUpdateDto, UserDto,
+};
 use crate::services::user_service::UserService;
 use crate::state::AppState;
 use axum::http::StatusCode;
@@ -90,7 +92,9 @@ pub async fn change_my_password(
     auth: AuthUser,
     Json(dto): Json<ChangePasswordDto>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let new_pass = dto.new_password.ok_or_else(|| AppError::BadRequest("newPassword is required".to_string()))?;
+    let new_pass = dto
+        .new_password
+        .ok_or_else(|| AppError::BadRequest("newPassword is required".to_string()))?;
     let hashed = bcrypt::hash(&new_pass, 10)
         .map_err(|e| AppError::Internal(format!("Hashing failed: {e}")))?;
 
@@ -194,7 +198,7 @@ pub async fn create_user(
             $1, $2, $3, $4, $5, $6, $7, $8,
             true, true, $9, $10
         )
-        "#
+        "#,
     )
     .bind(&user_id)
     .bind(&req.username)
@@ -229,6 +233,8 @@ pub async fn get_temp_password(
 
     match row {
         Some((Some(pwd), Some(true))) => Ok(Json(serde_json::json!({ "tempPassword": pwd }))),
-        _ => Err(AppError::BadRequest("Temporary password not available".to_string())),
+        _ => Err(AppError::BadRequest(
+            "Temporary password not available".to_string(),
+        )),
     }
 }

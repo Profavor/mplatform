@@ -7,11 +7,17 @@ use std::collections::HashMap;
 pub struct MenuService;
 
 impl MenuService {
-    pub async fn get_all_menus(pool: &PgPool, include_inactive: bool) -> Result<Vec<Menu>, AppError> {
+    pub async fn get_all_menus(
+        pool: &PgPool,
+        include_inactive: bool,
+    ) -> Result<Vec<Menu>, AppError> {
         MenuRepository::find_all(pool, include_inactive).await
     }
 
-    pub async fn get_menu_tree(pool: &PgPool, include_inactive: bool) -> Result<Vec<serde_json::Value>, AppError> {
+    pub async fn get_menu_tree(
+        pool: &PgPool,
+        include_inactive: bool,
+    ) -> Result<Vec<serde_json::Value>, AppError> {
         let menus = MenuRepository::find_all(pool, include_inactive).await?;
         let roles_map = MenuRepository::get_menu_roles(pool).await?;
         Ok(Self::build_tree_recursive(&menus, &roles_map, None))
@@ -68,11 +74,18 @@ impl MenuService {
         MenuRepository::log_access(pool, menu_id, menu_path, user_id, user_agent, client_ip).await
     }
 
-    pub async fn get_my_recent_access(pool: &PgPool, user_id: &str) -> Result<Vec<serde_json::Value>, AppError> {
+    pub async fn get_my_recent_access(
+        pool: &PgPool,
+        user_id: &str,
+    ) -> Result<Vec<serde_json::Value>, AppError> {
         MenuRepository::find_recent_access_logs(pool, user_id).await
     }
 
-    pub async fn get_access_logs(pool: &PgPool, page: i64, size: i64) -> Result<serde_json::Value, AppError> {
+    pub async fn get_access_logs(
+        pool: &PgPool,
+        page: i64,
+        size: i64,
+    ) -> Result<serde_json::Value, AppError> {
         MenuRepository::find_access_logs(pool, page, size).await
     }
 }

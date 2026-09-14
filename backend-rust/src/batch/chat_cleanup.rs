@@ -11,14 +11,17 @@ impl ChatCleanupJob {
             r#"
             DELETE FROM chat_message
             WHERE is_ephemeral = true AND created_at < NOW() - INTERVAL '7 days'
-            "#
+            "#,
         )
         .execute(pool)
         .await?;
 
         let rows = res.rows_affected();
         if rows > 0 {
-            tracing::info!("🧹 [Chat Cleanup Batch] Purged {} expired ephemeral messages", rows);
+            tracing::info!(
+                "🧹 [Chat Cleanup Batch] Purged {} expired ephemeral messages",
+                rows
+            );
         }
         Ok(rows)
     }

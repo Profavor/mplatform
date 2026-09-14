@@ -41,7 +41,11 @@ impl CodeService {
         CodeRepository::create_group(pool, req).await
     }
 
-    pub async fn update_group(pool: &PgPool, id: Uuid, req: CodeGroupRequest) -> Result<CodeGroup, AppError> {
+    pub async fn update_group(
+        pool: &PgPool,
+        id: Uuid,
+        req: CodeGroupRequest,
+    ) -> Result<CodeGroup, AppError> {
         CodeRepository::update_group(pool, id, req).await
     }
 
@@ -49,11 +53,19 @@ impl CodeService {
         CodeRepository::delete_group(pool, id).await
     }
 
-    pub async fn create_detail(pool: &PgPool, group_id: Uuid, req: CodeDetailRequest) -> Result<CodeDetail, AppError> {
+    pub async fn create_detail(
+        pool: &PgPool,
+        group_id: Uuid,
+        req: CodeDetailRequest,
+    ) -> Result<CodeDetail, AppError> {
         CodeRepository::create_detail(pool, group_id, req).await
     }
 
-    pub async fn update_detail(pool: &PgPool, detail_id: Uuid, req: CodeDetailRequest) -> Result<CodeDetail, AppError> {
+    pub async fn update_detail(
+        pool: &PgPool,
+        detail_id: Uuid,
+        req: CodeDetailRequest,
+    ) -> Result<CodeDetail, AppError> {
         CodeRepository::update_detail(pool, detail_id, req).await
     }
 

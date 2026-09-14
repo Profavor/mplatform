@@ -150,10 +150,16 @@ impl BatchScheduler {
                             .and_then(|s| serde_json::from_str(s).ok())
                             .unwrap_or_else(|| serde_json::json!({}));
 
-                        let cron_expr = config.get("cron").and_then(|v| v.as_str()).unwrap_or("0 0 16 * * MON-FRI");
+                        let cron_expr = config
+                            .get("cron")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("0 0 16 * * MON-FRI");
 
                         if is_cron_due(cron_expr, now_kst) {
-                            let start_of_minute = now_kst.with_second(0).and_then(|t| t.with_nanosecond(0)).unwrap_or(now_kst);
+                            let start_of_minute = now_kst
+                                .with_second(0)
+                                .and_then(|t| t.with_nanosecond(0))
+                                .unwrap_or(now_kst);
                             let start_utc = start_of_minute.naive_utc();
 
                             let already_run: bool = sqlx::query_scalar(
@@ -163,7 +169,7 @@ impl BatchScheduler {
                                     WHERE channel_id = $1
                                       AND created_at >= $2
                                 )
-                                "#
+                                "#,
                             )
                             .bind(channel_id)
                             .bind(start_utc)
@@ -172,7 +178,9 @@ impl BatchScheduler {
                             .unwrap_or(true);
 
                             if !already_run {
-                                if AdvisoryLock::try_acquire(&pool, StockDataIngestionJob::LOCK_ID).await {
+                                if AdvisoryLock::try_acquire(&pool, StockDataIngestionJob::LOCK_ID)
+                                    .await
+                                {
                                     let already_run_locked: bool = sqlx::query_scalar(
                                         r#"
                                         SELECT EXISTS(
@@ -180,7 +188,7 @@ impl BatchScheduler {
                                             WHERE channel_id = $1
                                               AND created_at >= $2
                                         )
-                                        "#
+                                        "#,
                                     )
                                     .bind(channel_id)
                                     .bind(start_utc)
@@ -194,30 +202,57 @@ impl BatchScheduler {
                                             channel_code, cron_expr, now_kst.format("%Y-%m-%d %H:%M:%S")
                                         );
 
-                                        let markets_vec: Option<Vec<String>> = config.get("batchParams")
+                                        let markets_vec: Option<Vec<String>> = config
+                                            .get("batchParams")
                                             .and_then(|v| v.as_str())
-                                            .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
-                                            .and_then(|v| v.get("markets").and_then(|m| m.as_str()).map(|s| s.split(',').map(|x| x.trim().to_string()).filter(|x| !x.is_empty()).collect()));
+                                            .and_then(|p| {
+                                                serde_json::from_str::<serde_json::Value>(p).ok()
+                                            })
+                                            .and_then(|v| {
+                                                v.get("markets").and_then(|m| m.as_str()).map(|s| {
+                                                    s.split(',')
+                                                        .map(|x| x.trim().to_string())
+                                                        .filter(|x| !x.is_empty())
+                                                        .collect()
+                                                })
+                                            });
 
-                                        let clear_existing = config.get("clearExisting").and_then(|v| v.as_bool());
+                                        let clear_existing =
+                                            config.get("clearExisting").and_then(|v| v.as_bool());
 
-                                        let seed_req = crate::batch::stock_ingestion::StockSeedRequest {
-                                            clear_existing,
-                                            markets: markets_vec,
-                                            limit_per_market: None,
-                                            custom_rows: None,
-                                        };
+                                        let seed_req =
+                                            crate::batch::stock_ingestion::StockSeedRequest {
+                                                clear_existing,
+                                                markets: markets_vec,
+                                                limit_per_market: None,
+                                                custom_rows: None,
+                                            };
 
-                                        match StockDataIngestionJob::run_ingestion(&pool, seed_req, "SCHEDULED_CRON").await {
+                                        match StockDataIngestionJob::run_ingestion(
+                                            &pool,
+                                            seed_req,
+                                            "SCHEDULED_CRON",
+                                        )
+                                        .await
+                                        {
                                             Ok(res) => {
-                                                tracing::info!("✅ Scheduled batch completed for {}: {}", channel_code, res.message);
+                                                tracing::info!(
+                                                    "✅ Scheduled batch completed for {}: {}",
+                                                    channel_code,
+                                                    res.message
+                                                );
                                             }
                                             Err(e) => {
-                                                tracing::error!("❌ Scheduled batch error for {}: {}", channel_code, e);
+                                                tracing::error!(
+                                                    "❌ Scheduled batch error for {}: {}",
+                                                    channel_code,
+                                                    e
+                                                );
                                             }
                                         }
                                     }
-                                    AdvisoryLock::release(&pool, StockDataIngestionJob::LOCK_ID).await;
+                                    AdvisoryLock::release(&pool, StockDataIngestionJob::LOCK_ID)
+                                        .await;
                                 }
                             }
                         }

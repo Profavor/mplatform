@@ -35,7 +35,10 @@ impl CodeRepository {
         Ok(groups)
     }
 
-    pub async fn find_group_by_code(pool: &PgPool, code: &str) -> Result<Option<CodeGroup>, AppError> {
+    pub async fn find_group_by_code(
+        pool: &PgPool,
+        code: &str,
+    ) -> Result<Option<CodeGroup>, AppError> {
         let group = sqlx::query_as::<_, CodeGroup>(
             r#"
             SELECT id, group_code, name, description, is_active, organization_id, created_at, updated_at
@@ -126,7 +129,11 @@ impl CodeRepository {
         Ok(group)
     }
 
-    pub async fn update_group(pool: &PgPool, id: Uuid, req: CodeGroupRequest) -> Result<CodeGroup, AppError> {
+    pub async fn update_group(
+        pool: &PgPool,
+        id: Uuid,
+        req: CodeGroupRequest,
+    ) -> Result<CodeGroup, AppError> {
         let is_active = req.is_active.unwrap_or(true);
         let group = sqlx::query_as::<_, CodeGroup>(
             r#"
@@ -160,7 +167,11 @@ impl CodeRepository {
         Ok(())
     }
 
-    pub async fn create_detail(pool: &PgPool, group_id: Uuid, req: CodeDetailRequest) -> Result<CodeDetail, AppError> {
+    pub async fn create_detail(
+        pool: &PgPool,
+        group_id: Uuid,
+        req: CodeDetailRequest,
+    ) -> Result<CodeDetail, AppError> {
         let id = Uuid::new_v4();
         let is_active = req.is_active.unwrap_or(true);
         let sort_order = req.sort_order.unwrap_or(1);
@@ -185,7 +196,11 @@ impl CodeRepository {
         Ok(detail)
     }
 
-    pub async fn update_detail(pool: &PgPool, detail_id: Uuid, req: CodeDetailRequest) -> Result<CodeDetail, AppError> {
+    pub async fn update_detail(
+        pool: &PgPool,
+        detail_id: Uuid,
+        req: CodeDetailRequest,
+    ) -> Result<CodeDetail, AppError> {
         let is_active = req.is_active.unwrap_or(true);
         let detail = sqlx::query_as::<_, CodeDetail>(
             r#"

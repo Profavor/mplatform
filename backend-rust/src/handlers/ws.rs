@@ -52,10 +52,18 @@ async fn handle_socket(socket: WebSocket, state: AppState, query: WsQuery) {
                     if let Ok(val) = serde_json::from_str::<serde_json::Value>(&text) {
                         if let Some(action) = val.get("action").and_then(|a| a.as_str()) {
                             if action == "send" {
-                                if let Some(room_id_str) = val.get("roomId").and_then(|r| r.as_str()) {
+                                if let Some(room_id_str) =
+                                    val.get("roomId").and_then(|r| r.as_str())
+                                {
                                     if let Ok(room_id) = Uuid::parse_str(room_id_str) {
-                                        let content = val.get("content").and_then(|c| c.as_str()).map(|s| s.to_string());
-                                        let message_type = val.get("messageType").and_then(|m| m.as_str()).map(|s| s.to_string());
+                                        let content = val
+                                            .get("content")
+                                            .and_then(|c| c.as_str())
+                                            .map(|s| s.to_string());
+                                        let message_type = val
+                                            .get("messageType")
+                                            .and_then(|m| m.as_str())
+                                            .map(|s| s.to_string());
                                         let _ = state_clone
                                             .chat_service
                                             .send_message(

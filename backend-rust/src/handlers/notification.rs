@@ -1,15 +1,13 @@
-use axum::extract::Path;
-use axum::extract::State;
-use serde::Deserialize;
 use crate::error::AppError;
 use crate::middleware::auth::AuthUser;
 use crate::models::notification::NotificationResponse;
 use crate::services::notification_service::NotificationService;
 use crate::state::AppState;
+use axum::extract::Path;
+use axum::extract::State;
 use axum::http::StatusCode;
-use axum::{
-    Json,
-};
+use axum::Json;
+use serde::Deserialize;
 use uuid::Uuid;
 
 pub async fn get_my_notifications(
@@ -59,7 +57,6 @@ pub async fn clear_all_notifications(
     Ok(Json(serde_json::json!({ "success": true })))
 }
 
-
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateNotificationRequest {
@@ -99,11 +96,9 @@ pub async fn delete_notification(
     Path(id): Path<Uuid>,
     _auth: AuthUser,
 ) -> Result<StatusCode, AppError> {
-    sqlx::query("DELETE FROM notification WHERE id = $1").bind(id)
+    sqlx::query("DELETE FROM notification WHERE id = $1")
+        .bind(id)
         .execute(&state.db)
         .await?;
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
-
-
-

@@ -49,10 +49,7 @@ impl DqRepository {
         Ok(rules)
     }
 
-    pub async fn create_rule(
-        pool: &PgPool,
-        req: CreateDqRuleRequest,
-    ) -> Result<DqRule, AppError> {
+    pub async fn create_rule(pool: &PgPool, req: CreateDqRuleRequest) -> Result<DqRule, AppError> {
         let id = Uuid::new_v4();
         let rule = sqlx::query_as::<_, DqRule>(
             r#"

@@ -47,7 +47,10 @@ impl ApprovalRepository {
         Ok(req)
     }
 
-    pub async fn find_steps(pool: &PgPool, request_id: Uuid) -> Result<Vec<ApprovalStep>, AppError> {
+    pub async fn find_steps(
+        pool: &PgPool,
+        request_id: Uuid,
+    ) -> Result<Vec<ApprovalStep>, AppError> {
         let steps = sqlx::query_as::<_, ApprovalStep>(
             r#"
             SELECT id, request_id, step_order, step_type, assignee_id,

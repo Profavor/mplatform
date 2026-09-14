@@ -19,12 +19,19 @@ impl DomainService {
         Ok(DomainResponse::from(domain))
     }
 
-    pub async fn create_domain(pool: &PgPool, req: DomainRequest) -> Result<DomainResponse, AppError> {
+    pub async fn create_domain(
+        pool: &PgPool,
+        req: DomainRequest,
+    ) -> Result<DomainResponse, AppError> {
         let domain = DomainRepository::create(pool, req).await?;
         Ok(DomainResponse::from(domain))
     }
 
-    pub async fn update_domain(pool: &PgPool, id: Uuid, req: DomainRequest) -> Result<DomainResponse, AppError> {
+    pub async fn update_domain(
+        pool: &PgPool,
+        id: Uuid,
+        req: DomainRequest,
+    ) -> Result<DomainResponse, AppError> {
         let domain = DomainRepository::update(pool, id, req).await?;
         Ok(DomainResponse::from(domain))
     }

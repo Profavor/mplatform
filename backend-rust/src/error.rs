@@ -37,7 +37,10 @@ impl IntoResponse for AppError {
         let (status, message) = match &self {
             AppError::Database(e) => {
                 tracing::error!("Database query failed: {:?}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Database error occurred".to_string())
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Database error occurred".to_string(),
+                )
             }
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg.clone()),
             AppError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg.clone()),
@@ -45,7 +48,10 @@ impl IntoResponse for AppError {
             AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
             AppError::Reqwest(e) => {
                 tracing::error!("HTTP client error: {:?}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "External service communication error".to_string())
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "External service communication error".to_string(),
+                )
             }
             AppError::Internal(msg) => {
                 tracing::error!("Internal error: {}", msg);

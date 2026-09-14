@@ -6,14 +6,17 @@ use axum::{
 };
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use std::collections::HashMap;
+use uuid::Uuid;
 
 use crate::{
     error::AppError,
     middleware::auth::AuthUser,
     models::{
-        enterprise::{CreateWebhookDto, SensitiveDataAccessLog, UserYoutubeConfig, WebhookSubscription, YoutubeConfigDto},
+        enterprise::{
+            CreateWebhookDto, SensitiveDataAccessLog, UserYoutubeConfig, WebhookSubscription,
+            YoutubeConfigDto,
+        },
         record::PageResponse,
     },
     state::AppState,
@@ -34,16 +37,15 @@ pub async fn get_sensitive_data_statistics(
     State(state): State<AppState>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let encrypted_fields_count: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM field_definition WHERE is_encrypted = true AND is_removed = false"
+        "SELECT COUNT(*) FROM field_definition WHERE is_encrypted = true AND is_removed = false",
     )
     .fetch_one(&state.db)
     .await?;
 
-    let total_access_logs: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM sensitive_data_access_log"
-    )
-    .fetch_one(&state.db)
-    .await?;
+    let total_access_logs: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM sensitive_data_access_log")
+            .fetch_one(&state.db)
+            .await?;
 
     Ok(Json(serde_json::json!({
         "encryptedFieldsCount": encrypted_fields_count.0,
@@ -67,7 +69,7 @@ pub async fn get_sensitive_data_access_logs(
         .await?;
 
     let content = sqlx::query_as::<_, SensitiveDataAccessLog>(
-        "SELECT * FROM sensitive_data_access_log ORDER BY accessed_at DESC LIMIT $1 OFFSET $2"
+        "SELECT * FROM sensitive_data_access_log ORDER BY accessed_at DESC LIMIT $1 OFFSET $2",
     )
     .bind(size)
     .bind(offset)
@@ -146,9 +148,8 @@ async fn decrypt_from_data_value(
         None => return result,
     };
 
-    let filter_set: Option<std::collections::HashSet<String>> = filter_keys.map(|keys| {
-        keys.iter().map(|k| k.to_lowercase()).collect()
-    });
+    let filter_set: Option<std::collections::HashSet<String>> =
+        filter_keys.map(|keys| keys.iter().map(|k| k.to_lowercase()).collect());
 
     for field in fields {
         let field_key = &field.field_key;
@@ -195,25 +196,30 @@ pub async fn decrypt_record_data(
     auth: AuthUser,
     Json(payload): Json<DecryptRequest>,
 ) -> Result<Json<HashMap<String, String>>, AppError> {
-    let rec: Option<(Uuid, serde_json::Value)> = sqlx::query_as("SELECT node_id, data FROM record WHERE id = $1")
-        .bind(id)
-        .fetch_optional(&state.db)
-        .await?;
+    let rec: Option<(Uuid, serde_json::Value)> =
+        sqlx::query_as("SELECT node_id, data FROM record WHERE id = $1")
+            .bind(id)
+            .fetch_optional(&state.db)
+            .await?;
 
     let (node_id, data) = match rec {
         Some(r) => r,
         None => return Err(AppError::NotFound(format!("Record not found: {id}"))),
     };
 
-    let fields = crate::handlers::field_definition::fetch_effective_fields(&state.db, node_id).await?;
+    let fields =
+        crate::handlers::field_definition::fetch_effective_fields(&state.db, node_id).await?;
     let decrypted = decrypt_from_data_value(
         &state.field_encryption_service,
         data,
         &fields,
         payload.field_keys.as_deref(),
-    ).await;
+    )
+    .await;
 
-    let reason = payload.access_reason.unwrap_or_else(|| "Authorized data view".to_string());
+    let reason = payload
+        .access_reason
+        .unwrap_or_else(|| "Authorized data view".to_string());
     let logged_keys = if let Some(fk) = &payload.field_keys {
         fk.join(",")
     } else {
@@ -231,7 +237,7 @@ pub async fn decrypt_record_data(
             $1, $2, $3, 'RECORD', $4,
             $5, $6, '127.0.0.1', $7
         )
-        "#
+        "#,
     )
     .bind(log_id)
     .bind(&auth.claims.sub)
@@ -252,21 +258,26 @@ pub async fn decrypt_history_data(
     auth: AuthUser,
     Json(payload): Json<DecryptRequest>,
 ) -> Result<Json<HashMap<String, String>>, AppError> {
-    let history: Option<(Uuid, Option<serde_json::Value>, Option<serde_json::Value>)> = sqlx::query_as(
-        r#"
+    let history: Option<(Uuid, Option<serde_json::Value>, Option<serde_json::Value>)> =
+        sqlx::query_as(
+            r#"
         SELECT r.node_id, rh.previous_data, rh.new_data
         FROM record_history rh
         JOIN record r ON rh.record_id = r.id
         WHERE rh.id = $1
-        "#
-    )
-    .bind(id)
-    .fetch_optional(&state.db)
-    .await?;
+        "#,
+        )
+        .bind(id)
+        .fetch_optional(&state.db)
+        .await?;
 
     let (node_id, prev_data, new_data) = match history {
         Some(h) => h,
-        None => return Err(AppError::NotFound(format!("Record history not found: {id}"))),
+        None => {
+            return Err(AppError::NotFound(format!(
+                "Record history not found: {id}"
+            )))
+        }
     };
 
     let combined = serde_json::json!({
@@ -274,15 +285,19 @@ pub async fn decrypt_history_data(
         "after": new_data.unwrap_or(serde_json::json!({}))
     });
 
-    let fields = crate::handlers::field_definition::fetch_effective_fields(&state.db, node_id).await?;
+    let fields =
+        crate::handlers::field_definition::fetch_effective_fields(&state.db, node_id).await?;
     let decrypted = decrypt_from_data_value(
         &state.field_encryption_service,
         combined,
         &fields,
         payload.field_keys.as_deref(),
-    ).await;
+    )
+    .await;
 
-    let reason = payload.access_reason.unwrap_or_else(|| "Authorized history data view".to_string());
+    let reason = payload
+        .access_reason
+        .unwrap_or_else(|| "Authorized history data view".to_string());
     let logged_keys = if let Some(fk) = &payload.field_keys {
         fk.join(",")
     } else {
@@ -300,7 +315,7 @@ pub async fn decrypt_history_data(
             $1, $2, $3, 'RECORD_HISTORY', $4,
             $5, $6, '127.0.0.1', $7
         )
-        "#
+        "#,
     )
     .bind(log_id)
     .bind(&auth.claims.sub)
@@ -321,26 +336,30 @@ pub async fn decrypt_approval_data(
     auth: AuthUser,
     Json(payload): Json<DecryptRequest>,
 ) -> Result<Json<HashMap<String, String>>, AppError> {
-    let approval: Option<(Option<Uuid>, Option<Uuid>, serde_json::Value)> = sqlx::query_as(
-        "SELECT node_id, target_id, changes FROM approval_request WHERE id = $1"
-    )
-    .bind(id)
-    .fetch_optional(&state.db)
-    .await?;
+    let approval: Option<(Option<Uuid>, Option<Uuid>, serde_json::Value)> =
+        sqlx::query_as("SELECT node_id, target_id, changes FROM approval_request WHERE id = $1")
+            .bind(id)
+            .fetch_optional(&state.db)
+            .await?;
 
     let (node_id_opt, target_id_opt, changes) = match approval {
         Some(a) => a,
-        None => return Err(AppError::NotFound(format!("Approval request not found: {id}"))),
+        None => {
+            return Err(AppError::NotFound(format!(
+                "Approval request not found: {id}"
+            )))
+        }
     };
 
     let resolved_node_id = match node_id_opt {
         Some(nid) => nid,
         None => {
             if let Some(tid) = target_id_opt {
-                let rec_node: Option<(Uuid,)> = sqlx::query_as("SELECT node_id FROM record WHERE id = $1")
-                    .bind(tid)
-                    .fetch_optional(&state.db)
-                    .await?;
+                let rec_node: Option<(Uuid,)> =
+                    sqlx::query_as("SELECT node_id FROM record WHERE id = $1")
+                        .bind(tid)
+                        .fetch_optional(&state.db)
+                        .await?;
                 match rec_node {
                     Some(rn) => rn.0,
                     None => return Ok(Json(HashMap::new())),
@@ -351,15 +370,20 @@ pub async fn decrypt_approval_data(
         }
     };
 
-    let fields = crate::handlers::field_definition::fetch_effective_fields(&state.db, resolved_node_id).await?;
+    let fields =
+        crate::handlers::field_definition::fetch_effective_fields(&state.db, resolved_node_id)
+            .await?;
     let decrypted = decrypt_from_data_value(
         &state.field_encryption_service,
         changes,
         &fields,
         payload.field_keys.as_deref(),
-    ).await;
+    )
+    .await;
 
-    let reason = payload.access_reason.unwrap_or_else(|| "Authorized approval data view".to_string());
+    let reason = payload
+        .access_reason
+        .unwrap_or_else(|| "Authorized approval data view".to_string());
     let logged_keys = if let Some(fk) = &payload.field_keys {
         fk.join(",")
     } else {
@@ -377,7 +401,7 @@ pub async fn decrypt_approval_data(
             $1, $2, $3, 'APPROVAL_REQUEST', $4,
             $5, $6, '127.0.0.1', $7
         )
-        "#
+        "#,
     )
     .bind(log_id)
     .bind(&auth.claims.sub)
@@ -400,7 +424,7 @@ pub async fn get_webhooks(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<WebhookSubscription>>, AppError> {
     let list = sqlx::query_as::<_, WebhookSubscription>(
-        "SELECT * FROM webhook_subscriptions ORDER BY created_at DESC"
+        "SELECT * FROM webhook_subscriptions ORDER BY created_at DESC",
     )
     .fetch_all(&state.db)
     .await?;
@@ -421,7 +445,7 @@ pub async fn create_webhook(
             $1, $2, $3, $4, $5, true, NOW()
         )
         RETURNING *
-        "#
+        "#,
     )
     .bind(new_id)
     .bind(&payload.name)
@@ -581,17 +605,15 @@ pub async fn revoke_api_key(
 pub async fn get_anomaly_events(
     State(_state): State<AppState>,
 ) -> Result<Json<Vec<serde_json::Value>>, AppError> {
-    Ok(Json(vec![
-        serde_json::json!({
-            "id": "anom-001",
-            "eventType": "RAPID_BULK_QUERY",
-            "severity": "LOW",
-            "clientIp": "192.168.1.55",
-            "username": "guest_analyst",
-            "description": "50 queries within 2 seconds",
-            "detectedAt": chrono::Utc::now().to_rfc3339()
-        })
-    ]))
+    Ok(Json(vec![serde_json::json!({
+        "id": "anom-001",
+        "eventType": "RAPID_BULK_QUERY",
+        "severity": "LOW",
+        "clientIp": "192.168.1.55",
+        "username": "guest_analyst",
+        "description": "50 queries within 2 seconds",
+        "detectedAt": chrono::Utc::now().to_rfc3339()
+    })]))
 }
 
 pub async fn block_anomaly_ip(
@@ -612,11 +634,9 @@ pub async fn block_anomaly_ip(
 pub async fn get_freshness_heatmap(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<serde_json::Value>>, AppError> {
-    let domains: Vec<(Uuid, serde_json::Value)> = sqlx::query_as(
-        "SELECT id, name FROM domain"
-    )
-    .fetch_all(&state.db)
-    .await?;
+    let domains: Vec<(Uuid, serde_json::Value)> = sqlx::query_as("SELECT id, name FROM domain")
+        .fetch_all(&state.db)
+        .await?;
 
     let res = domains
         .into_iter()
@@ -638,15 +658,13 @@ pub async fn get_freshness_heatmap(
 pub async fn get_sla_contracts(
     State(_state): State<AppState>,
 ) -> Result<Json<Vec<serde_json::Value>>, AppError> {
-    Ok(Json(vec![
-        serde_json::json!({
-            "id": "sla-001",
-            "title": "Master Record Sync SLA",
-            "targetUptime": "99.99%",
-            "maxLatencyMs": 50,
-            "status": "COMPLIANT"
-        })
-    ]))
+    Ok(Json(vec![serde_json::json!({
+        "id": "sla-001",
+        "title": "Master Record Sync SLA",
+        "targetUptime": "99.99%",
+        "maxLatencyMs": 50,
+        "status": "COMPLIANT"
+    })]))
 }
 
 pub async fn get_volume_radar(
@@ -689,15 +707,13 @@ pub async fn get_multi_region_conflicts(
 pub async fn get_system_archives(
     State(_state): State<AppState>,
 ) -> Result<Json<Vec<serde_json::Value>>, AppError> {
-    Ok(Json(vec![
-        serde_json::json!({
-            "id": "arch-2026-q1",
-            "name": "Q1 2026 Snapshot Archive",
-            "sizeBytes": 104857600,
-            "storageClass": "COLD_GLACIER",
-            "createdAt": "2026-03-31T23:59:59"
-        })
-    ]))
+    Ok(Json(vec![serde_json::json!({
+        "id": "arch-2026-q1",
+        "name": "Q1 2026 Snapshot Archive",
+        "sizeBytes": 104857600,
+        "storageClass": "COLD_GLACIER",
+        "createdAt": "2026-03-31T23:59:59"
+    })]))
 }
 
 pub async fn simulate_dr_recovery(
@@ -727,19 +743,17 @@ pub async fn get_system_install_status(
     State(state): State<AppState>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let is_installed: bool = sqlx::query_scalar(
-        "SELECT config_value = 'true' FROM system_config WHERE config_key = 'IS_INSTALLED'"
+        "SELECT config_value = 'true' FROM system_config WHERE config_key = 'IS_INSTALLED'",
     )
     .fetch_optional(&state.db)
     .await
     .unwrap_or(None)
     .unwrap_or(true);
 
-    let has_admin_account: bool = sqlx::query_scalar(
-        "SELECT COUNT(*) > 0 FROM users"
-    )
-    .fetch_one(&state.db)
-    .await
-    .unwrap_or(true);
+    let has_admin_account: bool = sqlx::query_scalar("SELECT COUNT(*) > 0 FROM users")
+        .fetch_one(&state.db)
+        .await
+        .unwrap_or(true);
 
     Ok(Json(serde_json::json!({
         "isInstalled": is_installed,
@@ -757,11 +771,9 @@ pub async fn get_system_install_status(
 pub async fn get_ontology_graph(
     State(state): State<AppState>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let domains: Vec<(Uuid, serde_json::Value)> = sqlx::query_as(
-        "SELECT id, name FROM domain"
-    )
-    .fetch_all(&state.db)
-    .await?;
+    let domains: Vec<(Uuid, serde_json::Value)> = sqlx::query_as("SELECT id, name FROM domain")
+        .fetch_all(&state.db)
+        .await?;
 
     let relations: Vec<(Uuid, Uuid, String)> = sqlx::query_as(
         "SELECT source_domain_id, target_domain_id, relation_type FROM master_relation WHERE is_active = true"
@@ -771,20 +783,24 @@ pub async fn get_ontology_graph(
 
     let nodes: Vec<serde_json::Value> = domains
         .into_iter()
-        .map(|(id, name)| serde_json::json!({
-            "id": id,
-            "code": id.to_string()[..8].to_string(),
-            "label": name
-        }))
+        .map(|(id, name)| {
+            serde_json::json!({
+                "id": id,
+                "code": id.to_string()[..8].to_string(),
+                "label": name
+            })
+        })
         .collect();
 
     let edges: Vec<serde_json::Value> = relations
         .into_iter()
-        .map(|(src, tgt, rel)| serde_json::json!({
-            "source": src,
-            "target": tgt,
-            "relation": rel
-        }))
+        .map(|(src, tgt, rel)| {
+            serde_json::json!({
+                "source": src,
+                "target": tgt,
+                "relation": rel
+            })
+        })
         .collect();
 
     Ok(Json(serde_json::json!({
@@ -799,7 +815,7 @@ pub async fn search_ontology(
 ) -> Result<Json<serde_json::Value>, AppError> {
     let term = query.search.unwrap_or_default();
     let terms = sqlx::query_as::<_, (Uuid, String, Option<String>)>(
-        "SELECT id, term_name, definition FROM business_terms WHERE term_name ILIKE $1 LIMIT 20"
+        "SELECT id, term_name, definition FROM business_terms WHERE term_name ILIKE $1 LIMIT 20",
     )
     .bind(format!("%{}%", term))
     .fetch_all(&state.db)
@@ -807,11 +823,13 @@ pub async fn search_ontology(
 
     let res: Vec<serde_json::Value> = terms
         .into_iter()
-        .map(|(id, name, def)| serde_json::json!({
-            "id": id,
-            "term": name,
-            "definition": def
-        }))
+        .map(|(id, name, def)| {
+            serde_json::json!({
+                "id": id,
+                "term": name,
+                "definition": def
+            })
+        })
         .collect();
 
     Ok(Json(serde_json::json!({ "results": res })))
@@ -829,7 +847,7 @@ pub async fn smart_query_domain(
         SELECT COUNT(r.id) FROM record r
         JOIN classification_node n ON r.node_id = n.id
         WHERE n.domain_id = $1 AND r.status != 'DELETED'
-        "#
+        "#,
     )
     .bind(domain_id)
     .fetch_one(&state.db)
@@ -862,13 +880,17 @@ pub async fn play_music(
     State(_state): State<AppState>,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    Ok(Json(serde_json::json!({ "success": true, "state": "PLAYING", "track": payload })))
+    Ok(Json(
+        serde_json::json!({ "success": true, "state": "PLAYING", "track": payload }),
+    ))
 }
 
 pub async fn stop_music(
     State(_state): State<AppState>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    Ok(Json(serde_json::json!({ "success": true, "state": "STOPPED" })))
+    Ok(Json(
+        serde_json::json!({ "success": true, "state": "STOPPED" }),
+    ))
 }
 
 pub async fn get_youtube_config(
@@ -876,7 +898,7 @@ pub async fn get_youtube_config(
     auth: AuthUser,
 ) -> Result<Json<Option<UserYoutubeConfig>>, AppError> {
     let cfg = sqlx::query_as::<_, UserYoutubeConfig>(
-        "SELECT * FROM user_youtube_config WHERE user_id = $1"
+        "SELECT * FROM user_youtube_config WHERE user_id = $1",
     )
     .bind(&auth.claims.sub)
     .fetch_optional(&state.db)
@@ -906,7 +928,7 @@ pub async fn save_youtube_config(
             api_key = EXCLUDED.api_key,
             updated_at = NOW()
         RETURNING *
-        "#
+        "#,
     )
     .bind(new_id)
     .bind(&auth.claims.sub)
@@ -927,26 +949,24 @@ pub async fn save_youtube_config(
 pub async fn get_mail_accounts(
     State(_state): State<AppState>,
 ) -> Result<Json<Vec<serde_json::Value>>, AppError> {
-    Ok(Json(vec![
-        serde_json::json!({
-            "id": "mail-primary",
-            "host": "smtp.domain.internal",
-            "port": 587,
-            "username": "notification@domain.internal",
-            "isDefault": true
-        })
-    ]))
+    Ok(Json(vec![serde_json::json!({
+        "id": "mail-primary",
+        "host": "smtp.domain.internal",
+        "port": 587,
+        "username": "notification@domain.internal",
+        "isDefault": true
+    })]))
 }
 
 pub async fn sync_mail_accounts(
     _state: State<AppState>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    Ok(Json(serde_json::json!({ "status": "SUCCESS", "message": "Mail accounts synchronized" })))
+    Ok(Json(
+        serde_json::json!({ "status": "SUCCESS", "message": "Mail accounts synchronized" }),
+    ))
 }
 
-pub async fn get_mail_status(
-    _state: State<AppState>,
-) -> Result<Json<serde_json::Value>, AppError> {
+pub async fn get_mail_status(_state: State<AppState>) -> Result<Json<serde_json::Value>, AppError> {
     Ok(Json(serde_json::json!({
         "status": "UP",
         "connected": true,
@@ -958,12 +978,11 @@ pub async fn get_mail_status(
 pub async fn get_mailing_lists(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<serde_json::Value>>, AppError> {
-    let rows: Vec<(Uuid, String, Option<String>)> = sqlx::query_as(
-        "SELECT id, list_name, description FROM mailing_list"
-    )
-    .fetch_all(&state.db)
-    .await
-    .unwrap_or_default();
+    let rows: Vec<(Uuid, String, Option<String>)> =
+        sqlx::query_as("SELECT id, list_name, description FROM mailing_list")
+            .fetch_all(&state.db)
+            .await
+            .unwrap_or_default();
 
     let res = rows
         .into_iter()
@@ -982,5 +1001,7 @@ pub async fn get_mailing_lists(
 pub async fn sync_mailing_list_aliases(
     _state: State<AppState>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    Ok(Json(serde_json::json!({ "status": "SUCCESS", "message": "Mailing list aliases synchronized" })))
+    Ok(Json(
+        serde_json::json!({ "status": "SUCCESS", "message": "Mailing list aliases synchronized" }),
+    ))
 }

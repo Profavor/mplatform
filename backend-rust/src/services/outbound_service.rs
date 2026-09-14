@@ -39,7 +39,7 @@ impl OutboundService {
             FROM integration_channels
             WHERE is_active = true AND direction = 'OUTBOUND'
               AND (node_id = $1 OR node_id IS NULL)
-            "#
+            "#,
         )
         .bind(node_id)
         .fetch_all(pool)
@@ -51,12 +51,18 @@ impl OutboundService {
 
         let mut dispatched = 0;
         for channel in channels {
-            match Self::send_to_channel(pool, &channel, Some(record_id), event_type, record_data).await {
+            match Self::send_to_channel(pool, &channel, Some(record_id), event_type, record_data)
+                .await
+            {
                 Ok(_) => {
                     dispatched += 1;
                 }
                 Err(e) => {
-                    tracing::warn!("⚠️ Outbound dispatch failed for channel {}: {}", channel.id, e);
+                    tracing::warn!(
+                        "⚠️ Outbound dispatch failed for channel {}: {}",
+                        channel.id,
+                        e
+                    );
                 }
             }
         }
@@ -82,46 +88,83 @@ impl OutboundService {
         record_id: Option<Uuid>,
         version: i32,
     ) -> (Value, Option<String>) {
-        let product_id = record_data.get("PRODUCT_ID")
+        let product_id = record_data
+            .get("PRODUCT_ID")
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
 
-        let product_code = record_data.get("PRODUCT_CODE")
+        let product_code = record_data
+            .get("PRODUCT_CODE")
             .and_then(|v| v.as_str())
             .unwrap_or(&product_id)
             .to_string();
 
-        let last_synced = record_data.get("LAST_SYNCED_AT")
+        let last_synced = record_data
+            .get("LAST_SYNCED_AT")
             .and_then(|v| v.as_str())
             .unwrap_or("2026-09-14")
             .to_string();
 
         let price_num: f64 = match record_data.get("PRODUCT_PRICE") {
             Some(Value::Number(n)) => n.as_f64().unwrap_or(0.0),
-            Some(Value::String(s)) => s.chars().filter(|c| c.is_ascii_digit()).collect::<String>().parse().unwrap_or(0.0),
+            Some(Value::String(s)) => s
+                .chars()
+                .filter(|c| c.is_ascii_digit())
+                .collect::<String>()
+                .parse()
+                .unwrap_or(0.0),
             _ => 0.0,
         };
 
         // If mapping_config_json is provided and valid, apply standard mapping
         let mut idempotency_key = if !product_code.is_empty() {
-            Some(format!("{}:{}:{}", product_code, last_synced, price_num as i64))
+            Some(format!(
+                "{}:{}:{}",
+                product_code, last_synced, price_num as i64
+            ))
         } else {
-            Some(format!("REC:{}:{}:{}", record_id.map(|u| u.to_string()).unwrap_or_default(), version, price_num as i64))
+            Some(format!(
+                "REC:{}:{}:{}",
+                record_id.map(|u| u.to_string()).unwrap_or_default(),
+                version,
+                price_num as i64
+            ))
         };
 
         // If idempotency_key is shorter than 8 chars, pad it
         if let Some(ref k) = idempotency_key {
             if k.len() < 8 {
-                idempotency_key = Some(format!("{}-{}", k, Uuid::new_v4().to_string().chars().take(8).collect::<String>()));
+                idempotency_key = Some(format!(
+                    "{}-{}",
+                    k,
+                    Uuid::new_v4()
+                        .to_string()
+                        .chars()
+                        .take(8)
+                        .collect::<String>()
+                ));
             }
         }
 
         // Standard Cartbom / Partner Ingest Payload format
-        let mapped = if !product_id.is_empty() || mapping_json.map(|s| s.contains("externalId") || s.contains("product")).unwrap_or(false) {
-            let name = record_data.get("PRODUCT_NAME").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let category = record_data.get("CATEGORY_NAME").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let source_url = record_data.get("PRODUCT_URL")
+        let mapped = if !product_id.is_empty()
+            || mapping_json
+                .map(|s| s.contains("externalId") || s.contains("product"))
+                .unwrap_or(false)
+        {
+            let name = record_data
+                .get("PRODUCT_NAME")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let category = record_data
+                .get("CATEGORY_NAME")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let source_url = record_data
+                .get("PRODUCT_URL")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string())
                 .unwrap_or_else(|| format!("https://www.coupang.com/vp/products/{}", product_id));
@@ -170,16 +213,20 @@ impl OutboundService {
 
         match channel.r#type.as_str() {
             "WEB_SERVICE" => {
-                let config: Value = channel.config_json.as_deref()
+                let config: Value = channel
+                    .config_json
+                    .as_deref()
                     .and_then(|s| serde_json::from_str(s).ok())
                     .unwrap_or_else(|| json!({}));
 
-                let url = config.get("url")
+                let url = config
+                    .get("url")
                     .or_else(|| config.get("wsUrl"))
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| "웹서비스 URL 설정이 누락되었습니다.".to_string())?;
 
-                let method_str = config.get("method")
+                let method_str = config
+                    .get("method")
                     .or_else(|| config.get("wsMethod"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("POST");
@@ -195,13 +242,19 @@ impl OutboundService {
                     client.post(url)
                 };
 
-                req_builder = req_builder
-                    .header("Content-Type", "application/json");
+                req_builder = req_builder.header("Content-Type", "application/json");
 
                 // Attach headers from config
-                if let Some(headers) = config.get("headers").or_else(|| config.get("wsHeaders")).and_then(|v| v.as_array()) {
+                if let Some(headers) = config
+                    .get("headers")
+                    .or_else(|| config.get("wsHeaders"))
+                    .and_then(|v| v.as_array())
+                {
                     for h in headers {
-                        if let (Some(k), Some(v)) = (h.get("key").and_then(|k| k.as_str()), h.get("value").and_then(|v| v.as_str())) {
+                        if let (Some(k), Some(v)) = (
+                            h.get("key").and_then(|k| k.as_str()),
+                            h.get("value").and_then(|v| v.as_str()),
+                        ) {
                             if !k.trim().is_empty() {
                                 req_builder = req_builder.header(k, v);
                             }
@@ -216,7 +269,11 @@ impl OutboundService {
 
                 req_builder = req_builder.json(&mapped_payload);
 
-                tracing::info!("📤 [Outbound Webhook] Dispatching to {} (channel: {})", url, channel.id);
+                tracing::info!(
+                    "📤 [Outbound Webhook] Dispatching to {} (channel: {})",
+                    url,
+                    channel.id
+                );
 
                 let log_id = Uuid::new_v4();
                 match req_builder.send().await {
@@ -225,7 +282,11 @@ impl OutboundService {
                         let resp_body = resp.text().await.unwrap_or_default();
 
                         if status.is_success() {
-                            tracing::info!("✅ [Outbound Webhook] Success: HTTP {} from {}", status, url);
+                            tracing::info!(
+                                "✅ [Outbound Webhook] Success: HTTP {} from {}",
+                                status,
+                                url
+                            );
                             let _ = sqlx::query(
                                 r#"
                                 INSERT INTO integration_logs (
@@ -233,7 +294,7 @@ impl OutboundService {
                                     original_payload, mapped_payload, created_at
                                 )
                                 VALUES ($1, $2, $3, $4, 'SUCCESS', 0, $5, $6, NOW())
-                                "#
+                                "#,
                             )
                             .bind(log_id)
                             .bind(channel.id)
@@ -247,7 +308,11 @@ impl OutboundService {
                             Ok(true)
                         } else {
                             let err_msg = format!("HTTP {}: {}", status, resp_body);
-                            tracing::warn!("❌ [Outbound Webhook] Failed with {}: {}", status, err_msg);
+                            tracing::warn!(
+                                "❌ [Outbound Webhook] Failed with {}: {}",
+                                status,
+                                err_msg
+                            );
 
                             let _ = sqlx::query(
                                 r#"
@@ -308,7 +373,7 @@ impl OutboundService {
                         original_payload, mapped_payload, created_at
                     )
                     VALUES ($1, $2, $3, $4, 'SUCCESS', 0, $5, $6, NOW())
-                    "#
+                    "#,
                 )
                 .bind(log_id)
                 .bind(channel.id)
@@ -321,9 +386,10 @@ impl OutboundService {
 
                 Ok(true)
             }
-            _ => {
-                Err(format!("지원되지 않는 아웃바운드 채널 유형: {}", channel.r#type))
-            }
+            _ => Err(format!(
+                "지원되지 않는 아웃바운드 채널 유형: {}",
+                channel.r#type
+            )),
         }
     }
 
@@ -366,7 +432,9 @@ impl OutboundService {
 
         let mut retried = 0;
         for item in failed_logs {
-            let record_data: Value = item.original_payload.as_deref()
+            let record_data: Value = item
+                .original_payload
+                .as_deref()
                 .and_then(|s| serde_json::from_str(s).ok())
                 .unwrap_or_else(|| json!({}));
 
@@ -385,20 +453,41 @@ impl OutboundService {
             };
 
             let next_count = item.retry_count + 1;
-            let (mapped_payload, ikey) = Self::transform_payload(&record_data, channel.mapping_config_json.as_deref(), item.record_id, next_count);
+            let (mapped_payload, ikey) = Self::transform_payload(
+                &record_data,
+                channel.mapping_config_json.as_deref(),
+                item.record_id,
+                next_count,
+            );
 
             if channel.r#type == "WEB_SERVICE" {
-                let config: Value = channel.config_json.as_deref()
+                let config: Value = channel
+                    .config_json
+                    .as_deref()
                     .and_then(|s| serde_json::from_str(s).ok())
                     .unwrap_or_else(|| json!({}));
 
-                if let Some(url) = config.get("url").or_else(|| config.get("wsUrl")).and_then(|v| v.as_str()) {
-                    let client = Client::builder().timeout(Duration::from_secs(5)).build().unwrap_or_default();
+                if let Some(url) = config
+                    .get("url")
+                    .or_else(|| config.get("wsUrl"))
+                    .and_then(|v| v.as_str())
+                {
+                    let client = Client::builder()
+                        .timeout(Duration::from_secs(5))
+                        .build()
+                        .unwrap_or_default();
                     let mut req = client.post(url).header("Content-Type", "application/json");
 
-                    if let Some(headers) = config.get("headers").or_else(|| config.get("wsHeaders")).and_then(|v| v.as_array()) {
+                    if let Some(headers) = config
+                        .get("headers")
+                        .or_else(|| config.get("wsHeaders"))
+                        .and_then(|v| v.as_array())
+                    {
                         for h in headers {
-                            if let (Some(k), Some(v)) = (h.get("key").and_then(|k| k.as_str()), h.get("value").and_then(|v| v.as_str())) {
+                            if let (Some(k), Some(v)) = (
+                                h.get("key").and_then(|k| k.as_str()),
+                                h.get("value").and_then(|v| v.as_str()),
+                            ) {
                                 req = req.header(k, v);
                             }
                         }
@@ -416,7 +505,7 @@ impl OutboundService {
                                 SET status = 'SUCCESS', error_message = NULL, next_retry_at = NULL,
                                     mapped_payload = $2, retry_count = $3
                                 WHERE id = $1
-                                "#
+                                "#,
                             )
                             .bind(item.id)
                             .bind(resp_text)
@@ -431,7 +520,11 @@ impl OutboundService {
                             let status = resp.status();
                             let text = resp.text().await.unwrap_or_default();
                             let err_msg = format!("HTTP {}: {}", status, text);
-                            let new_status = if next_count >= 3 { "DEAD_LETTER" } else { "FAIL" };
+                            let new_status = if next_count >= 3 {
+                                "DEAD_LETTER"
+                            } else {
+                                "FAIL"
+                            };
                             let _ = sqlx::query(
                                 r#"
                                 UPDATE integration_logs
@@ -439,7 +532,7 @@ impl OutboundService {
                                     next_retry_at = NOW() + INTERVAL '120 seconds',
                                     error_message = $4
                                 WHERE id = $1
-                                "#
+                                "#,
                             )
                             .bind(item.id)
                             .bind(new_status)
@@ -450,7 +543,11 @@ impl OutboundService {
                         }
                         Err(e) => {
                             let err_msg = format!("Retry network error: {}", e);
-                            let new_status = if next_count >= 3 { "DEAD_LETTER" } else { "FAIL" };
+                            let new_status = if next_count >= 3 {
+                                "DEAD_LETTER"
+                            } else {
+                                "FAIL"
+                            };
                             let _ = sqlx::query(
                                 r#"
                                 UPDATE integration_logs
@@ -458,7 +555,7 @@ impl OutboundService {
                                     next_retry_at = NOW() + INTERVAL '120 seconds',
                                     error_message = $4
                                 WHERE id = $1
-                                "#
+                                "#,
                             )
                             .bind(item.id)
                             .bind(new_status)
