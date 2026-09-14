@@ -279,7 +279,7 @@ impl FromRequestParts<AppState> for AuthUser {
                             .unwrap_or(&username)
                             .to_string();
 
-                        let mut perms = crate::services::auth_service::AuthService::get_permissions_for_role(Some(&r));
+                        let mut perms = crate::services::auth_service::AuthService::get_permissions_for_role_name(&state.db, &r).await;
                         if is_admin && !perms.iter().any(|p| p == "*") {
                             perms.insert(0, "*".to_string());
                         }
@@ -339,14 +339,16 @@ impl FromRequestParts<AppState> for AuthUser {
             let u_opt = crate::repositories::user_repo::UserRepository::find_by_username(&state.db, &username).await.ok().flatten();
             if let Some(u) = u_opt {
                 crate::services::auth_service::AuthService::get_user_permissions(&state.db, &u).await
-            } else {
-                let mut perms = crate::services::auth_service::AuthService::get_permissions_for_role(role.as_deref());
-                if role.as_deref() == Some("ROLE_ADMIN") || role.as_deref() == Some("ADMIN") || username == "admin" || username == "superadmin" {
+            } else if let Some(ref r) = role {
+                let mut perms = crate::services::auth_service::AuthService::get_permissions_for_role_name(&state.db, r).await;
+                if r == "ROLE_ADMIN" || r == "ADMIN" || username == "admin" || username == "superadmin" {
                     if !perms.iter().any(|p| p == "*") {
                         perms.insert(0, "*".to_string());
                     }
                 }
                 perms
+            } else {
+                Vec::new()
             }
         };
 

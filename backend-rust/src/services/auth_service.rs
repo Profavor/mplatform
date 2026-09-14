@@ -259,36 +259,27 @@ impl AuthService {
         Ok((access_token, new_refresh_token))
     }
 
-    pub fn get_permissions_for_role(role: Option<&str>) -> Vec<String> {
-        match role {
-            Some("ROLE_ADMIN") | Some("ADMIN") => vec![
-                "*".to_string(),
-                "admin:read".to_string(),
-                "admin:write".to_string(),
-                "domain:read".to_string(),
-                "domain:write".to_string(),
-                "record:read".to_string(),
-                "record:write".to_string(),
-                "compliance:read".to_string(),
-            ],
-            Some("ROLE_DATA_STEWARD") | Some("DATA_STEWARD") => vec![
-                "domain:read".to_string(),
-                "domain:write".to_string(),
-                "record:read".to_string(),
-                "record:write".to_string(),
-                "compliance:read".to_string(),
-            ],
-            _ => vec![
-                "domain:read".to_string(),
-                "record:read".to_string(),
-            ],
-        }
+    pub async fn get_permissions_for_role_name(pool: &PgPool, role_name: &str) -> Vec<String> {
+        let perms: Vec<String> = sqlx::query_scalar(
+            r#"
+            SELECT rp.permission
+            FROM role r
+            JOIN role_permissions rp ON r.id = rp.role_id
+            WHERE r.name = $1
+               OR r.name = ('ROLE_' || $1)
+               OR ('ROLE_' || r.name) = $1
+            "#
+        )
+        .bind(role_name)
+        .fetch_all(pool)
+        .await
+        .unwrap_or_default();
+
+        perms
     }
 
     pub async fn get_user_permissions(pool: &PgPool, user: &User) -> Vec<String> {
-        let mut perms_set: std::collections::HashSet<String> = Self::get_permissions_for_role(user.role.as_deref())
-            .into_iter()
-            .collect();
+        let mut perms_set: std::collections::HashSet<String> = std::collections::HashSet::new();
 
         // 1. Check user_role assignments that are NOT expired (expires_at IS NULL OR expires_at > NOW())
         let assigned_perms: Vec<String> = sqlx::query_scalar(
@@ -312,19 +303,37 @@ impl AuthService {
             }
         }
 
-        // 2. Reflect department roles if department_id is set
+        // 2. Reflect permissions for user's assigned role column if present
+        if let Some(ref r) = user.role {
+            let role_perms = Self::get_permissions_for_role_name(pool, r).await;
+            for p in role_perms {
+                let trimmed = p.trim();
+                if !trimmed.is_empty() {
+                    perms_set.insert(trimmed.to_string());
+                }
+            }
+        }
+
+        // 3. Reflect department roles if department_id is set
         if let Some(dept_id) = user.department_id {
-            let dept_roles: Vec<String> = sqlx::query_scalar(
-                "SELECT role_name FROM department_roles WHERE department_id = $1"
+            let dept_perms: Vec<String> = sqlx::query_scalar(
+                r#"
+                SELECT rp.permission
+                FROM department_roles dr
+                JOIN role r ON (r.name = dr.role_name OR r.name = ('ROLE_' || dr.role_name) OR ('ROLE_' || r.name) = dr.role_name)
+                JOIN role_permissions rp ON r.id = rp.role_id
+                WHERE dr.department_id = $1
+                "#
             )
             .bind(dept_id)
             .fetch_all(pool)
             .await
             .unwrap_or_default();
 
-            for dr in dept_roles {
-                for p in Self::get_permissions_for_role(Some(&dr)) {
-                    perms_set.insert(p);
+            for p in dept_perms {
+                let trimmed = p.trim();
+                if !trimmed.is_empty() {
+                    perms_set.insert(trimmed.to_string());
                 }
             }
         }

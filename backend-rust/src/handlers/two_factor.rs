@@ -96,8 +96,8 @@ pub async fn verify(
         return Err(AppError::Unauthorized("Invalid 2FA verification code".to_string()));
     }
 
-    let (access_token, refresh_token) = AuthService::generate_tokens(&user, &state.config)?;
-    let permissions = AuthService::get_permissions_for_role(user.role.as_deref());
+    let permissions = AuthService::get_user_permissions(&state.pool, &user).await;
+    let (access_token, refresh_token) = AuthService::generate_tokens_with_permissions(&user, Some(permissions.clone()), &state.config)?;
 
     // Record login log
     let _ = sqlx::query(
