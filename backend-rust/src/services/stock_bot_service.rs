@@ -367,14 +367,14 @@ impl StockBotService {
         {
             // If a specific stock is also mentioned in the disclosure query, let stock search handle it or filter disclosures
             if let Some(ticker) = self.find_ticker_in_query(q).await {
-                return self.handle_stock_detail(&ticker).await;
+                return self.handle_stock_detail(&ticker, Some(q)).await;
             }
             return self.handle_disclosures().await;
         }
 
         // 7. Individual Stock Lookup / Analysis
         if let Some(ticker) = self.find_ticker_in_query(q).await {
-            return self.handle_stock_detail(&ticker).await;
+            return self.handle_stock_detail(&ticker, Some(q)).await;
         }
 
         // 8. Fallback: Search screen universe
@@ -382,7 +382,7 @@ impl StockBotService {
             if !stocks.is_empty() {
                 if stocks.len() == 1 {
                     if let Some(code) = stocks[0].get("code").and_then(|c| c.as_str()) {
-                        return self.handle_stock_detail(code).await;
+                        return self.handle_stock_detail(code, Some(q)).await;
                     }
                 }
                 return self.format_stock_search_results(q, &stocks);
@@ -405,13 +405,21 @@ impl StockBotService {
 
         // Search screen.json for matching names
         if let Ok(screen_list) = self.fetch_screen().await {
+            let mut matches: Vec<(String, String)> = Vec::new();
             for item in screen_list {
                 let name = item.get("name").and_then(|n| n.as_str()).unwrap_or("");
                 let code = item.get("code").and_then(|c| c.as_str()).unwrap_or("");
 
                 if !name.is_empty() && q.contains(name) {
-                    return Some(code.to_string());
+                    matches.push((name.to_string(), code.to_string()));
                 }
+            }
+
+            // Sort matches: longest name first (e.g. "LG디스플레이" [6 chars] before "LG" [2 chars])
+            matches.sort_by(|a, b| b.0.chars().count().cmp(&a.0.chars().count()));
+
+            if let Some((_, code)) = matches.first() {
+                return Some(code.clone());
             }
         }
 
@@ -586,7 +594,7 @@ impl StockBotService {
         md
     }
 
-    async fn handle_stock_detail(&self, ticker: &str) -> String {
+    async fn handle_stock_detail(&self, ticker: &str, user_query: Option<&str>) -> String {
         let profile = match self.fetch_stock_profile(ticker).await {
             Ok(p) => p,
             Err(e) => return format!("⚠️ 종목 분석 정보를 가져오지 못했습니다: {}", e),
@@ -641,21 +649,22 @@ impl StockBotService {
             md.push_str(&format!("- **당기순이익 YoY**: `{}`\n\n", net_yoy));
         }
 
-        // 4. Signals & Rankings
+        // 4. Machine Signals
         if let Some(sig) = profile.get("signals") {
-            md.push_str("#### 🏆 기계 산정 평가 시그널\n");
-            let is_growth = sig.get("growth_top8").and_then(|v| v.as_bool()).unwrap_or(false);
-            let growth_score = sig.get("growth_score").and_then(|v| v.as_f64()).unwrap_or(0.0);
-            let is_quiet = sig.get("quiet_top").and_then(|v| v.as_bool()).unwrap_or(false);
+            let growth = sig.get("growth_top8").and_then(|v| v.as_bool()).unwrap_or(false);
+            let quiet = sig.get("quiet_top").and_then(|v| v.as_bool()).unwrap_or(false);
+            let g_score = sig.get("growth_score").and_then(|v| v.as_f64()).map(|s| format!("{:.1}점", s)).unwrap_or_else(|| "일반".to_string());
 
-            if is_growth {
-                md.push_str(&format!("- **급성장 랭킹 Top 8 편입**: ✅ 선정 (성장 점수: `{:.1}점`)\n", growth_score));
+            md.push_str("#### 🏆 기계 산정 평가 시그널\n");
+
+            if growth {
+                md.push_str(&format!("- **급성장 랭킹 Top 8 편입**: ✅ 선정 (성장 점수: `{}`)\n", g_score));
             }
-            if is_quiet {
+            if quiet {
                 md.push_str("- **조용한 강자(저평가 우량주) 편입**: ✅ 선정\n");
             }
-            if !is_growth && !is_quiet {
-                md.push_str("- **성장 점수**: 일반\n");
+            if !growth && !quiet {
+                md.push_str(&format!("- **성장 점수**: {}\n", g_score));
             }
             md.push('\n');
         }
@@ -671,6 +680,15 @@ impl StockBotService {
                     md.push_str(&format!("- `{}` **{}**: {}\n", date, label, summary));
                 }
                 md.push('\n');
+            }
+        }
+
+        // 6. Short selling / 공매도 안내 if requested
+        if let Some(q) = user_query {
+            if q.contains("공매도") {
+                md.push_str("#### 💡 공매도 및 수급 안내\n");
+                md.push_str("- 본 분석기는 DART 전자공시 확정 재무제표, 밸류에이션(PER/PBR), 52주 변동률 및 AI 팩터 스코어를 제공합니다.\n");
+                md.push_str("- 실시간 일별 공매도 거래대금 및 잔고 수량은 **KRX 한국거래소 공매도 종합포털(short.krx.co.kr)** 공시를 함께 참조하시기 바랍니다.\n\n");
             }
         }
 

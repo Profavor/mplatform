@@ -414,6 +414,31 @@
             </div>
           </div>
           </template>
+
+          <!-- AI Stock Bot Thinking / Generating Indicator -->
+          <div
+            v-if="isBotThinking"
+            class="bot-thinking-indicator"
+            style="margin: 10px 0 14px 0; display: flex; align-items: flex-start; gap: 8px; animation: fadeIn 0.2s ease-in-out;"
+          >
+            <div
+              style="width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #7c3aed); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; color: #fff; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35); flex-shrink: 0;"
+            >
+              🤖
+            </div>
+            <div
+              style="background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 16px; border-top-left-radius: 4px; padding: 10px 16px; max-width: 85%; display: flex; align-items: center; gap: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.06);"
+            >
+              <div class="thinking-spinner" style="width: 16px; height: 16px; border: 2px solid rgba(37, 99, 235, 0.2); border-top-color: #2563eb; border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0;"></div>
+              <span style="font-size: 0.88rem; font-weight: 600; color: var(--va-text-primary); letter-spacing: -0.2px;">
+                {{ $t('messenger.botThinking') || 'AI 주식 비서가 답변을 생각하고 있습니다...' }}
+              </span>
+              <span class="thinking-dots" style="font-weight: 800; color: var(--va-primary);">
+                <span class="dot d1">.</span><span class="dot d2">.</span><span class="dot d3">.</span>
+              </span>
+            </div>
+          </div>
+
           <div ref="bottomAnchorRef" class="scroll-bottom-anchor" style="height: 1px; width: 100%; pointer-events: none;"></div>
         </div>
 
@@ -859,7 +884,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick, defineAsyncComponent } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick, defineAsyncComponent } from 'vue'
 import ExcelPreviewModal from '~/components/chat/ExcelPreviewModal.vue'
 import TableDataViewerModal from '~/components/chat/TableDataViewerModal.vue'
 import UserGridSelectModal from './UserGridSelectModal.vue'
@@ -1286,6 +1311,66 @@ const isBotMsg = (msg: any) => {
   return sid === 'AI_STOCK_BOT' || sname.includes('AI 주식 비서')
 }
 
+const isBotThinking = ref(false)
+let botThinkingTimeout: any = null
+let roomPollingTimer: any = null
+
+const startRoomPolling = () => {
+  stopRoomPolling()
+  roomPollingTimer = setInterval(async () => {
+    if (!isOpen.value || !activeRoom.value) return
+    try {
+      const msgs: any = await customFetch(`/api/chat/rooms/${activeRoom.value.id}/messages`, { silent: true })
+      if (Array.isArray(msgs)) {
+        if (msgs.length !== messages.value.length || (msgs.length > 0 && msgs[msgs.length - 1]?.id !== messages.value[messages.value.length - 1]?.id)) {
+          messages.value = msgs
+          scrollToBottom()
+          const last = msgs[msgs.length - 1]
+          if (isBotMsg(last)) {
+            isBotThinking.value = false
+            if (botThinkingTimeout) {
+              clearTimeout(botThinkingTimeout)
+              botThinkingTimeout = null
+            }
+          }
+        }
+      }
+    } catch (e) {}
+  }, 2500)
+}
+
+const stopRoomPolling = () => {
+  if (roomPollingTimer) {
+    clearInterval(roomPollingTimer)
+    roomPollingTimer = null
+  }
+}
+
+const scheduleBotResponsePolling = (roomId: string) => {
+  const delays = [400, 1000, 1800, 2800, 4200, 6000]
+  delays.forEach((delay) => {
+    setTimeout(async () => {
+      if (!isBotThinking.value) return
+      if (!activeRoom.value || String(activeRoom.value.id) !== String(roomId)) return
+      try {
+        const latestMsgs: any = await customFetch(`/api/chat/rooms/${roomId}/messages`, { silent: true })
+        if (Array.isArray(latestMsgs) && latestMsgs.length > 0) {
+          const last = latestMsgs[latestMsgs.length - 1]
+          if (isBotMsg(last)) {
+            messages.value = latestMsgs
+            isBotThinking.value = false
+            if (botThinkingTimeout) {
+              clearTimeout(botThinkingTimeout)
+              botThinkingTimeout = null
+            }
+            scrollToBottom()
+          }
+        }
+      } catch (e) {}
+    }, delay)
+  })
+}
+
 const stockQuickChips = [
   { icon: '💡', text: '오늘 증시 브리핑', prompt: '오늘 증시 브리핑' },
   { icon: '📈', text: '삼성전자 실적 분석', prompt: '삼성전자 실적 분석' },
@@ -1704,7 +1789,17 @@ const fetchRooms = async () => {
 const fetchRoomMessages = async (roomId: string) => {
   if (!tokenCookie.value) return
   try {
-    messages.value = await customFetch(`/api/chat/rooms/${roomId}/messages`, { silent: true })
+    const fetched: any = await customFetch(`/api/chat/rooms/${roomId}/messages`, { silent: true })
+    if (Array.isArray(fetched)) {
+      messages.value = fetched
+      if (fetched.length > 0 && isBotMsg(fetched[fetched.length - 1])) {
+        isBotThinking.value = false
+        if (botThinkingTimeout) {
+          clearTimeout(botThinkingTimeout)
+          botThinkingTimeout = null
+        }
+      }
+    }
     scrollToBottom()
   } catch (e) {}
 }
@@ -1744,6 +1839,13 @@ const handleInputEnter = (e: KeyboardEvent) => {
 
 const appendOrUpdateMessage = (newMsg: any) => {
   if (!newMsg || !newMsg.id) return
+  if (isBotMsg(newMsg)) {
+    isBotThinking.value = false
+    if (botThinkingTimeout) {
+      clearTimeout(botThinkingTimeout)
+      botThinkingTimeout = null
+    }
+  }
   const idx = messages.value.findIndex((m: any) => String(m.id) === String(newMsg.id))
   if (idx >= 0) {
     messages.value[idx] = newMsg
@@ -1781,12 +1883,28 @@ const sendEmoji = async (emoji: string) => {
 
 const postMessage = async (type: string, content: string, fileUrl?: string, fileName?: string, fileSize?: number) => {
   if (!activeRoom.value) return
+  const currentRoomId = activeRoom.value.id
   isSending.value = true
+  const shouldTriggerBot = isStockBotRoom.value ||
+    content.includes('@stock') ||
+    content.includes('@주식') ||
+    content.includes('@bot')
+
+  if (shouldTriggerBot) {
+    isBotThinking.value = true
+    if (botThinkingTimeout) clearTimeout(botThinkingTimeout)
+    botThinkingTimeout = setTimeout(() => {
+      isBotThinking.value = false
+    }, 18000)
+    scrollToBottom()
+    scheduleBotResponsePolling(currentRoomId)
+  }
+
   try {
-    const res = await customFetch(`/api/chat/rooms/${activeRoom.value.id}/messages`, {
+    const res = await customFetch(`/api/chat/rooms/${currentRoomId}/messages`, {
       method: 'POST',
       body: {
-        roomId: activeRoom.value.id,
+        roomId: currentRoomId,
         senderId: myUuid.value,
         messageType: type,
         content,
@@ -1802,6 +1920,13 @@ const postMessage = async (type: string, content: string, fileUrl?: string, file
     }
   } catch (e) {
     console.error('Failed to post message:', e)
+    if (shouldTriggerBot) {
+      isBotThinking.value = false
+      if (botThinkingTimeout) {
+        clearTimeout(botThinkingTimeout)
+        botThinkingTimeout = null
+      }
+    }
     throw e
   } finally {
     isSending.value = false
@@ -2228,9 +2353,26 @@ watch(() => messages.value.length, () => {
   scrollToBottom()
 })
 
-watch(() => activeRoom.value?.id, (newId) => {
-  if (newId) {
+watch(() => activeRoom.value, (newRoom) => {
+  isBotThinking.value = false
+  if (botThinkingTimeout) {
+    clearTimeout(botThinkingTimeout)
+    botThinkingTimeout = null
+  }
+  if (newRoom && isOpen.value) {
+    startRoomPolling()
     scrollToBottom()
+  } else {
+    stopRoomPolling()
+  }
+})
+
+watch(() => isOpen.value, (open) => {
+  if (open && activeRoom.value) {
+    startRoomPolling()
+    scrollToBottom()
+  } else {
+    stopRoomPolling()
   }
 })
 
@@ -2565,6 +2707,11 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  stopRoomPolling()
+  if (botThinkingTimeout) {
+    clearTimeout(botThinkingTimeout)
+    botThinkingTimeout = null
+  }
   if (process.client) {
     window.removeEventListener('chat-message-received', handleIncomingChatMessage)
     window.removeEventListener('chat-room-read', handleRoomRead)
@@ -2572,12 +2719,59 @@ onUnmounted(() => {
     window.removeEventListener('paste', handlePaste)
     window.removeEventListener('copy', handleCopyEvent)
     window.removeEventListener('click', closeContextMenu)
-
   }
 })
 </script>
 
 <style scoped>
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dotBlink {
+  0%, 20% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.thinking-dots .dot {
+  display: inline-block;
+  animation: dotBlink 1.4s infinite both;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+.thinking-dots .d1 {
+  animation-delay: 0s;
+}
+.thinking-dots .d2 {
+  animation-delay: 0.2s;
+}
+.thinking-dots .d3 {
+  animation-delay: 0.4s;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes blink-pulse {
   0% {
     transform: scale(1);

@@ -14,6 +14,7 @@ use tokio::sync::broadcast;
 
 #[derive(Clone)]
 pub struct AppState {
+    pub instance_id: String,
     pub db: PgPool,
     pub pool: PgPool,
     pub config: Arc<Config>,
@@ -31,10 +32,11 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(db: PgPool, config: Config) -> Self {
+        let instance_id = uuid::Uuid::new_v4().to_string();
         let (broadcast_tx, _) = broadcast::channel(1024);
         let two_factor_service = TwoFactorService::new(db.clone());
         let dashboard_service = DashboardService::new(db.clone());
-        let chat_service = ChatService::new(db.clone(), broadcast_tx.clone());
+        let chat_service = ChatService::new(db.clone(), broadcast_tx.clone(), instance_id.clone());
         let stock_bot_service = Arc::new(StockBotService::new(db.clone(), broadcast_tx.clone()));
         let excel_service = ExcelService::new(db.clone());
         let governance_service = GovernanceService::new(db.clone());
@@ -43,6 +45,7 @@ impl AppState {
         let field_encryption_service = Arc::new(FieldEncryptionService::new());
 
         Self {
+            instance_id,
             db: db.clone(),
             pool: db,
             config: Arc::new(config),

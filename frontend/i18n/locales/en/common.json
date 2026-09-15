@@ -672,6 +672,7 @@
     "stockBotOpenBtn": "Chat with AI Stock Bot",
     "stockBotStatus": "● Online · aikstockdata connected",
     "stockBotBadge": "AI Bot",
+    "botThinking": "AI Stock Assistant is thinking...",
     "attachFileTooltip": "Attach file",
     "calendarTitle": "Jump to Date",
     "cancelBtn": "Cancel",
