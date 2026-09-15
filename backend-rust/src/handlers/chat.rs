@@ -58,10 +58,25 @@ pub async fn send_room_message(
     auth: AuthUser,
     Json(req): Json<SendMessageRequest>,
 ) -> AppResult<impl IntoResponse> {
+    let user_content = req.content.clone().unwrap_or_default();
     let msg = state
         .chat_service
         .send_message(room_id, &auth.user_id, Some(&auth.username), req)
         .await?;
+
+    // Check if Stock Bot should respond
+    let stock_bot = state.stock_bot_service.clone();
+    let chat_service = state.chat_service.clone();
+    let user_id = auth.user_id.clone();
+
+    if stock_bot.should_bot_respond(room_id, &user_id, &user_content).await {
+        tokio::spawn(async move {
+            if let Err(e) = stock_bot.respond_to_message(room_id, &user_content, &chat_service).await {
+                tracing::error!("StockBot failed to respond: {:?}", e);
+            }
+        });
+    }
+
     Ok(Json(msg))
 }
 
@@ -149,7 +164,7 @@ pub async fn get_chat_users(
     _auth: AuthUser,
 ) -> AppResult<impl IntoResponse> {
     let users = crate::services::user_service::UserService::get_all_users(&state.db).await?;
-    let list: Vec<serde_json::Value> = users
+    let mut list: Vec<serde_json::Value> = users
         .into_iter()
         .map(|u| {
             serde_json::json!({
@@ -161,6 +176,17 @@ pub async fn get_chat_users(
             })
         })
         .collect();
+
+    if !list.iter().any(|u| u.get("userId").and_then(|v| v.as_str()) == Some(crate::services::stock_bot_service::StockBotService::BOT_USER_ID)) {
+        list.push(serde_json::json!({
+            "userId": crate::services::stock_bot_service::StockBotService::BOT_USER_ID,
+            "username": "AI 주식 비서",
+            "email": "stockbot@mplatform.ai",
+            "role": "BOT",
+            "online": true
+        }));
+    }
+
     Ok(Json(list))
 }
 
@@ -294,4 +320,31 @@ pub async fn delegate_creator(
     .await?;
 
     Ok(Json(serde_json::json!({})))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct StockBotQueryRequest {
+    pub message: String,
+}
+
+pub async fn query_stock_bot(
+    State(state): State<AppState>,
+    _auth: AuthUser,
+    Json(req): Json<StockBotQueryRequest>,
+) -> AppResult<impl IntoResponse> {
+    let reply = state.stock_bot_service.process_query(&req.message).await;
+    Ok(Json(serde_json::json!({
+        "reply": reply
+    })))
+}
+
+pub async fn get_or_create_stock_bot_room(
+    State(state): State<AppState>,
+    auth: AuthUser,
+) -> AppResult<impl IntoResponse> {
+    let room = state
+        .stock_bot_service
+        .get_or_create_stock_bot_room(&auth.user_id)
+        .await?;
+    Ok(Json(room))
 }

@@ -48,9 +48,15 @@
           <va-button v-if="activeRoom" preset="plain" color="#ffffff" size="small" @click.stop="activeRoom = null">
             <va-icon name="arrow_back" size="20px" />
           </va-button>
-          <span style="font-weight: 700; font-size: 1rem;">
-            {{ activeRoom ? activeRoom.name : $t('messenger.title') }}
-          </span>
+          <div style="display: flex; flex-direction: column;">
+            <span style="font-weight: 700; font-size: 1rem; display: flex; align-items: center; gap: 6px;">
+              <span v-if="isStockBotRoom">🤖</span>
+              <span>{{ activeRoom ? activeRoom.name : $t('messenger.title') }}</span>
+            </span>
+            <span v-if="isStockBotRoom" style="font-size: 0.68rem; opacity: 0.9; font-weight: normal;">
+              {{ $t('messenger.stockBotStatus') }}
+            </span>
+          </div>
         </div>
         <div style="display: flex; gap: 4px; align-items: center;">
           <va-button preset="plain" color="#ffffff" size="small" :title="isExpanded ? '창 크기 축소' : '창 너비 확대'" @click.stop="toggleExpand">
@@ -106,6 +112,27 @@
 
       <!-- Room List View -->
       <div v-if="!activeRoom" class="room-list-view" style="flex: 1; overflow-y: auto; padding: 12px;">
+        <!-- AI Stock Bot Quick Access Banner -->
+        <div
+          class="stock-bot-card"
+          style="padding: 12px 14px; border-radius: 12px; margin-bottom: 12px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #ffffff; cursor: pointer; display: flex; align-items: center; gap: 12px; border: 1px solid rgba(59,130,246,0.35); box-shadow: 0 4px 14px rgba(0,0,0,0.18); transition: transform 0.2s;"
+          @click="openStockBotRoom"
+        >
+          <div style="width: 40px; height: 40px; border-radius: 20px; background: rgba(59,130,246,0.25); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; border: 1px solid rgba(59,130,246,0.4);">
+            🤖
+          </div>
+          <div style="flex: 1; overflow: hidden;">
+            <div style="font-weight: 700; font-size: 0.92rem; display: flex; align-items: center; gap: 6px;">
+              <span>{{ $t('messenger.stockBotTitle') }}</span>
+              <span style="background: #2563eb; color: #ffffff; font-size: 0.65rem; padding: 1px 6px; border-radius: 6px; font-weight: 800;">aikstockdata</span>
+            </div>
+            <div style="font-size: 0.76rem; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px;">
+              {{ $t('messenger.stockBotDesc') }}
+            </div>
+          </div>
+          <va-icon name="chevron_right" size="20px" color="#94a3b8" />
+        </div>
+
         <div v-if="rooms.length === 0" style="text-align: center; color: var(--va-text-secondary); margin-top: 80px;">
           <va-icon name="chat_bubble_outline" size="48px" style="opacity: 0.5; margin-bottom: 12px;" />
           <div>{{ $t('messenger.noRooms') }}</div>
@@ -120,7 +147,7 @@
           @click="selectRoom(room)"
         >
           <va-avatar color="primary" size="medium">
-            {{ room.isGroup ? '👥' : '👤' }}
+            {{ isStockRoom(room) ? '🤖' : (room.isGroup ? '👥' : '👤') }}
           </va-avatar>
           <div style="flex: 1; overflow: hidden;">
             <div style="font-weight: 700; font-size: 0.95rem; display: flex; justify-content: space-between; align-items: center;">
@@ -173,8 +200,10 @@
             <!-- Normal Chat Message -->
             <div v-else class="msg-bubble-wrapper" :data-sender="msg.senderName" :data-time="formatDateTime(msg.createdAt)" :data-msg-id="msg.id" :data-type="msg.messageType" :style="{ marginLeft: isMyMsg(msg) ? 'auto' : '0', marginRight: isMyMsg(msg) ? '0' : 'auto', maxWidth: msg.messageType === 'IMAGE' ? '92%' : (parseTableContent(msg.content).isTable ? '96%' : '85%'), width: 'fit-content', marginBottom: '10px' }">
             <!-- Sender Name (only for other people's messages visually) -->
-            <div v-if="!isMyMsg(msg)" class="msg-sender-name" style="font-size: 0.75rem; color: var(--va-text-secondary); margin-bottom: 3px; font-weight: 700; user-select: none; display: block;">
-              {{ msg.senderName }}
+            <div v-if="!isMyMsg(msg)" class="msg-sender-name" style="font-size: 0.75rem; color: var(--va-text-secondary); margin-bottom: 3px; font-weight: 700; user-select: none; display: flex; align-items: center; gap: 4px;">
+              <span v-if="isBotMsg(msg)">🤖</span>
+              <span>{{ msg.senderName }}</span>
+              <span v-if="isBotMsg(msg)" style="background: #2563eb; color: #ffffff; font-size: 0.65rem; padding: 0 5px; border-radius: 4px; font-weight: 800;">{{ $t('messenger.stockBotBadge') }}</span>
             </div>
             
             <div style="display: flex; align-items: flex-end; gap: 6px; max-width: 100%;" :style="{ flexDirection: isMyMsg(msg) ? 'row' : 'row-reverse' }">
@@ -427,6 +456,25 @@
 
         <!-- Input Area -->
         <div class="chat-input-area" style="padding: 10px; background: var(--va-background-element); border-top: 1px solid var(--va-background-border); display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; z-index: 10;">
+          <!-- Quick Prompt Chips for Stock Bot Room -->
+          <div
+            v-if="isStockBotRoom"
+            class="stock-bot-quick-chips"
+            style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;"
+          >
+            <button
+              v-for="chip in stockQuickChips"
+              :key="chip.text"
+              type="button"
+              class="stock-chip-btn"
+              style="white-space: nowrap; font-size: 0.74rem; font-weight: 600; padding: 4px 10px; border-radius: 14px; border: 1px solid var(--va-background-border); background: var(--va-background-primary); color: var(--va-text-primary); cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;"
+              @click="sendStockQuickPrompt(chip.prompt)"
+            >
+              <span>{{ chip.icon }}</span>
+              <span>{{ chip.text }}</span>
+            </button>
+          </div>
+
           <!-- Quick Emoji Toolbar -->
           <div style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px;">
             <span v-for="emoji in quickEmojis" :key="emoji" style="cursor: pointer; font-size: 1.2rem; user-select: none;" @click="sendEmoji(emoji)">{{ emoji }}</span>
@@ -443,7 +491,7 @@
                 v-model="inputMsg"
                 type="text"
                 enterkeyhint="send"
-                :placeholder="$t('messenger.placeholderMsg')"
+                :placeholder="isStockBotRoom ? '주식 시장, 종목명(예: 삼성전자), DART 공시 등을 물어보세요...' : $t('messenger.placeholderMsg')"
                 class="chat-text-input"
                 style="flex: 1; border: none; outline: none; background: transparent; color: var(--va-text-primary); font-size: 0.95rem; min-width: 0; padding: 4px 0;"
                 @input="onTextInput"
@@ -1219,6 +1267,58 @@ const newRoomName = ref('')
 const availableUsers = ref<any[]>([])
 const selectedUserIds = ref<string[]>([])
 const showImgModal = ref(false)
+
+// AI Stock Bot (aikstockdata) State & Methods
+const isStockRoom = (room: any) => {
+  if (!room) return false
+  const name = room.name || ''
+  return name.includes('AI 주식 비서') || name.includes('aikstockdata')
+}
+
+const isStockBotRoom = computed(() => {
+  return isStockRoom(activeRoom.value)
+})
+
+const isBotMsg = (msg: any) => {
+  if (!msg) return false
+  const sid = String(msg.senderId || '')
+  const sname = String(msg.senderName || '')
+  return sid === 'AI_STOCK_BOT' || sname.includes('AI 주식 비서')
+}
+
+const stockQuickChips = [
+  { icon: '💡', text: '오늘 증시 브리핑', prompt: '오늘 증시 브리핑' },
+  { icon: '📈', text: '삼성전자 실적 분석', prompt: '삼성전자 실적 분석' },
+  { icon: '🏆', text: '급성장 기업 순위', prompt: '급성장 기업 순위' },
+  { icon: '📢', text: '최근 DART 공시', prompt: '최근 주요 공시' },
+  { icon: '📊', text: '공급계약 공시 통계', prompt: '공급계약 공시 후 주가 영향 통계' },
+  { icon: '❓', text: '도움말', prompt: '도움말' },
+]
+
+const openStockBotRoom = async () => {
+  if (!tokenCookie.value) return
+  try {
+    const room: any = await customFetch('/api/chat/stock-bot/room', {
+      method: 'POST',
+      silent: true
+    })
+    if (room) {
+      await fetchRooms()
+      selectRoom(room)
+    }
+  } catch (e) {
+    console.error('Failed to open stock bot room:', e)
+  }
+}
+
+const sendStockQuickPrompt = async (prompt: string) => {
+  if (!activeRoom.value || isSending.value) return
+  inputMsg.value = prompt
+  if (chatInputRef.value) {
+    chatInputRef.value.value = prompt
+  }
+  await sendTextMessage()
+}
 
 const showExcelModal = ref(false)
 const selectedExcelUrl = ref<string | null>(null)

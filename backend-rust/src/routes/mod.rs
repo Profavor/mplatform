@@ -917,6 +917,8 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/chat/presence", get(chat::get_chat_presence))
         .route("/api/chat/translate", post(chat::translate_chat_message))
         .route("/api/chat/users", get(chat::get_chat_users))
+        .route("/api/chat/stock-bot/room", post(chat::get_or_create_stock_bot_room))
+        .route("/api/chat/stock-bot/query", post(chat::query_stock_bot))
         // 18. Global Search
         .route("/api/search", get(search::search))
         .route("/api/records/search", get(search::search))

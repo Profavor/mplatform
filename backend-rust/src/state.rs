@@ -5,6 +5,7 @@ use crate::services::excel_service::ExcelService;
 use crate::services::field_encryption_service::FieldEncryptionService;
 use crate::services::governance_service::GovernanceService;
 use crate::services::integration_service::IntegrationService;
+use crate::services::stock_bot_service::StockBotService;
 use crate::services::system_service::SystemService;
 use crate::services::two_factor_service::TwoFactorService;
 use sqlx::PgPool;
@@ -20,6 +21,7 @@ pub struct AppState {
     pub two_factor_service: TwoFactorService,
     pub dashboard_service: DashboardService,
     pub chat_service: ChatService,
+    pub stock_bot_service: Arc<StockBotService>,
     pub excel_service: ExcelService,
     pub governance_service: GovernanceService,
     pub system_service: SystemService,
@@ -33,6 +35,7 @@ impl AppState {
         let two_factor_service = TwoFactorService::new(db.clone());
         let dashboard_service = DashboardService::new(db.clone());
         let chat_service = ChatService::new(db.clone(), broadcast_tx.clone());
+        let stock_bot_service = Arc::new(StockBotService::new(db.clone(), broadcast_tx.clone()));
         let excel_service = ExcelService::new(db.clone());
         let governance_service = GovernanceService::new(db.clone());
         let system_service = SystemService::new(db.clone());
@@ -47,6 +50,7 @@ impl AppState {
             two_factor_service,
             dashboard_service,
             chat_service,
+            stock_bot_service,
             excel_service,
             governance_service,
             system_service,
