@@ -181,7 +181,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppModal from '~/components/common/AppModal.vue'
 
@@ -197,6 +197,10 @@ const props = defineProps({
   departments: {
     type: Array,
     default: () => []
+  },
+  initialDomainId: {
+    type: String,
+    default: null
   }
 })
 
@@ -205,16 +209,27 @@ const emit = defineEmits(['updated', 'notify'])
 const { t, locale } = useI18n()
 const token = useCookie('auth_token')
 
+const internalDomains = ref([])
+const internalDepartments = ref([])
+
+const effectiveDomains = computed(() => {
+  return props.domains && props.domains.length > 0 ? props.domains : internalDomains.value
+})
+
+const effectiveDepartments = computed(() => {
+  return props.departments && props.departments.length > 0 ? props.departments : internalDepartments.value
+})
+
 const policies = ref([])
 const isLoading = ref(false)
-const filterDomainId = ref(null)
+const filterDomainId = ref(props.initialDomainId || null)
 const showCreateModal = ref(false)
 const isCreating = ref(false)
 
 const createForm = ref({
   targetType: 'ROLE',
   targetId: 'ROLE_USER',
-  domainId: null,
+  domainId: props.initialDomainId || null,
   fieldKey: '',
   maskingAction: 'UNMASK'
 })
@@ -237,7 +252,7 @@ const roleOptions = [
 ]
 
 const departmentOptions = computed(() => {
-  return props.departments.map(d => ({
+  return effectiveDepartments.value.map(d => ({
     id: d.id,
     name: getI18nText(d.name) || d.id
   }))
@@ -251,7 +266,7 @@ const actionOptions = computed(() => [
 const filterDomainOptions = computed(() => {
   return [
     { id: null, label: t('all') },
-    ...props.domains.map(d => ({
+    ...effectiveDomains.value.map(d => ({
       id: d.id,
       label: getI18nText(d.name)
     }))
@@ -261,7 +276,7 @@ const filterDomainOptions = computed(() => {
 const domainOptionsWithAll = computed(() => {
   return [
     { id: null, label: t('scope_all_nodes') },
-    ...props.domains.map(d => ({
+    ...effectiveDomains.value.map(d => ({
       id: d.id,
       label: getI18nText(d.name)
     }))
@@ -333,7 +348,7 @@ const openCreateModal = () => {
   createForm.value = {
     targetType: 'ROLE',
     targetId: 'ROLE_USER',
-    domainId: null,
+    domainId: filterDomainId.value || props.initialDomainId || null,
     fieldKey: '',
     maskingAction: 'UNMASK'
   }
@@ -383,7 +398,40 @@ const confirmDeletePolicy = async (policy) => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  if (props.initialDomainId) {
+    filterDomainId.value = props.initialDomainId
+  }
+  if (!props.domains || props.domains.length === 0) {
+    try {
+      const d = await $fetch('/api/domains', { headers: { Authorization: `Bearer ${token.value}` } })
+      internalDomains.value = d || []
+    } catch (e) {
+      console.error('Failed to load domains in ColumnMaskingPoliciesTab:', e)
+    }
+  }
+  if (!props.departments || props.departments.length === 0) {
+    try {
+      const orgs = await $fetch('/api/organizations', { headers: { Authorization: `Bearer ${token.value}` } })
+      if (Array.isArray(orgs)) {
+        const depts = []
+        for (const org of orgs) {
+          const res = await $fetch(`/api/organizations/${org.id}/departments`, { headers: { Authorization: `Bearer ${token.value}` } }).catch(() => [])
+          if (Array.isArray(res)) depts.push(...res)
+        }
+        internalDepartments.value = depts
+      }
+    } catch (e) {
+      console.error('Failed to load departments in ColumnMaskingPoliciesTab:', e)
+    }
+  }
   fetchPolicies()
+})
+
+watch(() => props.initialDomainId, (newId) => {
+  if (newId !== undefined) {
+    filterDomainId.value = newId || null
+    fetchPolicies()
+  }
 })
 </script>

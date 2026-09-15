@@ -699,15 +699,22 @@ const currentOrgName = computed(() => {
 })
 
 const handleLogout = async () => {
+  const currentRefreshToken = useCookie('refresh_token').value || (process.client ? localStorage.getItem('refresh_token') : null)
+  const currentAuthToken = useCookie('auth_token').value || useCookie('token').value || (process.client ? localStorage.getItem('auth_token') : null)
+
+  try {
+    const { customFetch } = useCustomFetch()
+    await customFetch('/api/auth/logout', { 
+      method: 'POST',
+      headers: currentAuthToken ? { Authorization: `Bearer ${currentAuthToken}` } : {},
+      body: currentRefreshToken ? { refreshToken: currentRefreshToken } : {}
+    }).catch(() => {})
+  } catch (e) {}
+
   const { clearAuthCookies } = useAuthRefresh()
   clearAuthCookies()
   tokenCookie.value = null
   userCookie.value = null
-
-  try {
-    const { customFetch } = useCustomFetch()
-    await customFetch('/api/auth/logout', { method: 'POST' }).catch(() => {})
-  } catch (e) {}
 
   try {
     const { clear } = useOidcAuth()
@@ -720,6 +727,8 @@ const handleLogout = async () => {
     try {
       localStorage.removeItem('auth_token')
       localStorage.removeItem('token')
+      localStorage.removeItem('refresh_token')
+      localStorage.removeItem('id_token')
       localStorage.removeItem('user_data')
       sessionStorage.clear()
     } catch (e) {}

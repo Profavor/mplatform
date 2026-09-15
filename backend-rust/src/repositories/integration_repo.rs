@@ -6,12 +6,28 @@ use uuid::Uuid;
 pub struct IntegrationRepository;
 
 impl IntegrationRepository {
-    pub async fn get_channels(pool: &PgPool) -> Result<Vec<IntegrationChannel>, sqlx::Error> {
-        let channels = sqlx::query_as::<_, IntegrationChannel>(
-            "SELECT * FROM integration_channels ORDER BY created_at DESC",
-        )
-        .fetch_all(pool)
-        .await?;
+    pub async fn get_channels(pool: &PgPool, org_id: Option<Uuid>) -> Result<Vec<IntegrationChannel>, sqlx::Error> {
+        let channels = if let Some(oid) = org_id {
+            sqlx::query_as::<_, IntegrationChannel>(
+                r#"
+                SELECT c.* 
+                FROM integration_channels c
+                JOIN classification_node n ON c.node_id = n.id
+                JOIN domain d ON n.domain_id = d.id
+                WHERE d.organization_id = $1
+                ORDER BY c.created_at DESC
+                "#,
+            )
+            .bind(oid)
+            .fetch_all(pool)
+            .await?
+        } else {
+            sqlx::query_as::<_, IntegrationChannel>(
+                "SELECT * FROM integration_channels ORDER BY created_at DESC",
+            )
+            .fetch_all(pool)
+            .await?
+        };
 
         Ok(channels)
     }
@@ -79,13 +95,256 @@ impl IntegrationRepository {
 
     pub async fn get_logs_paged(
         pool: &PgPool,
+        org_id: Option<Uuid>,
         channel_id: Option<Uuid>,
         only_dead_letter: bool,
         limit: i64,
         offset: i64,
     ) -> Result<(Vec<IntegrationLog>, i64), sqlx::Error> {
-        let (total, logs) = match (channel_id, only_dead_letter) {
-            (Some(cid), true) => {
+        let (total, logs) = match (org_id, channel_id, only_dead_letter) {
+            (Some(oid), Some(cid), true) => {
+                let total: i64 = sqlx::query_scalar(
+                    r#"
+                    SELECT COUNT(*) FROM integration_logs l
+                    WHERE l.channel_id = $1 AND l.status != 'SUCCESS'
+                      AND (
+                        l.channel_id IN (
+                          SELECT c2.id FROM integration_channels c2 
+                          JOIN classification_node n2 ON c2.node_id = n2.id 
+                          JOIN domain d2 ON n2.domain_id = d2.id 
+                          WHERE d2.organization_id = $2
+                        )
+                        OR l.record_id IN (
+                          SELECT r2.id FROM record r2 
+                          JOIN classification_node cn2 ON r2.node_id = cn2.id JOIN domain d2 ON cn2.domain_id = d2.id 
+                          WHERE d2.organization_id = $2
+                        )
+                      )
+                    "#
+                )
+                .bind(cid)
+                .bind(oid)
+                .fetch_one(pool)
+                .await?;
+
+                let logs = sqlx::query_as::<_, IntegrationLog>(
+                    r#"
+                    SELECT 
+                        l.id, l.channel_id, l.record_id, l.event_type, l.status, l.retry_count, 
+                        l.error_message, l.original_payload, l.mapped_payload, l.created_at,
+                        COALESCE(c.direction, CASE WHEN l.event_type ILIKE '%INBOUND%' OR l.event_type ILIKE '%SPRING_BATCH%' OR l.event_type ILIKE '%INGEST%' THEN 'INBOUND' ELSE 'OUTBOUND' END) AS direction,
+                        c.name AS channel_name,
+                        c.channel_code AS channel_code
+                    FROM integration_logs l
+                    LEFT JOIN integration_channels c ON l.channel_id = c.id
+                    WHERE l.channel_id = $1 AND l.status != 'SUCCESS'
+                      AND (
+                        l.channel_id IN (
+                          SELECT c2.id FROM integration_channels c2 
+                          JOIN classification_node n2 ON c2.node_id = n2.id 
+                          JOIN domain d2 ON n2.domain_id = d2.id 
+                          WHERE d2.organization_id = $4
+                        )
+                        OR l.record_id IN (
+                          SELECT r2.id FROM record r2 
+                          JOIN classification_node cn2 ON r2.node_id = cn2.id JOIN domain d2 ON cn2.domain_id = d2.id 
+                          WHERE d2.organization_id = $4
+                        )
+                      )
+                    ORDER BY l.created_at DESC
+                    LIMIT $2 OFFSET $3
+                    "#
+                )
+                .bind(cid)
+                .bind(limit)
+                .bind(offset)
+                .bind(oid)
+                .fetch_all(pool)
+                .await?;
+
+                (total, logs)
+            }
+            (Some(oid), Some(cid), false) => {
+                let total: i64 = sqlx::query_scalar(
+                    r#"
+                    SELECT COUNT(*) FROM integration_logs l
+                    WHERE l.channel_id = $1
+                      AND (
+                        l.channel_id IN (
+                          SELECT c2.id FROM integration_channels c2 
+                          JOIN classification_node n2 ON c2.node_id = n2.id 
+                          JOIN domain d2 ON n2.domain_id = d2.id 
+                          WHERE d2.organization_id = $2
+                        )
+                        OR l.record_id IN (
+                          SELECT r2.id FROM record r2 
+                          JOIN classification_node cn2 ON r2.node_id = cn2.id JOIN domain d2 ON cn2.domain_id = d2.id 
+                          WHERE d2.organization_id = $2
+                        )
+                      )
+                    "#
+                )
+                .bind(cid)
+                .bind(oid)
+                .fetch_one(pool)
+                .await?;
+
+                let logs = sqlx::query_as::<_, IntegrationLog>(
+                    r#"
+                    SELECT 
+                        l.id, l.channel_id, l.record_id, l.event_type, l.status, l.retry_count, 
+                        l.error_message, l.original_payload, l.mapped_payload, l.created_at,
+                        COALESCE(c.direction, CASE WHEN l.event_type ILIKE '%INBOUND%' OR l.event_type ILIKE '%SPRING_BATCH%' OR l.event_type ILIKE '%INGEST%' THEN 'INBOUND' ELSE 'OUTBOUND' END) AS direction,
+                        c.name AS channel_name,
+                        c.channel_code AS channel_code
+                    FROM integration_logs l
+                    LEFT JOIN integration_channels c ON l.channel_id = c.id
+                    WHERE l.channel_id = $1
+                      AND (
+                        l.channel_id IN (
+                          SELECT c2.id FROM integration_channels c2 
+                          JOIN classification_node n2 ON c2.node_id = n2.id 
+                          JOIN domain d2 ON n2.domain_id = d2.id 
+                          WHERE d2.organization_id = $4
+                        )
+                        OR l.record_id IN (
+                          SELECT r2.id FROM record r2 
+                          JOIN classification_node cn2 ON r2.node_id = cn2.id JOIN domain d2 ON cn2.domain_id = d2.id 
+                          WHERE d2.organization_id = $4
+                        )
+                      )
+                    ORDER BY l.created_at DESC
+                    LIMIT $2 OFFSET $3
+                    "#
+                )
+                .bind(cid)
+                .bind(limit)
+                .bind(offset)
+                .bind(oid)
+                .fetch_all(pool)
+                .await?;
+
+                (total, logs)
+            }
+            (Some(oid), None, true) => {
+                let total: i64 = sqlx::query_scalar(
+                    r#"
+                    SELECT COUNT(*) FROM integration_logs l
+                    WHERE l.status != 'SUCCESS'
+                      AND (
+                        l.channel_id IN (
+                          SELECT c2.id FROM integration_channels c2 
+                          JOIN classification_node n2 ON c2.node_id = n2.id 
+                          JOIN domain d2 ON n2.domain_id = d2.id 
+                          WHERE d2.organization_id = $1
+                        )
+                        OR l.record_id IN (
+                          SELECT r2.id FROM record r2 
+                          JOIN classification_node cn2 ON r2.node_id = cn2.id JOIN domain d2 ON cn2.domain_id = d2.id 
+                          WHERE d2.organization_id = $1
+                        )
+                      )
+                    "#
+                )
+                .bind(oid)
+                .fetch_one(pool)
+                .await?;
+
+                let logs = sqlx::query_as::<_, IntegrationLog>(
+                    r#"
+                    SELECT 
+                        l.id, l.channel_id, l.record_id, l.event_type, l.status, l.retry_count, 
+                        l.error_message, l.original_payload, l.mapped_payload, l.created_at,
+                        COALESCE(c.direction, CASE WHEN l.event_type ILIKE '%INBOUND%' OR l.event_type ILIKE '%SPRING_BATCH%' OR l.event_type ILIKE '%INGEST%' THEN 'INBOUND' ELSE 'OUTBOUND' END) AS direction,
+                        c.name AS channel_name,
+                        c.channel_code AS channel_code
+                    FROM integration_logs l
+                    LEFT JOIN integration_channels c ON l.channel_id = c.id
+                    WHERE l.status != 'SUCCESS'
+                      AND (
+                        l.channel_id IN (
+                          SELECT c2.id FROM integration_channels c2 
+                          JOIN classification_node n2 ON c2.node_id = n2.id 
+                          JOIN domain d2 ON n2.domain_id = d2.id 
+                          WHERE d2.organization_id = $3
+                        )
+                        OR l.record_id IN (
+                          SELECT r2.id FROM record r2 
+                          JOIN classification_node cn2 ON r2.node_id = cn2.id JOIN domain d2 ON cn2.domain_id = d2.id 
+                          WHERE d2.organization_id = $3
+                        )
+                      )
+                    ORDER BY l.created_at DESC
+                    LIMIT $1 OFFSET $2
+                    "#
+                )
+                .bind(limit)
+                .bind(offset)
+                .bind(oid)
+                .fetch_all(pool)
+                .await?;
+
+                (total, logs)
+            }
+            (Some(oid), None, false) => {
+                let total: i64 = sqlx::query_scalar(
+                    r#"
+                    SELECT COUNT(*) FROM integration_logs l
+                    WHERE (
+                        l.channel_id IN (
+                          SELECT c2.id FROM integration_channels c2 
+                          JOIN classification_node n2 ON c2.node_id = n2.id 
+                          JOIN domain d2 ON n2.domain_id = d2.id 
+                          WHERE d2.organization_id = $1
+                        )
+                        OR l.record_id IN (
+                          SELECT r2.id FROM record r2 
+                          JOIN classification_node cn2 ON r2.node_id = cn2.id JOIN domain d2 ON cn2.domain_id = d2.id 
+                          WHERE d2.organization_id = $1
+                        )
+                    )
+                    "#
+                )
+                .bind(oid)
+                .fetch_one(pool)
+                .await?;
+
+                let logs = sqlx::query_as::<_, IntegrationLog>(
+                    r#"
+                    SELECT 
+                        l.id, l.channel_id, l.record_id, l.event_type, l.status, l.retry_count, 
+                        l.error_message, l.original_payload, l.mapped_payload, l.created_at,
+                        COALESCE(c.direction, CASE WHEN l.event_type ILIKE '%INBOUND%' OR l.event_type ILIKE '%SPRING_BATCH%' OR l.event_type ILIKE '%INGEST%' THEN 'INBOUND' ELSE 'OUTBOUND' END) AS direction,
+                        c.name AS channel_name,
+                        c.channel_code AS channel_code
+                    FROM integration_logs l
+                    LEFT JOIN integration_channels c ON l.channel_id = c.id
+                    WHERE (
+                        l.channel_id IN (
+                          SELECT c2.id FROM integration_channels c2 
+                          JOIN classification_node n2 ON c2.node_id = n2.id 
+                          JOIN domain d2 ON n2.domain_id = d2.id 
+                          WHERE d2.organization_id = $3
+                        )
+                        OR l.record_id IN (
+                          SELECT r2.id FROM record r2 
+                          JOIN classification_node cn2 ON r2.node_id = cn2.id JOIN domain d2 ON cn2.domain_id = d2.id 
+                          WHERE d2.organization_id = $3
+                        )
+                    )
+                    ORDER BY l.created_at DESC
+                    LIMIT $1 OFFSET $2
+                    "#
+                )
+                .bind(limit)
+                .bind(offset)
+                .bind(oid)
+                .fetch_all(pool)
+                .await?;
+
+                (total, logs)
+            }
+            (None, Some(cid), true) => {
                 let total: i64 = sqlx::query_scalar(
                     "SELECT COUNT(*) FROM integration_logs WHERE channel_id = $1 AND status != 'SUCCESS'"
                 )
@@ -116,7 +375,7 @@ impl IntegrationRepository {
 
                 (total, logs)
             }
-            (Some(cid), false) => {
+            (None, Some(cid), false) => {
                 let total: i64 = sqlx::query_scalar(
                     "SELECT COUNT(*) FROM integration_logs WHERE channel_id = $1",
                 )
@@ -147,7 +406,7 @@ impl IntegrationRepository {
 
                 (total, logs)
             }
-            (None, true) => {
+            (None, None, true) => {
                 let total: i64 = sqlx::query_scalar(
                     "SELECT COUNT(*) FROM integration_logs WHERE status != 'SUCCESS'",
                 )
@@ -176,7 +435,7 @@ impl IntegrationRepository {
 
                 (total, logs)
             }
-            (None, false) => {
+            (None, None, false) => {
                 let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM integration_logs")
                     .fetch_one(pool)
                     .await?;

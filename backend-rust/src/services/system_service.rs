@@ -3,6 +3,7 @@ use crate::models::system::*;
 use crate::repositories::system_repo::SystemRepository;
 use sqlx::PgPool;
 use std::time::Instant;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct SystemService {
@@ -30,10 +31,11 @@ impl SystemService {
 
     pub async fn get_error_logs(
         &self,
+        org_id: Option<Uuid>,
         page: i64,
         size: i64,
     ) -> AppResult<(Vec<ErrorLogItem>, i64)> {
-        let (logs, total) = SystemRepository::get_error_logs(&self.pool, page, size).await?;
+        let (logs, total) = SystemRepository::get_error_logs(&self.pool, org_id, page, size).await?;
         Ok((logs, total))
     }
 

@@ -397,13 +397,18 @@ const defaultColDef = {
 
 const domainStore = useDomain()
 
+const isDomainsLoaded = ref(false)
+
 // Fetch Master Data
 const fetchDomains = async () => {
   try {
     const list = await domainStore.fetchDomains()
-    rawDomainList.value = list
+    rawDomainList.value = list || []
   } catch (e) {
     console.error('Failed to fetch domains', e)
+    rawDomainList.value = []
+  } finally {
+    isDomainsLoaded.value = true
   }
 }
 
@@ -435,7 +440,20 @@ const fetchWorkflows = async () => {
       url += `&query=${encodeURIComponent(searchQuery.value.trim())}`
     }
     const res: any = await customFetch(url)
-    workflowList.value = res?.content || (Array.isArray(res) ? res : [])
+    const list = res?.content || (Array.isArray(res) ? res : [])
+
+    // Defensive client-side filtering: Ensure displayed items belong to user's accessible domains
+    if (isDomainsLoaded.value) {
+      const allowedDomainIds = new Set(rawDomainList.value.map((d: any) => d.id))
+      workflowList.value = list.filter((item: any) => {
+        if (item.domainId) {
+          return allowedDomainIds.has(item.domainId)
+        }
+        return false
+      })
+    } else {
+      workflowList.value = list
+    }
   } catch (e) {
     console.error('Failed to fetch workflows', e)
     workflowList.value = []

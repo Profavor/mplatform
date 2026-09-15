@@ -2,7 +2,7 @@
   <va-card v-if="organization" style="flex: 2; min-width: 480px;">
     <va-card-title style="display: flex; align-items: center; justify-content: space-between;">
       <div style="display: flex; align-items: center; gap: 0.5rem;">
-        <va-icon name="apartment" color="primary" />
+        <va-icon :name="editOrgForm.icon || organization.icon || 'corporate_fare'" color="primary" />
         <span>{{ getI18nText(organization.displayName) || organization.name }}</span>
       </div>
       <span style="font-size: 0.8rem; color: var(--va-text-secondary); font-weight: normal;">
@@ -46,7 +46,7 @@
             </label>
             <div style="display: flex; align-items: center; gap: 1rem; background: var(--va-background-element); padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid var(--va-background-border);">
               <va-icon :name="editOrgForm.icon || 'corporate_fare'" color="primary" size="medium" />
-              <va-button preset="primary" outline icon="palette" size="small" @click="$emit('open-icon-picker', 'org')">
+              <va-button preset="primary" outline icon="palette" size="small" @click="showIconPickerModal = true">
                 {{ getLabel('select_icon', '아이콘 선택') }}
               </va-button>
             </div>
@@ -70,15 +70,6 @@
           />
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
-          <va-button
-            v-if="organization && organization.id !== '00000000-0000-0000-0000-000000000001'"
-            color="danger"
-            preset="secondary"
-            icon="delete"
-            @click="$emit('delete-org', organization)"
-          >
-            {{ getLabel('delete_organization', '조직 삭제') }}
-          </va-button>
           <va-button color="success" icon="save" @click="handleSave">
             {{ t('save_changes') }}
           </va-button>
@@ -113,7 +104,7 @@
           <!-- Organization Root Node -->
           <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1.25rem; border-radius: 8px; background: var(--va-background-secondary); border: 1.5px solid var(--va-primary); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);">
             <div style="display: flex; align-items: center; gap: 0.65rem;">
-              <va-icon name="corporate_fare" color="primary" size="medium" />
+              <va-icon :name="organization.icon || editOrgForm.icon || 'corporate_fare'" color="primary" size="medium" />
               <span style="font-weight: 800; font-size: 1.05rem; color: var(--va-text-primary);">
                 {{ getI18nText(organization.displayName) || organization.name }}
               </span>
@@ -176,6 +167,14 @@
         </div>
       </div>
     </va-card-content>
+
+    <!-- Organization Icon Picker Modal -->
+    <IconPickerModal
+      v-model="showIconPickerModal"
+      :icon="editOrgForm.icon || 'corporate_fare'"
+      :title="getLabel('select_org_icon', '조직 아이콘 선택')"
+      @confirm="onIconConfirm"
+    />
   </va-card>
 </template>
 
@@ -184,6 +183,7 @@ import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MultilingualInput from '~/components/MultilingualInput.vue'
 import OrgTreeItem from '~/components/OrgTreeItem.vue'
+import IconPickerModal from '~/components/common/IconPickerModal.vue'
 
 const props = defineProps({
   organization: { type: Object, default: null },
@@ -194,7 +194,6 @@ const props = defineProps({
 
 const emit = defineEmits([
   'save-org',
-  'delete-org',
   'open-icon-picker',
   'add-dept',
   'edit-dept',
@@ -208,6 +207,11 @@ const emit = defineEmits([
 ])
 
 const { t, locale } = useI18n()
+
+const showIconPickerModal = ref(false)
+const onIconConfirm = (newIcon: string) => {
+  editOrgForm.value.icon = newIcon
+}
 
 const activeTab = ref('info')
 const editOrgForm = ref({

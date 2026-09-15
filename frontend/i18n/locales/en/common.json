@@ -294,6 +294,8 @@
   "user_delete_success": "User deleted successfully.",
   "user_delete_conflict_error": "Cannot delete user because associated data (records or approval requests) exists.",
   "user_delete_failed": "Error occurred while deleting user: {error}",
+  "cannot_delete_self": "You cannot delete your own account.",
+  "my_account": "My Account",
   "user_temp_password_not_found": "Temporary password not found.",
   "user_temp_password_query_failed": "Query failed: Temporary password does not exist or unauthorized.",
   "dump_seed_files_confirm_org": "Do you want to backup/overwrite all role states set in the '{name}' organization to the system default (Seed) JSON file?\n(This will directly modify files in the source code directory)",

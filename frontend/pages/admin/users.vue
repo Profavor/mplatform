@@ -91,13 +91,30 @@
               <div style="font-size: 1.2rem; font-weight: 800; color: var(--va-text-primary); display: flex; align-items: center; gap: 0.5rem; width: 100%;">
                 {{ selectedUser.username }}
                 <va-badge text="Active User" color="success" size="small" />
-                <div style="margin-left: auto; display: flex; gap: 0.5rem;">
+                <div style="margin-left: auto; display: flex; gap: 0.5rem; align-items: center;">
                   <va-button v-if="selectedUser.mustChangePassword" size="small" color="warning" outline icon="key" @click="viewTempPassword(selectedUser.id)">
                     {{ $t('view_temp_password') }}
                   </va-button>
-                  <va-button size="small" color="danger" outline icon="delete" @click="confirmDeleteUser(selectedUser)">
+                  <va-button
+                    v-if="!isSelf(selectedUser)"
+                    size="small"
+                    color="danger"
+                    outline
+                    icon="delete"
+                    @click="confirmDeleteUser(selectedUser)"
+                  >
                     {{ $t('delete') }}
                   </va-button>
+                  <va-badge
+                    v-else
+                    color="secondary"
+                    outline
+                    size="small"
+                    style="font-weight: 600;"
+                    :title="$t('cannot_delete_self')"
+                  >
+                    {{ $t('my_account') }}
+                  </va-badge>
                 </div>
               </div>
               <div style="font-size: 0.82rem; color: var(--va-text-secondary); margin-top: 0.15rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
@@ -121,13 +138,10 @@
               <va-tab :name="1" icon="shield">
                 {{ $t('tab_data_scopes') }}
               </va-tab>
-              <va-tab :name="2" icon="visibility_off">
-                {{ $t('tab_masking_policies') }}
-              </va-tab>
-              <va-tab :name="3" icon="history_edu">
+              <va-tab :name="2" icon="history_edu">
                 {{ $t('tab_audit_logs') }}
               </va-tab>
-              <va-tab :name="4" icon="history">
+              <va-tab :name="3" icon="history">
                 {{ $t('tab_org_history') }}
               </va-tab>
             </template>
@@ -250,26 +264,16 @@
             />
           </div>
 
-          <!-- Tab 2: Column Masking Policies Tab -->
+          <!-- Tab 2: Permission Audit Logs Tab -->
           <div v-if="selectedUserTab === 2">
-            <ColumnMaskingPoliciesTab
-              :can-write="canWriteUsers"
-              :domains="allDomains"
-              :departments="allDepartmentsList"
-              @notify="onTabNotify"
-            />
-          </div>
-
-          <!-- Tab 3: Permission Audit Logs Tab -->
-          <div v-if="selectedUserTab === 3">
             <PermissionAuditLogsTab
               :user-id="selectedUser.id"
               :username="selectedUser.username"
             />
           </div>
 
-          <!-- Tab 4: Organization Change History -->
-          <div v-if="selectedUserTab === 4" style="background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
+          <!-- Tab 3: Organization Change History -->
+          <div v-if="selectedUserTab === 3" style="background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
             <h3 style="font-weight: 800; margin: 0 0 0.75rem 0; color: var(--va-text-primary); font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
               <va-icon name="history" color="primary" />
               <span>{{ $t('org_history_title') }}</span>
@@ -466,16 +470,32 @@
 import { useI18n } from 'vue-i18n'
 import { usePermission } from '~/composables/usePermission'
 import { usePageTitle } from '~/composables/usePageTitle'
+import { useAuthUser } from '~/composables/useAuthUser'
 import AppModal from '~/components/common/AppModal.vue'
 import CreateUserModal from '~/components/admin/CreateUserModal.vue'
 import UserDataScopesTab from '~/components/admin/UserDataScopesTab.vue'
-import ColumnMaskingPoliciesTab from '~/components/admin/ColumnMaskingPoliciesTab.vue'
 import PermissionAuditLogsTab from '~/components/admin/PermissionAuditLogsTab.vue'
 
 const { pageTitle } = usePageTitle('user_management', '사용자 및 권한 관리')
 
 const { t, locale } = useI18n()
 const { hasPermission } = usePermission()
+const authUserStore = useAuthUser()
+
+const isSelf = (user: any) => {
+  if (!user) return false
+  const myId = authUserStore.currentUserId || authUserStore.currentUser?.id
+  const myName = authUserStore.currentUsername || authUserStore.currentUser?.username
+  if (myId && user.id === myId) return true
+  if (myName && user.username === myName) return true
+  try {
+    const raw = useCookie('user_data').value
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    if (parsed?.id && user.id === parsed.id) return true
+    if (parsed?.username && user.username === parsed.username) return true
+  } catch {}
+  return false
+}
 
 const selectedUserTab = ref(0)
 const canWriteUsers = computed(() => hasPermission('admin:write') || hasPermission('admin:*') || hasPermission('org:write') || hasPermission('org:*'))
@@ -896,6 +916,10 @@ const viewTempPassword = async (userId) => {
 }
 
 const confirmDeleteUser = async (user) => {
+  if (isSelf(user)) {
+    showCustomAlert(t('cannot_delete_self'), t('delete_unavailable', '삭제 불가'), t('notification'), 'error')
+    return
+  }
   if (confirm(t('user_delete_confirm', { username: user.username }))) {
     try {
       await $fetch(`/api/users/${user.id}`, {
@@ -988,6 +1012,7 @@ const createUser = async () => {
 }
 
 onMounted(() => {
+  authUserStore.fetchCurrentUser()
   fetchOrganizations()
   fetchUsers()
   fetchDomains()

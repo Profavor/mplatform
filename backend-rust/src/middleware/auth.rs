@@ -11,11 +11,48 @@ pub struct AuthUser {
     pub username: String,
     pub user_id: String,
     pub role: Option<String>,
+    pub organization_id: Option<uuid::Uuid>,
     pub permissions: Vec<String>,
     pub claims: Claims,
 }
 
 impl AuthUser {
+    pub const SYSTEM_PRIMARY_ORG_ID: &'static str = "477f8614-6a34-4e78-95d0-dc4fe6459a46";
+
+    /// 시스템 최초 인스톨 시 생성된 진정한 슈퍼 관리자(Super Admin)인지 검사.
+    /// 일반 회사의 ROLE_ADMIN은 슈퍼 관리자가 아닙니다.
+    pub fn is_super_admin(&self) -> bool {
+        if self.username == "admin" || self.username == "superadmin" {
+            return true;
+        }
+        if let Some(ref r) = self.role {
+            if r.contains("SUPER_ADMIN") || r.contains("SYSTEM_ADMIN") {
+                return true;
+            }
+            // 최초 대표 조직 소속의 ROLE_ADMIN인 경우만 시스템 슈퍼 관리자로 인정
+            if (r == "ROLE_ADMIN" || r == "ADMIN")
+                && self.organization_id.map(|id| id.to_string())
+                    == Some(Self::SYSTEM_PRIMARY_ORG_ID.to_string())
+            {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// 조직 관리자(Company/Org Admin) 또는 슈퍼 관리자인지 검사
+    pub fn is_org_admin(&self) -> bool {
+        if self.is_super_admin() {
+            return true;
+        }
+        if let Some(ref r) = self.role {
+            if r.contains("ADMIN") || r.contains("ORG_ADMIN") {
+                return true;
+            }
+        }
+        self.permissions.iter().any(|p| p == "*" || p == "*:*" || p.starts_with("org:") || p.starts_with("user:"))
+    }
+
     /// Checks whether user has the required permission.
     /// Matches the frontend usePermission.ts algorithm:
     /// 1. Global wildcard: '*', '*:*', '*:read' etc.
@@ -256,6 +293,8 @@ impl FromRequestParts<AppState> for AuthUser {
                         .ok()
                         .flatten();
 
+                    let org_id = user_opt.as_ref().and_then(|u| u.organization_id);
+
                     let (user_id, role, permissions) = if let Some(u) = user_opt {
                         let perms =
                             crate::services::auth_service::AuthService::get_user_permissions(
@@ -317,6 +356,7 @@ impl FromRequestParts<AppState> for AuthUser {
                         uuid: Some(user_id.clone()),
                         session_id,
                         token_type: Some("Bearer".to_string()),
+                        organization_id: org_id,
                         permissions: Some(permissions.clone()),
                         iat,
                         exp,
@@ -326,6 +366,7 @@ impl FromRequestParts<AppState> for AuthUser {
                         username,
                         user_id,
                         role: Some(role),
+                        organization_id: org_id,
                         permissions,
                         claims,
                     });
@@ -346,6 +387,13 @@ impl FromRequestParts<AppState> for AuthUser {
         let username = claims.sub.clone();
         let user_id = claims.user_id.clone().unwrap_or_else(|| claims.sub.clone());
         let role = claims.role.clone();
+
+        let mut organization_id = claims.organization_id;
+        if organization_id.is_none() {
+            if let Ok(Some(u)) = crate::repositories::user_repo::UserRepository::find_by_username(&state.db, &username).await {
+                organization_id = u.organization_id;
+            }
+        }
 
         let permissions = if let Some(p) = claims.permissions.clone() {
             p
@@ -384,6 +432,7 @@ impl FromRequestParts<AppState> for AuthUser {
             username,
             user_id,
             role,
+            organization_id,
             permissions,
             claims,
         })
@@ -415,6 +464,7 @@ mod tests {
             username: "tester".to_string(),
             user_id: "usr-123".to_string(),
             role: Some("ROLE_USER".to_string()),
+            organization_id: None,
             permissions: perms.into_iter().map(|s| s.to_string()).collect(),
             claims: Claims {
                 sub: "tester".to_string(),
@@ -423,6 +473,7 @@ mod tests {
                 uuid: Some("usr-123".to_string()),
                 session_id: None,
                 token_type: None,
+                organization_id: None,
                 permissions: None,
                 iat: 0,
                 exp: 0,

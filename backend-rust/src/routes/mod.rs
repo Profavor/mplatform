@@ -85,6 +85,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/auth/me", get(auth::get_current_user))
         .route("/api/auth/oidc/login", get(oidc::oidc_login))
         .route("/api/auth/oidc/callback", get(oidc::oidc_callback))
+        .route("/api/auth/oidc/logout", get(oidc::oidc_logout))
         .route("/api/auth/2fa/status", get(two_factor::get_status))
         .route("/api/auth/2fa/setup", post(two_factor::setup))
         .route("/api/auth/2fa/enable", post(two_factor::enable))
@@ -352,6 +353,11 @@ pub fn create_router(state: AppState) -> Router {
         // 9. Matching & Golden Record
         .route("/api/matching-rules", get(matching::get_matching_rules))
         .route("/api/match-candidates", get(matching::get_candidates))
+        .route("/api/domains/:domain_id/match-candidates", get(matching::get_domain_candidates))
+        .route("/api/match-candidates/:id/reject", post(matching::reject_candidate))
+        .route("/api/match-candidates/:id/confirm", post(matching::confirm_candidate))
+        .route("/api/match-candidates/batch/confirm", post(matching::batch_confirm_candidates))
+        .route("/api/match-candidates/batch/reject", post(matching::batch_reject_candidates))
         .route(
             "/api/domains/:domain_id/matching-rules",
             get(matching::get_domain_matching_rules).post(matching::create_matching_rule),
@@ -472,7 +478,10 @@ pub fn create_router(state: AppState) -> Router {
             "/api/approvals/routing-templates",
             get(approval::get_routing_templates).post(approval::create_routing_template),
         )
-        .route("/api/workflow-configs", get(approval::get_workflow_configs))
+        .route(
+            "/api/workflow-configs",
+            get(approval::get_workflow_configs).post(approval::save_single_workflow_config),
+        )
         .route(
             "/api/workflow-configs/page",
             get(approval::get_workflow_configs_page),
@@ -483,7 +492,7 @@ pub fn create_router(state: AppState) -> Router {
         )
         .route(
             "/api/workflow-configs/domain/:domain_id",
-            get(approval::get_node_workflow_configs)
+            get(approval::get_domain_workflow_configs)
                 .post(approval::save_workflow_config_for_domain),
         )
         .route(

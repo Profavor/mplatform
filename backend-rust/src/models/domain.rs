@@ -40,6 +40,7 @@ pub struct DomainRequest {
     pub display_name_field_id: Option<Uuid>,
     pub description_field_id: Option<Uuid>,
     pub image_field_id: Option<Uuid>,
+    pub organization_id: Option<Uuid>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

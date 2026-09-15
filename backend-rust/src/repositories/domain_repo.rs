@@ -24,6 +24,26 @@ impl DomainRepository {
         Ok(domains)
     }
 
+    pub async fn find_by_organization(pool: &PgPool, org_id: Uuid) -> Result<Vec<Domain>, AppError> {
+        let domains = sqlx::query_as::<_, Domain>(
+            r#"
+            SELECT id, name, description, icon, domain_type, specialized_category,
+                   auto_dq_scan_enabled, current_sequence, description_field_id,
+                   detail_layout_config, display_name_field_id, identifier_field_id,
+                   image_field_id, numbering_pattern, organization_id, sort_order,
+                   created_at, updated_at
+            FROM domain
+            WHERE organization_id = $1
+            ORDER BY sort_order ASC, created_at ASC
+            "#,
+        )
+        .bind(org_id)
+        .fetch_all(pool)
+        .await?;
+
+        Ok(domains)
+    }
+
     pub async fn find_by_id(pool: &PgPool, id: Uuid) -> Result<Option<Domain>, AppError> {
         let domain = sqlx::query_as::<_, Domain>(
             r#"
@@ -51,13 +71,13 @@ impl DomainRepository {
                 id, name, description, icon, domain_type, specialized_category,
                 auto_dq_scan_enabled, current_sequence, sort_order, numbering_pattern,
                 identifier_field_id, display_name_field_id, description_field_id, image_field_id,
-                created_at, updated_at
+                organization_id, created_at, updated_at
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6,
                 COALESCE($7, false), 0, COALESCE($8, 0), $9,
                 $10, $11, $12, $13,
-                NOW(), NOW()
+                $14, NOW(), NOW()
             )
             RETURNING
                 id, name, description, icon, domain_type, specialized_category,
@@ -80,6 +100,7 @@ impl DomainRepository {
         .bind(req.display_name_field_id)
         .bind(req.description_field_id)
         .bind(req.image_field_id)
+        .bind(req.organization_id)
         .fetch_one(pool)
         .await?;
 

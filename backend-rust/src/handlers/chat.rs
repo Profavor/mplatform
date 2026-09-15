@@ -161,9 +161,29 @@ pub async fn translate_chat_message(
 
 pub async fn get_chat_users(
     State(state): State<AppState>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> AppResult<impl IntoResponse> {
-    let users = crate::services::user_service::UserService::get_all_users(&state.db).await?;
+    let users = if let Some(org_id) = auth.organization_id {
+        sqlx::query_as::<_, crate::models::user::User>(
+            r#"
+            SELECT * FROM users
+            WHERE is_active = true
+              AND (organization_id = $1 OR id = $2 OR role = 'BOT')
+            ORDER BY username ASC
+            "#,
+        )
+        .bind(org_id)
+        .bind(crate::services::stock_bot_service::StockBotService::BOT_USER_ID)
+        .fetch_all(&state.db)
+        .await?
+    } else {
+        sqlx::query_as::<_, crate::models::user::User>(
+            "SELECT * FROM users WHERE is_active = true ORDER BY username ASC"
+        )
+        .fetch_all(&state.db)
+        .await?
+    };
+
     let mut list: Vec<serde_json::Value> = users
         .into_iter()
         .map(|u| {

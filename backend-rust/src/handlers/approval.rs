@@ -5,6 +5,7 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::{response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
+use sqlx::{Postgres, QueryBuilder};
 use uuid::Uuid;
 
 use crate::{
@@ -49,11 +50,49 @@ pub async fn get_approvals(
     Ok(Json(list))
 }
 
+async fn validate_approval_org(db: &sqlx::PgPool, req_id: Uuid, user_org: Option<Uuid>) -> Result<(), AppError> {
+    if let Some(org_id) = user_org {
+        let is_allowed: Option<(bool,)> = sqlx::query_as(
+            r#"
+            SELECT EXISTS (
+                SELECT 1 FROM approval_request ar
+                WHERE ar.id = $1
+                  AND (
+                    ar.requester_id IN (SELECT id::text FROM users WHERE organization_id = $2 UNION SELECT username FROM users WHERE organization_id = $2)
+                    OR ar.node_id IN (
+                        SELECT n.id FROM classification_node n 
+                        JOIN domain d ON n.domain_id = d.id 
+                        WHERE d.organization_id = $2
+                    )
+                    OR (ar.node_id IS NULL AND ar.target_id IN (
+                        SELECT r.id FROM record r 
+                        JOIN classification_node n ON r.node_id = n.id 
+                        JOIN domain d ON n.domain_id = d.id 
+                        WHERE d.organization_id = $2
+                    ))
+                  )
+            )
+            "#
+        )
+        .bind(req_id)
+        .bind(org_id)
+        .fetch_optional(db)
+        .await?;
+
+        if let Some((true,)) = is_allowed {
+            return Ok(());
+        }
+        return Err(AppError::Forbidden("해당 결재 건에 접근 권한이 없습니다.".into()));
+    }
+    Ok(())
+}
+
 pub async fn get_approval_by_id(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<ApprovalDetailResponse>, AppError> {
+    validate_approval_org(&state.db, id, auth.organization_id).await?;
     let detail = ApprovalService::get_request_detail(&state.db, id).await?;
     Ok(Json(detail))
 }
@@ -73,6 +112,11 @@ pub async fn approve_step(
     auth: AuthUser,
     Json(req): Json<ApproveStepRequest>,
 ) -> Result<Json<ApprovalDetailResponse>, AppError> {
+    let req_id = match sqlx::query_scalar::<_, Uuid>("SELECT request_id FROM approval_step WHERE id = $1").bind(id).fetch_optional(&state.db).await? {
+        Some(rid) => rid,
+        None => id,
+    };
+    validate_approval_org(&state.db, req_id, auth.organization_id).await?;
     let detail =
         ApprovalService::approve(&state.db, id, req.comment.as_deref(), &auth.claims.sub).await?;
     Ok(Json(detail))
@@ -84,6 +128,11 @@ pub async fn reject_step(
     auth: AuthUser,
     Json(req): Json<RejectStepRequest>,
 ) -> Result<Json<ApprovalDetailResponse>, AppError> {
+    let req_id = match sqlx::query_scalar::<_, Uuid>("SELECT request_id FROM approval_step WHERE id = $1").bind(id).fetch_optional(&state.db).await? {
+        Some(rid) => rid,
+        None => id,
+    };
+    validate_approval_org(&state.db, req_id, auth.organization_id).await?;
     let detail =
         ApprovalService::reject(&state.db, id, req.reason.as_deref(), &auth.claims.sub).await?;
     Ok(Json(detail))
@@ -96,29 +145,87 @@ pub async fn reject_step(
 pub async fn get_pending_requests(
     State(state): State<AppState>,
     Query(query): Query<ApprovalQuery>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<PageResponse<ApprovalRequest>>, AppError> {
     let page = query.page.unwrap_or(0);
     let size = query.size.unwrap_or(100);
     let offset = page * size;
 
-    let total: (i64,) =
-        sqlx::query_as("SELECT COUNT(*) FROM approval_request WHERE status = 'PENDING'")
-            .fetch_one(&state.db)
-            .await?;
+    let (total, content): ((i64,), Vec<ApprovalRequest>) = if let Some(org_id) = auth.organization_id {
+        let t: (i64,) = sqlx::query_as(
+            r#"
+            SELECT COUNT(*) FROM approval_request 
+            WHERE status = 'PENDING'
+              AND (
+                requester_id IN (SELECT id::text FROM users WHERE organization_id = $1 UNION SELECT username FROM users WHERE organization_id = $1)
+                OR node_id IN (
+                    SELECT n.id FROM classification_node n 
+                    JOIN domain d ON n.domain_id = d.id 
+                    WHERE d.organization_id = $1
+                )
+                OR (node_id IS NULL AND target_id IN (
+                    SELECT r.id FROM record r 
+                    JOIN classification_node n ON r.node_id = n.id 
+                    JOIN domain d ON n.domain_id = d.id 
+                    WHERE d.organization_id = $1
+                ))
+              )
+            "#
+        )
+        .bind(org_id)
+        .fetch_one(&state.db)
+        .await?;
 
-    let content = sqlx::query_as::<_, ApprovalRequest>(
-        r#"
-        SELECT * FROM approval_request 
-        WHERE status = 'PENDING'
-        ORDER BY created_at DESC
-        LIMIT $1 OFFSET $2
-        "#,
-    )
-    .bind(size)
-    .bind(offset)
-    .fetch_all(&state.db)
-    .await?;
+        let c = sqlx::query_as::<_, ApprovalRequest>(
+            r#"
+            SELECT * FROM approval_request 
+            WHERE status = 'PENDING'
+              AND (
+                requester_id IN (SELECT id::text FROM users WHERE organization_id = $1 UNION SELECT username FROM users WHERE organization_id = $1)
+                OR node_id IN (
+                    SELECT n.id FROM classification_node n 
+                    JOIN domain d ON n.domain_id = d.id 
+                    WHERE d.organization_id = $1
+                )
+                OR (node_id IS NULL AND target_id IN (
+                    SELECT r.id FROM record r 
+                    JOIN classification_node n ON r.node_id = n.id 
+                    JOIN domain d ON n.domain_id = d.id 
+                    WHERE d.organization_id = $1
+                ))
+              )
+            ORDER BY created_at DESC
+            LIMIT $2 OFFSET $3
+            "#
+        )
+        .bind(org_id)
+        .bind(size)
+        .bind(offset)
+        .fetch_all(&state.db)
+        .await?;
+
+        (t, c)
+    } else {
+        let t: (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM approval_request WHERE status = 'PENDING'")
+                .fetch_one(&state.db)
+                .await?;
+
+        let c = sqlx::query_as::<_, ApprovalRequest>(
+            r#"
+            SELECT * FROM approval_request 
+            WHERE status = 'PENDING'
+            ORDER BY created_at DESC
+            LIMIT $1 OFFSET $2
+            "#,
+        )
+        .bind(size)
+        .bind(offset)
+        .fetch_all(&state.db)
+        .await?;
+
+        (t, c)
+    };
 
     Ok(Json(PageResponse::new(content, total.0, page, size)))
 }
@@ -126,7 +233,7 @@ pub async fn get_pending_requests(
 pub async fn get_all_requests(
     State(state): State<AppState>,
     Query(query): Query<ApprovalQuery>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<PageResponse<ApprovalRequest>>, AppError> {
     let page = query.page.unwrap_or(0);
     let size = query.size.unwrap_or(100);
@@ -134,6 +241,28 @@ pub async fn get_all_requests(
 
     let mut sql = "SELECT * FROM approval_request WHERE 1=1".to_string();
     let mut count_sql = "SELECT COUNT(*) FROM approval_request WHERE 1=1".to_string();
+
+    if let Some(org_id) = auth.organization_id {
+        let org_filter = format!(
+            r#" AND (
+                requester_id IN (SELECT id::text FROM users WHERE organization_id = '{0}' UNION SELECT username FROM users WHERE organization_id = '{0}')
+                OR node_id IN (
+                    SELECT n.id FROM classification_node n 
+                    JOIN domain d ON n.domain_id = d.id 
+                    WHERE d.organization_id = '{0}'
+                )
+                OR (node_id IS NULL AND target_id IN (
+                    SELECT r.id FROM record r 
+                    JOIN classification_node n ON r.node_id = n.id 
+                    JOIN domain d ON n.domain_id = d.id 
+                    WHERE d.organization_id = '{0}'
+                ))
+            )"#,
+            org_id
+        );
+        sql.push_str(&org_filter);
+        count_sql.push_str(&org_filter);
+    }
 
     if let Some(status) = &query.status {
         if !status.is_empty() && status != "ALL" {
@@ -789,15 +918,99 @@ pub async fn create_routing_template(
     Ok(Json(inserted))
 }
 
-// Workflow Configs
+// -------------------------------------------------------------
+// Workflow Configs with Tenant/Organization Isolation
+// -------------------------------------------------------------
+
+async fn validate_workflow_config_org(
+    db: &sqlx::PgPool,
+    config_id: Uuid,
+    user_org: Option<Uuid>,
+) -> Result<(), AppError> {
+    if let Some(org_id) = user_org {
+        let is_allowed: Option<(bool,)> = sqlx::query_as(
+            r#"
+            SELECT EXISTS (
+                SELECT 1 FROM workflow_config wc
+                WHERE wc.id = $1
+                  AND (
+                    wc.domain_id IN (SELECT id FROM domain WHERE organization_id = $2)
+                    OR wc.node_id IN (
+                        SELECT cn.id FROM classification_node cn 
+                        JOIN domain d ON cn.domain_id = d.id 
+                        WHERE d.organization_id = $2
+                    )
+                  )
+            )
+            "#
+        )
+        .bind(config_id)
+        .bind(org_id)
+        .fetch_optional(db)
+        .await?;
+
+        if let Some((true,)) = is_allowed {
+            return Ok(());
+        }
+        return Err(AppError::Forbidden("해당 워크플로우 설정에 접근 권한이 없습니다.".into()));
+    }
+    Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowConfigPageQuery {
+    pub page: Option<i64>,
+    pub size: Option<i64>,
+    pub action_type: Option<String>,
+    pub domain_id: Option<Uuid>,
+    pub node_id: Option<Uuid>,
+    pub query: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveWorkflowConfigRequest {
+    pub id: Option<Uuid>,
+    pub domain_id: Option<Uuid>,
+    pub node_id: Option<Uuid>,
+    pub name: Option<serde_json::Value>,
+    pub action_type: String,
+    pub description: Option<serde_json::Value>,
+    pub is_active: Option<bool>,
+    pub is_default: Option<bool>,
+    pub steps_config: Option<serde_json::Value>,
+}
+
 pub async fn get_workflow_configs(
     State(state): State<AppState>,
+    auth: AuthUser,
 ) -> Result<Json<Vec<WorkflowConfig>>, AppError> {
-    let configs = sqlx::query_as::<_, WorkflowConfig>(
-        "SELECT * FROM workflow_config ORDER BY created_at DESC",
-    )
-    .fetch_all(&state.db)
-    .await?;
+    let configs = if let Some(org_id) = auth.organization_id {
+        sqlx::query_as::<_, WorkflowConfig>(
+            r#"
+            SELECT wc.* FROM workflow_config wc
+            WHERE (
+                wc.domain_id IN (SELECT id FROM domain WHERE organization_id = $1)
+                OR wc.node_id IN (
+                    SELECT cn.id FROM classification_node cn 
+                    JOIN domain d ON cn.domain_id = d.id 
+                    WHERE d.organization_id = $1
+                )
+            )
+            ORDER BY wc.created_at DESC NULLS LAST
+            "#
+        )
+        .bind(org_id)
+        .fetch_all(&state.db)
+        .await?
+    } else {
+        sqlx::query_as::<_, WorkflowConfig>(
+            "SELECT * FROM workflow_config ORDER BY created_at DESC NULLS LAST",
+        )
+        .fetch_all(&state.db)
+        .await?
+    };
 
     Ok(Json(configs))
 }
@@ -805,7 +1018,11 @@ pub async fn get_workflow_configs(
 pub async fn get_workflow_config_by_id(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
+    auth: AuthUser,
 ) -> Result<Json<WorkflowConfig>, AppError> {
+    if let Some(org_id) = auth.organization_id {
+        validate_workflow_config_org(&state.db, id, Some(org_id)).await?;
+    }
     let config = sqlx::query_as::<_, WorkflowConfig>("SELECT * FROM workflow_config WHERE id = $1")
         .bind(id)
         .fetch_optional(&state.db)
@@ -815,12 +1032,62 @@ pub async fn get_workflow_config_by_id(
     Ok(Json(config))
 }
 
+pub async fn get_domain_workflow_configs(
+    State(state): State<AppState>,
+    Path(domain_id): Path<Uuid>,
+    auth: AuthUser,
+) -> Result<Json<Vec<WorkflowConfig>>, AppError> {
+    if let Some(org_id) = auth.organization_id {
+        let is_allowed: Option<(bool,)> = sqlx::query_as(
+            "SELECT EXISTS (SELECT 1 FROM domain WHERE id = $1 AND organization_id = $2)"
+        )
+        .bind(domain_id)
+        .bind(org_id)
+        .fetch_optional(&state.db)
+        .await?;
+
+        if !matches!(is_allowed, Some((true,))) {
+            return Err(AppError::Forbidden("접근 권한이 없는 도메인입니다.".into()));
+        }
+    }
+
+    let configs = sqlx::query_as::<_, WorkflowConfig>(
+        "SELECT * FROM workflow_config WHERE domain_id = $1 AND node_id IS NULL ORDER BY created_at DESC NULLS LAST",
+    )
+    .bind(domain_id)
+    .fetch_all(&state.db)
+    .await?;
+
+    Ok(Json(configs))
+}
+
 pub async fn get_node_workflow_configs(
     State(state): State<AppState>,
     Path(node_id): Path<Uuid>,
+    auth: AuthUser,
 ) -> Result<Json<Vec<WorkflowConfig>>, AppError> {
+    if let Some(org_id) = auth.organization_id {
+        let is_allowed: Option<(bool,)> = sqlx::query_as(
+            r#"
+            SELECT EXISTS (
+                SELECT 1 FROM classification_node cn 
+                JOIN domain d ON cn.domain_id = d.id 
+                WHERE cn.id = $1 AND d.organization_id = $2
+            )
+            "#
+        )
+        .bind(node_id)
+        .bind(org_id)
+        .fetch_optional(&state.db)
+        .await?;
+
+        if !matches!(is_allowed, Some((true,))) {
+            return Err(AppError::Forbidden("접근 권한이 없는 분류 노드입니다.".into()));
+        }
+    }
+
     let configs = sqlx::query_as::<_, WorkflowConfig>(
-        "SELECT * FROM workflow_config WHERE node_id = $1 OR domain_id = $1",
+        "SELECT * FROM workflow_config WHERE node_id = $1 ORDER BY created_at DESC NULLS LAST",
     )
     .bind(node_id)
     .fetch_all(&state.db)
@@ -831,86 +1098,430 @@ pub async fn get_node_workflow_configs(
 
 pub async fn get_workflow_configs_page(
     State(state): State<AppState>,
-    Query(params): Query<ApprovalQuery>,
+    Query(params): Query<WorkflowConfigPageQuery>,
+    auth: AuthUser,
 ) -> Result<Json<PageResponse<WorkflowConfig>>, AppError> {
     let page = params.page.unwrap_or(0);
     let size = params.size.unwrap_or(100);
     let offset = page * size;
 
-    let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM workflow_config")
-        .fetch_one(&state.db)
-        .await?;
+    let mut count_builder = QueryBuilder::<Postgres>::new("SELECT COUNT(*) FROM workflow_config wc WHERE 1=1");
+    let mut data_builder = QueryBuilder::<Postgres>::new("SELECT wc.* FROM workflow_config wc WHERE 1=1");
 
-    let content = sqlx::query_as::<_, WorkflowConfig>(
-        "SELECT * FROM workflow_config ORDER BY created_at DESC LIMIT $1 OFFSET $2",
-    )
-    .bind(size)
-    .bind(offset)
-    .fetch_all(&state.db)
-    .await?;
+    if let Some(org_id) = auth.organization_id {
+        let org_filter = r#" AND (
+            wc.domain_id IN (SELECT id FROM domain WHERE organization_id = "#;
+        count_builder.push(org_filter);
+        count_builder.push_bind(org_id);
+        count_builder.push(r#") OR wc.node_id IN (
+            SELECT cn.id FROM classification_node cn
+            JOIN domain d ON cn.domain_id = d.id
+            WHERE d.organization_id = "#);
+        count_builder.push_bind(org_id);
+        count_builder.push("))");
+
+        data_builder.push(org_filter);
+        data_builder.push_bind(org_id);
+        data_builder.push(r#") OR wc.node_id IN (
+            SELECT cn.id FROM classification_node cn
+            JOIN domain d ON cn.domain_id = d.id
+            WHERE d.organization_id = "#);
+        data_builder.push_bind(org_id);
+        data_builder.push("))");
+    }
+
+    if let Some(ref at) = params.action_type {
+        let at_trimmed = at.trim();
+        if !at_trimmed.is_empty() && at_trimmed.to_uppercase() != "ALL" {
+            count_builder.push(" AND UPPER(wc.action_type) = ");
+            count_builder.push_bind(at_trimmed.to_uppercase());
+            data_builder.push(" AND UPPER(wc.action_type) = ");
+            data_builder.push_bind(at_trimmed.to_uppercase());
+        }
+    }
+
+    if let Some(domain_id) = params.domain_id {
+        count_builder.push(" AND wc.domain_id = ");
+        count_builder.push_bind(domain_id);
+        data_builder.push(" AND wc.domain_id = ");
+        data_builder.push_bind(domain_id);
+    }
+
+    if let Some(node_id) = params.node_id {
+        count_builder.push(" AND wc.node_id = ");
+        count_builder.push_bind(node_id);
+        data_builder.push(" AND wc.node_id = ");
+        data_builder.push_bind(node_id);
+    }
+
+    if let Some(ref q) = params.query {
+        let q_trimmed = q.trim();
+        if !q_trimmed.is_empty() {
+            let pattern = format!("%{}%", q_trimmed);
+            count_builder.push(" AND (wc.name ILIKE ");
+            count_builder.push_bind(pattern.clone());
+            count_builder.push(" OR wc.description ILIKE ");
+            count_builder.push_bind(pattern.clone());
+            count_builder.push(" OR wc.action_type ILIKE ");
+            count_builder.push_bind(pattern.clone());
+            count_builder.push(")");
+
+            data_builder.push(" AND (wc.name ILIKE ");
+            data_builder.push_bind(pattern.clone());
+            data_builder.push(" OR wc.description ILIKE ");
+            data_builder.push_bind(pattern.clone());
+            data_builder.push(" OR wc.action_type ILIKE ");
+            data_builder.push_bind(pattern);
+            data_builder.push(")");
+        }
+    }
+
+    let total: (i64,) = count_builder.build_query_as().fetch_one(&state.db).await?;
+
+    data_builder.push(" ORDER BY wc.created_at DESC NULLS LAST LIMIT ");
+    data_builder.push_bind(size);
+    data_builder.push(" OFFSET ");
+    data_builder.push_bind(offset);
+
+    let content: Vec<WorkflowConfig> = data_builder.build_query_as().fetch_all(&state.db).await?;
 
     Ok(Json(PageResponse::new(content, total.0, page, size)))
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WorkflowConfigRequest {
-    pub config: serde_json::Value,
+pub async fn save_single_workflow_config(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Json(payload): Json<SaveWorkflowConfigRequest>,
+) -> Result<Json<WorkflowConfig>, AppError> {
+    if let Some(org_id) = auth.organization_id {
+        if let Some(domain_id) = payload.domain_id {
+            let exists: Option<(bool,)> = sqlx::query_as(
+                "SELECT EXISTS(SELECT 1 FROM domain WHERE id = $1 AND organization_id = $2)"
+            )
+            .bind(domain_id)
+            .bind(org_id)
+            .fetch_optional(&state.db)
+            .await?;
+
+            if !matches!(exists, Some((true,))) {
+                return Err(AppError::Forbidden("선택한 도메인에 대한 권한이 없습니다.".into()));
+            }
+        }
+
+        if let Some(node_id) = payload.node_id {
+            let exists: Option<(bool,)> = sqlx::query_as(
+                r#"
+                SELECT EXISTS(
+                    SELECT 1 FROM classification_node cn 
+                    JOIN domain d ON cn.domain_id = d.id 
+                    WHERE cn.id = $1 AND d.organization_id = $2
+                )
+                "#
+            )
+            .bind(node_id)
+            .bind(org_id)
+            .fetch_optional(&state.db)
+            .await?;
+
+            if !matches!(exists, Some((true,))) {
+                return Err(AppError::Forbidden("선택한 분류 노드에 대한 권한이 없습니다.".into()));
+            }
+        }
+
+        if payload.domain_id.is_none() && payload.node_id.is_none() {
+            return Err(AppError::BadRequest("도메인 또는 분류 노드를 지정해야 합니다.".into()));
+        }
+
+        if let Some(existing_id) = payload.id {
+            validate_workflow_config_org(&state.db, existing_id, Some(org_id)).await?;
+        }
+    }
+
+    let name = payload.name.map(|v| match v {
+        serde_json::Value::String(s) => {
+            let trimmed = s.trim().to_string();
+            if !trimmed.starts_with('{') && !trimmed.starts_with('[') {
+                serde_json::json!({ "ko": trimmed, "en": trimmed }).to_string()
+            } else {
+                trimmed
+            }
+        }
+        other => other.to_string(),
+    });
+
+    let description = payload.description.and_then(|v| match v {
+        serde_json::Value::String(s) => {
+            let trimmed = s.trim().to_string();
+            if trimmed.is_empty() {
+                None
+            } else if !trimmed.starts_with('{') && !trimmed.starts_with('[') {
+                Some(serde_json::json!({ "ko": trimmed, "en": trimmed }).to_string())
+            } else {
+                Some(trimmed)
+            }
+        }
+        serde_json::Value::Null => None,
+        other => Some(other.to_string()),
+    });
+
+    let steps_config = payload.steps_config.map(|v| match v {
+        serde_json::Value::String(s) => s,
+        other => other.to_string(),
+    });
+
+    let is_active = payload.is_active.unwrap_or(true);
+    let is_default = payload.is_default.unwrap_or(false);
+
+    let saved = if let Some(id) = payload.id {
+        let existing = sqlx::query_as::<_, WorkflowConfig>("SELECT * FROM workflow_config WHERE id = $1")
+            .bind(id)
+            .fetch_optional(&state.db)
+            .await?;
+
+        if existing.is_some() {
+            sqlx::query_as::<_, WorkflowConfig>(
+                r#"
+                UPDATE workflow_config
+                SET domain_id = $1,
+                    node_id = $2,
+                    name = $3,
+                    action_type = $4,
+                    description = $5,
+                    is_active = $6,
+                    is_default = $7,
+                    steps_config = $8,
+                    updated_at = NOW()
+                WHERE id = $9
+                RETURNING *
+                "#,
+            )
+            .bind(payload.domain_id)
+            .bind(payload.node_id)
+            .bind(name)
+            .bind(payload.action_type)
+            .bind(description)
+            .bind(is_active)
+            .bind(is_default)
+            .bind(steps_config)
+            .bind(id)
+            .fetch_one(&state.db)
+            .await?
+        } else {
+            sqlx::query_as::<_, WorkflowConfig>(
+                r#"
+                INSERT INTO workflow_config (
+                    id, domain_id, node_id, name, action_type, description, is_active, is_default, steps_config, created_at, updated_at
+                ) VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
+                )
+                RETURNING *
+                "#,
+            )
+            .bind(id)
+            .bind(payload.domain_id)
+            .bind(payload.node_id)
+            .bind(name)
+            .bind(payload.action_type)
+            .bind(description)
+            .bind(is_active)
+            .bind(is_default)
+            .bind(steps_config)
+            .fetch_one(&state.db)
+            .await?
+        }
+    } else {
+        let new_id = Uuid::new_v4();
+        sqlx::query_as::<_, WorkflowConfig>(
+            r#"
+            INSERT INTO workflow_config (
+                id, domain_id, node_id, name, action_type, description, is_active, is_default, steps_config, created_at, updated_at
+            ) VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
+            )
+            RETURNING *
+            "#,
+        )
+        .bind(new_id)
+        .bind(payload.domain_id)
+        .bind(payload.node_id)
+        .bind(name)
+        .bind(payload.action_type)
+        .bind(description)
+        .bind(is_active)
+        .bind(is_default)
+        .bind(steps_config)
+        .fetch_one(&state.db)
+        .await?
+    };
+
+    Ok(Json(saved))
 }
 
 pub async fn save_workflow_config_for_domain(
     State(state): State<AppState>,
     Path(domain_id): Path<Uuid>,
-    _auth: AuthUser,
-    Json(payload): Json<WorkflowConfigRequest>,
+    auth: AuthUser,
+    Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let id = Uuid::new_v4();
-    let row = sqlx::query(
-        r#"
-        INSERT INTO workflow_config (id, domain_id, config, created_at, updated_at)
-        VALUES ($1, $2, $3, NOW(), NOW())
-        ON CONFLICT (domain_id) WHERE node_id IS NULL 
-        DO UPDATE SET config = EXCLUDED.config, updated_at = NOW()
-        "#,
-    )
-    .bind(id)
-    .bind(domain_id)
-    .bind(payload.config)
-    .execute(&state.db)
-    .await?;
+    if let Some(org_id) = auth.organization_id {
+        let is_allowed: Option<(bool,)> = sqlx::query_as(
+            "SELECT EXISTS (SELECT 1 FROM domain WHERE id = $1 AND organization_id = $2)"
+        )
+        .bind(domain_id)
+        .bind(org_id)
+        .fetch_optional(&state.db)
+        .await?;
 
-    Ok(Json(serde_json::json!({})))
+        if !matches!(is_allowed, Some((true,))) {
+            return Err(AppError::Forbidden("접근 권한이 없는 도메인입니다.".into()));
+        }
+    }
+
+    let items: Vec<serde_json::Value> = if let Some(arr) = payload.as_array() {
+        arr.clone()
+    } else if payload.is_object() {
+        vec![payload]
+    } else {
+        return Err(AppError::BadRequest("Invalid payload format".into()));
+    };
+
+    for item in items {
+        let action_type = item.get("actionType").and_then(|v| v.as_str()).unwrap_or("CREATE").to_string();
+        let steps_config = item.get("stepsConfig").map(|v| match v {
+            serde_json::Value::String(s) => s.clone(),
+            other => other.to_string(),
+        });
+
+        let existing_id: Option<Uuid> = sqlx::query_scalar(
+            "SELECT id FROM workflow_config WHERE domain_id = $1 AND node_id IS NULL AND action_type = $2 LIMIT 1"
+        )
+        .bind(domain_id)
+        .bind(&action_type)
+        .fetch_optional(&state.db)
+        .await?;
+
+        if let Some(id) = existing_id {
+            sqlx::query(
+                "UPDATE workflow_config SET steps_config = $1, updated_at = NOW() WHERE id = $2"
+            )
+            .bind(steps_config)
+            .bind(id)
+            .execute(&state.db)
+            .await?;
+        } else {
+            let id = Uuid::new_v4();
+            sqlx::query(
+                r#"
+                INSERT INTO workflow_config (id, domain_id, node_id, action_type, steps_config, is_active, is_default, created_at, updated_at)
+                VALUES ($1, $2, NULL, $3, $4, true, true, NOW(), NOW())
+                "#
+            )
+            .bind(id)
+            .bind(domain_id)
+            .bind(&action_type)
+            .bind(steps_config)
+            .execute(&state.db)
+            .await?;
+        }
+    }
+
+    Ok(Json(serde_json::json!({ "success": true })))
 }
 
 pub async fn save_workflow_config_for_node(
     State(state): State<AppState>,
     Path(node_id): Path<Uuid>,
-    _auth: AuthUser,
-    Json(payload): Json<WorkflowConfigRequest>,
+    auth: AuthUser,
+    Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let id = Uuid::new_v4();
-    let row = sqlx::query(
-        r#"
-        INSERT INTO workflow_config (id, node_id, config, created_at, updated_at)
-        VALUES ($1, $2, $3, NOW(), NOW())
-        ON CONFLICT (node_id) 
-        DO UPDATE SET config = EXCLUDED.config, updated_at = NOW()
-        "#,
+    if let Some(org_id) = auth.organization_id {
+        let is_allowed: Option<(bool,)> = sqlx::query_as(
+            r#"
+            SELECT EXISTS (
+                SELECT 1 FROM classification_node cn 
+                JOIN domain d ON cn.domain_id = d.id 
+                WHERE cn.id = $1 AND d.organization_id = $2
+            )
+            "#
+        )
+        .bind(node_id)
+        .bind(org_id)
+        .fetch_optional(&state.db)
+        .await?;
+
+        if !matches!(is_allowed, Some((true,))) {
+            return Err(AppError::Forbidden("접근 권한이 없는 분류 노드입니다.".into()));
+        }
+    }
+
+    let items: Vec<serde_json::Value> = if let Some(arr) = payload.as_array() {
+        arr.clone()
+    } else if payload.is_object() {
+        vec![payload]
+    } else {
+        return Err(AppError::BadRequest("Invalid payload format".into()));
+    };
+
+    let domain_id: Option<Uuid> = sqlx::query_scalar(
+        "SELECT domain_id FROM classification_node WHERE id = $1"
     )
-    .bind(id)
     .bind(node_id)
-    .bind(payload.config)
-    .execute(&state.db)
+    .fetch_optional(&state.db)
     .await?;
 
-    Ok(Json(serde_json::json!({})))
+    for item in items {
+        let action_type = item.get("actionType").and_then(|v| v.as_str()).unwrap_or("CREATE").to_string();
+        let steps_config = item.get("stepsConfig").map(|v| match v {
+            serde_json::Value::String(s) => s.clone(),
+            other => other.to_string(),
+        });
+
+        let existing_id: Option<Uuid> = sqlx::query_scalar(
+            "SELECT id FROM workflow_config WHERE node_id = $1 AND action_type = $2 LIMIT 1"
+        )
+        .bind(node_id)
+        .bind(&action_type)
+        .fetch_optional(&state.db)
+        .await?;
+
+        if let Some(id) = existing_id {
+            sqlx::query(
+                "UPDATE workflow_config SET steps_config = $1, domain_id = COALESCE(domain_id, $2), updated_at = NOW() WHERE id = $3"
+            )
+            .bind(steps_config)
+            .bind(domain_id)
+            .bind(id)
+            .execute(&state.db)
+            .await?;
+        } else {
+            let id = Uuid::new_v4();
+            sqlx::query(
+                r#"
+                INSERT INTO workflow_config (id, domain_id, node_id, action_type, steps_config, is_active, is_default, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, $5, true, false, NOW(), NOW())
+                "#
+            )
+            .bind(id)
+            .bind(domain_id)
+            .bind(node_id)
+            .bind(&action_type)
+            .bind(steps_config)
+            .execute(&state.db)
+            .await?;
+        }
+    }
+
+    Ok(Json(serde_json::json!({ "success": true })))
 }
 
 pub async fn delete_workflow_config(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<StatusCode, AppError> {
+    if let Some(org_id) = auth.organization_id {
+        validate_workflow_config_org(&state.db, id, Some(org_id)).await?;
+    }
     sqlx::query("DELETE FROM workflow_config WHERE id = $1")
         .bind(id)
         .execute(&state.db)

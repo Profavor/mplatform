@@ -3,6 +3,7 @@ use crate::models::menu::Menu;
 use crate::repositories::menu_repo::MenuRepository;
 use sqlx::PgPool;
 use std::collections::HashMap;
+use uuid::Uuid;
 
 pub struct MenuService;
 
@@ -83,9 +84,10 @@ impl MenuService {
 
     pub async fn get_access_logs(
         pool: &PgPool,
+        org_id: Option<Uuid>,
         page: i64,
         size: i64,
     ) -> Result<serde_json::Value, AppError> {
-        MenuRepository::find_access_logs(pool, page, size).await
+        MenuRepository::find_access_logs(pool, org_id, page, size).await
     }
 }

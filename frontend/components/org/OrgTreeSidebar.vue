@@ -4,9 +4,6 @@
       <span>{{ t('org_list') }}</span>
       <div style="display: flex; align-items: center; gap: 0.5rem;">
         <va-badge color="info" :text="String(organizations?.length || 0)" />
-        <va-button size="small" color="primary" icon="add" @click="$emit('add-org')">
-          {{ t('create_organization') }}
-        </va-button>
       </div>
     </va-card-title>
     <va-card-content>
@@ -28,20 +25,14 @@
           }"
         >
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-            <span style="font-weight: 700; font-size: 1.05rem; color: var(--va-text-primary);">
-              {{ getI18nText(org.displayName) || org.name }}
-            </span>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <va-icon :name="org.icon || 'corporate_fare'" color="primary" size="small" />
+              <span style="font-weight: 700; font-size: 1.05rem; color: var(--va-text-primary);">
+                {{ getI18nText(org.displayName) || org.name }}
+              </span>
+            </div>
             <div style="display: flex; align-items: center; gap: 0.35rem;">
               <va-badge :color="org.isActive !== false ? 'success' : 'danger'" :text="org.isActive !== false ? t('active_status') : t('inactive_status')" size="small" />
-              <va-button
-                v-if="org.id !== '00000000-0000-0000-0000-000000000001'"
-                preset="plain"
-                icon="delete"
-                color="danger"
-                size="small"
-                title="조직 삭제"
-                @click.stop="$emit('delete-org', org)"
-              />
             </div>
           </div>
           <div style="font-size: 0.8rem; color: var(--va-text-secondary); font-family: monospace;">
@@ -65,7 +56,7 @@ const props = defineProps({
   loading: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['select-org', 'add-org', 'delete-org'])
+const emit = defineEmits(['select-org'])
 
 const { t, locale } = useI18n()
 

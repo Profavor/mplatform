@@ -21,6 +21,38 @@ impl CodeRepository {
         Ok(groups)
     }
 
+    pub async fn find_groups_by_org(
+        pool: &PgPool,
+        org_id: Option<Uuid>,
+    ) -> Result<Vec<CodeGroup>, AppError> {
+        let groups = if let Some(oid) = org_id {
+            sqlx::query_as::<_, CodeGroup>(
+                r#"
+                SELECT id, group_code, name, description, is_active, organization_id, created_at, updated_at
+                FROM code_group
+                WHERE is_active = true AND (organization_id IS NULL OR organization_id = $1)
+                ORDER BY group_code ASC
+                "#,
+            )
+            .bind(oid)
+            .fetch_all(pool)
+            .await?
+        } else {
+            sqlx::query_as::<_, CodeGroup>(
+                r#"
+                SELECT id, group_code, name, description, is_active, organization_id, created_at, updated_at
+                FROM code_group
+                WHERE is_active = true AND organization_id IS NULL
+                ORDER BY group_code ASC
+                "#,
+            )
+            .fetch_all(pool)
+            .await?
+        };
+
+        Ok(groups)
+    }
+
     pub async fn find_all_groups(pool: &PgPool) -> Result<Vec<CodeGroup>, AppError> {
         let groups = sqlx::query_as::<_, CodeGroup>(
             r#"

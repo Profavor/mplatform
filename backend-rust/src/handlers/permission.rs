@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::{
     error::AppError,
-    middleware::auth::AuthUser,
+    middleware::auth::{AuthUser, OptionalAuthUser},
     models::{
         permission::{
             ColumnMaskingPolicy, DataScopePermission, DomainAccessRequest, DomainPermission,
@@ -372,55 +372,51 @@ pub struct PermissionUserItem {
 pub async fn get_permissions_users(
     State(state): State<AppState>,
     Query(params): Query<PermQuery>,
+    auth: AuthUser,
 ) -> Result<Json<PageResponse<PermissionUserItem>>, AppError> {
-    let page = params.page.unwrap_or(0);
-    let size = params.size.unwrap_or(100);
+    let page = params.page.unwrap_or(0).max(0);
+    let size = params.size.unwrap_or(100).max(1);
     let offset = page * size;
 
-    let search_filter = params.search.as_deref().unwrap_or("").trim();
-    let (total, users) = if search_filter.is_empty() {
-        let count_row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users")
-            .fetch_one(&state.db)
-            .await?;
-        let items = sqlx::query_as::<_, PermissionUserItem>(
-            r#"
-            SELECT id, username, email, role, organization_id, department_id, team_id, timezone, is_active, must_change_password
-            FROM users
-            ORDER BY username ASC
-            LIMIT $1 OFFSET $2
-            "#
-        )
-        .bind(size)
-        .bind(offset)
-        .fetch_all(&state.db)
-        .await?;
-        (count_row.0, items)
-    } else {
-        let pattern = format!("%{}%", search_filter);
-        let count_row: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM users WHERE username ILIKE $1 OR email ILIKE $1 OR role ILIKE $1"
-        )
-        .bind(&pattern)
-        .fetch_one(&state.db)
-        .await?;
-        let items = sqlx::query_as::<_, PermissionUserItem>(
-            r#"
-            SELECT id, username, email, role, organization_id, department_id, team_id, timezone, is_active, must_change_password
-            FROM users
-            WHERE username ILIKE $1 OR email ILIKE $1 OR role ILIKE $1
-            ORDER BY username ASC
-            LIMIT $2 OFFSET $3
-            "#
-        )
-        .bind(&pattern)
-        .bind(size)
-        .bind(offset)
-        .fetch_all(&state.db)
-        .await?;
-        (count_row.0, items)
-    };
+    let org_filter = auth.organization_id;
 
-    Ok(Json(PageResponse::new(users, total, page, size)))
+    let search_filter = params.search.as_deref().map(|s| s.trim()).filter(|s| !s.is_empty());
+    let pattern = search_filter.map(|s| format!("%{}%", s));
+
+    let count_row: (i64,) = sqlx::query_as(
+        r#"
+        SELECT COUNT(*) FROM users
+        WHERE is_active = true
+          AND ($1::uuid IS NULL OR organization_id = $1)
+          AND id != 'AI_STOCK_BOT' AND role != 'BOT' AND username NOT ILIKE '%bot%'
+          AND ($2::text IS NULL OR (username ILIKE $2 OR email ILIKE $2 OR role ILIKE $2))
+        "#,
+    )
+    .bind(org_filter)
+    .bind(&pattern)
+    .fetch_one(&state.db)
+    .await?;
+
+    let items = sqlx::query_as::<_, PermissionUserItem>(
+        r#"
+        SELECT id, username, email, role, organization_id, department_id, team_id, timezone, is_active, must_change_password
+        FROM users
+        WHERE is_active = true
+          AND ($1::uuid IS NULL OR organization_id = $1)
+          AND id != 'AI_STOCK_BOT' AND role != 'BOT' AND username NOT ILIKE '%bot%'
+          AND ($2::text IS NULL OR (username ILIKE $2 OR email ILIKE $2 OR role ILIKE $2))
+        ORDER BY username ASC
+        LIMIT $3 OFFSET $4
+        "#,
+    )
+    .bind(org_filter)
+    .bind(&pattern)
+    .bind(size)
+    .bind(offset)
+    .fetch_all(&state.db)
+    .await?;
+
+    Ok(Json(PageResponse::new(items, count_row.0, page, size)))
 }
 
 pub async fn get_user_domains(
@@ -622,22 +618,61 @@ pub struct PermissionAuditLog {
 pub async fn get_permission_audit_logs(
     State(state): State<AppState>,
     Query(params): Query<PermQuery>,
+    auth: AuthUser,
 ) -> Result<Json<PageResponse<PermissionAuditLog>>, AppError> {
     let page = params.page.unwrap_or(0);
     let size = params.size.unwrap_or(50);
     let offset = page * size;
 
-    let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM permission_audit_log")
+    let (total, content): ((i64,), Vec<PermissionAuditLog>) = if let Some(org_id) = auth.organization_id {
+        let t: (i64,) = sqlx::query_as(
+            r#"
+            SELECT COUNT(*) FROM permission_audit_log
+            WHERE (
+                target_user_id IN (SELECT id::text FROM users WHERE organization_id = $1)
+                OR target_username IN (SELECT username FROM users WHERE organization_id = $1)
+                OR changed_by IN (SELECT id::text FROM users WHERE organization_id = $1 UNION SELECT username FROM users WHERE organization_id = $1)
+            )
+            "#
+        )
+        .bind(org_id)
         .fetch_one(&state.db)
         .await?;
 
-    let content = sqlx::query_as::<_, PermissionAuditLog>(
-        "SELECT * FROM permission_audit_log ORDER BY changed_at DESC LIMIT $1 OFFSET $2",
-    )
-    .bind(size)
-    .bind(offset)
-    .fetch_all(&state.db)
-    .await?;
+        let c = sqlx::query_as::<_, PermissionAuditLog>(
+            r#"
+            SELECT * FROM permission_audit_log
+            WHERE (
+                target_user_id IN (SELECT id::text FROM users WHERE organization_id = $1)
+                OR target_username IN (SELECT username FROM users WHERE organization_id = $1)
+                OR changed_by IN (SELECT id::text FROM users WHERE organization_id = $1 UNION SELECT username FROM users WHERE organization_id = $1)
+            )
+            ORDER BY changed_at DESC
+            LIMIT $2 OFFSET $3
+            "#
+        )
+        .bind(org_id)
+        .bind(size)
+        .bind(offset)
+        .fetch_all(&state.db)
+        .await?;
+
+        (t, c)
+    } else {
+        let t: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM permission_audit_log")
+            .fetch_one(&state.db)
+            .await?;
+
+        let c = sqlx::query_as::<_, PermissionAuditLog>(
+            "SELECT * FROM permission_audit_log ORDER BY changed_at DESC LIMIT $1 OFFSET $2",
+        )
+        .bind(size)
+        .bind(offset)
+        .fetch_all(&state.db)
+        .await?;
+
+        (t, c)
+    };
 
     Ok(Json(PageResponse::new(content, total.0, page, size)))
 }

@@ -232,14 +232,18 @@ const openDetails = (flow) => {
 const actionCellRenderer = {
   setup(props) {
     const onClick = () => {
+      if (!props.params?.data) return
       openDetails(props.params.data)
     }
-    return () => h('button', { 
-      onClick, 
-      style: {
-        background: 'var(--va-primary)', color: 'white', border: 'none', borderRadius: '4px', padding: '4px 12px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold'
-      }
-    }, t('btnDetails'))
+    return () => {
+      if (!props.params?.data) return null
+      return h('button', { 
+        onClick, 
+        style: {
+          background: 'var(--va-primary)', color: 'white', border: 'none', borderRadius: '4px', padding: '4px 12px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold'
+        }
+      }, t('btnDetails'))
+    }
   }
 }
 

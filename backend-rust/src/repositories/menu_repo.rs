@@ -2,6 +2,7 @@ use crate::error::AppError;
 use crate::models::menu::Menu;
 use sqlx::PgPool;
 use std::collections::HashMap;
+use uuid::Uuid;
 
 pub struct MenuRepository;
 
@@ -108,36 +109,80 @@ impl MenuRepository {
 
     pub async fn find_access_logs(
         pool: &PgPool,
+        org_id: Option<Uuid>,
         page: i64,
         size: i64,
     ) -> Result<serde_json::Value, AppError> {
         let offset = page * size;
-        let rows: Vec<(
-            i64,
-            Option<i64>,
-            Option<String>,
-            String,
-            Option<String>,
-            Option<String>,
-            chrono::NaiveDateTime,
-        )> = sqlx::query_as(
-            r#"
-            SELECT id, menu_id, menu_path, user_id, user_agent, client_ip, accessed_at
-            FROM menu_access_log
-            ORDER BY accessed_at DESC
-            LIMIT $1 OFFSET $2
-            "#,
-        )
-        .bind(size)
-        .bind(offset)
-        .fetch_all(pool)
-        .await
-        .unwrap_or_default();
 
-        let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM menu_access_log")
+        let (rows, total_count): (
+            Vec<(
+                i64,
+                Option<i64>,
+                Option<String>,
+                String,
+                Option<String>,
+                Option<String>,
+                chrono::NaiveDateTime,
+            )>,
+            i64,
+        ) = if let Some(oid) = org_id {
+            let r = sqlx::query_as(
+                r#"
+                SELECT id, menu_id, menu_path, user_id, user_agent, client_ip, accessed_at
+                FROM menu_access_log
+                WHERE (
+                    user_id IN (SELECT id::text FROM users WHERE organization_id = $1)
+                    OR user_id IN (SELECT username FROM users WHERE organization_id = $1)
+                )
+                ORDER BY accessed_at DESC
+                LIMIT $2 OFFSET $3
+                "#,
+            )
+            .bind(oid)
+            .bind(size)
+            .bind(offset)
+            .fetch_all(pool)
+            .await
+            .unwrap_or_default();
+
+            let t: (i64,) = sqlx::query_as(
+                r#"
+                SELECT COUNT(*) FROM menu_access_log
+                WHERE (
+                    user_id IN (SELECT id::text FROM users WHERE organization_id = $1)
+                    OR user_id IN (SELECT username FROM users WHERE organization_id = $1)
+                )
+                "#,
+            )
+            .bind(oid)
             .fetch_one(pool)
             .await
             .unwrap_or((0,));
+
+            (r, t.0)
+        } else {
+            let r = sqlx::query_as(
+                r#"
+                SELECT id, menu_id, menu_path, user_id, user_agent, client_ip, accessed_at
+                FROM menu_access_log
+                ORDER BY accessed_at DESC
+                LIMIT $1 OFFSET $2
+                "#,
+            )
+            .bind(size)
+            .bind(offset)
+            .fetch_all(pool)
+            .await
+            .unwrap_or_default();
+
+            let t: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM menu_access_log")
+                .fetch_one(pool)
+                .await
+                .unwrap_or((0,));
+
+            (r, t.0)
+        };
 
         let content: Vec<serde_json::Value> = rows
             .into_iter()
@@ -156,8 +201,8 @@ impl MenuRepository {
 
         Ok(serde_json::json!({
             "content": content,
-            "totalElements": total.0,
-            "totalPages": (total.0 + size - 1) / size.max(1),
+            "totalElements": total_count,
+            "totalPages": (total_count + size - 1) / size.max(1),
             "size": size,
             "number": page
         }))
