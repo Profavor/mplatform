@@ -96,14 +96,14 @@ export default defineNuxtPlugin((nuxtApp) => {
       } catch (err: any) {
         const status = err?.response?.status ?? err?.status
 
-        // 429 Too Many Requests — 서킷 브레이커 / 대기열 (Issue #255)
-        if (status === 429 && process.client) {
+        // 429 Too Many Requests & 503 Service Unavailable — 서킷 브레이커 / 대기열 (Issue #255)
+        if ((status === 429 || status === 503) && process.client) {
           const retryAfter = parseInt(
             err?.response?.headers?.get?.('retry-after') ||
             err?.response?._data?.retry_after ||
             '5'
           )
-          console.warn(`🚦 Server overloaded (429). Retry-After: ${retryAfter}s`)
+          console.warn(`🚦 Server overloaded (${status}). Retry-After: ${retryAfter}s`)
 
           // Dispatch global event for QueueWaitPage to catch
           window.dispatchEvent(new CustomEvent('server-overloaded', {
