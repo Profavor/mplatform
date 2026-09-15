@@ -114,9 +114,9 @@ fn default_size() -> i64 {
 pub async fn get_access_logs(
     State(state): State<AppState>,
     Query(query): Query<AccessLogsQuery>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<Value>, AppError> {
-    let logs = MenuService::get_access_logs(&state.db, query.page, query.size).await?;
+    let logs = MenuService::get_access_logs(&state.db, auth.organization_id, query.page, query.size).await?;
     Ok(Json(logs))
 }
 

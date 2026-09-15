@@ -13,9 +13,9 @@ use axum::{
 
 pub async fn get_all_users(
     State(state): State<AppState>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<Vec<UserDto>>, AppError> {
-    let users = UserService::get_all_users(&state.db).await?;
+    let users = UserService::get_users_for_admin(&state.db, &auth).await?;
     Ok(Json(users))
 }
 
@@ -31,9 +31,10 @@ pub async fn update_self(
 pub async fn update_user(
     State(state): State<AppState>,
     Path(id): Path<String>,
-    _auth: AuthUser,
+    auth: AuthUser,
     Json(dto): Json<AdminUserUpdateDto>,
 ) -> Result<Json<UserDto>, AppError> {
+    UserService::validate_user_access(&state.db, &id, &auth).await?;
     let user = UserService::update_admin_user(&state.db, &id, dto).await?;
     Ok(Json(user))
 }
@@ -41,9 +42,10 @@ pub async fn update_user(
 pub async fn reset_password(
     State(state): State<AppState>,
     Path(id): Path<String>,
-    _auth: AuthUser,
+    auth: AuthUser,
     Json(req): Json<ResetPasswordRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    UserService::validate_user_access(&state.db, &id, &auth).await?;
     UserService::reset_password(&state.db, &id, req).await?;
     Ok(Json(serde_json::json!({
         "status": "SUCCESS",
@@ -54,20 +56,24 @@ pub async fn reset_password(
 pub async fn delete_user(
     State(state): State<AppState>,
     Path(id): Path<String>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    UserService::deactivate_user(&state.db, &id).await?;
+    let target_user = UserService::validate_user_access(&state.db, &id, &auth).await?;
+    if target_user.id == auth.user_id || target_user.username.as_deref() == Some(&auth.username) {
+        return Err(AppError::BadRequest("본인 계정은 삭제할 수 없습니다 (Cannot delete your own account)".to_string()));
+    }
+    UserService::delete_user_permanently(&state.db, &id).await?;
     Ok(Json(serde_json::json!({
         "status": "SUCCESS",
-        "message": "User has been deactivated"
+        "message": "User has been permanently deleted"
     })))
 }
 
 pub async fn get_user_map(
     State(state): State<AppState>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<std::collections::HashMap<String, String>>, AppError> {
-    let users = UserService::get_all_users(&state.db).await?;
+    let users = UserService::get_users_for_admin(&state.db, &auth).await?;
     let mut map = std::collections::HashMap::new();
     for u in users {
         let name = u.username.clone().unwrap_or_else(|| u.id.clone());
@@ -129,8 +135,9 @@ pub async fn update_timezone(
 pub async fn get_user_org_history(
     State(state): State<AppState>,
     Path(id): Path<String>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<Vec<serde_json::Value>>, AppError> {
+    UserService::validate_user_access(&state.db, &id, &auth).await?;
     let rows: Vec<(i64, String, chrono::NaiveDateTime, Option<String>)> = sqlx::query_as(
         r#"
         SELECT id, user_id, changed_at, changed_by
@@ -173,9 +180,11 @@ pub struct CreateAdminUserRequest {
 
 pub async fn create_user(
     State(state): State<AppState>,
-    _auth: AuthUser,
-    Json(req): Json<CreateAdminUserRequest>,
+    auth: AuthUser,
+    Json(mut req): Json<CreateAdminUserRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    req.organization_id = auth.organization_id;
+
     use rand::Rng;
     let temp_password: String = rand::thread_rng()
         .sample_iter(&rand::distributions::Alphanumeric)
@@ -187,7 +196,7 @@ pub async fn create_user(
     let hashed = bcrypt::hash(&temp_password, 10)
         .map_err(|e| AppError::Internal(format!("Password hash failed: {e}")))?;
 
-    let role_val = req.role.unwrap_or_else(|| "ROLE_USER".to_string());
+    let role_val = req.role.unwrap_or_else(|| "ROLE_ADMIN".to_string());
 
     sqlx::query(
         r#"
@@ -222,8 +231,9 @@ pub async fn create_user(
 pub async fn get_temp_password(
     State(state): State<AppState>,
     Path(id): Path<String>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    UserService::validate_user_access(&state.db, &id, &auth).await?;
     let row: Option<(Option<String>, Option<bool>)> = sqlx::query_as(
         "SELECT encrypted_temp_password, must_change_password FROM users WHERE id = $1 OR username = $1"
     )

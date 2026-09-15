@@ -21,8 +21,11 @@ pub struct LogQuery {
     pub status: Option<String>,
 }
 
-pub async fn get_channels(State(state): State<AppState>) -> AppResult<impl IntoResponse> {
-    let channels = state.integration_service.get_channels().await?;
+pub async fn get_channels(
+    State(state): State<AppState>,
+    auth: AuthUser,
+) -> AppResult<impl IntoResponse> {
+    let channels = state.integration_service.get_channels(auth.organization_id).await?;
     Ok(Json(channels))
 }
 
@@ -79,6 +82,7 @@ pub async fn smart_mapping_recommend(
 pub async fn get_logs(
     State(state): State<AppState>,
     Query(params): Query<LogQuery>,
+    auth: AuthUser,
 ) -> AppResult<impl IntoResponse> {
     let limit = params.size.or(params.limit).unwrap_or(50).clamp(1, 1000);
     let page = params.page.unwrap_or(0).max(0);
@@ -86,7 +90,7 @@ pub async fn get_logs(
 
     let (logs, total) = state
         .integration_service
-        .get_logs_paged(params.channel_id, false, limit, offset)
+        .get_logs_paged(auth.organization_id, params.channel_id, false, limit, offset)
         .await?;
     let total_pages = if total == 0 {
         0
@@ -106,6 +110,7 @@ pub async fn get_logs(
 pub async fn get_dead_letter_logs(
     State(state): State<AppState>,
     Query(params): Query<LogQuery>,
+    auth: AuthUser,
 ) -> AppResult<impl IntoResponse> {
     let limit = params.size.or(params.limit).unwrap_or(50).clamp(1, 1000);
     let page = params.page.unwrap_or(0).max(0);
@@ -113,7 +118,7 @@ pub async fn get_dead_letter_logs(
 
     let (logs, total) = state
         .integration_service
-        .get_logs_paged(params.channel_id, true, limit, offset)
+        .get_logs_paged(auth.organization_id, params.channel_id, true, limit, offset)
         .await?;
     let total_pages = if total == 0 {
         0
@@ -133,7 +138,22 @@ pub async fn get_dead_letter_logs(
 pub async fn get_logs_by_record(
     State(state): State<AppState>,
     Path(record_id): Path<Uuid>,
+    auth: AuthUser,
 ) -> AppResult<impl IntoResponse> {
+    if let Some(user_org) = auth.organization_id {
+        let rec_org: Option<(Option<Uuid>,)> = sqlx::query_as(
+            "SELECT d.organization_id FROM record r JOIN classification_node cn ON r.node_id = cn.id JOIN domain d ON cn.domain_id = d.id WHERE r.id = $1"
+        )
+        .bind(record_id)
+        .fetch_optional(&state.db)
+        .await?;
+
+        match rec_org {
+            Some((Some(org),)) if org == user_org => {}
+            _ => return Err(AppError::Forbidden("해당 레코드에 접근 권한이 없습니다.".to_string())),
+        }
+    }
+
     let logs = state
         .integration_service
         .get_logs_by_record(record_id)
@@ -149,7 +169,10 @@ pub async fn test_channel(
     Ok(Json(res))
 }
 
-pub async fn get_channel_stats(State(state): State<AppState>) -> AppResult<impl IntoResponse> {
+pub async fn get_channel_stats(
+    State(state): State<AppState>,
+    auth: AuthUser,
+) -> AppResult<impl IntoResponse> {
     #[derive(sqlx::FromRow)]
     struct StatRow {
         channel_id: Uuid,
@@ -157,19 +180,39 @@ pub async fn get_channel_stats(State(state): State<AppState>) -> AppResult<impl 
         success_count: i64,
     }
 
-    let stats_rows: Vec<StatRow> = sqlx::query_as(
-        r#"
-        SELECT 
-            c.id AS channel_id,
-            COUNT(l.id) AS total_count,
-            COUNT(CASE WHEN l.status = 'SUCCESS' THEN 1 END) AS success_count
-        FROM integration_channels c
-        LEFT JOIN integration_logs l ON c.id = l.channel_id
-        GROUP BY c.id
-        "#,
-    )
-    .fetch_all(&state.db)
-    .await?;
+    let stats_rows: Vec<StatRow> = if let Some(oid) = auth.organization_id {
+        sqlx::query_as(
+            r#"
+            SELECT 
+                c.id AS channel_id,
+                COUNT(l.id) AS total_count,
+                COUNT(CASE WHEN l.status = 'SUCCESS' THEN 1 END) AS success_count
+            FROM integration_channels c
+            JOIN classification_node n ON c.node_id = n.id
+            JOIN domain d ON n.domain_id = d.id
+            LEFT JOIN integration_logs l ON c.id = l.channel_id
+            WHERE d.organization_id = $1
+            GROUP BY c.id
+            "#,
+        )
+        .bind(oid)
+        .fetch_all(&state.db)
+        .await?
+    } else {
+        sqlx::query_as(
+            r#"
+            SELECT 
+                c.id AS channel_id,
+                COUNT(l.id) AS total_count,
+                COUNT(CASE WHEN l.status = 'SUCCESS' THEN 1 END) AS success_count
+            FROM integration_channels c
+            LEFT JOIN integration_logs l ON c.id = l.channel_id
+            GROUP BY c.id
+            "#,
+        )
+        .fetch_all(&state.db)
+        .await?
+    };
 
     let result: Vec<serde_json::Value> = stats_rows
         .into_iter()

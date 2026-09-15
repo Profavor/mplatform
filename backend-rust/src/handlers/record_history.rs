@@ -26,11 +26,35 @@ pub struct TimeMachineQuery {
     pub as_of: Option<String>,
 }
 
+async fn validate_record_history_access(
+    db: &sqlx::PgPool,
+    record_id: Uuid,
+    user_org: Option<Uuid>,
+) -> Result<(), AppError> {
+    if let Some(org_id) = user_org {
+        let rec_org: Option<(Option<Uuid>,)> = sqlx::query_as(
+            "SELECT d.organization_id FROM record r JOIN classification_node cn ON r.node_id = cn.id JOIN domain d ON cn.domain_id = d.id WHERE r.id = $1"
+        )
+        .bind(record_id)
+        .fetch_optional(db)
+        .await?;
+
+        match rec_org {
+            Some((Some(org),)) if org == org_id => Ok(()),
+            _ => Err(AppError::Forbidden("해당 레코드 이력에 접근 권한이 없습니다.".to_string())),
+        }
+    } else {
+        Ok(())
+    }
+}
+
 pub async fn get_record_history(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<Vec<RecordHistory>>, AppError> {
+    validate_record_history_access(&state.db, id, auth.organization_id).await?;
+
     let mut history = sqlx::query_as::<_, RecordHistory>(
         r#"
         SELECT * FROM record_history 
@@ -75,6 +99,8 @@ pub async fn rollback_record(
     auth: AuthUser,
     Json(payload): Json<RollbackRequest>,
 ) -> Result<Json<Record>, AppError> {
+    validate_record_history_access(&state.db, id, auth.organization_id).await?;
+
     let target_history = sqlx::query_as::<_, RecordHistory>(
         "SELECT * FROM record_history WHERE record_id = $1 AND version = $2",
     )
@@ -136,8 +162,10 @@ pub async fn rollback_record(
 pub async fn get_record_lineage(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    validate_record_history_access(&state.db, id, auth.organization_id).await?;
+
     let rec = sqlx::query_as::<_, Record>("SELECT * FROM record WHERE id = $1")
         .bind(id)
         .fetch_optional(&state.db)
@@ -282,8 +310,10 @@ pub async fn get_record_timemachine_diff(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
     Query(query): Query<TimeMachineQuery>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    validate_record_history_access(&state.db, id, auth.organization_id).await?;
+
     let from_v = query.from_version.unwrap_or(1);
     let to_v = query.to_version.unwrap_or(2);
 
@@ -323,8 +353,10 @@ pub async fn get_record_timemachine_diff(
 pub async fn get_masked_record(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    validate_record_history_access(&state.db, id, auth.organization_id).await?;
+
     let rec = sqlx::query_as::<_, Record>("SELECT * FROM record WHERE id = $1")
         .bind(id)
         .fetch_optional(&state.db)

@@ -16,17 +16,27 @@ use uuid::Uuid;
 
 pub async fn get_organizations(
     State(state): State<AppState>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<Vec<Organization>>, AppError> {
-    let orgs = OrganizationService::get_all_organizations(&state.db).await?;
-    Ok(Json(orgs))
+    if let Some(org_id) = auth.organization_id {
+        if let Some(org) = OrganizationService::get_organization_by_id(&state.db, org_id).await? {
+            Ok(Json(vec![org]))
+        } else {
+            Ok(Json(Vec::new()))
+        }
+    } else {
+        Ok(Json(Vec::new()))
+    }
 }
 
 pub async fn get_organization_by_id(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<Organization>, AppError> {
+    if auth.organization_id != Some(id) {
+        return Err(AppError::Forbidden("접근 권한이 없는 조직입니다".to_string()));
+    }
     let org = OrganizationService::get_organization_by_id(&state.db, id)
         .await?
         .ok_or_else(|| AppError::NotFound("Organization not found".to_string()))?;
@@ -35,37 +45,53 @@ pub async fn get_organization_by_id(
 
 pub async fn get_roles(
     State(state): State<AppState>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<Vec<Role>>, AppError> {
-    let roles = OrganizationService::get_all_roles(&state.db).await?;
-    Ok(Json(roles))
+    if let Some(org_id) = auth.organization_id {
+        let roles = OrganizationService::get_roles_by_org(&state.db, org_id).await?;
+        Ok(Json(roles))
+    } else {
+        Ok(Json(Vec::new()))
+    }
 }
 
 pub async fn get_roles_by_org(
     State(state): State<AppState>,
     Path(org_id): Path<Uuid>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<Vec<Role>>, AppError> {
+    if auth.organization_id != Some(org_id) {
+        return Err(AppError::Forbidden("접근 권한이 없는 조직의 역할입니다".to_string()));
+    }
     let roles = OrganizationService::get_roles_by_org(&state.db, org_id).await?;
     Ok(Json(roles))
 }
 
-pub async fn dump_role_seed(_auth: AuthUser) -> Result<Json<serde_json::Value>, AppError> {
+pub async fn dump_role_seed(auth: AuthUser) -> Result<Json<serde_json::Value>, AppError> {
+    if !auth.is_org_admin() {
+        return Err(AppError::Forbidden("관리자만 역할 시드를 덤프할 수 있습니다".to_string()));
+    }
     Ok(Json(
         serde_json::json!({ "status": "success", "message": "Role seed dumped" }),
     ))
 }
 
-pub async fn sync_role_defaults(_auth: AuthUser) -> Result<Json<serde_json::Value>, AppError> {
+pub async fn sync_role_defaults(auth: AuthUser) -> Result<Json<serde_json::Value>, AppError> {
+    if !auth.is_org_admin() {
+        return Err(AppError::Forbidden("관리자만 전체 기본 역할을 동기화할 수 있습니다".to_string()));
+    }
     Ok(Json(
         serde_json::json!({ "status": "success", "message": "Default roles synchronized" }),
     ))
 }
 
 pub async fn sync_role_defaults_for_org(
-    Path(_org_id): Path<Uuid>,
-    _auth: AuthUser,
+    Path(org_id): Path<Uuid>,
+    auth: AuthUser,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    if auth.organization_id != Some(org_id) {
+        return Err(AppError::Forbidden("접근 권한이 없는 조직입니다".to_string()));
+    }
     Ok(Json(
         serde_json::json!({ "status": "success", "message": "Default roles synchronized for org" }),
     ))
@@ -78,8 +104,11 @@ pub async fn sync_role_defaults_for_org(
 pub async fn get_departments(
     State(state): State<AppState>,
     Path(org_id): Path<Uuid>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<Vec<Department>>, AppError> {
+    if auth.organization_id != Some(org_id) {
+        return Err(AppError::Forbidden("접근 권한이 없는 조직입니다".to_string()));
+    }
     let depts = OrganizationService::get_departments_by_org(&state.db, org_id).await?;
     Ok(Json(depts))
 }
@@ -87,9 +116,12 @@ pub async fn get_departments(
 pub async fn create_department(
     State(state): State<AppState>,
     Path(org_id): Path<Uuid>,
-    _auth: AuthUser,
+    auth: AuthUser,
     Json(payload): Json<CreateDepartmentRequest>,
 ) -> Result<Json<Department>, AppError> {
+    if auth.organization_id != Some(org_id) {
+        return Err(AppError::Forbidden("접근 권한이 없는 조직입니다".to_string()));
+    }
     let new_id = Uuid::new_v4();
     let is_active = payload.is_active.unwrap_or(true);
 
@@ -132,10 +164,21 @@ pub async fn create_department(
 
 pub async fn update_department(
     State(state): State<AppState>,
-    Path((_org_id, dept_id)): Path<(Uuid, Uuid)>,
-    _auth: AuthUser,
+    Path((org_id, dept_id)): Path<(Uuid, Uuid)>,
+    auth: AuthUser,
     Json(payload): Json<UpdateDepartmentRequest>,
 ) -> Result<Json<Department>, AppError> {
+    if auth.organization_id != Some(org_id) {
+        return Err(AppError::Forbidden("접근 권한이 없는 조직입니다".to_string()));
+    }
+    let dept_org: Option<Uuid> = sqlx::query_scalar("SELECT organization_id FROM department WHERE id = $1")
+        .bind(dept_id)
+        .fetch_optional(&state.db)
+        .await?;
+    if dept_org != Some(org_id) {
+        return Err(AppError::Forbidden("해당 부서가 해당 조직에 속하지 않습니다".to_string()));
+    }
+
     let dept = sqlx::query_as::<_, Department>(
         r#"
         UPDATE department
@@ -182,9 +225,20 @@ pub async fn update_department(
 
 pub async fn delete_department(
     State(state): State<AppState>,
-    Path((_org_id, dept_id)): Path<(Uuid, Uuid)>,
-    _auth: AuthUser,
+    Path((org_id, dept_id)): Path<(Uuid, Uuid)>,
+    auth: AuthUser,
 ) -> Result<StatusCode, AppError> {
+    if auth.organization_id != Some(org_id) {
+        return Err(AppError::Forbidden("접근 권한이 없는 조직입니다".to_string()));
+    }
+    let dept_org: Option<Uuid> = sqlx::query_scalar("SELECT organization_id FROM department WHERE id = $1")
+        .bind(dept_id)
+        .fetch_optional(&state.db)
+        .await?;
+    if dept_org != Some(org_id) {
+        return Err(AppError::Forbidden("해당 부서가 해당 조직에 속하지 않습니다".to_string()));
+    }
+
     let _ = sqlx::query("DELETE FROM department_roles WHERE department_id = $1")
         .bind(dept_id)
         .execute(&state.db)
@@ -205,17 +259,26 @@ pub async fn delete_department(
 pub async fn get_teams(
     State(state): State<AppState>,
     Path(org_id): Path<Uuid>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<Vec<Team>>, AppError> {
+    if auth.organization_id != Some(org_id) {
+        return Err(AppError::Forbidden("접근 권한이 없는 조직입니다".to_string()));
+    }
     let teams = OrganizationService::get_teams_by_org(&state.db, org_id).await?;
     Ok(Json(teams))
 }
 
 pub async fn create_role(
     State(state): State<AppState>,
-    _auth: AuthUser,
-    Json(payload): Json<CreateRoleRequest>,
+    auth: AuthUser,
+    Json(mut payload): Json<CreateRoleRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let org_id = auth.organization_id.ok_or_else(|| {
+        AppError::Forbidden("소속 조직이 없어 역할을 생성할 수 없습니다".to_string())
+    })?;
+    payload.organization_id = org_id;
+    payload.is_system_role = Some(false);
+
     let new_id = Uuid::new_v4();
     let is_system = payload.is_system_role.unwrap_or(false);
 
@@ -263,9 +326,25 @@ pub async fn create_role(
 pub async fn update_role(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-    _auth: AuthUser,
+    auth: AuthUser,
     Json(payload): Json<UpdateRoleRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let role_org: Option<(Option<Uuid>, bool)> = sqlx::query_as(
+        "SELECT organization_id, is_system_role FROM role WHERE id = $1"
+    )
+    .bind(id)
+    .fetch_optional(&state.db)
+    .await?;
+
+    match role_org {
+        Some((org_id, is_system)) => {
+            if is_system || org_id != auth.organization_id {
+                return Err(AppError::Forbidden("시스템 공용 역할 또는 타 조직 역할은 수정할 수 없습니다".to_string()));
+            }
+        }
+        None => return Err(AppError::NotFound("Role not found".to_string())),
+    }
+
     let role = sqlx::query_as::<_, Role>(
         r#"
         UPDATE role
@@ -314,8 +393,24 @@ pub async fn update_role(
 pub async fn delete_role(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<StatusCode, AppError> {
+    let role_org: Option<(Option<Uuid>, bool)> = sqlx::query_as(
+        "SELECT organization_id, is_system_role FROM role WHERE id = $1"
+    )
+    .bind(id)
+    .fetch_optional(&state.db)
+    .await?;
+
+    match role_org {
+        Some((org_id, is_system)) => {
+            if is_system || org_id != auth.organization_id {
+                return Err(AppError::Forbidden("시스템 공용 역할 또는 타 조직 역할은 삭제할 수 없습니다".to_string()));
+            }
+        }
+        None => return Err(AppError::NotFound("Role not found".to_string())),
+    }
+
     let _ = sqlx::query("DELETE FROM user_role WHERE role_id = $1")
         .bind(id)
         .execute(&state.db)
@@ -334,9 +429,12 @@ pub async fn delete_role(
 
 pub async fn create_organization(
     State(state): State<AppState>,
-    _auth: AuthUser,
+    auth: AuthUser,
     Json(payload): Json<CreateOrganizationRequest>,
 ) -> Result<Json<Organization>, AppError> {
+    if !auth.is_org_admin() {
+        return Err(AppError::Forbidden("조직 관리자만 새 조직을 생성할 수 있습니다".to_string()));
+    }
     let new_id = Uuid::new_v4();
     let is_active = payload.is_active.unwrap_or(true);
 
@@ -366,9 +464,12 @@ pub async fn create_organization(
 pub async fn update_organization(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-    _auth: AuthUser,
+    auth: AuthUser,
     Json(payload): Json<UpdateOrganizationRequest>,
 ) -> Result<Json<Organization>, AppError> {
+    if auth.organization_id != Some(id) {
+        return Err(AppError::Forbidden("접근 권한이 없는 조직입니다".to_string()));
+    }
     let org = sqlx::query_as::<_, Organization>(
         r#"
         UPDATE organization
@@ -399,8 +500,11 @@ pub async fn update_organization(
 pub async fn delete_organization(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<StatusCode, AppError> {
+    if auth.organization_id != Some(id) {
+        return Err(AppError::Forbidden("소속 조직만 삭제할 수 있습니다".to_string()));
+    }
     sqlx::query("DELETE FROM organization WHERE id = $1")
         .bind(id)
         .execute(&state.db)
@@ -412,9 +516,12 @@ pub async fn delete_organization(
 pub async fn create_team(
     State(state): State<AppState>,
     Path(org_id): Path<Uuid>,
-    _auth: AuthUser,
+    auth: AuthUser,
     Json(payload): Json<CreateTeamRequest>,
 ) -> Result<Json<Team>, AppError> {
+    if auth.organization_id != Some(org_id) {
+        return Err(AppError::Forbidden("접근 권한이 없는 조직입니다".to_string()));
+    }
     let new_id = Uuid::new_v4();
     let is_active = payload.is_active.unwrap_or(true);
 

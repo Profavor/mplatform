@@ -294,6 +294,8 @@
   "user_delete_success": "사용자가 성공적으로 삭제되었습니다.",
   "user_delete_conflict_error": "해당 사용자가 생성한 레코드나 결재 이력 등 연결된 데이터가 존재하여 삭제할 수 없습니다.",
   "user_delete_failed": "사용자 삭제 중 오류가 발생했습니다: {error}",
+  "cannot_delete_self": "본인 계정은 삭제할 수 없습니다.",
+  "my_account": "내 계정",
   "user_temp_password_not_found": "임시 비밀번호를 조회할 수 없습니다.",
   "user_temp_password_query_failed": "조회 실패: 해당 사용자의 임시 비밀번호가 존재하지 않거나 권한이 없습니다.",
   "dump_seed_files_confirm_org": "현재 '{name}' 조직에 셋팅된 모든 역할 상태를 시스템 기본값(Seed) JSON 파일로 백업/덮어쓰시겠습니까?\n(이 작업은 소스코드 디렉토리 내의 파일을 직접 수정합니다)",

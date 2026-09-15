@@ -142,12 +142,32 @@ pub async fn create_record(
 // Node-specific records & batch operations
 // --------------------------------------------------------------------
 
+async fn validate_record_node_access(
+    pool: &sqlx::PgPool,
+    node_id: Uuid,
+    auth: &AuthUser,
+) -> Result<(), AppError> {
+    if let Some(org_id) = auth.organization_id {
+        let domain_org: Option<Uuid> = sqlx::query_scalar(
+            "SELECT d.organization_id FROM classification_node cn JOIN domain d ON cn.domain_id = d.id WHERE cn.id = $1"
+        )
+        .bind(node_id)
+        .fetch_optional(pool)
+        .await?;
+        if domain_org != Some(org_id) {
+            return Err(AppError::Forbidden("접근 권한이 없는 노드의 데이터입니다".to_string()));
+        }
+    }
+    Ok(())
+}
+
 pub async fn get_node_records(
     State(state): State<AppState>,
     Path(node_id): Path<Uuid>,
     Query(params): Query<HashMap<String, String>>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<PageResponse<Record>>, AppError> {
+    validate_record_node_access(&state.db, node_id, &auth).await?;
     let q = parse_dynamic_query(None, Some(node_id), params);
     let response = RecordService::find_dynamic(&state.db, &q).await?;
     Ok(Json(response))
@@ -159,6 +179,7 @@ pub async fn create_node_record(
     auth: AuthUser,
     Json(mut req): Json<CreateRecordRequest>,
 ) -> Result<Json<Record>, AppError> {
+    validate_record_node_access(&state.db, node_id, &auth).await?;
     let effective_node_id = req.node_id.unwrap_or(node_id);
     req.node_id = Some(effective_node_id);
     req.data = RecordService::process_data_for_save(
@@ -221,6 +242,23 @@ pub async fn batch_validate_node_records(
     })))
 }
 
+async fn validate_record_domain_access(
+    pool: &sqlx::PgPool,
+    domain_id: Uuid,
+    auth: &AuthUser,
+) -> Result<(), AppError> {
+    if let Some(org_id) = auth.organization_id {
+        let domain_org: Option<Uuid> = sqlx::query_scalar("SELECT organization_id FROM domain WHERE id = $1")
+            .bind(domain_id)
+            .fetch_optional(pool)
+            .await?;
+        if domain_org != Some(org_id) {
+            return Err(AppError::Forbidden("접근 권한이 없는 도메인의 데이터입니다".to_string()));
+        }
+    }
+    Ok(())
+}
+
 // --------------------------------------------------------------------
 // Domain-specific records
 // --------------------------------------------------------------------
@@ -229,8 +267,9 @@ pub async fn get_records_by_domain(
     State(state): State<AppState>,
     Path(domain_id): Path<Uuid>,
     Query(params): Query<HashMap<String, String>>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<PageResponse<Record>>, AppError> {
+    validate_record_domain_access(&state.db, domain_id, &auth).await?;
     let q = parse_dynamic_query(Some(domain_id), None, params);
     let response = RecordService::find_dynamic(&state.db, &q).await?;
     Ok(Json(response))
@@ -242,13 +281,18 @@ pub async fn search_records_by_domain(
     Query(params): Query<HashMap<String, String>>,
     auth: AuthUser,
 ) -> Result<Json<PageResponse<Record>>, AppError> {
-    get_records_by_domain(State(state), Path(domain_id), Query(params), auth).await
+    validate_record_domain_access(&state.db, domain_id, &auth).await?;
+    let q = parse_dynamic_query(Some(domain_id), None, params);
+    let response = RecordService::find_dynamic(&state.db, &q).await?;
+    Ok(Json(response))
 }
 
 pub async fn delete_records_by_domain(
     State(state): State<AppState>,
     Path(domain_id): Path<Uuid>,
+    auth: AuthUser,
 ) -> Result<StatusCode, AppError> {
+    validate_record_domain_access(&state.db, domain_id, &auth).await?;
     sqlx::query(
         r#"
         UPDATE record

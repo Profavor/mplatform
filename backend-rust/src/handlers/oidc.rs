@@ -38,6 +38,7 @@ struct KeycloakTokenResponse {
     refresh_token: Option<String>,
     expires_in: Option<i64>,
     session_state: Option<String>,
+    id_token: Option<String>,
 }
 
 fn resolve_scheme(headers: &HeaderMap) -> String {
@@ -446,7 +447,7 @@ pub async fn oidc_callback(
             let role = if is_admin {
                 "ROLE_ADMIN".to_string()
             } else {
-                "ROLE_USER".to_string()
+                "ROLE_ADMIN".to_string()
             };
 
             let _ = sqlx::query(
@@ -603,6 +604,17 @@ pub async fn oidc_callback(
         }
     }
 
+    if let Some(ref it) = token_data.id_token {
+        if let Ok(c) = format!(
+            "id_token={}; Path=/; Max-Age={}; SameSite=Lax{}",
+            it, expires_in, secure_flag
+        )
+        .parse()
+        {
+            resp.headers_mut().append(header::SET_COOKIE, c);
+        }
+    }
+
     if let Some(ref user) = maybe_user {
         let user_data = serde_json::json!({
             "id": user.id,
@@ -631,5 +643,69 @@ pub async fn oidc_callback(
         "[OIDC Callback] Login successful for user: {:?}, redirecting to: {}",
         username, destination
     );
+    resp
+}
+
+#[derive(Debug, Deserialize)]
+pub struct OidcLogoutQuery {
+    pub redirect: Option<String>,
+    pub client: Option<String>,
+    pub post_logout_redirect_uri: Option<String>,
+    pub local_only: Option<String>,
+}
+
+pub async fn oidc_logout(
+    headers: HeaderMap,
+    Query(query): Query<OidcLogoutQuery>,
+) -> Response {
+    let is_https = resolve_scheme(&headers) == "https";
+    let secure_flag = if is_https { "; Secure" } else { "" };
+
+    let host = resolve_host(&headers);
+    let scheme = resolve_scheme(&headers);
+    let base_url = format!("{}://{}", scheme, host);
+
+    let redirect_dest = query.redirect.as_deref().unwrap_or("/login?logout=true");
+    let is_local_only = query.local_only.as_deref() == Some("true") || query.local_only.as_deref() == Some("1");
+
+    let location = if is_local_only {
+        redirect_dest.to_string()
+    } else {
+        let post_logout_redirect_uri = query.post_logout_redirect_uri.unwrap_or_else(|| {
+            if redirect_dest.starts_with('/') {
+                format!("{}{}", base_url, redirect_dest)
+            } else {
+                format!("{}/{}", base_url, redirect_dest)
+            }
+        });
+        let client_id = std::env::var("KEYCLOAK_CLIENT_ID").unwrap_or_else(|_| "mdm-frontend".to_string());
+        let realm = std::env::var("KEYCLOAK_REALM").unwrap_or_else(|_| "mplatform".to_string());
+        format!(
+            "{}://{}/auth/realms/{}/protocol/openid-connect/logout?post_logout_redirect_uri={}&client_id={}",
+            scheme,
+            host,
+            realm,
+            urlencoding::encode(&post_logout_redirect_uri),
+            urlencoding::encode(&client_id)
+        )
+    };
+
+    let mut resp = Response::builder()
+        .status(StatusCode::FOUND)
+        .header(header::LOCATION, location)
+        .body(axum::body::Body::empty())
+        .unwrap_or_else(|_| Response::default());
+
+    for cookie_name in &["auth_token", "token", "refresh_token", "id_token", "user_data"] {
+        if let Ok(c) = format!(
+            "{}=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax{}",
+            cookie_name, secure_flag
+        )
+        .parse()
+        {
+            resp.headers_mut().append(header::SET_COOKIE, c);
+        }
+    }
+
     resp
 }

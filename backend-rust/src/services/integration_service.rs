@@ -14,8 +14,8 @@ impl IntegrationService {
         Self { pool }
     }
 
-    pub async fn get_channels(&self) -> AppResult<Vec<IntegrationChannel>> {
-        let channels = IntegrationRepository::get_channels(&self.pool).await?;
+    pub async fn get_channels(&self, org_id: Option<uuid::Uuid>) -> AppResult<Vec<IntegrationChannel>> {
+        let channels = IntegrationRepository::get_channels(&self.pool, org_id).await?;
         Ok(channels)
     }
 
@@ -36,6 +36,7 @@ impl IntegrationService {
 
     pub async fn get_logs_paged(
         &self,
+        org_id: Option<uuid::Uuid>,
         channel_id: Option<uuid::Uuid>,
         only_dead_letter: bool,
         limit: i64,
@@ -43,6 +44,7 @@ impl IntegrationService {
     ) -> AppResult<(Vec<IntegrationLog>, i64)> {
         let res = IntegrationRepository::get_logs_paged(
             &self.pool,
+            org_id,
             channel_id,
             only_dead_letter,
             limit,

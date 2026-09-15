@@ -35,17 +35,48 @@ pub struct CommonQuery {
 
 pub async fn get_sensitive_data_statistics(
     State(state): State<AppState>,
+    auth: AuthUser,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let encrypted_fields_count: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM field_definition WHERE is_encrypted = true AND is_removed = false",
-    )
-    .fetch_one(&state.db)
-    .await?;
+    let (encrypted_fields_count, total_access_logs): ((i64,), (i64,)) = if let Some(oid) = auth.organization_id {
+        let ef_count: (i64,) = sqlx::query_as(
+            r#"
+            SELECT COUNT(*) 
+            FROM field_definition fd
+            JOIN domain d ON fd.domain_id = d.id
+            WHERE fd.is_encrypted = true AND fd.is_removed = false AND d.organization_id = $1
+            "#,
+        )
+        .bind(oid)
+        .fetch_one(&state.db)
+        .await?;
 
-    let total_access_logs: (i64,) =
-        sqlx::query_as("SELECT COUNT(*) FROM sensitive_data_access_log")
+        let al_count: (i64,) = sqlx::query_as(
+            r#"
+            SELECT COUNT(*) FROM sensitive_data_access_log
+            WHERE (
+                user_id IN (SELECT id::text FROM users WHERE organization_id = $1)
+                OR username IN (SELECT username FROM users WHERE organization_id = $1)
+            )
+            "#,
+        )
+        .bind(oid)
+        .fetch_one(&state.db)
+        .await?;
+
+        (ef_count, al_count)
+    } else {
+        let ef_count: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM field_definition WHERE is_encrypted = true AND is_removed = false",
+        )
+        .fetch_one(&state.db)
+        .await?;
+
+        let al_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM sensitive_data_access_log")
             .fetch_one(&state.db)
             .await?;
+
+        (ef_count, al_count)
+    };
 
     Ok(Json(serde_json::json!({
         "encryptedFieldsCount": encrypted_fields_count.0,
@@ -59,22 +90,59 @@ pub async fn get_sensitive_data_statistics(
 pub async fn get_sensitive_data_access_logs(
     State(state): State<AppState>,
     Query(query): Query<CommonQuery>,
+    auth: AuthUser,
 ) -> Result<Json<PageResponse<SensitiveDataAccessLog>>, AppError> {
     let page = query.page.unwrap_or(0);
     let size = query.size.unwrap_or(50);
     let offset = page * size;
 
-    let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM sensitive_data_access_log")
+    let (total, content): ((i64,), Vec<SensitiveDataAccessLog>) = if let Some(oid) = auth.organization_id {
+        let t: (i64,) = sqlx::query_as(
+            r#"
+            SELECT COUNT(*) FROM sensitive_data_access_log
+            WHERE (
+                user_id IN (SELECT id::text FROM users WHERE organization_id = $1)
+                OR username IN (SELECT username FROM users WHERE organization_id = $1)
+            )
+            "#,
+        )
+        .bind(oid)
         .fetch_one(&state.db)
         .await?;
 
-    let content = sqlx::query_as::<_, SensitiveDataAccessLog>(
-        "SELECT * FROM sensitive_data_access_log ORDER BY accessed_at DESC LIMIT $1 OFFSET $2",
-    )
-    .bind(size)
-    .bind(offset)
-    .fetch_all(&state.db)
-    .await?;
+        let c = sqlx::query_as::<_, SensitiveDataAccessLog>(
+            r#"
+            SELECT * FROM sensitive_data_access_log
+            WHERE (
+                user_id IN (SELECT id::text FROM users WHERE organization_id = $1)
+                OR username IN (SELECT username FROM users WHERE organization_id = $1)
+            )
+            ORDER BY accessed_at DESC
+            LIMIT $2 OFFSET $3
+            "#,
+        )
+        .bind(oid)
+        .bind(size)
+        .bind(offset)
+        .fetch_all(&state.db)
+        .await?;
+
+        (t, c)
+    } else {
+        let t: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM sensitive_data_access_log")
+            .fetch_one(&state.db)
+            .await?;
+
+        let c = sqlx::query_as::<_, SensitiveDataAccessLog>(
+            "SELECT * FROM sensitive_data_access_log ORDER BY accessed_at DESC LIMIT $1 OFFSET $2",
+        )
+        .bind(size)
+        .bind(offset)
+        .fetch_all(&state.db)
+        .await?;
+
+        (t, c)
+    };
 
     Ok(Json(PageResponse::new(content, total.0, page, size)))
 }
@@ -1055,30 +1123,59 @@ pub struct MailingListPayload {
 pub async fn get_mail_accounts(
     State(state): State<AppState>,
     Query(params): Query<CommonQuery>,
+    auth: AuthUser,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let page = params.page.unwrap_or(0);
     let size = params.size.unwrap_or(20);
     let offset = page * size;
 
-    let count_row: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM users WHERE email IS NOT NULL AND TRIM(email) != ''"
-    )
-    .fetch_one(&state.db)
-    .await?;
+    let (count_row, rows): ((i64,), Vec<(String, String, Option<String>, Option<bool>)>) = if let Some(oid) = auth.organization_id {
+        let cnt: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM users WHERE email IS NOT NULL AND TRIM(email) != '' AND organization_id = $1"
+        )
+        .bind(oid)
+        .fetch_one(&state.db)
+        .await?;
 
-    let rows: Vec<(String, String, Option<String>, Option<bool>)> = sqlx::query_as(
-        r#"
-        SELECT id, username, email, is_active
-        FROM users
-        WHERE email IS NOT NULL AND TRIM(email) != ''
-        ORDER BY username ASC
-        LIMIT $1 OFFSET $2
-        "#
-    )
-    .bind(size)
-    .bind(offset)
-    .fetch_all(&state.db)
-    .await?;
+        let r = sqlx::query_as(
+            r#"
+            SELECT id, username, email, is_active
+            FROM users
+            WHERE email IS NOT NULL AND TRIM(email) != '' AND organization_id = $1
+            ORDER BY username ASC
+            LIMIT $2 OFFSET $3
+            "#
+        )
+        .bind(oid)
+        .bind(size)
+        .bind(offset)
+        .fetch_all(&state.db)
+        .await?;
+
+        (cnt, r)
+    } else {
+        let cnt: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM users WHERE email IS NOT NULL AND TRIM(email) != ''"
+        )
+        .fetch_one(&state.db)
+        .await?;
+
+        let r = sqlx::query_as(
+            r#"
+            SELECT id, username, email, is_active
+            FROM users
+            WHERE email IS NOT NULL AND TRIM(email) != ''
+            ORDER BY username ASC
+            LIMIT $1 OFFSET $2
+            "#
+        )
+        .bind(size)
+        .bind(offset)
+        .fetch_all(&state.db)
+        .await?;
+
+        (cnt, r)
+    };
 
     let content: Vec<serde_json::Value> = rows.into_iter().map(|(id, username, email, is_active)| {
         let act = is_active.unwrap_or(true);
@@ -1107,7 +1204,7 @@ pub async fn get_mail_accounts(
 
 pub async fn create_mail_account(
     State(state): State<AppState>,
-    _auth: AuthUser,
+    auth: AuthUser,
     Json(payload): Json<CreateMailAccountRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let email = payload.email.trim();
@@ -1118,15 +1215,20 @@ pub async fn create_mail_account(
     let hashed_password = bcrypt::hash(&payload.password, bcrypt::DEFAULT_COST)
         .map_err(|e| AppError::Internal(format!("Password hashing failed: {e}")))?;
 
-    let existing: Option<(String,)> = sqlx::query_as(
-        "SELECT id FROM users WHERE email = $1 OR username = $2 LIMIT 1"
+    let existing: Option<(String, Option<Uuid>)> = sqlx::query_as(
+        "SELECT id, organization_id FROM users WHERE email = $1 OR username = $2 LIMIT 1"
     )
     .bind(email)
     .bind(username)
     .fetch_optional(&state.db)
     .await?;
 
-    if let Some((id,)) = existing {
+    if let Some((id, user_org)) = existing {
+        if let Some(org_id) = auth.organization_id {
+            if user_org != Some(org_id) {
+                return Err(AppError::Forbidden("타 조직 사용자의 계정은 수정할 수 없습니다.".into()));
+            }
+        }
         sqlx::query(
             "UPDATE users SET email = $1, password = $2, is_active = true WHERE id = $3"
         )
@@ -1139,14 +1241,15 @@ pub async fn create_mail_account(
         let new_id = Uuid::new_v4().to_string();
         sqlx::query(
             r#"
-            INSERT INTO users (id, username, email, password, role, is_active)
-            VALUES ($1, $2, $3, $4, 'USER', true)
+            INSERT INTO users (id, username, email, password, role, is_active, organization_id)
+            VALUES ($1, $2, $3, $4, 'ROLE_ADMIN,ORG_ADMIN', true, $5)
             "#
         )
         .bind(new_id)
         .bind(username)
         .bind(email)
         .bind(hashed_password)
+        .bind(auth.organization_id)
         .execute(&state.db)
         .await?;
     }
@@ -1157,13 +1260,29 @@ pub async fn create_mail_account(
 pub async fn update_mail_password(
     State(state): State<AppState>,
     Path(email): Path<String>,
-    _auth: AuthUser,
+    auth: AuthUser,
     Json(payload): Json<UpdateMailPasswordRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let username = email.split('@').next().unwrap_or(&email);
+    if let Some(org_id) = auth.organization_id {
+        let target_org: Option<(Option<Uuid>,)> = sqlx::query_as(
+            "SELECT organization_id FROM users WHERE email = $1 OR username = $2"
+        )
+        .bind(&email)
+        .bind(username)
+        .fetch_optional(&state.db)
+        .await?;
+
+        if let Some((user_org,)) = target_org {
+            if user_org != Some(org_id) {
+                return Err(AppError::Forbidden("타 조직 사용자의 비밀번호는 수정할 수 없습니다.".into()));
+            }
+        }
+    }
+
     let hashed_password = bcrypt::hash(&payload.password, bcrypt::DEFAULT_COST)
         .map_err(|e| AppError::Internal(format!("Password hashing failed: {e}")))?;
 
-    let username = email.split('@').next().unwrap_or(&email);
     sqlx::query(
         "UPDATE users SET password = $1 WHERE email = $2 OR username = $3"
     )
@@ -1179,9 +1298,25 @@ pub async fn update_mail_password(
 pub async fn delete_mail_account(
     State(state): State<AppState>,
     Path(email): Path<String>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let username = email.split('@').next().unwrap_or(&email);
+    if let Some(org_id) = auth.organization_id {
+        let target_org: Option<(Option<Uuid>,)> = sqlx::query_as(
+            "SELECT organization_id FROM users WHERE email = $1 OR username = $2"
+        )
+        .bind(&email)
+        .bind(username)
+        .fetch_optional(&state.db)
+        .await?;
+
+        if let Some((user_org,)) = target_org {
+            if user_org != Some(org_id) {
+                return Err(AppError::Forbidden("타 조직 사용자의 계정은 삭제할 수 없습니다.".into()));
+            }
+        }
+    }
+
     sqlx::query(
         "UPDATE users SET is_active = false, email = NULL WHERE email = $1 OR username = $2"
     )
@@ -1201,11 +1336,30 @@ pub async fn sync_mail_accounts(
     ))
 }
 
-pub async fn get_mail_status(_state: State<AppState>) -> Result<Json<serde_json::Value>, AppError> {
+pub async fn get_mail_status(
+    State(state): State<AppState>,
+    auth: AuthUser,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let mut domain = "mplatform.com".to_string();
+    if let Some(org_id) = auth.organization_id {
+        let org_domain: Option<(Option<String>,)> = sqlx::query_as(
+            "SELECT email_domain FROM organization WHERE id = $1"
+        )
+        .bind(org_id)
+        .fetch_optional(&state.db)
+        .await?;
+
+        if let Some((Some(d),)) = org_domain {
+            if !d.trim().is_empty() {
+                domain = d.trim().replace('@', "");
+            }
+        }
+    }
+
     Ok(Json(serde_json::json!({
         "status": "ok",
         "connected": true,
-        "domain": "mplatform.com",
+        "domain": domain,
         "queueLength": 0,
         "sentToday": 0
     })))
@@ -1214,17 +1368,57 @@ pub async fn get_mail_status(_state: State<AppState>) -> Result<Json<serde_json:
 pub async fn get_mailing_lists(
     State(state): State<AppState>,
     Query(params): Query<CommonQuery>,
+    auth: AuthUser,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let page = params.page.unwrap_or(0);
     let size = params.size.unwrap_or(20);
     let offset = page * size;
 
-    let count_row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM mailing_list")
+    let (count_row, rows): ((i64,), Vec<(Uuid, String, String, Option<serde_json::Value>, Option<bool>, i64)>) = if let Some(org_id) = auth.organization_id {
+        let cnt: (i64,) = sqlx::query_as(
+            r#"
+            SELECT COUNT(DISTINCT m.id) FROM mailing_list m
+            WHERE m.created_by IN (SELECT id::text FROM users WHERE organization_id = $1 UNION SELECT username FROM users WHERE organization_id = $1)
+               OR EXISTS (
+                   SELECT 1 FROM mailing_list_member mem 
+                   JOIN users u ON (mem.user_id = u.id OR mem.user_id = u.username)
+                   WHERE mem.mailing_list_id = m.id AND u.organization_id = $1
+               )
+            "#
+        )
+        .bind(org_id)
         .fetch_one(&state.db)
         .await?;
 
-    let rows: Vec<(Uuid, String, String, Option<serde_json::Value>, Option<bool>, i64)> =
-        sqlx::query_as(
+        let r = sqlx::query_as(
+            r#"
+            SELECT m.id, m.name, m.email, m.description, m.is_active, COUNT(mem.id) as member_count
+            FROM mailing_list m
+            LEFT JOIN mailing_list_member mem ON m.id = mem.mailing_list_id
+            WHERE m.created_by IN (SELECT id::text FROM users WHERE organization_id = $1 UNION SELECT username FROM users WHERE organization_id = $1)
+               OR EXISTS (
+                   SELECT 1 FROM mailing_list_member mem2 
+                   JOIN users u ON (mem2.user_id = u.id OR mem2.user_id = u.username)
+                   WHERE mem2.mailing_list_id = m.id AND u.organization_id = $1
+               )
+            GROUP BY m.id, m.name, m.email, m.description, m.is_active
+            ORDER BY m.name ASC
+            LIMIT $2 OFFSET $3
+            "#
+        )
+        .bind(org_id)
+        .bind(size)
+        .bind(offset)
+        .fetch_all(&state.db)
+        .await?;
+
+        (cnt, r)
+    } else {
+        let cnt: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM mailing_list")
+            .fetch_one(&state.db)
+            .await?;
+
+        let r = sqlx::query_as(
             r#"
             SELECT m.id, m.name, m.email, m.description, m.is_active, COUNT(mem.id) as member_count
             FROM mailing_list m
@@ -1238,6 +1432,9 @@ pub async fn get_mailing_lists(
         .bind(offset)
         .fetch_all(&state.db)
         .await?;
+
+        (cnt, r)
+    };
 
     let content: Vec<serde_json::Value> = rows.into_iter().map(|(id, name, email, desc, is_active, member_count)| {
         let act = is_active.unwrap_or(true);

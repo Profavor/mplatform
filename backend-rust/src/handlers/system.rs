@@ -1,4 +1,5 @@
 use crate::error::AppResult;
+use crate::middleware::auth::AuthUser;
 use crate::state::AppState;
 use axum::http::StatusCode;
 use axum::{
@@ -51,10 +52,11 @@ pub async fn get_sla(State(state): State<AppState>) -> AppResult<impl IntoRespon
 pub async fn get_error_logs(
     State(state): State<AppState>,
     Query(params): Query<ErrorLogQuery>,
+    auth: AuthUser,
 ) -> AppResult<impl IntoResponse> {
     let page = params.page.unwrap_or(0);
     let size = params.size.or(params.limit).unwrap_or(20);
-    let (logs, total) = state.system_service.get_error_logs(page, size).await?;
+    let (logs, total) = state.system_service.get_error_logs(auth.organization_id, page, size).await?;
     let total_pages = if size > 0 {
         (total + size - 1) / size
     } else {

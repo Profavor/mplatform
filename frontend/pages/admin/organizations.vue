@@ -34,9 +34,6 @@
         <va-button v-if="hasPermission('admin:write') || hasPermission('org:write')" preset="outline" icon="admin_panel_settings" color="primary" size="small" @click="showPermMasterModal = true">
           {{ $t('perm_master_management') }}
         </va-button>
-        <va-button v-if="hasPermission('admin:write') || hasPermission('org:write')" color="primary" icon="add" size="small" @click="openCreateOrgModal">
-          {{ $t('create_organization') }}
-        </va-button>
       </div>
     </div>
 
@@ -48,8 +45,6 @@
         :selected-id="selectedOrg?.id"
         :loading="loadingOrgs"
         @select-org="selectOrganization"
-        @add-org="openCreateOrgModal"
-        @delete-org="openDeleteOrgModal"
       />
 
       <!-- Modularized Organization Detail & Management Form -->
@@ -59,7 +54,6 @@
         :root-departments="rootDepartments"
         :roles="roles"
         @save-org="saveOrgInfo"
-        @delete-org="openDeleteOrgModal"
         @open-icon-picker="openIconPicker"
         @add-dept="openCreateDeptModal"
         @edit-dept="openEditDeptModal"
@@ -446,30 +440,6 @@
       :header="errorAlertHeader"
       :message="errorAlertMessage"
     />
-
-    <!-- Organization Delete Confirm Modal -->
-    <AppModal
-      v-model="showDeleteOrgModalFlag"
-      :title="getLabel('delete_organization', '조직 삭제')"
-      icon="warning"
-      hide-default-actions
-      size="small"
-    >
-      <div style="padding: 0.5rem 0;">
-        <p style="margin-bottom: 0.5rem; font-weight: 700; color: var(--va-text-primary); font-size: 1rem;">
-          정말로 [{{ getI18nText(targetDeletingOrg?.displayName) || targetDeletingOrg?.name }}] 조직을 삭제하시겠습니까?
-        </p>
-        <p style="font-size: 0.85rem; color: var(--va-danger); margin: 0; line-height: 1.4;">
-          ⚠️ 조직 삭제 시 해당 조직에 속한 하위 부서, 팀 및 RBAC 역할/권한 정보가 함께 삭제됩니다.
-        </p>
-      </div>
-      <template #footer>
-        <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
-          <va-button preset="secondary" @click="showDeleteOrgModalFlag = false">{{ getLabel('cancel', '취소') }}</va-button>
-          <va-button color="danger" @click="confirmDeleteOrganization">{{ getLabel('delete', '삭제') }}</va-button>
-        </div>
-      </template>
-    </AppModal>
   </div>
 </template>
 
@@ -1135,49 +1105,6 @@ const loadOrgDetails = async (orgId) => {
     roles.value = rolesRes || []
   } catch (e) {
     console.error('Failed to load org details:', e)
-  }
-}
-
-const showDeleteOrgModalFlag = ref(false)
-const targetDeletingOrg = ref(null)
-
-const openDeleteOrgModal = (org) => {
-  if (!org) return
-  if (org.id === '00000000-0000-0000-0000-000000000001') {
-    showCustomAlert(
-      '기본 시스템 조직은 삭제할 수 없습니다.',
-      getLabel('warning', '경고'),
-      getLabel('notification', '알림'),
-      'warning'
-    )
-    return
-  }
-  targetDeletingOrg.value = org
-  showDeleteOrgModalFlag.value = true
-}
-
-const confirmDeleteOrganization = async () => {
-  if (!targetDeletingOrg.value) return
-  try {
-    await customFetch(`/api/organizations/${targetDeletingOrg.value.id}`, {
-      method: 'DELETE'
-    })
-    showDeleteOrgModalFlag.value = false
-    const deletedId = targetDeletingOrg.value.id
-    targetDeletingOrg.value = null
-    if (selectedOrg.value?.id === deletedId) {
-      selectedOrg.value = null
-    }
-    await fetchOrganizations()
-    showCustomAlert(
-      getLabel('org_delete_success', '조직이 성공적으로 삭제되었습니다.'),
-      getLabel('delete_success', '삭제 완료'),
-      getLabel('notification', '알림'),
-      'success'
-    )
-  } catch (e) {
-    console.error('Failed to delete organization:', e)
-    showCustomAlert('Failed to delete org: ' + (e.message || String(e)), getLabel('error', '오류'), getLabel('notification', '알림'), 'error')
   }
 }
 

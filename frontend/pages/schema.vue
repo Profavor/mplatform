@@ -16,6 +16,9 @@
       </div>
 
       <div class="schema-top-actions">
+        <va-button preset="outline" color="secondary" icon="security" size="small" @click="showMaskingPolicyModal = true">
+          {{ $t('tab_masking_policies') }}
+        </va-button>
         <va-button preset="outline" color="info" icon="hub" size="small" @click="showOntologyModal = true">
           {{ $t('semantic_ontology') }}
         </va-button>
@@ -108,6 +111,7 @@
                 <va-tab>{{ $t('schema_history.title') }}</va-tab>
                 <va-tab v-if="isDomainSelected">{{ $t('classification_axes') }}</va-tab>
                 <va-tab v-if="isDomainSelected">{{ $t('data_profiling') }}</va-tab>
+                <va-tab v-if="isDomainSelected">{{ $t('tab_masking_policies') }}</va-tab>
               </template>
             </va-tabs>
           </va-card-title>
@@ -198,6 +202,15 @@
             <!-- Data Profiling Tab (Domain Only) -->
             <div v-if="isDomainSelected && activeTab === 3" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
               <DataProfilingTab :domain-id="selectedNode.domainId || selectedNode.id" />
+            </div>
+
+            <!-- Column Masking Policies Tab (Domain Only) -->
+            <div v-if="isDomainSelected && activeTab === 4" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 1rem; overflow-y: auto;">
+              <ColumnMaskingPoliciesTab
+                :can-write="hasPermission('domain:write') || hasPermission('domain:*') || hasPermission('admin:write') || hasPermission('admin:*')"
+                :initial-domain-id="selectedDomainId"
+                @notify="({ message, type }) => showCustomAlert(message, '', t('notification'), type)"
+              />
             </div>
           </va-card-content>
         </va-card>
@@ -371,6 +384,23 @@
       v-model="showBusinessRuleBuilderModal"
       :domainId="selectedDomainId"
     />
+
+    <!-- Column Masking Policies Modal (Global / Selected Domain) -->
+    <AppModal
+      v-model="showMaskingPolicyModal"
+      :title="$t('masking_policies_title')"
+      icon="security"
+      size="large"
+      hide-default-actions
+    >
+      <div style="min-height: 480px; max-height: 75vh; overflow-y: auto; padding: 0.5rem 0.25rem;">
+        <ColumnMaskingPoliciesTab
+          :can-write="hasPermission('domain:write') || hasPermission('domain:*') || hasPermission('admin:write') || hasPermission('admin:*')"
+          :initial-domain-id="selectedDomainId"
+          @notify="({ message, type }) => showCustomAlert(message, '', t('notification'), type)"
+        />
+      </div>
+    </AppModal>
   </div>
 </template>
 
@@ -397,6 +427,8 @@ import WorkflowConfigTab from '~/components/schema/WorkflowConfigTab.vue'
 import ClassificationAxisTab from '~/components/schema/ClassificationAxisTab.vue'
 import DataProfilingTab from '~/components/schema/DataProfilingTab.vue'
 import RecordLayoutBuilderModal from '~/components/records/RecordLayoutBuilderModal.vue'
+import AppModal from '~/components/common/AppModal.vue'
+import ColumnMaskingPoliciesTab from '~/components/admin/ColumnMaskingPoliciesTab.vue'
 import { validateFormulaSyntax } from '~/utils/safeEvaluator'
 
 const toast = useToast()
@@ -417,6 +449,7 @@ const selectedApprovalRequest = ref(null)
 const showPackageModal = ref(false)
 const showOntologyModal = ref(false)
 const showCompatibilityModal = ref(false)
+const showMaskingPolicyModal = ref(false)
 const showTree = ref(true)
 
 

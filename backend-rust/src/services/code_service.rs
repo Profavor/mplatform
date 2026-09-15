@@ -11,6 +11,13 @@ impl CodeService {
         CodeRepository::find_groups(pool).await
     }
 
+    pub async fn get_groups_for_admin(
+        pool: &PgPool,
+        auth: &crate::middleware::auth::AuthUser,
+    ) -> Result<Vec<CodeGroup>, AppError> {
+        CodeRepository::find_groups_by_org(pool, auth.organization_id).await
+    }
+
     pub async fn get_group_by_code(pool: &PgPool, code: &str) -> Result<CodeGroup, AppError> {
         CodeRepository::find_group_by_code(pool, code)
             .await?

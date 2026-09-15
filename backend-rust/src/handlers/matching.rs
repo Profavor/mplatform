@@ -1,8 +1,10 @@
 use crate::error::AppError;
 use crate::middleware::auth::AuthUser;
 use crate::models::matching::{
-    MatchCandidate, MatchingRule, MergeRequest, MergeResult, SurvivorshipRule,
+    BatchCandidateActionRequest, MatchCandidate, MatchCandidateDto, MatchingRule, MergeRequest,
+    MergeResult, SurvivorshipRule,
 };
+use crate::models::record::PageResponse;
 use crate::services::matching_service::MatchingService;
 use crate::state::AppState;
 use axum::extract::Path;
@@ -26,11 +28,41 @@ pub struct CandidateQuery {
     pub status: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CandidatePageQuery {
+    pub page: Option<i64>,
+    pub size: Option<i64>,
+    pub status: Option<String>,
+}
+
+async fn validate_domain_access(
+    pool: &sqlx::PgPool,
+    domain_id: Uuid,
+    auth: &AuthUser,
+) -> Result<(), AppError> {
+    if let Some(org_id) = auth.organization_id {
+        let exists: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM domain WHERE id = $1 AND organization_id = $2)",
+        )
+        .bind(domain_id)
+        .bind(org_id)
+        .fetch_one(pool)
+        .await
+        .unwrap_or(false);
+        if !exists {
+            return Err(AppError::Forbidden("접근 권한이 없는 도메인입니다".to_string()));
+        }
+    }
+    Ok(())
+}
+
 pub async fn get_matching_rules(
     State(state): State<AppState>,
     Query(query): Query<MatchingRuleQuery>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<Vec<MatchingRule>>, AppError> {
+    validate_domain_access(&state.db, query.domain_id, &auth).await?;
     let rules = MatchingService::get_matching_rules(&state.db, query.domain_id).await?;
     Ok(Json(rules))
 }
@@ -38,8 +70,9 @@ pub async fn get_matching_rules(
 pub async fn get_domain_matching_rules(
     State(state): State<AppState>,
     Path(domain_id): Path<Uuid>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<Vec<MatchingRule>>, AppError> {
+    validate_domain_access(&state.db, domain_id, &auth).await?;
     let rules = MatchingService::get_matching_rules(&state.db, domain_id).await?;
     Ok(Json(rules))
 }
@@ -47,8 +80,9 @@ pub async fn get_domain_matching_rules(
 pub async fn get_feedback_summary(
     State(state): State<AppState>,
     Path(domain_id): Path<Uuid>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<Vec<serde_json::Value>>, AppError> {
+    validate_domain_access(&state.db, domain_id, &auth).await?;
     use sqlx::Row;
     let rows = sqlx::query(
         r#"
@@ -94,11 +128,192 @@ pub async fn get_candidates(
     Ok(Json(candidates))
 }
 
+pub async fn get_domain_candidates(
+    State(state): State<AppState>,
+    Path(domain_id): Path<Uuid>,
+    Query(query): Query<CandidatePageQuery>,
+    auth: AuthUser,
+) -> Result<Json<PageResponse<MatchCandidateDto>>, AppError> {
+    validate_domain_access(&state.db, domain_id, &auth).await?;
+    let page = query.page.unwrap_or(0).max(0);
+    let size = query.size.unwrap_or(20).max(1);
+    let offset = page * size;
+    let status_filter = query.status.as_deref().filter(|s| !s.is_empty() && *s != "ALL");
+
+    let count_row: (i64,) = sqlx::query_as(
+        r#"
+        SELECT COUNT(*)
+        FROM match_candidate mc
+        WHERE mc.domain_id = $1
+          AND ($2::text IS NULL OR mc.status = $2)
+        "#,
+    )
+    .bind(domain_id)
+    .bind(status_filter)
+    .fetch_one(&state.db)
+    .await?;
+
+    let rows = sqlx::query_as::<_, (
+        Uuid, Option<Uuid>, Uuid, Uuid, Option<Uuid>,
+        f64, String, String, String, Option<String>,
+        Option<String>, Option<chrono::NaiveDateTime>, Option<chrono::NaiveDateTime>,
+        Option<serde_json::Value>
+    )>(
+        r#"
+        SELECT 
+            mc.id, mc.domain_id, mc.node_id, mc.existing_record_id, mc.matched_rule_id,
+            mc.score, mc.source, mc.status, mc.incoming_data_json, mc.matched_field_details,
+            mc.reviewed_by, mc.reviewed_at, mc.created_at,
+            r.data AS existing_record_data
+        FROM match_candidate mc
+        LEFT JOIN record r ON mc.existing_record_id = r.id
+        WHERE mc.domain_id = $1
+          AND ($2::text IS NULL OR mc.status = $2)
+        ORDER BY mc.score DESC, mc.created_at DESC
+        LIMIT $3 OFFSET $4
+        "#,
+    )
+    .bind(domain_id)
+    .bind(status_filter)
+    .bind(size)
+    .bind(offset)
+    .fetch_all(&state.db)
+    .await?;
+
+    let dtos: Vec<MatchCandidateDto> = rows.into_iter().map(|(
+        id, domain_id, node_id, existing_record_id, matched_rule_id,
+        score, source, status, incoming_data_json, matched_field_details,
+        reviewed_by, reviewed_at, created_at, existing_record_data
+    )| {
+        let incoming_data = serde_json::from_str::<serde_json::Value>(&incoming_data_json)
+            .unwrap_or_else(|_| serde_json::json!({ "raw": incoming_data_json }));
+
+        let mut rec_val = existing_record_data.unwrap_or_else(|| serde_json::json!({}));
+        if let Some(obj) = rec_val.as_object_mut() {
+            obj.insert("id".to_string(), serde_json::json!(existing_record_id));
+        } else {
+            rec_val = serde_json::json!({ "id": existing_record_id });
+        }
+
+        MatchCandidateDto {
+            id,
+            domain_id,
+            node_id,
+            existing_record_id,
+            matched_rule_id,
+            score,
+            source,
+            status,
+            incoming_data_json,
+            incoming_data,
+            existing_record: rec_val,
+            matched_field_details,
+            reviewed_by,
+            reviewed_at,
+            created_at,
+        }
+    }).collect();
+
+    Ok(Json(PageResponse::new(dtos, count_row.0, page, size)))
+}
+
+pub async fn reject_candidate(
+    State(state): State<AppState>,
+    Path(candidate_id): Path<Uuid>,
+    auth: AuthUser,
+) -> Result<Json<serde_json::Value>, AppError> {
+    sqlx::query(
+        r#"
+        UPDATE match_candidate
+        SET status = 'REJECTED',
+            reviewed_by = $2,
+            reviewed_at = NOW()
+        WHERE id = $1
+        "#,
+    )
+    .bind(candidate_id)
+    .bind(&auth.claims.sub)
+    .execute(&state.db)
+    .await?;
+
+    Ok(Json(serde_json::json!({ "id": candidate_id, "status": "REJECTED" })))
+}
+
+pub async fn confirm_candidate(
+    State(state): State<AppState>,
+    Path(candidate_id): Path<Uuid>,
+    auth: AuthUser,
+) -> Result<Json<serde_json::Value>, AppError> {
+    sqlx::query(
+        r#"
+        UPDATE match_candidate
+        SET status = 'CONFIRMED_MERGE',
+            reviewed_by = $2,
+            reviewed_at = NOW()
+        WHERE id = $1
+        "#,
+    )
+    .bind(candidate_id)
+    .bind(&auth.claims.sub)
+    .execute(&state.db)
+    .await?;
+
+    Ok(Json(serde_json::json!({ "id": candidate_id, "status": "CONFIRMED_MERGE" })))
+}
+
+pub async fn batch_reject_candidates(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Json(payload): Json<BatchCandidateActionRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let count = sqlx::query(
+        r#"
+        UPDATE match_candidate
+        SET status = 'REJECTED',
+            reviewed_by = $2,
+            reviewed_at = NOW()
+        WHERE id = ANY($1)
+        "#,
+    )
+    .bind(&payload.ids)
+    .bind(&auth.claims.sub)
+    .execute(&state.db)
+    .await?
+    .rows_affected();
+
+    Ok(Json(serde_json::json!({ "count": count, "status": "REJECTED" })))
+}
+
+pub async fn batch_confirm_candidates(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Json(payload): Json<BatchCandidateActionRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let count = sqlx::query(
+        r#"
+        UPDATE match_candidate
+        SET status = 'CONFIRMED_MERGE',
+            reviewed_by = $2,
+            reviewed_at = NOW()
+        WHERE id = ANY($1)
+        "#,
+    )
+    .bind(&payload.ids)
+    .bind(&auth.claims.sub)
+    .execute(&state.db)
+    .await?
+    .rows_affected();
+
+    Ok(Json(serde_json::json!({ "count": count, "status": "CONFIRMED_MERGE" })))
+}
+
+
 pub async fn get_survivorship_rules(
     State(state): State<AppState>,
     Path(domain_id): Path<Uuid>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<Vec<SurvivorshipRule>>, AppError> {
+    validate_domain_access(&state.db, domain_id, &auth).await?;
     let rules = MatchingService::get_survivorship_rules(&state.db, domain_id).await?;
     Ok(Json(rules))
 }
@@ -114,9 +329,10 @@ pub struct UpdateSurvivorshipRuleDto {
 pub async fn update_survivorship_rules(
     State(state): State<AppState>,
     Path(domain_id): Path<Uuid>,
-    _auth: AuthUser,
+    auth: AuthUser,
     Json(rules): Json<Vec<UpdateSurvivorshipRuleDto>>,
 ) -> Result<Json<Vec<SurvivorshipRule>>, AppError> {
+    validate_domain_access(&state.db, domain_id, &auth).await?;
     let mut tx = state.db.begin().await?;
 
     sqlx::query("DELETE FROM survivorship_rule WHERE domain_id = $1")
@@ -199,9 +415,10 @@ pub struct MatchingRuleRequest {
 pub async fn create_matching_rule(
     State(state): State<AppState>,
     Path(domain_id): Path<Uuid>,
-    _auth: AuthUser,
+    auth: AuthUser,
     Json(payload): Json<MatchingRuleRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    validate_domain_access(&state.db, domain_id, &auth).await?;
     let id = Uuid::new_v4();
     let rule_name = payload.rule_name.or(payload.name).unwrap_or_default();
     let target_keys = payload
@@ -238,10 +455,11 @@ pub async fn create_matching_rule(
 
 pub async fn update_matching_rule(
     State(state): State<AppState>,
-    Path((_domain_id, rule_id)): Path<(Uuid, Uuid)>,
-    _auth: AuthUser,
+    Path((domain_id, rule_id)): Path<(Uuid, Uuid)>,
+    auth: AuthUser,
     Json(payload): Json<MatchingRuleRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    validate_domain_access(&state.db, domain_id, &auth).await?;
     let rule_name = payload.rule_name.or(payload.name).unwrap_or_default();
     let target_keys = payload
         .target_field_keys
@@ -277,9 +495,10 @@ pub async fn update_matching_rule(
 
 pub async fn delete_matching_rule(
     State(state): State<AppState>,
-    Path((_domain_id, rule_id)): Path<(Uuid, Uuid)>,
-    _auth: AuthUser,
+    Path((domain_id, rule_id)): Path<(Uuid, Uuid)>,
+    auth: AuthUser,
 ) -> Result<StatusCode, AppError> {
+    validate_domain_access(&state.db, domain_id, &auth).await?;
     sqlx::query("DELETE FROM matching_rule WHERE id = $1")
         .bind(rule_id)
         .execute(&state.db)

@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 use crate::{
     error::AppError,
+    middleware::auth::AuthUser,
     models::{
         field_definition::{FieldDefinition, FieldDefinitionRequest},
         record::PageResponse,
@@ -602,7 +603,18 @@ pub async fn get_domain_nodes_tree(
     State(state): State<AppState>,
     Path(domain_id): Path<Uuid>,
     Query(query): Query<TreeQuery>,
+    auth: AuthUser,
 ) -> Result<Json<Vec<NodeTreeNode>>, AppError> {
+    if let Some(org_id) = auth.organization_id {
+        let domain_org: Option<Uuid> = sqlx::query_scalar("SELECT organization_id FROM domain WHERE id = $1")
+            .bind(domain_id)
+            .fetch_optional(&state.db)
+            .await?;
+        if domain_org != Some(org_id) {
+            return Err(AppError::Forbidden("접근 권한이 없는 도메인입니다".to_string()));
+        }
+    }
+
     let all_nodes = sqlx::query_as::<_, NodeRow>(
         r#"
         SELECT id, domain_id, parent_id, axis_id, name, path, depth, node_order, icon, detail_layout_config
@@ -677,15 +689,21 @@ pub async fn get_domain_nodes_tree(
 
 pub async fn get_all_nodes_tree(
     State(state): State<AppState>,
+    auth: AuthUser,
 ) -> Result<Json<Vec<NodeTreeNode>>, AppError> {
+    let org_filter = auth.organization_id;
+
     let all_nodes = sqlx::query_as::<_, NodeRow>(
         r#"
-        SELECT id, domain_id, parent_id, axis_id, name, path, depth, node_order, icon, detail_layout_config
-        FROM classification_node
-        WHERE is_deleted = false
-        ORDER BY depth ASC, node_order ASC
+        SELECT cn.id, cn.domain_id, cn.parent_id, cn.axis_id, cn.name, cn.path, cn.depth, cn.node_order, cn.icon, cn.detail_layout_config
+        FROM classification_node cn
+        JOIN domain d ON cn.domain_id = d.id
+        WHERE cn.is_deleted = false
+          AND ($1::uuid IS NULL OR d.organization_id = $1)
+        ORDER BY cn.depth ASC, cn.node_order ASC
         "#
     )
+    .bind(org_filter)
     .fetch_all(&state.db)
     .await?;
 
@@ -706,35 +724,49 @@ pub async fn get_all_nodes_tree(
 /// Replaces N+1 per-domain fetching with 3 SQL queries total.
 pub async fn get_domains_batch_trees(
     State(state): State<AppState>,
+    auth: AuthUser,
 ) -> Result<Json<Vec<serde_json::Value>>, AppError> {
     use std::collections::HashMap;
 
-    // 1. Fetch all domains
+    let org_filter = auth.organization_id;
+
+    // 1. Fetch domains for user's organization
     let domains: Vec<(Uuid, serde_json::Value, Option<String>, Option<serde_json::Value>, i32)> =
         sqlx::query_as(
             r#"SELECT id, name, icon, description, sort_order
                FROM domain
+               WHERE ($1::uuid IS NULL OR organization_id = $1)
                ORDER BY sort_order ASC, created_at ASC"#,
         )
+        .bind(org_filter)
         .fetch_all(&state.db)
         .await?;
 
-    // 2. Fetch all classification axes
+    if domains.is_empty() {
+        return Ok(Json(Vec::new()));
+    }
+
+    let domain_ids: Vec<Uuid> = domains.iter().map(|d| d.0).collect();
+
+    // 2. Fetch all classification axes for user's domains
     let axes: Vec<(Uuid, Uuid, serde_json::Value, Option<String>, bool)> = sqlx::query_as(
         r#"SELECT id, domain_id, name, axis_code, is_default
            FROM classification_axis
+           WHERE domain_id = ANY($1)
            ORDER BY domain_id, sort_order ASC, created_at ASC"#,
     )
+    .bind(&domain_ids)
     .fetch_all(&state.db)
     .await?;
 
-    // 3. Fetch all classification nodes
+    // 3. Fetch all classification nodes for user's domains
     let all_nodes = sqlx::query_as::<_, NodeRow>(
         r#"SELECT id, domain_id, parent_id, axis_id, name, path, depth, node_order, icon, detail_layout_config
            FROM classification_node
-           WHERE is_deleted = false
+           WHERE is_deleted = false AND domain_id = ANY($1)
            ORDER BY depth ASC, node_order ASC"#,
     )
+    .bind(&domain_ids)
     .fetch_all(&state.db)
     .await?;
 

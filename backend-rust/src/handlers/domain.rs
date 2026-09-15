@@ -17,26 +17,27 @@ use uuid::Uuid;
 
 pub async fn get_domains(
     State(state): State<AppState>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<Vec<DomainResponse>>, AppError> {
-    let domains = DomainService::get_all_domains(&state.db).await?;
+    let domains = DomainService::get_domains_for_user(&state.db, &auth).await?;
     Ok(Json(domains))
 }
 
 pub async fn get_domain_by_id(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<DomainResponse>, AppError> {
-    let domain = DomainService::get_domain_by_id(&state.db, id).await?;
+    let domain = DomainService::get_domain_by_id_for_user(&state.db, id, &auth).await?;
     Ok(Json(domain))
 }
 
 pub async fn create_domain(
     State(state): State<AppState>,
-    _auth: AuthUser,
-    Json(req): Json<DomainRequest>,
+    auth: AuthUser,
+    Json(mut req): Json<DomainRequest>,
 ) -> Result<Json<DomainResponse>, AppError> {
+    req.organization_id = auth.organization_id;
     let domain = DomainService::create_domain(&state.db, req).await?;
     Ok(Json(domain))
 }
@@ -44,18 +45,20 @@ pub async fn create_domain(
 pub async fn update_domain(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-    _auth: AuthUser,
-    Json(req): Json<DomainRequest>,
+    auth: AuthUser,
+    Json(mut req): Json<DomainRequest>,
 ) -> Result<Json<DomainResponse>, AppError> {
+    let existing = DomainService::get_domain_by_id_for_user(&state.db, id, &auth).await?;
+    req.organization_id = existing.organization_id;
     let domain = DomainService::update_domain(&state.db, id, req).await?;
     Ok(Json(domain))
 }
 
 pub async fn get_dq_benchmark(
     State(state): State<AppState>,
-    _auth: AuthUser,
+    auth: AuthUser,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let domains = DomainService::get_all_domains(&state.db).await?;
+    let domains = DomainService::get_domains_for_user(&state.db, &auth).await?;
     let domain_benchmarks: Vec<serde_json::Value> = domains
         .iter()
         .map(|d| {

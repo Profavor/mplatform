@@ -62,3 +62,30 @@ pub struct MergeResult {
     pub merged_count: usize,
     pub status: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MatchCandidateDto {
+    pub id: Uuid,
+    pub domain_id: Option<Uuid>,
+    pub node_id: Uuid,
+    pub existing_record_id: Uuid,
+    pub matched_rule_id: Option<Uuid>,
+    pub score: f64,
+    pub source: String,
+    pub status: String,
+    pub incoming_data_json: String,
+    pub incoming_data: serde_json::Value,
+    pub existing_record: serde_json::Value,
+    pub matched_field_details: Option<String>,
+    pub reviewed_by: Option<String>,
+    pub reviewed_at: Option<NaiveDateTime>,
+    pub created_at: Option<NaiveDateTime>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchCandidateActionRequest {
+    pub ids: Vec<Uuid>,
+    pub domain_id: Option<Uuid>,
+}

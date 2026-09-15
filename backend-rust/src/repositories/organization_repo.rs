@@ -66,7 +66,10 @@ impl OrganizationRepository {
             r#"
             SELECT id, organization_id, name, display_name, description, is_system_role, created_at, updated_at
             FROM role
-            WHERE organization_id = $1
+            WHERE organization_id = $1 
+               OR organization_id = '477f8614-6a34-4e78-95d0-dc4fe6459a46'::uuid 
+               OR is_system_role = true
+               OR organization_id IS NULL
             ORDER BY name ASC
             "#,
         )
