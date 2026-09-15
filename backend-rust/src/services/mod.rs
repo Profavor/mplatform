@@ -19,6 +19,7 @@ pub mod organization_service;
 pub mod outbound_service;
 pub mod record_service;
 pub mod search_service;
+pub mod stock_bot_service;
 pub mod system_service;
 pub mod two_factor_service;
 pub mod user_service;

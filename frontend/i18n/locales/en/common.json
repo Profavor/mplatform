@@ -666,6 +666,13 @@
     "unmerge_success": "Record unmerged and restored successfully"
   },
   "messenger": {
+    "stockBotTitle": "AI Stock Bot",
+    "stockBotSubtitle": "Powered by aikstockdata",
+    "stockBotDesc": "Live Korean Market · Valuation · DART Disclosures",
+    "stockBotOpenBtn": "Chat with AI Stock Bot",
+    "stockBotStatus": "● Online · aikstockdata connected",
+    "stockBotBadge": "AI Bot",
+    "botThinking": "AI Stock Assistant is thinking...",
     "attachFileTooltip": "Attach file",
     "calendarTitle": "Jump to Date",
     "cancelBtn": "Cancel",

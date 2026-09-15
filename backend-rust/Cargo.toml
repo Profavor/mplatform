@@ -8,7 +8,7 @@ edition = "2021"
 tokio = { version = "1.38", features = ["full"] }
 axum = { version = "0.7.5", features = ["macros", "multipart", "ws"] }
 futures-util = "0.3"
-tower = { version = "0.4", features = ["util"] }
+tower = { version = "0.4", features = ["util", "limit", "load-shed"] }
 tower-http = { version = "0.5.2", features = ["cors", "trace"] }
 rand = "0.8"
 rust_xlsxwriter = "0.64"

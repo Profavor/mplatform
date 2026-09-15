@@ -48,9 +48,15 @@
           <va-button v-if="activeRoom" preset="plain" color="#ffffff" size="small" @click.stop="activeRoom = null">
             <va-icon name="arrow_back" size="20px" />
           </va-button>
-          <span style="font-weight: 700; font-size: 1rem;">
-            {{ activeRoom ? activeRoom.name : $t('messenger.title') }}
-          </span>
+          <div style="display: flex; flex-direction: column;">
+            <span style="font-weight: 700; font-size: 1rem; display: flex; align-items: center; gap: 6px;">
+              <span v-if="isStockBotRoom">🤖</span>
+              <span>{{ activeRoom ? activeRoom.name : $t('messenger.title') }}</span>
+            </span>
+            <span v-if="isStockBotRoom" style="font-size: 0.68rem; opacity: 0.9; font-weight: normal;">
+              {{ $t('messenger.stockBotStatus') }}
+            </span>
+          </div>
         </div>
         <div style="display: flex; gap: 4px; align-items: center;">
           <va-button preset="plain" color="#ffffff" size="small" :title="isExpanded ? '창 크기 축소' : '창 너비 확대'" @click.stop="toggleExpand">
@@ -106,6 +112,27 @@
 
       <!-- Room List View -->
       <div v-if="!activeRoom" class="room-list-view" style="flex: 1; overflow-y: auto; padding: 12px;">
+        <!-- AI Stock Bot Quick Access Banner -->
+        <div
+          class="stock-bot-card"
+          style="padding: 12px 14px; border-radius: 12px; margin-bottom: 12px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #ffffff; cursor: pointer; display: flex; align-items: center; gap: 12px; border: 1px solid rgba(59,130,246,0.35); box-shadow: 0 4px 14px rgba(0,0,0,0.18); transition: transform 0.2s;"
+          @click="openStockBotRoom"
+        >
+          <div style="width: 40px; height: 40px; border-radius: 20px; background: rgba(59,130,246,0.25); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; border: 1px solid rgba(59,130,246,0.4);">
+            🤖
+          </div>
+          <div style="flex: 1; overflow: hidden;">
+            <div style="font-weight: 700; font-size: 0.92rem; display: flex; align-items: center; gap: 6px;">
+              <span>{{ $t('messenger.stockBotTitle') }}</span>
+              <span style="background: #2563eb; color: #ffffff; font-size: 0.65rem; padding: 1px 6px; border-radius: 6px; font-weight: 800;">aikstockdata</span>
+            </div>
+            <div style="font-size: 0.76rem; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px;">
+              {{ $t('messenger.stockBotDesc') }}
+            </div>
+          </div>
+          <va-icon name="chevron_right" size="20px" color="#94a3b8" />
+        </div>
+
         <div v-if="rooms.length === 0" style="text-align: center; color: var(--va-text-secondary); margin-top: 80px;">
           <va-icon name="chat_bubble_outline" size="48px" style="opacity: 0.5; margin-bottom: 12px;" />
           <div>{{ $t('messenger.noRooms') }}</div>
@@ -120,7 +147,7 @@
           @click="selectRoom(room)"
         >
           <va-avatar color="primary" size="medium">
-            {{ room.isGroup ? '👥' : '👤' }}
+            {{ isStockRoom(room) ? '🤖' : (room.isGroup ? '👥' : '👤') }}
           </va-avatar>
           <div style="flex: 1; overflow: hidden;">
             <div style="font-weight: 700; font-size: 0.95rem; display: flex; justify-content: space-between; align-items: center;">
@@ -173,8 +200,10 @@
             <!-- Normal Chat Message -->
             <div v-else class="msg-bubble-wrapper" :data-sender="msg.senderName" :data-time="formatDateTime(msg.createdAt)" :data-msg-id="msg.id" :data-type="msg.messageType" :style="{ marginLeft: isMyMsg(msg) ? 'auto' : '0', marginRight: isMyMsg(msg) ? '0' : 'auto', maxWidth: msg.messageType === 'IMAGE' ? '92%' : (parseTableContent(msg.content).isTable ? '96%' : '85%'), width: 'fit-content', marginBottom: '10px' }">
             <!-- Sender Name (only for other people's messages visually) -->
-            <div v-if="!isMyMsg(msg)" class="msg-sender-name" style="font-size: 0.75rem; color: var(--va-text-secondary); margin-bottom: 3px; font-weight: 700; user-select: none; display: block;">
-              {{ msg.senderName }}
+            <div v-if="!isMyMsg(msg)" class="msg-sender-name" style="font-size: 0.75rem; color: var(--va-text-secondary); margin-bottom: 3px; font-weight: 700; user-select: none; display: flex; align-items: center; gap: 4px;">
+              <span v-if="isBotMsg(msg)">🤖</span>
+              <span>{{ msg.senderName }}</span>
+              <span v-if="isBotMsg(msg)" style="background: #2563eb; color: #ffffff; font-size: 0.65rem; padding: 0 5px; border-radius: 4px; font-weight: 800;">{{ $t('messenger.stockBotBadge') }}</span>
             </div>
             
             <div style="display: flex; align-items: flex-end; gap: 6px; max-width: 100%;" :style="{ flexDirection: isMyMsg(msg) ? 'row' : 'row-reverse' }">
@@ -288,10 +317,13 @@
                     </div>
                   </div>
 
-                  <!-- Regular Text Rendering -->
-                  <div v-else style="white-space: pre-wrap; user-select: text !important; -webkit-user-select: text !important; color: inherit; cursor: text;">
-                    {{ msg.content }}
-                  </div>
+                  <!-- Regular Text & Rich Formatted Content Rendering -->
+                  <div
+                    v-else
+                    class="msg-text-content"
+                    style="white-space: pre-wrap; user-select: text !important; -webkit-user-select: text !important; color: inherit; cursor: text;"
+                    v-html="renderFormattedContent(msg.content)"
+                  />
 
                   <!-- Translation Result Box -->
                   <div v-if="msg.showTranslation" style="margin-top: 8px; padding: 6px 10px; background: rgba(0,0,0,0.15); border-left: 3px solid #60a5fa; border-radius: 4px; font-size: 0.82rem; color: inherit;">
@@ -385,6 +417,31 @@
             </div>
           </div>
           </template>
+
+          <!-- AI Stock Bot Thinking / Generating Indicator -->
+          <div
+            v-if="isBotThinking"
+            class="bot-thinking-indicator"
+            style="margin: 10px 0 14px 0; display: flex; align-items: flex-start; gap: 8px; animation: fadeIn 0.2s ease-in-out;"
+          >
+            <div
+              style="width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #7c3aed); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; color: #fff; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35); flex-shrink: 0;"
+            >
+              🤖
+            </div>
+            <div
+              style="background: var(--va-background-element); border: 1px solid var(--va-background-border); border-radius: 16px; border-top-left-radius: 4px; padding: 10px 16px; max-width: 85%; display: flex; align-items: center; gap: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.06);"
+            >
+              <div class="thinking-spinner" style="width: 16px; height: 16px; border: 2px solid rgba(37, 99, 235, 0.2); border-top-color: #2563eb; border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0;"></div>
+              <span style="font-size: 0.88rem; font-weight: 600; color: var(--va-text-primary); letter-spacing: -0.2px;">
+                {{ $t('messenger.botThinking') || 'AI 주식 비서가 답변을 생각하고 있습니다...' }}
+              </span>
+              <span class="thinking-dots" style="font-weight: 800; color: var(--va-primary);">
+                <span class="dot d1">.</span><span class="dot d2">.</span><span class="dot d3">.</span>
+              </span>
+            </div>
+          </div>
+
           <div ref="bottomAnchorRef" class="scroll-bottom-anchor" style="height: 1px; width: 100%; pointer-events: none;"></div>
         </div>
 
@@ -427,6 +484,25 @@
 
         <!-- Input Area -->
         <div class="chat-input-area" style="padding: 10px; background: var(--va-background-element); border-top: 1px solid var(--va-background-border); display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; z-index: 10;">
+          <!-- Quick Prompt Chips for Stock Bot Room -->
+          <div
+            v-if="isStockBotRoom"
+            class="stock-bot-quick-chips"
+            style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;"
+          >
+            <button
+              v-for="chip in stockQuickChips"
+              :key="chip.text"
+              type="button"
+              class="stock-chip-btn"
+              style="white-space: nowrap; font-size: 0.74rem; font-weight: 600; padding: 4px 10px; border-radius: 14px; border: 1px solid var(--va-background-border); background: var(--va-background-primary); color: var(--va-text-primary); cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;"
+              @click="sendStockQuickPrompt(chip.prompt)"
+            >
+              <span>{{ chip.icon }}</span>
+              <span>{{ chip.text }}</span>
+            </button>
+          </div>
+
           <!-- Quick Emoji Toolbar -->
           <div style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px;">
             <span v-for="emoji in quickEmojis" :key="emoji" style="cursor: pointer; font-size: 1.2rem; user-select: none;" @click="sendEmoji(emoji)">{{ emoji }}</span>
@@ -443,7 +519,7 @@
                 v-model="inputMsg"
                 type="text"
                 enterkeyhint="send"
-                :placeholder="$t('messenger.placeholderMsg')"
+                :placeholder="isStockBotRoom ? '주식 시장, 종목명(예: 삼성전자), DART 공시 등을 물어보세요...' : $t('messenger.placeholderMsg')"
                 class="chat-text-input"
                 style="flex: 1; border: none; outline: none; background: transparent; color: var(--va-text-primary); font-size: 0.95rem; min-width: 0; padding: 4px 0;"
                 @input="onTextInput"
@@ -811,12 +887,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick, defineAsyncComponent } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick, defineAsyncComponent } from 'vue'
 import ExcelPreviewModal from '~/components/chat/ExcelPreviewModal.vue'
 import TableDataViewerModal from '~/components/chat/TableDataViewerModal.vue'
 import UserGridSelectModal from './UserGridSelectModal.vue'
 import AppModal from '~/components/common/AppModal.vue'
 import { getMultilingualText } from '~/utils/multilingual'
+import { sanitizeHtml } from '~/utils/sanitizeHtml'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useAuthUser } from '~/composables/useAuthUser'
 const EmojiPicker = defineAsyncComponent(() => import('vue3-emoji-picker'))
@@ -1200,6 +1277,48 @@ const parseTableContent = (content: string): ParsedTable => {
   return { isTable: false, headers: [], rows: [] }
 }
 
+const escapeHtml = (str: string): string => {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+const renderFormattedContent = (content: string): string => {
+  if (!content || typeof content !== 'string') return ''
+  let html = content
+
+  // 1. Code blocks ```lang\n...```
+  html = html.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (_match, _lang, code) => {
+    return `<pre class="md-code-block"><code>${escapeHtml(code.trim())}</code></pre>`
+  })
+
+  // 2. Headings
+  html = html.replace(/^#### (.*?)$/gm, '<h5 class="md-h5">$1</h5>')
+  html = html.replace(/^### (.*?)$/gm, '<h4 class="md-h4">$1</h4>')
+  html = html.replace(/^## (.*?)$/gm, '<h3 class="md-h3">$1</h3>')
+
+  // 3. Bold text
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+
+  // 4. Inline code
+  html = html.replace(/`([^`\n]+)`/g, '<code class="md-inline-code">$1</code>')
+
+  // 5. Tables
+  html = html.replace(/((?:^\|.+?\|\r?\n)+)/gm, (tableBlock) => {
+    const lines = tableBlock.trim().split('\n').filter(l => l.includes('|'))
+    if (lines.length < 2) return tableBlock
+    const parseRow = (line: string) => line.split('|').map(c => c.trim()).filter((_, idx, arr) => idx > 0 && idx < arr.length - 1)
+    const headers = parseRow(lines[0])
+    let dataRows = lines.slice(1)
+    if (dataRows.length > 0 && dataRows[0].includes('---')) {
+      dataRows = dataRows.slice(1)
+    }
+    const ths = headers.map(h => `<th>${h}</th>`).join('')
+    const trs = dataRows.map(r => `<tr>${parseRow(r).map(c => `<td>${c}</td>`).join('')}</tr>`).join('')
+    return `<div class="md-table-wrapper"><table class="md-table"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`
+  })
+
+  return sanitizeHtml(html)
+}
+
 const isOpen = ref(false)
 const rooms = ref<any[]>([])
 const activeRoom = ref<any>(null)
@@ -1219,6 +1338,118 @@ const newRoomName = ref('')
 const availableUsers = ref<any[]>([])
 const selectedUserIds = ref<string[]>([])
 const showImgModal = ref(false)
+
+// AI Stock Bot (aikstockdata) State & Methods
+const isStockRoom = (room: any) => {
+  if (!room) return false
+  const name = room.name || ''
+  return name.includes('AI 주식 비서') || name.includes('aikstockdata')
+}
+
+const isStockBotRoom = computed(() => {
+  return isStockRoom(activeRoom.value)
+})
+
+const isBotMsg = (msg: any) => {
+  if (!msg) return false
+  const sid = String(msg.senderId || '')
+  const sname = String(msg.senderName || '')
+  return sid === 'AI_STOCK_BOT' || sname.includes('AI 주식 비서')
+}
+
+const isBotThinking = ref(false)
+let botThinkingTimeout: any = null
+let roomPollingTimer: any = null
+
+const startRoomPolling = () => {
+  stopRoomPolling()
+  roomPollingTimer = setInterval(async () => {
+    if (!isOpen.value || !activeRoom.value) return
+    try {
+      const msgs: any = await customFetch(`/api/chat/rooms/${activeRoom.value.id}/messages`, { silent: true })
+      if (Array.isArray(msgs)) {
+        if (msgs.length !== messages.value.length || (msgs.length > 0 && msgs[msgs.length - 1]?.id !== messages.value[messages.value.length - 1]?.id)) {
+          messages.value = msgs
+          scrollToBottom()
+          const last = msgs[msgs.length - 1]
+          if (isBotMsg(last)) {
+            isBotThinking.value = false
+            if (botThinkingTimeout) {
+              clearTimeout(botThinkingTimeout)
+              botThinkingTimeout = null
+            }
+          }
+        }
+      }
+    } catch (e) {}
+  }, 2500)
+}
+
+const stopRoomPolling = () => {
+  if (roomPollingTimer) {
+    clearInterval(roomPollingTimer)
+    roomPollingTimer = null
+  }
+}
+
+const scheduleBotResponsePolling = (roomId: string) => {
+  const delays = [400, 1000, 1800, 2800, 4200, 6000]
+  delays.forEach((delay) => {
+    setTimeout(async () => {
+      if (!isBotThinking.value) return
+      if (!activeRoom.value || String(activeRoom.value.id) !== String(roomId)) return
+      try {
+        const latestMsgs: any = await customFetch(`/api/chat/rooms/${roomId}/messages`, { silent: true })
+        if (Array.isArray(latestMsgs) && latestMsgs.length > 0) {
+          const last = latestMsgs[latestMsgs.length - 1]
+          if (isBotMsg(last)) {
+            messages.value = latestMsgs
+            isBotThinking.value = false
+            if (botThinkingTimeout) {
+              clearTimeout(botThinkingTimeout)
+              botThinkingTimeout = null
+            }
+            scrollToBottom()
+          }
+        }
+      } catch (e) {}
+    }, delay)
+  })
+}
+
+const stockQuickChips = [
+  { icon: '💡', text: '오늘 증시 브리핑', prompt: '오늘 증시 브리핑' },
+  { icon: '📈', text: '삼성전자 실적 분석', prompt: '삼성전자 실적 분석' },
+  { icon: '🏆', text: '급성장 기업 순위', prompt: '급성장 기업 순위' },
+  { icon: '📢', text: '최근 DART 공시', prompt: '최근 주요 공시' },
+  { icon: '📊', text: '공급계약 공시 통계', prompt: '공급계약 공시 후 주가 영향 통계' },
+  { icon: '❓', text: '도움말', prompt: '도움말' },
+]
+
+const openStockBotRoom = async () => {
+  if (!tokenCookie.value) return
+  try {
+    const room: any = await customFetch('/api/chat/stock-bot/room', {
+      method: 'POST',
+      silent: true
+    })
+    if (room) {
+      await fetchRooms()
+      selectRoom(room)
+    }
+  } catch (e) {
+    console.error('Failed to open stock bot room:', e)
+  }
+}
+
+const sendStockQuickPrompt = async (prompt: string) => {
+  if (!activeRoom.value || isSending.value) return
+  inputMsg.value = prompt
+  if (chatInputRef.value) {
+    chatInputRef.value.value = prompt
+  }
+  await sendTextMessage()
+}
 
 const showExcelModal = ref(false)
 const selectedExcelUrl = ref<string | null>(null)
@@ -1604,7 +1835,17 @@ const fetchRooms = async () => {
 const fetchRoomMessages = async (roomId: string) => {
   if (!tokenCookie.value) return
   try {
-    messages.value = await customFetch(`/api/chat/rooms/${roomId}/messages`, { silent: true })
+    const fetched: any = await customFetch(`/api/chat/rooms/${roomId}/messages`, { silent: true })
+    if (Array.isArray(fetched)) {
+      messages.value = fetched
+      if (fetched.length > 0 && isBotMsg(fetched[fetched.length - 1])) {
+        isBotThinking.value = false
+        if (botThinkingTimeout) {
+          clearTimeout(botThinkingTimeout)
+          botThinkingTimeout = null
+        }
+      }
+    }
     scrollToBottom()
   } catch (e) {}
 }
@@ -1644,6 +1885,13 @@ const handleInputEnter = (e: KeyboardEvent) => {
 
 const appendOrUpdateMessage = (newMsg: any) => {
   if (!newMsg || !newMsg.id) return
+  if (isBotMsg(newMsg)) {
+    isBotThinking.value = false
+    if (botThinkingTimeout) {
+      clearTimeout(botThinkingTimeout)
+      botThinkingTimeout = null
+    }
+  }
   const idx = messages.value.findIndex((m: any) => String(m.id) === String(newMsg.id))
   if (idx >= 0) {
     messages.value[idx] = newMsg
@@ -1681,12 +1929,28 @@ const sendEmoji = async (emoji: string) => {
 
 const postMessage = async (type: string, content: string, fileUrl?: string, fileName?: string, fileSize?: number) => {
   if (!activeRoom.value) return
+  const currentRoomId = activeRoom.value.id
   isSending.value = true
+  const shouldTriggerBot = isStockBotRoom.value ||
+    content.includes('@stock') ||
+    content.includes('@주식') ||
+    content.includes('@bot')
+
+  if (shouldTriggerBot) {
+    isBotThinking.value = true
+    if (botThinkingTimeout) clearTimeout(botThinkingTimeout)
+    botThinkingTimeout = setTimeout(() => {
+      isBotThinking.value = false
+    }, 18000)
+    scrollToBottom()
+    scheduleBotResponsePolling(currentRoomId)
+  }
+
   try {
-    const res = await customFetch(`/api/chat/rooms/${activeRoom.value.id}/messages`, {
+    const res = await customFetch(`/api/chat/rooms/${currentRoomId}/messages`, {
       method: 'POST',
       body: {
-        roomId: activeRoom.value.id,
+        roomId: currentRoomId,
         senderId: myUuid.value,
         messageType: type,
         content,
@@ -1702,6 +1966,13 @@ const postMessage = async (type: string, content: string, fileUrl?: string, file
     }
   } catch (e) {
     console.error('Failed to post message:', e)
+    if (shouldTriggerBot) {
+      isBotThinking.value = false
+      if (botThinkingTimeout) {
+        clearTimeout(botThinkingTimeout)
+        botThinkingTimeout = null
+      }
+    }
     throw e
   } finally {
     isSending.value = false
@@ -2128,9 +2399,26 @@ watch(() => messages.value.length, () => {
   scrollToBottom()
 })
 
-watch(() => activeRoom.value?.id, (newId) => {
-  if (newId) {
+watch(() => activeRoom.value, (newRoom) => {
+  isBotThinking.value = false
+  if (botThinkingTimeout) {
+    clearTimeout(botThinkingTimeout)
+    botThinkingTimeout = null
+  }
+  if (newRoom && isOpen.value) {
+    startRoomPolling()
     scrollToBottom()
+  } else {
+    stopRoomPolling()
+  }
+})
+
+watch(() => isOpen.value, (open) => {
+  if (open && activeRoom.value) {
+    startRoomPolling()
+    scrollToBottom()
+  } else {
+    stopRoomPolling()
   }
 })
 
@@ -2465,6 +2753,11 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  stopRoomPolling()
+  if (botThinkingTimeout) {
+    clearTimeout(botThinkingTimeout)
+    botThinkingTimeout = null
+  }
   if (process.client) {
     window.removeEventListener('chat-message-received', handleIncomingChatMessage)
     window.removeEventListener('chat-room-read', handleRoomRead)
@@ -2472,12 +2765,59 @@ onUnmounted(() => {
     window.removeEventListener('paste', handlePaste)
     window.removeEventListener('copy', handleCopyEvent)
     window.removeEventListener('click', closeContextMenu)
-
   }
 })
 </script>
 
 <style scoped>
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dotBlink {
+  0%, 20% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.thinking-dots .dot {
+  display: inline-block;
+  animation: dotBlink 1.4s infinite both;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+.thinking-dots .d1 {
+  animation-delay: 0s;
+}
+.thinking-dots .d2 {
+  animation-delay: 0.2s;
+}
+.thinking-dots .d3 {
+  animation-delay: 0.4s;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes blink-pulse {
   0% {
     transform: scale(1);
@@ -2568,5 +2908,105 @@ onUnmounted(() => {
     transform: scale(0.85);
     opacity: 0.85;
   }
+}
+
+/* AI Thinking & Markdown Formatting */
+.msg-text-content {
+  word-break: break-word;
+  line-height: 1.55;
+}
+
+.msg-text-content :deep(.ai-thinking-details) {
+  white-space: normal;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  border-left: 4px solid #2563eb;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 8px 0 14px 0;
+  font-size: 0.84rem;
+  line-height: 1.6;
+  color: var(--va-text-primary);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.08);
+}
+
+.msg-text-content :deep(.ai-thinking-details summary) {
+  cursor: pointer;
+  font-weight: 700;
+  color: #1d4ed8;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  outline: none;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed rgba(37, 99, 235, 0.25);
+  margin-bottom: 10px;
+}
+
+.msg-text-content :deep(.ai-thinking-details summary:hover) {
+  color: #2563eb;
+}
+
+.msg-text-content :deep(.md-h3),
+.msg-text-content :deep(.md-h4),
+.msg-text-content :deep(.md-h5) {
+  font-weight: 700;
+  margin: 10px 0 6px 0;
+  color: inherit;
+}
+
+.msg-text-content :deep(.md-h3) { font-size: 1.05rem; }
+.msg-text-content :deep(.md-h4) { font-size: 0.96rem; }
+.msg-text-content :deep(.md-h5) { font-size: 0.9rem; }
+
+.msg-text-content :deep(.md-table-wrapper) {
+  white-space: normal;
+  overflow-x: auto;
+  margin: 10px 0;
+  border-radius: 6px;
+  border: 1px solid var(--va-background-border);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+.msg-text-content :deep(.md-table) {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  background: var(--va-background-element);
+}
+
+.msg-text-content :deep(.md-table th),
+.msg-text-content :deep(.md-table td) {
+  padding: 6px 10px;
+  border: 1px solid var(--va-background-border);
+  text-align: left;
+}
+
+.msg-text-content :deep(.md-table th) {
+  background: rgba(0, 0, 0, 0.05);
+  font-weight: 700;
+}
+
+.msg-text-content :deep(.md-code-block) {
+  white-space: pre-wrap;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  overflow-x: auto;
+  font-family: monospace;
+  margin: 8px 0;
+  line-height: 1.45;
+}
+
+.msg-text-content :deep(.md-inline-code) {
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 </style>

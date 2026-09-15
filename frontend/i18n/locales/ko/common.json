@@ -664,6 +664,13 @@
     "unmerge_success": "레코드가 성공적으로 언머지(복구) 되었습니다"
   },
   "messenger": {
+    "stockBotTitle": "AI 주식 비서",
+    "stockBotSubtitle": "aikstockdata 연동",
+    "stockBotDesc": "실시간 증시 · 종목 지표 · DART 공시 분석",
+    "stockBotOpenBtn": "AI 주식 비서와 대화하기",
+    "stockBotStatus": "● 온라인 · aikstockdata 연동",
+    "stockBotBadge": "AI 비서",
+    "botThinking": "AI 주식 비서가 답변을 생각하고 있습니다...",
     "attachFileTooltip": "파일 첨부하기",
     "calendarTitle": "날짜 이동",
     "cancelBtn": "취소",

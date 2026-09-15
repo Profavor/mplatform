@@ -82,6 +82,40 @@ async fn main() -> anyhow::Result<()> {
     // 4-1. Start Asynchronous Batch Schedulers
     batch::scheduler::BatchScheduler::start(state.db.clone());
 
+    // 4-2. Real-time Multi-Pod Synchronization via Postgres LISTEN/NOTIFY
+    let pool_listener = state.db.clone();
+    let broadcast_tx = state.broadcast_tx.clone();
+    let my_instance_id = state.instance_id.clone();
+    tokio::spawn(async move {
+        loop {
+            match sqlx::postgres::PgListener::connect_with(&pool_listener).await {
+                Ok(mut listener) => {
+                    if let Err(e) = listener.listen("chat_events").await {
+                        tracing::error!("❌ Failed to LISTEN chat_events on Postgres: {:?}", e);
+                        tokio::time::sleep(Duration::from_secs(3)).await;
+                        continue;
+                    }
+                    tracing::info!("📡 Subscribed to Postgres LISTEN chat_events for multi-pod sync");
+                    while let Ok(notification) = listener.recv().await {
+                        let payload = notification.payload();
+                        if let Ok(val) = serde_json::from_str::<serde_json::Value>(payload) {
+                            if let Some(sender_id) = val.get("senderInstanceId").and_then(|s| s.as_str()) {
+                                if sender_id == my_instance_id {
+                                    continue; // Skip echo on the sender pod
+                                }
+                            }
+                        }
+                        let _ = broadcast_tx.send(payload.to_string());
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("⚠️ PgListener connection error: {:?}, retrying in 3s...", e);
+                    tokio::time::sleep(Duration::from_secs(3)).await;
+                }
+            }
+        }
+    });
+
     let app = routes::create_router(state);
 
     // 5. Bind Server

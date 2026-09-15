@@ -10,11 +10,12 @@ use uuid::Uuid;
 pub struct ChatService {
     pool: PgPool,
     broadcast_tx: broadcast::Sender<String>,
+    instance_id: String,
 }
 
 impl ChatService {
-    pub fn new(pool: PgPool, broadcast_tx: broadcast::Sender<String>) -> Self {
-        Self { pool, broadcast_tx }
+    pub fn new(pool: PgPool, broadcast_tx: broadcast::Sender<String>, instance_id: String) -> Self {
+        Self { pool, broadcast_tx, instance_id }
     }
 
     pub async fn get_user_rooms(&self, user_id: &str) -> AppResult<Vec<ChatMessageRoom>> {
@@ -93,11 +94,29 @@ impl ChatService {
         let event = serde_json::json!({
             "eventType": "CHAT_MESSAGE",
             "roomId": room_id,
-            "message": &msg
+            "message": &msg,
+            "senderInstanceId": &self.instance_id
         });
 
         if let Ok(serialized) = serde_json::to_string(&event) {
-            let _ = self.broadcast_tx.send(serialized);
+            let _ = self.broadcast_tx.send(serialized.clone());
+            // Postgres NOTIFY payload limit is 8000 bytes. If payload exceeds 7000 bytes, send lightweight event.
+            let notify_payload = if serialized.len() > 7000 {
+                serde_json::to_string(&serde_json::json!({
+                    "eventType": "CHAT_MESSAGE",
+                    "roomId": room_id,
+                    "senderInstanceId": &self.instance_id
+                }))
+                .unwrap_or_default()
+            } else {
+                serialized
+            };
+            if !notify_payload.is_empty() {
+                let _ = sqlx::query("SELECT pg_notify('chat_events', $1)")
+                    .bind(&notify_payload)
+                    .execute(&self.pool)
+                    .await;
+            }
         }
 
         Ok(msg)
@@ -108,10 +127,15 @@ impl ChatService {
             let event = serde_json::json!({
                 "eventType": "MESSAGE_DELETED",
                 "roomId": room_id,
-                "messageId": message_id
+                "messageId": message_id,
+                "senderInstanceId": &self.instance_id
             });
             if let Ok(serialized) = serde_json::to_string(&event) {
-                let _ = self.broadcast_tx.send(serialized);
+                let _ = self.broadcast_tx.send(serialized.clone());
+                let _ = sqlx::query("SELECT pg_notify('chat_events', $1)")
+                    .bind(&serialized)
+                    .execute(&self.pool)
+                    .await;
             }
         }
         Ok(())

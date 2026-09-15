@@ -658,36 +658,78 @@ impl StockDataIngestionJob {
         pool: &PgPool,
         domain_id: Uuid,
     ) -> anyhow::Result<()> {
+        // 1. Ensure new field groups exist under appropriate sectors
+        let sector_shares: Option<(Uuid,)> = sqlx::query_as(
+            "SELECT id FROM sector WHERE domain_id = $1 AND name->>'ko' LIKE '%발행%' LIMIT 1"
+        ).bind(domain_id).fetch_optional(pool).await?;
+
+        let sector_valuation: Option<(Uuid,)> = sqlx::query_as(
+            "SELECT id FROM sector WHERE domain_id = $1 AND name->>'ko' LIKE '%투자 가치%' LIMIT 1"
+        ).bind(domain_id).fetch_optional(pool).await?;
+
+        let sector_ir: Option<(Uuid,)> = sqlx::query_as(
+            "SELECT id FROM sector WHERE domain_id = $1 AND name->>'ko' LIKE '%IR%' LIMIT 1"
+        ).bind(domain_id).fetch_optional(pool).await?;
+
+        if let Some((sec_id,)) = sector_shares {
+            sqlx::query(
+                r#"INSERT INTO field_group (id, domain_id, sector_id, name, sort_order, is_default_open)
+                   VALUES ('a52e0001-5252-4000-8000-000000000001', $1, $2,
+                           '{"ko": "52주 가격 및 변동 지표", "en": "52-Week Price Range & Trends"}', 4, true)
+                   ON CONFLICT (id) DO NOTHING"#
+            ).bind(domain_id).bind(sec_id).execute(pool).await?;
+        }
+
+        if let Some((sec_id,)) = sector_valuation {
+            sqlx::query(
+                r#"INSERT INTO field_group (id, domain_id, sector_id, name, sort_order, is_default_open)
+                   VALUES ('a52e0002-5252-4000-8000-000000000002', $1, $2,
+                           '{"ko": "AI 스크리닝 및 랭킹", "en": "AI Screening & Ranking"}', 3, true)
+                   ON CONFLICT (id) DO NOTHING"#
+            ).bind(domain_id).bind(sec_id).execute(pool).await?;
+        }
+
+        if let Some((sec_id,)) = sector_ir {
+            sqlx::query(
+                r#"INSERT INTO field_group (id, domain_id, sector_id, name, sort_order, is_default_open)
+                   VALUES ('a52e0003-5252-4000-8000-000000000003', $1, $2,
+                           '{"ko": "최근 주요 공시 및 AI 분석", "en": "Recent Disclosures & AI Analysis"}', 2, true)
+                   ON CONFLICT (id) DO NOTHING"#
+            ).bind(domain_id).bind(sec_id).execute(pool).await?;
+        }
+
+        // 2. Ensure fields with proper field_group_id
         let fields_to_ensure = [
-            ("op_income_annualized", "연환산 영업이익(원)", "Annualized Operating Income (KRW)", "NUMBER", 58),
-            ("cap_to_op_multiple", "시총/영업이익 배수", "Market Cap to OP Multiple", "NUMBER", 59),
-            ("is_turnaround", "흑자전환 여부", "Is Turnaround to Profit", "BOOLEAN", 60),
-            ("in_growth_top", "성장 랭킹 TOP 선정 여부", "In Growth Ranking Top", "BOOLEAN", 61),
-            ("in_quiet_top", "조용한 실적주 선정 여부", "In Quiet Performer Top", "BOOLEAN", 62),
-            ("is_52w_high", "52주 신고가 도달 여부", "Is 52-Week High", "BOOLEAN", 63),
-            ("is_52w_low", "52주 신저가 도달 여부", "Is 52-Week Low", "BOOLEAN", 64),
-            ("drawdown_from_52w_high", "52주 최고가 대비 낙폭(%)", "Drawdown from 52W High (%)", "NUMBER", 65),
-            ("pct_from_52w_low", "52주 최저가 대비 상승률(%)", "Pct from 52W Low (%)", "NUMBER", 66),
-            ("fiscal_period", "실측 결산 기수", "Fiscal Period", "TEXT", 67),
-            ("recent_disclosure_title", "최근 주요 공시 제목", "Recent Disclosure Title", "TEXT", 68),
-            ("recent_disclosure_fact", "최근 주요 공시 쉬운 풀이", "Recent Disclosure Easy Summary", "TEXT", 69),
-            ("recent_disclosure_score", "최근 주요 공시 AI 중요도 점수", "Recent Disclosure AI Score", "NUMBER", 70),
-            ("recent_disclosure_url", "최근 공시 DART 링크", "Recent Disclosure DART URL", "TEXT", 71),
+            ("op_income_annualized", "연환산 영업이익(원)", "Annualized Operating Income (KRW)", "NUMBER", 58, "df5a8b3e-e927-4c49-b75e-0d6eca6aa8f0"),
+            ("cap_to_op_multiple", "시총/영업이익 배수", "Market Cap to OP Multiple", "NUMBER", 59, "df5a8b3e-e927-4c49-b75e-0d6eca6aa8f0"),
+            ("is_turnaround", "흑자전환 여부", "Is Turnaround to Profit", "BOOLEAN", 60, "df5a8b3e-e927-4c49-b75e-0d6eca6aa8f0"),
+            ("in_growth_top", "성장 랭킹 TOP 선정 여부", "In Growth Ranking Top", "BOOLEAN", 61, "a52e0002-5252-4000-8000-000000000002"),
+            ("in_quiet_top", "조용한 실적주 선정 여부", "In Quiet Performer Top", "BOOLEAN", 62, "a52e0002-5252-4000-8000-000000000002"),
+            ("is_52w_high", "52주 신고가 도달 여부", "Is 52-Week High", "BOOLEAN", 63, "a52e0001-5252-4000-8000-000000000001"),
+            ("is_52w_low", "52주 신저가 도달 여부", "Is 52-Week Low", "BOOLEAN", 64, "a52e0001-5252-4000-8000-000000000001"),
+            ("drawdown_from_52w_high", "52주 최고가 대비 낙폭(%)", "Drawdown from 52W High (%)", "NUMBER", 65, "a52e0001-5252-4000-8000-000000000001"),
+            ("pct_from_52w_low", "52주 최저가 대비 상승률(%)", "Pct from 52W Low (%)", "NUMBER", 66, "a52e0001-5252-4000-8000-000000000001"),
+            ("fiscal_period", "실측 결산 기수", "Fiscal Period", "TEXT", 67, "69c69f8c-382e-443c-9d1d-c83c4b90b189"),
+            ("recent_disclosure_title", "최근 주요 공시 제목", "Recent Disclosure Title", "TEXT", 68, "a52e0003-5252-4000-8000-000000000003"),
+            ("recent_disclosure_fact", "최근 주요 공시 쉬운 풀이", "Recent Disclosure Easy Summary", "TEXT", 69, "a52e0003-5252-4000-8000-000000000003"),
+            ("recent_disclosure_score", "최근 주요 공시 AI 중요도 점수", "Recent Disclosure AI Score", "NUMBER", 70, "a52e0003-5252-4000-8000-000000000003"),
+            ("recent_disclosure_url", "최근 공시 DART 링크", "Recent Disclosure DART URL", "TEXT", 71, "a52e0003-5252-4000-8000-000000000003"),
         ];
 
-        for (key, ko, en, ftype, order) in fields_to_ensure {
+        for (key, ko, en, ftype, order, group_id_str) in fields_to_ensure {
             let name_json = serde_json::json!({ "ko": ko, "en": en });
+            let gid: Uuid = group_id_str.parse().unwrap_or_default();
             sqlx::query(
                 r#"
                 INSERT INTO field_definition (
-                    id, domain_id, field_key, name, type, field_order,
+                    id, domain_id, field_key, name, type, field_order, field_group_id,
                     required, is_searchable, is_multi_value, is_table, is_encrypted, is_removed,
                     is_indexed, is_hidden, is_highlighted, is_immutable, is_read_only, created_at, updated_at
                 )
-                SELECT gen_random_uuid(), $1, $2, $3, $4, $5, false, true, false, false, false, false, false, false, false, false, false, NOW(), NOW()
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM field_definition WHERE domain_id = $1 AND field_key = $2
-                )
+                VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, false, true, false, false, false, false, false, false, false, false, false, NOW(), NOW())
+                ON CONFLICT (domain_id, field_key) DO UPDATE
+                SET field_group_id = COALESCE(field_definition.field_group_id, EXCLUDED.field_group_id),
+                    updated_at = NOW()
                 "#,
             )
             .bind(domain_id)
@@ -695,6 +737,7 @@ impl StockDataIngestionJob {
             .bind(name_json)
             .bind(ftype)
             .bind(order)
+            .bind(gid)
             .execute(pool)
             .await?;
         }

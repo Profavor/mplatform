@@ -258,6 +258,13 @@
         <DomainAccessRequestModal v-model="showRequestAccessModal" />
         <!-- Floating In-App Messenger Widget -->
         <InAppMessenger />
+        <!-- Circuit Breaker: Virtual Queue Wait Page (Issue #255) -->
+        <QueueWaitPage
+          :visible="showQueueWait"
+          :retry-after-seconds="queueRetryAfter"
+          @retry="handleQueueRetry"
+          @close="showQueueWait = false"
+        />
         <!-- Live System Radio Player Widget -->
         <SystemRadioWidget />
         <!-- Admin DJ Music Control Modal -->
@@ -277,6 +284,7 @@ import GlobalSearch from '~/components/layout/GlobalSearch.vue'
 import NotificationBell from '~/components/layout/NotificationBell.vue'
 import AppFooter from '~/components/layout/AppFooter.vue'
 import InAppMessenger from '~/components/chat/InAppMessenger.vue'
+import QueueWaitPage from '~/components/common/QueueWaitPage.vue'
 import SystemRadioWidget from '~/components/chat/SystemRadioWidget.vue'
 import AdminMusicControlModal from '~/components/chat/AdminMusicControlModal.vue'
 import AppModal from '~/components/common/AppModal.vue'
@@ -577,6 +585,25 @@ const route = useRoute()
 
 const isMounted = ref(false)
 
+// Circuit Breaker: Virtual Queue (Issue #255)
+const showQueueWait = ref(false)
+const queueRetryAfter = ref(5)
+const lastQueuedRequest = ref<{ request: any; options: any } | null>(null)
+
+const handleQueueRetry = async () => {
+  showQueueWait.value = false
+  if (lastQueuedRequest.value) {
+    try {
+      await globalThis.$fetch(lastQueuedRequest.value.request, lastQueuedRequest.value.options)
+    } catch (err: any) {
+      const status = err?.response?.status ?? err?.status
+      if (status === 429) {
+        // Still overloaded — the interceptor will fire the event again
+      }
+    }
+  }
+}
+
 const syncCurrentUserInfo = async () => {
   const me = await authUserStore?.fetchCurrentUser?.(true)
   if (me && Array.isArray(me.permissions)) {
@@ -614,6 +641,14 @@ onMounted(async () => {
   })
   isMounted.value = true
   
+  // Circuit Breaker: Listen for 429 events from fetch interceptor (Issue #255)
+  window.addEventListener('server-overloaded', ((event: CustomEvent) => {
+    const { retryAfter, request, options } = event.detail || {}
+    queueRetryAfter.value = retryAfter || 5
+    lastQueuedRequest.value = { request, options }
+    showQueueWait.value = true
+  }) as EventListener)
+
   await syncCurrentUserInfo()
   await fetchMenus(true)
   await fetchUserOrganizationName()

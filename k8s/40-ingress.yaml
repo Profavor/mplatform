@@ -4,6 +4,11 @@ metadata:
   name: mdm-ingress
   namespace: mdm-system
   annotations:
+    # === Rate Limiting & Circuit Breaker (Issue #255) ===
+    nginx.ingress.kubernetes.io/limit-connections: "8000"
+    nginx.ingress.kubernetes.io/limit-rps: "50"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "5"
+    # === Proxy & Buffer Settings ===
     nginx.ingress.kubernetes.io/proxy-body-size: "100m"
     nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
     nginx.ingress.kubernetes.io/proxy-buffers-number: "8"
