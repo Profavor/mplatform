@@ -1,4 +1,4 @@
-﻿name: Build & Publish Docker Images
+name: Build & Publish Docker Images
 
 on:
   release:
@@ -44,9 +44,9 @@ jobs:
       matrix:
         include:
           - service: backend
-            image_name: mplatform-backend
-            context: ./backend
-            dockerfile: ./backend/Dockerfile
+            image_name: mplatform-backend-rust
+            context: ./backend-rust
+            dockerfile: ./backend-rust/Dockerfile
           - service: frontend
             image_name: mplatform-frontend
             context: ./frontend
