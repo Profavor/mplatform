@@ -89,13 +89,48 @@ const parseName = (nameObj) => {
   }
 }
 
-const loadAxisOptions = async (domains) => {
-  const opts = [{ value: '__primary__', text: `${t('axis.primary_tree')}` }]
-  for (const d of domains) {
-    try {
-      const axes = await customFetch(`/api/domains/${d.id}/axes`).catch(() => [])
-      if (Array.isArray(axes)) {
-        axes.forEach(axis => {
+// In-memory cache for batch-trees (TTL 60s)
+let _batchCache: { data: any; timestamp: number } | null = null
+const CACHE_TTL = 60_000
+
+const loadTree = async () => {
+  try {
+    // Use batch-trees API: 1 request instead of 37+
+    const isPrimary = !selectedAxisId.value || selectedAxisId.value === '__primary__'
+    
+    let batchData: any[]
+    const now = Date.now()
+    if (isPrimary && _batchCache && (now - _batchCache.timestamp) < CACHE_TTL) {
+      batchData = _batchCache.data
+    } else if (isPrimary) {
+      batchData = await customFetch('/api/domains/batch-trees').catch(() => [])
+      if (Array.isArray(batchData) && batchData.length > 0) {
+        _batchCache = { data: batchData, timestamp: now }
+      }
+    } else {
+      // Non-primary axis: fallback to per-domain calls
+      const domains = await customFetch('/api/domains').catch(() => [])
+      if (!domains || !Array.isArray(domains)) {
+        emit('loaded', [])
+        return
+      }
+      batchData = []
+      for (const d of domains) {
+        const nodes = await customFetch(`/api/domains/${d.id}/nodes/tree?axisId=${selectedAxisId.value}`).catch(() => [])
+        batchData.push({ domain: d, axes: [], tree: Array.isArray(nodes) ? nodes : [] })
+      }
+    }
+
+    if (!batchData || !Array.isArray(batchData)) {
+      emit('loaded', [])
+      return
+    }
+
+    // Build axis options from batch data
+    const opts = [{ value: '__primary__', text: `${t('axis.primary_tree')}` }]
+    for (const item of batchData) {
+      if (Array.isArray(item.axes)) {
+        item.axes.forEach((axis: any) => {
           const axisName = typeof axis.name === 'object' && axis.name !== null
             ? (axis.name[currentLocale.value] || axis.name.ko || axis.name.en || Object.values(axis.name)[0])
             : (axis.name || 'Axis')
@@ -106,64 +141,44 @@ const loadAxisOptions = async (domains) => {
           })
         })
       }
-    } catch (e) {
-      console.error('Failed to load axes for domain:', d.id, e)
     }
-  }
-  axisOptions.value = opts
-}
+    axisOptions.value = opts
 
-const loadTree = async () => {
-  try {
-    const domains = await customFetch('/api/domains').catch(() => [])
-    if (!domains || !Array.isArray(domains)) {
-      emit('loaded', [])
-      return
-    }
-    
-    // Load Axes options once when domains are fetched
-    await loadAxisOptions(domains)
-
-    const builtTree = []
-    for (const d of domains) {
-      const isPrimary = !selectedAxisId.value || selectedAxisId.value === '__primary__'
-      const url = isPrimary
-        ? `/api/domains/${d.id}/nodes/tree`
-        : `/api/domains/${d.id}/nodes/tree?axisId=${selectedAxisId.value}`
-
-      const nodes = await customFetch(url).catch(() => [])
-      
-      const formatNode = (n) => {
-        const pName = parseName(n.name);
-        return {
-          id: n.id,
-          label: pName?.[currentLocale.value] || pName?.ko || pName?.en || 'Unknown',
-          domainId: d.id,
-          axisId: n.axisId || null,
-          isDomain: false,
-          icon: n.icon || null,
-          children: n.children ? n.children.map(formatNode) : [],
-          originalNameMap: pName,
-          originalData: n
-        };
+    // Build tree from batch data
+    const formatNode = (n: any, domainId: string) => {
+      const pName = parseName(n.name);
+      return {
+        id: n.id,
+        label: pName?.[currentLocale.value] || pName?.ko || pName?.en || 'Unknown',
+        domainId: domainId,
+        axisId: n.axisId || null,
+        isDomain: false,
+        icon: n.icon || null,
+        children: n.children ? n.children.map((c: any) => formatNode(c, domainId)) : [],
+        originalNameMap: pName,
+        originalData: n
       };
-      
-      const dName = parseName(d.name);
-      builtTree.push({
+    };
+
+    const builtTree = batchData.map((item: any) => {
+      const d = item.domain
+      const dName = parseName(d.name)
+      return {
         id: d.id,
-        label: (dName?.[currentLocale.value] || dName?.ko || dName?.en || 'Unknown') + (selectedAxisId.value && selectedAxisId.value !== '__primary__' ? '' : ' (Domain)'),
+        label: (dName?.[currentLocale.value] || dName?.ko || dName?.en || 'Unknown') + (isPrimary ? ' (Domain)' : ''),
         domainId: d.id,
         isDomain: true,
         icon: d.icon || null,
         expanded: true,
-        children: Array.isArray(nodes) ? nodes.map(formatNode) : [],
+        children: Array.isArray(item.tree) ? item.tree.map((n: any) => formatNode(n, d.id)) : [],
         originalNameMap: dName,
         originalData: d
-      })
-    }
+      }
+    })
+
     treeNodes.value = builtTree
     emit('loaded', builtTree)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to load tree:', error.message || error)
     emit('loaded', [])
   }

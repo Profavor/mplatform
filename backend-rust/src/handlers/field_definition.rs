@@ -702,6 +702,143 @@ pub async fn get_all_nodes_tree(
     Ok(Json(tree))
 }
 
+/// Batch endpoint: returns all domains with their axes and classification node trees.
+/// Replaces N+1 per-domain fetching with 3 SQL queries total.
+pub async fn get_domains_batch_trees(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<serde_json::Value>>, AppError> {
+    use std::collections::HashMap;
+
+    // 1. Fetch all domains
+    let domains: Vec<(Uuid, serde_json::Value, Option<String>, Option<serde_json::Value>, i32)> =
+        sqlx::query_as(
+            r#"SELECT id, name, icon, description, sort_order
+               FROM domain
+               ORDER BY sort_order ASC, created_at ASC"#,
+        )
+        .fetch_all(&state.db)
+        .await?;
+
+    // 2. Fetch all classification axes
+    let axes: Vec<(Uuid, Uuid, serde_json::Value, Option<String>, bool)> = sqlx::query_as(
+        r#"SELECT id, domain_id, name, axis_code, is_default
+           FROM classification_axis
+           ORDER BY domain_id, sort_order ASC, created_at ASC"#,
+    )
+    .fetch_all(&state.db)
+    .await?;
+
+    // 3. Fetch all classification nodes
+    let all_nodes = sqlx::query_as::<_, NodeRow>(
+        r#"SELECT id, domain_id, parent_id, axis_id, name, path, depth, node_order, icon, detail_layout_config
+           FROM classification_node
+           WHERE is_deleted = false
+           ORDER BY depth ASC, node_order ASC"#,
+    )
+    .fetch_all(&state.db)
+    .await?;
+
+    // Group axes by domain_id
+    let mut axes_by_domain: HashMap<Uuid, Vec<&(Uuid, Uuid, serde_json::Value, Option<String>, bool)>> =
+        HashMap::new();
+    for axis in &axes {
+        axes_by_domain.entry(axis.1).or_default().push(axis);
+    }
+
+    // Group nodes by domain_id
+    let mut nodes_by_domain: HashMap<Uuid, Vec<&NodeRow>> = HashMap::new();
+    for node in &all_nodes {
+        nodes_by_domain.entry(node.domain_id).or_default().push(node);
+    }
+
+    // Build response
+    let mut result = Vec::with_capacity(domains.len());
+    for (domain_id, domain_name, domain_icon, domain_desc, sort_order) in &domains {
+        let domain_axes = axes_by_domain.get(domain_id).map(|a| a.as_slice()).unwrap_or(&[]);
+
+        // Build axes JSON array
+        let axes_json: Vec<serde_json::Value> = domain_axes
+            .iter()
+            .map(|(id, _, name, code, is_default)| {
+                serde_json::json!({
+                    "id": id,
+                    "name": name,
+                    "axisCode": code,
+                    "isDefault": is_default
+                })
+            })
+            .collect();
+
+        // Build tree for this domain
+        let tree = if let Some(domain_nodes) = nodes_by_domain.get(domain_id) {
+            // Collect owned NodeRow copies for build_node_tree
+            let owned_nodes: Vec<NodeRow> = domain_nodes.iter().map(|n| (*n).clone()).collect();
+
+            // Find default axis for root selection
+            let default_axis_id = domain_axes
+                .iter()
+                .find(|(_, _, _, _, is_default)| *is_default)
+                .map(|(id, _, _, _, _)| *id);
+
+            // Select root nodes (same logic as get_domain_nodes_tree)
+            let mut roots: Vec<&NodeRow> = if let Some(axis_id) = default_axis_id {
+                let axis_roots: Vec<&NodeRow> = owned_nodes
+                    .iter()
+                    .filter(|n| n.parent_id.is_none() && n.axis_id == Some(axis_id))
+                    .collect();
+                if axis_roots.is_empty() {
+                    owned_nodes.iter().filter(|n| n.parent_id.is_none()).collect()
+                } else {
+                    axis_roots
+                }
+            } else {
+                // No default axis — try nodes without axis_id first
+                let no_axis_roots: Vec<&NodeRow> = owned_nodes
+                    .iter()
+                    .filter(|n| n.parent_id.is_none() && n.axis_id.is_none())
+                    .collect();
+                if no_axis_roots.is_empty() {
+                    owned_nodes.iter().filter(|n| n.parent_id.is_none()).collect()
+                } else {
+                    no_axis_roots
+                }
+            };
+
+            roots.sort_by_key(|n| n.node_order);
+            let root_ids: Vec<Uuid> = roots.iter().map(|n| n.id).collect();
+
+            if root_ids.is_empty() && !owned_nodes.is_empty() {
+                let min_depth = owned_nodes.iter().map(|n| n.depth).min().unwrap_or(0);
+                let fallback: Vec<Uuid> = owned_nodes
+                    .iter()
+                    .filter(|n| n.depth == min_depth)
+                    .map(|n| n.id)
+                    .collect();
+                build_node_tree(&owned_nodes, &fallback)
+            } else {
+                build_node_tree(&owned_nodes, &root_ids)
+            }
+        } else {
+            Vec::new()
+        };
+
+        result.push(serde_json::json!({
+            "domain": {
+                "id": domain_id,
+                "name": domain_name,
+                "icon": domain_icon,
+                "description": domain_desc,
+                "sortOrder": sort_order,
+                "domainOrder": sort_order
+            },
+            "axes": axes_json,
+            "tree": tree
+        }));
+    }
+
+    Ok(Json(result))
+}
+
 // Field DQ Rules
 pub async fn get_field_dq_rules(
     State(state): State<AppState>,

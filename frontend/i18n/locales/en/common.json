@@ -1142,6 +1142,7 @@
   "switch_to_dark_mode": "Switch to Dark Mode",
   "reset_filters": "Reset Filters",
   "row_double_click_hint": "Double-click to view details",
+  "row_tap_hint": "Tap a row to view details",
   "no_new_rules_recommended": "No new rules are currently recommended.",
   "no_match_candidates_found": "No duplicate record review candidates match the current conditions.",
   "grade_a_excellent": "Grade A (Excellent)",

@@ -139,6 +139,10 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/classification-axes", get(classification::get_axes))
         .route("/api/classification-nodes", get(classification::get_nodes))
         .route(
+            "/api/domains/batch-trees",
+            get(field_definition::get_domains_batch_trees),
+        )
+        .route(
             "/api/domains/:domain_id/axes",
             get(classification::get_axes),
         )

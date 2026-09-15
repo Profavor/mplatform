@@ -1127,6 +1127,13 @@ const goToRecord = (record) => {
 
 .mobile-search-inner-input {
   width: 100% !important;
+  font-size: 16px !important;
+}
+
+/* iOS Safari auto-zoom prevention */
+.mobile-search-inner-input :deep(input),
+.mobile-search-inner-input :deep(textarea) {
+  font-size: 16px !important;
 }
 
 .mobile-search-body {
