@@ -5,7 +5,7 @@
         <va-navbar :color="isDark ? '#1F2937' : 'primary'">
           <template #left>
             <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap;">
-              <va-button preset="plain" style="color: white !important; padding: 0;" @click="showSidebar = !showSidebar">
+              <va-button preset="plain" style="color: white !important; padding: 0; min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center;" @click="showSidebar = !showSidebar">
                 <va-icon name="menu" class="mobile-menu-btn" style="cursor: pointer; font-size: 28px; color: white;" />
               </va-button>
               <va-navbar-item class="font-bold text-lg text-white title-text" style="padding: 0;">

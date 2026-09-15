@@ -1142,6 +1142,7 @@
   "switch_to_dark_mode": "다크 모드로 전환",
   "reset_filters": "필터 초기화",
   "row_double_click_hint": "더블클릭하여 상세 보기",
+  "row_tap_hint": "행을 탭하여 상세 보기",
   "no_new_rules_recommended": "현재 추천할 새로운 규칙이 없습니다.",
   "no_match_candidates_found": "현재 상태 조건에 해당하는 중복 레코드 검토 후보가 없습니다.",
   "grade_a_excellent": "Grade A (우수)",

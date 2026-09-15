@@ -205,7 +205,7 @@
           <va-card-content style="padding: 0; flex: 1; display: flex; flex-direction: column; min-height: 480px;">
             <div style="display: flex; justify-content: flex-end; align-items: center; padding: 0.35rem 0.75rem; background: var(--va-background-element, #fafafa); font-size: 0.75rem; color: var(--va-text-secondary); border-bottom: 1px solid var(--va-background-border);">
               <va-icon name="touch_app" size="14px" class="mr-1" />
-              <span>{{ $t('row_double_click_hint') }}</span>
+              <span>{{ isMobile ? $t('row_tap_hint') : $t('row_double_click_hint') }}</span>
             </div>
             <div class="records-grid-wrapper" :class="{ 'ag-theme-quartz-dark': isDark }">
               <ag-grid-vue
@@ -497,6 +497,7 @@ const { downloadFileWithAuth } = useFileDownloader()
 const { parseJwtUserId, handleBulkDelete } = useRecordBulkActions()
 
 const showCdcStreamModal = ref(false)
+const isMobile = ref(false)
 const showTree = ref(true)
 
 // AG-Grid Image Lightbox State
@@ -1290,6 +1291,8 @@ const handleGlobalSearchSelect = (e) => {
 
 onMounted(async () => {
   if (process.client) {
+    isMobile.value = window.innerWidth <= 768
+    if (isMobile.value) showTree.value = false
     window.addEventListener('global-search:select-record', handleGlobalSearchSelect)
     window.addEventListener('approval-updated', refreshRecords)
   }
@@ -1396,6 +1399,8 @@ onUnmounted(() => {
 const selectNode = async (node) => {
   selectedNode.value = node || null
   selectedDomainInfo.value = null
+  // 모바일: 노드 선택 시 트리 자동 접기
+  if (isMobile.value && node) showTree.value = false
   
   if (!node) {
     nodeFields.value = []
@@ -2874,6 +2879,10 @@ const onRowClicked = (params) => {
   if (record && params?.node) {
     // 단일 클릭 시 행 하이라이트 및 선택 동기화
     selectedRecordData.value = record
+    // 모바일: 1회 탭으로 상세 모달 오픈
+    if (isMobile.value) {
+      openRecordDetailModal(record)
+    }
   }
 }
 

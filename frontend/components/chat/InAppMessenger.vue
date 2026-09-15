@@ -2565,6 +2565,8 @@ onUnmounted(() => {
   .messenger-fab-wrapper {
     bottom: 90px;
     right: 16px;
+    transform: scale(0.85);
+    opacity: 0.85;
   }
 }
 </style>
