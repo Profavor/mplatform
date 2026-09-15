@@ -33,7 +33,7 @@ spec:
         - "mplatform.local"
       containers:
       - name: frontend
-        image: mplatform-frontend:2.1.3
+        image: mplatform-frontend:2.1.4
         imagePullPolicy: IfNotPresent
         resources:
           requests:
