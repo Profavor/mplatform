@@ -317,10 +317,13 @@
                     </div>
                   </div>
 
-                  <!-- Regular Text Rendering -->
-                  <div v-else style="white-space: pre-wrap; user-select: text !important; -webkit-user-select: text !important; color: inherit; cursor: text;">
-                    {{ msg.content }}
-                  </div>
+                  <!-- Regular Text & Rich Formatted Content Rendering -->
+                  <div
+                    v-else
+                    class="msg-text-content"
+                    style="white-space: pre-wrap; user-select: text !important; -webkit-user-select: text !important; color: inherit; cursor: text;"
+                    v-html="renderFormattedContent(msg.content)"
+                  />
 
                   <!-- Translation Result Box -->
                   <div v-if="msg.showTranslation" style="margin-top: 8px; padding: 6px 10px; background: rgba(0,0,0,0.15); border-left: 3px solid #60a5fa; border-radius: 4px; font-size: 0.82rem; color: inherit;">
@@ -890,6 +893,7 @@ import TableDataViewerModal from '~/components/chat/TableDataViewerModal.vue'
 import UserGridSelectModal from './UserGridSelectModal.vue'
 import AppModal from '~/components/common/AppModal.vue'
 import { getMultilingualText } from '~/utils/multilingual'
+import { sanitizeHtml } from '~/utils/sanitizeHtml'
 import { useCustomFetch } from '~/composables/useCustomFetch'
 import { useAuthUser } from '~/composables/useAuthUser'
 const EmojiPicker = defineAsyncComponent(() => import('vue3-emoji-picker'))
@@ -1271,6 +1275,48 @@ const parseTableContent = (content: string): ParsedTable => {
   }
 
   return { isTable: false, headers: [], rows: [] }
+}
+
+const escapeHtml = (str: string): string => {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+const renderFormattedContent = (content: string): string => {
+  if (!content || typeof content !== 'string') return ''
+  let html = content
+
+  // 1. Code blocks ```lang\n...```
+  html = html.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (_match, _lang, code) => {
+    return `<pre class="md-code-block"><code>${escapeHtml(code.trim())}</code></pre>`
+  })
+
+  // 2. Headings
+  html = html.replace(/^#### (.*?)$/gm, '<h5 class="md-h5">$1</h5>')
+  html = html.replace(/^### (.*?)$/gm, '<h4 class="md-h4">$1</h4>')
+  html = html.replace(/^## (.*?)$/gm, '<h3 class="md-h3">$1</h3>')
+
+  // 3. Bold text
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+
+  // 4. Inline code
+  html = html.replace(/`([^`\n]+)`/g, '<code class="md-inline-code">$1</code>')
+
+  // 5. Tables
+  html = html.replace(/((?:^\|.+?\|\r?\n)+)/gm, (tableBlock) => {
+    const lines = tableBlock.trim().split('\n').filter(l => l.includes('|'))
+    if (lines.length < 2) return tableBlock
+    const parseRow = (line: string) => line.split('|').map(c => c.trim()).filter((_, idx, arr) => idx > 0 && idx < arr.length - 1)
+    const headers = parseRow(lines[0])
+    let dataRows = lines.slice(1)
+    if (dataRows.length > 0 && dataRows[0].includes('---')) {
+      dataRows = dataRows.slice(1)
+    }
+    const ths = headers.map(h => `<th>${h}</th>`).join('')
+    const trs = dataRows.map(r => `<tr>${parseRow(r).map(c => `<td>${c}</td>`).join('')}</tr>`).join('')
+    return `<div class="md-table-wrapper"><table class="md-table"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`
+  })
+
+  return sanitizeHtml(html)
 }
 
 const isOpen = ref(false)
@@ -2862,5 +2908,105 @@ onUnmounted(() => {
     transform: scale(0.85);
     opacity: 0.85;
   }
+}
+
+/* AI Thinking & Markdown Formatting */
+.msg-text-content {
+  word-break: break-word;
+  line-height: 1.55;
+}
+
+.msg-text-content :deep(.ai-thinking-details) {
+  white-space: normal;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  border-left: 4px solid #2563eb;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 8px 0 14px 0;
+  font-size: 0.84rem;
+  line-height: 1.6;
+  color: var(--va-text-primary);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.08);
+}
+
+.msg-text-content :deep(.ai-thinking-details summary) {
+  cursor: pointer;
+  font-weight: 700;
+  color: #1d4ed8;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  outline: none;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed rgba(37, 99, 235, 0.25);
+  margin-bottom: 10px;
+}
+
+.msg-text-content :deep(.ai-thinking-details summary:hover) {
+  color: #2563eb;
+}
+
+.msg-text-content :deep(.md-h3),
+.msg-text-content :deep(.md-h4),
+.msg-text-content :deep(.md-h5) {
+  font-weight: 700;
+  margin: 10px 0 6px 0;
+  color: inherit;
+}
+
+.msg-text-content :deep(.md-h3) { font-size: 1.05rem; }
+.msg-text-content :deep(.md-h4) { font-size: 0.96rem; }
+.msg-text-content :deep(.md-h5) { font-size: 0.9rem; }
+
+.msg-text-content :deep(.md-table-wrapper) {
+  white-space: normal;
+  overflow-x: auto;
+  margin: 10px 0;
+  border-radius: 6px;
+  border: 1px solid var(--va-background-border);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+.msg-text-content :deep(.md-table) {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  background: var(--va-background-element);
+}
+
+.msg-text-content :deep(.md-table th),
+.msg-text-content :deep(.md-table td) {
+  padding: 6px 10px;
+  border: 1px solid var(--va-background-border);
+  text-align: left;
+}
+
+.msg-text-content :deep(.md-table th) {
+  background: rgba(0, 0, 0, 0.05);
+  font-weight: 700;
+}
+
+.msg-text-content :deep(.md-code-block) {
+  white-space: pre-wrap;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  overflow-x: auto;
+  font-family: monospace;
+  margin: 8px 0;
+  line-height: 1.45;
+}
+
+.msg-text-content :deep(.md-inline-code) {
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 </style>

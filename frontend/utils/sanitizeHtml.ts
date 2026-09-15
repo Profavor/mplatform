@@ -26,9 +26,9 @@ export function sanitizeHtml(dirty: string | null | undefined): string {
           ALLOWED_TAGS: [
             'b', 'i', 'em', 'strong', 'a', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
             'ul', 'ol', 'li', 'br', 'hr', 'span', 'div', 'blockquote', 'code', 'pre',
-            'table', 'thead', 'tbody', 'tr', 'th', 'td', 'img'
+            'table', 'thead', 'tbody', 'tr', 'th', 'td', 'img', 'details', 'summary', 'mark'
           ],
-          ALLOWED_ATTR: ['href', 'title', 'target', 'src', 'alt', 'class', 'style', 'width', 'height'],
+          ALLOWED_ATTR: ['href', 'title', 'target', 'src', 'alt', 'class', 'style', 'width', 'height', 'open'],
           ALLOW_DATA_ATTR: false
         })
       }
