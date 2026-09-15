@@ -4,11 +4,14 @@ use crate::handlers::{
     notification, oidc, organization, permission, record, record_history, schema, search, system,
     two_factor, user, ws,
 };
+use crate::middleware::concurrency_limiter::{concurrency_limiter, ConcurrencyState};
 use crate::state::AppState;
 use axum::{
+    extract::State,
     http::{header, HeaderValue, Method},
+    middleware as axum_middleware,
     routing::{delete, get, patch, post, put},
-    Router,
+    Json, Router,
 };
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
@@ -39,10 +42,37 @@ pub fn create_router(state: AppState) -> Router {
         ])
         .allow_credentials(true);
 
+    // Circuit Breaker: Concurrency Limiter (Issue #255)
+    let max_concurrent: usize = std::env::var("MAX_CONCURRENT_REQUESTS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(4000);
+    let concurrency_state = ConcurrencyState::new(max_concurrent);
+
+    tracing::info!(
+        "🚦 Concurrency limiter initialized: max {} concurrent requests",
+        max_concurrent
+    );
+
     Router::new()
         // 1. Health & Status
         .route("/health", get(health::health_check))
         .route("/api/health", get(health::health_check))
+        // 1-1. Server Load Monitor (Issue #255)
+        .route("/api/system/load", get({
+            let cs = concurrency_state.clone();
+            move || async move {
+                let current = cs.current_load();
+                Json(serde_json::json!({
+                    "current_connections": current,
+                    "max_capacity": cs.max_concurrent,
+                    "utilization_pct": (current as f64 / cs.max_concurrent as f64 * 100.0).round(),
+                    "status": if current < cs.max_concurrent * 80 / 100 { "healthy" }
+                              else if current < cs.max_concurrent { "warning" }
+                              else { "overloaded" }
+                }))
+            }
+        }))
         // 2. Auth & IAM & 2FA & OIDC
         .route("/api/auth/login", post(auth::login))
         .route("/api/auth/logout", post(auth::logout))
@@ -1056,6 +1086,10 @@ pub fn create_router(state: AppState) -> Router {
             "/api/admin/multi-tenant/routing-rules",
             get(integration::get_routing_rules),
         )
+        .layer(axum_middleware::from_fn_with_state(
+            concurrency_state,
+            concurrency_limiter,
+        ))
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .with_state(state)
